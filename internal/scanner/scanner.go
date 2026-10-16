@@ -4,6 +4,7 @@ package scanner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -302,17 +303,44 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 			}
 			continue
 		}
-		it.Title, it.OriginalTitle, it.Overview = m.Title, m.OriginalTitle, m.Overview
-		it.Year, it.ReleaseDate, it.RuntimeMin = m.Year, m.ReleaseDate, m.RuntimeMin
-		it.TMDBID, it.IMDBID = m.TMDBID, m.IMDBID
-		it.PosterPath, it.BackdropPath = m.PosterPath, m.BackdropPath
-		it.MetadataState = "matched"
-		if err := s.store.UpdateMetadata(ctx, &it); err != nil {
+		if err := s.store.UpdateMetadata(ctx, movieMetadata(it, m)); err != nil {
 			return err
 		}
 		s.update(libraryID, func(st *Status) { st.Matched++ })
 	}
 	return nil
+}
+
+func movieMetadata(it store.Item, m *metadata.Movie) *store.Item {
+	it.Title, it.OriginalTitle, it.Overview = m.Title, m.OriginalTitle, m.Overview
+	it.Year, it.ReleaseDate, it.RuntimeMin = m.Year, m.ReleaseDate, m.RuntimeMin
+	it.TMDBID, it.IMDBID = m.TMDBID, m.IMDBID
+	it.PosterPath, it.BackdropPath = m.PosterPath, m.BackdropPath
+	it.MetadataState = "matched"
+	return &it
+}
+
+// ErrNoProvider means the metadata provider needed isn't configured (no API key).
+var ErrNoProvider = errors.New("no metadata provider is configured")
+
+// RefreshMovie fetches a movie's metadata again now. Fields the user locked are kept. It reports
+// whether a match was found.
+func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error) {
+	if s.tmdb == nil {
+		return false, ErrNoProvider
+	}
+	it, err := s.store.GetItem(ctx, itemID)
+	if err != nil || it == nil {
+		return false, err
+	}
+	m, err := s.tmdb.MatchMovie(ctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+	if err != nil {
+		return false, err
+	}
+	if m == nil {
+		return false, s.store.SetMetadataState(ctx, it.ID, "unmatched")
+	}
+	return true, s.store.UpdateMetadata(ctx, movieMetadata(*it, m))
 }
 
 func applyProbe(f *store.MediaFile, res *probe.Result) {

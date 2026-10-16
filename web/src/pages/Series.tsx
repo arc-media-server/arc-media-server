@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, Eye, EyeOff, ListOrdered, Loader2, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Eye, EyeOff, ListOrdered, Loader2, Pencil, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
+import { EditDetails } from '@/components/EditDetails';
 import { Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -102,6 +103,14 @@ export function SeriesPage() {
               <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
                 {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
               </Button>
+              <EditDetails
+                item={series}
+                trigger={
+                  <Button variant="secondary" size="lg">
+                    <Pencil /> Edit
+                  </Button>
+                }
+              />
             </div>
           </div>
         </div>

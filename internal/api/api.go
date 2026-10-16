@@ -54,6 +54,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/libraries/{id}/scan", s.startScan)
 	mux.HandleFunc("GET /api/items", s.listItems)
 	mux.HandleFunc("GET /api/items/{id}", s.getItem)
+	mux.HandleFunc("PATCH /api/items/{id}", s.editItem)
+	mux.HandleFunc("POST /api/items/{id}/refresh", s.refreshItem)
 	mux.HandleFunc("GET /api/items/{id}/stream", s.stream)
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", s.image)
 	mux.HandleFunc("GET /api/libraries/{id}/unmatched", s.unmatched)

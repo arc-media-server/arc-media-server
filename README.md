@@ -22,6 +22,8 @@ Early development. Working today:
   multi-part `cd1`/`part2` files; extras and trailers are skipped)
 - Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
 - TMDB and TheTVDB metadata matching
+- Edit any title, date or description; edited fields (and artwork you choose to keep) are locked so
+  refreshes never undo them
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Direct-play streaming with HTTP range requests
 - Artwork cached locally after each scan, so it loads fast and works offline
@@ -62,6 +64,8 @@ Motion for animation and TanStack Query for data loading.
 | GET | `/api/libraries/{id}/scan` | Scan progress |
 | GET | `/api/items?library_id=&kind=&q=&sort=title\|added\|year&limit=&offset=` | Browse and search |
 | GET | `/api/items/{id}` | Item details with files and streams |
+| PATCH | `/api/items/{id}` | Edit metadata; edited fields are locked. `locked_fields` replaces the locked set |
+| POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |

@@ -2,6 +2,28 @@
 
 export type ItemKind = 'movie' | 'series' | 'episode';
 export type MetadataState = 'pending' | 'matched' | 'unmatched' | 'locked';
+export type LockableField =
+  | 'title'
+  | 'sort_title'
+  | 'original_title'
+  | 'year'
+  | 'overview'
+  | 'release_date'
+  | 'runtime_min'
+  | 'poster'
+  | 'backdrop';
+
+/** A manual metadata edit: fields sent are set and locked; locked_fields replaces the locked set. */
+export interface ItemEdit {
+  title?: string;
+  sort_title?: string;
+  original_title?: string;
+  year?: number;
+  overview?: string;
+  release_date?: string;
+  runtime_min?: number;
+  locked_fields?: LockableField[];
+}
 
 export interface Stream {
   index: number;
@@ -47,6 +69,7 @@ export interface Item {
   imdb_id?: string;
   metadata_state: MetadataState;
   added_at: number;
+  locked_fields: LockableField[];
   images?: { primary?: string; backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
@@ -178,6 +201,8 @@ export const api = {
 
   items: (q: ItemQuery) => request<{ total: number; items: Item[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
+  editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
+  refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
 
   seasons: (seriesId: string, opts: { ordering?: number; missing?: boolean } = {}) =>
     request<SeasonsResponse>(

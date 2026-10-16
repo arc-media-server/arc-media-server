@@ -1,9 +1,10 @@
 import { useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Play } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Loader2, Pencil, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
+import { EditDetails } from '@/components/EditDetails';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -13,6 +14,15 @@ export function MoviePage() {
   const { id } = useParams();
   const { data: item, error } = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id!) });
   const play = usePlayer();
+  const qc = useQueryClient();
+  const refresh = useMutation({
+    mutationFn: () => api.refreshItem(id!),
+    onSuccess: (updated) => {
+      qc.setQueryData(['item', id], updated);
+      qc.invalidateQueries({ queryKey: ['items'] });
+      qc.invalidateQueries({ queryKey: ['attention'] });
+    },
+  });
 
   if (error) return <ErrorState error={error} />;
   if (!item) return <div className="h-[70vh] animate-pulse bg-surface" />;
@@ -46,7 +56,7 @@ export function MoviePage() {
                 <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
               </p>
             )}
-            <div className="mt-7 flex gap-3">
+            <div className="mt-7 flex flex-wrap gap-3">
               <Button
                 variant="primary"
                 size="lg"
@@ -55,7 +65,19 @@ export function MoviePage() {
               >
                 <Play className="fill-current" /> {playable ? 'Play' : 'File missing'}
               </Button>
+              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
+              </Button>
+              <EditDetails
+                item={item}
+                trigger={
+                  <Button variant="secondary" size="lg">
+                    <Pencil /> Edit
+                  </Button>
+                }
+              />
             </div>
+            {refresh.error && <p className="mt-3 text-sm text-warning">{refresh.error.message}</p>}
           </div>
         </div>
       </Hero>

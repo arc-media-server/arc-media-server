@@ -41,7 +41,7 @@ powerful when you need it.
 - [ ] Library health page: unmatched items, probe failures, missing files, duplicates, missing episodes
 - [ ] "Why didn't this match?": show what was parsed from the filename and what was searched for
 - [ ] "Fix match": search a provider and pick the right result
-- [ ] Lock metadata fields against refreshes
+- [x] Lock metadata fields against refreshes
 - [ ] Folder watching: new files appear without a manual scan
 - [x] Local artwork cache
 - [x] Automatic database backups with retention, plus one-click restore

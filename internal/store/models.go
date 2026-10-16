@@ -27,6 +27,8 @@ type Item struct {
 	BackdropPath  string `json:"-"`
 	MetadataState string `json:"metadata_state"`
 	AddedAt       int64  `json:"added_at"`
+	// Fields provider refreshes leave alone, because the user edited or locked them.
+	LockedFields []string `json:"locked_fields"`
 }
 
 type MediaFile struct {

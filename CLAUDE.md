@@ -126,3 +126,7 @@ cd web && npx tsc -b                                # type-check the UI
 - SQLite runs with WAL and `_txlock=immediate`; keep write transactions short.
 - Items are hidden from listings while none of their files are present (`missing_since`), but never
   deleted, so history survives drives going offline.
+- Provider data is written only through `store.UpdateMetadata`, which skips fields in the item's
+  `locked_fields` (set by user edits). Don't write metadata columns any other way, or locks break.
+- UI checks that need clicks: drive headless Edge over CDP (a small Node script; Node 24 has
+  WebSocket built in). In Git Bash set `MSYS_NO_PATHCONV=1` or `/movie/...` args become Windows paths.
