@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,120 @@ func (s *Store) SyncLibrary(ctx context.Context, name, kind, sourceOrdering stri
 		}
 	}
 	return id, tx.Commit()
+}
+
+// ErrDuplicateName means another library already has the name.
+var ErrDuplicateName = errors.New("a library with that name already exists")
+
+// CreateLibrary adds a library. It returns ErrDuplicateName if the name is taken.
+func (s *Store) CreateLibrary(ctx context.Context, name, kind, sourceOrdering string, paths []string) (int64, error) {
+	var exists int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE name = ? COLLATE NOCASE`, name).Scan(&exists); err != nil {
+		return 0, err
+	}
+	if exists > 0 {
+		return 0, ErrDuplicateName
+	}
+	return s.SyncLibrary(ctx, name, kind, sourceOrdering, paths)
+}
+
+// UpdateLibrary renames a library, replaces its folders and sets how episode files are numbered.
+// Files that were in a folder no longer in the library are forgotten (their titles are kept, so
+// history survives, but no longer listed). It returns ErrDuplicateName if the name is taken.
+func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrdering string, paths []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE name = ? COLLATE NOCASE AND id <> ?`,
+		name, id).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		return ErrDuplicateName
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE libraries SET name = ?, source_ordering = ? WHERE id = ?`,
+		name, sourceOrdering, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM library_paths WHERE library_id = ?`, id); err != nil {
+		return err
+	}
+	for _, p := range paths {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO library_paths (library_id, path) VALUES (?, ?)`, id, p); err != nil {
+			return err
+		}
+	}
+
+	// Forget files outside the remaining folders.
+	rows, err := tx.QueryContext(ctx, `SELECT id, path FROM media_files WHERE library_id = ?`, id)
+	if err != nil {
+		return err
+	}
+	var gone []int64
+	for rows.Next() {
+		var fid int64
+		var p string
+		if err := rows.Scan(&fid, &p); err != nil {
+			rows.Close()
+			return err
+		}
+		if !underAny(p, paths) {
+			gone = append(gone, fid)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, fid := range gone {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM media_files WHERE id = ?`, fid); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// DeleteLibrary removes a library and everything AMS knows about it. Media files aren't touched.
+func (s *Store) DeleteLibrary(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM libraries WHERE id = ?`, id)
+	return err
+}
+
+// LibraryCounts returns how many movies or shows each library lists (as ListItems counts them).
+func (s *Store) LibraryCounts(ctx context.Context) (map[int64]int, error) {
+	libs, err := s.ListLibraries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[int64]int{}
+	for _, l := range libs {
+		kind := "movie"
+		if l.Kind == "shows" {
+			kind = "series"
+		}
+		_, n, err := s.ListItems(ctx, ItemQuery{LibraryID: l.ID, Kind: kind, Limit: 1})
+		if err != nil {
+			return nil, err
+		}
+		out[l.ID] = n
+	}
+	return out, nil
+}
+
+// underAny reports whether path is one of folders or inside one of them.
+func underAny(path string, folders []string) bool {
+	for _, f := range folders {
+		f = strings.TrimRight(f, `/\`)
+		if path == f || strings.HasPrefix(path, f+`\`) || strings.HasPrefix(path, f+`/`) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {

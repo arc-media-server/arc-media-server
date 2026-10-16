@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { DatabaseBackup, Film, HeartPulse, Home, Loader2, Search, Tv } from 'lucide-react';
+import { DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, Search, Tv } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -133,6 +133,9 @@ export function Sidebar() {
             <NavItem to="/health" icon={<HeartPulse />} badge={problems}>
               Library Health
             </NavItem>
+            <NavItem to="/libraries" icon={<FolderCog />}>
+              Libraries
+            </NavItem>
             <NavItem to="/backups" icon={<DatabaseBackup />}>
               Backups
             </NavItem>
@@ -165,6 +168,9 @@ export function MobileBar() {
         ))}
         <NavLink to="/health" className={link}>
           Library Health
+        </NavLink>
+        <NavLink to="/libraries" className={link}>
+          Libraries
         </NavLink>
         <NavLink to="/backups" className={link}>
           Backups

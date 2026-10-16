@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
@@ -114,52 +113,38 @@ func run(configPath string, log *slog.Logger) error {
 	sc.OnFinish = func(int64) { artKeeper.Trigger() }
 	artKeeper.Trigger()
 
-	// syncLibraries makes the database's libraries match the config, optionally scanning them.
-	// libraryIDs[i] is the database id of cfg.Libraries[i] (a restore can change it).
-	var idMu sync.Mutex
-	libraryIDs := make([]int64, len(cfg.Libraries))
-	syncLibraries := func(scan bool) error {
-		for i, lib := range cfg.Libraries {
-			id, err := st.SyncLibrary(ctx, lib.Name, lib.Kind, lib.SourceOrdering, lib.Paths)
-			if err != nil {
-				return fmt.Errorf("library %q: %w", lib.Name, err)
-			}
-			idMu.Lock()
-			libraryIDs[i] = id
-			idMu.Unlock()
-			if scan {
-				sc.Start(id)
-			}
-		}
-		return nil
-	}
-	if err := syncLibraries(cfg.ScanOnStart); err != nil {
+	if err := importConfigLibraries(ctx, cfg, st, log); err != nil {
 		return err
 	}
 
 	// Scan libraries when their folders change.
-	watched := map[int64][]string{}
-	for i, lib := range cfg.Libraries {
-		watched[int64(i)] = lib.Paths
+	watch := watcher.New(sc.Request, log)
+	go watch.Run(ctx)
+	// librariesChanged brings the watcher in step with the libraries, optionally scanning them all.
+	librariesChanged := func(scan bool) {
+		libs, err := st.ListLibraries(ctx)
+		if err != nil {
+			log.Error("listing libraries failed", "err", err)
+			return
+		}
+		folders := map[int64][]string{}
+		for _, l := range libs {
+			folders[l.ID] = l.Paths
+			if scan {
+				sc.Start(l.ID)
+			}
+		}
+		watch.SetLibraries(folders)
 	}
-	go watcher.Run(ctx, watched, func(i int64) {
-		idMu.Lock()
-		id := libraryIDs[i]
-		idMu.Unlock()
-		sc.Request(id)
-	}, log)
+	librariesChanged(cfg.ScanOnStart)
 
 	srv := &http.Server{
 		Addr: cfg.Listen,
 		Handler: api.New(api.Deps{
 			Store: st, Scanner: sc, Artwork: art, Backups: backups, Log: log, Version: version,
-			// A restored database may predate config changes and files added or removed since:
-			// re-apply the config and rescan everything.
-			AfterRestore: func() {
-				if err := syncLibraries(true); err != nil {
-					log.Error("re-applying library config after restore failed", "err", err)
-				}
-			},
+			LibrariesChanged: func() { librariesChanged(false) },
+			// Files may have been added or removed since the backup was made: rescan everything.
+			AfterRestore: func() { librariesChanged(true) },
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -177,4 +162,27 @@ func run(configPath string, log *slog.Logger) error {
 	sc.Wait()
 	log.Info("stopped")
 	return nil
+}
+
+// importConfigLibraries adds the libraries listed in ams.yaml to the database, once. Since then
+// libraries are managed in the app, and the config's list is ignored.
+func importConfigLibraries(ctx context.Context, cfg *config.Config, st *store.Store, log *slog.Logger) error {
+	const key = "config_libraries_imported"
+	done, err := st.Setting(ctx, key)
+	if err != nil {
+		return err
+	}
+	if done == "1" {
+		if len(cfg.Libraries) > 0 {
+			log.Info("libraries are managed in the app now; the libraries section of the config file is ignored")
+		}
+		return nil
+	}
+	for _, lib := range cfg.Libraries {
+		if _, err := st.SyncLibrary(ctx, lib.Name, lib.Kind, lib.SourceOrdering, lib.Paths); err != nil {
+			return fmt.Errorf("library %q: %w", lib.Name, err)
+		}
+		log.Info("imported library from the config file", "library", lib.Name)
+	}
+	return st.SetSetting(ctx, key, "1")
 }

@@ -30,6 +30,9 @@ type Library struct {
 
 var sourceOrderings = map[string]bool{"tvdb_aired": true, "tvdb_dvd": true, "tvdb_absolute": true, "tmdb_aired": true}
 
+// ValidSourceOrdering reports whether s is a way TV file names can be numbered.
+func ValidSourceOrdering(s string) bool { return sourceOrderings[s] }
+
 // Load reads the config file. AMS_TMDB_API_KEY, AMS_TVDB_API_KEY and AMS_LISTEN override the file's values.
 func Load(path string) (*Config, error) {
 	cfg := &Config{

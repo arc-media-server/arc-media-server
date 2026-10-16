@@ -27,49 +27,76 @@ const (
 // Folders never worth watching (they also hold no library content).
 var ignoredDirs = map[string]bool{"@eadir": true, "$recycle.bin": true, "system volume information": true}
 
-// Run watches the libraries' folders until ctx is cancelled, calling scan(libraryID) when a
-// library has changed and settled, and for every library once per periodic interval.
-func Run(ctx context.Context, libraries map[int64][]string, scan func(libraryID int64), log *slog.Logger) {
-	w := &watcher{roots: map[string]int64{}, dirty: map[int64]time.Time{}, log: log}
-	for id, paths := range libraries {
-		for _, p := range paths {
-			w.roots[filepath.Clean(p)] = id
+// Watcher watches library folders and asks for scans. Create one with New, start it with Run and
+// tell it about the libraries (and later changes to them) with SetLibraries.
+type Watcher struct {
+	scan    func(libraryID int64)
+	log     *slog.Logger
+	updates chan map[int64][]string
+
+	// Owned by the Run goroutine.
+	fs      *fsnotify.Watcher
+	libs    map[int64][]string
+	roots   map[string]int64 // library folder -> library id
+	watched int
+
+	mu    sync.Mutex
+	dirty map[int64]time.Time // library id -> last change
+}
+
+// New creates a watcher that calls scan(libraryID) when a library has changed and settled, and
+// for every library once per periodic interval.
+func New(scan func(libraryID int64), log *slog.Logger) *Watcher {
+	return &Watcher{scan: scan, log: log, updates: make(chan map[int64][]string, 1),
+		roots: map[string]int64{}, dirty: map[int64]time.Time{}}
+}
+
+// SetLibraries replaces the set of watched libraries (library id -> folders).
+func (w *Watcher) SetLibraries(libs map[int64][]string) {
+	for {
+		select {
+		case w.updates <- libs:
+			return
+		default:
+			// Replace an update that hasn't been picked up yet.
+			select {
+			case <-w.updates:
+			default:
+			}
 		}
 	}
+}
 
-	fw, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Warn("can't watch library folders; new files appear at the next hourly scan", "err", err)
-	} else {
-		defer fw.Close()
-		w.fs = fw
-		for root := range w.roots {
-			w.addTree(root)
+// Run watches until ctx is cancelled.
+func (w *Watcher) Run(ctx context.Context) {
+	defer func() {
+		if w.fs != nil {
+			w.fs.Close()
 		}
-		log.Info("watching library folders for changes", "folders", w.watched)
-	}
-
-	var events <-chan fsnotify.Event
-	var errs <-chan error
-	if w.fs != nil {
-		events, errs = w.fs.Events, w.fs.Errors
-	}
+	}()
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	hourly := time.NewTicker(periodic)
 	defer hourly.Stop()
 	for {
+		var events <-chan fsnotify.Event
+		var errs <-chan error
+		if w.fs != nil {
+			events, errs = w.fs.Events, w.fs.Errors
+		}
 		select {
 		case <-ctx.Done():
 			return
+		case libs := <-w.updates:
+			w.watch(libs)
 		case ev := <-events:
 			w.handle(ev)
 		case err := <-errs:
-			log.Warn("folder watching error", "err", err)
+			w.log.Warn("folder watching error", "err", err)
 		case <-tick.C:
 			for _, id := range w.settled(time.Now()) {
-				log.Info("library folders changed; scanning", "library", id)
-				scan(id)
+				w.log.Info("library folders changed; scanning", "library", id)
+				w.scan(id)
 			}
 		case <-hourly.C:
 			// Folders that were unavailable before (a drive that's back) get watched from now on.
@@ -78,25 +105,49 @@ func Run(ctx context.Context, libraries map[int64][]string, scan func(libraryID 
 					w.addTree(root)
 				}
 			}
-			for id := range libraries {
-				scan(id)
+			for id := range w.libs {
+				w.scan(id)
 			}
 		}
 	}
 }
 
-type watcher struct {
-	fs      *fsnotify.Watcher
-	roots   map[string]int64 // library folder -> library id
-	log     *slog.Logger
-	watched int
-
-	mu    sync.Mutex
-	dirty map[int64]time.Time // library id -> last change
+// watch starts over watching the given libraries.
+func (w *Watcher) watch(libs map[int64][]string) {
+	if w.fs != nil {
+		w.fs.Close()
+		w.fs = nil
+	}
+	w.libs, w.roots, w.watched = libs, map[string]int64{}, 0
+	for id, paths := range libs {
+		for _, p := range paths {
+			w.roots[filepath.Clean(p)] = id
+		}
+	}
+	w.mu.Lock()
+	for id := range w.dirty {
+		if _, ok := libs[id]; !ok {
+			delete(w.dirty, id)
+		}
+	}
+	w.mu.Unlock()
+	if len(w.roots) == 0 {
+		return
+	}
+	fw, err := fsnotify.NewWatcher()
+	if err != nil {
+		w.log.Warn("can't watch library folders; new files appear at the next hourly scan", "err", err)
+		return
+	}
+	w.fs = fw
+	for root := range w.roots {
+		w.addTree(root)
+	}
+	w.log.Info("watching library folders for changes", "folders", w.watched)
 }
 
 // addTree watches a folder and every folder below it.
-func (w *watcher) addTree(root string) {
+func (w *Watcher) addTree(root string) {
 	filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
 			return nil
@@ -117,7 +168,7 @@ func skipDir(name string) bool {
 	return strings.HasPrefix(name, ".") || ignoredDirs[strings.ToLower(name)]
 }
 
-func (w *watcher) handle(ev fsnotify.Event) {
+func (w *Watcher) handle(ev fsnotify.Event) {
 	if ev.Has(fsnotify.Chmod) && !ev.Has(fsnotify.Write) {
 		return // permission or timestamp changes don't affect what's in the library
 	}
@@ -141,7 +192,7 @@ func (w *watcher) handle(ev fsnotify.Event) {
 }
 
 // library finds the library a path is in: the one with the longest matching folder.
-func (w *watcher) library(path string) (int64, bool) {
+func (w *Watcher) library(path string) (int64, bool) {
 	best, id := "", int64(0)
 	for root, lib := range w.roots {
 		if (path == root || strings.HasPrefix(path, root+string(filepath.Separator))) && len(root) > len(best) {
@@ -153,7 +204,7 @@ func (w *watcher) library(path string) (int64, bool) {
 
 // settled returns the libraries that changed and have been quiet for the settle time, and
 // forgets them.
-func (w *watcher) settled(now time.Time) []int64 {
+func (w *Watcher) settled(now time.Time) []int64 {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	var out []int64

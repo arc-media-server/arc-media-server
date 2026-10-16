@@ -26,24 +26,35 @@ type Deps struct {
 	Backups *backup.Manager
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
-	Log          *slog.Logger
-	Version      string
+	// LibrariesChanged runs after a library is added, changed or removed.
+	LibrariesChanged func()
+	Log              *slog.Logger
+	Version          string
 }
 
 type Server struct {
-	store        *store.Store
-	scanner      *scanner.Scanner
-	artwork      *artwork.Cache
-	backups      *backup.Manager
-	afterRestore func()
-	log          *slog.Logger
-	version      string
+	store            *store.Store
+	scanner          *scanner.Scanner
+	artwork          *artwork.Cache
+	backups          *backup.Manager
+	afterRestore     func()
+	librariesChanged func()
+	previews         *previews
+	log              *slog.Logger
+	version          string
 }
 
 func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
-		afterRestore: d.AfterRestore, log: d.Log, version: d.Version}
+		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, previews: &previews{},
+		log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/libraries", s.createLibrary)
+	mux.HandleFunc("PATCH /api/libraries/{id}", s.updateLibrary)
+	mux.HandleFunc("DELETE /api/libraries/{id}", s.deleteLibrary)
+	mux.HandleFunc("POST /api/library-previews", s.startPreview)
+	mux.HandleFunc("GET /api/library-previews/{id}", s.getPreview)
+	mux.HandleFunc("GET /api/folders", s.listFolders)
 	mux.HandleFunc("GET /api/backups", s.listBackups)
 	mux.HandleFunc("POST /api/backups", s.createBackup)
 	mux.HandleFunc("POST /api/backups/{name}/restore", s.restoreBackup)
@@ -115,13 +126,20 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	counts, err := s.store.LibraryCounts(r.Context())
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	type libDTO struct {
 		store.Library
-		Scan scanner.Status `json:"scan"`
+		// How many movies or shows it lists.
+		Count int            `json:"count"`
+		Scan  scanner.Status `json:"scan"`
 	}
 	out := make([]libDTO, 0, len(libs))
 	for _, l := range libs {
-		out = append(out, libDTO{Library: l, Scan: s.scanner.Status(l.ID)})
+		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

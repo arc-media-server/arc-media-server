@@ -183,42 +183,16 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 	}
 
 	for _, root := range lib.Paths {
-		if _, err := os.Stat(root); err != nil {
-			// Don't mark anything missing if a drive is offline; that would hide the whole library.
-			allRootsOK = false
-			log.Warn("library folder unavailable", "path", root, "err", err)
-			continue
-		}
-		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				log.Warn("cannot read", "path", path, "err", err)
-				if d != nil && d.IsDir() {
-					allRootsOK = false
-					return fs.SkipDir
-				}
-				return nil
-			}
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			name := d.Name()
-			if d.IsDir() {
-				if path != root && (strings.HasPrefix(name, ".") || skipDirs[strings.ToLower(name)]) {
-					return fs.SkipDir
-				}
-				return nil
-			}
-			if !videoExts[strings.ToLower(filepath.Ext(name))] || isBonusFile(name) {
-				return nil
-			}
+		complete, err := walkVideos(ctx, root, log, func(path string, d fs.DirEntry) {
 			if err := addFile(root, path, d); err != nil {
 				log.Warn("failed to add file", "path", path, "err", err)
 			}
-			return nil
-		})
+		}, nil)
 		if err != nil {
 			return err
 		}
+		// Don't mark anything missing if a drive is offline; that would hide the whole library.
+		allRootsOK = allRootsOK && complete
 	}
 
 	if allRootsOK {
@@ -246,6 +220,55 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
 		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched, "not_recognised", st.Unrecognised)
 	return nil
+}
+
+// walkVideos calls visit for every main video file below root, skipping hidden folders, extras,
+// trailers and samples (bonus is called for each of those, if set). complete is false when root or
+// part of it couldn't be read, e.g. a drive is offline.
+func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(path string, d fs.DirEntry), bonus func(path string)) (complete bool, err error) {
+	if _, err := os.Stat(root); err != nil {
+		log.Warn("library folder unavailable", "path", root, "err", err)
+		return false, nil
+	}
+	complete = true
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			log.Warn("cannot read", "path", path, "err", err)
+			if d != nil && d.IsDir() {
+				complete = false
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		name := d.Name()
+		if d.IsDir() {
+			if path != root && strings.HasPrefix(name, ".") {
+				return fs.SkipDir
+			}
+			if path != root && skipDirs[strings.ToLower(name)] {
+				if bonus != nil {
+					bonus(path)
+				}
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !videoExts[strings.ToLower(filepath.Ext(name))] {
+			return nil
+		}
+		if isBonusFile(name) {
+			if bonus != nil {
+				bonus(path)
+			}
+			return nil
+		}
+		visit(path, d)
+		return nil
+	})
+	return complete, err
 }
 
 // recordFile stores a file (probing it if it is new or changed) and marks it seen in this scan.

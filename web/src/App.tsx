@@ -11,6 +11,7 @@ import { SeriesPage } from './pages/Series';
 import { SearchPage } from './pages/Search';
 import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
+import { LibrariesPage } from './pages/Libraries';
 
 export function App() {
   const { pathname } = useLocation();
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/health" element={<HealthPage />} />
           <Route path="/attention" element={<Navigate to="/health" replace />} />
           <Route path="/backups" element={<BackupsPage />} />
+          <Route path="/libraries" element={<LibrariesPage />} />
           <Route
             path="*"
             element={

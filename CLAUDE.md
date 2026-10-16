@@ -28,21 +28,23 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - If `ams.yaml` doesn't exist, copy `ams.example.yaml` to it and ask the owner for their TMDB and
   TVDB API keys (they have both; keys never go in git). If `ffprobe` isn't on PATH, put its full
   path in `ams.yaml`.
-- Create the test library outside the repo with `go run ./tools/testmedia -out ../ams-test-media`
-  and paste the printed `libraries:` block into `ams.yaml`, unless the owner gives real media paths.
+- Create the test library outside the repo with `go run ./tools/testmedia -out ../ams-test-media`,
+  unless the owner gives real media paths.
 - Build the UI (`cd web && npm install && npm run build`), then `go run ./cmd/ams`, and tell the
-  owner to open http://127.0.0.1:8099.
+  owner to open http://127.0.0.1:8099. Libraries are added in the app (Manage > Libraries), or via
+  `POST /api/libraries` (e.g. the test library's `Movies` and `TV` folders). An existing database
+  already has its libraries; an old `ams.yaml` `libraries:` list is imported once on first start.
 - Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R JonzaUK/arc-media-server`) to
-  see what's next, then confirm with the owner before starting.
+  see what's next, then carry on (see "Where things stand").
 
 ## Where things stand
 
 - Done: milestone 1 (movie core), milestone 2 (TV shows + display orderings), and the first version
   of the web app (pulled forward from milestone 5). The owner loves the design and the orderings feature.
-- Milestone 3 (Oct 2026): done except #9 (library preview when adding a folder): artwork cache,
-  backups + restore, field locks + Edit Details, Fix Match with explanations, Library Health page,
-  folder watching. #9 needs a decision first: libraries are only defined in ams.yaml today, so
-  "adding a folder" in the app means moving library management into the app (asked the owner).
+- Milestone 3 done (Oct 2026): artwork cache, backups + restore, field locks + Edit Details, Fix
+  Match with explanations, Library Health page, folder watching, and libraries managed in the app
+  with a preview before adding (the owner chose in-app libraries over ams.yaml).
+- Next: milestone 4 (users and watch state).
 - The owner has said to keep working through milestones without check-ins, asking only for real
   product decisions.
 - Keep this section current at the end of each working session.
@@ -98,8 +100,8 @@ cd web && npx tsc -b                                # type-check the UI
 ```
 
 - `ams.yaml` is git-ignored (holds API keys). Copy `ams.example.yaml`. The owner has TMDB and TVDB keys.
-- Test library: `go run ./tools/testmedia -out ../ams-test-media` (needs ffmpeg) prints the library
-  config to paste into `ams.yaml`. It includes Firefly (TVDB 78874: aired vs DVD vs TMDB "Intended
+- Test library: `go run ./tools/testmedia -out ../ams-test-media` (needs ffmpeg); add its `Movies`
+  and `TV` folders as libraries. It includes Firefly (TVDB 78874: aired vs DVD vs TMDB "Intended
   Order"), Mushoku Tensei (TVDB 371310: TMDB groups Cours/Crunchyroll/Seasons), a fake show (unmatched)
   and an S01E20 that doesn't exist (file-only episode).
 - Verify UI changes visually: run the server and screenshot with headless Chrome, e.g.

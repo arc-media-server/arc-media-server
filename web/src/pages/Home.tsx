@@ -44,8 +44,12 @@ export function Home() {
     return (
       <Page>
         <EmptyState icon={<FolderPlus />} title="Welcome to Arc">
-          Add a movie or TV folder to the <code className="rounded bg-surface-2 px-1">libraries</code> section of{' '}
-          <code className="rounded bg-surface-2 px-1">ams.yaml</code> and restart the server to get started.
+          <p>Add a folder of movies or TV shows to get started. Arc shows you what it finds before adding anything.</p>
+          <Link to="/libraries?add=1" className="mt-5 inline-block">
+            <Button variant="primary">
+              <FolderPlus /> Add a Library
+            </Button>
+          </Link>
         </EmptyState>
       </Page>
     );

@@ -1,0 +1,351 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"ams/internal/backup"
+	"ams/internal/config"
+	"ams/internal/scanner"
+	"ams/internal/store"
+)
+
+type libraryBody struct {
+	Name           string   `json:"name"`
+	Kind           string   `json:"kind"`
+	SourceOrdering string   `json:"source_ordering"`
+	Paths          []string `json:"paths"`
+}
+
+// validate cleans up a library description and checks it. exceptID is the library being edited
+// (its own folders don't conflict with themselves).
+func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
+	b.Name = strings.TrimSpace(b.Name)
+	if b.Kind != "movies" && b.Kind != "shows" {
+		return errors.New("kind must be movies or shows")
+	}
+	if b.SourceOrdering == "" {
+		b.SourceOrdering = "tvdb_aired"
+	}
+	if !config.ValidSourceOrdering(b.SourceOrdering) {
+		return fmt.Errorf("unknown source_ordering %q", b.SourceOrdering)
+	}
+	if len(b.Paths) == 0 {
+		return errors.New("add at least one folder")
+	}
+	seen := map[string]bool{}
+	var paths []string
+	for _, p := range b.Paths {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return err
+		}
+		info, err := os.Stat(abs)
+		if err != nil {
+			return fmt.Errorf("can't open %s", abs)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%s isn't a folder", abs)
+		}
+		if key := strings.ToLower(abs); !seen[key] {
+			seen[key] = true
+			paths = append(paths, abs)
+		}
+	}
+	if len(paths) == 0 {
+		return errors.New("add at least one folder")
+	}
+	for i, a := range paths {
+		for _, c := range paths[i+1:] {
+			if within(a, c) || within(c, a) {
+				return fmt.Errorf("%s and %s overlap; choose just one of them", a, c)
+			}
+		}
+	}
+	libs, err := s.store.ListLibraries(ctx)
+	if err != nil {
+		return err
+	}
+	for _, l := range libs {
+		if l.ID == exceptID {
+			continue
+		}
+		for _, lp := range l.Paths {
+			for _, p := range paths {
+				if within(p, lp) || within(lp, p) {
+					return fmt.Errorf("%s is already part of the %q library", p, l.Name)
+				}
+			}
+		}
+	}
+	b.Paths = paths
+	return nil
+}
+
+// within reports whether path is folder or inside it (comparing case-insensitively, as Windows does).
+func within(path, folder string) bool {
+	path, folder = strings.ToLower(filepath.Clean(path)), strings.ToLower(filepath.Clean(folder))
+	return path == folder || strings.HasPrefix(path, strings.TrimSuffix(folder, string(filepath.Separator))+string(filepath.Separator))
+}
+
+// createLibrary: POST /api/libraries {"name", "kind", "paths", "source_ordering"} adds a library
+// and starts scanning it.
+func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
+	var b libraryBody
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if err := s.validate(r.Context(), &b, 0); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if b.Name == "" {
+		writeError(w, http.StatusBadRequest, "give the library a name")
+		return
+	}
+	id, err := s.store.CreateLibrary(r.Context(), b.Name, b.Kind, b.SourceOrdering, b.Paths)
+	if errors.Is(err, store.ErrDuplicateName) {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.log.Info("library added", "library", b.Name, "paths", b.Paths)
+	if s.librariesChanged != nil {
+		s.librariesChanged()
+	}
+	s.scanner.Start(id)
+	lib, err := s.store.GetLibrary(r.Context(), id)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, lib)
+}
+
+// updateLibrary: PATCH /api/libraries/{id} {"name", "paths", "source_ordering"} changes a library
+// (not its kind) and rescans it.
+func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	b := libraryBody{Name: lib.Name, Kind: lib.Kind, SourceOrdering: lib.SourceOrdering, Paths: lib.Paths}
+	var patch struct {
+		Name           *string  `json:"name"`
+		SourceOrdering *string  `json:"source_ordering"`
+		Paths          []string `json:"paths"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if patch.Name != nil {
+		b.Name = *patch.Name
+	}
+	if patch.SourceOrdering != nil {
+		b.SourceOrdering = *patch.SourceOrdering
+	}
+	if patch.Paths != nil {
+		b.Paths = patch.Paths
+	}
+	if err := s.validate(r.Context(), &b, lib.ID); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if b.Name == "" {
+		writeError(w, http.StatusBadRequest, "give the library a name")
+		return
+	}
+	if s.scanner.Status(lib.ID).Running {
+		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
+		return
+	}
+	err := s.store.UpdateLibrary(r.Context(), lib.ID, b.Name, b.SourceOrdering, b.Paths)
+	if errors.Is(err, store.ErrDuplicateName) {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if s.librariesChanged != nil {
+		s.librariesChanged()
+	}
+	s.scanner.Request(lib.ID)
+	updated, err := s.store.GetLibrary(r.Context(), lib.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// deleteLibrary: DELETE /api/libraries/{id} removes a library and everything AMS knows about it,
+// after backing up the database. Media files aren't touched.
+func (s *Server) deleteLibrary(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	if s.scanner.Status(lib.ID).Running {
+		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
+		return
+	}
+	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
+		s.log.Warn("backup before deleting library failed", "err", err)
+		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
+		return
+	}
+	if err := s.store.DeleteLibrary(r.Context(), lib.ID); err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.log.Info("library removed", "library", lib.Name)
+	if s.librariesChanged != nil {
+		s.librariesChanged()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// previews keeps the one library preview being looked at. Starting another replaces it.
+type previews struct {
+	mu     sync.Mutex
+	id     string
+	state  *scanner.PreviewState
+	cancel context.CancelFunc
+}
+
+// startPreview: POST /api/library-previews {"kind", "paths", "source_ordering"} starts working out
+// what a library with these folders would contain. Poll GET /api/library-previews/{id}.
+func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
+	var b libraryBody
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	// Previewing a library's own folders while editing it is fine; pass its id to allow that.
+	var except int64
+	fmt.Sscan(r.URL.Query().Get("library"), &except)
+	if err := s.validate(r.Context(), &b, except); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ps := &scanner.PreviewState{}
+	p := s.previews
+	p.mu.Lock()
+	if p.cancel != nil {
+		p.cancel()
+	}
+	p.id, p.state, p.cancel = store.NewID(), ps, cancel
+	id := p.id
+	p.mu.Unlock()
+
+	go func() {
+		defer cancel()
+		s.scanner.Preview(ctx, b.Kind, b.SourceOrdering, b.Paths, ps)
+	}()
+	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "preview": ps.Snapshot()})
+}
+
+// getPreview: GET /api/library-previews/{id}
+func (s *Server) getPreview(w http.ResponseWriter, r *http.Request) {
+	p := s.previews
+	p.mu.Lock()
+	ok := p.id == r.PathValue("id") && p.state != nil
+	state := p.state
+	p.mu.Unlock()
+	if !ok {
+		writeError(w, http.StatusNotFound, "this preview has finished or was replaced; start another")
+		return
+	}
+	writeJSON(w, http.StatusOK, state.Snapshot())
+}
+
+// listFolders: GET /api/folders?path=C:\Media lists the folders inside a folder, to choose library
+// folders from. With no path it lists the drives (Windows) or a few starting points.
+func (s *Server) listFolders(w http.ResponseWriter, r *http.Request) {
+	type folder struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	path := strings.TrimSpace(r.URL.Query().Get("path"))
+	if path == "" {
+		var roots []folder
+		if runtime.GOOS == "windows" {
+			for c := 'A'; c <= 'Z'; c++ {
+				d := string(c) + `:\`
+				if _, err := os.Stat(d); err == nil {
+					roots = append(roots, folder{Name: string(c) + ":", Path: d})
+				}
+			}
+		} else {
+			roots = append(roots, folder{Name: "/", Path: "/"})
+			for _, p := range []string{"/mnt", "/media", "/srv", "/Volumes"} {
+				if info, err := os.Stat(p); err == nil && info.IsDir() {
+					roots = append(roots, folder{Name: p, Path: p})
+				}
+			}
+		}
+		if home, err := os.UserHomeDir(); err == nil {
+			roots = append(roots, folder{Name: "Home", Path: home})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"path": "", "parent": nil, "folders": roots})
+		return
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	entries, err := os.ReadDir(abs)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "can't open "+abs)
+		return
+	}
+	out := []folder{}
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "$") || strings.EqualFold(name, "System Volume Information") {
+			continue
+		}
+		isDir := e.IsDir()
+		if e.Type()&os.ModeSymlink != 0 {
+			if info, err := os.Stat(filepath.Join(abs, name)); err == nil {
+				isDir = info.IsDir()
+			}
+		}
+		if isDir {
+			out = append(out, folder{Name: name, Path: filepath.Join(abs, name)})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	var parent any
+	if p := filepath.Dir(abs); p != abs {
+		parent = p
+	} else {
+		parent = "" // the top of a drive: go back to the list of drives
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"path": abs, "parent": parent, "folders": out})
+}

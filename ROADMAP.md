@@ -37,7 +37,7 @@ powerful when you need it.
 - [x] Unmatched episodes collected in a review bucket, never hidden
 
 ### 3. Library health and maintenance
-- [ ] Library preview when adding a folder: what was found, what couldn't be identified and why, before anything is imported
+- [x] Library preview when adding a folder: what was found, what couldn't be identified and why, before anything is imported
 - [x] Library health page: unmatched items, probe failures, missing files, duplicates, missing episodes
 - [x] "Why didn't this match?": show what was parsed from the filename and what was searched for
 - [x] "Fix match": search a provider and pick the right result

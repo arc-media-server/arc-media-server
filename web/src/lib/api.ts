@@ -91,13 +91,55 @@ export interface ScanStatus {
   error?: string;
 }
 
+export type LibraryKind = 'movies' | 'shows';
+export type SourceOrdering = 'tvdb_aired' | 'tvdb_dvd' | 'tvdb_absolute' | 'tmdb_aired';
+
 export interface Library {
   id: number;
   name: string;
-  kind: 'movies' | 'shows';
-  source_ordering: string;
+  kind: LibraryKind;
+  source_ordering: SourceOrdering;
   paths: string[];
+  /** How many movies or shows it lists. */
+  count: number;
   scan: ScanStatus;
+}
+
+export interface LibraryInput {
+  name: string;
+  kind: LibraryKind;
+  source_ordering: SourceOrdering;
+  paths: string[];
+}
+
+export interface PreviewItem {
+  kind: 'movie' | 'series';
+  title: string;
+  year?: number;
+  files: number;
+  episodes?: number;
+  example: ParsedName;
+  status: 'pending' | 'identified' | 'unidentified';
+  match?: MatchCandidate;
+  steps: MatchStep[];
+}
+
+export interface LibraryPreview {
+  stage: 'scanning' | 'identifying' | 'done';
+  error?: string;
+  unavailable: string[];
+  files: number;
+  extras: number;
+  unrecognised: string[];
+  items: PreviewItem[];
+  checked: number;
+}
+
+export interface FolderListing {
+  path: string;
+  /** null at the top level; "" at the top of a drive (go back to the drive list). */
+  parent: string | null;
+  folders: { name: string; path: string }[];
 }
 
 export interface Ordering {
@@ -276,6 +318,13 @@ function query(params: object): string {
 
 export const api = {
   libraries: () => request<Library[]>('GET', '/api/libraries'),
+  createLibrary: (lib: LibraryInput) => request<Library>('POST', '/api/libraries', lib),
+  updateLibrary: (id: number, lib: Partial<Omit<LibraryInput, 'kind'>>) => request<Library>('PATCH', `/api/libraries/${id}`, lib),
+  deleteLibrary: (id: number) => request<void>('DELETE', `/api/libraries/${id}`),
+  startPreview: (lib: Omit<LibraryInput, 'name'>, editingId?: number) =>
+    request<{ id: string; preview: LibraryPreview }>('POST', `/api/library-previews${query({ library: editingId })}`, lib),
+  preview: (id: string) => request<LibraryPreview>('GET', `/api/library-previews/${id}`),
+  folders: (path?: string) => request<FolderListing>('GET', `/api/folders${query({ path })}`),
   scanLibrary: (id: number) => request<ScanStatus>('POST', `/api/libraries/${id}/scan`),
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),

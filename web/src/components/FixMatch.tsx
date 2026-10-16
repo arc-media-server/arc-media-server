@@ -78,7 +78,7 @@ function Explanation({ info }: { info: MatchInfo }) {
   );
 }
 
-function ParsedStep({ parsed, kind }: { parsed: ParsedName; kind: Item['kind'] }) {
+export function ParsedStep({ parsed, kind }: { parsed: ParsedName; kind: Item['kind'] }) {
   const ids = [
     parsed.tmdb_id && `TMDB ${parsed.tmdb_id}`,
     parsed.tvdb_id && `TheTVDB ${parsed.tvdb_id}`,
@@ -107,7 +107,7 @@ function ParsedStep({ parsed, kind }: { parsed: ParsedName; kind: Item['kind'] }
   );
 }
 
-function StepRow({ step }: { step: MatchStep }) {
+export function StepRow({ step }: { step: MatchStep }) {
   const provider = providerName[step.provider];
   let text: ReactNode;
   switch (step.kind) {

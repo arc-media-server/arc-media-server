@@ -19,16 +19,17 @@ tvdb_api_key: ""
 # Scan all libraries when the server starts.
 scan_on_start: true
 
-libraries:
-  - name: Movies
-    kind: movies
-    paths:
-      - "D:/Media/Movies"
-
-  # TV support is next. source_ordering says how SxxEyy in your filenames is numbered;
-  # the display order can be different and is chosen per series.
-  # - name: TV Shows
-  #   kind: shows
-  #   source_ordering: tvdb_aired
-  #   paths:
-  #     - "D:/Media/TV"
+# Libraries are added in the app (Manage > Libraries), with a preview of what Arc finds first.
+#
+# Libraries listed here are imported the first time Arc starts with them, then managed in the
+# app; later changes to this list are ignored. source_ordering (shows only) says how SxxEyy in
+# your file names is numbered: tvdb_aired (Sonarr's default), tvdb_dvd, tvdb_absolute or tmdb_aired.
+#
+# libraries:
+#   - name: Movies
+#     kind: movies
+#     paths: ["D:/Media/Movies"]
+#   - name: TV Shows
+#     kind: shows
+#     source_ordering: tvdb_aired
+#     paths: ["D:/Media/TV"]

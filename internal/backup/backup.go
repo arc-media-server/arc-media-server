@@ -25,6 +25,7 @@ const (
 	ReasonManual        = "manual"
 	ReasonBeforeRestore = "before-restore"
 	ReasonBeforeUpgrade = "before-upgrade"
+	ReasonBeforeDelete  = "before-delete"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 	stampLayout = "20060102-150405"
 )
 
-var nameRe = regexp.MustCompile(`^ams-(\d{8}-\d{6})-(auto|manual|before-restore|before-upgrade)\.db$`)
+var nameRe = regexp.MustCompile(`^ams-(\d{8}-\d{6})-(auto|manual|before-restore|before-upgrade|before-delete)\.db$`)
 
 type Backup struct {
 	Name      string    `json:"name"`
@@ -172,7 +173,7 @@ func expired(all []Backup) []Backup {
 				continue
 			}
 			out = append(out, b)
-		case ReasonBeforeRestore, ReasonBeforeUpgrade:
+		case ReasonBeforeRestore, ReasonBeforeUpgrade, ReasonBeforeDelete:
 			safety[b.Reason]++
 			if safety[b.Reason] > keepSafety {
 				out = append(out, b)

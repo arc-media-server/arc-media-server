@@ -12,7 +12,7 @@ import (
 
 func TestLibraryForPath(t *testing.T) {
 	sep := string(filepath.Separator)
-	w := &watcher{roots: map[string]int64{
+	w := &Watcher{roots: map[string]int64{
 		filepath.Clean("/media/TV"):       1,
 		filepath.Clean("/media/TV/Anime"): 2,
 		filepath.Clean("/media/Movies"):   3,
@@ -43,11 +43,13 @@ func TestScansAfterChangesSettle(t *testing.T) {
 
 	var mu sync.Mutex
 	var scans []int64
-	go Run(ctx, map[int64][]string{7: {root}}, func(id int64) {
+	w := New(func(id int64) {
 		mu.Lock()
 		scans = append(scans, id)
 		mu.Unlock()
 	}, slog.New(slog.DiscardHandler))
+	w.SetLibraries(map[int64][]string{7: {root}})
+	go w.Run(ctx)
 	time.Sleep(300 * time.Millisecond) // let the watch start
 
 	// A new folder with a file in it, as when a season is copied in.

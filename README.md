@@ -33,6 +33,8 @@ Early development. Working today:
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
+- Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
+  can't identify, and why) before anything is added
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
   search, and a Library Health page (unidentified titles, unreadable, unrecognised and missing
@@ -44,12 +46,13 @@ Early development. Working today:
 Requirements: Go 1.27+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
 
 ```sh
-cp ams.example.yaml ams.yaml   # then edit library paths and add your TMDB/TVDB keys
+cp ams.example.yaml ams.yaml   # then add your TMDB/TVDB keys
 cd web && npm install && npm run build && cd ..   # builds the web app into the binary
 go run ./cmd/ams
 ```
 
-Then open http://127.0.0.1:8099.
+Then open http://127.0.0.1:8099 and add a library: choose its folders, see a preview of what Arc
+finds and identifies, then add it.
 
 ### Working on the web app
 
@@ -64,7 +67,13 @@ Motion for animation and TanStack Query for data loading.
 | Method | Path | |
 |---|---|---|
 | GET | `/api/health` | Server name and version |
-| GET | `/api/libraries` | Libraries with scan status |
+| GET | `/api/libraries` | Libraries with their size and scan status |
+| POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows", "paths": [...], "source_ordering"}` |
+| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering |
+| DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
+| POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |
+| GET | `/api/library-previews/{id}` | The preview's progress and results |
+| GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
 | GET | `/api/items?library_id=&kind=&q=&sort=title\|added\|year&limit=&offset=` | Browse and search |

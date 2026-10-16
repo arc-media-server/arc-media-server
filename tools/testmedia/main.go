@@ -110,9 +110,9 @@ func run(out, ffmpeg string) error {
 	}
 	n += 2
 
-	fmt.Printf("created %d files in %s\n\nAdd to ams.yaml:\n\n", n, out)
-	fmt.Printf("libraries:\n  - name: Movies\n    kind: movies\n    paths: [%q]\n", filepath.ToSlash(filepath.Join(out, "Movies")))
-	fmt.Printf("  - name: TV Shows\n    kind: shows\n    source_ordering: tvdb_aired\n    paths: [%q]\n", filepath.ToSlash(filepath.Join(out, "TV")))
+	fmt.Printf("created %d files in %s\n\nIn Arc, add these as libraries (Manage > Libraries > Add Library):\n\n", n, out)
+	fmt.Printf("  Movies:   %s\n", filepath.Join(out, "Movies"))
+	fmt.Printf("  TV Shows: %s (TheTVDB aired order)\n", filepath.Join(out, "TV"))
 	return nil
 }
 
