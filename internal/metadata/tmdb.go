@@ -17,7 +17,8 @@ import (
 
 const tmdbBase = "https://api.themoviedb.org/3"
 
-var errNotFound = errors.New("not found")
+// ErrNotFound means the provider has nothing with the requested id.
+var ErrNotFound = errors.New("not found")
 
 // TMDB is a small client for The Movie Database API. It accepts either a v3 API key or a
 // v4 read access token.
@@ -66,6 +67,10 @@ func (c *TMDB) MatchMovie(ctx context.Context, title string, year int, tmdbID in
 		tmdbID = id
 	}
 	if tmdbID == 0 {
+		if title == "" {
+			record(ctx, Step{Provider: "tmdb", Kind: "search", Note: "No title could be read from the file name, so there was nothing to search for."})
+			return nil, nil
+		}
 		id, err := c.searchMovie(ctx, title, year)
 		if err != nil {
 			return nil, err
@@ -76,7 +81,9 @@ func (c *TMDB) MatchMovie(ctx context.Context, title string, year int, tmdbID in
 		return nil, nil
 	}
 	m, err := c.movieDetails(ctx, tmdbID)
-	if errors.Is(err, errNotFound) {
+	if errors.Is(err, ErrNotFound) {
+		record(ctx, Step{Provider: "tmdb", Kind: "lookup", Query: strconv.FormatInt(tmdbID, 10),
+			Note: "TMDB has no movie with this id."})
 		return nil, nil
 	}
 	return m, err
@@ -87,19 +94,58 @@ type movieResult struct {
 	Title         string `json:"title"`
 	OriginalTitle string `json:"original_title"`
 	ReleaseDate   string `json:"release_date"`
+	Overview      string `json:"overview"`
+	PosterPath    string `json:"poster_path"`
+}
+
+func (r movieResult) candidate() Candidate {
+	c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Title, Year: yearOf(r.ReleaseDate), Overview: r.Overview}
+	if r.OriginalTitle != r.Title {
+		c.OriginalTitle = r.OriginalTitle
+	}
+	if r.PosterPath != "" {
+		c.Poster = ImageURL(r.PosterPath, "w185")
+	}
+	return c
+}
+
+func movieCandidates(results []movieResult) []Candidate {
+	out := make([]Candidate, 0, len(results))
+	for _, r := range results {
+		out = append(out, r.candidate())
+	}
+	return out
+}
+
+func (c *TMDB) searchMovies(ctx context.Context, title string, year int) ([]movieResult, error) {
+	q := url.Values{"query": {title}}
+	if year > 0 {
+		q.Set("year", strconv.Itoa(year))
+	}
+	var resp struct {
+		Results []movieResult `json:"results"`
+	}
+	err := c.get(ctx, "/search/movie", q, &resp)
+	return resp.Results, err
+}
+
+// SearchMovies searches TMDB by title (and year, if not 0) for someone choosing a match by hand.
+func (c *TMDB) SearchMovies(ctx context.Context, title string, year int) ([]Candidate, error) {
+	results, err := c.searchMovies(ctx, title, year)
+	return movieCandidates(results), err
 }
 
 func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, error) {
 	search := func(withYear bool) ([]movieResult, error) {
-		q := url.Values{"query": {title}}
+		y := 0
 		if withYear {
-			q.Set("year", strconv.Itoa(year))
+			y = year
 		}
-		var resp struct {
-			Results []movieResult `json:"results"`
+		results, err := c.searchMovies(ctx, title, y)
+		if err != nil {
+			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: y, Error: err.Error()})
 		}
-		err := c.get(ctx, "/search/movie", q, &resp)
-		return resp.Results, err
+		return results, err
 	}
 
 	if year > 0 {
@@ -108,8 +154,12 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			return 0, err
 		}
 		if len(results) > 0 {
-			return bestMatch(title, results), nil
+			id := bestMatch(title, results)
+			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Results: movieCandidates(results), Picked: id})
+			return id, nil
 		}
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Results: []Candidate{},
+			Note: "Nothing with this title came out in " + strconv.Itoa(year) + ", so Arc searched again without the year."})
 		// Release years differ between countries; accept a one-year drift.
 		results, err = search(false)
 		if err != nil {
@@ -122,16 +172,29 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			}
 		}
 		if len(near) == 0 {
+			note := "No results."
+			if len(results) > 0 {
+				note = "None of these came out within a year of " + strconv.Itoa(year) + ", so none was used."
+			}
+			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Note: note})
 			return 0, nil
 		}
-		return bestMatch(title, near), nil
+		id := bestMatch(title, near)
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
+		return id, nil
 	}
 
 	results, err := search(false)
-	if err != nil || len(results) == 0 {
+	if err != nil {
 		return 0, err
 	}
-	return bestMatch(title, results), nil
+	if len(results) == 0 {
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Note: "No results."})
+		return 0, nil
+	}
+	id := bestMatch(title, results)
+	record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
+	return id, nil
 }
 
 // bestMatch prefers an exact (normalised) title match, otherwise TMDB's top relevance result.
@@ -150,12 +213,17 @@ func (c *TMDB) findByIMDB(ctx context.Context, imdbID string) (int64, error) {
 		MovieResults []movieResult `json:"movie_results"`
 	}
 	err := c.get(ctx, "/find/"+url.PathEscape(imdbID), url.Values{"external_source": {"imdb_id"}}, &resp)
-	if errors.Is(err, errNotFound) || len(resp.MovieResults) == 0 {
-		return 0, nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		record(ctx, Step{Provider: "tmdb", Kind: "find", Query: imdbID, Error: err.Error()})
 		return 0, err
 	}
+	if len(resp.MovieResults) == 0 {
+		record(ctx, Step{Provider: "tmdb", Kind: "find", Query: imdbID,
+			Note: "TMDB doesn't know this IMDb id, so Arc searched by title instead."})
+		return 0, nil
+	}
+	record(ctx, Step{Provider: "tmdb", Kind: "find", Query: imdbID, Results: movieCandidates(resp.MovieResults),
+		Picked: resp.MovieResults[0].ID})
 	return resp.MovieResults[0].ID, nil
 }
 
@@ -224,7 +292,7 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			continue
 		case resp.StatusCode == http.StatusNotFound:
 			resp.Body.Close()
-			return errNotFound
+			return ErrNotFound
 		case resp.StatusCode != http.StatusOK:
 			resp.Body.Close()
 			return fmt.Errorf("tmdb %s: %s", path, resp.Status)

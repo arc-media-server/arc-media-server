@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, Eye, EyeOff, ListOrdered, Loader2, Pencil, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Eye, EyeOff, ListOrdered, Loader2, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
-import { EditDetails } from '@/components/EditDetails';
+import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -55,6 +55,7 @@ export function SeriesPage() {
 
   const data = seasons.data;
   const series = data?.series;
+  const { open: openDialog, dialogs } = useItemDialogs(series);
   const tabs = useMemo(() => {
     if (!data) return [];
     const t = data.seasons.map((s) => ({ number: s.season_number, name: s.name, count: s.episodes.length }));
@@ -94,8 +95,11 @@ export function SeriesPage() {
             </div>
             {series.overview && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-foreground/85">{series.overview}</p>}
             {series.metadata_state === 'unmatched' && (
-              <p className="mt-4 inline-flex items-center gap-2 text-sm text-warning">
+              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
+                <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
+                  Identify it…
+                </button>
               </p>
             )}
             <div className="mt-7 flex flex-wrap gap-3">
@@ -103,14 +107,7 @@ export function SeriesPage() {
               <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
                 {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
               </Button>
-              <EditDetails
-                item={series}
-                trigger={
-                  <Button variant="secondary" size="lg">
-                    <Pencil /> Edit
-                  </Button>
-                }
-              />
+              <MoreMenu onOpen={openDialog} />
             </div>
           </div>
         </div>
@@ -173,6 +170,7 @@ export function SeriesPage() {
           ))}
         </motion.div>
       </div>
+      {dialogs}
     </Page>
   );
 }

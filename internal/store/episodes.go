@@ -102,6 +102,21 @@ func (s *Store) LibraryItemsByKind(ctx context.Context, libraryID int64, kind st
 	return out, rows.Err()
 }
 
+// DeleteOrphanEpisodes removes a series' episodes that nothing refers to any more: no file, no
+// place in any ordering and no watch history. They're left behind when a series is re-matched to a
+// different show. It returns how many were removed.
+func (s *Store) DeleteOrphanEpisodes(ctx context.Context, seriesID string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `
+		DELETE FROM items WHERE parent_id = ? AND kind = 'episode'
+			AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.item_id = items.id)
+			AND NOT EXISTS (SELECT 1 FROM ordering_entries e WHERE e.episode_id = items.id)
+			AND NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.item_id = items.id)`, seriesID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // Unmatched lists items in a library that need attention: unmatched series and movies, and
 // episodes that only exist as files (not found in the provider's episode list).
 func (s *Store) Unmatched(ctx context.Context, libraryID int64) ([]Item, error) {

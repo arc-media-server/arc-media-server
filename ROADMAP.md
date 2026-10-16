@@ -39,8 +39,8 @@ powerful when you need it.
 ### 3. Library health and maintenance
 - [ ] Library preview when adding a folder: what was found, what couldn't be identified and why, before anything is imported
 - [ ] Library health page: unmatched items, probe failures, missing files, duplicates, missing episodes
-- [ ] "Why didn't this match?": show what was parsed from the filename and what was searched for
-- [ ] "Fix match": search a provider and pick the right result
+- [x] "Why didn't this match?": show what was parsed from the filename and what was searched for
+- [x] "Fix match": search a provider and pick the right result
 - [x] Lock metadata fields against refreshes
 - [ ] Folder watching: new files appear without a manual scan
 - [x] Local artwork cache

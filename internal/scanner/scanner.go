@@ -287,7 +287,9 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 		return err
 	}
 	for _, it := range items {
-		m, err := s.tmdb.MatchMovie(ctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+		tctx, save := s.traced(ctx, it.ID)
+		m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+		save()
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -333,7 +335,9 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	if err != nil || it == nil {
 		return false, err
 	}
-	m, err := s.tmdb.MatchMovie(ctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+	tctx, save := s.traced(ctx, it.ID)
+	m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+	save()
 	if err != nil {
 		return false, err
 	}

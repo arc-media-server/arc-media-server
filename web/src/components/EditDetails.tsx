@@ -4,7 +4,7 @@ import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { api, type Item, type ItemEdit, type LockableField } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 
 type TextField = Exclude<LockableField, 'poster' | 'backdrop'>;
 
@@ -44,13 +44,11 @@ function initialValue(item: Item, field: TextField): string {
   }
 }
 
-/** A button (the trigger) that opens a dialog to correct an item's details. Edited fields are locked. */
-export function EditDetails({ item, trigger }: { item: Item; trigger: ReactNode }) {
-  const [open, setOpen] = useState(false);
+/** A dialog to correct an item's details. Edited fields are locked. */
+export function EditDetailsDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      {open && <EditForm item={item} onDone={() => setOpen(false)} />}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && <EditForm item={item} onDone={() => onOpenChange(false)} />}
     </Dialog>
   );
 }

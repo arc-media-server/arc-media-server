@@ -41,28 +41,57 @@ var tvdbSeasonTypes = []struct{ typ, source, name string }{
 	{"altdvd", "tvdb_altdvd", "Alternate DVD Order"},
 }
 
+type tvdbSearchResult struct {
+	TVDBID       string            `json:"tvdb_id"`
+	Name         string            `json:"name"`
+	Year         string            `json:"year"`
+	Overview     string            `json:"overview"`
+	ImageURL     string            `json:"image_url"`
+	Translations map[string]string `json:"translations"`
+	Overviews    map[string]string `json:"overviews"`
+	Aliases      []string          `json:"aliases"`
+}
+
+func tvdbCandidates(results []tvdbSearchResult) []Candidate {
+	out := make([]Candidate, 0, len(results))
+	for _, r := range results {
+		id, _ := strconv.ParseInt(r.TVDBID, 10, 64)
+		c := Candidate{Provider: "tvdb", ID: id, Title: r.Name, Overview: r.Overview, Poster: tvdbImage(r.ImageURL)}
+		c.Year, _ = strconv.Atoi(r.Year)
+		if eng := r.Translations["eng"]; eng != "" && eng != r.Name {
+			c.Title, c.OriginalTitle = eng, r.Name
+		}
+		if eng := r.Overviews["eng"]; eng != "" {
+			c.Overview = eng
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+func (c *TVDB) searchSeries(ctx context.Context, title string, year int) ([]tvdbSearchResult, error) {
+	q := url.Values{"query": {title}, "type": {"series"}}
+	if year > 0 {
+		q.Set("year", strconv.Itoa(year))
+	}
+	var resp struct {
+		Data []tvdbSearchResult `json:"data"`
+	}
+	err := c.get(ctx, "/search", q, &resp)
+	return resp.Data, err
+}
+
+// SearchShows searches TheTVDB for series by title (and year, if not 0) for someone choosing a
+// match by hand.
+func (c *TVDB) SearchShows(ctx context.Context, title string, year int) ([]Candidate, error) {
+	results, err := c.searchSeries(ctx, title, year)
+	return tvdbCandidates(results), err
+}
+
 // SearchSeries finds a series id by title and optional first-aired year. It returns 0 when
 // nothing plausible is found.
 func (c *TVDB) SearchSeries(ctx context.Context, title string, year int) (int64, error) {
-	type result struct {
-		TVDBID       string            `json:"tvdb_id"`
-		Name         string            `json:"name"`
-		Year         string            `json:"year"`
-		Translations map[string]string `json:"translations"`
-		Aliases      []string          `json:"aliases"`
-	}
-	search := func(withYear bool) ([]result, error) {
-		q := url.Values{"query": {title}, "type": {"series"}}
-		if withYear {
-			q.Set("year", strconv.Itoa(year))
-		}
-		var resp struct {
-			Data []result `json:"data"`
-		}
-		err := c.get(ctx, "/search", q, &resp)
-		return resp.Data, err
-	}
-	pick := func(results []result) int64 {
+	pick := func(results []tvdbSearchResult) int64 {
 		want := Normalize(title)
 		for _, r := range results {
 			if Normalize(r.Name) == want || Normalize(r.Translations["eng"]) == want {
@@ -74,29 +103,43 @@ func (c *TVDB) SearchSeries(ctx context.Context, title string, year int) (int64,
 		return id
 	}
 
-	results, err := search(year > 0)
+	results, err := c.searchSeries(ctx, title, year)
 	if err != nil {
+		record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Year: year, Error: err.Error()})
 		return 0, err
 	}
 	if len(results) > 0 {
-		return pick(results), nil
+		id := pick(results)
+		record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Year: year, Results: tvdbCandidates(results), Picked: id})
+		return id, nil
 	}
 	if year == 0 {
+		record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Note: "No results."})
 		return 0, nil
 	}
-	if results, err = search(false); err != nil {
+	record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Year: year,
+		Note: "Nothing with this title started in " + strconv.Itoa(year) + ", so Arc searched again without the year."})
+	if results, err = c.searchSeries(ctx, title, 0); err != nil {
+		record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Error: err.Error()})
 		return 0, err
 	}
-	var near []result
+	var near []tvdbSearchResult
 	for _, r := range results {
 		if y, _ := strconv.Atoi(r.Year); y >= year-1 && y <= year+1 {
 			near = append(near, r)
 		}
 	}
 	if len(near) == 0 {
+		note := "No results."
+		if len(results) > 0 {
+			note = "None of these started within a year of " + strconv.Itoa(year) + ", so none was used."
+		}
+		record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Results: tvdbCandidates(results), Note: note})
 		return 0, nil
 	}
-	return pick(near), nil
+	id := pick(near)
+	record(ctx, Step{Provider: "tvdb", Kind: "search", Query: title, Results: tvdbCandidates(results), Picked: id})
+	return id, nil
 }
 
 // Series fetches series metadata and the season types (orderings) it has.
@@ -148,7 +191,7 @@ func (c *TVDB) Series(ctx context.Context, id int64) (*Series, []string, error) 
 		if tr.Data.Overview != "" {
 			s.Overview = tr.Data.Overview
 		}
-	} else if !errors.Is(err, errNotFound) {
+	} else if !errors.Is(err, ErrNotFound) {
 		return nil, nil, err
 	}
 
@@ -269,7 +312,7 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			continue
 		case resp.StatusCode == http.StatusNotFound:
 			resp.Body.Close()
-			return errNotFound
+			return ErrNotFound
 		case resp.StatusCode != http.StatusOK:
 			resp.Body.Close()
 			return fmt.Errorf("tvdb %s: %s", path, resp.Status)

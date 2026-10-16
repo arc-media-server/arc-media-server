@@ -108,9 +108,17 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
 		}
-		_, err = s.linkEpisodeFiles(ctx, lib, id, g.files, true)
+		if _, err = s.linkEpisodeFiles(ctx, lib, id, g.files, true); err != nil {
+			return err
+		}
 	}
-	return err
+	// Episodes left behind by an earlier, wrong match no longer have files: clear them out.
+	if n, err := s.store.DeleteOrphanEpisodes(ctx, id); err != nil {
+		return err
+	} else if n > 0 {
+		log.Info("removed episodes no longer in the series", "series", g.name.Title, "count", n)
+	}
+	return nil
 }
 
 // SyncSeriesMetadata fetches a series from TVDB and TMDB, creates its episodes and rebuilds every
@@ -129,6 +137,8 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return fmt.Errorf("series %s not found", seriesID)
 	}
 	log := s.log.With("series", series.Title)
+	ctx, save := s.traced(ctx, series.ID)
+	defer save()
 
 	var tvdbSeries, tmdbSeries *metadata.Series
 	var orderings []metadata.Ordering

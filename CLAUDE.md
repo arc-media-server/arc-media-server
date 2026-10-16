@@ -126,6 +126,8 @@ cd web && npx tsc -b                                # type-check the UI
 - SQLite runs with WAL and `_txlock=immediate`; keep write transactions short.
 - Items are hidden from listings while none of their files are present (`missing_since`), but never
   deleted, so history survives drives going offline.
+- Match explanations: provider clients `record()` each search/lookup into a `metadata.Trace` carried
+  in the context; `scanner.traced()` saves it to `items.match_info`. Nested calls share the outer trace.
 - Provider data is written only through `store.UpdateMetadata`, which skips fields in the item's
   `locked_fields` (set by user edits). Don't write metadata columns any other way, or locks break.
 - UI checks that need clicks: drive headless Edge over CDP (a small Node script; Node 24 has

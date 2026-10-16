@@ -137,6 +137,28 @@ func (s *Store) ItemFiles(ctx context.Context, itemID string) ([]MediaFile, erro
 	return files, nil
 }
 
+// SeriesFilePaths returns up to limit file paths of a series' episodes, for explaining how the
+// series was read from its folder.
+func (s *Store) SeriesFilePaths(ctx context.Context, seriesID string, limit int) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT m.path FROM items i
+		JOIN item_files f ON f.item_id = i.id JOIN media_files m ON m.id = f.file_id
+		WHERE i.parent_id = ? ORDER BY m.missing_since IS NOT NULL, m.path LIMIT ?`, seriesID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT idx, kind, codec, profile, language, title, width, height, channels, is_default, is_forced

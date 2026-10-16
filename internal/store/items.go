@@ -243,6 +243,32 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	return tx.Commit()
 }
 
+// SetMatchInfo records how an item was identified (JSON written by the scanner).
+func (s *Store) SetMatchInfo(ctx context.Context, id, info string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_info = ? WHERE id = ?`, info, id)
+	return err
+}
+
+// MatchInfo returns what SetMatchInfo stored, or "" if the item was never looked up.
+func (s *Store) MatchInfo(ctx context.Context, id string) (string, error) {
+	var info string
+	err := s.db.QueryRowContext(ctx, `SELECT match_info FROM items WHERE id = ?`, id).Scan(&info)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return info, err
+}
+
+// SetProviderIDs replaces an item's provider ids, e.g. when the user picks the right match. The
+// item goes back to pending until its metadata is fetched with the new ids.
+func (s *Store) SetProviderIDs(ctx context.Context, id string, tmdbID, tvdbID int64, imdbID string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE items SET tmdb_id = ?, tvdb_id = ?, imdb_id = ?, synced_at = 0,
+			metadata_state = CASE metadata_state WHEN 'locked' THEN 'locked' ELSE 'pending' END, updated_at = ?
+		WHERE id = ?`, tmdbID, tvdbID, imdbID, time.Now().Unix(), id)
+	return err
+}
+
 func (s *Store) SetMetadataState(ctx context.Context, id, state string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET metadata_state = ?, updated_at = ? WHERE id = ? AND metadata_state <> 'locked'`,

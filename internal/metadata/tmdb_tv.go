@@ -22,21 +22,46 @@ type tmdbTVResult struct {
 	Name         string `json:"name"`
 	OriginalName string `json:"original_name"`
 	FirstAirDate string `json:"first_air_date"`
+	Overview     string `json:"overview"`
+	PosterPath   string `json:"poster_path"`
+}
+
+func tvCandidates(results []tmdbTVResult) []Candidate {
+	out := make([]Candidate, 0, len(results))
+	for _, r := range results {
+		c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Name, Year: yearOf(r.FirstAirDate), Overview: r.Overview}
+		if r.OriginalName != r.Name {
+			c.OriginalTitle = r.OriginalName
+		}
+		if r.PosterPath != "" {
+			c.Poster = ImageURL(r.PosterPath, "w185")
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+func (c *TMDB) searchTV(ctx context.Context, title string, year int) ([]tmdbTVResult, error) {
+	q := url.Values{"query": {title}}
+	if year > 0 {
+		q.Set("first_air_date_year", strconv.Itoa(year))
+	}
+	var resp struct {
+		Results []tmdbTVResult `json:"results"`
+	}
+	err := c.get(ctx, "/search/tv", q, &resp)
+	return resp.Results, err
+}
+
+// SearchTVShows searches TMDB for series by title (and first-aired year, if not 0) for someone
+// choosing a match by hand.
+func (c *TMDB) SearchTVShows(ctx context.Context, title string, year int) ([]Candidate, error) {
+	results, err := c.searchTV(ctx, title, year)
+	return tvCandidates(results), err
 }
 
 // SearchTV finds a TMDB series id by title and optional first-aired year, or 0.
 func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, error) {
-	search := func(withYear bool) ([]tmdbTVResult, error) {
-		q := url.Values{"query": {title}}
-		if withYear {
-			q.Set("first_air_date_year", strconv.Itoa(year))
-		}
-		var resp struct {
-			Results []tmdbTVResult `json:"results"`
-		}
-		err := c.get(ctx, "/search/tv", q, &resp)
-		return resp.Results, err
-	}
 	pick := func(results []tmdbTVResult) int64 {
 		want := Normalize(title)
 		for _, r := range results {
@@ -47,17 +72,24 @@ func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, err
 		return results[0].ID
 	}
 
-	results, err := search(year > 0)
+	results, err := c.searchTV(ctx, title, year)
 	if err != nil {
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Error: err.Error()})
 		return 0, err
 	}
 	if len(results) > 0 {
-		return pick(results), nil
+		id := pick(results)
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Results: tvCandidates(results), Picked: id})
+		return id, nil
 	}
 	if year == 0 {
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Note: "No results."})
 		return 0, nil
 	}
-	if results, err = search(false); err != nil {
+	record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year,
+		Note: "Nothing with this title started in " + strconv.Itoa(year) + ", so Arc searched again without the year."})
+	if results, err = c.searchTV(ctx, title, 0); err != nil {
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Error: err.Error()})
 		return 0, err
 	}
 	var near []tmdbTVResult
@@ -67,9 +99,16 @@ func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, err
 		}
 	}
 	if len(near) == 0 {
+		note := "No results."
+		if len(results) > 0 {
+			note = "None of these started within a year of " + strconv.Itoa(year) + ", so none was used."
+		}
+		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: tvCandidates(results), Note: note})
 		return 0, nil
 	}
-	return pick(near), nil
+	id := pick(near)
+	record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: tvCandidates(results), Picked: id})
+	return id, nil
 }
 
 // FindTV looks up a TMDB series id by an external id. source is "tvdb_id" or "imdb_id".
@@ -78,12 +117,16 @@ func (c *TMDB) FindTV(ctx context.Context, externalID, source string) (int64, er
 		TVResults []tmdbTVResult `json:"tv_results"`
 	}
 	err := c.get(ctx, "/find/"+url.PathEscape(externalID), url.Values{"external_source": {source}}, &resp)
-	if errors.Is(err, errNotFound) || (err == nil && len(resp.TVResults) == 0) {
-		return 0, nil
-	}
-	if err != nil {
+	query := strings.TrimSuffix(source, "_id") + " " + externalID
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		record(ctx, Step{Provider: "tmdb", Kind: "find", Query: query, Error: err.Error()})
 		return 0, err
 	}
+	if len(resp.TVResults) == 0 {
+		record(ctx, Step{Provider: "tmdb", Kind: "find", Query: query, Note: "TMDB doesn't link any show to this id."})
+		return 0, nil
+	}
+	record(ctx, Step{Provider: "tmdb", Kind: "find", Query: query, Results: tvCandidates(resp.TVResults), Picked: resp.TVResults[0].ID})
 	return resp.TVResults[0].ID, nil
 }
 
@@ -226,7 +269,7 @@ func (c *TMDB) EpisodeTVDBID(ctx context.Context, seriesID int64, season, episod
 	}
 	path := fmt.Sprintf("/tv/%d/season/%d/episode/%d/external_ids", seriesID, season, episode)
 	if err := c.get(ctx, path, nil, &d); err != nil {
-		if errors.Is(err, errNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return 0, nil
 		}
 		return 0, err

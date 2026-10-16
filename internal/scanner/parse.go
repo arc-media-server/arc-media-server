@@ -16,6 +16,8 @@ type MovieName struct {
 	TVDBID int64
 	IMDBID string
 	Part   int // 1 for "cd1"/"part1", 0 when the movie is a single file
+	// The title and year came from the folder name rather than the file name.
+	FromFolder bool
 }
 
 var (
@@ -49,6 +51,7 @@ func ParseMovie(path string) MovieName {
 	if file.Year == 0 && dir.Year != 0 {
 		m = dir
 		m.Part = file.Part
+		m.FromFolder = true
 	}
 	if m.TMDBID == 0 {
 		m.TMDBID = max(file.TMDBID, dir.TMDBID)

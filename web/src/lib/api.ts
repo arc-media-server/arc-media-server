@@ -134,6 +134,54 @@ export interface SeasonsResponse {
   unplaced: SeasonEpisode[];
 }
 
+export type Provider = 'tmdb' | 'tvdb';
+
+export interface MatchCandidate {
+  provider: Provider;
+  id: number;
+  title: string;
+  original_title?: string;
+  year?: number;
+  overview?: string;
+  poster?: string;
+}
+
+export interface MatchStep {
+  provider: Provider;
+  kind: 'search' | 'find' | 'lookup' | 'chosen';
+  query: string;
+  year?: number;
+  results: MatchCandidate[];
+  picked?: number;
+  note?: string;
+  error?: string;
+}
+
+export interface ParsedName {
+  path: string;
+  source: string;
+  source_kind: 'file' | 'folder';
+  title: string;
+  year?: number;
+  tmdb_id?: number;
+  tvdb_id?: number;
+  imdb_id?: string;
+  season?: number;
+  episodes?: number[];
+  absolute?: boolean;
+  air_date?: string;
+  recognised: boolean;
+}
+
+export interface MatchInfo {
+  item: Item;
+  parsed: ParsedName[];
+  checked_at: number;
+  steps: MatchStep[];
+  providers: Record<Provider, boolean>;
+  source_ordering: string;
+}
+
 export type BackupReason = 'auto' | 'manual' | 'before-restore' | 'before-upgrade';
 
 export interface Backup {
@@ -203,6 +251,11 @@ export const api = {
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
+  matchInfo: (id: string) => request<MatchInfo>('GET', `/api/items/${id}/match`),
+  searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
+    request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),
+  setMatch: (id: string, provider: Provider, matchId: number) =>
+    request<Item>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
 
   seasons: (seriesId: string, opts: { ordering?: number; missing?: boolean } = {}) =>
     request<SeasonsResponse>(

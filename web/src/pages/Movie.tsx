@@ -1,10 +1,10 @@
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, Pencil, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Loader2, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
-import { EditDetails } from '@/components/EditDetails';
+import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -15,6 +15,7 @@ export function MoviePage() {
   const { data: item, error } = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id!) });
   const play = usePlayer();
   const qc = useQueryClient();
+  const { open: openDialog, dialogs } = useItemDialogs(item);
   const refresh = useMutation({
     mutationFn: () => api.refreshItem(id!),
     onSuccess: (updated) => {
@@ -52,8 +53,11 @@ export function MoviePage() {
             </div>
             {item.overview && <p className="mt-5 text-[15px] leading-relaxed text-foreground/85">{item.overview}</p>}
             {item.metadata_state === 'unmatched' && (
-              <p className="mt-4 inline-flex items-center gap-2 text-sm text-warning">
+              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
+                <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
+                  Identify it…
+                </button>
               </p>
             )}
             <div className="mt-7 flex flex-wrap gap-3">
@@ -68,14 +72,7 @@ export function MoviePage() {
               <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
                 {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
               </Button>
-              <EditDetails
-                item={item}
-                trigger={
-                  <Button variant="secondary" size="lg">
-                    <Pencil /> Edit
-                  </Button>
-                }
-              />
+              <MoreMenu onOpen={openDialog} />
             </div>
             {refresh.error && <p className="mt-3 text-sm text-warning">{refresh.error.message}</p>}
           </div>
@@ -83,6 +80,7 @@ export function MoviePage() {
       </Hero>
 
       {item.files?.map((f) => <FileDetails key={f.id} file={f} />)}
+      {dialogs}
     </Page>
   );
 }
