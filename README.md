@@ -27,6 +27,8 @@ Early development. Working today:
 - Edit any title, date or description; edited fields (and artwork you choose to keep) are locked so
   refreshes never undo them
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
+- Folder watching: new, changed and removed files are picked up within seconds, plus an hourly
+  rescan for folders (like network shares) that don't report changes
 - Direct-play streaming with HTTP range requests
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
@@ -39,7 +41,7 @@ Early development. Working today:
 
 ## Getting started
 
-Requirements: Go 1.24+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
+Requirements: Go 1.27+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
 
 ```sh
 cp ams.example.yaml ams.yaml   # then edit library paths and add your TMDB/TVDB keys

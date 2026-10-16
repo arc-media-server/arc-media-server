@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"ams/internal/probe"
 	"ams/internal/scanner"
 	"ams/internal/store"
+	"ams/internal/watcher"
 )
 
 const version = "0.1.0-dev"
@@ -113,12 +115,18 @@ func run(configPath string, log *slog.Logger) error {
 	artKeeper.Trigger()
 
 	// syncLibraries makes the database's libraries match the config, optionally scanning them.
+	// libraryIDs[i] is the database id of cfg.Libraries[i] (a restore can change it).
+	var idMu sync.Mutex
+	libraryIDs := make([]int64, len(cfg.Libraries))
 	syncLibraries := func(scan bool) error {
-		for _, lib := range cfg.Libraries {
+		for i, lib := range cfg.Libraries {
 			id, err := st.SyncLibrary(ctx, lib.Name, lib.Kind, lib.SourceOrdering, lib.Paths)
 			if err != nil {
 				return fmt.Errorf("library %q: %w", lib.Name, err)
 			}
+			idMu.Lock()
+			libraryIDs[i] = id
+			idMu.Unlock()
 			if scan {
 				sc.Start(id)
 			}
@@ -128,6 +136,18 @@ func run(configPath string, log *slog.Logger) error {
 	if err := syncLibraries(cfg.ScanOnStart); err != nil {
 		return err
 	}
+
+	// Scan libraries when their folders change.
+	watched := map[int64][]string{}
+	for i, lib := range cfg.Libraries {
+		watched[int64(i)] = lib.Paths
+	}
+	go watcher.Run(ctx, watched, func(i int64) {
+		idMu.Lock()
+		id := libraryIDs[i]
+		idMu.Unlock()
+		sc.Request(id)
+	}, log)
 
 	srv := &http.Server{
 		Addr: cfg.Listen,

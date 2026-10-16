@@ -61,22 +61,41 @@ type Scanner struct {
 	wg     sync.WaitGroup
 	mu     sync.Mutex
 	status map[int64]*Status
+	// Libraries that changed during their scan and need scanning again when it ends.
+	again map[int64]bool
 }
 
 // New creates a scanner. Background scans stop when ctx is cancelled.
 func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, tvdb *metadata.TVDB, log *slog.Logger) *Scanner {
-	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log, status: map[int64]*Status{}}
+	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log,
+		status: map[int64]*Status{}, again: map[int64]bool{}}
 }
 
 // Start begins a background scan of a library. It returns false if one is already running.
 func (s *Scanner) Start(libraryID int64) bool {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startLocked(libraryID)
+}
+
+// Request scans a library soon: now, or straight after the scan already running, so changes made
+// during that scan aren't missed.
+func (s *Scanner) Request(libraryID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.startLocked(libraryID) {
+		s.again[libraryID] = true
+	}
+}
+
+func (s *Scanner) startLocked(libraryID int64) bool {
 	if st := s.status[libraryID]; st != nil && st.Running {
-		s.mu.Unlock()
+		return false
+	}
+	if s.ctx.Err() != nil {
 		return false
 	}
 	s.status[libraryID] = &Status{Running: true, StartedAt: time.Now()}
-	s.mu.Unlock()
 
 	s.wg.Add(1)
 	go func() {
@@ -95,6 +114,12 @@ func (s *Scanner) Start(libraryID int64) bool {
 		if s.OnFinish != nil {
 			s.OnFinish(libraryID)
 		}
+		s.mu.Lock()
+		if s.again[libraryID] {
+			delete(s.again, libraryID)
+			s.startLocked(libraryID)
+		}
+		s.mu.Unlock()
 	}()
 	return true
 }

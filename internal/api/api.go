@@ -85,8 +85,8 @@ type itemDTO struct {
 	// For episodes, where the caller asks for it: the series' title.
 	SeriesTitle string            `json:"series_title,omitempty"`
 	Images      map[string]string `json:"images,omitempty"`
-	Stream string            `json:"stream_url,omitempty"`
-	Files  []store.MediaFile `json:"files,omitempty"`
+	Stream      string            `json:"stream_url,omitempty"`
+	Files       []store.MediaFile `json:"files,omitempty"`
 }
 
 func toDTO(it store.Item) itemDTO {

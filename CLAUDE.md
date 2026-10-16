@@ -76,6 +76,7 @@ internal/metadata/   TMDB (movies + TV + episode groups) and TheTVDB v4 clients
 internal/api/        REST API (net/http patterns); serves the web app for non-/api paths
 internal/artwork/    local artwork cache (data/artwork, keyed by source URL hash; safe to delete)
 internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, online restore
+internal/watcher/    fsnotify on library folders -> scanner.Request after 10s quiet; hourly rescan
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library

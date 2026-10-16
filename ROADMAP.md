@@ -42,7 +42,7 @@ powerful when you need it.
 - [x] "Why didn't this match?": show what was parsed from the filename and what was searched for
 - [x] "Fix match": search a provider and pick the right result
 - [x] Lock metadata fields against refreshes
-- [ ] Folder watching: new files appear without a manual scan
+- [x] Folder watching: new files appear without a manual scan
 - [x] Local artwork cache
 - [x] Automatic database backups with retention, plus one-click restore
 
