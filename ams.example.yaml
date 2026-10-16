@@ -12,6 +12,10 @@ ffprobe: "ffprobe"
 # TMDB API key (v3 key or v4 read access token). Can also be set with AMS_TMDB_API_KEY.
 tmdb_api_key: ""
 
+# TheTVDB API key (free tier at https://thetvdb.com/api-information/signup). Needed for TV shows
+# named in TVDB order. Can also be set with AMS_TVDB_API_KEY.
+tvdb_api_key: ""
+
 # Scan all libraries when the server starts.
 scan_on_start: true
 

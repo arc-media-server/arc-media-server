@@ -15,6 +15,7 @@ type Config struct {
 	DataDir     string    `yaml:"data_dir"`
 	FFprobe     string    `yaml:"ffprobe"`
 	TMDBAPIKey  string    `yaml:"tmdb_api_key"`
+	TVDBAPIKey  string    `yaml:"tvdb_api_key"`
 	ScanOnStart bool      `yaml:"scan_on_start"`
 	Libraries   []Library `yaml:"libraries"`
 }
@@ -29,7 +30,7 @@ type Library struct {
 
 var sourceOrderings = map[string]bool{"tvdb_aired": true, "tvdb_dvd": true, "tvdb_absolute": true, "tmdb_aired": true}
 
-// Load reads the config file. AMS_TMDB_API_KEY and AMS_LISTEN override the file's values.
+// Load reads the config file. AMS_TMDB_API_KEY, AMS_TVDB_API_KEY and AMS_LISTEN override the file's values.
 func Load(path string) (*Config, error) {
 	cfg := &Config{
 		Listen:      "127.0.0.1:8099",
@@ -46,6 +47,9 @@ func Load(path string) (*Config, error) {
 	}
 	if v := os.Getenv("AMS_TMDB_API_KEY"); v != "" {
 		cfg.TMDBAPIKey = v
+	}
+	if v := os.Getenv("AMS_TVDB_API_KEY"); v != "" {
+		cfg.TVDBAPIKey = v
 	}
 	if v := os.Getenv("AMS_LISTEN"); v != "" {
 		cfg.Listen = v
