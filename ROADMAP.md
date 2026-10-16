@@ -43,7 +43,7 @@ powerful when you need it.
 - [ ] "Fix match": search a provider and pick the right result
 - [ ] Lock metadata fields against refreshes
 - [ ] Folder watching: new files appear without a manual scan
-- [ ] Local artwork cache
+- [x] Local artwork cache
 - [ ] Automatic database backups with retention, plus one-click restore
 
 ### 4. Users and watch state

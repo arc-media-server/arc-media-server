@@ -24,6 +24,7 @@ Early development. Working today:
 - TMDB and TheTVDB metadata matching
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Direct-play streaming with HTTP range requests
+- Artwork cached locally after each scan, so it loads fast and works offline
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
   search, and a Needs Attention list. Light and dark mode follow your system
@@ -60,7 +61,7 @@ Motion for animation and TanStack Query for data loading.
 | GET | `/api/items?library_id=&kind=&q=&sort=title\|added\|year&limit=&offset=` | Browse and search |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
-| GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork |
+| GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
 | GET | `/api/series/{id}/orderings` | Available orderings and the one in use |

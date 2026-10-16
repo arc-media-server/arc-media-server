@@ -42,8 +42,8 @@ type Status struct {
 	Matched     int       `json:"matched"`
 	Unmatched   int       `json:"unmatched"`
 	// Video files in a TV library that couldn't be read as an episode.
-	Unrecognised int `json:"not_recognised"`
-	Error       string    `json:"error,omitempty"`
+	Unrecognised int    `json:"not_recognised"`
+	Error        string `json:"error,omitempty"`
 }
 
 type Scanner struct {
@@ -53,6 +53,9 @@ type Scanner struct {
 	tmdb   *metadata.TMDB // nil when no API key is configured
 	tvdb   *metadata.TVDB // nil when no API key is configured
 	log    *slog.Logger
+
+	// OnFinish, if set, is called after each scan (successful or not). Set it before starting scans.
+	OnFinish func(libraryID int64)
 
 	wg     sync.WaitGroup
 	mu     sync.Mutex
@@ -87,6 +90,9 @@ func (s *Scanner) Start(libraryID int64) bool {
 		})
 		if err != nil {
 			s.log.Error("scan failed", "library", libraryID, "err", err)
+		}
+		if s.OnFinish != nil {
+			s.OnFinish(libraryID)
 		}
 	}()
 	return true

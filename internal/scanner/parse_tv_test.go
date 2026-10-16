@@ -9,14 +9,14 @@ import (
 func TestParseEpisodePath(t *testing.T) {
 	root := filepath.FromSlash("/tv")
 	tests := []struct {
-		path      string
-		series    string
-		year      int
-		tvdb      int64
-		season    int
-		episodes  []int
-		absolute  bool
-		airDate   string
+		path     string
+		series   string
+		year     int
+		tvdb     int64
+		season   int
+		episodes []int
+		absolute bool
+		airDate  string
 	}{
 		{"Firefly (2002)/Season 01/Firefly - S01E05 - Safe.mkv", "Firefly", 2002, 0, 1, []int{5}, false, ""},
 		{"Firefly (2002) {tvdb-78874}/Season 1/Firefly.S01E11.Serenity.1080p.mkv", "Firefly", 2002, 78874, 1, []int{11}, false, ""},

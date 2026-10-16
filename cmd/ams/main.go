@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"ams/internal/api"
+	"ams/internal/artwork"
 	"ams/internal/config"
 	"ams/internal/metadata"
 	"ams/internal/probe"
@@ -80,7 +81,23 @@ func run(configPath string, log *slog.Logger) error {
 		log.Warn("no TVDB API key configured; TV shows will use TMDB only")
 	}
 
+	art := artwork.New(filepath.Join(cfg.DataDir, "artwork"), log)
+	artKeeper := art.Keep(ctx, func(ctx context.Context) ([]string, error) {
+		images, err := st.ItemImages(ctx)
+		if err != nil {
+			return nil, err
+		}
+		sources := make([]string, len(images))
+		for i, im := range images {
+			sources[i] = artwork.Source(im.Kind, im.Type, im.Path)
+		}
+		return sources, nil
+	})
+
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
+	// After each scan, download new artwork so it's there offline.
+	sc.OnFinish = func(int64) { artKeeper.Trigger() }
+	artKeeper.Trigger()
 	for _, lib := range cfg.Libraries {
 		id, err := st.SyncLibrary(ctx, lib.Name, lib.Kind, lib.SourceOrdering, lib.Paths)
 		if err != nil {
@@ -93,7 +110,7 @@ func run(configPath string, log *slog.Logger) error {
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           api.New(st, sc, log, version),
+		Handler:           api.New(st, sc, art, log, version),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() {

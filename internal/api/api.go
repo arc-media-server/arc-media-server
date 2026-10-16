@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"ams/internal/metadata"
+	"ams/internal/artwork"
 	"ams/internal/scanner"
 	"ams/internal/store"
 	"ams/internal/webui"
@@ -20,12 +20,13 @@ import (
 type Server struct {
 	store   *store.Store
 	scanner *scanner.Scanner
+	artwork *artwork.Cache
 	log     *slog.Logger
 	version string
 }
 
-func New(st *store.Store, sc *scanner.Scanner, log *slog.Logger, version string) http.Handler {
-	s := &Server{store: st, scanner: sc, log: log, version: version}
+func New(st *store.Store, sc *scanner.Scanner, art *artwork.Cache, log *slog.Logger, version string) http.Handler {
+	s := &Server{store: st, scanner: sc, artwork: art, log: log, version: version}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/libraries", s.listLibraries)
@@ -62,11 +63,12 @@ type itemDTO struct {
 func toDTO(it store.Item) itemDTO {
 	d := itemDTO{Item: it, Images: map[string]string{}}
 	base := "/api/items/" + it.ID
+	// The version changes with the image, so each link can be cached by browsers forever.
 	if it.PosterPath != "" {
-		d.Images["primary"] = base + "/images/primary"
+		d.Images["primary"] = base + "/images/primary?v=" + artwork.Key(artwork.Source(it.Kind, "primary", it.PosterPath))
 	}
 	if it.BackdropPath != "" {
-		d.Images["backdrop"] = base + "/images/backdrop"
+		d.Images["backdrop"] = base + "/images/backdrop?v=" + artwork.Key(artwork.Source(it.Kind, "backdrop", it.BackdropPath))
 	}
 	if it.Kind == "movie" || it.Kind == "episode" {
 		d.Stream = base + "/stream"
@@ -233,30 +235,48 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, filepath.Base(chosen.Path), info.ModTime(), fh)
 }
 
-// image redirects to the provider's CDN. Local caching comes later.
+// image serves an item's artwork from the local cache, downloading it on first use. If it can't
+// be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead.
 func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
 		return
 	}
-	var path, size string
-	switch r.PathValue("type") {
+	var imagePath string
+	switch typ := r.PathValue("type"); typ {
 	case "primary":
-		path, size = it.PosterPath, "w500"
-		if it.Kind == "episode" {
-			size = "w780" // episode stills are landscape
-		}
+		imagePath = it.PosterPath
 	case "backdrop":
-		path, size = it.BackdropPath, "w1280"
+		imagePath = it.BackdropPath
 	default:
 		writeError(w, http.StatusBadRequest, "unknown image type")
 		return
 	}
-	if path == "" {
+	if imagePath == "" {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
-	http.Redirect(w, r, metadata.ImageURL(path, size), http.StatusFound)
+	src := artwork.Source(it.Kind, r.PathValue("type"), imagePath)
+	f, err := s.artwork.Open(r.Context(), src)
+	if err != nil {
+		s.log.Debug("artwork unavailable locally", "url", src, "err", err)
+		http.Redirect(w, r, src, http.StatusFound)
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	key := artwork.Key(src)
+	if r.URL.Query().Get("v") == key {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "no-cache")
+	}
+	w.Header().Set("ETag", `"`+key+`"`)
+	http.ServeContent(w, r, artwork.ContentName(src), info.ModTime(), f)
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {

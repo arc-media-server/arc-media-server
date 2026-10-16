@@ -74,6 +74,7 @@ internal/probe/      ffprobe wrapper
 internal/scanner/    folder walking, filename parsing (parse.go movies, parse_tv.go TV), shows.go TV sync
 internal/metadata/   TMDB (movies + TV + episode groups) and TheTVDB v4 clients
 internal/api/        REST API (net/http patterns); serves the web app for non-/api paths
+internal/artwork/    local artwork cache (data/artwork, keyed by source URL hash; safe to delete)
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library

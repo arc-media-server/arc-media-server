@@ -114,6 +114,37 @@ func (s *Store) SetMetadataState(ctx context.Context, id, state string) error {
 	return err
 }
 
+// ItemImage is one piece of artwork an item uses.
+type ItemImage struct {
+	Kind string // item kind
+	Type string // primary or backdrop
+	Path string
+}
+
+// ItemImages lists the artwork of every item, including ones whose files are missing (so their
+// artwork survives a drive going offline). Posters come first, then backdrops, then episode stills.
+func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT kind, 'primary', poster_path, CASE kind WHEN 'episode' THEN 2 ELSE 0 END FROM items WHERE poster_path <> ''
+		UNION ALL
+		SELECT kind, 'backdrop', backdrop_path, 1 FROM items WHERE backdrop_path <> ''
+		ORDER BY 4`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ItemImage
+	for rows.Next() {
+		var im ItemImage
+		var rank int
+		if err := rows.Scan(&im.Kind, &im.Type, &im.Path, &rank); err != nil {
+			return nil, err
+		}
+		out = append(out, im)
+	}
+	return out, rows.Err()
+}
+
 // ListItems returns a page of items plus the total match count.
 func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error) {
 	// Only list things that can be played: items with a present file, or series with at least one
