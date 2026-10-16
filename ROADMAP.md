@@ -59,7 +59,6 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Foundation: React + TypeScript + Tailwind + Radix, embedded in the binary
 - [x] Design system basics: typography, colour tokens, motion, light/dark
 - [ ] Design system: refine spacing, components and states as the app grows
-- [ ] TheTVDB and TMDB attribution (required by their API terms)
 - [x] Home, library browsing, item detail, search, player (direct play)
 - [ ] Admin area that's simple: setup wizard, libraries, users, health
 - [ ] Customisable home: reorder and hide built-in rows
@@ -108,6 +107,11 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] HTTPS, secure remote access setup
 - [ ] Sharing with friends, library access per user
 - [ ] Bandwidth limits for remote streams
+
+### Before public release
+_Doesn't block development; must be done before AMS is shared or published._
+- [ ] TheTVDB and TMDB attribution (required by their API terms)
+- [ ] Check TheTVDB licence terms for open-source distribution (shipped key vs each user's own key)
 
 ## Later
 

@@ -118,7 +118,7 @@ cd web && npx tsc -b                                # type-check the UI
 - Windows: Go handles paths over 260 chars, and so does ffprobe 9; scripts creating test files may need
   the `\\?\` prefix.
 - TVDB returns relative image paths (`/banners/...`); `tvdbImage()` prefixes artworks.thetvdb.com.
-- TVDB and TMDB both require visible attribution in the UI (tracked in milestone 5).
+- TVDB and TMDB both require visible attribution in the UI (tracked in "Before public release").
 - SQLite runs with WAL and `_txlock=immediate`; keep write transactions short.
 - Items are hidden from listings while none of their files are present (`missing_since`), but never
   deleted, so history survives drives going offline.
