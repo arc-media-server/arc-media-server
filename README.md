@@ -33,7 +33,8 @@ Early development. Working today:
   saves the current state first
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
-  search, and a Needs Attention list. Light and dark mode follow your system
+  search, and a Library Health page (unidentified titles, unreadable, unrecognised and missing
+  files, duplicates, missing episodes). Light and dark mode follow your system
 - SQLite database, with the schema already in place for users and per-user watch state
 
 ## Getting started
@@ -74,6 +75,8 @@ Motion for animation and TanStack Query for data loading.
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
+| GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
+| GET | `/api/health/libraries` | Count of problems needing the user, per library |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
 | GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
 | PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |

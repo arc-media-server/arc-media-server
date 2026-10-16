@@ -22,6 +22,7 @@ type series struct {
 
 var movies = []string{
 	"The Matrix (1999)/The Matrix (1999).mp4",
+	"The Matrix (1999)/The Matrix (1999) - 1080p.mp4", // a second copy: shows as a duplicate
 	"Blade.Runner.2049.2017.1080p.BluRay.x264-GRP.mp4",
 	"Heat (1995)/Heat (1995) {tmdb-949}.mp4",
 	"Heat (1995)/Extras/Making of.mp4", // should be skipped
@@ -95,7 +96,19 @@ func run(out, ffmpeg string) error {
 	if err := copyFile(clip, filepath.Join(out, "TV", "Firefly (2002)", "Season 01", "Firefly - S01E20.mp4")); err != nil {
 		return err
 	}
-	n++
+	// A video in a show's folder that isn't named like an episode: not recognised.
+	if err := copyFile(clip, filepath.Join(out, "TV", "Firefly (2002)", "Season 01", "Cast interview.mp4")); err != nil {
+		return err
+	}
+	// A file ffprobe can't read: shows as unreadable.
+	broken := filepath.Join(out, "Movies", "Broken Download (2010)", "Broken Download (2010).mkv")
+	if err := os.MkdirAll(filepath.Dir(broken), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(broken, []byte("this is not a video file\n"), 0o644); err != nil {
+		return err
+	}
+	n += 2
 
 	fmt.Printf("created %d files in %s\n\nAdd to ams.yaml:\n\n", n, out)
 	fmt.Printf("libraries:\n  - name: Movies\n    kind: movies\n    paths: [%q]\n", filepath.ToSlash(filepath.Join(out, "Movies")))

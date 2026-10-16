@@ -89,7 +89,8 @@ function ScanButton({ lib }: { lib: Library }) {
   useEffect(() => {
     if (wasRunning.current && !lib.scan.running) {
       qc.invalidateQueries({ queryKey: ['items'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
+      qc.invalidateQueries({ queryKey: ['health'] });
+      qc.invalidateQueries({ queryKey: ['health-summary'] });
       qc.invalidateQueries({ queryKey: ['featured'] });
     }
     wasRunning.current = lib.scan.running;

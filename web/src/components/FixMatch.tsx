@@ -174,8 +174,8 @@ function Finder({ item, info, onDone }: { item: Item; info: MatchInfo; onDone: (
       qc.invalidateQueries({ queryKey: ['seasons', item.id] });
       qc.invalidateQueries({ queryKey: ['orderings', item.id] });
       qc.invalidateQueries({ queryKey: ['items'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
-      qc.invalidateQueries({ queryKey: ['attention-detail'] });
+      qc.invalidateQueries({ queryKey: ['health'] });
+      qc.invalidateQueries({ queryKey: ['health-summary'] });
       qc.invalidateQueries({ queryKey: ['featured'] });
       onDone();
     },

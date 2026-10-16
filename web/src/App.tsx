@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Route, Routes, useLocation } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Compass } from 'lucide-react';
 import { MobileBar, Sidebar } from './components/Sidebar';
 import { PlayerProvider } from './components/Player';
@@ -9,7 +9,7 @@ import { LibraryPage } from './pages/Library';
 import { MoviePage } from './pages/Movie';
 import { SeriesPage } from './pages/Series';
 import { SearchPage } from './pages/Search';
-import { AttentionPage } from './pages/Attention';
+import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
 
 export function App() {
@@ -27,7 +27,8 @@ export function App() {
           <Route path="/movie/:id" element={<MoviePage />} />
           <Route path="/series/:id" element={<SeriesPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route path="/attention" element={<AttentionPage />} />
+          <Route path="/health" element={<HealthPage />} />
+          <Route path="/attention" element={<Navigate to="/health" replace />} />
           <Route path="/backups" element={<BackupsPage />} />
           <Route
             path="*"

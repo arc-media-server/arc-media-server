@@ -21,7 +21,8 @@ export function MoviePage() {
     onSuccess: (updated) => {
       qc.setQueryData(['item', id], updated);
       qc.invalidateQueries({ queryKey: ['items'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
+      qc.invalidateQueries({ queryKey: ['health'] });
+      qc.invalidateQueries({ queryKey: ['health-summary'] });
     },
   });
 

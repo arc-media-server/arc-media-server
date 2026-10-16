@@ -70,6 +70,8 @@ export interface Item {
   metadata_state: MetadataState;
   added_at: number;
   locked_fields: LockableField[];
+  /** Episodes, where the API includes it: their series' title. */
+  series_title?: string;
   images?: { primary?: string; backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
@@ -182,6 +184,36 @@ export interface MatchInfo {
   source_ordering: string;
 }
 
+export interface FileProblem {
+  file_id: number;
+  path: string;
+  size: number;
+  error?: string;
+  missing_since?: number;
+  item_id?: string;
+  item_title?: string;
+  item_kind?: ItemKind;
+  series_id?: string;
+}
+
+export interface MissingEpisode {
+  id: string;
+  title: string;
+  season_number: number;
+  episode_number: number;
+  air_date: string;
+}
+
+export interface LibraryHealth {
+  library: Library;
+  unidentified: Item[];
+  unreadable: FileProblem[];
+  unrecognised: FileProblem[];
+  missing_files: FileProblem[];
+  duplicates: { kind: 'copies' | 'same_title'; items: Item[]; files?: FileProblem[] }[];
+  missing_episodes: { series: Item; ordering: string; have: number; unplaced: number; missing: MissingEpisode[] }[];
+}
+
 export type BackupReason = 'auto' | 'manual' | 'before-restore' | 'before-upgrade';
 
 export interface Backup {
@@ -246,6 +278,9 @@ export const api = {
   libraries: () => request<Library[]>('GET', '/api/libraries'),
   scanLibrary: (id: number) => request<ScanStatus>('POST', `/api/libraries/${id}/scan`),
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
+  libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
+  /** Problems needing the user, per library id. */
+  healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),
 
   items: (q: ItemQuery) => request<{ total: number; items: Item[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),

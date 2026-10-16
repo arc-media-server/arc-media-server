@@ -62,6 +62,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/stream", s.stream)
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", s.image)
 	mux.HandleFunc("GET /api/libraries/{id}/unmatched", s.unmatched)
+	mux.HandleFunc("GET /api/libraries/{id}/health", s.libraryHealth)
+	mux.HandleFunc("GET /api/health/libraries", s.healthSummary)
 	mux.HandleFunc("GET /api/series/{id}/seasons", s.seasons)
 	mux.HandleFunc("GET /api/series/{id}/orderings", s.listOrderings)
 	mux.HandleFunc("POST /api/series/{id}/orderings", s.createOrdering)
@@ -80,7 +82,9 @@ func New(d Deps) http.Handler {
 // itemDTO adds links and files to a stored item.
 type itemDTO struct {
 	store.Item
-	Images map[string]string `json:"images,omitempty"`
+	// For episodes, where the caller asks for it: the series' title.
+	SeriesTitle string            `json:"series_title,omitempty"`
+	Images      map[string]string `json:"images,omitempty"`
 	Stream string            `json:"stream_url,omitempty"`
 	Files  []store.MediaFile `json:"files,omitempty"`
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -84,8 +85,8 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			return nil, fmt.Errorf("ffprobe: %s", msg)
+		if msg := errorMessage(stderr.String(), path); msg != "" {
+			return nil, fmt.Errorf("%s", msg)
 		}
 		return nil, fmt.Errorf("ffprobe: %w", err)
 	}
@@ -121,6 +122,23 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 		})
 	}
 	return res, nil
+}
+
+var demuxerPrefixRe = regexp.MustCompile(`^\[[^\]]*@ 0x[0-9a-f]+\]\s*`)
+
+// errorMessage reduces ffprobe's error output to its last, most telling line, without the file
+// path or internal "[matroska @ 0x...]" prefixes, e.g. "Invalid data found when processing input".
+func errorMessage(stderr, path string) string {
+	lines := strings.Split(strings.ReplaceAll(stderr, "\r\n", "\n"), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		line = strings.TrimSpace(strings.TrimPrefix(line, path+":"))
+		line = demuxerPrefixRe.ReplaceAllString(line, "")
+		if line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 // containerName picks a readable name from ffprobe's format list, e.g. "mov,mp4,m4a,..." -> "mp4"

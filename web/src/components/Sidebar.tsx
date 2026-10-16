@@ -1,8 +1,8 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, DatabaseBackup, Film, Home, Loader2, Search, Tv } from 'lucide-react';
-import { api, type Library } from '@/lib/api';
+import { DatabaseBackup, Film, HeartPulse, Home, Loader2, Search, Tv } from 'lucide-react';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 export function useLibraries() {
@@ -14,14 +14,11 @@ export function useLibraries() {
   });
 }
 
-export function useAttentionCount(libraries?: Library[]) {
+/** How many things across all libraries need the user (unidentified, unreadable, unrecognised). */
+export function useHealthCount() {
   return useQuery({
-    queryKey: ['attention', libraries?.map((l) => l.id)],
-    enabled: !!libraries,
-    queryFn: async () => {
-      const lists = await Promise.all(libraries!.map((l) => api.unmatched(l.id)));
-      return lists.reduce((n, l) => n + l.length, 0);
-    },
+    queryKey: ['health-summary'],
+    queryFn: async () => Object.values(await api.healthSummary()).reduce((a, b) => a + b, 0),
   });
 }
 
@@ -96,7 +93,7 @@ function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactN
 
 export function Sidebar() {
   const { data: libraries } = useLibraries();
-  const { data: attention } = useAttentionCount(libraries);
+  const { data: problems } = useHealthCount();
 
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
@@ -133,8 +130,8 @@ export function Sidebar() {
         <div>
           <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Manage</p>
           <div className="space-y-0.5">
-            <NavItem to="/attention" icon={<AlertTriangle />} badge={attention}>
-              Needs Attention
+            <NavItem to="/health" icon={<HeartPulse />} badge={problems}>
+              Library Health
             </NavItem>
             <NavItem to="/backups" icon={<DatabaseBackup />}>
               Backups
@@ -166,8 +163,8 @@ export function MobileBar() {
             {lib.name}
           </NavLink>
         ))}
-        <NavLink to="/attention" className={link}>
-          Needs Attention
+        <NavLink to="/health" className={link}>
+          Library Health
         </NavLink>
         <NavLink to="/backups" className={link}>
           Backups
