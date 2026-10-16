@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Film, Home, Loader2, Search, Tv } from 'lucide-react';
+import { AlertTriangle, DatabaseBackup, Film, Home, Loader2, Search, Tv } from 'lucide-react';
 import { api, type Library } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -132,9 +132,14 @@ export function Sidebar() {
         )}
         <div>
           <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Manage</p>
-          <NavItem to="/attention" icon={<AlertTriangle />} badge={attention}>
-            Needs Attention
-          </NavItem>
+          <div className="space-y-0.5">
+            <NavItem to="/attention" icon={<AlertTriangle />} badge={attention}>
+              Needs Attention
+            </NavItem>
+            <NavItem to="/backups" icon={<DatabaseBackup />}>
+              Backups
+            </NavItem>
+          </div>
         </div>
       </nav>
     </aside>
@@ -163,6 +168,9 @@ export function MobileBar() {
         ))}
         <NavLink to="/attention" className={link}>
           Needs Attention
+        </NavLink>
+        <NavLink to="/backups" className={link}>
+          Backups
         </NavLink>
       </nav>
     </div>

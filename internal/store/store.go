@@ -17,6 +17,13 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver, no CGO needed
 )
 
+// Options tweak Open. The zero value is fine.
+type Options struct {
+	// BeforeMigrate is called when an existing database is about to be upgraded to a new schema,
+	// so a backup can be taken first. Opening fails if it returns an error.
+	BeforeMigrate func(s *Store) error
+}
+
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
@@ -25,7 +32,7 @@ type Store struct {
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.
-func Open(ctx context.Context, dbPath string) (*Store, error) {
+func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 	// WAL lets playback reads continue while the scanner writes. _txlock=immediate makes every
 	// transaction take the write lock up front, so concurrent writers wait instead of failing.
 	dsn := dbPath + "?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)" +
@@ -35,6 +42,19 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{db: db}
+	if opts.BeforeMigrate != nil {
+		upgrading, err := s.upgrading(ctx)
+		if err != nil {
+			db.Close()
+			return nil, err
+		}
+		if upgrading {
+			if err := opts.BeforeMigrate(s); err != nil {
+				db.Close()
+				return nil, err
+			}
+		}
+	}
 	if err := s.migrate(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
@@ -44,18 +64,52 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
+func migrationNames() ([]string, error) {
+	names, err := fs.Glob(migrationsFS, "migrations/*.sql")
+	sort.Strings(names)
+	return names, err
+}
+
+func migrationVersion(name string) string { return strings.TrimSuffix(path.Base(name), ".sql") }
+
+// migrationVersions returns the schema versions this build knows.
+func migrationVersions() (map[string]bool, error) {
+	names, err := migrationNames()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, n := range names {
+		out[migrationVersion(n)] = true
+	}
+	return out, nil
+}
+
+// upgrading reports whether the database already has data and migrations still to apply.
+func (s *Store) upgrading(ctx context.Context) (bool, error) {
+	var applied int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations`).Scan(&applied)
+	if err != nil {
+		return false, nil // a new, empty database
+	}
+	known, err := migrationVersions()
+	if err != nil {
+		return false, err
+	}
+	return applied > 0 && applied < len(known), nil
+}
+
 func (s *Store) migrate(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)`); err != nil {
 		return err
 	}
-	names, err := fs.Glob(migrationsFS, "migrations/*.sql")
+	names, err := migrationNames()
 	if err != nil {
 		return err
 	}
-	sort.Strings(names)
 	for _, name := range names {
-		version := strings.TrimSuffix(path.Base(name), ".sql")
+		version := migrationVersion(name)
 		var applied int
 		if err := s.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, version).Scan(&applied); err != nil {

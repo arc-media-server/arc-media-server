@@ -25,6 +25,8 @@ Early development. Working today:
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Direct-play streaming with HTTP range requests
 - Artwork cached locally after each scan, so it loads fast and works offline
+- Automatic daily database backups (plus one before every upgrade), with one-click restore that
+  saves the current state first
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
   search, and a Needs Attention list. Light and dark mode follow your system
@@ -71,6 +73,10 @@ Motion for animation and TanStack Query for data loading.
 | PUT | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Place an episode: `{"season_number": 1, "episode_number": 3}` |
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
+| GET | `/api/backups` | Database backups, newest first |
+| POST | `/api/backups` | Back up now |
+| POST | `/api/backups/{name}/restore` | Restore a backup (the current state is backed up first) |
+| DELETE | `/api/backups/{name}` | Delete a backup |
 
 ## Layout
 

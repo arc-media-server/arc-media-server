@@ -111,6 +111,20 @@ export interface SeasonsResponse {
   unplaced: SeasonEpisode[];
 }
 
+export type BackupReason = 'auto' | 'manual' | 'before-restore' | 'before-upgrade';
+
+export interface Backup {
+  name: string;
+  created_at: string;
+  reason: BackupReason;
+  size: number;
+}
+
+export interface BackupsResponse {
+  folder: string;
+  backups: Backup[];
+}
+
 export interface ItemQuery {
   library_id?: number;
   kind?: ItemKind;
@@ -174,6 +188,11 @@ export const api = {
   setDisplayOrdering: (seriesId: string, orderingId: number | null) =>
     request<OrderingsResponse>('PUT', `/api/series/${seriesId}/display-ordering`, { ordering_id: orderingId }),
   refreshSeries: (seriesId: string) => request<OrderingsResponse>('POST', `/api/series/${seriesId}/refresh`),
+
+  backups: () => request<BackupsResponse>('GET', '/api/backups'),
+  createBackup: () => request<Backup>('POST', '/api/backups'),
+  restoreBackup: (name: string) => request<void>('POST', `/api/backups/${encodeURIComponent(name)}/restore`),
+  deleteBackup: (name: string) => request<void>('DELETE', `/api/backups/${encodeURIComponent(name)}`),
 };
 
 export function posterUrl(item: Item): string | undefined {

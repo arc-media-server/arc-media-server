@@ -10,6 +10,7 @@ import { MoviePage } from './pages/Movie';
 import { SeriesPage } from './pages/Series';
 import { SearchPage } from './pages/Search';
 import { AttentionPage } from './pages/Attention';
+import { BackupsPage } from './pages/Backups';
 
 export function App() {
   const { pathname } = useLocation();
@@ -27,6 +28,7 @@ export function App() {
           <Route path="/series/:id" element={<SeriesPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/attention" element={<AttentionPage />} />
+          <Route path="/backups" element={<BackupsPage />} />
           <Route
             path="*"
             element={

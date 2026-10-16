@@ -13,6 +13,8 @@ const buttonVariants = cva(
         secondary: 'bg-surface-2/80 text-foreground hover:bg-surface-3 backdrop-blur-xl',
         ghost: 'text-muted hover:text-foreground hover:bg-surface-2',
         glass: 'bg-white/12 text-white hover:bg-white/20 backdrop-blur-xl',
+        // Confirms something that can't be undone.
+        danger: 'bg-warning text-black hover:bg-warning/90',
       },
       size: {
         sm: 'h-8 rounded-lg px-3 text-[13px]',

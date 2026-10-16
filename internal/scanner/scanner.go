@@ -98,6 +98,18 @@ func (s *Scanner) Start(libraryID int64) bool {
 	return true
 }
 
+// Running reports whether any library is being scanned.
+func (s *Scanner) Running() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, st := range s.status {
+		if st.Running {
+			return true
+		}
+	}
+	return false
+}
+
 // Wait blocks until all running scans have stopped.
 func (s *Scanner) Wait() { s.wg.Wait() }
 

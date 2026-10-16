@@ -97,6 +97,22 @@ export function date(iso?: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** "Today, 23:40", "Yesterday, 08:15" or "12 Oct 2026, 03:00". */
+export function dateTime(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000);
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Yesterday, ${time}`;
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}, ${time}`;
+}
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
 export function videoStream(file?: MediaFile): Stream | undefined {
   return file?.streams.find((s) => s.kind === 'video');
 }

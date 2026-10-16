@@ -44,7 +44,7 @@ powerful when you need it.
 - [ ] Lock metadata fields against refreshes
 - [ ] Folder watching: new files appear without a manual scan
 - [x] Local artwork cache
-- [ ] Automatic database backups with retention, plus one-click restore
+- [x] Automatic database backups with retention, plus one-click restore
 
 ### 4. Users and watch state
 - [ ] Accounts, login, sessions/tokens; first-run setup creates the admin

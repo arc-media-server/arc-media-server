@@ -75,6 +75,7 @@ internal/scanner/    folder walking, filename parsing (parse.go movies, parse_tv
 internal/metadata/   TMDB (movies + TV + episode groups) and TheTVDB v4 clients
 internal/api/        REST API (net/http patterns); serves the web app for non-/api paths
 internal/artwork/    local artwork cache (data/artwork, keyed by source URL hash; safe to delete)
+internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, online restore
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library
@@ -99,6 +100,8 @@ cd web && npx tsc -b                                # type-check the UI
   `chrome --headless=new --hide-scrollbars --force-dark-mode --window-size=1440,1000 --virtual-time-budget=8000 --screenshot=out.png http://localhost:8099/`.
   Headless Chrome won't render narrower than ~500px.
 - The data dir (`data/ams.db`) can be deleted to start fresh; migrations recreate it.
+- A new migration triggers a `before-upgrade` backup automatically when an existing database is opened.
+  Restores run online (SQLite backup API) and then re-apply migrations, so old backups stay restorable.
 
 ## How TV orderings work (the headline feature)
 

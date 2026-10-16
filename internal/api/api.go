@@ -12,22 +12,42 @@ import (
 	"time"
 
 	"ams/internal/artwork"
+	"ams/internal/backup"
 	"ams/internal/scanner"
 	"ams/internal/store"
 	"ams/internal/webui"
 )
 
-type Server struct {
-	store   *store.Store
-	scanner *scanner.Scanner
-	artwork *artwork.Cache
-	log     *slog.Logger
-	version string
+// Deps is what the API needs from the rest of AMS.
+type Deps struct {
+	Store   *store.Store
+	Scanner *scanner.Scanner
+	Artwork *artwork.Cache
+	Backups *backup.Manager
+	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
+	AfterRestore func()
+	Log          *slog.Logger
+	Version      string
 }
 
-func New(st *store.Store, sc *scanner.Scanner, art *artwork.Cache, log *slog.Logger, version string) http.Handler {
-	s := &Server{store: st, scanner: sc, artwork: art, log: log, version: version}
+type Server struct {
+	store        *store.Store
+	scanner      *scanner.Scanner
+	artwork      *artwork.Cache
+	backups      *backup.Manager
+	afterRestore func()
+	log          *slog.Logger
+	version      string
+}
+
+func New(d Deps) http.Handler {
+	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+		afterRestore: d.AfterRestore, log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/backups", s.listBackups)
+	mux.HandleFunc("POST /api/backups", s.createBackup)
+	mux.HandleFunc("POST /api/backups/{name}/restore", s.restoreBackup)
+	mux.HandleFunc("DELETE /api/backups/{name}", s.deleteBackup)
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/libraries", s.listLibraries)
 	mux.HandleFunc("GET /api/libraries/{id}/scan", s.scanStatus)

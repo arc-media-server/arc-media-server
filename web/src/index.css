@@ -105,3 +105,25 @@
 @utility animate-menu-in {
   animation: menu-in 180ms var(--ease-smooth);
 }
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@utility animate-fade-in {
+  animation: fade-in 200ms var(--ease-smooth);
+}
+
+/* Centred dialogs keep their translate(-50%, -50%) while scaling in. */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+}
+
+@utility animate-dialog-in {
+  animation: dialog-in 220ms var(--ease-smooth);
+}
