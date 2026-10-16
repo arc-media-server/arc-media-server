@@ -2,3 +2,5 @@
 /ams.yaml
 /bin/
 *.exe
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep

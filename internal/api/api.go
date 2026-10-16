@@ -14,6 +14,7 @@ import (
 	"ams/internal/metadata"
 	"ams/internal/scanner"
 	"ams/internal/store"
+	"ams/internal/webui"
 )
 
 type Server struct {
@@ -43,6 +44,10 @@ func New(st *store.Store, sc *scanner.Scanner, log *slog.Logger, version string)
 	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", s.clearEntry)
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", s.setDisplayOrdering)
 	mux.HandleFunc("POST /api/series/{id}/refresh", s.refreshSeries)
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, http.StatusNotFound, "no such endpoint")
+	})
+	mux.Handle("/", webui.Handler())
 	return s.logRequests(mux)
 }
 

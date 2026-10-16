@@ -1,0 +1,107 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Arc design tokens. Dark is the default look; light follows the system setting.
+ * Components use the semantic names (bg-surface, text-muted...), never raw colours.
+ */
+:root {
+  --background: #0b0b10;
+  --surface: #15151c;
+  --surface-2: #1f1f28;
+  --surface-3: #2a2a35;
+  --foreground: #f5f5f7;
+  --muted: #a1a1ad;
+  --subtle: #6b6b78;
+  --border: rgb(255 255 255 / 0.08);
+  --accent: #9d8cff;
+  --accent-strong: #7c68ff;
+  --accent-foreground: #ffffff;
+  --warning: #ffb547;
+  --glass: rgb(21 21 28 / 0.72);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f5f5f7;
+    --surface: #ffffff;
+    --surface-2: #ececf1;
+    --surface-3: #dedee5;
+    --foreground: #1d1d1f;
+    --muted: #5f5f6b;
+    --subtle: #8e8e99;
+    --border: rgb(0 0 0 / 0.08);
+    --accent: #6d5ce8;
+    --accent-strong: #5a48d9;
+    --accent-foreground: #ffffff;
+    --warning: #c77700;
+    --glass: rgb(255 255 255 / 0.72);
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-warning: var(--warning);
+  --color-glass: var(--glass);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv11", "ss01";
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    letter-spacing: -0.005em;
+  }
+  h1, h2, h3 {
+    letter-spacing: -0.022em;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility glass {
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+
+@utility animate-menu-in {
+  animation: menu-in 180ms var(--ease-smooth);
+}

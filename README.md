@@ -24,16 +24,30 @@ Early development. Working today:
 - TMDB and TheTVDB metadata matching
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Direct-play streaming with HTTP range requests
+- **Web app**: home with featured title and recently added rows, library grids with sorting and
+  scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
+  search, and a Needs Attention list. Light and dark mode follow your system
 - SQLite database, with the schema already in place for users and per-user watch state
 
 ## Getting started
 
-Requirements: Go 1.24+ and FFmpeg (for `ffprobe`).
+Requirements: Go 1.24+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
 
 ```sh
-cp ams.example.yaml ams.yaml   # then edit library paths and add your TMDB key
+cp ams.example.yaml ams.yaml   # then edit library paths and add your TMDB/TVDB keys
+cd web && npm install && npm run build && cd ..   # builds the web app into the binary
 go run ./cmd/ams
 ```
+
+Then open http://127.0.0.1:8099.
+
+### Working on the web app
+
+Run AMS, then in another terminal `cd web && npm run dev` and open the address Vite prints.
+Changes appear instantly; API calls are forwarded to the running server.
+
+The web app is React + TypeScript, styled with Tailwind CSS, using Radix UI primitives,
+Motion for animation and TanStack Query for data loading.
 
 ## API
 
@@ -67,4 +81,6 @@ internal/probe/     ffprobe wrapper
 internal/scanner/   folder walking and filename parsing
 internal/metadata/  TMDB and TheTVDB clients
 internal/api/       REST API
+internal/webui/     serves the built web app (embedded)
+web/                web app source (React + TypeScript)
 ```

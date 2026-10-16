@@ -55,9 +55,12 @@ powerful when you need it.
 - [ ] Import from Plex and Jellyfin: users, watch history, resume points
 
 ### 5. AMS web app (Apple-style)
-- [ ] Design system: typography, spacing, motion, light/dark
+_Started early (after milestone 2) so progress can be seen as it's built._
+- [x] Foundation: React + TypeScript + Tailwind + Radix, embedded in the binary
+- [x] Design system basics: typography, colour tokens, motion, light/dark
+- [ ] Design system: refine spacing, components and states as the app grows
 - [ ] TheTVDB and TMDB attribution (required by their API terms)
-- [ ] Home, library browsing, item detail, search, player
+- [x] Home, library browsing, item detail, search, player (direct play)
 - [ ] Admin area that's simple: setup wizard, libraries, users, health
 - [ ] Customisable home: reorder and hide built-in rows
 - [ ] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")
