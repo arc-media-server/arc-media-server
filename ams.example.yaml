@@ -1,0 +1,30 @@
+# Arc Media Server configuration. Copy to ams.yaml and edit.
+
+# Address to listen on. Keep it on 127.0.0.1 until authentication exists.
+listen: "127.0.0.1:8099"
+
+# Where the database (and later, caches) are stored.
+data_dir: "data"
+
+# ffprobe binary. "ffprobe" works if it's on PATH, otherwise give the full path.
+ffprobe: "ffprobe"
+
+# TMDB API key (v3 key or v4 read access token). Can also be set with AMS_TMDB_API_KEY.
+tmdb_api_key: ""
+
+# Scan all libraries when the server starts.
+scan_on_start: true
+
+libraries:
+  - name: Movies
+    kind: movies
+    paths:
+      - "D:/Media/Movies"
+
+  # TV support is next. source_ordering says how SxxEyy in your filenames is numbered;
+  # the display order can be different and is chosen per series.
+  # - name: TV Shows
+  #   kind: shows
+  #   source_ordering: tvdb_aired
+  #   paths:
+  #     - "D:/Media/TV"
