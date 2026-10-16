@@ -4,7 +4,6 @@ package scanner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -42,6 +41,8 @@ type Status struct {
 	Missing     int64     `json:"files_missing"`
 	Matched     int       `json:"matched"`
 	Unmatched   int       `json:"unmatched"`
+	// Video files in a TV library that couldn't be read as an episode.
+	Unrecognised int `json:"not_recognised"`
 	Error       string    `json:"error,omitempty"`
 }
 
@@ -50,6 +51,7 @@ type Scanner struct {
 	store  *store.Store
 	prober *probe.Prober
 	tmdb   *metadata.TMDB // nil when no API key is configured
+	tvdb   *metadata.TVDB // nil when no API key is configured
 	log    *slog.Logger
 
 	wg     sync.WaitGroup
@@ -58,8 +60,8 @@ type Scanner struct {
 }
 
 // New creates a scanner. Background scans stop when ctx is cancelled.
-func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, log *slog.Logger) *Scanner {
-	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, log: log, status: map[int64]*Status{}}
+func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, tvdb *metadata.TVDB, log *slog.Logger) *Scanner {
+	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log, status: map[int64]*Status{}}
 }
 
 // Start begins a background scan of a library. It returns false if one is already running.
@@ -116,14 +118,25 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 	if lib == nil {
 		return fmt.Errorf("library %d not found", libraryID)
 	}
-	if lib.Kind != "movies" {
-		return errors.New("scanning TV libraries is not implemented yet")
-	}
-
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
 	scanStart := time.Now().UnixMilli()
 	allRootsOK := true
+
+	var addFile func(root, path string, d fs.DirEntry) error
+	series := map[string]*seriesGroup{}
+	switch lib.Kind {
+	case "movies":
+		addFile = func(root, path string, d fs.DirEntry) error {
+			return s.scanMovieFile(ctx, lib, path, d, scanStart)
+		}
+	case "shows":
+		addFile = func(root, path string, d fs.DirEntry) error {
+			return s.collectEpisodeFile(ctx, lib, root, path, d, scanStart, series)
+		}
+	default:
+		return fmt.Errorf("unknown library kind %q", lib.Kind)
+	}
 
 	for _, root := range lib.Paths {
 		if _, err := os.Stat(root); err != nil {
@@ -154,7 +167,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 			if !videoExts[strings.ToLower(filepath.Ext(name))] || isBonusFile(name) {
 				return nil
 			}
-			if err := s.scanMovieFile(ctx, lib, path, d, scanStart); err != nil {
+			if err := addFile(root, path, d); err != nil {
 				log.Warn("failed to add file", "path", path, "err", err)
 			}
 			return nil
@@ -172,48 +185,60 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 		s.update(lib.ID, func(st *Status) { st.Missing = n })
 	}
 
-	if s.tmdb != nil {
-		if err := s.matchMovies(ctx, lib.ID); err != nil {
-			return fmt.Errorf("metadata: %w", err)
+	switch lib.Kind {
+	case "movies":
+		if s.tmdb != nil {
+			if err := s.matchMovies(ctx, lib.ID); err != nil {
+				return fmt.Errorf("metadata: %w", err)
+			}
+		}
+	case "shows":
+		if err := s.syncSeriesGroups(ctx, lib, series, log); err != nil {
+			return err
 		}
 	}
 
 	st := s.Status(lib.ID)
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
-		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched)
+		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched, "not_recognised", st.Unrecognised)
 	return nil
 }
 
-func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64) error {
+// recordFile stores a file (probing it if it is new or changed) and marks it seen in this scan.
+func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64) (int64, error) {
 	info, err := d.Info()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.update(lib.ID, func(st *Status) { st.FilesSeen++ })
 
 	existing, err := s.store.GetFileByPath(ctx, path)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	var fileID int64
 	if existing != nil && existing.Probed && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix() {
-		fileID = existing.ID
-		if err := s.store.TouchFile(ctx, fileID, scanStart); err != nil {
-			return err
-		}
+		return existing.ID, s.store.TouchFile(ctx, existing.ID, scanStart)
+	}
+	f := &store.MediaFile{LibraryID: lib.ID, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix()}
+	var probedAt int64
+	if res, err := s.prober.Probe(ctx, path); err != nil {
+		f.ProbeError = err.Error()
 	} else {
-		f := &store.MediaFile{LibraryID: lib.ID, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix()}
-		var probedAt int64
-		if res, err := s.prober.Probe(ctx, path); err != nil {
-			f.ProbeError = err.Error()
-		} else {
-			probedAt = time.Now().Unix()
-			applyProbe(f, res)
-		}
-		if fileID, err = s.store.SaveFile(ctx, f, probedAt, scanStart); err != nil {
-			return err
-		}
-		s.update(lib.ID, func(st *Status) { st.FilesProbed++ })
+		probedAt = time.Now().Unix()
+		applyProbe(f, res)
+	}
+	fileID, err := s.store.SaveFile(ctx, f, probedAt, scanStart)
+	if err != nil {
+		return 0, err
+	}
+	s.update(lib.ID, func(st *Status) { st.FilesProbed++ })
+	return fileID, nil
+}
+
+func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64) error {
+	fileID, err := s.recordFile(ctx, lib, path, d, scanStart)
+	if err != nil {
+		return err
 	}
 
 	// Parse every time (it's cheap) so naming fixes and parser improvements take effect.
@@ -234,7 +259,7 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })
 	}
-	return s.store.LinkFile(ctx, itemID, fileID, name.Part)
+	return s.store.SetFileItems(ctx, fileID, []string{itemID}, name.Part)
 }
 
 func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {

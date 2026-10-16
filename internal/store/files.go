@@ -86,22 +86,22 @@ func (s *Store) MarkMissing(ctx context.Context, libraryID, scanStart, now int64
 	return res.RowsAffected()
 }
 
-// LinkFile attaches a file to an item, detaching it from any item it previously belonged to
-// (e.g. after a rename changed what the file parses as).
-func (s *Store) LinkFile(ctx context.Context, itemID string, fileID int64, part int) error {
+// SetFileItems sets exactly which items a file belongs to, detaching it from any others (e.g.
+// after a rename changed what the file parses as). A multi-episode file belongs to several items.
+func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string, part int) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM item_files WHERE file_id = ? AND item_id <> ?`, fileID, itemID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM item_files WHERE file_id = ?`, fileID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO item_files (item_id, file_id, part) VALUES (?, ?, ?)
-		ON CONFLICT (item_id, file_id) DO UPDATE SET part = excluded.part`, itemID, fileID, part); err != nil {
-		return err
+	for _, id := range itemIDs {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO item_files (item_id, file_id, part) VALUES (?, ?, ?)`, id, fileID, part); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

@@ -34,6 +34,15 @@ func New(st *store.Store, sc *scanner.Scanner, log *slog.Logger, version string)
 	mux.HandleFunc("GET /api/items/{id}", s.getItem)
 	mux.HandleFunc("GET /api/items/{id}/stream", s.stream)
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", s.image)
+	mux.HandleFunc("GET /api/libraries/{id}/unmatched", s.unmatched)
+	mux.HandleFunc("GET /api/series/{id}/seasons", s.seasons)
+	mux.HandleFunc("GET /api/series/{id}/orderings", s.listOrderings)
+	mux.HandleFunc("POST /api/series/{id}/orderings", s.createOrdering)
+	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}", s.deleteOrdering)
+	mux.HandleFunc("PUT /api/series/{id}/orderings/{oid}/entries/{eid}", s.setEntry)
+	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", s.clearEntry)
+	mux.HandleFunc("PUT /api/series/{id}/display-ordering", s.setDisplayOrdering)
+	mux.HandleFunc("POST /api/series/{id}/refresh", s.refreshSeries)
 	return s.logRequests(mux)
 }
 
@@ -229,6 +238,9 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("type") {
 	case "primary":
 		path, size = it.PosterPath, "w500"
+		if it.Kind == "episode" {
+			size = "w780" // episode stills are landscape
+		}
 	case "backdrop":
 		path, size = it.BackdropPath, "w1280"
 	default:

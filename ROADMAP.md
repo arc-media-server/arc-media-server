@@ -25,15 +25,16 @@ powerful when you need it.
 - [x] Direct-play streaming with range requests
 - [x] Native REST API
 
-### 2. TV shows and display orderings ⭐
-- [ ] Series/episode scanning (SxxEyy, multi-episode files, specials, absolute numbering)
-- [ ] TVDB and TMDB series metadata
-- [ ] Source ordering per library (how filenames are numbered)
-- [ ] Display orderings: TVDB aired/DVD/absolute, TMDB aired, TMDB episode groups, custom
-- [ ] Mapping between orderings: IDs first, then air date + title, then manual overrides
-- [ ] Display ordering chosen per series, overridable per user
-- [ ] Display-order preview: compare orderings side by side before switching
-- [ ] Unmatched episodes collected in a review bucket, never hidden
+### ✅ 2. TV shows and display orderings ⭐
+- [x] Series/episode scanning (SxxEyy, multi-episode files, specials, absolute numbering)
+- [x] TVDB and TMDB series metadata
+- [x] Source ordering per library (how filenames are numbered)
+- [x] Display orderings: TVDB aired/DVD/absolute, TMDB aired, TMDB episode groups, custom
+- [x] Mapping between orderings: IDs first, then air date + title, then manual overrides
+- [x] Display ordering chosen per series
+- [ ] Display ordering overridable per user (needs users, milestone 4; database already supports it)
+- [ ] Display-order preview: compare orderings side by side before switching (API ready, UI in milestone 5)
+- [x] Unmatched episodes collected in a review bucket, never hidden
 
 ### 3. Library health and maintenance
 - [ ] Library preview when adding a folder: what was found, what couldn't be identified and why, before anything is imported
@@ -55,6 +56,7 @@ powerful when you need it.
 
 ### 5. AMS web app (Apple-style)
 - [ ] Design system: typography, spacing, motion, light/dark
+- [ ] TheTVDB and TMDB attribution (required by their API terms)
 - [ ] Home, library browsing, item detail, search, player
 - [ ] Admin area that's simple: setup wizard, libraries, users, health
 - [ ] Customisable home: reorder and hide built-in rows

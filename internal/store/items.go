@@ -114,12 +114,16 @@ func (s *Store) SetMetadataState(ctx context.Context, id, state string) error {
 	return err
 }
 
-// ListItems returns a page of items plus the total match count. Movies and episodes are only
-// listed while at least one of their files is present on disk.
+// ListItems returns a page of items plus the total match count.
 func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error) {
-	where := []string{`(items.kind = 'series' OR EXISTS (
+	// Only list things that can be played: items with a present file, or series with at least one
+	// such episode.
+	where := []string{`(EXISTS (
 		SELECT 1 FROM item_files f JOIN media_files m ON m.id = f.file_id
-		WHERE f.item_id = items.id AND m.missing_since IS NULL))`}
+		WHERE f.item_id = items.id AND m.missing_since IS NULL)
+	OR (items.kind = 'series' AND EXISTS (
+		SELECT 1 FROM items c JOIN item_files f ON f.item_id = c.id JOIN media_files m ON m.id = f.file_id
+		WHERE c.parent_id = items.id AND m.missing_since IS NULL)))`}
 	var args []any
 	if q.LibraryID != 0 {
 		where = append(where, "library_id = ?")

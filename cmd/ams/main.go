@@ -73,7 +73,14 @@ func run(configPath string, log *slog.Logger) error {
 		log.Warn("no TMDB API key configured; items will be added without metadata")
 	}
 
-	sc := scanner.New(ctx, st, prober, tmdb, log)
+	var tvdb *metadata.TVDB
+	if cfg.TVDBAPIKey != "" {
+		tvdb = metadata.NewTVDB(cfg.TVDBAPIKey)
+	} else {
+		log.Warn("no TVDB API key configured; TV shows will use TMDB only")
+	}
+
+	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
 	for _, lib := range cfg.Libraries {
 		id, err := st.SyncLibrary(ctx, lib.Name, lib.Kind, lib.SourceOrdering, lib.Paths)
 		if err != nil {

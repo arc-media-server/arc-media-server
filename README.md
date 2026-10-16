@@ -14,13 +14,17 @@ An open source media server written in Go, built from the ground up.
 
 Early development. Working today:
 
+- TV show scanning: `S01E02`, multi-episode files, `1x02`, date-based shows, specials, anime absolute numbering
+- **Display orderings**: every TVDB order (aired, DVD, absolute) and TMDB order (aired plus all episode
+  groups) per series, mapped onto your files whichever way they're named. Pick one per series, make
+  custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
   multi-part `cd1`/`part2` files; extras and trailers are skipped)
 - Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
-- TMDB metadata matching
+- TMDB and TheTVDB metadata matching
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Direct-play streaming with HTTP range requests
-- SQLite database, with the schema already in place for TV episode orderings, users and watch state
+- SQLite database, with the schema already in place for users and per-user watch state
 
 ## Getting started
 
@@ -43,6 +47,15 @@ go run ./cmd/ams
 | GET | `/api/items/{id}` | Item details with files and streams |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork |
+| GET | `/api/libraries/{id}/unmatched` | Items that need attention |
+| GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
+| GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
+| PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |
+| POST | `/api/series/{id}/orderings` | Custom ordering: `{"name": "...", "copy_from": 5}` |
+| DELETE | `/api/series/{id}/orderings/{oid}` | Delete a custom ordering |
+| PUT | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Place an episode: `{"season_number": 1, "episode_number": 3}` |
+| DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
+| POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
 
 ## Layout
 
@@ -52,6 +65,6 @@ internal/config/    YAML config
 internal/store/     SQLite, migrations, queries
 internal/probe/     ffprobe wrapper
 internal/scanner/   folder walking and filename parsing
-internal/metadata/  TMDB client
+internal/metadata/  TMDB and TheTVDB clients
 internal/api/       REST API
 ```

@@ -13,6 +13,7 @@ type MovieName struct {
 	Title  string
 	Year   int
 	TMDBID int64
+	TVDBID int64
 	IMDBID string
 	Part   int // 1 for "cd1"/"part1", 0 when the movie is a single file
 }
@@ -69,6 +70,8 @@ func parseMovieName(s string) MovieName {
 			m.TMDBID, _ = strconv.ParseInt(g[2], 10, 64)
 		case "imdb", "imdbid":
 			m.IMDBID = strings.ToLower(g[2])
+		case "tvdb", "tvdbid":
+			m.TVDBID, _ = strconv.ParseInt(g[2], 10, 64)
 		}
 	}
 	s = idTagRe.ReplaceAllString(s, " ")

@@ -33,8 +33,12 @@ func NewTMDB(key string) *TMDB {
 	return &TMDB{key: key, http: &http.Client{Timeout: 20 * time.Second}}
 }
 
-// ImageURL builds a CDN URL for a TMDB image path such as "/abc.jpg".
+// ImageURL builds a URL for an image path: TMDB paths such as "/abc.jpg" go to TMDB's CDN,
+// full URLs (TVDB artwork) are returned as they are.
 func ImageURL(path, size string) string {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
 	return "https://image.tmdb.org/t/p/" + size + path
 }
 
