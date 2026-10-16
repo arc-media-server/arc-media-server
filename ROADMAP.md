@@ -48,11 +48,14 @@ powerful when you need it.
 
 ### 4. Users and watch state
 - [ ] Accounts, login, sessions/tokens; first-run setup creates the admin
+- [ ] Settings in the web app, no config file: API keys, ffprobe found automatically, port and network access
+- [ ] Per-user profiles with PINs (Plex-style managed users), optional sign-in bypass on the home network
 - [ ] Watched state, resume position, play counts
+- [ ] Mark a season or whole show as watched/unwatched
 - [ ] Continue Watching, Next Up (follows the display ordering), Recently Added
-- [ ] Per-user profiles with PINs
+- [ ] Richer metadata: genres, cast and crew, studio/network, content rating, tagline, ratings
 - [ ] Parental controls by content rating
-- [ ] Import from Plex and Jellyfin: users, watch history, resume points
+- [ ] Remove items whose files are gone ("Empty trash")
 
 ### 5. AMS web app (Apple-style)
 _Started early (after milestone 2) so progress can be seen as it's built._
@@ -61,6 +64,11 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Design system: refine spacing, components and states as the app grows
 - [x] Home, library browsing, item detail, search, player (direct play)
 - [ ] Admin area that's simple: setup wizard, libraries, users, health
+- [ ] Admin dashboard: now playing, stop a stream, server log
+- [ ] Browse filters (genre, decade, unwatched, resolution, rating) and more sort options
+- [ ] Use local artwork and NFO files (read-only)
+- [ ] Extras and trailers on movie and show pages
+- [ ] Choose artwork from TMDB/TVDB alternatives or upload your own
 - [ ] Customisable home: reorder and hide built-in rows
 - [ ] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")
 - [ ] Seasonal rows (Christmas films in December, horror in October), built on the same filter engine
@@ -78,6 +86,8 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Hardware acceleration: NVENC, Quick Sync, VAAPI, VideoToolbox
 - [ ] HDR to SDR tone mapping
 - [ ] Multiple versions: group 4K/1080p copies of the same title, auto-pick the best one for the device and connection
+- [ ] Editions (Director's Cut, Extended…) as choices on one movie
+- [ ] Player basics: audio track choice, keyboard shortcuts, playback speed
 - [ ] Device compatibility report: which files will need transcoding on which devices, and why
 - [ ] Scrubbing thumbnails (trickplay) when seeking
 - [ ] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed
@@ -118,6 +128,10 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
+- Import from Plex and Jellyfin: users, watch history, resume points
+- "Other videos" (home videos) library type
+- Notifications and webhooks
+- Personal ratings and a watchlist
 - Native apps (tvOS, iOS, Android TV) if the Jellyfin clients aren't polished enough
 
 ## Explicitly not planned
