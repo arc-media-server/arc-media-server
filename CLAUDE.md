@@ -39,7 +39,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 - Done: milestone 1 (movie core), milestone 2 (TV shows + display orderings), and the first version
   of the web app (pulled forward from milestone 5). The owner loves the design and the orderings feature.
-- Next planned: milestone 3 (library health and maintenance), building its UI alongside.
+- Milestone 3 (Oct 2026): done except #9 (library preview when adding a folder): artwork cache,
+  backups + restore, field locks + Edit Details, Fix Match with explanations, Library Health page,
+  folder watching. #9 needs a decision first: libraries are only defined in ams.yaml today, so
+  "adding a folder" in the app means moving library management into the app (asked the owner).
+- The owner has said to keep working through milestones without check-ins, asking only for real
+  product decisions.
 - Keep this section current at the end of each working session.
 
 ## Principles (non-negotiable)
