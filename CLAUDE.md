@@ -4,6 +4,44 @@ An open source media server (Plex/Jellyfin alternative) written in Go with an em
 app. The owner (GitHub: JonzaUK) drives product vision; the agent does most implementation.
 Read `ROADMAP.md` for the plan and `README.md` for features and the API.
 
+## Setting up a new machine
+
+The owner works from more than one PC (Windows). On a fresh clone:
+
+1. Install the tools (then open a new terminal so PATH updates):
+   ```
+   winget install GoLang.Go Gyan.FFmpeg OpenJS.NodeJS.LTS GitHub.cli
+   ```
+2. Log in to GitHub and clone:
+   ```
+   gh auth login --web
+   gh repo clone JonzaUK/arc-media-server
+   cd arc-media-server
+   ```
+3. Start Claude Code in the folder and say "let's continue".
+
+**Agent: when starting on a fresh clone, do this for the owner:**
+- Check `go version`, `node --version`, `ffprobe -version` and `gh auth status`. If any are missing,
+  give the owner the exact command above (installs need their go-ahead). If `go` or `ffprobe` aren't
+  found right after installing, the shell's PATH is stale: use `C:\Program Files\Go\bin\go.exe`, and
+  find ffprobe under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\...\bin`.
+- If `ams.yaml` doesn't exist, copy `ams.example.yaml` to it and ask the owner for their TMDB and
+  TVDB API keys (they have both; keys never go in git). If `ffprobe` isn't on PATH, put its full
+  path in `ams.yaml`.
+- Create the test library outside the repo with `go run ./tools/testmedia -out ../ams-test-media`
+  and paste the printed `libraries:` block into `ams.yaml`, unless the owner gives real media paths.
+- Build the UI (`cd web && npm install && npm run build`), then `go run ./cmd/ams`, and tell the
+  owner to open http://127.0.0.1:8099.
+- Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R JonzaUK/arc-media-server`) to
+  see what's next, then confirm with the owner before starting.
+
+## Where things stand
+
+- Done: milestone 1 (movie core), milestone 2 (TV shows + display orderings), and the first version
+  of the web app (pulled forward from milestone 5). The owner loves the design and the orderings feature.
+- Next planned: milestone 3 (library health and maintenance), building its UI alongside.
+- Keep this section current at the end of each working session.
+
 ## Principles (non-negotiable)
 
 1. **Never modify media files.** AMS only reads: no renaming, moving, tagging or writing beside them.
