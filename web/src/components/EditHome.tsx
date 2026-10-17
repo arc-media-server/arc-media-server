@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
 import type { Library, RowFilter } from '@/lib/api';
-import { defaultRowIds, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
+import { defaultRowIds, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions, sorts } from '@/pages/Library';
@@ -63,7 +63,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
             setRows((rs) => {
               const at = rs.findIndex((r) => r.type !== 'continue' && r.type !== 'next-up');
               const next = [...rs];
-              next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: 'custom', title, filter, library });
+              next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false });
               return next;
             });
           }
@@ -94,7 +94,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
               // An untouched default layout is saved as "default", so later changes to it apply.
               const saved = toSaved(rows);
               const isDefault =
-                rows.every((r) => !r.hidden && r.type !== 'custom') && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
+                rows.every((r) => !r.hidden && r.type !== 'custom' && isDefaultLook(r)) && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
               save.mutate({ home: isDefault ? [] : saved, split_up_next: split }, { onSuccess: onDone });
             }}
           >
@@ -128,6 +128,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
             row={r}
             merged={!split}
             onToggle={() => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, hidden: !x.hidden } : x)))}
+            onChange={(patch) => setRows((rs) => rs.map((x) => (x.id === r.id ? ({ ...x, ...patch } as ResolvedRow) : x)))}
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
             onDelete={r.type === 'custom' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
           />
@@ -144,7 +145,7 @@ function describe(r: ResolvedRow, merged: boolean): string {
     case 'next-up':
       return 'The next episode of each show you watch';
     case 'recent':
-      return `Newest in ${r.library.name}`;
+      return r.library.kind === 'shows' && !r.showsOnly ? `Newest in ${r.library.name}, new episodes grouped by season` : `Newest in ${r.library.name}`;
     case 'seasonal':
       return seasonsSummary;
     case 'custom':
@@ -184,12 +185,14 @@ function RowItem({
   row,
   merged,
   onToggle,
+  onChange,
   onEdit,
   onDelete,
 }: {
   row: ResolvedRow;
   merged: boolean;
   onToggle: () => void;
+  onChange: (patch: Partial<RowLook>) => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
@@ -219,6 +222,28 @@ function RowItem({
         </p>
         <p className="truncate text-xs text-subtle">{describe(row, merged)}</p>
       </div>
+      {row.type === 'recent' && row.library.kind === 'shows' && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-pressed={!row.showsOnly}
+          aria-label={row.showsOnly ? 'Group new episodes by season' : 'Show one card per show'}
+          title={row.showsOnly ? 'One card per show. Click to group new episodes by season, with season posters.' : 'New episodes grouped by season, with season posters. Click for one card per show.'}
+          onClick={() => onChange({ showsOnly: !row.showsOnly })}
+          className={cn(!row.showsOnly && 'text-accent')}
+        >
+          <Layers />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={row.style === 'poster' ? 'Use thumbnails' : 'Use posters'}
+        title={row.style === 'poster' ? 'Posters. Click for landscape thumbnails.' : 'Thumbnails. Click for posters.'}
+        onClick={() => onChange({ style: row.style === 'poster' ? 'thumb' : 'poster' })}
+      >
+        {row.style === 'poster' ? <RectangleVertical /> : <RectangleHorizontal />}
+      </Button>
       {onEdit && (
         <Button variant="ghost" size="icon" aria-label={`Edit ${row.title}`} onClick={onEdit}>
           <Pencil />

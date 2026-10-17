@@ -14,6 +14,8 @@ type Series struct {
 	Year          int
 	PosterPath    string // TMDB path ("/x.jpg") or full URL
 	BackdropPath  string
+	// Season posters by aired season number (TMDB paths); TMDB only.
+	SeasonPosters map[int]string
 	// Genres, cast and so on: from TMDB (TheTVDB's series record leaves these empty).
 	Details
 }

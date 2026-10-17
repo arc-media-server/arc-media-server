@@ -57,23 +57,40 @@ export function currentSeason(now = new Date()): Season | undefined {
   return seasons.find((s) => md >= s.from[0] * 100 + s.from[1] && md <= s.to[0] * 100 + s.to[1]);
 }
 
-/** A row ready to show: where its items come from and what it's called. */
-export type ResolvedRow =
-  | { id: string; hidden: boolean; type: 'continue' | 'next-up'; title: string }
-  | { id: string; hidden: boolean; type: 'seasonal'; title: string; season?: Season }
-  | { id: string; hidden: boolean; type: 'recent'; title: string; library: Library }
-  | { id: string; hidden: boolean; type: 'custom'; title: string; library?: Library; filter: RowFilter };
+/** How a row looks: its cards' style and, for a TV library's Recently Added, whether new episodes are grouped by season. */
+export interface RowLook {
+  style: 'poster' | 'thumb';
+  showsOnly: boolean;
+}
 
-function builtIn(id: string, libraries: Library[]): ResolvedRow | null {
-  if (id === 'continue') return { id, hidden: false, type: 'continue', title: 'Continue Watching' };
-  if (id === 'next-up') return { id, hidden: false, type: 'next-up', title: 'Up Next' };
+/** A row ready to show: where its items come from and what it's called. */
+export type ResolvedRow = RowLook &
+  (
+    | { id: string; hidden: boolean; type: 'continue' | 'next-up'; title: string }
+    | { id: string; hidden: boolean; type: 'seasonal'; title: string; season?: Season }
+    | { id: string; hidden: boolean; type: 'recent'; title: string; library: Library }
+    | { id: string; hidden: boolean; type: 'custom'; title: string; library?: Library; filter: RowFilter }
+  );
+
+/** Carrying on watching uses landscape thumbnails, everything else posters, as in Plex. */
+export function defaultStyle(type: ResolvedRow['type']): RowLook['style'] {
+  return type === 'continue' || type === 'next-up' ? 'thumb' : 'poster';
+}
+
+function look(type: ResolvedRow['type'], saved?: HomeRow): RowLook {
+  return { style: saved?.style ?? defaultStyle(type), showsOnly: !!saved?.shows_only };
+}
+
+function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
+  if (id === 'continue') return { id, hidden: false, type: 'continue', title: 'Continue Watching', ...look('continue', saved) };
+  if (id === 'next-up') return { id, hidden: false, type: 'next-up', title: 'Up Next', ...look('next-up', saved) };
   if (id === 'seasonal') {
     const season = currentSeason();
-    return { id, hidden: false, type: 'seasonal', title: season?.title ?? 'Seasonal Picks', season };
+    return { id, hidden: false, type: 'seasonal', title: season?.title ?? 'Seasonal Picks', season, ...look('seasonal', saved) };
   }
   if (id.startsWith('recent:')) {
     const library = libraries.find((l) => `recent:${l.id}` === id);
-    return library ? { id, hidden: false, type: 'recent', title: `Recently Added in ${library.name}`, library } : null;
+    return library ? { id, hidden: false, type: 'recent', title: `Recently Added in ${library.name}`, library, ...look('recent', saved) } : null;
   }
   return null;
 }
@@ -95,9 +112,9 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
       if (!r.filter || !r.title) continue;
       const library = libraries.find((l) => l.id === r.filter!.library_id);
       if (!library) continue;
-      out.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter });
+      out.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r) });
     } else {
-      const b = builtIn(r.id, libraries);
+      const b = builtIn(r.id, libraries, r);
       if (b) out.push({ ...b, hidden: !!r.hidden } as ResolvedRow);
     }
     placed.add(r.id);
@@ -119,11 +136,20 @@ export function visibleRows(rows: ResolvedRow[], splitUpNext: boolean) {
   return splitUpNext ? rows : rows.filter((r) => r.type !== 'next-up');
 }
 
+/** Whether a row looks the way it does by default. */
+export function isDefaultLook(r: ResolvedRow) {
+  return r.style === defaultStyle(r.type) && !r.showsOnly;
+}
+
 /** What gets saved for a layout. */
 export function toSaved(rows: ResolvedRow[]): HomeRow[] {
-  return rows.map((r) =>
-    r.type === 'custom' ? { id: r.id, hidden: r.hidden || undefined, title: r.title, filter: r.filter } : { id: r.id, hidden: r.hidden || undefined },
-  );
+  return rows.map((r) => ({
+    id: r.id,
+    hidden: r.hidden || undefined,
+    ...(r.type === 'custom' && { title: r.title, filter: r.filter }),
+    style: r.style === defaultStyle(r.type) ? undefined : r.style,
+    shows_only: r.showsOnly || undefined,
+  }));
 }
 
 /** The list query for a custom row. */

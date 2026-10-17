@@ -33,6 +33,8 @@ func findImage(dir string, bases ...string) string {
 // LocalArt is artwork found next to the media.
 type LocalArt struct {
 	Poster, Backdrop, Logo string
+	// Season posters (shows): season number -> file.
+	Seasons map[int]string
 }
 
 // movieArt finds a movie's local artwork: "<file name>-poster.jpg" beside the file, or poster.jpg
@@ -65,7 +67,35 @@ func seriesArt(dir string) LocalArt {
 		Poster:   findImage(dir, "poster", "folder", "cover", "show"),
 		Backdrop: findImage(dir, "fanart", "backdrop", "background", "art"),
 		Logo:     findImage(dir, "clearlogo", "logo"),
+		Seasons:  seasonPosters(dir),
 	}
+}
+
+// seasonPosterName matches season poster files in a show's folder, as Plex, Kodi and Jellyfin
+// name them: season01-poster.jpg, season1-poster.png, season-specials-poster.jpg.
+var seasonPosterName = regexp.MustCompile(`(?i)^season(\d+|-specials)-poster\.(jpe?g|png|webp)$`)
+
+// seasonPosters finds season poster files in a show's folder.
+func seasonPosters(dir string) map[int]string {
+	out := map[int]string{}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		m := seasonPosterName.FindStringSubmatch(e.Name())
+		if m == nil || e.IsDir() {
+			continue
+		}
+		n := 0
+		if m[1] != "-specials" {
+			n, _ = strconv.Atoi(m[1])
+		}
+		if _, dup := out[n]; !dup {
+			out[n] = filepath.Join(dir, e.Name())
+		}
+	}
+	return out
 }
 
 // episodeThumb finds an episode's local still: "<file name>-thumb.jpg" beside the file.

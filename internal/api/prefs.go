@@ -34,6 +34,10 @@ type homeRow struct {
 	Hidden bool       `json:"hidden,omitempty"`
 	Title  string     `json:"title,omitempty"`
 	Filter *rowFilter `json:"filter,omitempty"`
+	// "poster" or "thumb" (landscape thumbnails); "" for the row's usual look.
+	Style string `json:"style,omitempty"`
+	// A TV library's Recently Added: one card per show, instead of grouping new episodes by season.
+	ShowsOnly bool `json:"shows_only,omitempty"`
 }
 
 // rowFilter is the same set of filters as browsing a library (GET /api/items).
@@ -69,6 +73,9 @@ func (p *prefs) validate() error {
 			return fmt.Errorf("each row needs its own id")
 		}
 		seen[r.ID] = true
+		if r.Style != "" && r.Style != "poster" && r.Style != "thumb" {
+			return fmt.Errorf(`a row's style is "poster" or "thumb"`)
+		}
 		if !strings.HasPrefix(r.ID, "custom:") {
 			r.Title, r.Filter = "", nil
 			continue

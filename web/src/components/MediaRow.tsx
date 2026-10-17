@@ -1,17 +1,42 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { ResumeCard } from './EpisodeCard';
-import { PosterCard } from './PosterCard';
+import { PosterCard, ThumbCard } from './PosterCard';
+
+export type CardStyle = 'poster' | 'thumb';
+
+/** The width of a card in a row. */
+export function cardClass(style: CardStyle) {
+  return style === 'thumb' ? 'w-[260px] shrink-0 snap-start sm:w-[300px]' : 'w-[132px] shrink-0 snap-start sm:w-[156px]';
+}
 
 /**
- * A titled, horizontally scrolling row of posters (or, with `landscape`, cards to carry on
- * watching) with arrow buttons on hover.
+ * A titled, horizontally scrolling row of posters or landscape thumbnails, with arrow buttons on
+ * hover. With `play`, thumbnails play what they show (Continue Watching, Up Next) instead of
+ * opening it.
  */
-export function MediaRow({ title, items, href, landscape }: { title: string; items: Item[]; href?: string; landscape?: boolean }) {
+export function MediaRow({ title, items, href, style = 'poster', play }: { title: string; items: Item[]; href?: string; style?: CardStyle; play?: boolean }) {
+  return (
+    <RowShell title={title} href={href} empty={items.length === 0}>
+      {items.map((item) =>
+        style === 'poster' ? (
+          <PosterCard key={item.id} item={item} className={cardClass(style)} />
+        ) : play ? (
+          <ResumeCard key={item.id} item={item} className={cardClass(style)} />
+        ) : (
+          <ThumbCard key={item.id} item={item} className={cardClass(style)} />
+        ),
+      )}
+    </RowShell>
+  );
+}
+
+/** A titled row that scrolls sideways; its cards are the children. */
+export function RowShell({ title, href, empty, children }: { title: string; href?: string; empty?: boolean; children: ReactNode }) {
   const scroller = useRef<HTMLDivElement>(null);
-  if (items.length === 0) return null;
+  if (empty) return null;
 
   const scroll = (dir: 1 | -1) => {
     const el = scroller.current;
@@ -37,13 +62,7 @@ export function MediaRow({ title, items, href, landscape }: { title: string; ite
           ref={scroller}
           className="scrollbar-none flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-2 pt-1 md:scroll-px-10 md:px-10"
         >
-          {items.map((item) =>
-            landscape ? (
-              <ResumeCard key={item.id} item={item} className="w-[260px] shrink-0 snap-start sm:w-[300px]" />
-            ) : (
-              <PosterCard key={item.id} item={item} className="w-[132px] shrink-0 snap-start sm:w-[156px]" />
-            ),
-          )}
+          {children}
         </div>
         <RowArrow side="left" onClick={() => scroll(-1)} />
         <RowArrow side="right" onClick={() => scroll(1)} />

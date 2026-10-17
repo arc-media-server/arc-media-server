@@ -94,3 +94,17 @@ func TestMovieArt(t *testing.T) {
 		t.Errorf("shared folder: %+v", art)
 	}
 }
+
+func TestSeasonPosters(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"season01-poster.jpg", "Season2-Poster.PNG", "season-specials-poster.webp", "season03-fanart.jpg", "poster.jpg"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := seriesArt(dir).Seasons
+	if len(got) != 3 || filepath.Base(got[1]) != "season01-poster.jpg" || filepath.Base(got[2]) != "Season2-Poster.PNG" ||
+		filepath.Base(got[0]) != "season-specials-poster.webp" {
+		t.Errorf("season posters: %v", got)
+	}
+}

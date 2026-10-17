@@ -127,6 +127,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/collections/{id}", user(s.getCollection))
 	mux.HandleFunc("GET /api/collections/{id}/images/{type}", user(s.collectionImage))
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
+	mux.HandleFunc("GET /api/series/{id}/seasons/{n}/image", user(s.seasonImage))
+	mux.HandleFunc("GET /api/libraries/{id}/recent-shows", user(s.recentlyAddedShows))
 	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
 	mux.HandleFunc("PUT /api/items/{id}/progress", user(s.reportProgress))
