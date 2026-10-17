@@ -63,7 +63,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Design system basics: typography, colour tokens, motion, light/dark
 - [ ] Design system: refine spacing, components and states as the app grows
 - [x] Home, library browsing, item detail, search, player (direct play)
-- [ ] Admin area that's simple: setup wizard, libraries, users, health
+- [x] Admin area that's simple: setup wizard, libraries, users, health
 - [x] Admin dashboard: now playing, stop a stream, server log
 - [x] Browse filters (genre, decade, unwatched, resolution, rating) and more sort options
 - [x] Use local artwork and NFO files (read-only)
