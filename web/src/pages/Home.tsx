@@ -25,6 +25,8 @@ function LibraryRow({ lib }: { lib: Library }) {
 
 export function Home() {
   const { data: libraries, isLoading } = useLibraries();
+  const continueWatching = useQuery({ queryKey: ['continue'], queryFn: api.continueWatching });
+  const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp });
   // The featured item: the most recently added thing with a backdrop.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
@@ -59,6 +61,8 @@ export function Home() {
     <Page className="pb-16">
       {featuredQuery.data ? <Featured item={featuredQuery.data} /> : <div className="h-10" />}
       <div className="relative z-10 -mt-6 space-y-10">
+        <MediaRow title="Continue Watching" items={continueWatching.data ?? []} landscape />
+        <MediaRow title="Up Next" items={nextUp.data ?? []} landscape />
         {libraries.map((lib) => (
           <LibraryRow key={lib.id} lib={lib} />
         ))}
@@ -82,7 +86,7 @@ function Featured({ item }: { item: Item }) {
         {item.overview && <p className="mt-4 line-clamp-3 max-w-xl text-[15px] leading-relaxed text-foreground/80">{item.overview}</p>}
         <div className="mt-6 flex gap-3">
           {canPlay && (
-            <Button variant="primary" size="lg" onClick={() => play({ title: item.title, src: item.stream_url! })}>
+            <Button variant="primary" size="lg" onClick={() => play({ title: item.title, src: item.stream_url!, itemId: item.id, startMS: item.user_data?.position_ms })}>
               <Play className="fill-current" /> Play
             </Button>
           )}

@@ -3,6 +3,7 @@ import type { Item } from '@/lib/api';
 import { itemHref, posterUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Artwork } from './Artwork';
+import { ProgressBar, progressOf, WatchBadge } from './WatchState';
 
 export function PosterCard({ item, className }: { item: Item; className?: string }) {
   return (
@@ -15,6 +16,8 @@ export function PosterCard({ item, className }: { item: Item; className?: string
           icon={item.kind === 'series' ? 'tv' : 'film'}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/0 via-transparent to-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <WatchBadge item={item} />
+        <ProgressBar value={progressOf(item)} />
       </div>
       <div className="mt-2.5 px-0.5">
         <p className="truncate text-[13px] font-medium leading-tight text-foreground">{item.title}</p>

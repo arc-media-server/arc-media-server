@@ -242,8 +242,23 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	seriesDTO := toDTO(*series)
+	all := []*itemDTO{&seriesDTO}
+	for _, sd := range seasons {
+		for i := range sd.Episodes {
+			all = append(all, &sd.Episodes[i].itemDTO)
+		}
+	}
+	for i := range unplaced {
+		all = append(all, &unplaced[i].itemDTO)
+	}
+	if err := s.fillUserData(r, all); err != nil {
+		s.fail(w, err)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"series":   toDTO(*series),
+		"series":   seriesDTO,
 		"ordering": ordering,
 		"seasons":  seasons,
 		"unplaced": unplaced,

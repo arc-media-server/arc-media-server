@@ -35,6 +35,9 @@ Early development. Working today:
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
   everything, and optional sign-in without the password on your home network
+- Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
+  counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
+  (Up Next follows the episode order you chose)
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
@@ -109,6 +112,10 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |
 | PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
+| PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms"}`; past 90% counts as watched |
+| PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
+| GET | `/api/home/continue` | What the profile is part-way through |
+| GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |

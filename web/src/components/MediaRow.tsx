@@ -2,10 +2,14 @@ import { useRef } from 'react';
 import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Item } from '@/lib/api';
+import { ResumeCard } from './EpisodeCard';
 import { PosterCard } from './PosterCard';
 
-/** A titled, horizontally scrolling row of posters with arrow buttons on hover. */
-export function MediaRow({ title, items, href }: { title: string; items: Item[]; href?: string }) {
+/**
+ * A titled, horizontally scrolling row of posters (or, with `landscape`, cards to carry on
+ * watching) with arrow buttons on hover.
+ */
+export function MediaRow({ title, items, href, landscape }: { title: string; items: Item[]; href?: string; landscape?: boolean }) {
   const scroller = useRef<HTMLDivElement>(null);
   if (items.length === 0) return null;
 
@@ -33,9 +37,13 @@ export function MediaRow({ title, items, href }: { title: string; items: Item[];
           ref={scroller}
           className="scrollbar-none flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-2 pt-1 md:scroll-px-10 md:px-10"
         >
-          {items.map((item) => (
-            <PosterCard key={item.id} item={item} className="w-[132px] shrink-0 snap-start sm:w-[156px]" />
-          ))}
+          {items.map((item) =>
+            landscape ? (
+              <ResumeCard key={item.id} item={item} className="w-[260px] shrink-0 snap-start sm:w-[300px]" />
+            ) : (
+              <PosterCard key={item.id} item={item} className="w-[132px] shrink-0 snap-start sm:w-[156px]" />
+            ),
+          )}
         </div>
         <RowArrow side="left" onClick={() => scroll(-1)} />
         <RowArrow side="right" onClick={() => scroll(1)} />

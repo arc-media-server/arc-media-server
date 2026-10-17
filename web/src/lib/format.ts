@@ -8,6 +8,15 @@ export function runtime(minutes?: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+/** A position like "1:04:09" or "12:30". */
+export function clock(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
+
 export function durationMinutes(ms?: number): number {
   return ms ? Math.round(ms / 60000) : 0;
 }

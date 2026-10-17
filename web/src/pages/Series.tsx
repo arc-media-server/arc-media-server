@@ -13,6 +13,8 @@ import { Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
+import { WatchedButton } from '@/components/WatchedButton';
+import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +78,9 @@ export function SeriesPage() {
   const episodes =
     season === UNPLACED ? data.unplaced : (data.seasons.find((s) => s.season_number === season)?.episodes ?? []);
   const available = data.seasons.reduce((n, s) => n + s.episodes.filter((e) => e.available).length, 0);
-  const firstPlayable = data.seasons.flatMap((s) => s.episodes).find((e) => e.available);
+  const upNext = nextToPlay(data.seasons.flatMap((s) => s.episodes));
+  const seasonEpisodes = season === UNPLACED ? [] : episodes.filter((e) => e.available);
+  const seasonWatched = seasonEpisodes.length > 0 && seasonEpisodes.every((e) => e.user_data?.played);
 
   return (
     <Page className="pb-20">
@@ -105,7 +109,8 @@ export function SeriesPage() {
               </p>
             )}
             <div className="mt-7 flex flex-wrap gap-3">
-              {firstPlayable && <PlayButton episode={firstPlayable} seriesTitle={series.title} />}
+              {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
+              {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
               {admin && (
                 <>
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
@@ -143,6 +148,9 @@ export function SeriesPage() {
               </button>
             ))}
           </div>
+          {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
+            <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
+          )}
           <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title="Show episodes you don't have">
             {showMissing ? <EyeOff /> : <Eye />} {showMissing ? 'Hide Missing' : 'Show Missing'}
           </Button>
@@ -181,21 +189,42 @@ export function SeriesPage() {
   );
 }
 
-function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTitle: string }) {
-  const play = usePlayer();
-  return (
-    <Button
-      variant="primary"
-      size="lg"
-      onClick={() => play({ title: episode.title, subtitle: `${seriesTitle} · ${episodeCode(episode)}`, src: episode.stream_url! })}
-    >
-      <Play className="fill-current" /> Play {episodeCode(episode)}
-    </Button>
-  );
+/**
+ * The episode the Play button starts: the one most recently watched if it's part-way through,
+ * otherwise the next unwatched one after it, otherwise the first. Specials only if there's
+ * nothing else.
+ */
+function nextToPlay(all: SeasonEpisode[]): SeasonEpisode | undefined {
+  const eps = all.filter((e) => e.available && e.stream_url);
+  const main = eps.filter((e) => e.season_number > 0);
+  const list = main.length ? main : eps;
+  let last = -1;
+  list.forEach((e, i) => {
+    if ((e.user_data?.last_played_at ?? 0) > (list[last]?.user_data?.last_played_at ?? 0)) last = i;
+  });
+  if (last < 0) return list[0];
+  if (list[last].user_data?.position_ms) return list[last];
+  return list.slice(last + 1).find((e) => !e.user_data?.played) ?? list.find((e) => !e.user_data?.played) ?? list[0];
 }
 
-function episodeCode(e: SeasonEpisode) {
-  return e.season_number === 0 ? `Special ${e.episode_number}` : `S${e.season_number} E${e.episode_number}`;
+function playEpisode(play: ReturnType<typeof usePlayer>, ep: SeasonEpisode, seriesTitle: string, fromStart = false) {
+  play({
+    title: ep.title,
+    subtitle: `${seriesTitle} · ${episodeCode(ep.season_number, ep.episode_number)}`,
+    src: ep.stream_url!,
+    itemId: ep.id,
+    startMS: fromStart ? 0 : ep.user_data?.position_ms,
+  });
+}
+
+function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTitle: string }) {
+  const play = usePlayer();
+  const resume = episode.user_data?.position_ms;
+  return (
+    <Button variant="primary" size="lg" onClick={() => playEpisode(play, episode, seriesTitle)}>
+      <Play className="fill-current" /> {resume ? 'Resume' : 'Play'} {episodeCode(episode.season_number, episode.episode_number)}
+    </Button>
+  );
 }
 
 function OrderingMenu({
@@ -265,8 +294,8 @@ function providerLabel(o: Ordering) {
 function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpisode; seriesTitle: string; unplaced: boolean }) {
   const play = usePlayer();
   const playable = ep.available && ep.stream_url;
-  const onPlay = () =>
-    playable && play({ title: ep.title, subtitle: unplaced ? seriesTitle : `${seriesTitle} · ${episodeCode(ep)}`, src: ep.stream_url! });
+  const onPlay = () => playable && playEpisode(play, ep, seriesTitle);
+  const watched = !!ep.user_data?.played;
 
   return (
     <div
@@ -285,6 +314,7 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
             </div>
           </div>
         )}
+        <ProgressBar value={progressOf(ep)} />
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-baseline gap-3">
@@ -302,6 +332,15 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
           </div>
         </div>
       </div>
+      {ep.available && (
+        <WatchedButton
+          itemId={ep.id}
+          watched={watched}
+          size="sm"
+          variant="ghost"
+          className={cn('mt-0.5 shrink-0 transition-opacity', !watched && 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100')}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
@@ -10,6 +10,8 @@ import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
+import { WatchedButton } from '@/components/WatchedButton';
+import { progressOf } from '@/components/WatchState';
 
 export function MoviePage() {
   const { id } = useParams();
@@ -35,6 +37,9 @@ export function MoviePage() {
   const video = fmt.videoStream(file);
   const audio = fmt.audioStreams(file)[0];
   const playable = !!item.stream_url && item.files?.some((f) => !f.missing);
+  const resumeAt = item.user_data?.position_ms ?? 0;
+  const playFrom = (startMS: number) =>
+    play({ title: item.title, subtitle: item.year ? String(item.year) : undefined, src: item.stream_url!, itemId: item.id, startMS });
 
   return (
     <Page className="pb-20">
@@ -68,10 +73,22 @@ export function MoviePage() {
                 variant="primary"
                 size="lg"
                 disabled={!playable}
-                onClick={() => play({ title: item.title, subtitle: item.year ? String(item.year) : undefined, src: item.stream_url! })}
+                onClick={() => playFrom(resumeAt)}
+                className="relative overflow-hidden"
               >
-                <Play className="fill-current" /> {playable ? 'Play' : 'File missing'}
+                <Play className="fill-current" /> {!playable ? 'File missing' : resumeAt ? `Resume · ${fmt.clock(resumeAt)}` : 'Play'}
+                {resumeAt > 0 && (
+                  <span className="absolute inset-x-0 bottom-0 h-1 bg-background/15">
+                    <span className="block h-full bg-accent-strong" style={{ width: `${progressOf(item) * 100}%` }} />
+                  </span>
+                )}
               </Button>
+              {resumeAt > 0 && playable && (
+                <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => playFrom(0)} title="Play from the beginning" aria-label="Play from the beginning">
+                  <RotateCcw />
+                </Button>
+              )}
+              <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
               {admin && (
                 <>
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>

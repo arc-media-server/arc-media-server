@@ -1,12 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertCircle, X } from 'lucide-react';
+import { api } from '@/lib/api';
 import { Button } from './ui/button';
 
 interface NowPlaying {
   title: string;
   subtitle?: string;
   src: string;
+  /** The movie or episode, so progress is saved for the current profile. */
+  itemId?: string;
+  /** Where to start, in milliseconds (a resume point). */
+  startMS?: number;
 }
 
 const PlayerContext = createContext<(item: NowPlaying) => void>(() => {});
@@ -16,13 +22,24 @@ export function usePlayer() {
   return useContext(PlayerContext);
 }
 
+// How often progress is saved while playing.
+const reportEveryMS = 10_000;
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const qc = useQueryClient();
   const [current, setCurrent] = useState<NowPlaying | null>(null);
   const play = useCallback((item: NowPlaying) => setCurrent(item), []);
+  const close = useCallback(() => {
+    setCurrent(null);
+    // Watched state and Continue Watching have changed.
+    window.setTimeout(() => {
+      for (const key of ['item', 'items', 'seasons', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
+    }, 300);
+  }, [qc]);
   return (
     <PlayerContext.Provider value={play}>
       {children}
-      <AnimatePresence>{current && <PlayerOverlay item={current} onClose={() => setCurrent(null)} />}</AnimatePresence>
+      <AnimatePresence>{current && <PlayerOverlay item={current} onClose={close} />}</AnimatePresence>
     </PlayerContext.Provider>
   );
 }
@@ -32,6 +49,23 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   const [error, setError] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const hideTimer = useRef<number>(undefined);
+  const lastReport = useRef(0);
+
+  const report = useCallback(() => {
+    const v = video.current;
+    if (!item.itemId || !v || !v.duration || Number.isNaN(v.duration)) return;
+    lastReport.current = Date.now();
+    api.reportProgress(item.itemId, v.currentTime * 1000, v.duration * 1000).catch(() => {});
+  }, [item.itemId]);
+
+  // Save progress when the player closes (including the window closing).
+  useEffect(() => {
+    window.addEventListener('pagehide', report);
+    return () => {
+      window.removeEventListener('pagehide', report);
+      report();
+    };
+  }, [report]);
 
   const poke = useCallback(() => {
     setChromeVisible(true);
@@ -83,6 +117,14 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
           playsInline
           className="max-h-full max-w-full"
           onError={() => setError(true)}
+          onLoadedMetadata={(e) => {
+            if (item.startMS) e.currentTarget.currentTime = item.startMS / 1000;
+          }}
+          onTimeUpdate={() => {
+            if (Date.now() - lastReport.current >= reportEveryMS) report();
+          }}
+          onPause={report}
+          onEnded={report}
         />
       )}
 

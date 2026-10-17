@@ -85,6 +85,10 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
 	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
+	mux.HandleFunc("PUT /api/items/{id}/progress", user(s.reportProgress))
+	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
+	mux.HandleFunc("GET /api/home/continue", user(s.continueWatching))
+	mux.HandleFunc("GET /api/home/next-up", user(s.nextUp))
 
 	// The admin profile: running the server.
 	mux.HandleFunc("POST /api/auth/password", admin(s.changePassword))
@@ -128,11 +132,18 @@ func New(d Deps) http.Handler {
 // itemDTO adds links and files to a stored item.
 type itemDTO struct {
 	store.Item
-	// For episodes, where the caller asks for it: the series' title.
-	SeriesTitle string            `json:"series_title,omitempty"`
-	Images      map[string]string `json:"images,omitempty"`
-	Stream      string            `json:"stream_url,omitempty"`
-	Files       []store.MediaFile `json:"files,omitempty"`
+	// For episodes, where the caller asks for it: the series' title, and the episode's place in the
+	// profile's episode order.
+	SeriesTitle   string `json:"series_title,omitempty"`
+	SeasonNumber  *int   `json:"season_number,omitempty"`
+	EpisodeNumber *int   `json:"episode_number,omitempty"`
+	// The current profile's watch state: for movies and episodes, and for series the number of
+	// episodes on disk not watched yet.
+	UserData       *store.UserData   `json:"user_data,omitempty"`
+	UnwatchedCount *int              `json:"unwatched_count,omitempty"`
+	Images         map[string]string `json:"images,omitempty"`
+	Stream         string            `json:"stream_url,omitempty"`
+	Files          []store.MediaFile `json:"files,omitempty"`
 }
 
 func toDTO(it store.Item) itemDTO {
@@ -231,9 +242,10 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	out := make([]itemDTO, 0, len(items))
-	for _, it := range items {
-		out = append(out, toDTO(it))
+	out := toDTOs(items)
+	if err := s.fillUserData(r, ptrs(out)); err != nil {
+		s.fail(w, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out})
 }
@@ -263,6 +275,10 @@ func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {
 	}
 	d := toDTO(*it)
 	d.Files = files
+	if err := s.fillUserData(r, []*itemDTO{&d}); err != nil {
+		s.fail(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 

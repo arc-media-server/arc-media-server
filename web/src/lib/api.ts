@@ -70,9 +70,15 @@ export interface Item {
   metadata_state: MetadataState;
   added_at: number;
   locked_fields: LockableField[];
-  /** Episodes, where the API includes it: their series' title. */
+  /** Episodes, where the API includes it: their series' title and place in the profile's order. */
   series_title?: string;
-  images?: { primary?: string; backdrop?: string };
+  season_number?: number;
+  episode_number?: number;
+  /** The current profile's watch state (movies and episodes). */
+  user_data?: UserData;
+  /** Series: episodes on disk the current profile hasn't watched. */
+  unwatched_count?: number;
+  images?: { primary?: string; backdrop?: string; series_primary?: string; series_backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
 }
@@ -279,6 +285,13 @@ export interface ItemQuery {
   offset?: number;
 }
 
+export interface UserData {
+  position_ms?: number;
+  played: boolean;
+  play_count?: number;
+  last_played_at?: number;
+}
+
 export type ProfileColor = 'violet' | 'blue' | 'teal' | 'green' | 'amber' | 'orange' | 'rose' | 'slate';
 
 export interface Profile {
@@ -327,11 +340,13 @@ export class ApiError extends Error {
 /** Fired when the server says the session is gone, so the app can show the sign-in screen. */
 export const UNAUTHORIZED_EVENT = 'ams:unauthorized';
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, opts: { keepalive?: boolean } = {}): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    // Lets a last progress report finish even if the page is closing.
+    keepalive: opts.keepalive,
   });
   if (!res.ok) {
     let message = res.statusText;
@@ -395,6 +410,12 @@ export const api = {
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
+  reportProgress: (id: string, positionMS: number, durationMS: number) =>
+    request<UserData>('PUT', `/api/items/${id}/progress`, { position_ms: Math.round(positionMS), duration_ms: Math.round(durationMS) }, { keepalive: true }),
+  setPlayed: (id: string, played: boolean, season?: number) =>
+    request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),
+  continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
+  nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   matchInfo: (id: string) => request<MatchInfo>('GET', `/api/items/${id}/match`),
   searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
     request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),

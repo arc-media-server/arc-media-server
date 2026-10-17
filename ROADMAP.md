@@ -50,9 +50,9 @@ powerful when you need it.
 - [x] Accounts, login, sessions/tokens; first-run setup creates the admin
 - [x] Settings in the web app, no config file: API keys, ffprobe found automatically, port and network access
 - [x] Per-user profiles with PINs (Plex-style managed users), optional sign-in bypass on the home network
-- [ ] Watched state, resume position, play counts
-- [ ] Mark a season or whole show as watched/unwatched
-- [ ] Continue Watching, Next Up (follows the display ordering), Recently Added
+- [x] Watched state, resume position, play counts
+- [x] Mark a season or whole show as watched/unwatched
+- [x] Continue Watching, Next Up (follows the display ordering), Recently Added
 - [ ] Richer metadata: genres, cast and crew, studio/network, content rating, tagline, ratings
 - [ ] Parental controls by content rating
 - [ ] Remove items whose files are gone ("Empty trash")

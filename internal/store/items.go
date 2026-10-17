@@ -58,7 +58,23 @@ func keepIfLocked(field string) string {
 
 // prefixCols qualifies each column in a comma-separated list with a table alias.
 func prefixCols(prefix, cols string) string {
-	parts := strings.Split(cols, ",")
+	// Split on the commas between columns, not those inside COALESCE(...).
+	var parts []string
+	depth, start := 0, 0
+	for i, c := range cols {
+		switch c {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, cols[start:i])
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, cols[start:])
 	for i, p := range parts {
 		p = strings.TrimSpace(p)
 		if strings.HasPrefix(p, "COALESCE(") {
