@@ -116,7 +116,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Collections and playlists as home rows (#91)
 - [ ] Personal ratings and a watchlist (#79)
 - [ ] "More like this" on title pages and a Recommended view per library (#92)
-- [ ] Edit collections: artwork and details (#111)
+- [x] Edit collections: artwork and details (#111)
 - [ ] Season posters on the show page (#112)
 
 ### 14. Library management

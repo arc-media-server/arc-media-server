@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -25,15 +27,27 @@ type Collection struct {
 	// Smart collections: the filter, as JSON.
 	Filter string `json:"filter,omitempty"`
 	Hidden bool   `json:"-"`
+	// Fields the admin edited, which TMDB refreshes leave alone.
+	LockedFields []string `json:"locked_fields"`
 	// How many titles the profile can see in it (filled in when listing).
 	Count int `json:"count"`
 }
 
-const collectionCols = `id, library_id, kind, tmdb_id, title, sort_title, overview, poster_path, backdrop_path, filter, hidden`
+const collectionCols = `id, library_id, kind, tmdb_id, title, sort_title, overview, poster_path, backdrop_path, filter, hidden, locked_fields`
 
 func scanCollection(row interface{ Scan(...any) error }, c *Collection) error {
-	return row.Scan(&c.ID, &c.LibraryID, &c.Kind, &c.TMDBID, &c.Title, &c.SortTitle, &c.Overview, &c.PosterPath,
-		&c.BackdropPath, &c.Filter, &c.Hidden)
+	var locked string
+	if err := row.Scan(&c.ID, &c.LibraryID, &c.Kind, &c.TMDBID, &c.Title, &c.SortTitle, &c.Overview, &c.PosterPath,
+		&c.BackdropPath, &c.Filter, &c.Hidden, &locked); err != nil {
+		return err
+	}
+	c.LockedFields = splitLocked(locked)
+	return nil
+}
+
+// collectionLocked is an SQL condition that a collection field is in the row's locked_fields.
+func collectionLocked(field string) string {
+	return `instr(',' || locked_fields || ',', ',` + field + `,') > 0`
 }
 
 // playableSQL keeps titles with a present file (for a series, an episode with one).
@@ -67,8 +81,10 @@ func (s *Store) SetMovieCollection(ctx context.Context, itemID string, libraryID
 		INSERT INTO collections (id, library_id, kind, tmdb_id, title, sort_title, poster_path, backdrop_path, created_at)
 		VALUES (?, ?, 'auto', ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (library_id, tmdb_id) WHERE tmdb_id <> 0 DO UPDATE SET
-			title = excluded.title, sort_title = excluded.sort_title,
-			poster_path = excluded.poster_path, backdrop_path = excluded.backdrop_path`,
+			title = CASE WHEN `+collectionLocked("title")+` THEN title ELSE excluded.title END,
+			sort_title = CASE WHEN `+collectionLocked("sort_title")+` OR `+collectionLocked("title")+` THEN sort_title ELSE excluded.sort_title END,
+			poster_path = CASE WHEN `+collectionLocked("poster")+` THEN poster_path ELSE excluded.poster_path END,
+			backdrop_path = CASE WHEN `+collectionLocked("backdrop")+` THEN backdrop_path ELSE excluded.backdrop_path END`,
 		newID(), libraryID, ref.TMDBID, ref.Name, SortTitle(ref.Name), ref.PosterPath, ref.BackdropPath, time.Now().Unix())
 	return err
 }
@@ -198,18 +214,43 @@ func (s *Store) CreateCollection(ctx context.Context, c *Collection) error {
 	return err
 }
 
-// UpdateCollection changes a collection's title, description and (smart ones) filter.
+// UpdateCollection changes a collection's title, sort title (following the title when empty),
+// description, (smart ones) filter and locked fields.
 func (s *Store) UpdateCollection(ctx context.Context, c *Collection) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE collections SET title = ?, sort_title = ?, overview = ?, filter = ? WHERE id = ?`,
-		c.Title, SortTitle(c.Title), c.Overview, c.Filter, c.ID)
+	if c.SortTitle == "" {
+		c.SortTitle = SortTitle(c.Title)
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE collections SET title = ?, sort_title = ?, overview = ?, filter = ?, locked_fields = ? WHERE id = ?`,
+		c.Title, c.SortTitle, c.Overview, c.Filter, strings.Join(c.LockedFields, ","), c.ID)
 	return err
 }
 
-// SetCollectionInfo fills in an automatic collection's description and artwork from TMDB.
+// SetCollectionArt sets a collection's poster or backdrop ("poster" or "backdrop") to an image
+// path (a TMDB path or an upload) and locks it; "" clears it and unlocks it.
+func (s *Store) SetCollectionArt(ctx context.Context, id, field, path string) error {
+	col := map[string]string{"poster": "poster_path", "backdrop": "backdrop_path"}[field]
+	if col == "" {
+		return errors.New("unknown collection artwork: " + field)
+	}
+	c, err := s.GetCollection(ctx, id)
+	if err != nil || c == nil {
+		return err
+	}
+	locked := slices.DeleteFunc(slices.Clone(c.LockedFields), func(f string) bool { return f == field })
+	if path != "" {
+		locked = append(locked, field)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE collections SET `+col+` = ?, locked_fields = ? WHERE id = ?`, path, strings.Join(locked, ","), id)
+	return err
+}
+
+// SetCollectionInfo fills in an automatic collection's description and artwork from TMDB, except
+// what the admin edited.
 func (s *Store) SetCollectionInfo(ctx context.Context, id, overview, poster, backdrop string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE collections SET overview = ?,
-		poster_path = CASE WHEN ? <> '' THEN ? ELSE poster_path END,
-		backdrop_path = CASE WHEN ? <> '' THEN ? ELSE backdrop_path END WHERE id = ?`,
+	_, err := s.db.ExecContext(ctx, `UPDATE collections SET
+		overview = CASE WHEN `+collectionLocked("overview")+` THEN overview ELSE ? END,
+		poster_path = CASE WHEN ? <> '' AND NOT `+collectionLocked("poster")+` THEN ? ELSE poster_path END,
+		backdrop_path = CASE WHEN ? <> '' AND NOT `+collectionLocked("backdrop")+` THEN ? ELSE backdrop_path END WHERE id = ?`,
 		overview, poster, poster, backdrop, backdrop, id)
 	return err
 }

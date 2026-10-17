@@ -93,6 +93,14 @@ func (s *Scanner) EpisodeStills(ctx context.Context, series *store.Item, season,
 	return s.tmdb.EpisodeStills(ctx, series.TMDBID, season, episode)
 }
 
+// CollectionImages lists the posters and backdrops TMDB has for one of its collections.
+func (s *Scanner) CollectionImages(ctx context.Context, tmdbID int64) (posters, backdrops []metadata.Image, err error) {
+	if !s.tmdb.Configured() {
+		return nil, nil, ErrNoProvider
+	}
+	return s.tmdb.CollectionImages(ctx, tmdbID)
+}
+
 // Providers reports which metadata providers are configured.
 func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb.Configured(), s.tvdb.Configured() }
 

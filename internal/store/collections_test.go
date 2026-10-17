@@ -84,3 +84,39 @@ func TestCollections(t *testing.T) {
 		t.Errorf("after hiding: %+v", list)
 	}
 }
+
+func TestEditedCollectionSurvivesRefresh(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, _ := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{"/m"})
+	id, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: "Blade Runner"}, "br")
+	ref := &CollectionRef{TMDBID: 422837, Name: "Blade Runner Collection", PosterPath: "/tmdb.jpg"}
+	if err := st.SetMovieCollection(ctx, id, lib, ref); err != nil {
+		t.Fatal(err)
+	}
+	var cid string
+	if err := st.db.QueryRowContext(ctx, `SELECT id FROM collections WHERE tmdb_id = 422837`).Scan(&cid); err != nil {
+		t.Fatal("no automatic collection:", err)
+	}
+	c, _ := st.GetCollection(ctx, cid)
+	c.Title, c.LockedFields = "The Blade Runners", []string{"title"}
+	if err := st.UpdateCollection(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetCollectionArt(ctx, c.ID, "poster", "upload:mine.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	// A rescan and a TMDB refresh bring the provider's name and artwork again.
+	st.SetMovieCollection(ctx, id, lib, ref)
+	st.SetCollectionInfo(ctx, c.ID, "Replicants.", "/tmdb2.jpg", "/back.jpg")
+	got, _ := st.GetCollection(ctx, c.ID)
+	if got.Title != "The Blade Runners" || got.PosterPath != "upload:mine.jpg" || got.BackdropPath != "/back.jpg" || got.Overview != "Replicants." {
+		t.Errorf("after refresh: %+v", got)
+	}
+	// Automatic again: the next refresh sets it.
+	st.SetCollectionArt(ctx, c.ID, "poster", "")
+	st.SetCollectionInfo(ctx, c.ID, "Replicants.", "/tmdb2.jpg", "")
+	if got, _ = st.GetCollection(ctx, c.ID); got.PosterPath != "/tmdb2.jpg" {
+		t.Errorf("after going back to automatic: %q", got.PosterPath)
+	}
+}

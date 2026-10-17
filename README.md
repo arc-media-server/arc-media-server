@@ -55,6 +55,8 @@ Early development. Working today:
   enough of them (2 by default, set per library); make your own by picking titles (in any order) or
   as smart collections that hold everything matching a filter. Each library has a Collections view,
   and a title's page shows the rest of its collection
+- Edit a collection like a title: name, sort name and description, and Poster and Background tabs
+  (TMDB's for automatic collections, or your own upload); edits are kept when TMDB refreshes
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
@@ -247,6 +249,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | POST | `/api/libraries/{id}/compatibility` | How a library plays on a device: `{"caps": {...}}` → `{"total", "counts": {"direct", "remux", "transcode"}, "reasons", "converted": [{"item", "reasons"}]}` |
 | GET | `/api/libraries/{id}/collections` | A library's collections |
 | GET | `/api/collections/{id}` | A collection and its titles |
+| GET / PUT | `/api/collections/{id}/artwork` | Posters and backgrounds to choose from; choose one `{"type", "path"}` (`null` for automatic) |
+| POST | `/api/collections/{id}/artwork/{poster|backdrop}` | Upload a collection's poster or background |
 | POST | `/api/collections` | Make one: `{"library_id", "kind": "manual"|"smart", "title", "overview", "filter", "item_ids"}` |
 | PATCH / DELETE | `/api/collections/{id}` | Change or delete one (automatic ones are hidden) |
 | POST / DELETE / PUT | `/api/collections/{id}/items[/{item}]`, `/order` | Add, remove and order a manual collection's titles |

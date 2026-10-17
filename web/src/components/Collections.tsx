@@ -11,6 +11,7 @@ import { MediaRow } from '@/components/MediaRow';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field, inputClass } from '@/components/ui/field';
+import { ArtworkPanel, artworkNames, type ArtworkChange } from '@/components/ChooseArtwork';
 
 export function CollectionCard({ collection: c, unit }: { collection: Collection; unit: string }) {
   return (
@@ -77,18 +78,26 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
   const qc = useQueryClient();
   const [kind, setKind] = useState<'manual' | 'smart'>(collection?.kind === 'smart' ? 'smart' : collection ? 'manual' : 'manual');
   const [title, setTitle] = useState(collection?.title ?? '');
+  const [sortTitle, setSortTitle] = useState(collection?.locked_fields.includes('sort_title') ? collection.sort_title : '');
   const [overview, setOverview] = useState(collection?.overview ?? '');
+  // Editing: Details, or its poster or background (chosen images wait for Save).
+  const [tab, setTab] = useState<'details' | 'poster' | 'backdrop'>('details');
+  const [art, setArt] = useState<Partial<Record<'poster' | 'backdrop', ArtworkChange>>>({});
   const [filter, setFilter] = useState<RowFilter>(collection?.smart_filter ?? { library_id: library.id, sort: 'added' });
   const editing = !!collection;
   const auto = collection?.kind === 'auto';
   const save = useMutation({
-    mutationFn: () =>
-      editing
-        ? api.updateCollection(collection!.id, { title, overview, filter: kind === 'smart' ? filter : undefined })
-        : api.createCollection({ library_id: library.id, kind, title, overview, filter: kind === 'smart' ? filter : undefined }),
+    mutationFn: async () => {
+      if (!editing) return api.createCollection({ library_id: library.id, kind, title, overview, filter: kind === 'smart' ? filter : undefined });
+      const c = await api.updateCollection(collection!.id, { title, sort_title: sortTitle, overview, filter: kind === 'smart' ? filter : undefined });
+      for (const [type, change] of Object.entries(art) as ['poster' | 'backdrop', ArtworkChange][]) {
+        if ('file' in change) await api.uploadCollectionArtwork(collection!.id, type, change.file);
+        else await api.chooseCollectionArtwork(collection!.id, type, 'path' in change ? change.path : null);
+      }
+      return c;
+    },
     onSuccess: (c) => {
-      qc.invalidateQueries({ queryKey: ['collections'] });
-      qc.invalidateQueries({ queryKey: ['collection'] });
+      for (const key of ['collections', 'collection', 'artwork']) qc.invalidateQueries({ queryKey: [key] });
       onDone(c);
     },
   });
@@ -97,14 +106,14 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
   return (
     <DialogContent
       title={editing ? 'Edit Collection' : 'New Collection'}
-      description={
+      className={tab === 'details' ? 'w-[min(600px,calc(100vw-32px))]' : 'w-[min(820px,calc(100vw-32px))]'}
+      description={tab !== 'details' ? undefined : 
         kind === 'smart'
           ? `A smart collection holds every ${unit} that matches, and keeps itself up to date.`
           : auto
             ? 'This collection comes from TMDB. You can rename it and change its description.'
             : `Add ${unit}s to it from their pages (⋯ > Add to Collection), in any order.`
       }
-      className="w-[min(600px,calc(100vw-32px))]"
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
@@ -117,7 +126,33 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
         </>
       }
     >
-      <div className="space-y-4">
+      {editing && (
+        <div className="mb-5 flex gap-1" role="tablist">
+          {(['details', 'poster', 'backdrop'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
+            >
+              {t === 'details' ? 'Details' : artworkNames[t]}
+              {t !== 'details' && art[t] && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+            </button>
+          ))}
+        </div>
+      )}
+      {editing && tab !== 'details' && (
+        <ArtworkPanel
+          item={{ id: collection!.id, kind: 'movie' }}
+          type={tab}
+          change={art[tab]}
+          onChange={(c) => setArt((prev) => ({ ...prev, [tab]: c }))}
+          source={{ key: ['artwork', 'collection', collection!.id], load: () => api.collectionArtwork(collection!.id) }}
+        />
+      )}
+      <div className={cn('space-y-4', tab !== 'details' && 'hidden')}>
         {!editing && (
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Kind">
             {(
@@ -149,6 +184,11 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
         <Field label="Name">
           <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="e.g. Christmas Favourites" className={inputClass} />
         </Field>
+        {editing && (
+          <Field label="Sort As">
+            <input value={sortTitle} onChange={(e) => setSortTitle(e.target.value)} maxLength={100} placeholder={title || 'Same as the name'} className={inputClass} />
+          </Field>
+        )}
         <Field label="Description">
           <textarea value={overview} onChange={(e) => setOverview(e.target.value)} rows={2} className={cn(inputClass, 'h-auto resize-y py-2.5')} />
         </Field>
