@@ -156,11 +156,18 @@ type itemDTO struct {
 func toDTO(it store.Item) itemDTO {
 	d := itemDTO{Item: it, Images: map[string]string{}}
 	base := "/api/items/" + it.ID
-	// The version changes with the image, so each link can be cached by browsers forever.
-	if it.PosterPath != "" {
+	// The version changes with the image, so each link can be cached by browsers forever. Local
+	// artwork (next to the media) comes first.
+	switch {
+	case it.LocalPoster != "":
+		d.Images["primary"] = base + "/images/primary?local=" + artwork.Key(it.LocalPoster)
+	case it.PosterPath != "":
 		d.Images["primary"] = base + "/images/primary?v=" + artwork.Key(artwork.Source(it.Kind, "primary", it.PosterPath))
 	}
-	if it.BackdropPath != "" {
+	switch {
+	case it.LocalBackdrop != "":
+		d.Images["backdrop"] = base + "/images/backdrop?local=" + artwork.Key(it.LocalBackdrop)
+	case it.BackdropPath != "":
 		d.Images["backdrop"] = base + "/images/backdrop?v=" + artwork.Key(artwork.Source(it.Kind, "backdrop", it.BackdropPath))
 	}
 	if it.Kind == "movie" || it.Kind == "episode" {
@@ -377,15 +384,27 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var imagePath string
+	var imagePath, local string
 	switch typ := r.PathValue("type"); typ {
 	case "primary":
-		imagePath = it.PosterPath
+		imagePath, local = it.PosterPath, it.LocalPoster
 	case "backdrop":
-		imagePath = it.BackdropPath
+		imagePath, local = it.BackdropPath, it.LocalBackdrop
 	default:
 		writeError(w, http.StatusBadRequest, "unknown image type")
 		return
+	}
+	// Artwork next to the media is read straight from disk; the browser checks back each time, so
+	// a replaced poster.jpg shows up.
+	if local != "" {
+		if f, err := os.Open(local); err == nil {
+			defer f.Close()
+			if info, err := f.Stat(); err == nil {
+				w.Header().Set("Cache-Control", "no-cache")
+				http.ServeContent(w, r, filepath.Base(local), info.ModTime(), f)
+				return
+			}
+		}
 	}
 	if imagePath == "" {
 		writeError(w, http.StatusNotFound, "no image")

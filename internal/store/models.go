@@ -34,6 +34,9 @@ type Item struct {
 	ContentRating string  `json:"content_rating,omitempty"`
 	Studio        string  `json:"studio,omitempty"`
 	Rating        float64 `json:"rating,omitempty"`
+	// Artwork files next to the media, shown instead of the provider's.
+	LocalPoster   string `json:"-"`
+	LocalBackdrop string `json:"-"`
 }
 
 // Credit is a person's part in a movie or show.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,12 +20,15 @@ const resyncAfter = 7 * 24 * time.Hour
 
 type episodeFile struct {
 	fileID int64
+	path   string
 	ep     EpisodeName
 }
 
 type seriesGroup struct {
-	name  MovieName
-	files []episodeFile
+	name MovieName
+	// The series' own folder, or "" when its files sit in the library folder itself.
+	folder string
+	files  []episodeFile
 }
 
 func (s *Scanner) collectEpisodeFile(ctx context.Context, lib *store.Library, root, path string, d fs.DirEntry,
@@ -44,7 +48,12 @@ func (s *Scanner) collectEpisodeFile(ctx context.Context, lib *store.Library, ro
 		g = &seriesGroup{name: name}
 		groups[key] = g
 	}
-	g.files = append(g.files, episodeFile{fileID: fileID, ep: ep})
+	if g.folder == "" {
+		if rel, err := filepath.Rel(root, path); err == nil && strings.Contains(filepath.ToSlash(rel), "/") {
+			g.folder = filepath.Join(root, strings.Split(filepath.ToSlash(rel), "/")[0])
+		}
+	}
+	g.files = append(g.files, episodeFile{fileID: fileID, path: path, ep: ep})
 	return nil
 }
 
@@ -77,6 +86,18 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	}
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })
+	}
+	// Local artwork and tvshow.nfo ids from the show's folder (before looking it up, so the ids are used).
+	if g.folder != "" {
+		art := seriesArt(g.folder)
+		if err := s.store.SetLocalArt(ctx, id, art.Poster, art.Backdrop); err != nil {
+			return err
+		}
+		if nfo := readNFO(filepath.Join(g.folder, "tvshow.nfo")); !nfo.empty() {
+			if err := s.store.AdoptIDs(ctx, id, nfo.TMDBID, nfo.TVDBID, nfo.IMDBID); err != nil {
+				return err
+			}
+		}
 	}
 	syncedAt, err := s.store.SyncedAt(ctx, id)
 	if err != nil {
@@ -652,6 +673,13 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		}
 		if err := s.store.SetFileItems(ctx, f.fileID, dedupe(ids), 0); err != nil {
 			return 0, err
+		}
+		// A "<file>-thumb.jpg" beside the episode is its still.
+		thumb := episodeThumb(f.path)
+		for _, id := range dedupe(ids) {
+			if err := s.store.SetLocalArt(ctx, id, thumb, ""); err != nil {
+				return 0, err
+			}
 		}
 	}
 	return unknown, nil

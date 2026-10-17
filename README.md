@@ -32,6 +32,9 @@ Early development. Working today:
   rescan for folders (like network shares) that don't report changes
 - Direct-play streaming with HTTP range requests
 - Artwork cached locally after each scan, so it loads fast and works offline
+- Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg and `<file>-poster.jpg`,
+  `<file>-fanart.jpg`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
+  Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages

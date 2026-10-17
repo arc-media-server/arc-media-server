@@ -11,14 +11,14 @@ import (
 
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
-	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating`
+	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	var locked string
 	err := row.Scan(&it.ID, &it.LibraryID, &it.Kind, &it.ParentID, &it.Title, &it.SortTitle,
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
-		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating)
+		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop)
 	it.LockedFields = splitLocked(locked)
 	return err
 }
@@ -194,6 +194,29 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 		return err
 	}
 	return s.syncMinAges(ctx, it.ID)
+}
+
+// SetLocalArt records the artwork files found next to an item's media ("" for none).
+func (s *Store) SetLocalArt(ctx context.Context, id, poster, backdrop string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_poster = ?, local_backdrop = ?
+		WHERE id = ? AND (local_poster <> ? OR local_backdrop <> ?)`, poster, backdrop, id, poster, backdrop)
+	return err
+}
+
+// AdoptIDs takes provider ids from a local .nfo file for an item that isn't identified yet (or
+// couldn't be), so the next lookup finds exactly that title. Identified items keep their match.
+func (s *Store) AdoptIDs(ctx context.Context, id string, tmdbID, tvdbID int64, imdbID string) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE items SET
+			tmdb_id = CASE WHEN ? <> 0 THEN ? ELSE tmdb_id END,
+			tvdb_id = CASE WHEN ? <> 0 THEN ? ELSE tvdb_id END,
+			imdb_id = CASE WHEN ? <> '' THEN ? ELSE imdb_id END,
+			metadata_state = 'pending', synced_at = 0
+		WHERE id = ? AND metadata_state IN ('pending', 'unmatched')
+			AND (tmdb_id <> ? OR tvdb_id <> ? OR imdb_id <> ?)
+			AND NOT (? = 0 AND ? = 0 AND ? = '')`,
+		tmdbID, tmdbID, tvdbID, tvdbID, imdbID, imdbID, id, tmdbID, tvdbID, imdbID, tmdbID, tvdbID, imdbID)
+	return err
 }
 
 // SetItemDetails replaces an item's genres and credits (people are shared between items).

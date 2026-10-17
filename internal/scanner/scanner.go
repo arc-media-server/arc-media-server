@@ -329,7 +329,26 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })
 	}
-	return s.store.SetFileItems(ctx, fileID, []string{itemID}, name.Part)
+	if err := s.store.SetFileItems(ctx, fileID, []string{itemID}, name.Part); err != nil {
+		return err
+	}
+
+	// Local artwork and .nfo ids. Folder-wide files (poster.jpg, movie.nfo) only count when the
+	// folder is the movie's own, not a shared folder of many movies.
+	folder := parseMovieName(filepath.Base(filepath.Dir(path)))
+	ownFolder := filepath.Dir(path) != filepath.Clean(lib.Paths[0]) &&
+		metadata.Normalize(folder.Title) == metadata.Normalize(name.Title) && name.Title != ""
+	if name.Part > 1 {
+		return nil // the first part speaks for the movie
+	}
+	art := movieArt(path, ownFolder)
+	if err := s.store.SetLocalArt(ctx, itemID, art.Poster, art.Backdrop); err != nil {
+		return err
+	}
+	if nfo := movieNFO(path, ownFolder); !nfo.empty() {
+		return s.store.AdoptIDs(ctx, itemID, nfo.TMDBID, 0, nfo.IMDBID)
+	}
+	return nil
 }
 
 func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {

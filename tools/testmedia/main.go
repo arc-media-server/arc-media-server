@@ -110,6 +110,16 @@ func run(out, ffmpeg string) error {
 	}
 	n += 2
 
+	// Local artwork: a plain orange poster.jpg in Heat's folder, used instead of TMDB's poster.
+	poster := filepath.Join(out, "Movies", "Heat (1995)", "poster.jpg")
+	if _, err := os.Stat(poster); err != nil {
+		cmd := exec.Command(ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0xff8c1a:s=400x600", "-frames:v", "1", poster)
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("ffmpeg poster: %w", err)
+		}
+	}
+
 	fmt.Printf("created %d files in %s\n\nIn Arc, add these as libraries (Manage > Libraries > Add Library):\n\n", n, out)
 	fmt.Printf("  Movies:   %s\n", filepath.Join(out, "Movies"))
 	fmt.Printf("  TV Shows: %s (TheTVDB aired order)\n", filepath.Join(out, "TV"))
