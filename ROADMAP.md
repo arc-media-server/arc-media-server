@@ -33,7 +33,7 @@ powerful when you need it.
 - [x] Mapping between orderings: IDs first, then air date + title, then manual overrides
 - [x] Display ordering chosen per series
 - [x] Display ordering overridable per user
-- [ ] Display-order preview: compare orderings side by side before switching (API ready, UI in milestone 5)
+- [x] Display-order preview: compare orderings side by side before switching
 - [x] Unmatched episodes collected in a review bucket, never hidden
 
 ### ✅ 3. Library health and maintenance

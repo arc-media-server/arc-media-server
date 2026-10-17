@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, Eye, EyeOff, ListOrdered, Loader2, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { useIsAdmin } from '@/lib/auth';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
+import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export function SeriesPage() {
   const qc = useQueryClient();
   const [showMissing, setShowMissing] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
+  const [comparing, setComparing] = useState(false);
 
   const orderings = useQuery({ queryKey: ['orderings', id], queryFn: () => api.orderings(id!) });
   const seasons = useQuery({
@@ -174,6 +176,7 @@ export function SeriesPage() {
               selected={orderings.data.display_ordering_id}
               pending={setOrdering.isPending}
               onSelect={(o) => setOrdering.mutate(o)}
+              onCompare={orderings.data.orderings.length > 1 ? () => setComparing(true) : undefined}
             />
           )}
         </div>
@@ -201,6 +204,16 @@ export function SeriesPage() {
       <CastRow credits={series.credits} />
       <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}
+      {orderings.data && (
+        <CompareOrdersDialog
+          seriesId={id!}
+          orderings={orderings.data.orderings}
+          current={orderings.data.display_ordering_id}
+          open={comparing}
+          onOpenChange={setComparing}
+          onUse={(o) => setOrdering.mutate(o)}
+        />
+      )}
     </Page>
   );
 }
@@ -248,11 +261,13 @@ function OrderingMenu({
   selected,
   pending,
   onSelect,
+  onCompare,
 }: {
   orderings: Ordering[];
   selected: number;
   pending: boolean;
   onSelect: (id: number) => void;
+  onCompare?: () => void;
 }) {
   const current = orderings.find((o) => o.id === selected);
   const groups: [string, Ordering[]][] = [
@@ -293,6 +308,11 @@ function OrderingMenu({
             ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        {onCompare && (
+          <DropdownMenuItem onSelect={onCompare}>
+            <GitCompareArrows className="size-4 text-muted" /> Compare Orders…
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem disabled className="text-xs text-subtle">
           Changes how episodes are shown. Your files aren't touched.
         </DropdownMenuItem>

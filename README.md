@@ -17,7 +17,8 @@ Early development. Working today:
 - TV show scanning: `S01E02`, multi-episode files, `1x02`, date-based shows, specials, anime absolute numbering
 - **Display orderings**: every TVDB order (aired, DVD, absolute) and TMDB order (aired plus all episode
   groups) per series, mapped onto your files whichever way they're named. Pick one per series, make
-  custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden
+  custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden.
+  "Compare Orders" shows where each of your episodes lands in another order before you switch
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
   multi-part `cd1`/`part2` files; samples are skipped)
 - Extras: trailers, featurettes, behind the scenes, deleted scenes, interviews and shorts (in
