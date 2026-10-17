@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestNowPlayingStop(t *testing.T) {
@@ -15,7 +16,7 @@ func TestNowPlayingStop(t *testing.T) {
 	if refused != "" {
 		t.Fatal(refused)
 	}
-	if why := n.progress(r, "movie1", 5000, 60000, "playing"); why != "" {
+	if why, _ := n.progress(r, "movie1", 5000, 60000, "playing"); why != "" {
 		t.Fatal(why)
 	}
 	list := n.list()
@@ -38,7 +39,7 @@ func TestNowPlayingStop(t *testing.T) {
 	if _, _, why := n.openStream(r, "movie1", ""); why != "Bedtime!" {
 		t.Errorf("reconnecting: %q", why)
 	}
-	if why := n.progress(r, "movie1", 6000, 60000, "playing"); why != "Bedtime!" {
+	if why, _ := n.progress(r, "movie1", 6000, 60000, "playing"); why != "Bedtime!" {
 		t.Errorf("progress after stop: %q", why)
 	}
 	// Something else on the same device is fine.
@@ -67,5 +68,41 @@ func TestDeviceName(t *testing.T) {
 		if got := deviceName(ua); got != want {
 			t.Errorf("deviceName(%q) = %q, want %q", ua, got, want)
 		}
+	}
+}
+
+func TestNowPlayingWatchTime(t *testing.T) {
+	n := newNowPlaying()
+	r := httptest.NewRequest("GET", "/", nil)
+	r = r.WithContext(context.WithValue(r.Context(), sessionKey, "tv"))
+	key := playbackKey(r, "movie1", "")
+	// report pretends the last report was ago, then reports.
+	report := func(ago time.Duration, state string, pos int64) *playUpdate {
+		if p := n.byKey[key]; p != nil {
+			p.counted = time.Now().Add(-ago)
+		}
+		_, u := n.progress(r, "movie1", pos, 100_000, state)
+		return u
+	}
+
+	if u := report(0, "playing", 0); u != nil {
+		t.Fatal("recorded before a minute of watching")
+	}
+	report(20*time.Second, "playing", 20_000)
+	report(time.Hour, "paused", 50_000) // a long gap counts as 30 seconds
+	if u := report(10*time.Minute, "playing", 50_000); u != nil {
+		t.Fatalf("paused time counted: %+v", u)
+	}
+	u := report(15*time.Second, "playing", 65_000)
+	if u == nil || !u.add || u.watchedMS < 65_000 || u.watchedMS > 66_000 {
+		t.Fatalf("after 65 seconds: %+v", u)
+	}
+	if again := report(time.Second, "playing", 66_000); again != nil {
+		t.Fatal("added twice while the first row was being written")
+	}
+	n.played(key, 7)
+	u = report(10*time.Second, "stopped", 95_000)
+	if u == nil || u.add || u.historyID != 7 || !u.completed {
+		t.Fatalf("on close: %+v", u)
 	}
 }

@@ -732,6 +732,10 @@ export const api = {
   orderPlaylist: (id: string, entryIds: number[]) => request<void>('PUT', `/api/playlists/${id}/order`, { entry_ids: entryIds }),
   search: (q: string) => request<SearchResults>('GET', `/api/search${query({ q })}`),
   person: (id: number) => request<{ person: Person; credits: PersonCredit[] }>('GET', `/api/people/${id}`),
+  stats: (p: StatsParams & { days?: number }) => request<StatsOverview>('GET', `/api/stats${query(p)}`),
+  statsHistory: (p: StatsParams & { before?: number }) => request<StatsHistory>('GET', `/api/stats/history${query(p)}`),
+  statsStorage: (library?: number) => request<StatsStorage>('GET', `/api/stats/storage${query({ library })}`),
+  myYear: (year?: number) => request<YearReview>('GET', `/api/me/year${query({ year })}`),
   continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),
@@ -848,4 +852,114 @@ export interface SearchResults {
   people: Person[];
   collections: Collection[];
   genres: { library_id: number; library_name: string; name: string; count: number }[];
+}
+
+/** Filters for the Insights pages; empty means everyone or every library. */
+export interface StatsParams {
+  profile?: string;
+  library?: number;
+}
+
+/** How much was watched: viewings and time spent playing. */
+export interface Bucket {
+  plays: number;
+  watched_ms: number;
+}
+
+/** A movie or show and how much it was watched. */
+export interface RankedTitle extends Bucket {
+  id: string;
+  title: string;
+  profiles: number;
+  episodes?: number;
+}
+
+export interface NamedBucket extends Bucket {
+  name: string;
+}
+
+/** The titles, profiles and libraries that stats mention by id. */
+export interface StatsContext {
+  items: Record<string, Item>;
+  profiles: Profile[];
+  libraries: { id: number; name: string; kind: Library['kind'] }[];
+}
+
+export interface StatsOverview extends StatsContext {
+  total: Bucket;
+  titles: number;
+  profiles_watching: number;
+  step: 'day' | 'week' | 'month' | '';
+  timeline: (Bucket & { date: string })[];
+  by_profile: (Bucket & { id: string })[];
+  by_library: (Bucket & { id: string })[];
+  movies: RankedTitle[];
+  shows: RankedTitle[];
+  genres: NamedBucket[];
+  devices: NamedBucket[];
+  methods: NamedBucket[];
+  /** Watch time by weekday (0 = Sunday) and hour. */
+  hours: number[][];
+}
+
+/** One viewing of a movie or episode. */
+export interface Play {
+  id: number;
+  user_id: string;
+  item_id: string;
+  kind: 'movie' | 'episode';
+  library_id: number;
+  series_id?: string;
+  title: string;
+  series_title?: string;
+  started_at: number;
+  ended_at: number;
+  watched_ms: number;
+  position_ms: number;
+  duration_ms: number;
+  completed: boolean;
+  device?: string;
+  method?: 'direct' | 'remux' | 'transcode';
+}
+
+export interface StatsHistory extends StatsContext {
+  plays: Play[];
+  more: boolean;
+}
+
+export interface TitleSize {
+  item_id: string;
+  size: number;
+  files: number;
+  added_at: number;
+  watched: boolean;
+  last_played?: number;
+}
+
+export interface StatsStorage {
+  libraries: { id: number; name: string; kind: Library['kind']; size: number; titles: number; files: number; unwatched_titles: number; unwatched_size: number }[];
+  biggest: TitleSize[];
+  never_watched: TitleSize[];
+  items: Record<string, Item>;
+}
+
+/** A profile's year in review. */
+export interface YearReview extends Bucket {
+  year: number;
+  years: number[];
+  movies: number;
+  shows: number;
+  episodes: number;
+  days: number;
+  streak: number;
+  top_movies: RankedTitle[];
+  top_shows: RankedTitle[];
+  genres: NamedBucket[];
+  people: (Person & { titles: number; watched_ms: number })[];
+  months: number[];
+  weekdays: number[];
+  hours: number[];
+  binge?: { series_id: string; title: string; date: string; episodes: number };
+  first?: Play;
+  items: Record<string, Item>;
 }
