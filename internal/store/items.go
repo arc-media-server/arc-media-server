@@ -315,6 +315,9 @@ type ItemEdit struct {
 	ReleaseDate   *string
 	RuntimeMin    *int
 	Tagline       *string
+	// Chosen artwork: a provider image path or an uploaded file ("upload:...").
+	Poster        *string
+	Backdrop      *string
 	ContentRating *string
 	Studio        *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
@@ -391,6 +394,12 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	}
 	if e.Studio != nil {
 		set("studio", *e.Studio)
+	}
+	if e.Poster != nil {
+		set("poster", *e.Poster)
+	}
+	if e.Backdrop != nil {
+		set("backdrop", *e.Backdrop)
 	}
 
 	fields := make([]string, 0, len(locked))

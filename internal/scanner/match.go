@@ -56,6 +56,21 @@ func (s *Scanner) MatchInfo(ctx context.Context, itemID string) (*MatchInfo, err
 	return &mi, nil
 }
 
+// Images lists the posters and backgrounds TMDB has for a movie or show, to choose from.
+func (s *Scanner) Images(ctx context.Context, it *store.Item) (posters, backdrops []metadata.Image, err error) {
+	if !s.tmdb.Configured() {
+		return nil, nil, ErrNoProvider
+	}
+	if it.TMDBID == 0 {
+		return []metadata.Image{}, []metadata.Image{}, nil
+	}
+	kind := "movie"
+	if it.Kind == "series" {
+		kind = "tv"
+	}
+	return s.tmdb.Images(ctx, kind, it.TMDBID)
+}
+
 // Providers reports which metadata providers are configured.
 func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb.Configured(), s.tvdb.Configured() }
 

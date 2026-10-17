@@ -320,6 +320,25 @@ export interface ItemQuery {
   offset?: number;
 }
 
+export type ArtworkType = 'poster' | 'backdrop';
+
+export interface ArtworkImage {
+  path: string;
+  thumb: string;
+  width: number;
+  height: number;
+  language?: string;
+  votes: number;
+}
+
+export interface ArtworkChoices {
+  posters: ArtworkImage[];
+  backdrops: ArtworkImage[];
+  current: Record<ArtworkType, string>;
+  chosen: Record<ArtworkType, boolean>;
+  local: Record<ArtworkType, boolean>;
+}
+
 export interface Extra {
   id: string;
   item_id: string;
@@ -476,6 +495,13 @@ export const api = {
   matchInfo: (id: string) => request<MatchInfo>('GET', `/api/items/${id}/match`),
   searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
     request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),
+  artwork: (id: string) => request<ArtworkChoices>('GET', `/api/items/${id}/artwork`),
+  chooseArtwork: (id: string, type: ArtworkType, path: string | null) => request<Item>('PUT', `/api/items/${id}/artwork`, { type, path }),
+  uploadArtwork: async (id: string, type: ArtworkType, file: File) => {
+    const res = await fetch(`/api/items/${id}/artwork/${type}`, { method: 'POST', body: file });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? res.statusText, res.status);
+    return (await res.json()) as Item;
+  },
   setMatch: (id: string, provider: Provider, matchId: number) =>
     request<Item>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
 

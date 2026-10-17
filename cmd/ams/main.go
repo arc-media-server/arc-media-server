@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -145,9 +146,12 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		if err != nil {
 			return nil, err
 		}
-		sources := make([]string, len(images))
-		for i, im := range images {
-			sources[i] = artwork.Source(im.Kind, im.Type, im.Path)
+		sources := make([]string, 0, len(images))
+		for _, im := range images {
+			// Uploaded artwork is already on disk.
+			if src := artwork.Source(im.Kind, im.Type, im.Path); strings.HasPrefix(src, "http") {
+				sources = append(sources, src)
+			}
 		}
 		return sources, nil
 	})
@@ -253,6 +257,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			return current
 		},
 		ApplySettings: applySettings,
+		UploadsDir:    filepath.Join(dataDir, "uploads"),
 		FFprobeStatus: func() any {
 			ffMu.Lock()
 			defer ffMu.Unlock()

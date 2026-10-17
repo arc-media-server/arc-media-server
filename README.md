@@ -37,6 +37,8 @@ Early development. Working today:
 - Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg and `<file>-poster.jpg`,
   `<file>-fanart.jpg`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
   Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
+- Choose Artwork: pick any poster or background TMDB has for a title, or upload your own (kept in
+  the data folder; media files are never touched). "Automatic" goes back to local or online artwork
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
@@ -69,7 +71,7 @@ Then open http://127.0.0.1:8099. Arc walks you through the rest: your admin prof
 your free TMDB and TheTVDB API keys, and your first library (choose its folders, see a preview of
 what Arc finds, then add it). There are no config files; everything is set in the app.
 
-- `-data <folder>` (or `AMS_DATA`) chooses where Arc keeps its database, artwork cache and backups
+- `-data <folder>` (or `AMS_DATA`) chooses where Arc keeps its database, artwork cache, uploaded artwork and backups
   (default: `data` in the current folder).
 - Forgot the password? Run `ams -reset-password` on the server for a new one.
 - `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
@@ -126,6 +128,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
+| GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
+| PUT | `/api/items/{id}/artwork` | Choose one: `{"type": "poster\|backdrop", "path": "/abc.jpg"}`; `"path": null` goes back to automatic |
+| POST | `/api/items/{id}/artwork/{poster\|backdrop}` | Upload your own (JPEG, PNG or WebP body, up to 20 MB) |
 | GET | `/api/people/{id}/image` | A cast or crew member's photo |
 | GET | `/api/extras/{id}/stream` | Play a trailer or other extra |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |

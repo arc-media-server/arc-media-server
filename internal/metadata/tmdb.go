@@ -84,10 +84,14 @@ func CheckTMDBKey(ctx context.Context, key string) error {
 	return err
 }
 
+// UploadPrefix marks an image path as artwork the user uploaded ("upload:<file name>"), kept in
+// AMS's data folder.
+const UploadPrefix = "upload:"
+
 // ImageURL builds a URL for an image path: TMDB paths such as "/abc.jpg" go to TMDB's CDN,
 // full URLs (TVDB artwork) are returned as they are.
 func ImageURL(path, size string) string {
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") || strings.HasPrefix(path, UploadPrefix) {
 		return path
 	}
 	return "https://image.tmdb.org/t/p/" + size + path

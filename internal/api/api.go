@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"ams/internal/artwork"
 	"ams/internal/auth"
 	"ams/internal/backup"
+	"ams/internal/metadata"
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
@@ -37,8 +39,10 @@ type Deps struct {
 	ApplySettings func(ctx context.Context, s settings.Settings) error
 	// FFprobeStatus describes the ffprobe in use, for the Settings page.
 	FFprobeStatus func() any
-	Log           *slog.Logger
-	Version       string
+	// Where artwork the user uploads is kept.
+	UploadsDir string
+	Log        *slog.Logger
+	Version    string
 }
 
 type Server struct {
@@ -51,6 +55,7 @@ type Server struct {
 	settings         func() settings.Settings
 	applySettings    func(ctx context.Context, s settings.Settings) error
 	ffprobeStatus    func() any
+	uploadsDir       string
 	previews         *previews
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -61,7 +66,7 @@ type Server struct {
 func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
-		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, previews: &previews{},
+		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
@@ -119,6 +124,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/backups/{name}", admin(s.deleteBackup))
 	mux.HandleFunc("PATCH /api/items/{id}", admin(s.editItem))
 	mux.HandleFunc("POST /api/items/{id}/refresh", admin(s.refreshItem))
+	mux.HandleFunc("GET /api/items/{id}/artwork", admin(s.listArtwork))
+	mux.HandleFunc("PUT /api/items/{id}/artwork", admin(s.chooseArtwork))
+	mux.HandleFunc("POST /api/items/{id}/artwork/{type}", admin(s.uploadArtwork))
 	mux.HandleFunc("GET /api/items/{id}/match", admin(s.matchInfo))
 	mux.HandleFunc("GET /api/items/{id}/match/search", admin(s.searchMatches))
 	mux.HandleFunc("PUT /api/items/{id}/match", admin(s.setMatch))
@@ -155,22 +163,34 @@ type itemDTO struct {
 	Files   []store.MediaFile `json:"files,omitempty"`
 }
 
+// imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use
+// instead, for "primary" or "backdrop". Artwork the user chose (the field is locked) wins over local
+// files, which win over the provider's automatic choice.
+func imagePaths(it *store.Item, typ string) (path, local string) {
+	field := "poster"
+	path, local = it.PosterPath, it.LocalPoster
+	if typ == "backdrop" {
+		field = "backdrop"
+		path, local = it.BackdropPath, it.LocalBackdrop
+	}
+	if path != "" && slices.Contains(it.LockedFields, field) {
+		local = ""
+	}
+	return path, local
+}
+
 func toDTO(it store.Item) itemDTO {
 	d := itemDTO{Item: it, Images: map[string]string{}}
 	base := "/api/items/" + it.ID
-	// The version changes with the image, so each link can be cached by browsers forever. Local
-	// artwork (next to the media) comes first.
-	switch {
-	case it.LocalPoster != "":
-		d.Images["primary"] = base + "/images/primary?local=" + artwork.Key(it.LocalPoster)
-	case it.PosterPath != "":
-		d.Images["primary"] = base + "/images/primary?v=" + artwork.Key(artwork.Source(it.Kind, "primary", it.PosterPath))
-	}
-	switch {
-	case it.LocalBackdrop != "":
-		d.Images["backdrop"] = base + "/images/backdrop?local=" + artwork.Key(it.LocalBackdrop)
-	case it.BackdropPath != "":
-		d.Images["backdrop"] = base + "/images/backdrop?v=" + artwork.Key(artwork.Source(it.Kind, "backdrop", it.BackdropPath))
+	// The version changes with the image, so each link can be cached by browsers forever.
+	for _, typ := range []string{"primary", "backdrop"} {
+		path, local := imagePaths(&it, typ)
+		switch {
+		case local != "":
+			d.Images[typ] = base + "/images/" + typ + "?local=" + artwork.Key(local)
+		case path != "":
+			d.Images[typ] = base + "/images/" + typ + "?v=" + artwork.Key(artwork.Source(it.Kind, typ, path))
+		}
 	}
 	if it.Kind == "movie" || it.Kind == "episode" {
 		d.Stream = base + "/stream"
@@ -391,15 +411,15 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var imagePath, local string
-	switch typ := r.PathValue("type"); typ {
-	case "primary":
-		imagePath, local = it.PosterPath, it.LocalPoster
-	case "backdrop":
-		imagePath, local = it.BackdropPath, it.LocalBackdrop
-	default:
+	typ := r.PathValue("type")
+	if typ != "primary" && typ != "backdrop" {
 		writeError(w, http.StatusBadRequest, "unknown image type")
 		return
+	}
+	imagePath, local := imagePaths(it, typ)
+	// Uploaded artwork lives in the data folder.
+	if name, ok := strings.CutPrefix(imagePath, metadata.UploadPrefix); ok {
+		local = filepath.Join(s.uploadsDir, filepath.Base(name))
 	}
 	// Artwork next to the media is read straight from disk; the browser checks back each time, so
 	// a replaced poster.jpg shows up.
