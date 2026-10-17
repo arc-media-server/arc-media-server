@@ -104,7 +104,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 
 ### 12. Everyday playback
 - [x] Auto-play the next episode, with a countdown (#83)
-- [ ] Preferred audio language per profile (#84)
+- [x] Preferred audio language per profile (#84)
 - [ ] Quality choice in the player (#85)
 - [ ] Remove from Continue Watching (#86)
 - [ ] Chapters in the player (#87)

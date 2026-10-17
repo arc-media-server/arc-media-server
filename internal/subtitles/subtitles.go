@@ -469,6 +469,19 @@ func (c *Cache) SaveDownload(f *store.MediaFile, language string, forced, sdh bo
 	return t, nil
 }
 
+// SameLanguage reports whether two language codes or names mean the same language ("en", "eng"
+// and "English" do; so do "ger" and "deu").
+func SameLanguage(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	ca, cb := languageCode(a), languageCode(b)
+	if ca == "" || cb == "" {
+		return strings.EqualFold(a, b)
+	}
+	return ca == cb
+}
+
 // LanguageCode2 turns a 3-letter language code into the 2-letter one services use ("eng" -> "en").
 func LanguageCode2(code string) string {
 	code = strings.ToLower(code)

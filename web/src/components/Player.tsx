@@ -753,7 +753,15 @@ function PlayerOverlay({
                 {planState.audio_tracks.map((t, i) => {
                   const { name, detail } = audioLabel(t, i);
                   return (
-                    <DropdownMenuItem key={t.index} onSelect={() => t.index !== planState.audio_stream && load(absMS(), t.index)}>
+                    <DropdownMenuItem
+                      key={t.index}
+                      onSelect={() => {
+                        if (t.index === planState.audio_stream) return;
+                        void load(absMS(), t.index);
+                        // Remembered for the profile, like subtitles: played by default from now on.
+                        if (t.language && t.language !== prefs.data?.audio_language) updatePrefs.mutate({ audio_language: t.language });
+                      }}
+                    >
                       <span className="w-4">{t.index === planState.audio_stream && <Check className="size-4 text-accent" />}</span>
                       <span className="min-w-0">
                         <span className="block">{name}</span>

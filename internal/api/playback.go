@@ -87,6 +87,25 @@ func defaultAudio(f *store.MediaFile) *store.Stream {
 	return first
 }
 
+// preferredAudio is the audio stream in a language (the profile's preferred one), or nil if the
+// file has none: the one marked default among them, or the first.
+func preferredAudio(f *store.MediaFile, language string) *store.Stream {
+	var first *store.Stream
+	for i := range f.Streams {
+		st := &f.Streams[i]
+		if st.Kind != "audio" || !subtitles.SameLanguage(st.Language, language) {
+			continue
+		}
+		if st.IsDefault {
+			return st
+		}
+		if first == nil {
+			first = st
+		}
+	}
+	return first
+}
+
 // decide works out how a file can be played with the chosen audio stream (nil for none).
 func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) decision {
 	d := decision{Method: "direct"}
@@ -207,7 +226,14 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 
 	video := videoStream(f)
 	audio := defaultAudio(f)
-	if body.AudioStream != nil {
+	if body.AudioStream == nil {
+		// The profile's preferred language, when the file has it.
+		if p, err := s.loadPrefs(r); err == nil && p.AudioLanguage != "" {
+			if a := preferredAudio(f, p.AudioLanguage); a != nil {
+				audio = a
+			}
+		}
+	} else {
 		audio = nil
 		for i := range f.Streams {
 			if f.Streams[i].Kind == "audio" && f.Streams[i].Index == *body.AudioStream {

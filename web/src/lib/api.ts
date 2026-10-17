@@ -528,6 +528,8 @@ export interface Prefs {
   theme: Theme;
   /** The subtitle language last chosen, e.g. "eng"; "" for off. */
   subtitle_language: string;
+  /** The audio language last chosen, e.g. "jpn"; played by default when a file has it. */
+  audio_language?: string;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
   split_up_next: boolean;
   /** Play the next episode after a countdown; absent means on, as in Plex. */
