@@ -74,7 +74,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Seasonal rows (Christmas films in December, horror in October), built on the same filter engine
 - [x] Spoiler protection: blur thumbnails and hide descriptions of unwatched episodes
 
-### 7. Transcoding and subtitles
+### ✅ 7. Transcoding and subtitles
 - [x] Direct play / direct stream / transcode decision per client
 - [x] FFmpeg to HLS, with segment cache and cleanup
 - [x] Hardware acceleration: NVENC, Quick Sync, VAAPI, VideoToolbox
@@ -85,7 +85,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Device compatibility report: which files will need transcoding on which devices, and why
 - [x] Scrubbing thumbnails (trickplay) when seeking
 - [x] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed
-- [ ] Online subtitle download
+- [x] Online subtitle download
 
 ### 8. Intro and credits skipping
 - [ ] Crowdsourced timestamp source (IntroDB or similar) as the first choice

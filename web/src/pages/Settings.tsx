@@ -88,6 +88,20 @@ export function SettingsPage() {
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
+          <Section title="Subtitles" hint="Find subtitles online from the player when a film or episode doesn't have the ones you want.">
+            <KeyRow
+              label="OpenSubtitles"
+              description="Search and download subtitles."
+              current={s.opensubtitles_api_key}
+              fixed={s.from_env.opensubtitles_api_key}
+              link="https://www.opensubtitles.com/en/consumers"
+              onSave={(v) => update.mutateAsync({ opensubtitles_api_key: v })}
+            />
+            {s.opensubtitles_api_key && (
+              <AccountRow username={s.opensubtitles_username} onSave={(username, password) => update.mutateAsync({ opensubtitles_username: username, opensubtitles_password: password })} />
+            )}
+          </Section>
+
           <Section title="Converting" hint="For players that can't play a file as it is, Arc converts it while it's watched.">
             <ToggleRow
               label="Use hardware acceleration"
@@ -233,6 +247,75 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
             </Button>
           </div>
         ))}
+    </Row>
+  );
+}
+
+/** An optional OpenSubtitles account: more downloads a day than the key alone. */
+function AccountRow({ username, onSave }: { username: string; onSave: (username: string, password: string) => Promise<unknown> }) {
+  const [editing, setEditing] = useState(false);
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async (u: string, p: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      await onSave(u, p);
+      setEditing(false);
+      setPass('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Row
+      label="OpenSubtitles account"
+      description={
+        <>
+          {username ? (
+            <span className="inline-flex items-center gap-1 text-foreground/80">
+              <CheckCircle2 className="size-3.5 text-accent" /> Signed in as {username}
+            </span>
+          ) : (
+            'Optional: signing in allows more downloads a day.'
+          )}
+          {error && <span className="mt-1 block text-warning">{error}</span>}
+        </>
+      }
+    >
+      {editing ? (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save(user.trim(), pass);
+          }}
+        >
+          <input autoFocus value={user} onChange={(e) => setUser(e.target.value)} placeholder="Username" autoComplete="off" className={`${inputClass} w-36`} />
+          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder="Password" autoComplete="new-password" className={`${inputClass} w-36`} />
+          <Button size="sm" variant="primary" type="submit" disabled={!user.trim() || !pass || busy}>
+            {busy && <Loader2 className="animate-spin" />} Sign In
+          </Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+        </form>
+      ) : (
+        <div className="flex gap-2">
+          {username && (
+            <Button size="sm" variant="ghost" onClick={() => save('', '')} disabled={busy}>
+              Sign Out
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+            {username ? 'Change' : 'Sign In'}
+          </Button>
+        </div>
+      )}
     </Row>
   );
 }

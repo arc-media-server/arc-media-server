@@ -222,7 +222,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	d := decide(f, video, audio, body.Caps)
 	burn := -1
 	if body.BurnSubtitle != "" {
-		t, ok := subtitles.Find(f, body.BurnSubtitle)
+		t, ok := s.findSubtitle(f, body.BurnSubtitle)
 		if !ok || !t.Image || t.External {
 			writeError(w, http.StatusBadRequest, "only picture subtitles inside the file are burned in")
 			return
@@ -233,7 +233,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
-		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: subtitles.Tracks(f), BurnSubtitle: body.BurnSubtitle,
+		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: s.subtitleTracks(f), BurnSubtitle: body.BurnSubtitle,
 		Versions: versions(files)}
 	if out.Reasons == nil {
 		out.Reasons = []string{}
@@ -379,7 +379,7 @@ func (s *Server) subtitleCues(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no file for this item")
 		return
 	}
-	t, ok := subtitles.Find(f, r.PathValue("track"))
+	t, ok := s.findSubtitle(f, r.PathValue("track"))
 	if !ok {
 		writeError(w, http.StatusNotFound, "no such subtitle track")
 		return

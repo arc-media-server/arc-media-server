@@ -89,7 +89,7 @@ export function subtitleLabel(t: SubtitleTrack, i: number) {
     t.hearing_impaired && 'SDH',
     t.title && t.title !== name && !/^(forced|sdh)$/i.test(t.title) ? t.title : '',
     t.image ? 'Picture' : '',
-    t.external ? 'File' : '',
+    t.downloaded ? 'Downloaded' : t.external ? 'File' : '',
   ]
     .filter(Boolean)
     .join(' · ');

@@ -107,3 +107,34 @@ func TestCues(t *testing.T) {
 		t.Errorf("cache has %d files", len(entries))
 	}
 }
+
+func TestDownloads(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Film.mkv")
+	os.WriteFile(video, nil, 0o644)
+	f := &store.MediaFile{ID: 42, Path: video}
+	c := NewCache(filepath.Join(dir, "cache"), func() string { return "" })
+	a, err := c.SaveDownload(f, "en", false, true, []byte("1\n00:00:01,000 --> 00:00:02,000\nCaf\xe9\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := c.SaveDownload(f, "pt-BR", true, false, []byte("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Language != "eng" || !a.HearingImpaired || !a.Downloaded || b.Language != "por" || !b.Forced || a.ID == b.ID {
+		t.Errorf("tracks: %+v %+v", a, b)
+	}
+	if got := len(c.Tracks(f)); got != 2 {
+		t.Errorf("listed %d", got)
+	}
+	// Saved as UTF-8, in the data folder rather than beside the video.
+	if data, _ := os.ReadFile(a.Path); !strings.Contains(string(data), "Café") || filepath.Dir(filepath.Dir(a.Path)) != filepath.Join(dir, "cache", "downloaded") {
+		t.Errorf("saved %q at %s", data, a.Path)
+	}
+	for in, want := range map[string]string{"eng": "en", "fre": "fr", "fra": "fr", "pt": "pt", "xyz": ""} {
+		if got := LanguageCode2(in); got != want {
+			t.Errorf("LanguageCode2(%q) = %q", in, got)
+		}
+	}
+}

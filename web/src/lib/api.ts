@@ -379,6 +379,8 @@ export interface SubtitleTrack {
   hearing_impaired: boolean;
   /** A file beside the video. */
   external: boolean;
+  /** Found online and kept in Arc's data folder. */
+  downloaded?: boolean;
   /** A picture format (Blu-ray, DVD): shown by burning it into the video. */
   image: boolean;
 }
@@ -392,6 +394,20 @@ export interface TrickplayInfo {
   rows: number;
   count: number;
   sheets: number;
+}
+
+/** A subtitle file found on OpenSubtitles. */
+export interface OnlineSubtitle {
+  file_id: number;
+  language: string;
+  release: string;
+  file_name: string;
+  downloads: number;
+  hearing_impaired: boolean;
+  forced: boolean;
+  /** Made for exactly this file. */
+  hash_match: boolean;
+  machine_translated: boolean;
 }
 
 export interface SubtitleCue {
@@ -560,6 +576,9 @@ export interface ServerSettings {
   hw_accel: boolean;
   /** Map HDR to SDR when converting. */
   tone_mapping: boolean;
+  /** OpenSubtitles.com, for finding subtitles online (the key masked; the password is never sent). */
+  opensubtitles_api_key: string;
+  opensubtitles_username: string;
   /** What this server's FFmpeg can do. */
   transcoder: { hw_encoder: string; hw_label: string; tone_mapping: boolean; checked: boolean };
   port: number;
@@ -633,7 +652,7 @@ export const api = {
   updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region'>>) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
@@ -669,6 +688,17 @@ export const api = {
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
   trickplay: (itemId: string, fileId: number) =>
     request<{ info: TrickplayInfo; sheets: string[] }>('GET', `/api/items/${itemId}/trickplay${query({ file: fileId })}`),
+  subtitleTracks: (itemId: string, fileId: number) => request<SubtitleTrack[]>('GET', `/api/items/${itemId}/subtitles${query({ file: fileId })}`),
+  searchSubtitles: (itemId: string, fileId: number, languages: string) =>
+    request<OnlineSubtitle[]>('GET', `/api/items/${itemId}/subtitles/search${query({ file: fileId, languages })}`),
+  downloadSubtitle: (itemId: string, fileId: number, s: OnlineSubtitle) =>
+    request<{ track: SubtitleTrack; remaining: number }>('POST', `/api/items/${itemId}/subtitles/download`, {
+      file: fileId,
+      result: s.file_id,
+      language: s.language,
+      forced: s.forced,
+      hearing_impaired: s.hearing_impaired,
+    }),
   subtitleCues: (itemId: string, track: string, fileId: number) =>
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),

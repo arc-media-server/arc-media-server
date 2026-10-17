@@ -26,6 +26,7 @@ import (
 	"ams/internal/config"
 	"ams/internal/logbuf"
 	"ams/internal/metadata"
+	"ams/internal/opensubtitles"
 	"ams/internal/probe"
 	"ams/internal/scanner"
 	"ams/internal/settings"
@@ -155,6 +156,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	go transcoder.Detect(ctx)
 
 	tmdb, tvdb := metadata.NewTMDB(cfg.TMDBKey), metadata.NewTVDB(cfg.TVDBKey)
+	subsOnline := opensubtitles.New("Arc Media Server v" + version)
+	subsOnline.SetCredentials(cfg.OpenSubtitlesKey, cfg.OpenSubtitlesUser, cfg.OpenSubtitlesPassword)
 	tmdb.SetRegion(cfg.Region)
 	if cfg.TMDBKey == "" {
 		log.Warn("no TMDB API key yet; add one in Settings so Arc can identify movies and shows")
@@ -234,6 +237,14 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				return err
 			}
 		}
+		if next.OpenSubtitlesKey != "" && (next.OpenSubtitlesKey != current.OpenSubtitlesKey ||
+			next.OpenSubtitlesUser != current.OpenSubtitlesUser || next.OpenSubtitlesPassword != current.OpenSubtitlesPassword) {
+			check := opensubtitles.New("Arc Media Server v" + version)
+			check.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
+			if err := check.Check(ctx); err != nil {
+				return err
+			}
+		}
 		if next.TVDBKey != current.TVDBKey && next.TVDBKey != "" {
 			if err := metadata.CheckTVDBKey(ctx, next.TVDBKey); err != nil {
 				return err
@@ -262,6 +273,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		tmdb.SetKey(next.TMDBKey)
 		tvdb.SetKey(next.TVDBKey)
+		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
 		if next.Region != current.Region {
 			tmdb.SetRegion(next.Region)
 			// Age ratings are per region: fetch everything again, a batch per scan.
@@ -291,6 +303,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		Logs:          logs,
 		Transcoder:    transcoder,
 		Trickplay:     thumbs,
+		OpenSubtitles: subsOnline,
 		Subtitles: subtitles.NewCache(filepath.Join(dataDir, "subtitles"), func() string {
 			ffMu.Lock()
 			defer ffMu.Unlock()

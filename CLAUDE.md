@@ -47,7 +47,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 5 done (Oct 2026): browse filters and sorts, local artwork/NFO, extras and trailers,
   Choose Artwork, admin Dashboard (now playing, stop, server log), Compare Orders, per-profile
   preferences (Edit Home with custom and seasonal rows, Hide Spoilers, theme), shared form styles.
-- Milestone 7 in progress: playback decision, HLS conversion and the new player are done (#34 #35 #75).
+- Milestone 7 done (Oct 2026): playback decision (direct/remux/transcode), HLS conversion, new player,
+  subtitles (incl. OpenSubtitles), versions/editions, scrubbing previews, hardware encoding, tone mapping,
+  compatibility report. Next: milestone 9, then 10.
   The owner's order: finish 7, then 9, then 10, carrying on between them without waiting. The Jellyfin-compatible API
   (old milestone 6, #30–#33) was moved to Later at the owner's request (Oct 2026): Arc's own features
   come first, so don't start it unless they ask.
@@ -100,6 +102,7 @@ internal/watcher/    fsnotify on library folders -> scanner.Request after 10s qu
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
 internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
+internal/opensubtitles/ OpenSubtitles.com client (search, download, file hash); AMS_OPENSUBTITLES_URL for a stand-in
 internal/subtitles/  subtitle tracks (in the file and beside it), extracted to cues with FFmpeg, cached in data/subtitles
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query

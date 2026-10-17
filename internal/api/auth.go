@@ -602,19 +602,22 @@ func clientIP(r *http.Request) string {
 func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 	ff := s.ffprobeStatus()
 	return map[string]any{
-		"tmdb_api_key":  maskKey(st.TMDBKey),
-		"tvdb_api_key":  maskKey(st.TVDBKey),
-		"ffprobe_path":  st.FFprobePath,
-		"ffprobe":       ff,
-		"local_bypass":  st.LocalBypass,
-		"hw_accel":      st.HWAccel,
-		"tone_mapping":  st.ToneMap,
-		"port":          st.Port,
-		"allow_network": st.AllowNetwork,
-		"region":        st.Region,
-		"listen":        st.ListenAddress(),
-		"from_env":      settings.FromEnv(),
-		"transcoder":    s.transcoderCaps(),
+		"tmdb_api_key": maskKey(st.TMDBKey),
+		"tvdb_api_key": maskKey(st.TVDBKey),
+		"ffprobe_path": st.FFprobePath,
+		"ffprobe":      ff,
+		"local_bypass": st.LocalBypass,
+		"hw_accel":     st.HWAccel,
+		"tone_mapping": st.ToneMap,
+		// The password is never sent back; only whether there's an account.
+		"opensubtitles_api_key":  maskKey(st.OpenSubtitlesKey),
+		"opensubtitles_username": st.OpenSubtitlesUser,
+		"port":                   st.Port,
+		"allow_network":          st.AllowNetwork,
+		"region":                 st.Region,
+		"listen":                 st.ListenAddress(),
+		"from_env":               settings.FromEnv(),
+		"transcoder":             s.transcoderCaps(),
 	}
 }
 
@@ -644,6 +647,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		LocalBypass  *bool   `json:"local_bypass"`
 		HWAccel      *bool   `json:"hw_accel"`
 		ToneMap      *bool   `json:"tone_mapping"`
+		OSKey        *string `json:"opensubtitles_api_key"`
+		OSUser       *string `json:"opensubtitles_username"`
+		OSPassword   *string `json:"opensubtitles_password"`
 		Port         *int    `json:"port"`
 		AllowNetwork *bool   `json:"allow_network"`
 		Region       *string `json:"region"`
@@ -670,6 +676,18 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.ToneMap != nil {
 		next.ToneMap = *body.ToneMap
+	}
+	if body.OSKey != nil {
+		next.OpenSubtitlesKey = strings.TrimSpace(*body.OSKey)
+	}
+	if body.OSUser != nil {
+		next.OpenSubtitlesUser = strings.TrimSpace(*body.OSUser)
+		if next.OpenSubtitlesUser == "" {
+			next.OpenSubtitlesPassword = ""
+		}
+	}
+	if body.OSPassword != nil {
+		next.OpenSubtitlesPassword = *body.OSPassword
 	}
 	if body.Port != nil {
 		if *body.Port < 1024 || *body.Port > 65535 {
