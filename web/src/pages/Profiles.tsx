@@ -209,7 +209,7 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
                 </button>
               ))}
             </div>
-            {maxAge > 0 && <p className="mt-2 text-xs text-subtle">Titles without an age rating are hidden too. You can add a rating in Edit Details.</p>}
+            {maxAge > 0 && <p className="mt-2 text-xs text-subtle">Titles without an age rating are hidden too. You can add a rating with Edit on its page.</p>}
           </div>
         )}
         <button type="submit" hidden />
