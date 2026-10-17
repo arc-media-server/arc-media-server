@@ -4,6 +4,7 @@ import type { Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useSpoilerGuard } from '@/lib/home';
 import { Artwork } from './Artwork';
+import { ContinueCardMenu } from './CardMenu';
 import { usePlayer } from './Player';
 import { episodeCode, ProgressBar, progressOf } from './WatchState';
 
@@ -11,7 +12,7 @@ import { episodeCode, ProgressBar, progressOf } from './WatchState';
  * A landscape card for something to carry on with (Continue Watching, Up Next): clicking the
  * artwork plays it from where the profile left off.
  */
-export function ResumeCard({ item, className }: { item: Item; className?: string }) {
+export function ResumeCard({ item, className, onRemove }: { item: Item; className?: string; onRemove?: (item: Item) => void }) {
   const play = usePlayer();
   const isEpisode = item.kind === 'episode';
   const code = episodeCode(item.season_number, item.episode_number);
@@ -25,7 +26,8 @@ export function ResumeCard({ item, className }: { item: Item; className?: string
   const left = remaining(item);
 
   return (
-    <div className={cn('group', className)}>
+    <div className={cn('group relative', className)}>
+      {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
       <button
         type="button"
         onClick={() =>

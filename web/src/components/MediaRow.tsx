@@ -24,6 +24,7 @@ export function MediaRow({
   style = 'poster',
   play,
   seasonPosters,
+  onRemove,
 }: {
   title: string;
   items: Item[];
@@ -32,6 +33,8 @@ export function MediaRow({
   play?: boolean;
   /** Episodes on a poster row show their season's poster (when it has one) instead of the show's. */
   seasonPosters?: boolean;
+  /** Cards offer "Remove from Continue Watching". */
+  onRemove?: (item: Item) => void;
 }) {
   return (
     <RowShell title={title} href={href} empty={items.length === 0}>
@@ -42,11 +45,12 @@ export function MediaRow({
             item={item}
             className={cardClass(style)}
             overrides={seasonPosters && item.images?.season_primary ? { image: item.images.season_primary } : undefined}
+            onRemove={onRemove}
           />
         ) : play ? (
-          <ResumeCard key={item.id} item={item} className={cardClass(style)} />
+          <ResumeCard key={item.id} item={item} className={cardClass(style)} onRemove={onRemove} />
         ) : (
-          <ThumbCard key={item.id} item={item} className={cardClass(style)} />
+          <ThumbCard key={item.id} item={item} className={cardClass(style)} onRemove={onRemove} />
         ),
       )}
     </RowShell>

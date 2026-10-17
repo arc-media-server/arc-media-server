@@ -8,6 +8,7 @@ import { runtime } from '@/lib/format';
 import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { cardClass, MediaRow, RowShell, type CardStyle } from '@/components/MediaRow';
 import { PosterCard, ThumbCard, type CardOverrides } from '@/components/PosterCard';
+import { useRemoveFromContinue } from '@/components/CardMenu';
 import { EditHomeDialog } from '@/components/EditHome';
 import { EmptyState, Page } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
@@ -60,6 +61,7 @@ function QueryRow({ title, query, href, style }: { title: string; query: ItemQue
 }
 
 function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolean }) {
+  const remove = useRemoveFromContinue();
   const continueWatching = useQuery({
     queryKey: ['continue', withUpNext],
     queryFn: () => api.continueWatching(withUpNext),
@@ -68,9 +70,9 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
   const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
   switch (row.type) {
     case 'continue':
-      return <MediaRow title={row.title} items={continueWatching.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play />;
+      return <MediaRow title={row.title} items={continueWatching.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'next-up':
-      return <MediaRow title={row.title} items={nextUp.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play />;
+      return <MediaRow title={row.title} items={nextUp.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'recent':
       return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':

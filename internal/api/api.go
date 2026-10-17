@@ -136,6 +136,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
 	mux.HandleFunc("GET /api/home/continue", user(s.continueWatching))
 	mux.HandleFunc("GET /api/home/next-up", user(s.nextUp))
+	mux.HandleFunc("DELETE /api/home/continue/{id}", user(s.removeFromContinue))
 	mux.HandleFunc("GET /api/playlists", user(s.listPlaylists))
 	mux.HandleFunc("POST /api/playlists", user(s.createPlaylist))
 	mux.HandleFunc("GET /api/playlists/{id}", user(s.getPlaylist))

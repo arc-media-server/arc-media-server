@@ -217,3 +217,34 @@ func placeholders(n int) string {
 	}
 	return strings.Repeat("?,", n-1) + "?"
 }
+
+// DismissContinue removes items from a profile's Continue Watching until they're played again.
+func (s *Store) DismissContinue(ctx context.Context, userID string, itemIDs []string) error {
+	now := time.Now().Unix()
+	for _, id := range itemIDs {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO continue_dismissed (user_id, item_id, at) VALUES (?, ?, ?)
+			ON CONFLICT (user_id, item_id) DO UPDATE SET at = excluded.at`, userID, id, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ContinueDismissed returns when a profile removed items from Continue Watching, by item id.
+func (s *Store) ContinueDismissed(ctx context.Context, userID string) (map[string]int64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT item_id, at FROM continue_dismissed WHERE user_id = ?`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{}
+	for rows.Next() {
+		var id string
+		var at int64
+		if err := rows.Scan(&id, &at); err != nil {
+			return nil, err
+		}
+		out[id] = at
+	}
+	return out, rows.Err()
+}
