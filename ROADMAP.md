@@ -57,7 +57,7 @@ powerful when you need it.
 - [x] Parental controls by content rating
 - [x] Remove items whose files are gone ("Empty trash")
 
-### 5. AMS web app (Apple-style)
+### ✅ 5. AMS web app (Apple-style)
 _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Foundation: React + TypeScript + Tailwind + Radix, embedded in the binary
 - [x] Design system basics: typography, colour tokens, motion, light/dark
@@ -73,12 +73,6 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")
 - [x] Seasonal rows (Christmas films in December, horror in October), built on the same filter engine
 - [x] Spoiler protection: blur thumbnails and hide descriptions of unwatched episodes
-
-### 6. Jellyfin-compatible API
-- [ ] Discovery, auth, browsing, images
-- [ ] PlaybackInfo, streaming, progress reporting
-- [ ] Display orderings and Next Up exposed to Jellyfin clients
-- [ ] Tested against Jellyfin Web, Android/Android TV, Swiftfin, Findroid, Streamyfin, Infuse
 
 ### 7. Transcoding and subtitles
 - [ ] Direct play / direct stream / transcode decision per client
@@ -126,6 +120,10 @@ _Doesn't block development; must be done before AMS is shared or published._
 ## Later
 
 - Music (deliberately deferred)
+- Jellyfin-compatible API (was milestone 6; deferred in Oct 2026 so Arc's own features come first):
+  discovery, auth, browsing, images; PlaybackInfo, streaming, progress reporting; display orderings
+  and Next Up exposed to Jellyfin clients; tested against Jellyfin Web, Android/Android TV, Swiftfin,
+  Findroid, Streamyfin, Infuse
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
 - Import from Plex and Jellyfin: users, watch history, resume points

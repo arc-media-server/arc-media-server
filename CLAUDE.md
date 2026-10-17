@@ -47,7 +47,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 5 done (Oct 2026): browse filters and sorts, local artwork/NFO, extras and trailers,
   Choose Artwork, admin Dashboard (now playing, stop, server log), Compare Orders, per-profile
   preferences (Edit Home with custom and seasonal rows, Hide Spoilers, theme), shared form styles.
-- Next: milestone 6 (Jellyfin-compatible API: #30–#33).
+- Next: milestone 7 (transcoding and subtitles: #34–#42, #75, #76). The Jellyfin-compatible API
+  (old milestone 6, #30–#33) was moved to Later at the owner's request (Oct 2026): Arc's own features
+  come first, so don't start it unless they ask.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
