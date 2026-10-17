@@ -102,6 +102,56 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Clear logos on movie and series pages (#81)
 - [x] Cast higher up on series pages, not below every episode (#82)
 
+### 12. Everyday playback
+- [ ] Auto-play the next episode, with a countdown (#83)
+- [ ] Preferred audio language per profile (#84)
+- [ ] Quality choice in the player (#85)
+- [ ] Remove from Continue Watching (#86)
+- [ ] Chapters in the player (#87)
+- [ ] Picture-in-Picture (#88)
+
+### 13. Profiles and home
+- [ ] Choose which libraries each profile sees (#89)
+- [ ] Admin-set home layout for other profiles (#90)
+- [ ] Collections and playlists as home rows (#91)
+- [ ] Personal ratings and a watchlist (#79)
+- [ ] "More like this" on title pages and a Recommended view per library (#92)
+
+### 14. Library management
+- [ ] Merge and split titles by hand (#93)
+- [ ] Edit several titles at once (#94)
+- [ ] Labels, for filters, smart collections and profile restrictions (#95)
+- [ ] Metadata language per library (#96)
+- [ ] Scheduled maintenance window for heavy background jobs (#97)
+- [ ] "Other videos" (home videos) library type (#77)
+
+### 15. Moving in and extras
+- [ ] Import from Plex and Jellyfin: users, watch history, resume points (#22)
+- [ ] Notifications and webhooks (#78)
+- [ ] Theme music on show pages (#98)
+- [ ] Pre-roll videos before movies (#99)
+
+### 16. Intro and credits skipping
+- [ ] Crowdsourced timestamp source (IntroDB or similar) as the first choice (#43)
+- [ ] Check timestamps against each file's runtime before trusting them (#44)
+- [ ] Local detection fallback (audio fingerprinting across episodes), run in the background at low priority (#45)
+- [ ] Skip Intro / Skip Credits in the player and Jellyfin layer (#46)
+- [ ] Manual editing of markers (#47)
+
+### 17. Remote access and devices
+- [ ] HTTPS, secure remote access setup (#57)
+- [ ] Sharing with friends, library access per user (#58)
+- [ ] Bandwidth limits for remote streams (#59)
+- [ ] Casting: Chromecast and AirPlay (#100)
+- [ ] Pre-converted versions for difficult devices (#101)
+
+### 18. Jellyfin-compatible API
+_Lets Jellyfin apps on TVs and phones use Arc._
+- [ ] Discovery, auth, browsing, images (#30)
+- [ ] PlaybackInfo, streaming, progress reporting (#31)
+- [ ] Display orderings and Next Up exposed to Jellyfin clients (#32)
+- [ ] Tested against Jellyfin Web, Android/Android TV, Swiftfin, Findroid, Streamyfin, Infuse (#33)
+
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
 - [ ] TheTVDB and TMDB attribution (required by their API terms)
@@ -109,22 +159,9 @@ _Doesn't block development; must be done before AMS is shared or published._
 
 ## Later
 
-- Intro and credits skipping (was milestone 8; moved here in Oct 2026): crowdsourced timestamps
-  (IntroDB or similar) checked against each file's runtime, local audio-fingerprint detection as a
-  fallback, Skip Intro / Skip Credits in the player, manual marker editing
-- Remote access (was milestone 11; moved here in Oct 2026): HTTPS and secure remote setup, sharing
-  with friends with library access per user, bandwidth limits for remote streams
 - Music (deliberately deferred)
-- Jellyfin-compatible API (was milestone 6; deferred in Oct 2026 so Arc's own features come first):
-  discovery, auth, browsing, images; PlaybackInfo, streaming, progress reporting; display orderings
-  and Next Up exposed to Jellyfin clients; tested against Jellyfin Web, Android/Android TV, Swiftfin,
-  Findroid, Streamyfin, Infuse
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
-- Import from Plex and Jellyfin: users, watch history, resume points
-- "Other videos" (home videos) library type
-- Notifications and webhooks
-- Personal ratings and a watchlist
 - Native apps (tvOS, iOS, Android TV) if the Jellyfin clients aren't polished enough
 
 ## Explicitly not planned
