@@ -87,4 +87,16 @@ type ItemQuery struct {
 	Offset    int
 	// Only items rated for this age or younger (0 = no limit; unrated items are left out).
 	MaxAge int
+
+	// Filters for browsing. Zero values mean no filter.
+	Genre      string
+	Decade     int    // e.g. 1990 for 1990–1999
+	Resolution string // 4k, 1080, 720 or sd (movies)
+	// The profile whose watch state Unwatched and the "watched" sort use.
+	UserID    string
+	Unwatched bool
 }
+
+// Sorts ListItems understands.
+var ItemSorts = map[string]bool{"title": true, "added": true, "year": true, "release": true, "rating": true,
+	"runtime": true, "watched": true}

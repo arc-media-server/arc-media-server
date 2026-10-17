@@ -292,11 +292,29 @@ export interface BackupsResponse {
   backups: Backup[];
 }
 
+export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'runtime' | 'watched';
+export type Resolution = '4k' | '1080' | '720' | 'sd';
+
+export interface Facet {
+  value: string;
+  count: number;
+}
+
+export interface LibraryFacets {
+  genres: Facet[];
+  decades: Facet[];
+  resolutions: Facet[];
+}
+
 export interface ItemQuery {
   library_id?: number;
   kind?: ItemKind;
   q?: string;
-  sort?: 'title' | 'added' | 'year';
+  sort?: ItemSort;
+  genre?: string;
+  decade?: number;
+  resolution?: Resolution;
+  unwatched?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -431,6 +449,7 @@ export const api = {
   scanLibrary: (id: number) => request<ScanStatus>('POST', `/api/libraries/${id}/scan`),
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
+  facets: (libraryId: number) => request<LibraryFacets>('GET', `/api/libraries/${libraryId}/facets`),
   /** Problems needing the user, per library id. */
   healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),
 

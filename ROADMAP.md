@@ -65,7 +65,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Home, library browsing, item detail, search, player (direct play)
 - [ ] Admin area that's simple: setup wizard, libraries, users, health
 - [ ] Admin dashboard: now playing, stop a stream, server log
-- [ ] Browse filters (genre, decade, unwatched, resolution, rating) and more sort options
+- [x] Browse filters (genre, decade, unwatched, resolution, rating) and more sort options
 - [ ] Use local artwork and NFO files (read-only)
 - [ ] Extras and trailers on movie and show pages
 - [ ] Choose artwork from TMDB/TVDB alternatives or upload your own

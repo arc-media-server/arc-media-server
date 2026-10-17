@@ -40,6 +40,25 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 	return nil
 }
 
+// libraryFacets: GET /api/libraries/{id}/facets lists the genres, decades and resolutions a
+// library's titles can be filtered by, with counts.
+func (s *Server) libraryFacets(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	kind := "movie"
+	if lib.Kind == "shows" {
+		kind = "series"
+	}
+	f, err := s.store.Facets(r.Context(), lib.ID, kind, maxAge(r))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, f)
+}
+
 // personImage: GET /api/people/{id}/image serves a person's photo from the artwork cache.
 func (s *Server) personImage(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)

@@ -78,6 +78,7 @@ func New(d Deps) http.Handler {
 	user, admin := s.signedIn, s.adminOnly
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
+	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
@@ -243,6 +244,15 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Limit, _ = strconv.Atoi(q.Get("limit"))
 	query.Offset, _ = strconv.Atoi(q.Get("offset"))
 	query.MaxAge = maxAge(r)
+	query.Genre = q.Get("genre")
+	query.Decade, _ = strconv.Atoi(q.Get("decade"))
+	query.Resolution = q.Get("resolution")
+	query.UserID = currentUserID(r)
+	query.Unwatched = q.Get("unwatched") == "1" || q.Get("unwatched") == "true"
+	if query.Sort != "" && !store.ItemSorts[query.Sort] {
+		writeError(w, http.StatusBadRequest, "unknown sort")
+		return
+	}
 
 	items, total, err := s.store.ListItems(r.Context(), query)
 	if err != nil {

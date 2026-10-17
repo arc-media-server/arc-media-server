@@ -44,8 +44,10 @@ Early development. Working today:
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
-  can't identify, and why) before anything is added
-- **Web app**: home with featured title and recently added rows, library grids with sorting and
+  can't identify, and why) before anything is | GET | `/api/items?library_id=&kind=&q=&sort=title|added|year|release|rating|runtime|watched&genre=&decade=&resolution=4k|1080|720|sd&unwatched=1&limit=&offset=` | Browse, filter and search |
+| GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
+- **Web app**: home with featured title and recently | GET | `/api/items?library_id=&kind=&q=&sort=title|added|year|release|rating|runtime|watched&genre=&decade=&resolution=4k|1080|720|sd&unwatched=1&limit=&offset=` | Browse, filter and search |
+| GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts | rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
   search, and a Library Health page (unidentified titles, unreadable, unrecognised and missing
   files, duplicates, missing episodes). Light and dark mode follow your system
@@ -107,7 +109,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=title\|added\|year&limit=&offset=` | Browse and search |
+| GET | `/api/items?library_id=&kind=&q=&sort=title|added|year|release|rating|runtime|watched&genre=&decade=&resolution=4k|1080|720|sd&unwatched=1&limit=&offset=` | Browse, filter and search |
+| GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |\|added\|year&limit=&offset=` | Browse and search |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | PATCH | `/api/items/{id}` | Edit metadata; edited fields are locked. `locked_fields` replaces the locked set |
 | POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |

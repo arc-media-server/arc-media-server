@@ -455,6 +455,72 @@ func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
 	return out, rows.Err()
 }
 
+// Video heights (or width-derived heights, for widescreen) each resolution filter covers.
+var resolutionHeights = map[string][2]int{"4k": {1600, 100000}, "1080": {1000, 1600}, "720": {700, 1000}, "sd": {1, 700}}
+
+// LibraryFacets are the values a library's titles can be filtered by.
+type LibraryFacets struct {
+	Genres      []Facet `json:"genres"`
+	Decades     []Facet `json:"decades"`
+	Resolutions []Facet `json:"resolutions"`
+}
+
+// Facet is one filter value and how many titles have it.
+type Facet struct {
+	Value string `json:"value"`
+	Count int    `json:"count"`
+}
+
+// Facets lists a library's genres, decades and (for movies) resolutions, with counts, for the
+// titles a profile with maxAge may see.
+func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, maxAge int) (LibraryFacets, error) {
+	base := `items.library_id = ? AND items.kind = ?`
+	args := []any{libraryID, kind}
+	if maxAge > 0 {
+		base += " AND " + AgeAllowedSQL("items")
+		args = append(args, maxAge)
+	}
+	query := func(q string) ([]Facet, error) {
+		rows, err := s.db.QueryContext(ctx, q, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		out := []Facet{}
+		for rows.Next() {
+			var f Facet
+			if err := rows.Scan(&f.Value, &f.Count); err != nil {
+				return nil, err
+			}
+			out = append(out, f)
+		}
+		return out, rows.Err()
+	}
+	var out LibraryFacets
+	var err error
+	if out.Genres, err = query(`SELECT g.name, COUNT(*) FROM item_genres g JOIN items ON items.id = g.item_id
+		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
+		return out, err
+	}
+	if out.Decades, err = query(`SELECT CAST(year / 10 * 10 AS TEXT), COUNT(*) FROM items
+		WHERE ` + base + ` AND year > 0 GROUP BY year / 10 ORDER BY year / 10 DESC`); err != nil {
+		return out, err
+	}
+	out.Resolutions = []Facet{}
+	if kind == "movie" {
+		if out.Resolutions, err = query(`SELECT CASE
+				WHEN h >= 1600 THEN '4k' WHEN h >= 1000 THEN '1080' WHEN h >= 700 THEN '720' ELSE 'sd' END AS r, COUNT(DISTINCT id)
+			FROM (SELECT items.id, MAX(st.height, st.width * 9 / 16) AS h FROM items
+				JOIN item_files f ON f.item_id = items.id JOIN media_files m ON m.id = f.file_id
+				JOIN media_streams st ON st.file_id = m.id
+				WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = 'video' AND st.height > 0)
+			GROUP BY r ORDER BY MIN(h) DESC`); err != nil {
+			return out, err
+		}
+	}
+	return out, nil
+}
+
 // ListItems returns a page of items plus the total match count.
 func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error) {
 	// Only list things that can be played: items with a present file, or series with at least one
@@ -483,6 +549,30 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		where = append(where, AgeAllowedSQL("items"))
 		args = append(args, q.MaxAge)
 	}
+	if q.Genre != "" {
+		where = append(where, "EXISTS (SELECT 1 FROM item_genres g WHERE g.item_id = items.id AND g.name = ?)")
+		args = append(args, q.Genre)
+	}
+	if q.Decade > 0 {
+		where = append(where, "year BETWEEN ? AND ?")
+		args = append(args, q.Decade, q.Decade+9)
+	}
+	if h, ok := resolutionHeights[q.Resolution]; ok {
+		where = append(where, `EXISTS (SELECT 1 FROM item_files f JOIN media_files m ON m.id = f.file_id
+			JOIN media_streams st ON st.file_id = m.id
+			WHERE f.item_id = items.id AND m.missing_since IS NULL AND st.kind = 'video'
+				AND MAX(st.height, st.width * 9 / 16) >= ? AND MAX(st.height, st.width * 9 / 16) < ?)`)
+		args = append(args, h[0], h[1])
+	}
+	if q.Unwatched && q.UserID != "" {
+		// Movies not watched; shows with an episode on disk not watched.
+		where = append(where, `CASE WHEN items.kind = 'series' THEN EXISTS (
+				SELECT 1 FROM items e JOIN item_files f ON f.item_id = e.id JOIN media_files m ON m.id = f.file_id
+				WHERE e.parent_id = items.id AND m.missing_since IS NULL AND NOT EXISTS (
+					SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = e.id AND u.played = 1))
+			ELSE NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND u.played = 1) END`)
+		args = append(args, q.UserID, q.UserID)
+	}
 	cond := strings.Join(where, " AND ")
 
 	var total int
@@ -491,18 +581,31 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 	}
 
 	order := "sort_title, year"
+	var orderArgs []any
 	switch q.Sort {
 	case "added":
 		order = "added_at DESC, sort_title"
 	case "year":
 		order = "year DESC, sort_title"
+	case "release":
+		order = "release_date DESC, sort_title"
+	case "rating":
+		order = "rating DESC, sort_title"
+	case "runtime":
+		order = "runtime_min DESC, sort_title"
+	case "watched":
+		// Most recently watched first (a show by its episodes); never watched last.
+		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
+			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
+		orderArgs = append(orderArgs, q.UserID)
 	}
 	limit := q.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
+	all := append(append(append([]any{}, args...), orderArgs...), limit, q.Offset)
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items WHERE `+cond+
-		` ORDER BY `+order+` LIMIT ? OFFSET ?`, append(args, limit, q.Offset)...)
+		` ORDER BY `+order+` LIMIT ? OFFSET ?`, all...)
 	if err != nil {
 		return nil, 0, err
 	}
