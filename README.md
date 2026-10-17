@@ -115,6 +115,8 @@ Early development. Working today:
   several new episodes of a season show as that season with its poster, a single new episode as
   itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
+- Auto-Play (per profile, in the profile menu, on by default as in Plex): when an episode ends, the
+  next one in your episode order plays after a 10-second countdown, wherever you started it
 - Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
   episodes you haven't started
 - Appearance per profile (profile menu): Automatic (follows the device), Dark or Light
@@ -210,6 +212,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
 | GET | `/api/home/continue?with_up_next=1` | What the profile is part-way through; with `with_up_next=1`, also the next episode of each show, most recent first (one per show) |
 | GET | `/api/libraries/{id}/recent-shows` | A TV library's Recently Added, grouped: `[{"type": "series"\|"season"\|"episode", "item", "season_number", "episodes", "season_poster"}]` |
+| GET | `/api/items/{id}/next` | The episode after this one in the profile's episode order (204 if none) |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |

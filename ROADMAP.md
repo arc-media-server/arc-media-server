@@ -103,7 +103,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Cast higher up on series pages, not below every episode (#82)
 
 ### 12. Everyday playback
-- [ ] Auto-play the next episode, with a countdown (#83)
+- [x] Auto-play the next episode, with a countdown (#83)
 - [ ] Preferred audio language per profile (#84)
 - [ ] Quality choice in the player (#85)
 - [ ] Remove from Continue Watching (#86)

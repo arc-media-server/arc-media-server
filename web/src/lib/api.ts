@@ -530,6 +530,8 @@ export interface Prefs {
   subtitle_language: string;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
   split_up_next: boolean;
+  /** Play the next episode after a countdown; absent means on, as in Plex. */
+  auto_play?: boolean;
   /** Empty means the default layout. */
   home: HomeRow[];
 }
@@ -766,6 +768,8 @@ export const api = {
   statsStorage: (library?: number) => request<StatsStorage>('GET', `/api/stats/storage${query({ library })}`),
   myYear: (year?: number) => request<YearReview>('GET', `/api/me/year${query({ year })}`),
   recentShows: (libraryId: number) => request<RecentCard[]>('GET', `/api/libraries/${libraryId}/recent-shows`),
+  /** The episode that follows one in the profile's episode order, if any. */
+  nextEpisode: (id: string) => request<Item | undefined>('GET', `/api/items/${id}/next`),
   continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),

@@ -435,3 +435,83 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 	}
 	return out, nil
 }
+
+// nextEpisode: GET /api/items/{id}/next is the episode that follows one in the profile's episode
+// order, for playing on: the next one on disk, staying out of specials unless the episode is one.
+// 204 when there's none (the last episode, a movie, or an episode the order doesn't place).
+func (s *Server) nextEpisode(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	if it.Kind != "episode" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	series, err := s.store.GetItem(ctx, it.ParentID)
+	if err != nil || series == nil {
+		if err != nil {
+			s.fail(w, err)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		return
+	}
+	pos, entries, err := s.orderPositions(ctx, currentUserID(r), series)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	available, err := s.store.AvailableChildren(ctx, series.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	next := nextInOrder(entries, it.ID, available)
+	if next == "" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	ep, err := s.store.GetItem(ctx, next)
+	if err != nil || ep == nil {
+		if err != nil {
+			s.fail(w, err)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		return
+	}
+	if ok, err := s.store.AgeAllowed(ctx, ep, maxAge(r)); err != nil || !ok {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	d := s.episodeDTO(*ep, series, pos)
+	if err := s.fillUserData(r, []*itemDTO{&d}); err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
+}
+
+// nextInOrder finds the episode after current in an order's entries (sorted by season and number):
+// the next one on disk at a later position, not a special unless current is one. "" if none.
+func nextInOrder(entries []store.OrderingEntry, current string, available map[string]bool) string {
+	at := -1
+	for i, e := range entries {
+		if e.EpisodeID == current {
+			at = i // its last position, so a two-part episode doesn't repeat
+		}
+	}
+	if at < 0 {
+		return ""
+	}
+	special := entries[at].Season == 0
+	for _, e := range entries[at+1:] {
+		if e.EpisodeID == current || !available[e.EpisodeID] || (e.Season == 0) != special {
+			continue
+		}
+		return e.EpisodeID
+	}
+	return ""
+}

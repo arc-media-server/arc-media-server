@@ -22,6 +22,8 @@ type prefs struct {
 	SubtitleLanguage string `json:"subtitle_language"`
 	// Show Up Next as its own row; otherwise the next episodes are part of Continue Watching, as in Plex.
 	SplitUpNext bool `json:"split_up_next"`
+	// Play the next episode after a countdown when one ends; on unless turned off, as in Plex.
+	AutoPlay *bool `json:"auto_play,omitempty"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
@@ -143,6 +145,7 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		Theme            *string   `json:"theme"`
 		SubtitleLanguage *string   `json:"subtitle_language"`
 		SplitUpNext      *bool     `json:"split_up_next"`
+		AutoPlay         *bool     `json:"auto_play"`
 		Home             []homeRow `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
@@ -160,6 +163,9 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.SplitUpNext != nil {
 		p.SplitUpNext = *body.SplitUpNext
+	}
+	if body.AutoPlay != nil {
+		p.AutoPlay = body.AutoPlay
 	}
 	if body.Home != nil {
 		p.Home = body.Home
