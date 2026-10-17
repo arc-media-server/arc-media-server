@@ -14,6 +14,7 @@ import {
   Languages,
   Loader2,
   Maximize,
+  PictureInPicture2,
   Minimize,
   OctagonX,
   Pause,
@@ -467,6 +468,48 @@ function PlayerOverlay({
     else v.pause();
   }, []);
 
+  // Picture-in-Picture: the video in a small floating window.
+  const [pip, setPip] = useState(false);
+  const pipSupported = typeof document !== 'undefined' && document.pictureInPictureEnabled;
+  const togglePip = useCallback(() => {
+    const v = video.current;
+    if (!v) return;
+    if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+    else v.requestPictureInPicture().catch(() => {});
+  }, []);
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    const enter = () => setPip(true);
+    const leave = () => setPip(false);
+    v.addEventListener('enterpictureinpicture', enter);
+    v.addEventListener('leavepictureinpicture', leave);
+    return () => {
+      v.removeEventListener('enterpictureinpicture', enter);
+      v.removeEventListener('leavepictureinpicture', leave);
+      // Closing the player closes its floating window too.
+      if (document.pictureInPictureElement === v) document.exitPictureInPicture().catch(() => {});
+    };
+  }, []);
+  // The player draws subtitles over the page, which the floating window doesn't show, so while
+  // it's open they're given to the browser as a text track (in the video's own clock).
+  useEffect(() => {
+    const v = video.current;
+    if (!v || !pip || !cues.length) return;
+    const track = v.addTextTrack('subtitles', 'Subtitles');
+    track.mode = 'showing';
+    const offsetS = offset.current / 1000;
+    for (const c of cues) {
+      const start = c.start_ms / 1000 - offsetS;
+      const end = c.end_ms / 1000 - offsetS;
+      if (end > 0) track.addCue(new VTTCue(Math.max(0, start), end, c.text));
+    }
+    return () => {
+      for (const c of Array.from(track.cues ?? [])) track.removeCue(c);
+      track.mode = 'disabled';
+    };
+  }, [pip, cues, planState]);
+
   const toggleFullscreen = useCallback(() => {
     // The whole page, so menus (rendered outside the player) stay visible.
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -565,6 +608,9 @@ function PlayerOverlay({
           break;
         case 'f':
           toggleFullscreen();
+          break;
+        case 'i':
+          if (pipSupported) togglePip();
           break;
         case '>':
           setRate((r) => speeds[Math.min(speeds.length - 1, speeds.indexOf(r) + 1)] ?? r);
@@ -900,9 +946,14 @@ function PlayerOverlay({
                 <p className="max-w-64 px-2.5 pb-2 text-xs leading-relaxed text-muted">{methodLabel(planState).detail}</p>
                 <DropdownMenuSeparator />
                 <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">
-                  Space play/pause · ←/→ 5s · J/L 10s · Shift+←/→ chapters · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · &lt;/&gt; speed · 0–9 jump
+                  Space play/pause · ←/→ 5s · J/L 10s · Shift+←/→ chapters · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · I picture-in-picture · &lt;/&gt; speed · 0–9 jump
                 </p>
               </PlayerMenu>
+            )}
+            {pipSupported && (
+              <ControlButton label={pip ? 'Back from Picture-in-Picture (I)' : 'Picture-in-Picture (I)'} onClick={togglePip}>
+                <PictureInPicture2 />
+              </ControlButton>
             )}
             <ControlButton label={fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'} onClick={toggleFullscreen}>
               {fullscreen ? <Minimize /> : <Maximize />}

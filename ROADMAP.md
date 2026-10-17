@@ -102,13 +102,13 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Clear logos on movie and series pages (#81)
 - [x] Cast higher up on series pages, not below every episode (#82)
 
-### 12. Everyday playback
+### ✅ 12. Everyday playback
 - [x] Auto-play the next episode, with a countdown (#83)
 - [x] Preferred audio language per profile (#84)
 - [x] Quality choice in the player (#85)
 - [x] Remove from Continue Watching (#86)
 - [x] Chapters in the player (#87)
-- [ ] Picture-in-Picture (#88)
+- [x] Picture-in-Picture (#88)
 
 ### 13. Profiles and home
 - [ ] Choose which libraries each profile sees (#89)
