@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { Image as ImageIcon, Layers, MoreHorizontal, Pencil, SearchCheck } from 'lucide-react';
+import { Layers, MoreHorizontal, Pencil, SearchCheck } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { FixMatchDialog } from '@/components/FixMatch';
-import { ChooseArtworkDialog } from '@/components/ChooseArtwork';
 import { AddToCollectionDialog } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-type Dialog = 'edit' | 'match' | 'artwork' | 'collection' | null;
+type Dialog = 'edit' | 'match' | 'collection' | null;
 
 /** The dialogs for correcting an item, and a function to open one. */
 export function useItemDialogs(item: Item | undefined) {
@@ -20,7 +19,6 @@ export function useItemDialogs(item: Item | undefined) {
     <>
       <EditDetailsDialog item={item} open={open === 'edit'} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
-      <ChooseArtworkDialog item={item} open={open === 'artwork'} onOpenChange={(o) => setOpen(o ? 'artwork' : null)} />
       <AddToCollectionDialog item={item} library={library} open={open === 'collection'} onOpenChange={(o) => setOpen(o ? 'collection' : null)} />
     </>
   );
@@ -38,10 +36,7 @@ export function MoreMenu({ onOpen }: { onOpen: (d: Exclude<Dialog, null>) => voi
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onSelect={() => onOpen('edit')}>
-          <Pencil className="size-4 text-muted" /> Edit Details…
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpen('artwork')}>
-          <ImageIcon className="size-4 text-muted" /> Choose Artwork…
+          <Pencil className="size-4 text-muted" /> Edit…
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpen('collection')}>
           <Layers className="size-4 text-muted" /> Add to Collection…

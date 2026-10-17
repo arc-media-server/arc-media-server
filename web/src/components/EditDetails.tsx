@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen, X } from 'lucide-react';
-import { api, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
+import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
+import { applyArtwork, ArtworkPanel, artworkNames, type ArtworkChange } from '@/components/ChooseArtwork';
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ function initialValue(item: Item, field: TextField): string {
   }
 }
 
-/** A dialog to correct an item's details. Edited fields are locked. */
+/** The Edit dialog: correct an item's details (edited fields are locked) and choose its artwork. */
 export function EditDetailsDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,6 +70,10 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const library = useLibraries().data?.find((l) => l.id === item.library_id);
   const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
+  // Movies and shows have artwork to choose; episodes just their details.
+  const tabs: ('details' | ArtworkType)[] = item.kind === 'episode' ? ['details'] : ['details', 'poster', 'backdrop', 'logo'];
+  const [tab, setTab] = useState<(typeof tabs)[number]>('details');
+  const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
 
   const save = useMutation({
     mutationFn: async () => {
@@ -82,6 +87,9 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       if (genresChanged) edit.genres = genres;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       let updated = await api.editItem(item.id, edit);
+      for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange][]) {
+        updated = await applyArtwork(item.id, type, change);
+      }
       // Fields just unlocked should go back to the online value straight away.
       if (item.locked_fields.some((f) => !locked.has(f))) {
         try {
@@ -98,6 +106,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       qc.invalidateQueries({ queryKey: ['seasons'] });
       qc.invalidateQueries({ queryKey: ['items'] });
       qc.invalidateQueries({ queryKey: ['featured'] });
+      for (const key of ['artwork', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
       onDone();
     },
   });
@@ -116,8 +125,11 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
 
   return (
     <DialogContent
-      title="Edit Details"
-      description={<>Anything you change is locked, so refreshing from {provider} won't undo it. Unlock a field to use the online value again.</>}
+      title="Edit"
+      className={tabs.length > 1 ? 'w-[min(820px,calc(100vw-32px))]' : undefined}
+      description={
+        tab === 'details' ? <>Anything you change is locked, so refreshing from {provider} won't undo it. Unlock a field to use the online value again.</> : undefined
+      }
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
@@ -132,7 +144,28 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         </>
       }
     >
+      {tabs.length > 1 && (
+        <div className="mb-5 flex gap-1" role="tablist">
+          {tabs.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
+            >
+              {t === 'details' ? 'Details' : artworkNames[t]}
+              {t !== 'details' && art[t] && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab !== 'details' && (
+        <ArtworkPanel item={item} type={tab} change={art[tab]} onChange={(c) => setArt((prev) => ({ ...prev, [tab]: c }))} />
+      )}
       <form
+        hidden={tab !== 'details'}
         className="grid grid-cols-2 gap-x-4 gap-y-4"
         onSubmit={(e) => {
           e.preventDefault();
@@ -192,13 +225,14 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
             </span>
           </label>
         )}
-        <div className="col-span-2 mt-1">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Artwork</p>
-          <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
-            <ArtworkLock label={item.kind === 'episode' ? 'Keep this thumbnail' : 'Keep this poster'} locked={locked.has('poster')} onToggle={() => toggle('poster')} />
-            {item.kind !== 'episode' && <ArtworkLock label="Keep this background" locked={locked.has('backdrop')} onToggle={() => toggle('backdrop')} />}
+        {item.kind === 'episode' && (
+          <div className="col-span-2 mt-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Artwork</p>
+            <div className="overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
+              <ArtworkLock label="Keep this thumbnail" locked={locked.has('poster')} onToggle={() => toggle('poster')} />
+            </div>
           </div>
-        </div>
+        )}
         <button type="submit" hidden />
       </form>
     </DialogContent>

@@ -81,7 +81,7 @@ Early development. Working today:
   Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
 - Clear logos: movie and series pages show the title's logo artwork (from TMDB, or a local
   clearlogo.png / logo.png) instead of plain text, and the cast sits right under the summary
-- Choose Artwork: pick any poster, background or logo TMDB has for a title, or upload your own (kept in
+- Artwork, in the Edit dialog (Details, Poster, Background and Logo tabs, as in Plex): pick any poster, background or logo TMDB has for a title, or upload your own (kept in
   the data folder; media files are never touched). "Automatic" goes back to local or online artwork
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
