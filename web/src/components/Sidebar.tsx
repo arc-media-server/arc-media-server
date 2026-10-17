@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronsUpDown, DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
+import { Activity, ChevronsUpDown, DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -201,6 +201,7 @@ export function Sidebar() {
 }
 
 const manageLinks = [
+  { to: '/dashboard', label: 'Dashboard', icon: <Activity /> },
   { to: '/health', label: 'Library Health', icon: <HeartPulse /> },
   { to: '/libraries', label: 'Libraries', icon: <FolderCog /> },
   { to: '/profiles', label: 'Profiles', icon: <Users /> },

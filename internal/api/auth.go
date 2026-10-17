@@ -24,7 +24,16 @@ var profileColors = map[string]bool{"violet": true, "blue": true, "teal": true, 
 
 type ctxKey int
 
-const userKey ctxKey = 0
+const (
+	userKey ctxKey = iota
+	sessionKey
+)
+
+// currentSession identifies the signed-in browser or device (its session's token hash).
+func currentSession(r *http.Request) string {
+	h, _ := r.Context().Value(sessionKey).(string)
+	return h
+}
 
 // currentUser is the profile making the request (set by signedIn).
 func currentUser(r *http.Request) *store.User {
@@ -82,7 +91,8 @@ func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "choose a profile")
 			return
 		}
-		h(w, r.WithContext(context.WithValue(r.Context(), userKey, u)))
+		ctx := context.WithValue(r.Context(), userKey, u)
+		h(w, r.WithContext(context.WithValue(ctx, sessionKey, se.TokenHash)))
 	}
 }
 

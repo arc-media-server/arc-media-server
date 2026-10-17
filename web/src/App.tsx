@@ -11,6 +11,7 @@ import { SeriesPage } from './pages/Series';
 import { SearchPage } from './pages/Search';
 import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
+import { DashboardPage } from './pages/Dashboard';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
@@ -38,6 +39,7 @@ export function App() {
             <Route path="/health" element={<HealthPage />} />
             <Route path="/attention" element={<Navigate to="/health" replace />} />
             <Route path="/backups" element={<BackupsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/libraries" element={<LibrariesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profiles" element={<ProfilesPage />} />

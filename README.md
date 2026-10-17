@@ -43,6 +43,9 @@ Early development. Working today:
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
   everything, and optional sign-in without the password on your home network
+- Dashboard (admin): who is watching what, on which device, how far in and how it is being
+  played; stop a stream with an optional message for the viewer; the recent server log, filtered
+  by level and easy to copy
 - Parental controls: limit a profile to titles rated for ages up to 7, 12 or 15 (age ratings for
   your region); anything else is hidden from it everywhere
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
@@ -123,7 +126,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |
 | PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
-| PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms"}`; past 90% counts as watched |
+| PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms", "state": "playing\|paused\|stopped"}`; past 90% counts as watched. 409 means the admin stopped playback |
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
@@ -146,6 +149,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Place an episode: `{"season_number": 1, "episode_number": 3}` |
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
+| GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
+| POST | `/api/playing/{id}/stop` | Stop a playback, with an optional `{"message": "..."}` for the viewer |
+| GET | `/api/logs?level=info\|warn\|error\|debug&after=<seq>` | Recent server log lines, oldest first |
 | GET | `/api/backups` | Database backups, newest first |
 | POST | `/api/backups` | Back up now |
 | POST | `/api/backups/{name}/restore` | Restore a backup (the current state is backed up first) |

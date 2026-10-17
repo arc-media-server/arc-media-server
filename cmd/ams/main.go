@@ -24,6 +24,7 @@ import (
 	"ams/internal/auth"
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/logbuf"
 	"ams/internal/metadata"
 	"ams/internal/probe"
 	"ams/internal/scanner"
@@ -31,6 +32,9 @@ import (
 	"ams/internal/store"
 	"ams/internal/watcher"
 )
+
+// The most recent log lines, which the admin can read on the Dashboard.
+var logs = logbuf.New(2000)
 
 const version = "0.1.0-dev"
 
@@ -45,7 +49,7 @@ func main() {
 	if *debug {
 		level = slog.LevelDebug
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	log := slog.New(logs.Wrap(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 
 	if *resetPassword {
 		if err := resetAdminPassword(*dataDir); err != nil {
@@ -258,6 +262,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		},
 		ApplySettings: applySettings,
 		UploadsDir:    filepath.Join(dataDir, "uploads"),
+		Logs:          logs,
 		FFprobeStatus: func() any {
 			ffMu.Lock()
 			defer ffMu.Unlock()

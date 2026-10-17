@@ -65,6 +65,8 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		PositionMS int64 `json:"position_ms"`
 		DurationMS int64 `json:"duration_ms"`
+		// playing (the default), paused, or stopped when the player closes.
+		State string `json:"state"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.PositionMS < 0 || body.DurationMS < 0 {
 		writeError(w, http.StatusBadRequest, `send {"position_ms": ..., "duration_ms": ...}`)
@@ -79,6 +81,11 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 	d, err := s.store.ReportProgress(r.Context(), currentUserID(r), it.ID, body.PositionMS, body.DurationMS)
 	if err != nil {
 		s.fail(w, err)
+		return
+	}
+	// The progress is saved either way, but a player the admin stopped is told to close.
+	if why := s.playing.progress(r, it.ID, body.PositionMS, body.DurationMS, body.State); why != "" {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": why, "needs": "stopped"})
 		return
 	}
 	writeJSON(w, http.StatusOK, d)

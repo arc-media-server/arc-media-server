@@ -17,6 +17,7 @@ import (
 	"ams/internal/artwork"
 	"ams/internal/auth"
 	"ams/internal/backup"
+	"ams/internal/logbuf"
 	"ams/internal/metadata"
 	"ams/internal/scanner"
 	"ams/internal/settings"
@@ -41,8 +42,10 @@ type Deps struct {
 	FFprobeStatus func() any
 	// Where artwork the user uploads is kept.
 	UploadsDir string
-	Log        *slog.Logger
-	Version    string
+	// Recent log lines, for the dashboard.
+	Logs    *logbuf.Buffer
+	Log     *slog.Logger
+	Version string
 }
 
 type Server struct {
@@ -57,6 +60,8 @@ type Server struct {
 	ffprobeStatus    func() any
 	uploadsDir       string
 	previews         *previews
+	playing          *nowPlaying
+	logs             *logbuf.Buffer
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
 	log              *slog.Logger
@@ -67,7 +72,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -104,6 +109,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/profiles", admin(s.createProfile))
 	mux.HandleFunc("PATCH /api/profiles/{id}", admin(s.updateProfile))
 	mux.HandleFunc("DELETE /api/profiles/{id}", admin(s.deleteProfile))
+	mux.HandleFunc("GET /api/playing", admin(s.listPlaying))
+	mux.HandleFunc("POST /api/playing/{id}/stop", admin(s.stopPlaying))
+	mux.HandleFunc("GET /api/logs", admin(s.serverLog))
 	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
 	mux.HandleFunc("PATCH /api/settings", admin(s.updateSettings))
 	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))
@@ -380,12 +388,18 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no playable file for this item")
 		return
 	}
-
-	s.serveFile(w, r, chosen.Path)
+	stop, done, refused := s.playing.openStream(r, it.ID, "")
+	if refused != "" {
+		writeError(w, http.StatusForbidden, refused)
+		return
+	}
+	defer done()
+	s.serveFile(w, r, chosen.Path, stop)
 }
 
-// serveFile sends a media file as it is, with range requests for seeking.
-func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, path string) {
+// serveFile sends a media file as it is, with range requests for seeking. Closing stop cuts the
+// response off part-way.
+func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, path string, stop chan struct{}) {
 	fh, err := os.Open(path)
 	if err != nil {
 		s.log.Warn("cannot open media file", "path", path, "err", err)
@@ -401,7 +415,7 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, path string) 
 	if mime := videoMIME[strings.ToLower(filepath.Ext(path))]; mime != "" {
 		w.Header().Set("Content-Type", mime)
 	}
-	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), fh)
+	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), stoppableFile{fh, stop})
 }
 
 // image serves an item's artwork from the local cache, downloading it on first use. If it can't

@@ -75,7 +75,13 @@ func (s *Server) streamExtra(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "extra not found")
 		return
 	}
-	s.serveFile(w, r, e.Path)
+	stop, done, refused := s.playing.openStream(r, owner.ID, e.ID)
+	if refused != "" {
+		writeError(w, http.StatusForbidden, refused)
+		return
+	}
+	defer done()
+	s.serveFile(w, r, e.Path, stop)
 }
 
 // libraryFacets: GET /api/libraries/{id}/facets lists the genres, decades and resolutions a

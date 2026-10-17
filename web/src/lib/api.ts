@@ -288,6 +288,34 @@ export interface Backup {
   size: number;
 }
 
+export type PlaybackState = 'playing' | 'paused' | 'buffering';
+
+/** Something being watched right now (Dashboard). */
+export interface Playback {
+  id: string;
+  profile: Profile;
+  item: Item;
+  /** The trailer or other extra being played, by title. */
+  extra?: string;
+  device: string;
+  address: string;
+  method: 'direct' | 'transcode';
+  position_ms: number;
+  duration_ms: number;
+  state: PlaybackState;
+  started_at: number;
+}
+
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
+export interface LogLine {
+  seq: number;
+  time: string;
+  level: LogLevel;
+  message: string;
+  attrs?: string;
+}
+
 export interface BackupsResponse {
   folder: string;
   backups: Backup[];
@@ -486,8 +514,16 @@ export const api = {
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
-  reportProgress: (id: string, positionMS: number, durationMS: number) =>
-    request<UserData>('PUT', `/api/items/${id}/progress`, { position_ms: Math.round(positionMS), duration_ms: Math.round(durationMS) }, { keepalive: true }),
+  reportProgress: (id: string, positionMS: number, durationMS: number, state: 'playing' | 'paused' | 'stopped' = 'playing') =>
+    request<UserData>(
+      'PUT',
+      `/api/items/${id}/progress`,
+      { position_ms: Math.round(positionMS), duration_ms: Math.round(durationMS), state },
+      { keepalive: true },
+    ),
+  playing: () => request<Playback[]>('GET', '/api/playing'),
+  stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
+  logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),
   setPlayed: (id: string, played: boolean, season?: number) =>
     request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),
   continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
