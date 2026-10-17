@@ -301,6 +301,7 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 	out := make([]itemDTO, 0, len(entries))
 	series := map[string]*store.Item{}
 	positions := map[string]map[string][2]int{}
+	posters := seasonPosterCache{}
 	for _, e := range entries {
 		it := e.item
 		if it.Kind != "episode" {
@@ -323,7 +324,12 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 			}
 			series[it.ParentID], positions[it.ParentID] = sr, pos
 		}
-		out = append(out, s.episodeDTO(it, sr, positions[it.ParentID]))
+		d := s.episodeDTO(it, sr, positions[it.ParentID])
+		if err := s.withSeasonPoster(r, &d, sr, posters); err != nil {
+			s.fail(w, err)
+			return
+		}
+		out = append(out, d)
 	}
 	if err := s.fillUserData(r, ptrs(out)); err != nil {
 		s.fail(w, err)

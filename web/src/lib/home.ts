@@ -61,6 +61,8 @@ export function currentSeason(now = new Date()): Season | undefined {
 export interface RowLook {
   style: 'poster' | 'thumb';
   showsOnly: boolean;
+  /** Episodes and seasons on poster rows: the show's poster or the season's. */
+  posters: 'series' | 'season';
 }
 
 /** A row ready to show: where its items come from and what it's called. */
@@ -77,8 +79,18 @@ export function defaultStyle(type: ResolvedRow['type']): RowLook['style'] {
   return type === 'continue' || type === 'next-up' ? 'thumb' : 'poster';
 }
 
+/** Recently Added shows a new season with its own poster; carrying on watching shows the show's. */
+export function defaultPosters(type: ResolvedRow['type']): RowLook['posters'] {
+  return type === 'recent' ? 'season' : 'series';
+}
+
+/** Whether a row can show episodes or seasons, so season posters mean something. */
+export function hasEpisodes(r: ResolvedRow) {
+  return r.type === 'continue' || r.type === 'next-up' || (r.type === 'recent' && r.library.kind === 'shows');
+}
+
 function look(type: ResolvedRow['type'], saved?: HomeRow): RowLook {
-  return { style: saved?.style ?? defaultStyle(type), showsOnly: !!saved?.shows_only };
+  return { style: saved?.style ?? defaultStyle(type), showsOnly: !!saved?.shows_only, posters: saved?.posters ?? defaultPosters(type) };
 }
 
 function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
@@ -138,7 +150,7 @@ export function visibleRows(rows: ResolvedRow[], splitUpNext: boolean) {
 
 /** Whether a row looks the way it does by default. */
 export function isDefaultLook(r: ResolvedRow) {
-  return r.style === defaultStyle(r.type) && !r.showsOnly;
+  return r.style === defaultStyle(r.type) && !r.showsOnly && r.posters === defaultPosters(r.type);
 }
 
 /** What gets saved for a layout. */
@@ -149,6 +161,7 @@ export function toSaved(rows: ResolvedRow[]): HomeRow[] {
     ...(r.type === 'custom' && { title: r.title, filter: r.filter }),
     style: r.style === defaultStyle(r.type) ? undefined : r.style,
     shows_only: r.showsOnly || undefined,
+    posters: r.posters === defaultPosters(r.type) ? undefined : r.posters,
   }));
 }
 

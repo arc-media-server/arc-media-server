@@ -2,13 +2,21 @@ import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
 import type { Library, RowFilter } from '@/lib/api';
-import { defaultRowIds, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
+import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions, sorts } from '@/pages/Library';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Field, inputClass } from '@/components/ui/field';
 import { FilterFields, FilterPreview } from '@/components/FilterFields';
 
@@ -63,7 +71,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
             setRows((rs) => {
               const at = rs.findIndex((r) => r.type !== 'continue' && r.type !== 'next-up');
               const next = [...rs];
-              next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false });
+              next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false, posters: 'series' });
               return next;
             });
           }
@@ -181,6 +189,39 @@ function runtimeLabel(min: number) {
   return min % 60 === 0 ? fmt.plural(min / 60, 'hour') : `${min} min`;
 }
 
+const lookLabels = { series: 'Show posters', season: 'Season posters', thumb: 'Thumbnails', poster: 'Posters' };
+
+/** How a row's cards look: posters (the show's or the season's, for rows with episodes) or thumbnails. */
+function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Partial<RowLook>) => void }) {
+  const episodes = hasEpisodes(row);
+  const value = row.style === 'thumb' ? 'thumb' : episodes ? row.posters : 'poster';
+  const options = episodes ? (['series', 'season', 'thumb'] as const) : (['poster', 'thumb'] as const);
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`Card style: ${lookLabels[value]}`} title={`Card style: ${lookLabels[value]}`}>
+          {value === 'thumb' ? <RectangleHorizontal /> : <RectangleVertical />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel>Show as</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={value}
+          onValueChange={(v) =>
+            onChange(v === 'thumb' ? { style: 'thumb' } : v === 'poster' ? { style: 'poster' } : { style: 'poster', posters: v as RowLook['posters'] })
+          }
+        >
+          {options.map((o) => (
+            <DropdownMenuRadioItem key={o} value={o}>
+              {lookLabels[o]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function RowItem({
   row,
   merged,
@@ -235,15 +276,7 @@ function RowItem({
           <Layers />
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={row.style === 'poster' ? 'Use thumbnails' : 'Use posters'}
-        title={row.style === 'poster' ? 'Posters. Click for landscape thumbnails.' : 'Thumbnails. Click for posters.'}
-        onClick={() => onChange({ style: row.style === 'poster' ? 'thumb' : 'poster' })}
-      >
-        {row.style === 'poster' ? <RectangleVertical /> : <RectangleHorizontal />}
-      </Button>
+      <LookMenu row={row} onChange={onChange} />
       {onEdit && (
         <Button variant="ghost" size="icon" aria-label={`Edit ${row.title}`} onClick={onEdit}>
           <Pencil />

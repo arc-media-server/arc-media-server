@@ -100,7 +100,7 @@ export interface Item {
   extras?: Extra[];
   /** On a movie or show's own page: the collections it's in. */
   collections?: { id: string; title: string; kind: Collection['kind'] }[];
-  images?: { primary?: string; backdrop?: string; logo?: string; series_primary?: string; series_backdrop?: string };
+  images?: { primary?: string; backdrop?: string; logo?: string; series_primary?: string; series_backdrop?: string; season_primary?: string };
   stream_url?: string;
   files?: MediaFile[];
 }
@@ -494,6 +494,8 @@ export interface HomeRow {
   style?: 'poster' | 'thumb';
   /** A TV library's Recently Added: one card per show instead of grouping new episodes by season. */
   shows_only?: boolean;
+  /** For episodes and seasons on a poster row: the show's poster or the season's. */
+  posters?: 'series' | 'season';
 }
 
 /** A card in a TV library's Recently Added: a new show, new episodes of a season, or one episode. */
