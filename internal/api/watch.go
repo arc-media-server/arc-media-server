@@ -353,12 +353,21 @@ func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	dismissed, err := s.store.ContinueDismissed(ctx, currentUserID(r))
+	if err != nil {
+		return nil, err
+	}
 	out := []homeEntry{}
 	for _, it := range items {
+		at := data[it.ID].LastPlayedAt
+		// Removed from Continue Watching (it, or its show) since it was last played.
+		if max(dismissed[it.ID], dismissed[it.ParentID]) >= at {
+			continue
+		}
 		if ok, err := s.store.AgeAllowed(ctx, &it, maxAge(r)); err != nil {
 			return nil, err
 		} else if ok {
-			out = append(out, homeEntry{it, data[it.ID].LastPlayedAt})
+			out = append(out, homeEntry{it, at})
 		}
 	}
 	return out, nil
@@ -372,8 +381,15 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	dismissed, err := s.store.ContinueDismissed(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	out := []homeEntry{}
 	for _, ws := range watched {
+		if dismissed[ws.SeriesID] >= ws.LastPlayedAt {
+			continue // removed since an episode was last watched
+		}
 		series, err := s.store.GetItem(ctx, ws.SeriesID)
 		if err != nil {
 			return nil, err
@@ -514,4 +530,23 @@ func nextInOrder(entries []store.OrderingEntry, current string, available map[st
 		return e.EpisodeID
 	}
 	return ""
+}
+
+// removeFromContinue: DELETE /api/home/continue/{id} takes a movie or episode out of the profile's
+// Continue Watching (and Up Next) without marking it watched; for an episode its whole show goes,
+// until something is played again. The resume point is kept.
+func (s *Server) removeFromContinue(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	ids := []string{it.ID}
+	if it.Kind == "episode" && it.ParentID != "" {
+		ids = append(ids, it.ParentID)
+	}
+	if err := s.store.DismissContinue(r.Context(), currentUserID(r), ids); err != nil {
+		s.fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
