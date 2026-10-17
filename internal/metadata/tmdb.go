@@ -331,8 +331,10 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			Logos []tmdbImage `json:"logos"`
 		} `json:"images"`
 		Recommendations tmdbRecommendations `json:"recommendations"`
+		AltTitles       tmdbAltTitles       `json:"alternative_titles"`
+		Keywords        tmdbKeywords        `json:"keywords"`
 	}
-	q := url.Values{"append_to_response": {"credits,release_dates,images,recommendations"}, "include_image_language": {"en,null"}}
+	q := url.Values{"append_to_response": {"credits,release_dates,images,recommendations,alternative_titles,keywords"}, "include_image_language": {"en,null"}}
 	if err := c.get(ctx, "/movie/"+strconv.FormatInt(id, 10), q, &d); err != nil {
 		return nil, err
 	}
@@ -365,6 +367,8 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			Tagline:          d.Tagline,
 			LogoPath:         bestLogo(d.Images.Logos),
 			Recommendations:  d.Recommendations.ids(),
+			AltTitles:        d.AltTitles.list(d.Title, d.OriginalTitle),
+			Keywords:         d.Keywords.list(),
 			ContentRating:    pickRating(c.Region(), ratings),
 			Studios:          names(d.ProductionCompanies),
 			OriginalLanguage: d.OriginalLanguage,

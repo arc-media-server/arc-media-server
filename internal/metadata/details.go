@@ -17,6 +17,9 @@ type Details struct {
 	People []Credit
 	// TMDB's recommendations (TMDB ids, best first), for "More like this".
 	Recommendations []int64
+	// Other names it's known by (other countries' and languages' titles), and TMDB keywords.
+	AltTitles []string
+	Keywords  []string
 	// The language it was made in, as the provider gives it ("en" from TMDB, "eng" from TVDB).
 	OriginalLanguage string
 	// Shows only: continuing, ended, cancelled or upcoming ("" if unknown), and the dates the
@@ -24,6 +27,39 @@ type Details struct {
 	Status               string
 	LastAired, NextAired string
 }
+
+// tmdbAltTitles is TMDB's alternative titles: "titles" for movies, "results" for shows.
+type tmdbAltTitles struct {
+	Titles []struct {
+		Title string `json:"title"`
+	} `json:"titles"`
+	Results []struct {
+		Title string `json:"title"`
+	} `json:"results"`
+}
+
+func (a tmdbAltTitles) list(except ...string) []string {
+	skip := map[string]bool{}
+	for _, e := range except {
+		skip[e] = true
+	}
+	var out []string
+	for _, t := range append(a.Titles, a.Results...) {
+		if t.Title != "" && !skip[t.Title] {
+			skip[t.Title] = true
+			out = append(out, t.Title)
+		}
+	}
+	return out
+}
+
+// tmdbKeywords is TMDB's keywords: "keywords" for movies, "results" for shows.
+type tmdbKeywords struct {
+	Keywords []tmdbNamed `json:"keywords"`
+	Results  []tmdbNamed `json:"results"`
+}
+
+func (k tmdbKeywords) list() []string { return names(append(k.Keywords, k.Results...)) }
 
 // showStatus turns TMDB's and TheTVDB's show statuses into Arc's.
 func showStatus(s string) string {

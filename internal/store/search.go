@@ -15,6 +15,49 @@ func (s *Store) SearchTitles(ctx context.Context, acc Access) ([]Item, error) {
 	return s.queryItems(ctx, q, args...)
 }
 
+// SetAltTitlesKeywords replaces the other names and keywords of a movie or show.
+func (s *Store) SetAltTitlesKeywords(ctx context.Context, itemID string, titles, keywords []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, q := range []string{`DELETE FROM item_alt_titles WHERE item_id = ?`, `DELETE FROM item_keywords WHERE item_id = ?`} {
+		if _, err := tx.ExecContext(ctx, q, itemID); err != nil {
+			return err
+		}
+	}
+	for _, t := range titles {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_alt_titles (item_id, title) VALUES (?, ?)`, itemID, t); err != nil {
+			return err
+		}
+	}
+	for _, k := range keywords {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_keywords (item_id, keyword) VALUES (?, ?)`, itemID, strings.ToLower(k)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// AltTitles returns the other names of every movie and show, by item id.
+func (s *Store) AltTitles(ctx context.Context) (map[string][]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT item_id, title FROM item_alt_titles`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]string{}
+	for rows.Next() {
+		var id, t string
+		if err := rows.Scan(&id, &t); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], t)
+	}
+	return out, rows.Err()
+}
+
 // SearchEpisodes returns episodes whose titles contain the text, newest shows' first.
 func (s *Store) SearchEpisodes(ctx context.Context, text string, acc Access, limit int) ([]Item, error) {
 	q := `SELECT ` + itemCols + ` FROM items WHERE kind = 'episode' AND title LIKE ? AND ` + playableSQL
