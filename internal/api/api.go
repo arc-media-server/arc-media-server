@@ -222,14 +222,18 @@ type itemDTO struct {
 }
 
 // imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use
-// instead, for "primary" or "backdrop". Artwork the user chose (the field is locked) wins over local
+// instead, for "primary", "backdrop" or "logo". Artwork the user chose (the field is locked) wins over local
 // files, which win over the provider's automatic choice.
 func imagePaths(it *store.Item, typ string) (path, local string) {
 	field := "poster"
 	path, local = it.PosterPath, it.LocalPoster
-	if typ == "backdrop" {
+	switch typ {
+	case "backdrop":
 		field = "backdrop"
 		path, local = it.BackdropPath, it.LocalBackdrop
+	case "logo":
+		field = "logo"
+		path, local = it.LogoPath, it.LocalLogo
 	}
 	if path != "" && slices.Contains(it.LockedFields, field) {
 		local = ""
@@ -241,7 +245,7 @@ func toDTO(it store.Item) itemDTO {
 	d := itemDTO{Item: it, Images: map[string]string{}}
 	base := "/api/items/" + it.ID
 	// The version changes with the image, so each link can be cached by browsers forever.
-	for _, typ := range []string{"primary", "backdrop"} {
+	for _, typ := range []string{"primary", "backdrop", "logo"} {
 		path, local := imagePaths(&it, typ)
 		switch {
 		case local != "":
@@ -483,7 +487,7 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	typ := r.PathValue("type")
-	if typ != "primary" && typ != "backdrop" {
+	if typ != "primary" && typ != "backdrop" && typ != "logo" {
 		writeError(w, http.StatusBadRequest, "unknown image type")
 		return
 	}

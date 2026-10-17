@@ -447,7 +447,7 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 		return nil // the first part speaks for the movie
 	}
 	art := movieArt(path, ownFolder)
-	if err := s.store.SetLocalArt(ctx, itemID, art.Poster, art.Backdrop); err != nil {
+	if err := s.store.SetLocalArt(ctx, itemID, art.Poster, art.Backdrop, art.Logo); err != nil {
 		return err
 	}
 	if nfo := movieNFO(path, ownFolder); !nfo.empty() {
@@ -500,6 +500,7 @@ func movieMetadata(it store.Item, m *metadata.Movie) *store.Item {
 
 func applyDetails(it *store.Item, d metadata.Details) {
 	it.Tagline, it.ContentRating, it.Rating = d.Tagline, d.ContentRating, d.Rating
+	it.LogoPath = d.LogoPath
 	it.Studio = strings.Join(d.Studios, ", ")
 }
 

@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import type { Item } from '@/lib/api';
 
 /**
  * Full-bleed backdrop with soft gradients that blend into the page, Apple TV style.
@@ -26,6 +27,24 @@ export function Hero({ backdrop, children, className }: { backdrop?: string; chi
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background/90 via-background/30 to-transparent" />
       {children}
     </div>
+  );
+}
+
+/** The title's clear logo when it has one, otherwise its name in large type. */
+export function TitleHeading({ item }: { item: Item }) {
+  const logo = item.images?.logo;
+  const [failed, setFailed] = useState<string>();
+  if (!logo || failed === logo) return <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{item.title}</h1>;
+  return (
+    <h1>
+      <img
+        src={logo}
+        alt={item.title}
+        draggable={false}
+        onError={() => setFailed(logo)}
+        className="max-h-24 w-auto max-w-[min(100%,26rem)] object-contain object-left drop-shadow-[0_2px_16px_rgb(0_0_0/0.45)] md:max-h-36"
+      />
+    </h1>
   );
 }
 

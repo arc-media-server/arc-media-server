@@ -10,7 +10,7 @@ import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
 import { useSpoilerGuard } from '@/lib/home';
-import { Badge, Hero, MetaLine } from '@/components/Hero';
+import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
@@ -103,7 +103,7 @@ export function SeriesPage() {
             className="hidden w-44 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block"
           />
           <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{series.title}</h1>
+            <TitleHeading item={series} />
             <div className="mt-4">
               <MetaLine
                 parts={[
@@ -143,6 +143,8 @@ export function SeriesPage() {
           </div>
         </div>
       </Hero>
+
+      <CastRow credits={series.credits} />
 
       <div className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-2xl">
         <div className="flex flex-wrap items-center gap-3 px-6 py-3 md:px-10">
@@ -205,7 +207,6 @@ export function SeriesPage() {
           ))}
         </motion.div>
       </div>
-      <CastRow credits={series.credits} />
       <CollectionRows item={series} />
       <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}

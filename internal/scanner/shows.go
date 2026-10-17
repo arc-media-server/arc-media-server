@@ -90,7 +90,7 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	// Local artwork and tvshow.nfo ids from the show's folder (before looking it up, so the ids are used).
 	if g.folder != "" {
 		art := seriesArt(g.folder)
-		if err := s.store.SetLocalArt(ctx, id, art.Poster, art.Backdrop); err != nil {
+		if err := s.store.SetLocalArt(ctx, id, art.Poster, art.Backdrop, art.Logo); err != nil {
 			return err
 		}
 		if nfo := readNFO(filepath.Join(g.folder, "tvshow.nfo")); !nfo.empty() {
@@ -677,7 +677,7 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		// A "<file>-thumb.jpg" beside the episode is its still.
 		thumb := episodeThumb(f.path)
 		for _, id := range dedupe(ids) {
-			if err := s.store.SetLocalArt(ctx, id, thumb, ""); err != nil {
+			if err := s.store.SetLocalArt(ctx, id, thumb, "", ""); err != nil {
 				return 0, err
 			}
 		}

@@ -72,10 +72,12 @@ Early development. Working today:
 - A player with its own controls: audio track choice, playback speed, volume, full screen, and
   keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, C, F, < and >, 0–9)
 - Artwork cached locally after each scan, so it loads fast and works offline
-- Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg and `<file>-poster.jpg`,
-  `<file>-fanart.jpg`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
+- Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg / clearlogo.png and `<file>-poster.jpg`,
+  `<file>-fanart.jpg`, `<file>-clearlogo.png`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
   Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
-- Choose Artwork: pick any poster or background TMDB has for a title, or upload your own (kept in
+- Clear logos: movie and series pages show the title's logo artwork (from TMDB, or a local
+  clearlogo.png / logo.png) instead of plain text, and the cast sits right under the summary
+- Choose Artwork: pick any poster, background or logo TMDB has for a title, or upload your own (kept in
   the data folder; media files are never touched). "Automatic" goes back to local or online artwork
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first

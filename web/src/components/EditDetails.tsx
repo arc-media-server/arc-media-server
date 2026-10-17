@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 
-type TextField = Exclude<LockableField, 'poster' | 'backdrop'>;
+type TextField = Exclude<LockableField, 'poster' | 'backdrop' | 'logo'>;
 
 interface FieldSpec {
   field: TextField;

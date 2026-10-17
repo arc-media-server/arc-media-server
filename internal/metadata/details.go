@@ -3,6 +3,8 @@ package metadata
 // Details are the extras a movie or show has beyond its title and overview.
 type Details struct {
 	Tagline string
+	// The title as transparent artwork (a clear logo), TMDB path; "" if there's none.
+	LogoPath string
 	// Age rating for the configured region (e.g. "15", "PG-13"), or another region's if it has none.
 	ContentRating string
 	// Studios (movies) or networks (shows).

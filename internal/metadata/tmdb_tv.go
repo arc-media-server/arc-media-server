@@ -187,9 +187,13 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		AggregateCredits struct {
 			Cast []tmdbCastMember `json:"cast"`
 		} `json:"aggregate_credits"`
+		Images struct {
+			Logos []tmdbImage `json:"logos"`
+		} `json:"images"`
 	}
 	base := "/tv/" + strconv.FormatInt(id, 10)
-	q := url.Values{"append_to_response": {"external_ids,episode_groups,content_ratings,aggregate_credits"}}
+	q := url.Values{"append_to_response": {"external_ids,episode_groups,content_ratings,aggregate_credits,images"},
+		"include_image_language": {"en,null"}}
 	if err := c.get(ctx, base, q, &d); err != nil {
 		return nil, nil, err
 	}
@@ -204,7 +208,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	s := &Series{TMDBID: d.ID, TVDBID: d.ExternalIDs.TVDBID, IMDBID: d.ExternalIDs.IMDBID, Title: d.Name,
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
 		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
-		Details: Details{Tagline: d.Tagline, ContentRating: pickRating(c.Region(), ratings), Studios: names(d.Networks),
+		Details: Details{Tagline: d.Tagline, LogoPath: bestLogo(d.Images.Logos), ContentRating: pickRating(c.Region(), ratings), Studios: names(d.Networks),
 			Rating: d.VoteAverage, Genres: names(d.Genres), People: people}}
 
 	// Aired order: fetch seasons 20 at a time using append_to_response.
