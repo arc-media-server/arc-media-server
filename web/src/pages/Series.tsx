@@ -19,7 +19,7 @@ import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { ErrorState, Page } from '@/components/Page';
-import { usePlayer } from '@/components/Player';
+import { episodePlayable, usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
@@ -274,13 +274,7 @@ function nextToPlay(all: SeasonEpisode[]): SeasonEpisode | undefined {
 }
 
 function playEpisode(play: ReturnType<typeof usePlayer>, ep: SeasonEpisode, seriesTitle: string, fromStart = false) {
-  play({
-    title: ep.title,
-    subtitle: `${seriesTitle} · ${episodeCode(ep.season_number, ep.episode_number)}`,
-    src: ep.stream_url!,
-    itemId: ep.id,
-    startMS: fromStart ? 0 : ep.user_data?.position_ms,
-  });
+  play(episodePlayable({ ...ep, series_title: seriesTitle }, fromStart));
 }
 
 function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTitle: string }) {

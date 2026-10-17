@@ -133,6 +133,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
 	mux.HandleFunc("PUT /api/items/{id}/progress", user(s.reportProgress))
 	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
+	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
 	mux.HandleFunc("GET /api/home/continue", user(s.continueWatching))
 	mux.HandleFunc("GET /api/home/next-up", user(s.nextUp))
 	mux.HandleFunc("GET /api/playlists", user(s.listPlaylists))

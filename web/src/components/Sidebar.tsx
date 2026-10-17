@@ -154,6 +154,18 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
             <span className="block text-xs text-subtle">Blur stills and hide descriptions of episodes you haven't seen</span>
           </span>
         </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={prefs.data?.auto_play !== false}
+          disabled={!prefs.data}
+          onSelect={(e) => e.preventDefault()}
+          onCheckedChange={(on) => updatePrefs.mutate({ auto_play: on })}
+        >
+          <ListVideo className="size-4 shrink-0 self-start text-muted mt-0.5" />
+          <span className="min-w-0">
+            <span className="block">Auto-Play</span>
+            <span className="block text-xs text-subtle">Play the next episode after a short countdown</span>
+          </span>
+        </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Appearance</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={prefs.data?.theme ?? ''} onValueChange={(v) => updatePrefs.mutate({ theme: v as Theme })}>

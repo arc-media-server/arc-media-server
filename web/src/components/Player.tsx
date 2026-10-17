@@ -48,6 +48,18 @@ export interface NowPlaying {
   edition?: string;
 }
 
+/** How an episode is played: titled with its show and number, from where the profile left off. */
+export function episodePlayable(ep: Item, fromStart = false): NowPlaying {
+  const code = episodeCode(ep.season_number, ep.episode_number);
+  return {
+    title: ep.title,
+    subtitle: [ep.series_title, code].filter(Boolean).join(' · '),
+    src: ep.stream_url,
+    itemId: ep.id,
+    startMS: fromStart ? 0 : ep.user_data?.position_ms,
+  };
+}
+
 const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
 
 /** Opens the full-screen player from anywhere in the app; with a queue, it carries on through it. */
@@ -68,6 +80,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [],
   );
   const go = useCallback((delta: number) => setQueue((q) => (q && q.items[q.index + delta] ? { ...q, index: q.index + delta } : q)), []);
+  // Auto-Play: an episode with nothing queued after it carries on with the next one in the
+  // profile's episode order (the countdown, Next and Shift+N then work as in a playlist).
+  const autoPlay = usePrefs().data?.auto_play !== false;
+  const current = queue?.items[queue.index];
+  const hasNext = !!queue?.items[queue.index + 1];
+  useEffect(() => {
+    if (!current?.itemId || hasNext || !autoPlay) return;
+    let cancelled = false;
+    api
+      .nextEpisode(current.itemId)
+      .then((ep) => {
+        if (cancelled || !ep?.stream_url) return;
+        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, episodePlayable(ep, true)] } : q));
+      })
+      .catch(() => undefined); // playing on is a nicety; the episode itself plays regardless
+    return () => {
+      cancelled = true;
+    };
+  }, [current, hasNext, autoPlay]);
   const close = useCallback(() => {
     setQueue(null);
     // Watched state and Continue Watching have changed.
