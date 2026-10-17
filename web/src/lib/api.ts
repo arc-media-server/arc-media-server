@@ -720,6 +720,14 @@ export const api = {
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),
   setPlayed: (id: string, played: boolean, season?: number) =>
     request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),
+  playlists: () => request<Playlist[]>('GET', '/api/playlists'),
+  playlist: (id: string) => request<{ playlist: Playlist; entries: PlaylistEntry[] }>('GET', `/api/playlists/${id}`),
+  createPlaylist: (title: string, itemIds: string[] = []) => request<Playlist>('POST', '/api/playlists', { title, item_ids: itemIds }),
+  renamePlaylist: (id: string, title: string) => request<void>('PATCH', `/api/playlists/${id}`, { title }),
+  deletePlaylist: (id: string) => request<void>('DELETE', `/api/playlists/${id}`),
+  addToPlaylist: (id: string, itemIds: string[]) => request<{ added: number }>('POST', `/api/playlists/${id}/items`, { item_ids: itemIds }),
+  removeFromPlaylist: (id: string, entryId: number) => request<void>('DELETE', `/api/playlists/${id}/entries/${entryId}`),
+  orderPlaylist: (id: string, entryIds: number[]) => request<void>('PUT', `/api/playlists/${id}/order`, { entry_ids: entryIds }),
   continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),
@@ -795,4 +803,20 @@ export interface Collection {
   count: number;
   images: { primary?: string; backdrop?: string };
   smart_filter?: RowFilter;
+}
+
+/** A profile's playlist of movies and episodes. */
+export interface Playlist {
+  id: string;
+  title: string;
+  count: number;
+  duration_ms: number;
+  updated_at: number;
+  /** The first few titles' posters. */
+  images?: string[];
+}
+
+export interface PlaylistEntry {
+  entry_id: number;
+  item: Item;
 }

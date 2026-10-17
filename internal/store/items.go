@@ -14,11 +14,17 @@ const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_tit
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
+	return scanItemWith(row, it)
+}
+
+// scanItemWith scans an item's columns followed by extra ones.
+func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) error {
 	var locked string
-	err := row.Scan(&it.ID, &it.LibraryID, &it.Kind, &it.ParentID, &it.Title, &it.SortTitle,
+	dest := []any{&it.ID, &it.LibraryID, &it.Kind, &it.ParentID, &it.Title, &it.SortTitle,
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
-		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop)
+		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop}
+	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
 }

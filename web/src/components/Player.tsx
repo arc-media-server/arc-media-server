@@ -18,12 +18,15 @@ import {
   Play,
   RotateCcw,
   RotateCw,
+  SkipBack,
+  SkipForward,
   Volume1,
   Volume2,
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
+import { api, ApiError, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
+import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel, versionLabel } from '@/lib/playback';
@@ -32,7 +35,7 @@ import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
-interface NowPlaying {
+export interface NowPlaying {
   title: string;
   subtitle?: string;
   /** The file to play directly (trailers and extras). Movies and episodes ask the server instead. */
@@ -45,9 +48,9 @@ interface NowPlaying {
   edition?: string;
 }
 
-const PlayerContext = createContext<(item: NowPlaying) => void>(() => {});
+const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
 
-/** Opens the full-screen player from anywhere in the app. */
+/** Opens the full-screen player from anywhere in the app; with a queue, it carries on through it. */
 export function usePlayer() {
   return useContext(PlayerContext);
 }
@@ -59,10 +62,14 @@ const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
-  const [current, setCurrent] = useState<NowPlaying | null>(null);
-  const play = useCallback((item: NowPlaying) => setCurrent(item), []);
+  const [queue, setQueue] = useState<{ items: NowPlaying[]; index: number } | null>(null);
+  const play = useCallback(
+    (item: NowPlaying, list?: NowPlaying[]) => setQueue(list?.length ? { items: list, index: Math.max(0, list.indexOf(item)) } : { items: [item], index: 0 }),
+    [],
+  );
+  const go = useCallback((delta: number) => setQueue((q) => (q && q.items[q.index + delta] ? { ...q, index: q.index + delta } : q)), []);
   const close = useCallback(() => {
-    setCurrent(null);
+    setQueue(null);
     // Watched state and Continue Watching have changed.
     window.setTimeout(() => {
       for (const key of ['item', 'items', 'seasons', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
@@ -71,7 +78,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider value={play}>
       {children}
-      <AnimatePresence>{current && <PlayerOverlay item={current} onClose={close} />}</AnimatePresence>
+      <AnimatePresence>
+        {queue && (
+          <PlayerOverlay
+            key={queue.index}
+            item={queue.items[queue.index]}
+            next={queue.items[queue.index + 1]}
+            onNext={() => go(1)}
+            onPrevious={queue.index > 0 ? () => go(-1) : undefined}
+            onClose={close}
+          />
+        )}
+      </AnimatePresence>
     </PlayerContext.Provider>
   );
 }
@@ -85,7 +103,20 @@ function readVolume() {
   }
 }
 
-function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => void }) {
+function PlayerOverlay({
+  item,
+  next,
+  onNext,
+  onPrevious,
+  onClose,
+}: {
+  item: NowPlaying;
+  /** What plays after this one, in a queue. */
+  next?: NowPlaying;
+  onNext: () => void;
+  onPrevious?: () => void;
+  onClose: () => void;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const hls = useRef<HlsType | null>(null);
   const plan = useRef<PlaybackPlan | null>(null);
@@ -130,6 +161,8 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   const lastSubtitle = useRef<SubtitleTrack | null>(null);
   // The panel for finding subtitles online.
   const [searching, setSearching] = useState(false);
+  // Seconds until the next item in the queue starts, once this one has ended.
+  const [upNextIn, setUpNextIn] = useState<number | null>(null);
   const hideTimer = useRef<number>(undefined);
   const lastReport = useRef(0);
 
@@ -486,6 +519,12 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
             if (t) void selectSubtitle(t, true);
           }
           break;
+        case 'N':
+          if (next) onNext();
+          break;
+        case 'P':
+          onPrevious?.();
+          break;
         case 'm':
           setMuted((x) => !x);
           break;
@@ -517,7 +556,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       document.body.style.overflow = '';
       window.clearTimeout(hideTimer.current);
     };
-  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle, searching]);
+  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle, searching, next, onNext, onPrevious]);
 
   const onTimeUpdate = () => {
     const v = video.current;
@@ -580,6 +619,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
             onEnded={() => {
               setPaused(true);
               report('paused');
+              if (next) setUpNextIn(10);
             }}
           />
           {cueText && (
@@ -621,6 +661,9 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
         </Button>
       </div>
 
+      {upNextIn !== null && next && (
+        <UpNext item={next} seconds={upNextIn} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
+      )}
       {searching && planState && item.itemId && (
         <SubtitleSearch
           itemId={item.itemId}
@@ -652,6 +695,16 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
             <ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>
               {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
             </ControlButton>
+            {onPrevious && (
+              <ControlButton label="Previous (Shift+P)" onClick={onPrevious}>
+                <SkipBack className="fill-current" />
+              </ControlButton>
+            )}
+            {next && (
+              <ControlButton label={`Next: ${next.title} (Shift+N)`} onClick={onNext}>
+                <SkipForward className="fill-current" />
+              </ControlButton>
+            )}
             <ControlButton label="Back 10 seconds (J)" onClick={() => seekTo(absMS() - 10_000)}>
               <RotateCcw />
             </ControlButton>
@@ -762,7 +815,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                 <p className="max-w-64 px-2.5 pb-2 text-xs leading-relaxed text-muted">{methodLabel(planState).detail}</p>
                 <DropdownMenuSeparator />
                 <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">
-                  Space play/pause · ←/→ 5s · J/L 10s · ↑/↓ volume · M mute · C subtitles · F full screen · &lt;/&gt; speed · 0–9 jump
+                  Space play/pause · ←/→ 5s · J/L 10s · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · &lt;/&gt; speed · 0–9 jump
                 </p>
               </PlayerMenu>
             )}
@@ -833,6 +886,36 @@ function Thumb({ ms, thumbs }: { ms: number; thumbs: { info: TrickplayInfo; shee
         backgroundPosition: `-${(pos % info.columns) * 192}px -${Math.floor(pos / info.columns) * info.height * scale}px`,
       }}
     />
+  );
+}
+
+/** The next item in a queue, counting down to it. */
+function UpNext({ item, seconds, onTick, onPlay, onCancel }: { item: NowPlaying; seconds: number; onTick: () => void; onPlay: () => void; onCancel: () => void }) {
+  // The callbacks change with every render of the player; the countdown only follows the seconds.
+  const callbacks = useRef({ onTick, onPlay });
+  callbacks.current = { onTick, onPlay };
+  useEffect(() => {
+    if (seconds <= 0) {
+      callbacks.current.onPlay();
+      return;
+    }
+    const t = window.setTimeout(() => callbacks.current.onTick(), 1000);
+    return () => window.clearTimeout(t);
+  }, [seconds]);
+  return (
+    <div className="absolute bottom-28 right-6 z-10 w-80 rounded-2xl bg-black/80 p-4 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
+      <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Up next in {seconds}</p>
+      <p className="mt-1 truncate font-semibold">{item.title}</p>
+      {item.subtitle && <p className="truncate text-sm text-white/60">{item.subtitle}</p>}
+      <div className="mt-3 flex gap-2">
+        <Button variant="primary" size="sm" onClick={onPlay}>
+          <Play className="fill-current" /> Play Now
+        </Button>
+        <Button variant="glass" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -977,4 +1060,20 @@ function Scrubber({
       )}
     </div>
   );
+}
+
+/** What the player needs to play a movie or episode, from where the profile left off. */
+export function nowPlayingFor(item: Item, fromStart = false): NowPlaying {
+  const episode = item.kind === 'episode';
+  return {
+    title: item.title,
+    subtitle: episode
+      ? [item.series_title, episodeCode(item.season_number, item.episode_number)].filter(Boolean).join(' · ')
+      : item.year
+        ? String(item.year)
+        : undefined,
+    src: item.stream_url,
+    itemId: item.id,
+    startMS: fromStart || item.user_data?.played ? 0 : item.user_data?.position_ms,
+  };
 }

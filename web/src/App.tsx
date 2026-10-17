@@ -13,6 +13,7 @@ import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
 import { DashboardPage } from './pages/Dashboard';
 import { CollectionPage } from './pages/Collection';
+import { PlaylistPage, PlaylistsPage } from './pages/Playlists';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
@@ -39,6 +40,8 @@ export function App() {
             <Route path="/movie/:id" element={<MoviePage />} />
             <Route path="/series/:id" element={<SeriesPage />} />
             <Route path="/collection/:id" element={<CollectionPage />} />
+            <Route path="/playlists" element={<PlaylistsPage />} />
+            <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/health" element={<HealthPage />} />
             <Route path="/attention" element={<Navigate to="/health" replace />} />
