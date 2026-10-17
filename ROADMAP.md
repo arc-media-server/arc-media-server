@@ -123,6 +123,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Labels, for filters, smart collections and profile restrictions (#95)
 - [ ] Metadata language per library (#96)
 - [ ] Scheduled maintenance window for heavy background jobs (#97)
+- [x] TMDB numbering by default, per-show episode numbering, editable genres (#103)
 - [ ] "Other videos" (home videos) library type (#77)
 
 ### 15. Moving in and extras
