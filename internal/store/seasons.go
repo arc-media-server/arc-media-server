@@ -90,13 +90,10 @@ func (s *Store) SeasonPosters(ctx context.Context, seriesID string) (map[int]Sea
 }
 
 // RecentEpisodes lists a library's episodes with files present, newest first.
-func (s *Store) RecentEpisodes(ctx context.Context, libraryID int64, maxAge, limit int) ([]Item, error) {
+func (s *Store) RecentEpisodes(ctx context.Context, libraryID int64, acc Access, limit int) ([]Item, error) {
 	q := `SELECT ` + itemCols + ` FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
 	args := []any{libraryID}
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	q += ` ORDER BY added_at DESC, release_date DESC LIMIT ?`
 	return s.queryItems(ctx, q, append(args, limit)...)
 }

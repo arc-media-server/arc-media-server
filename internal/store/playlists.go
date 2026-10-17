@@ -33,7 +33,7 @@ func scanPlaylist(row interface{ Scan(...any) error }, p *Playlist) error {
 
 // Playlists lists a profile's playlists, most recently changed first, with how many titles each
 // has (that the profile can see) and how long they run.
-func (s *Store) Playlists(ctx context.Context, userID string, maxAge int) ([]Playlist, error) {
+func (s *Store) Playlists(ctx context.Context, userID string, acc Access) ([]Playlist, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+playlistCols+` FROM playlists WHERE user_id = ? ORDER BY updated_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -55,10 +55,7 @@ func (s *Store) Playlists(ctx context.Context, userID string, maxAge int) ([]Pla
 		q := `SELECT COUNT(*), COALESCE(SUM(items.runtime_min), 0) * 60000 FROM playlist_entries e JOIN items ON items.id = e.item_id
 			WHERE e.playlist_id = ? AND ` + playableSQL
 		args := []any{out[i].ID}
-		if maxAge > 0 {
-			q += ` AND ` + AgeAllowedSQL("items")
-			args = append(args, maxAge)
-		}
+		q, args = acc.Where("items", q, args)
 		if err := s.db.QueryRowContext(ctx, q, args...).Scan(&out[i].Count, &out[i].DurationMS); err != nil {
 			return nil, err
 		}
@@ -80,14 +77,11 @@ func (s *Store) GetPlaylist(ctx context.Context, id string) (*Playlist, error) {
 }
 
 // PlaylistEntries returns a playlist's titles in order (only those present and allowed).
-func (s *Store) PlaylistEntries(ctx context.Context, id string, maxAge int) ([]PlaylistEntry, []Item, error) {
+func (s *Store) PlaylistEntries(ctx context.Context, id string, acc Access) ([]PlaylistEntry, []Item, error) {
 	q := `SELECT ` + prefixCols("items.", itemCols) + `, e.id FROM playlist_entries e JOIN items ON items.id = e.item_id
 		WHERE e.playlist_id = ? AND ` + playableSQL
 	args := []any{id}
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	rows, err := s.db.QueryContext(ctx, q+` ORDER BY e.position, e.id`, args...)
 	if err != nil {
 		return nil, nil, err

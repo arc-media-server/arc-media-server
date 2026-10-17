@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
+import { useLibraries } from '@/components/Sidebar';
 
 export function ProfilesPage() {
   const qc = useQueryClient();
@@ -46,7 +48,9 @@ export function ProfilesPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{p.name}</p>
                 <p className="flex items-center gap-1.5 text-xs text-subtle">
-                  {p.is_admin ? 'Admin · manages libraries and settings' : limitLabel(p.max_age)}
+                  {p.is_admin
+                    ? 'Admin · manages libraries and settings'
+                    : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length)].filter(Boolean).join(' · ')}
                   {p.has_pin && (
                     <>
                       {' · '}
@@ -95,12 +99,21 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
   const [pin, setPin] = useState<string | undefined>(undefined);
   const [settingPin, setSettingPin] = useState(false);
   const [maxAge, setMaxAge] = useState(profile?.max_age ?? 0);
+  // null for every library.
+  const [libraryIds, setLibraryIds] = useState<number[] | null>(profile?.library_ids ?? null);
+  const libraries = useLibraries().data ?? [];
 
   const save = useMutation({
     mutationFn: () =>
       profile
-        ? api.updateProfile(profile.id, { name, color, pin, max_age: profile.is_admin ? undefined : maxAge })
-        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge }),
+        ? api.updateProfile(profile.id, {
+            name,
+            color,
+            pin,
+            max_age: profile.is_admin ? undefined : maxAge,
+            library_ids: profile.is_admin ? undefined : libraryIds,
+          })
+        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge, library_ids: libraryIds }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] });
       qc.invalidateQueries({ queryKey: ['auth'] });
@@ -212,6 +225,33 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
             {maxAge > 0 && <p className="mt-2 text-xs text-subtle">Titles without an age rating are hidden too. You can add a rating with Edit on its page.</p>}
           </div>
         )}
+        {!profile?.is_admin && libraries.length > 1 && (
+          <div>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Libraries</span>
+            <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
+              <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">All libraries</span>
+                  <span className="block text-xs text-subtle">Including ones you add later</span>
+                </span>
+                <Switch checked={libraryIds === null} onCheckedChange={(all) => setLibraryIds(all ? null : libraries.map((l) => l.id))} />
+              </label>
+              {libraryIds !== null &&
+                libraries.map((l) => (
+                  <label key={l.id} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={libraryIds.includes(l.id)}
+                      onChange={(e) => setLibraryIds((ids) => (e.target.checked ? [...(ids ?? []), l.id] : (ids ?? []).filter((x) => x !== l.id)))}
+                      className="size-4 accent-[var(--color-accent)]"
+                    />
+                    {l.name}
+                  </label>
+                ))}
+            </div>
+            {libraryIds?.length === 0 && <p className="mt-2 text-xs text-warning">This profile won't see anything until you choose a library.</p>}
+          </div>
+        )}
         <button type="submit" hidden />
       </form>
     </DialogContent>
@@ -231,3 +271,7 @@ function limitLabel(age: number) {
   return age ? `Ages up to ${age}` : 'Can watch everything';
 }
 
+
+function libraryCount(n: number) {
+  return n === 0 ? 'No libraries' : n === 1 ? '1 library' : `${n} libraries`;
+}

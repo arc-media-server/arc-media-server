@@ -84,7 +84,7 @@ func TestListItemFilters(t *testing.T) {
 		t.Errorf("shuffle: %v", got)
 	}
 
-	f, err := st.Facets(ctx, lib, "movie", 0)
+	f, err := st.Facets(ctx, lib, "movie", Access{})
 	if err != nil {
 		t.Fatal(err)
 	}

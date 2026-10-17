@@ -30,23 +30,23 @@ func TestCollections(t *testing.T) {
 	}
 
 	// The Alien collection has only one film here, below the default minimum of 2.
-	list, err := st.Collections(ctx, lib, 0)
+	list, err := st.Collections(ctx, lib, Access{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(list) != 1 || list[0].Title != "The Matrix Collection" || list[0].Count != 2 || list[0].Kind != "auto" {
 		t.Fatalf("collections: %+v", list)
 	}
-	items, _ := st.CollectionItems(ctx, &list[0], 0)
+	items, _ := st.CollectionItems(ctx, &list[0], Access{})
 	if len(items) != 2 || items[0].Title != "The Matrix" {
 		t.Errorf("by release date: %+v", items)
 	}
 	st.SetLibraryCollectionMin(ctx, lib, 1)
-	if list, _ = st.Collections(ctx, lib, 0); len(list) != 2 {
+	if list, _ = st.Collections(ctx, lib, Access{}); len(list) != 2 {
 		t.Errorf("minimum of 1: %d collections", len(list))
 	}
 	st.SetLibraryCollectionMin(ctx, lib, 0)
-	if list, _ = st.Collections(ctx, lib, 0); len(list) != 0 {
+	if list, _ = st.Collections(ctx, lib, Access{}); len(list) != 0 {
 		t.Errorf("automatic off: %d collections", len(list))
 	}
 	st.SetLibraryCollectionMin(ctx, lib, 2)
@@ -58,29 +58,29 @@ func TestCollections(t *testing.T) {
 	}
 	st.AddToCollection(ctx, fav.ID, []string{alien, matrix})
 	st.AddToCollection(ctx, fav.ID, []string{matrix}) // already in it
-	items, _ = st.CollectionItems(ctx, fav, 0)
+	items, _ = st.CollectionItems(ctx, fav, Access{})
 	if len(items) != 2 || items[0].Title != "Alien" {
 		t.Errorf("manual order: %+v", items)
 	}
 	st.OrderCollection(ctx, fav.ID, []string{matrix, alien})
-	if items, _ = st.CollectionItems(ctx, fav, 0); items[0].Title != "The Matrix" {
+	if items, _ = st.CollectionItems(ctx, fav, Access{}); items[0].Title != "The Matrix" {
 		t.Errorf("reordered: %+v", items)
 	}
 	it, _ := st.GetItem(ctx, matrix)
-	in, _ := st.ItemCollections(ctx, it, 0)
+	in, _ := st.ItemCollections(ctx, it, Access{})
 	if len(in) != 2 {
 		t.Errorf("The Matrix is in %d collections, want 2", len(in))
 	}
 
 	// Removing an automatic collection hides it; it doesn't come back with a refresh.
-	auto, _ := st.Collections(ctx, lib, 0)
+	auto, _ := st.Collections(ctx, lib, Access{})
 	for _, c := range auto {
 		if c.Kind == "auto" {
 			st.DeleteCollection(ctx, &c)
 		}
 	}
 	st.SetMovieCollection(ctx, matrix, lib, ref)
-	if list, _ = st.Collections(ctx, lib, 0); len(list) != 1 || list[0].Title != "Favourites" {
+	if list, _ = st.Collections(ctx, lib, Access{}); len(list) != 1 || list[0].Title != "Favourites" {
 		t.Errorf("after hiding: %+v", list)
 	}
 }

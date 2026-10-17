@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,16 +17,37 @@ type User struct {
 	Color   string `json:"color"`
 	HasPIN  bool   `json:"has_pin"`
 	// The oldest age rating the profile may watch; 0 means no limit.
-	MaxAge       int    `json:"max_age"`
-	PasswordHash string `json:"-"`
-	PINHash      string `json:"-"`
-	CreatedAt    int64  `json:"created_at"`
+	MaxAge int `json:"max_age"`
+	// The libraries the profile may see; nil for all of them.
+	LibraryIDs   []int64 `json:"library_ids"`
+	PasswordHash string  `json:"-"`
+	PINHash      string  `json:"-"`
+	CreatedAt    int64   `json:"created_at"`
 }
 
-const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age`
+const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids`
 
 func scanUser(row interface{ Scan(...any) error }, u *User) error {
-	return row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge)
+	var libs string
+	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs); err != nil {
+		return err
+	}
+	u.LibraryIDs = parseIDs(libs)
+	return nil
+}
+
+// parseIDs reads a comma-separated list of library ids; "" means all libraries (nil).
+func parseIDs(s string) []int64 {
+	if s == "" {
+		return nil
+	}
+	out := []int64{}
+	for _, part := range strings.Split(s, ",") {
+		if id, err := strconv.ParseInt(part, 10, 64); err == nil && id > 0 {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // ErrNameTaken means another profile already has the name.
@@ -104,6 +126,10 @@ type UserUpdate struct {
 	PINHash      *string
 	PasswordHash *string
 	MaxAge       *int
+	// The libraries the profile may see: set with a list (nil field leaves it alone); AllLibraries
+	// lifts the restriction.
+	LibraryIDs   *[]int64
+	AllLibraries bool
 }
 
 func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error {
@@ -121,6 +147,21 @@ func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error 
 	if up.MaxAge != nil {
 		sets = append(sets, "max_age = ?")
 		args = append(args, *up.MaxAge)
+	}
+	if up.AllLibraries {
+		sets = append(sets, "library_ids = ''")
+	} else if up.LibraryIDs != nil {
+		ids := make([]string, 0, len(*up.LibraryIDs))
+		for _, id := range *up.LibraryIDs {
+			ids = append(ids, strconv.FormatInt(id, 10))
+		}
+		// An empty list (no libraries) is kept as "0", since '' means all of them.
+		list := strings.Join(ids, ",")
+		if list == "" {
+			list = "0"
+		}
+		sets = append(sets, "library_ids = ?")
+		args = append(args, list)
 	}
 	if len(sets) == 0 {
 		return nil

@@ -102,6 +102,8 @@ Early development. Working today:
   genres, favourite actors, busiest month, day and hour, longest streak and biggest binge
 - Parental controls: limit a profile to titles rated for ages up to 7, 12 or 15 (age ratings for
   your region); anything else is hidden from it everywhere
+- Library access per profile (as in Plex Home): choose which libraries a profile sees; the others
+  are hidden from it everywhere (sidebar, home, search, collections, playlists)
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
   counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
   (Up Next follows the episode order you chose)

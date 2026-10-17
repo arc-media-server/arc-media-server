@@ -130,10 +130,12 @@ type profileDTO struct {
 	IsAdmin bool   `json:"is_admin"`
 	// Age limit: the oldest age rating the profile may watch, 0 for none.
 	MaxAge int `json:"max_age"`
+	// The libraries the profile may see; null for all of them.
+	LibraryIDs []int64 `json:"library_ids"`
 }
 
 func toProfile(u store.User) profileDTO {
-	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge}
+	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge, LibraryIDs: u.LibraryIDs}
 }
 
 // authStatus: GET /api/auth/status tells the web app what to show: first-run setup, the sign-in
@@ -439,6 +441,24 @@ type profileBody struct {
 	PIN *string `json:"pin"`
 	// Age limit: 0 (none), or the oldest age rating allowed.
 	MaxAge *int `json:"max_age"`
+	// The libraries the profile may see: a list of ids, or null for all of them. Leave the field
+	// out to keep them as they are.
+	LibraryIDs json.RawMessage `json:"library_ids"`
+}
+
+// libraries reads library_ids from a profile body: whether it was sent, and the list (nil for all).
+func (b *profileBody) libraries() (sent bool, ids []int64, err error) {
+	if len(b.LibraryIDs) == 0 {
+		return false, nil, nil
+	}
+	if string(b.LibraryIDs) == "null" {
+		return true, nil, nil
+	}
+	ids = []int64{}
+	if err := json.Unmarshal(b.LibraryIDs, &ids); err != nil {
+		return true, nil, errors.New("library_ids is a list of library ids, or null for all")
+	}
+	return true, ids, nil
 }
 
 func (b *profileBody) validate() error {
@@ -510,12 +530,23 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	up := store.UserUpdate{}
 	if b.MaxAge != nil && *b.MaxAge > 0 {
-		if err := s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{MaxAge: b.MaxAge}); err != nil {
+		up.MaxAge = b.MaxAge
+		u.MaxAge = *b.MaxAge
+	}
+	if sent, ids, err := b.libraries(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	} else if sent && ids != nil {
+		up.LibraryIDs = &ids
+		u.LibraryIDs = ids
+	}
+	if up.MaxAge != nil || up.LibraryIDs != nil {
+		if err := s.store.UpdateUser(r.Context(), u.ID, up); err != nil {
 			s.fail(w, err)
 			return
 		}
-		u.MaxAge = *b.MaxAge
 	}
 	writeJSON(w, http.StatusCreated, toProfile(*u))
 }
@@ -549,7 +580,20 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "the admin profile can't have an age limit")
 		return
 	}
-	err = s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{Name: b.Name, Color: b.Color, PINHash: pin, MaxAge: b.MaxAge})
+	up := store.UserUpdate{Name: b.Name, Color: b.Color, PINHash: pin, MaxAge: b.MaxAge}
+	sent, ids, err := b.libraries()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if sent && u.IsAdmin && ids != nil {
+		writeError(w, http.StatusBadRequest, "the admin profile sees every library")
+		return
+	}
+	if sent {
+		up.LibraryIDs, up.AllLibraries = &ids, ids == nil
+	}
+	err = s.store.UpdateUser(r.Context(), u.ID, up)
 	if errors.Is(err, store.ErrNameTaken) {
 		writeError(w, http.StatusConflict, err.Error())
 		return

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -83,9 +84,56 @@ func AgeAllowedSQL(alias string) string {
 		`parent_id) ELSE ` + a + `min_age END) BETWEEN 0 AND ?`
 }
 
-// AgeAllowed reports whether a profile limited to maxAge (0 = no limit) may see an item.
-func (s *Store) AgeAllowed(ctx context.Context, it *Item, maxAge int) (bool, error) {
-	if maxAge <= 0 {
+// Access is what a profile may see: titles rated for its age limit, in the libraries it's allowed.
+type Access struct {
+	// The oldest age rating allowed; 0 for no limit.
+	MaxAge int
+	// The libraries allowed; nil for all of them.
+	Libraries []int64
+}
+
+// Conds are SQL conditions (and their arguments) that an item (alias, e.g. "items") is visible.
+func (a Access) Conds(alias string) ([]string, []any) {
+	var conds []string
+	var args []any
+	if a.MaxAge > 0 {
+		conds = append(conds, AgeAllowedSQL(alias))
+		args = append(args, a.MaxAge)
+	}
+	if a.Libraries != nil {
+		ids := make([]string, 0, len(a.Libraries)+1)
+		for _, id := range a.Libraries {
+			ids = append(ids, strconv.FormatInt(id, 10))
+		}
+		if len(ids) == 0 {
+			ids = append(ids, "-1") // no libraries at all
+		}
+		conds = append(conds, alias+".library_id IN ("+strings.Join(ids, ",")+")")
+	}
+	return conds, args
+}
+
+// Where adds the access conditions to a query that already has a WHERE clause.
+func (a Access) Where(alias, q string, args []any) (string, []any) {
+	conds, more := a.Conds(alias)
+	for _, c := range conds {
+		q += " AND " + c
+	}
+	return q, append(args, more...)
+}
+
+// LibraryAllowed reports whether a library is one the profile may see.
+func (a Access) LibraryAllowed(id int64) bool {
+	return a.Libraries == nil || slices.Contains(a.Libraries, id)
+}
+
+// CanSee reports whether a profile with this access may see an item (episodes by their show's
+// rating).
+func (s *Store) CanSee(ctx context.Context, it *Item, a Access) (bool, error) {
+	if !a.LibraryAllowed(it.LibraryID) {
+		return false, nil
+	}
+	if a.MaxAge <= 0 {
 		return true, nil
 	}
 	id := it.ID
@@ -96,5 +144,5 @@ func (s *Store) AgeAllowed(ctx context.Context, it *Item, maxAge int) (bool, err
 	if err := s.db.QueryRowContext(ctx, `SELECT min_age FROM items WHERE id = ?`, id).Scan(&age); err != nil {
 		return false, err
 	}
-	return age >= 0 && age <= maxAge, nil
+	return age >= 0 && age <= a.MaxAge, nil
 }

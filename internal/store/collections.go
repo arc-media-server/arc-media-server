@@ -90,7 +90,7 @@ func memberSQL(c *Collection) (string, []any) {
 // Collections lists a library's collections a profile can see, with how many of their titles it
 // can see. Automatic ones need the library's minimum number of titles; smart ones are counted by
 // the caller (their count is -1 here).
-func (s *Store) Collections(ctx context.Context, libraryID int64, maxAge int) ([]Collection, error) {
+func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([]Collection, error) {
 	var min int
 	if err := s.db.QueryRowContext(ctx, `SELECT collection_min FROM libraries WHERE id = ?`, libraryID).Scan(&min); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -125,7 +125,7 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, maxAge int) ([
 			if c.Kind == "auto" && min == 0 {
 				continue
 			}
-			n, err := s.countMembers(ctx, &c, maxAge)
+			n, err := s.countMembers(ctx, &c, acc)
 			if err != nil {
 				return nil, err
 			}
@@ -139,13 +139,10 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, maxAge int) ([
 	return out, nil
 }
 
-func (s *Store) countMembers(ctx context.Context, c *Collection, maxAge int) (int, error) {
+func (s *Store) countMembers(ctx context.Context, c *Collection, acc Access) (int, error) {
 	cond, args := memberSQL(c)
 	q := `SELECT COUNT(*) FROM items WHERE ` + cond + ` AND ` + playableSQL
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	var n int
 	err := s.db.QueryRowContext(ctx, q, args...).Scan(&n)
 	return n, err
@@ -166,13 +163,10 @@ func (s *Store) GetCollection(ctx context.Context, id string) (*Collection, erro
 
 // CollectionItems returns the titles of an automatic or manual collection a profile can see:
 // automatic ones by release date, manual ones in their chosen order.
-func (s *Store) CollectionItems(ctx context.Context, c *Collection, maxAge int) ([]Item, error) {
+func (s *Store) CollectionItems(ctx context.Context, c *Collection, acc Access) ([]Item, error) {
 	cond, args := memberSQL(c)
 	q := `SELECT ` + itemCols + ` FROM items WHERE ` + cond + ` AND ` + playableSQL
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	if c.Kind == "auto" {
 		q += ` ORDER BY CASE WHEN release_date = '' THEN 1 ELSE 0 END, release_date, year, sort_title`
 	} else {
@@ -281,8 +275,8 @@ func (s *Store) OrderCollection(ctx context.Context, id string, itemIDs []string
 
 // ItemCollections lists the automatic and manual collections a title is in (automatic ones only
 // when the library shows them).
-func (s *Store) ItemCollections(ctx context.Context, it *Item, maxAge int) ([]Collection, error) {
-	all, err := s.Collections(ctx, it.LibraryID, maxAge)
+func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Collection, error) {
+	all, err := s.Collections(ctx, it.LibraryID, acc)
 	if err != nil {
 		return nil, err
 	}

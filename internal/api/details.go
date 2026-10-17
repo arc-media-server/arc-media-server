@@ -72,7 +72,7 @@ func (s *Server) streamExtra(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if ok, err := s.store.AgeAllowed(r.Context(), owner, maxAge(r)); err != nil || !ok {
+	if ok, err := s.store.CanSee(r.Context(), owner, access(r)); err != nil || !ok {
 		writeError(w, http.StatusNotFound, "extra not found")
 		return
 	}
@@ -96,7 +96,7 @@ func (s *Server) libraryFacets(w http.ResponseWriter, r *http.Request) {
 	if lib.Kind == "shows" {
 		kind = "series"
 	}
-	f, err := s.store.Facets(r.Context(), lib.ID, kind, maxAge(r))
+	f, err := s.store.Facets(r.Context(), lib.ID, kind, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return

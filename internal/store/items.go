@@ -550,13 +550,10 @@ type Facet struct {
 
 // Facets lists a library's genres, decades and (for movies) resolutions, with counts, for the
 // titles a profile with maxAge may see.
-func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, maxAge int) (LibraryFacets, error) {
+func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Access) (LibraryFacets, error) {
 	base := `items.library_id = ? AND items.kind = ?`
 	args := []any{libraryID, kind}
-	if maxAge > 0 {
-		base += " AND " + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	base, args = acc.Where("items", base, args)
 	query := func(q string) ([]Facet, error) {
 		rows, err := s.db.QueryContext(ctx, q, args...)
 		if err != nil {
@@ -622,10 +619,9 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		like := "%" + q.Search + "%"
 		args = append(args, like, like)
 	}
-	if q.MaxAge > 0 {
-		where = append(where, AgeAllowedSQL("items"))
-		args = append(args, q.MaxAge)
-	}
+	conds, more := q.Access.Conds("items")
+	where = append(where, conds...)
+	args = append(args, more...)
 	if q.Genre != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM item_genres g WHERE g.item_id = items.id AND g.name = ?)")
 		args = append(args, q.Genre)
