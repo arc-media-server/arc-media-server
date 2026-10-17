@@ -129,7 +129,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] "Other videos" (home videos) library type (#77)
 - [x] Show status and next air date (#107)
 - [x] Original language of movies and shows (#108)
-- [ ] Search by alternative titles and keywords (#110)
+- [x] Search by alternative titles and keywords (#110)
 - [ ] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
 
 ### 15. Moving in and extras

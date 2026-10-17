@@ -57,6 +57,11 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	alt, err := s.store.AltTitles(ctx)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	type scored struct {
 		it    store.Item
 		score int
@@ -64,6 +69,10 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 	var hits []scored
 	for _, it := range titles {
 		sc := max(search.Score(q, it.Title), search.Score(q, it.OriginalTitle)-5)
+		// Other names (e.g. "Sen to Chihiro") count a little less than the title.
+		for _, t := range alt[it.ID] {
+			sc = max(sc, search.Score(q, t)-5)
+		}
 		if sc > 0 {
 			hits = append(hits, scored{it, sc})
 		}

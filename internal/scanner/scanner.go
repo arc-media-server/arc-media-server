@@ -535,7 +535,10 @@ func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Det
 	if err := s.store.SetItemDetails(ctx, itemID, d.Genres, credits); err != nil {
 		return err
 	}
-	return s.store.SetRecommendations(ctx, itemID, d.Recommendations)
+	if err := s.store.SetRecommendations(ctx, itemID, d.Recommendations); err != nil {
+		return err
+	}
+	return s.store.SetAltTitlesKeywords(ctx, itemID, d.AltTitles, d.Keywords)
 }
 
 // refreshUnsyncedMovies fetches matched movies that have never been fully fetched (e.g. matched

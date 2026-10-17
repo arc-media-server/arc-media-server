@@ -677,9 +677,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 	var about []string
 	for _, w := range q.About {
 		if w = strings.TrimSpace(w); w != "" {
-			about = append(about, "title LIKE ? OR tagline LIKE ? OR overview LIKE ?")
+			about = append(about, `title LIKE ? OR tagline LIKE ? OR overview LIKE ?
+				OR EXISTS (SELECT 1 FROM item_keywords k WHERE k.item_id = items.id AND k.keyword LIKE ?)`)
 			like := "%" + w + "%"
-			args = append(args, like, like, like)
+			args = append(args, like, like, like, like)
 		}
 	}
 	if len(about) > 0 {

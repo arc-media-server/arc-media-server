@@ -67,8 +67,9 @@ Early development. Working today:
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
 - Search everything at once: movies, shows, episodes, people, collections and genres. Accents and
-  case don't matter and small typos are forgiven ("matirx" finds The Matrix). Cast and crew open a
-  page with everything in your libraries they're in
+  case don't matter, small typos are forgiven ("matirx" finds The Matrix), and other names work too
+  ("El origen" finds Inception). Cast and crew open a page with everything in your libraries
+  they're in
 - Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
   "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
   the best version for the screen (one that needs no conversion, then the sharpest that fits), and
@@ -208,7 +209,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline or description |
+| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | PATCH | `/api/items/{id}` | Edit metadata (incl. `genres`); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
