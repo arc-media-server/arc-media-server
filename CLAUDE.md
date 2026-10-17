@@ -60,7 +60,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   posters/thumbnails, show or season posters, Recently Added TV grouped by season, season posters).
 - Plan re-ordered with the owner (Oct 2026), from a Plex gap review: 12 Everyday playback, 13 Profiles
   and home, 14 Library management, 15 Moving in and extras, 16 Intro and credits skipping, 17 Remote
-  access and devices, 18 Jellyfin-compatible API. Old milestones 6, 8 and 11 became 18, 16 and 17.
+  access and devices, 18 Arc apps and client API. Old milestones 8 and 11 became 16 and 17.
+  No Jellyfin-compatible layer, ever (owner, Oct 2026): Arc has its own clients and an open API;
+  #30–#33 are closed as not planned.
   Deleting media from the app was left out on purpose (principle 1). Next: 12, pending the owner's
   review of the order.
 - The owner has said to keep working through milestones without check-ins. For product decisions,

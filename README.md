@@ -8,7 +8,8 @@ An open source media server written in Go, built from the ground up.
   next to your files, so Sonarr, Radarr and anything else relying on your folder layout keep working.
 - **Display order is separate from storage order.** A series can be stored in TVDB aired order and
   shown in a TMDB episode group order (per series, and eventually per user) without changing anything on disk.
-- **Clients come for free.** A Jellyfin-compatible API layer is planned so existing Jellyfin apps can connect.
+- **Its own apps, and an open API.** Arc has its own web app (native TV and phone apps are planned), and its API is
+  documented so anyone can build their own client.
 
 ## Status
 

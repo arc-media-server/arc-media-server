@@ -135,7 +135,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Crowdsourced timestamp source (IntroDB or similar) as the first choice (#43)
 - [ ] Check timestamps against each file's runtime before trusting them (#44)
 - [ ] Local detection fallback (audio fingerprinting across episodes), run in the background at low priority (#45)
-- [ ] Skip Intro / Skip Credits in the player and Jellyfin layer (#46)
+- [ ] Skip Intro / Skip Credits in the player (#46)
 - [ ] Manual editing of markers (#47)
 
 ### 17. Remote access and devices
@@ -145,12 +145,10 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Casting: Chromecast and AirPlay (#100)
 - [ ] Pre-converted versions for difficult devices (#101)
 
-### 18. Jellyfin-compatible API
-_Lets Jellyfin apps on TVs and phones use Arc._
-- [ ] Discovery, auth, browsing, images (#30)
-- [ ] PlaybackInfo, streaming, progress reporting (#31)
-- [ ] Display orderings and Next Up exposed to Jellyfin clients (#32)
-- [ ] Tested against Jellyfin Web, Android/Android TV, Swiftfin, Findroid, Streamyfin, Infuse (#33)
+### 18. Arc apps and client API
+_Arc has its own clients; the API is open for anyone to build more._
+- [ ] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
+- [ ] Native apps (tvOS, iOS, Android TV) (#63)
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
@@ -162,8 +160,9 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
-- Native apps (tvOS, iOS, Android TV) if the Jellyfin clients aren't polished enough
 
 ## Explicitly not planned
 
+- Jellyfin-compatible API (was milestone 6): decided in Oct 2026 that Arc is its own thing, with its
+  own apps and an open API for anyone to build clients on (milestone 18)
 - Plugin system or third-party extension API
