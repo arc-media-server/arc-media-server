@@ -116,6 +116,8 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Collections and playlists as home rows (#91)
 - [ ] Personal ratings and a watchlist (#79)
 - [ ] "More like this" on title pages and a Recommended view per library (#92)
+- [ ] Edit collections: artwork and details (#111)
+- [ ] Season posters on the show page (#112)
 
 ### 14. Library management
 - [ ] Merge and split titles by hand (#93)
@@ -125,6 +127,13 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Scheduled maintenance window for heavy background jobs (#97)
 - [x] TMDB numbering by default, per-show episode numbering, editable genres (#103)
 - [ ] "Other videos" (home videos) library type (#77)
+- [ ] Fill blank episode details from the other provider (#104)
+- [ ] Keep every country's age rating (#105)
+- [ ] Per-episode cast and crew, and actor episode counts (#106)
+- [ ] Show status and next air date (#107)
+- [ ] Original language of movies and shows (#108)
+- [ ] Place specials between seasons (TheTVDB "airs before") (#109)
+- [ ] Search by alternative titles and keywords (#110)
 
 ### 15. Moving in and extras
 - [ ] Import from Plex and Jellyfin: users, watch history, resume points (#22)
