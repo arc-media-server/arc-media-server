@@ -200,7 +200,18 @@ export function SeriesPage() {
       </div>
 
       <div className="px-6 pt-6 md:px-10">
-        {currentSeason?.overview && <p className="mb-4 max-w-3xl text-sm leading-relaxed text-muted">{currentSeason.overview}</p>}
+        {currentSeason && (currentSeason.poster || currentSeason.overview) && (
+          <div className="mb-6 flex items-start gap-5">
+            {currentSeason.poster && (
+              <Artwork src={currentSeason.poster} alt={currentSeason.name} icon="tv" className="w-24 shrink-0 rounded-xl shadow-lg ring-1 ring-border sm:w-28" />
+            )}
+            <div className="min-w-0 max-w-3xl pt-1">
+              <h2 className="text-lg font-semibold">{currentSeason.name}</h2>
+              <p className="mt-0.5 text-xs text-subtle">{fmt.plural(currentSeason.episodes.filter((e) => e.available).length, 'episode')}</p>
+              {currentSeason.overview && <p className="mt-2 line-clamp-5 text-sm leading-relaxed text-muted">{currentSeason.overview}</p>}
+            </div>
+          </div>
+        )}
         {season === UNPLACED && (
           <p className="mb-5 max-w-2xl text-sm text-muted">
             You have these episodes, but <span className="text-foreground">{data.ordering?.name}</span> doesn't include them.

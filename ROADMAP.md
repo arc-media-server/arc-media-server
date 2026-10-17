@@ -117,7 +117,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Personal ratings and a watchlist (#79)
 - [ ] "More like this" on title pages and a Recommended view per library (#92)
 - [x] Edit collections: artwork and details (#111)
-- [ ] Season posters on the show page (#112)
+- [x] Season posters on the show page (#112)
 
 ### 14. Library management
 - [ ] Merge and split titles by hand (#93)

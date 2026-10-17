@@ -2,6 +2,7 @@ package api
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -216,6 +217,16 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			if posters, err = s.store.SeasonPosters(ctx, series.ID); err != nil {
 				s.fail(w, err)
 				return
+			}
+			// The two aired orders number seasons alike, so a season without a summary of its own
+			// (TheTVDB's have none) uses the other's.
+			if other, err := s.otherAiredSeasons(ctx, series.ID, ordering.Source); err == nil {
+				for n, o := range other {
+					if d, ok := details[n]; ok && d.Overview == "" {
+						d.Overview = o.Overview
+						details[n] = d
+					}
+				}
 			}
 		}
 		bySeason := map[int]*seasonDTO{}
@@ -513,4 +524,23 @@ func (s *Server) editSeason(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// otherAiredSeasons returns the seasons of the show's other provider's aired order (TMDB's for
+// TheTVDB's and the other way round), or none.
+func (s *Server) otherAiredSeasons(ctx context.Context, seriesID, source string) (map[int]store.Season, error) {
+	other := "tmdb_aired"
+	if source == "tmdb_aired" {
+		other = "tvdb_aired"
+	}
+	orderings, err := s.store.ListOrderings(ctx, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range orderings {
+		if o.Source == other {
+			return s.store.SeasonDetails(ctx, o.ID)
+		}
+	}
+	return nil, nil
 }
