@@ -94,6 +94,8 @@ internal/api/        REST API (net/http patterns); serves the web app for non-/a
 internal/artwork/    local artwork cache (data/artwork, keyed by source URL hash; safe to delete)
 internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, online restore
 internal/watcher/    fsnotify on library folders -> scanner.Request after 10s quiet; hourly rescan
+internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
+internal/logbuf/     the last log lines in memory for the Dashboard
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library
@@ -155,3 +157,10 @@ cd web && npx tsc -b                                # type-check the UI
   `locked_fields` (set by user edits). Don't write metadata columns any other way, or locks break.
 - UI checks that need clicks: drive headless Edge over CDP (a small Node script; Node 24 has
   WebSocket built in). In Git Bash set `MSYS_NO_PATHCONV=1` or `/movie/...` args become Windows paths.
+- Playback: `POST /api/items/{id}/playback` decides direct/remux/transcode from the caps the player
+  reports (`web/src/lib/playback.ts`). Converted streams start at the seek point and the player adds
+  `offset_ms` to its clock; seeking past what's converted starts a new session. Copied (remuxed) video
+  uses `-ss -noaccurate_seek -copyts` and `Manager.Ready` measures the real start with ffprobe;
+  predicting keyframes failed for MKV (sparse cues) and x265's open GOPs. HEVC copies need `-tag:v hvc1`.
+- Headless Chrome/Edge marks pages hidden after a few seconds and stops loading media; UI scripts
+  driving playback must keep the page active (CDP `Emulation.setFocusEmulationEnabled`).

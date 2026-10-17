@@ -1,6 +1,7 @@
 // Command testmedia creates a small fake media library for development: a few movies and TV
 // series named the way Sonarr/Radarr would (TVDB aired order), all copies of one tiny clip
-// generated with ffmpeg. The names are real so metadata matching and orderings can be tested.
+// generated with ffmpeg, plus a couple of files browsers can't play as they are (to test
+// conversion). The names are real so metadata matching and orderings can be tested.
 //
 //	go run ./tools/testmedia -out ../ams-test-media
 package main
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type series struct {
@@ -118,6 +120,46 @@ func run(out, ffmpeg string) error {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("ffmpeg poster: %w", err)
 		}
+	}
+
+	// Files a browser can't play as they are, for testing conversion: an MKV with two audio
+	// tracks (AAC English, AC-3 French) and subtitles, and 10-bit HEVC with E-AC-3.
+	srt := "1\n00:00:01,000 --> 00:00:04,000\nHello from the subtitles\n\n2\n00:00:30,000 --> 00:00:33,000\nHalfway there\n"
+	for _, f := range []struct {
+		path string
+		args []string
+	}{
+		{"Inception (2010)/Inception (2010).mkv", []string{
+			"-f", "lavfi", "-i", "testsrc2=duration=60:size=1280x720:rate=24",
+			"-f", "lavfi", "-i", "sine=f=440:duration=60", "-f", "lavfi", "-i", "sine=f=880:duration=60", "-i", "{srt}",
+			"-map", "0", "-map", "1", "-map", "2", "-map", "3", "-c:v", "libx264", "-preset", "veryfast", "-g", "60",
+			"-c:a:0", "aac", "-c:a:1", "ac3", "-c:s", "srt", "-metadata:s:a:0", "language=eng", "-metadata:s:a:1", "language=fra",
+			"-metadata:s:s:0", "language=eng"}},
+		{"Interstellar (2014)/Interstellar (2014).mkv", []string{
+			"-f", "lavfi", "-i", "testsrc2=duration=20:size=1280x720:rate=24", "-f", "lavfi", "-i", "sine=duration=20",
+			"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le", "-x265-params", "log-level=error", "-c:a", "eac3"}},
+	} {
+		dst := filepath.Join(out, "Movies", filepath.FromSlash(f.path))
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return err
+		}
+		sub := strings.TrimSuffix(dst, ".mkv") + ".en.srt"
+		if err := os.WriteFile(sub, []byte(srt), 0o644); err != nil {
+			return err
+		}
+		args := []string{"-v", "error", "-y"}
+		for _, a := range f.args {
+			args = append(args, strings.ReplaceAll(a, "{srt}", sub))
+		}
+		cmd := exec.Command(ffmpeg, append(args, dst)...)
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("ffmpeg %s: %w", f.path, err)
+		}
+		n++
 	}
 
 	fmt.Printf("created %d files in %s\n\nIn Arc, add these as libraries (Manage > Libraries > Add Library):\n\n", n, out)

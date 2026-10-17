@@ -573,7 +573,9 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 		f.Streams = append(f.Streams, store.Stream{
 			Index: ps.Index, Kind: ps.Kind, Codec: ps.Codec, Profile: ps.Profile, Language: ps.Language,
 			Title: ps.Title, Width: ps.Width, Height: ps.Height, Channels: ps.Channels,
-			IsDefault: ps.IsDefault, IsForced: ps.IsForced,
+			IsDefault: ps.IsDefault, IsForced: ps.IsForced, PixFmt: ps.PixFmt, BitDepth: ps.BitDepth,
+			ColorTransfer: ps.ColorTransfer, ColorPrimaries: ps.ColorPrimaries, FrameRate: ps.FrameRate,
+			Bitrate: ps.Bitrate,
 		})
 	}
 }

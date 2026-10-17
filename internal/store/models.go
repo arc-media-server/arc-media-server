@@ -78,6 +78,13 @@ type Stream struct {
 	Channels  int    `json:"channels,omitempty"`
 	IsDefault bool   `json:"is_default"`
 	IsForced  bool   `json:"is_forced"`
+	// Video details used to decide how a file can be played.
+	PixFmt         string  `json:"pix_fmt,omitempty"`
+	BitDepth       int     `json:"bit_depth,omitempty"`
+	ColorTransfer  string  `json:"color_transfer,omitempty"`
+	ColorPrimaries string  `json:"color_primaries,omitempty"`
+	FrameRate      float64 `json:"frame_rate,omitempty"`
+	Bitrate        int64   `json:"bitrate,omitempty"`
 }
 
 // ItemQuery filters ListItems. Zero values mean "no filter".

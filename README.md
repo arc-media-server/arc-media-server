@@ -33,7 +33,13 @@ Early development. Working today:
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Folder watching: new, changed and removed files are picked up within seconds, plus an hourly
   rescan for folders (like network shares) that don't report changes
-- Direct-play streaming with HTTP range requests
+- Playback that adapts to the browser: files it can play are sent as they are (direct play, with
+  range requests for seeking); otherwise FFmpeg repackages them (video untouched, e.g. MKV or AC-3
+  audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
+  within what's converted it's instant, beyond it the conversion restarts there. The player's Info
+  menu says which method is in use and why
+- A player with its own controls: audio track choice, playback speed, volume, full screen, and
+  keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, F, < and >, 0–9)
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg and `<file>-poster.jpg`,
   `<file>-fanart.jpg`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
@@ -134,6 +140,10 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |
 | PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
+| POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id", "audio_stream", "start_ms"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", ...}`; starting again ends the player's previous conversion |
+| GET | `/api/transcode/{session}/index.m3u8` | A conversion's HLS playlist (and its `init.mp4` and `sNNNNN.m4s` segments) |
+| POST | `/api/transcode/{session}/ping` | Keep a paused player's conversion alive (they end after 2 minutes unused) |
+| DELETE | `/api/transcode/{session}` | End a conversion |
 | PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms", "state": "playing\|paused\|stopped"}`; past 90% counts as watched. 409 means the admin stopped playback |
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
 | GET | `/api/home/continue` | What the profile is part-way through |

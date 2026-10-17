@@ -30,6 +30,7 @@ import (
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
+	"ams/internal/transcode"
 	"ams/internal/watcher"
 )
 
@@ -120,6 +121,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	prober := probe.New("ffprobe")
 	var ffMu sync.Mutex
 	ffStatus := map[string]any{}
+	// FFmpeg converts files the player can't play as they are; it's found beside ffprobe.
+	var ffmpegBin string
 	findFFprobe := func(preferred string) error {
 		bin, v, err := probe.Find(ctx, preferred)
 		ffMu.Lock()
@@ -129,14 +132,24 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			return err
 		}
 		prober.SetBin(bin)
-		ffStatus = map[string]any{"found": true, "path": bin, "version": v}
+		ffmpegBin = probe.FFmpegNextTo(bin)
+		ffStatus = map[string]any{"found": true, "path": bin, "version": v, "ffmpeg": ffmpegBin}
 		return nil
 	}
 	if err := findFFprobe(cfg.FFprobePath); err != nil {
 		log.Warn("ffprobe not found; files can't be read until it's installed or set in Settings", "err", err)
 	} else {
 		log.Info("found ffprobe", "path", prober.Bin())
+		if ffmpegBin == "" {
+			log.Warn("FFmpeg not found next to ffprobe or on the PATH; files browsers can't play won't be converted")
+		}
 	}
+	transcoder := transcode.New(filepath.Join(dataDir, "transcode"), func() string {
+		ffMu.Lock()
+		defer ffMu.Unlock()
+		return ffmpegBin
+	}, prober.Bin, log)
+	go transcoder.Run(ctx)
 
 	tmdb, tvdb := metadata.NewTMDB(cfg.TMDBKey), metadata.NewTVDB(cfg.TVDBKey)
 	tmdb.SetRegion(cfg.Region)
@@ -263,6 +276,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		ApplySettings: applySettings,
 		UploadsDir:    filepath.Join(dataDir, "uploads"),
 		Logs:          logs,
+		Transcoder:    transcoder,
 		FFprobeStatus: func() any {
 			ffMu.Lock()
 			defer ffMu.Unlock()

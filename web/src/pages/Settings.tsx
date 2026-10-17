@@ -84,7 +84,7 @@ export function SettingsPage() {
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
           </Section>
 
-          <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files.">
+          <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
@@ -275,6 +275,14 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
             {ok ? s.ffprobe.version?.split(' Copyright')[0] : s.ffprobe.error}
           </span>
           {ok && <span className="mt-0.5 block truncate font-mono text-[11px] text-subtle">{s.ffprobe.path}</span>}
+          {ok && (
+            <span className="mt-1.5 flex items-center gap-1.5">
+              {s.ffprobe.ffmpeg ? <CheckCircle2 className="size-3.5 shrink-0 text-accent" /> : <XCircle className="size-3.5 shrink-0 text-warning" />}
+              {s.ffprobe.ffmpeg
+                ? 'FFmpeg found: files a browser can’t play are converted as they’re watched'
+                : 'FFmpeg wasn’t found next to ffprobe, so files a browser can’t play won’t be converted'}
+            </span>
+          )}
           {!ok && (
             <a href="https://ffmpeg.org/download.html" target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-accent hover:underline">
               Download FFmpeg <ExternalLink className="size-3" />

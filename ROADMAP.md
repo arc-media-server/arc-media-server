@@ -75,13 +75,13 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Spoiler protection: blur thumbnails and hide descriptions of unwatched episodes
 
 ### 7. Transcoding and subtitles
-- [ ] Direct play / direct stream / transcode decision per client
-- [ ] FFmpeg to HLS, with segment cache and cleanup
+- [x] Direct play / direct stream / transcode decision per client
+- [x] FFmpeg to HLS, with segment cache and cleanup
 - [ ] Hardware acceleration: NVENC, Quick Sync, VAAPI, VideoToolbox
 - [ ] HDR to SDR tone mapping
 - [ ] Multiple versions: group 4K/1080p copies of the same title, auto-pick the best one for the device and connection
 - [ ] Editions (Director's Cut, Extended…) as choices on one movie
-- [ ] Player basics: audio track choice, keyboard shortcuts, playback speed
+- [x] Player basics: audio track choice, keyboard shortcuts, playback speed
 - [ ] Device compatibility report: which files will need transcoding on which devices, and why
 - [ ] Scrubbing thumbnails (trickplay) when seeking
 - [ ] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed

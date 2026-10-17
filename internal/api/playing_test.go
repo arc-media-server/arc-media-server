@@ -23,7 +23,7 @@ func TestNowPlayingStop(t *testing.T) {
 		t.Fatalf("list = %+v", list)
 	}
 
-	if !n.stop(list[0].id, "Bedtime!") {
+	if found, _ := n.stop(list[0].id, "Bedtime!"); !found {
 		t.Fatal("stop found nothing")
 	}
 	select {

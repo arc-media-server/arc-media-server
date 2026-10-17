@@ -308,6 +308,42 @@ export interface Playback {
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
+/** What this browser can play, reported when starting playback. */
+export interface PlayerCaps {
+  containers: string[];
+  video: string[];
+  audio: string[];
+  max_height: number;
+}
+
+export type PlaybackMethod = 'direct' | 'remux' | 'transcode';
+
+export interface AudioTrack {
+  index: number;
+  language?: string;
+  title?: string;
+  codec: string;
+  channels?: number;
+  default: boolean;
+}
+
+/** How the server will send a movie or episode to this player. */
+export interface PlaybackPlan {
+  method: PlaybackMethod;
+  /** Why it can't be played as it is, e.g. "MKV file", "Dolby Digital audio". */
+  reasons: string[];
+  url: string;
+  /** An HLS playlist (hls.js, or Safari natively). */
+  hls: boolean;
+  session_id?: string;
+  /** Where the stream starts in the file: add it to the video's clock. */
+  offset_ms: number;
+  duration_ms: number;
+  file_id: number;
+  audio_stream: number;
+  audio_tracks: AudioTrack[];
+}
+
 export interface LogLine {
   seq: number;
   time: string;
@@ -459,7 +495,7 @@ export interface ServerSettings {
   tmdb_api_key: string;
   tvdb_api_key: string;
   ffprobe_path: string;
-  ffprobe: { found: boolean; path?: string; version?: string; error?: string };
+  ffprobe: { found: boolean; path?: string; version?: string; error?: string; /** FFmpeg beside it, for converting. */ ffmpeg?: string };
   local_bypass: boolean;
   port: number;
   allow_network: boolean;
@@ -563,6 +599,10 @@ export const api = {
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
+  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number }) =>
+    request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
+  pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
+  stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),
   setPlayed: (id: string, played: boolean, season?: number) =>
     request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),

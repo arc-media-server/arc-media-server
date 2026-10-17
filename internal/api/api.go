@@ -22,6 +22,7 @@ import (
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
+	"ams/internal/transcode"
 	"ams/internal/webui"
 )
 
@@ -42,6 +43,8 @@ type Deps struct {
 	FFprobeStatus func() any
 	// Where artwork the user uploads is kept.
 	UploadsDir string
+	// Converts files players can't play as they are; nil if unavailable.
+	Transcoder *transcode.Manager
 	// Recent log lines, for the dashboard.
 	Logs    *logbuf.Buffer
 	Log     *slog.Logger
@@ -61,6 +64,7 @@ type Server struct {
 	uploadsDir       string
 	previews         *previews
 	playing          *nowPlaying
+	transcoder       *transcode.Manager
 	logs             *logbuf.Buffer
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -72,7 +76,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -92,6 +96,10 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
+	mux.HandleFunc("POST /api/items/{id}/playback", user(s.startPlayback))
+	mux.HandleFunc("GET /api/transcode/{sid}/{file}", user(s.transcodeFile))
+	mux.HandleFunc("POST /api/transcode/{sid}/ping", user(s.pingTranscode))
+	mux.HandleFunc("DELETE /api/transcode/{sid}", user(s.stopTranscode))
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
 	mux.HandleFunc("GET /api/people/{id}/image", user(s.personImage))
 	mux.HandleFunc("GET /api/extras/{id}/stream", user(s.streamExtra))

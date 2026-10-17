@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"ams/internal/store"
+	"ams/internal/transcode"
 )
 
 // What's playing right now, for the admin dashboard. Nothing here is saved: a playback exists
@@ -43,6 +45,9 @@ type playback struct {
 	started    time.Time
 	updated    time.Time
 	streams    map[chan struct{}]bool // open stream requests, closed to cut them off
+	// direct, remux or transcode, and the conversion's session if there is one.
+	method    string
+	sessionID string
 }
 
 type stopped struct {
@@ -133,8 +138,29 @@ func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durati
 	return ""
 }
 
-// stop ends a playback: its streams are cut off and the player is told why when it next asks.
-func (n *nowPlaying) stop(id, message string) bool {
+// refusalFor says why the admin stopped this player playing an item, or "".
+func (n *nowPlaying) refusalFor(r *http.Request, itemID string) string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.refusal(playbackKey(r, itemID, ""))
+}
+
+// setMethod records how a player is playing an item, ending the conversion it was using before
+// (after a seek or a change of audio track).
+func (n *nowPlaying) setMethod(r *http.Request, itemID, method, sessionID string, tc *transcode.Manager) {
+	n.mu.Lock()
+	p := n.touch(r, itemID, "")
+	old := p.sessionID
+	p.method, p.sessionID = method, sessionID
+	n.mu.Unlock()
+	if old != "" && old != sessionID && tc != nil {
+		tc.Stop(old)
+	}
+}
+
+// stop ends a playback: its streams are cut off and the player is told why when it next asks. It
+// returns the playback's conversion session, if any, for the caller to end.
+func (n *nowPlaying) stop(id, message string) (found bool, sessionID string) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	for key, p := range n.byKey {
@@ -146,9 +172,9 @@ func (n *nowPlaying) stop(id, message string) bool {
 		}
 		delete(n.byKey, key)
 		n.stopped[key] = stopped{until: time.Now().Add(stopBlock), message: message}
-		return true
+		return true, p.sessionID
 	}
-	return false
+	return false, ""
 }
 
 // list returns the current playbacks, oldest first, forgetting those that have ended.
@@ -246,7 +272,7 @@ type playbackDTO struct {
 	Extra      string     `json:"extra,omitempty"` // the trailer or extra being played, by title
 	Device     string     `json:"device"`
 	Address    string     `json:"address"`
-	Method     string     `json:"method"` // "direct" until transcoding arrives
+	Method     string     `json:"method"` // direct, remux or transcode
 	PositionMS int64      `json:"position_ms"`
 	DurationMS int64      `json:"duration_ms"`
 	State      string     `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
@@ -267,7 +293,7 @@ func (s *Server) listPlaying(w http.ResponseWriter, r *http.Request) {
 			user = *u
 		}
 		d := playbackDTO{ID: p.id, Profile: toProfile(user), Device: p.device, Address: p.address,
-			Method: "direct", PositionMS: p.positionMS, DurationMS: p.durationMS, StartedAt: p.started.Unix()}
+			Method: cmp.Or(p.method, "direct"), PositionMS: p.positionMS, DurationMS: p.durationMS, StartedAt: p.started.Unix()}
 		d.Item = toDTO(*it)
 		if it.Kind == "episode" {
 			if series, err := s.store.GetItem(ctx, it.ParentID); err == nil && series != nil {
@@ -315,7 +341,11 @@ func (s *Server) stopPlaying(w http.ResponseWriter, r *http.Request) {
 	if len(msg) > 300 {
 		msg = msg[:300]
 	}
-	if !s.playing.stop(r.PathValue("id"), msg) {
+	found, sessionID := s.playing.stop(r.PathValue("id"), msg)
+	if sessionID != "" && s.transcoder != nil {
+		s.transcoder.Stop(sessionID)
+	}
+	if !found {
 		writeError(w, http.StatusNotFound, "that has already finished")
 		return
 	}

@@ -112,6 +112,13 @@ type Stream struct {
 	Channels  int
 	IsDefault bool
 	IsForced  bool
+	// Video: pixel format, bits per sample, colour transfer/primaries (HDR) and frames per second.
+	PixFmt         string
+	BitDepth       int
+	ColorTransfer  string
+	ColorPrimaries string
+	FrameRate      float64
+	Bitrate        int64
 }
 
 type ffprobeOutput struct {
@@ -128,6 +135,12 @@ type ffprobeOutput struct {
 		Width       int               `json:"width"`
 		Height      int               `json:"height"`
 		Channels    int               `json:"channels"`
+		PixFmt      string            `json:"pix_fmt"`
+		BitsRaw     string            `json:"bits_per_raw_sample"`
+		Transfer    string            `json:"color_transfer"`
+		Primaries   string            `json:"color_primaries"`
+		AvgRate     string            `json:"avg_frame_rate"`
+		BitRate     string            `json:"bit_rate"`
 		Tags        map[string]string `json:"tags"`
 		Disposition map[string]int    `json:"disposition"`
 	} `json:"streams"`
@@ -187,6 +200,9 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 			Channels:  s.Channels,
 			IsDefault: s.Disposition["default"] == 1,
 			IsForced:  s.Disposition["forced"] == 1,
+			PixFmt:    s.PixFmt, BitDepth: bitDepth(s.BitsRaw, s.PixFmt),
+			ColorTransfer: s.Transfer, ColorPrimaries: s.Primaries, FrameRate: frameRate(s.AvgRate),
+			Bitrate: parseInt(s.BitRate),
 		})
 	}
 	return res, nil
@@ -220,4 +236,59 @@ func containerName(formatName, path string) string {
 		}
 	}
 	return names[0]
+}
+
+// bitDepth is the bits per sample of a video stream, from ffprobe's figure or its pixel format
+// (e.g. yuv420p10le is 10-bit).
+func bitDepth(raw, pixFmt string) int {
+	if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+		return n
+	}
+	switch {
+	case pixFmt == "":
+		return 0
+	case strings.Contains(pixFmt, "12"):
+		return 12
+	case strings.Contains(pixFmt, "10"), pixFmt == "p010le":
+		return 10
+	}
+	return 8
+}
+
+// frameRate turns ffprobe's "24000/1001" into frames per second.
+func frameRate(s string) float64 {
+	num, den, ok := strings.Cut(s, "/")
+	n, err1 := strconv.ParseFloat(num, 64)
+	if !ok {
+		return n
+	}
+	d, err2 := strconv.ParseFloat(den, 64)
+	if err1 != nil || err2 != nil || d == 0 {
+		return 0
+	}
+	return n / d
+}
+
+func parseInt(s string) int64 {
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
+}
+
+// FFmpegNextTo finds FFmpeg beside the ffprobe in use (they're installed together), or on the
+// PATH. It returns "" when there's none.
+func FFmpegNextTo(ffprobe string) string {
+	if ffprobe != "" {
+		name := "ffmpeg"
+		if strings.HasSuffix(strings.ToLower(ffprobe), ".exe") {
+			name += ".exe"
+		}
+		p := filepath.Join(filepath.Dir(ffprobe), name)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	if p, err := exec.LookPath("ffmpeg"); err == nil {
+		return p
+	}
+	return ""
 }
