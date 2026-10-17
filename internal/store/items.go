@@ -484,6 +484,8 @@ func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
 		UNION ALL
 		SELECT kind, 'logo', logo_path, 1 FROM items WHERE logo_path <> ''
 		UNION ALL
+		SELECT 'season', 'primary', poster_path, 2 FROM season_art WHERE poster_path <> ''
+		UNION ALL
 		SELECT 'person', 'primary', profile_path, 3 FROM people
 			WHERE profile_path <> '' AND id IN (SELECT person_id FROM item_people)
 		UNION ALL

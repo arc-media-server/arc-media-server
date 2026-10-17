@@ -93,6 +93,9 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		if err := s.store.SetLocalArt(ctx, id, art.Poster, art.Backdrop, art.Logo); err != nil {
 			return err
 		}
+		if err := s.store.SetSeasonLocalPosters(ctx, id, art.Seasons); err != nil {
+			return err
+		}
 		if nfo := readNFO(filepath.Join(g.folder, "tvshow.nfo")); !nfo.empty() {
 			if err := s.store.AdoptIDs(ctx, id, nfo.TMDBID, nfo.TVDBID, nfo.IMDBID); err != nil {
 				return err
@@ -276,6 +279,11 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 	if err := s.saveDetails(ctx, it.ID, primary.Details); err != nil {
 		return err
+	}
+	if tmdbSeries != nil {
+		if err := s.store.SetSeasonPosters(ctx, it.ID, tmdbSeries.SeasonPosters); err != nil {
+			return err
+		}
 	}
 
 	// Canonical episodes, in first-seen order.

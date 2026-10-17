@@ -164,6 +164,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		Seasons []struct {
 			SeasonNumber int    `json:"season_number"`
 			Name         string `json:"name"`
+			PosterPath   string `json:"poster_path"`
 		} `json:"seasons"`
 		EpisodeGroups struct {
 			Results []struct {
@@ -214,7 +215,11 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	// Aired order: fetch seasons 20 at a time using append_to_response.
 	aired := Ordering{Source: "tmdb_aired", Name: "Aired Order", Description: "TMDB", Seasons: map[int]string{}}
 	var nums []int
+	s.SeasonPosters = map[int]string{}
 	for _, season := range d.Seasons {
+		if season.PosterPath != "" {
+			s.SeasonPosters[season.SeasonNumber] = season.PosterPath
+		}
 		nums = append(nums, season.SeasonNumber)
 		aired.Seasons[season.SeasonNumber] = season.Name
 	}

@@ -490,6 +490,20 @@ export interface HomeRow {
   hidden?: boolean;
   title?: string;
   filter?: RowFilter;
+  /** Posters or landscape thumbnails; absent for the row's usual look. */
+  style?: 'poster' | 'thumb';
+  /** A TV library's Recently Added: one card per show instead of grouping new episodes by season. */
+  shows_only?: boolean;
+}
+
+/** A card in a TV library's Recently Added: a new show, new episodes of a season, or one episode. */
+export interface RecentCard {
+  type: 'series' | 'season' | 'episode';
+  item: Item;
+  season_number?: number;
+  episodes: number;
+  season_poster?: string;
+  added_at: number;
 }
 
 export type Theme = '' | 'dark' | 'light';
@@ -738,6 +752,7 @@ export const api = {
   statsHistory: (p: StatsParams & { before?: number }) => request<StatsHistory>('GET', `/api/stats/history${query(p)}`),
   statsStorage: (library?: number) => request<StatsStorage>('GET', `/api/stats/storage${query({ library })}`),
   myYear: (year?: number) => request<YearReview>('GET', `/api/me/year${query({ year })}`),
+  recentShows: (libraryId: number) => request<RecentCard[]>('GET', `/api/libraries/${libraryId}/recent-shows`),
   continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),

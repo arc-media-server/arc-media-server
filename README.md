@@ -103,6 +103,10 @@ Early development. Working today:
   in Plex, the default) or its own row, and
   add your own rows from filters (library, genre, decade, quality, unwatched, added this week/month/
   year, length, rating, any sort including a daily shuffle) with a live preview
+- Each home row can use posters or landscape thumbnails (Continue Watching uses thumbnails by
+  default). A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
+  several new episodes of a season show as that season with its poster, a single new episode as
+  itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
 - Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
   episodes you haven't started
@@ -198,6 +202,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | POST | `/api/playlists/{id}/items` | Add `{"item_ids"}` (movies, episodes, or shows for all their episodes) |
 | DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
 | GET | `/api/home/continue?with_up_next=1` | What the profile is part-way through; with `with_up_next=1`, also the next episode of each show, most recent first (one per show) |
+| GET | `/api/libraries/{id}/recent-shows` | A TV library's Recently Added, grouped: `[{"type": "series"\|"season"\|"episode", "item", "season_number", "episodes", "season_poster"}]` |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
@@ -221,6 +226,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
 | DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
+| GET | `/api/series/{id}/seasons/{n}/image` | A season's poster |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
 | GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
 | PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |
