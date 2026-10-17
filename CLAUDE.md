@@ -56,8 +56,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 10 done (Oct 2026): watch history (play_history, recorded from player progress after a
   minute of playing), admin Insights page (activity, history, storage/never watched), Year in Review
   per profile, plus clear logos on title pages and the cast moved up on series pages (#81, #82).
-  Next: milestones 8 (intro/credits skipping) and 11 (remote access).
-  The owner's order: finish 7, then 9, then 10, carrying on between them without waiting. The Jellyfin-compatible API
+  Milestones 8 (intro/credits skipping) and 11 (remote access) were moved to Later at the owner's
+  request (Oct 2026). No numbered milestones are left: ask the owner what's next.
+  The Jellyfin-compatible API
   (old milestone 6, #30–#33) was moved to Later at the owner's request (Oct 2026): Arc's own features
   come first, so don't start it unless they ask.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
