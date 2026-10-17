@@ -9,6 +9,7 @@ import { ParsedStep, StepRow } from '@/components/FixMatch';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
 
 const orderings: { value: SourceOrdering; label: string; hint: string }[] = [
   { value: 'tvdb_aired', label: 'TheTVDB aired order', hint: "Sonarr's default; most libraries use this" },
@@ -34,6 +35,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [nameTouched, setNameTouched] = useState(editing);
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tvdb_aired');
+  const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
   const [picking, setPicking] = useState(!editing);
   const [step, setStep] = useState<'details' | 'preview'>('details');
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -52,7 +54,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   });
   const save = useMutation({
     mutationFn: () =>
-      editing ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths }) : api.createLibrary({ name, kind, source_ordering: ordering, paths }),
+      editing
+        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay })
+        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -169,6 +173,16 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               </p>
             </Field>
           )}
+          <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+            <span>
+              <span className="block text-sm font-medium">Scrubbing previews</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                Show a picture while dragging along the timeline. Arc makes them in the background, which takes a little time and about
+                5 MB per film. Turning this off deletes them.
+              </span>
+            </span>
+            <Switch checked={trickplay} onCheckedChange={setTrickplay} aria-label="Scrubbing previews" />
+          </label>
         </div>
       )}
     </DialogContent>

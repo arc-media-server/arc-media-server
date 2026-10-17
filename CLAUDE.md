@@ -61,7 +61,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 ## Principles (non-negotiable)
 
 1. **Never modify media files.** AMS only reads: no renaming, moving, tagging or writing beside them.
-2. **Ease over options.** Apple-level polish and simplicity; no setting without a reason.
+2. **Ease over options.** Apple-level polish and simplicity; no setting without a reason. For every new
+   feature, first check how Plex does it and match its behaviour, defaults and where its settings live
+   (per library, server or profile) unless there's a clear reason to differ; log any difference on #80.
 3. **No plugin system.** Features are built into AMS.
 4. **Storage order ≠ display order.** Episode identity is separate from how a series is displayed.
 5. **Nothing silently disappears.** Unmatched or unplaced items are shown and listed, never hidden.
@@ -97,6 +99,7 @@ internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, 
 internal/watcher/    fsnotify on library folders -> scanner.Request after 10s quiet; hourly rescan
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
+internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
 internal/subtitles/  subtitle tracks (in the file and beside it), extracted to cues with FFmpeg, cached in data/subtitles
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query

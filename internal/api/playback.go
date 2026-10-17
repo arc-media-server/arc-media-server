@@ -480,3 +480,75 @@ func bestVersion(files []store.MediaFile, edition string, caps clientCaps) *stor
 	})
 	return all[0].f
 }
+
+// trickplayInfo: GET /api/items/{id}/trickplay?file=<id> describes a file's timeline thumbnails
+// and where its sheets are. Until they're made it's 404, and the file moves up the queue.
+func (s *Server) trickplayInfo(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	fileID, _ := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
+	if !s.itemHasFile(w, r, it.ID, fileID) {
+		return
+	}
+	lib, err := s.store.GetLibrary(r.Context(), it.LibraryID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if s.trickplay == nil || lib == nil || !lib.Trickplay {
+		writeError(w, http.StatusNotFound, "scrubbing previews are off for this library")
+		return
+	}
+	info := s.trickplay.Info(fileID)
+	if info == nil {
+		s.trickplay.Request(fileID)
+		writeError(w, http.StatusNotFound, "not made yet")
+		return
+	}
+	sheets := make([]string, info.Sheets)
+	for i := range sheets {
+		sheets[i] = fmt.Sprintf("/api/items/%s/trickplay/%d/%d", it.ID, fileID, i)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"info": info, "sheets": sheets})
+}
+
+// trickplaySheet: GET /api/items/{id}/trickplay/{file}/{sheet} is one sheet of thumbnails.
+func (s *Server) trickplaySheet(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	fileID, _ := strconv.ParseInt(r.PathValue("file"), 10, 64)
+	n, err := strconv.Atoi(r.PathValue("sheet"))
+	if err != nil || !s.itemHasFile(w, r, it.ID, fileID) || s.trickplay == nil {
+		if err != nil {
+			writeError(w, http.StatusNotFound, "no such sheet")
+		}
+		return
+	}
+	path, ok := s.trickplay.Sheet(fileID, n)
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such sheet")
+		return
+	}
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	http.ServeFile(w, r, path)
+}
+
+// itemHasFile checks a file belongs to an item, writing a 404 if not.
+func (s *Server) itemHasFile(w http.ResponseWriter, r *http.Request, itemID string, fileID int64) bool {
+	files, err := s.store.ItemFiles(r.Context(), itemID)
+	if err != nil {
+		s.fail(w, err)
+		return false
+	}
+	for _, f := range files {
+		if f.ID == fileID {
+			return true
+		}
+	}
+	writeError(w, http.StatusNotFound, "that file isn't part of this title")
+	return false
+}

@@ -23,7 +23,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack } from '@/lib/api';
+import { api, ApiError, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel, versionLabel } from '@/lib/playback';
@@ -124,6 +124,8 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   const [subtitleSize, setSubtitleSize] = useState(readSubtitleSize);
   const [cueText, setCueText] = useState('');
   const autoChosen = useRef(false);
+  // Thumbnails for the timeline, if the library makes them.
+  const [thumbs, setThumbs] = useState<{ info: TrickplayInfo; sheets: string[] } | null>(null);
   const lastSubtitle = useRef<SubtitleTrack | null>(null);
   const hideTimer = useRef<number>(undefined);
   const lastReport = useRef(0);
@@ -293,6 +295,21 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
     },
     [absMS, load],
   );
+
+  // The playing file's timeline thumbnails (none if the library doesn't make them, or not yet).
+  const thumbFile = planState?.file_id;
+  useEffect(() => {
+    setThumbs(null);
+    if (!item.itemId || !thumbFile) return;
+    let cancelled = false;
+    api
+      .trickplay(item.itemId, thumbFile)
+      .then((t) => !cancelled && setThumbs(t))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [item.itemId, thumbFile]);
 
   // Turn subtitles on by themselves once: in the profile's language, or forced ones.
   useEffect(() => {
@@ -607,7 +624,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
             showChrome ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
         >
-          <Scrubber positionMS={positionMS} durationMS={dur} bufferedMS={bufferedMS} readyMS={planState?.hls ? readyMS : 0} onSeek={seekTo} />
+          <Scrubber positionMS={positionMS} durationMS={dur} bufferedMS={bufferedMS} readyMS={planState?.hls ? readyMS : 0} onSeek={seekTo} thumbs={thumbs} />
           <div className="mt-3 flex items-center gap-1">
             <ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>
               {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
@@ -759,6 +776,29 @@ function CueLine({ text }: { text: string }) {
   return <>{parts}</>;
 }
 
+/** The timeline thumbnail for a moment: one tile of a sheet, scaled to 192px wide. */
+function Thumb({ ms, thumbs }: { ms: number; thumbs: { info: TrickplayInfo; sheets: string[] } }) {
+  const { info, sheets } = thumbs;
+  const index = Math.min(info.count - 1, Math.max(0, Math.floor(ms / info.interval_ms)));
+  const perSheet = info.columns * info.rows;
+  const sheet = sheets[Math.floor(index / perSheet)];
+  if (!sheet) return null;
+  const pos = index % perSheet;
+  const scale = 192 / info.width;
+  return (
+    <div
+      className="mb-1.5 rounded-md bg-black bg-no-repeat ring-1 ring-white/20"
+      style={{
+        width: 192,
+        height: Math.round(info.height * scale),
+        backgroundImage: `url(${sheet})`,
+        backgroundSize: `${info.columns * 192}px ${info.rows * info.height * scale}px`,
+        backgroundPosition: `-${(pos % info.columns) * 192}px -${Math.floor(pos / info.columns) * info.height * scale}px`,
+      }}
+    />
+  );
+}
+
 function Message({ icon, title, children, onClose }: { icon: ReactNode; title: string; children: ReactNode; onClose: () => void }) {
   return (
     <div className="max-w-md px-6 text-center text-white">
@@ -834,12 +874,14 @@ function Scrubber({
   bufferedMS,
   readyMS,
   onSeek,
+  thumbs,
 }: {
   positionMS: number;
   durationMS: number;
   bufferedMS: number;
   readyMS: number;
   onSeek: (ms: number) => void;
+  thumbs: { info: TrickplayInfo; sheets: string[] } | null;
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -889,9 +931,10 @@ function Scrubber({
       />
       {hover !== null && (
         <div
-          className="pointer-events-none absolute bottom-6 -translate-x-1/2 rounded-md bg-black/80 px-2 py-1 text-xs tabular-nums text-white"
+          className="pointer-events-none absolute bottom-6 flex -translate-x-1/2 flex-col items-center rounded-lg bg-black/80 px-1.5 py-1 text-xs tabular-nums text-white"
           style={{ left: pct(drag ?? hover) }}
         >
+          {thumbs && <Thumb ms={drag ?? hover} thumbs={thumbs} />}
           {fmt.clock(drag ?? hover)}
         </div>
       )}
