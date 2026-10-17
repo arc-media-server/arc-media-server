@@ -151,14 +151,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -180,8 +180,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, kind, source_ordering FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering)
+		`SELECT id, name, kind, source_ordering, trickplay FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -209,4 +209,28 @@ func (s *Store) libraryPaths(ctx context.Context, id int64) ([]string, error) {
 		paths = append(paths, p)
 	}
 	return paths, rows.Err()
+}
+
+// SetLibraryTrickplay turns a library's timeline thumbnails on or off.
+func (s *Store) SetLibraryTrickplay(ctx context.Context, id int64, on bool) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE libraries SET trickplay = ? WHERE id = ?`, boolInt(on), id)
+	return err
+}
+
+// LibraryFileIDs lists the ids of a library's files.
+func (s *Store) LibraryFileIDs(ctx context.Context, id int64) ([]int64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM media_files WHERE library_id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var fid int64
+		if err := rows.Scan(&fid); err != nil {
+			return nil, err
+		}
+		ids = append(ids, fid)
+	}
+	return ids, rows.Err()
 }

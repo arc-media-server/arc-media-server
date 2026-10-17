@@ -182,3 +182,40 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 	}
 	return streams, rows.Err()
 }
+
+// VideoFile is a present, readable movie or episode file and its picture size.
+type VideoFile struct {
+	ID            int64
+	Path          string
+	DurationMS    int64
+	Width, Height int
+}
+
+// VideoFiles lists present, readable movie and episode files in libraries with timeline
+// thumbnails turned on, newest titles first.
+func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT m.id, m.path, m.duration_ms,
+			COALESCE((SELECT width FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
+			COALESCE((SELECT height FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0)
+		FROM media_files m
+		JOIN item_files f ON f.file_id = m.id JOIN items i ON i.id = f.item_id
+		JOIN libraries l ON l.id = i.library_id AND l.trickplay = 1
+		WHERE m.missing_since IS NULL AND m.probed_at IS NOT NULL AND m.duration_ms > 0
+			AND i.kind IN ('movie', 'episode')
+		GROUP BY m.id
+		ORDER BY MAX(i.added_at) DESC, m.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []VideoFile
+	for rows.Next() {
+		var v VideoFile
+		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}

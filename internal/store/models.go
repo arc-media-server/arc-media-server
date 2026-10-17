@@ -6,6 +6,8 @@ type Library struct {
 	Kind           string   `json:"kind"`
 	SourceOrdering string   `json:"source_ordering"`
 	Paths          []string `json:"paths"`
+	// Make thumbnails for scrubbing along the timeline (off unless turned on).
+	Trickplay bool `json:"trickplay"`
 }
 
 type Item struct {

@@ -125,6 +125,8 @@ export interface Library {
   kind: LibraryKind;
   source_ordering: SourceOrdering;
   paths: string[];
+  /** Thumbnails for scrubbing along the player's timeline (off by default). */
+  trickplay: boolean;
   /** How many movies or shows it lists. */
   count: number;
   scan: ScanStatus;
@@ -135,6 +137,7 @@ export interface LibraryInput {
   kind: LibraryKind;
   source_ordering: SourceOrdering;
   paths: string[];
+  trickplay?: boolean;
 }
 
 export interface PreviewItem {
@@ -375,6 +378,17 @@ export interface SubtitleTrack {
   external: boolean;
   /** A picture format (Blu-ray, DVD): shown by burning it into the video. */
   image: boolean;
+}
+
+/** Timeline thumbnails: one every interval_ms, in sheets of columns × rows. */
+export interface TrickplayInfo {
+  interval_ms: number;
+  width: number;
+  height: number;
+  columns: number;
+  rows: number;
+  count: number;
+  sheets: number;
 }
 
 export interface SubtitleCue {
@@ -643,6 +657,8 @@ export const api = {
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
   startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string }) =>
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
+  trickplay: (itemId: string, fileId: number) =>
+    request<{ info: TrickplayInfo; sheets: string[] }>('GET', `/api/items/${itemId}/trickplay${query({ file: fileId })}`),
   subtitleCues: (itemId: string, track: string, fileId: number) =>
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),

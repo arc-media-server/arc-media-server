@@ -25,6 +25,8 @@ type libraryBody struct {
 	Kind           string   `json:"kind"`
 	SourceOrdering string   `json:"source_ordering"`
 	Paths          []string `json:"paths"`
+	// Make timeline thumbnails for scrubbing (off by default).
+	Trickplay bool `json:"trickplay"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -128,6 +130,12 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.log.Info("library added", "library", b.Name, "paths", b.Paths)
+	if b.Trickplay {
+		if err := s.setTrickplay(r.Context(), id, true); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
@@ -140,7 +148,30 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, lib)
 }
 
-// updateLibrary: PATCH /api/libraries/{id} {"name", "paths", "source_ordering"} changes a library
+// setTrickplay turns a library's timeline thumbnails on (they're made in the background) or off
+// (those already made are deleted to free the space).
+func (s *Server) setTrickplay(ctx context.Context, libraryID int64, on bool) error {
+	if err := s.store.SetLibraryTrickplay(ctx, libraryID, on); err != nil {
+		return err
+	}
+	if s.trickplay == nil {
+		return nil
+	}
+	if on {
+		s.trickplay.Wake()
+		return nil
+	}
+	ids, err := s.store.LibraryFileIDs(ctx, libraryID)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		s.trickplay.Forget(id)
+	}
+	return nil
+}
+
+// updateLibrary: PATCH /api/libraries/{id} {"name", "paths", "source_ordering", "trickplay"} changes a library
 // (not its kind) and rescans it.
 func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
@@ -152,9 +183,26 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		Name           *string  `json:"name"`
 		SourceOrdering *string  `json:"source_ordering"`
 		Paths          []string `json:"paths"`
+		Trickplay      *bool    `json:"trickplay"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
+		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
+		// Nothing that needs a rescan.
+		updated, err := s.store.GetLibrary(r.Context(), lib.ID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
 		return
 	}
 	if patch.Name != nil {

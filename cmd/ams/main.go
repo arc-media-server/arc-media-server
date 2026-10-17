@@ -32,6 +32,7 @@ import (
 	"ams/internal/store"
 	"ams/internal/subtitles"
 	"ams/internal/transcode"
+	"ams/internal/trickplay"
 	"ams/internal/watcher"
 )
 
@@ -183,7 +184,15 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	watch := watcher.New(sc.Request, log)
 	go watch.Run(ctx)
 	// librariesChanged brings the watcher in step with the libraries, optionally scanning them all.
+	// Timeline thumbnails, made in the background for libraries that have them turned on.
+	thumbs := trickplay.New(filepath.Join(dataDir, "trickplay"), st, func() string {
+		ffMu.Lock()
+		defer ffMu.Unlock()
+		return ffmpegBin
+	}, log)
+	go thumbs.Run(ctx)
 	librariesChanged := func(scan bool) {
+		thumbs.Wake()
 		libs, err := st.ListLibraries(ctx)
 		if err != nil {
 			log.Error("listing libraries failed", "err", err)
@@ -278,6 +287,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		UploadsDir:    filepath.Join(dataDir, "uploads"),
 		Logs:          logs,
 		Transcoder:    transcoder,
+		Trickplay:     thumbs,
 		Subtitles: subtitles.NewCache(filepath.Join(dataDir, "subtitles"), func() string {
 			ffMu.Lock()
 			defer ffMu.Unlock()
