@@ -17,6 +17,9 @@ type prefs struct {
 	HideSpoilers bool `json:"hide_spoilers"`
 	// "dark", "light", or "" to follow the device.
 	Theme string `json:"theme"`
+	// The subtitle language last chosen (e.g. "eng"), used to turn subtitles on by themselves;
+	// "" means off unless there are forced subtitles.
+	SubtitleLanguage string `json:"subtitle_language"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
@@ -48,6 +51,9 @@ type rowFilter struct {
 func (p *prefs) validate() error {
 	if p.Theme != "" && p.Theme != "dark" && p.Theme != "light" {
 		return fmt.Errorf(`theme is "dark", "light" or "" (follow the device)`)
+	}
+	if len(p.SubtitleLanguage) > 8 {
+		return fmt.Errorf("subtitle_language is a language code like \"eng\"")
 	}
 	if len(p.Home) > 60 {
 		return fmt.Errorf("a home page can have up to 60 rows")
@@ -118,9 +124,10 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		HideSpoilers *bool     `json:"hide_spoilers"`
-		Theme        *string   `json:"theme"`
-		Home         []homeRow `json:"home"`
+		HideSpoilers     *bool     `json:"hide_spoilers"`
+		Theme            *string   `json:"theme"`
+		SubtitleLanguage *string   `json:"subtitle_language"`
+		Home             []homeRow `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "send the preferences to change as JSON")
@@ -131,6 +138,9 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Theme != nil {
 		p.Theme = *body.Theme
+	}
+	if body.SubtitleLanguage != nil {
+		p.SubtitleLanguage = *body.SubtitleLanguage
 	}
 	if body.Home != nil {
 		p.Home = body.Home

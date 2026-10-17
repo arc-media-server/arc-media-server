@@ -84,7 +84,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Player basics: audio track choice, keyboard shortcuts, playback speed
 - [ ] Device compatibility report: which files will need transcoding on which devices, and why
 - [ ] Scrubbing thumbnails (trickplay) when seeking
-- [ ] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed
+- [x] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed
 - [ ] Online subtitle download
 
 ### 8. Intro and credits skipping

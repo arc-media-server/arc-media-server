@@ -13,17 +13,21 @@ import (
 )
 
 func TestBuildArgs(t *testing.T) {
-	copyArgs := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 2, CopyVideo: true, VideoCodec: "hevc"}, 20, "out"), " ")
+	copyArgs := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 2, CopyVideo: true, VideoCodec: "hevc", BurnSubtitle: -1}, 20, "out"), " ")
 	for _, want := range []string{"-ss 20.000 -noaccurate_seek -copyts -i in.mkv", "-map 0:0 -map 0:2", "-c:v copy -avoid_negative_ts disabled -tag:v hvc1", "-c:a aac -ac 2", "-hls_segment_type fmp4"} {
 		if !strings.Contains(copyArgs, want) {
 			t.Errorf("copy args missing %q:\n%s", want, copyArgs)
 		}
 	}
-	enc := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, MaxHeight: 720, SourceHeight: 2160, VideoKbps: 4000}, 0, "out"), " ")
+	enc := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, MaxHeight: 720, SourceHeight: 2160, VideoKbps: 4000, BurnSubtitle: -1}, 0, "out"), " ")
 	for _, want := range []string{"-c:v libx264", "-b:v 4000k", "scale=-2:720"} {
 		if !strings.Contains(enc, want) {
 			t.Errorf("encode args missing %q:\n%s", want, enc)
 		}
+	}
+	burn := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 1, BurnSubtitle: 3, MaxHeight: 720, SourceHeight: 1080}, 0, "out"), " ")
+	if !strings.Contains(burn, "-filter_complex [0:0][0:3]overlay=eof_action=pass,scale=-2:720[v] -map [v] -map 0:1") || strings.Contains(burn, "-vf") {
+		t.Errorf("burn-in args:\n%s", burn)
 	}
 	for _, unwanted := range []string{"-ss", "-c:a", "-copyts"} {
 		if strings.Contains(enc, unwanted) {
@@ -61,7 +65,7 @@ func TestSession(t *testing.T) {
 			if out, err := exec.Command(ffmpeg, append(args, "-c:a", "ac3", src)...).CombinedOutput(); err != nil {
 				t.Fatalf("making source: %v %s", err, out)
 			}
-			s, err := m.Start(Options{Path: src, StartMS: 9000, VideoStream: 0, AudioStream: 1, CopyVideo: true, VideoCodec: tc.codec})
+			s, err := m.Start(Options{Path: src, StartMS: 9000, VideoStream: 0, AudioStream: 1, CopyVideo: true, VideoCodec: tc.codec, BurnSubtitle: -1})
 			if err != nil {
 				t.Fatal(err)
 			}

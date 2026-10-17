@@ -5,6 +5,7 @@ import type HlsType from 'hls.js';
 import {
   AlertCircle,
   Check,
+  Captions,
   Gauge,
   Info,
   Languages,
@@ -21,9 +22,10 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type PlaybackPlan, type PlayerCaps } from '@/lib/api';
+import { api, ApiError, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack } from '@/lib/api';
+import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
-import { audioLabel, fallbackCaps, methodLabel, playerCaps } from '@/lib/playback';
+import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -92,6 +94,10 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   const watchdog = useRef<number>(undefined);
   // What the current stream was asked for with: seeks and audio changes keep it.
   const caps = useRef<PlayerCaps>(playerCaps());
+  // A picture subtitle track being burned into the video; restarts keep it.
+  const burn = useRef<string | undefined>(undefined);
+  const prefs = usePrefs();
+  const updatePrefs = useUpdatePrefs();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +115,13 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   const [fullscreen, setFullscreen] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [subtitle, setSubtitle] = useState<SubtitleTrack | null>(null);
+  const [cues, setCues] = useState<SubtitleCue[]>([]);
+  const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  const [subtitleSize, setSubtitleSize] = useState(readSubtitleSize);
+  const [cueText, setCueText] = useState('');
+  const autoChosen = useRef(false);
+  const lastSubtitle = useRef<SubtitleTrack | null>(null);
   const hideTimer = useRef<number>(undefined);
   const lastReport = useRef(0);
 
@@ -153,7 +166,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       }
       let p: PlaybackPlan;
       try {
-        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id });
+        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current });
       } catch (e) {
         setLoading(false);
         if (e instanceof ApiError && e.status === 403) setStopped(e.message);
@@ -231,6 +244,72 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
     setLoading(false);
     setError(item.itemId ? "Arc couldn't play this file." : "This file can't be played in the browser.");
   }, [absMS, detach, item.itemId, item.src, load]);
+
+  // Show a subtitle track (null for none). Text ones are drawn here; picture ones are burned into
+  // the video, which restarts it converted. remember saves the language for next time.
+  const selectSubtitle = useCallback(
+    async (t: SubtitleTrack | null, remember: boolean) => {
+      const p = plan.current;
+      if (!p || !item.itemId) return;
+      if (remember) updatePrefs.mutate({ subtitle_language: t && !t.forced ? (t.language ?? '') : '' });
+      if (t) lastSubtitle.current = t;
+      setSubtitle(t);
+      setCues([]);
+      setSubtitleError(null);
+      const wantBurn = t?.image ? t.id : undefined;
+      if (wantBurn !== burn.current) {
+        burn.current = wantBurn;
+        await load(absMS(), p.audio_stream);
+      }
+      if (!t || t.image) return;
+      try {
+        const res = await api.subtitleCues(item.itemId, t.id, p.file_id);
+        setCues(res.cues);
+      } catch (e) {
+        setSubtitleError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    // updatePrefs.mutate is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [item.itemId, load, absMS],
+  );
+
+  // Turn subtitles on by themselves once: in the profile's language, or forced ones.
+  useEffect(() => {
+    if (autoChosen.current || !planState || !prefs.data) return;
+    autoChosen.current = true;
+    const audioLang = planState.audio_tracks.find((a) => a.index === planState.audio_stream)?.language;
+    const t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang);
+    if (t) void selectSubtitle(t, false);
+  }, [planState, prefs.data, selectSubtitle]);
+
+  // The cue on screen, checked every frame so it appears on time.
+  useEffect(() => {
+    if (!cues.length) {
+      setCueText('');
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      const t = absMS();
+      const text = cues
+        .filter((c) => c.start_ms <= t && t < c.end_ms)
+        .map((c) => c.text)
+        .join('\n');
+      setCueText((prev) => (prev === text ? prev : text));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [cues, absMS]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('arc-subtitle-size', subtitleSize);
+    } catch {
+      // not remembered
+    }
+  }, [subtitleSize]);
 
   // Start playing when the player opens; end the conversion and save progress when it closes.
   useEffect(() => {
@@ -358,6 +437,14 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
         case 'ArrowDown':
           setVolume((x) => Math.max(0, Math.round((x - 0.1) * 10) / 10));
           break;
+        case 'c':
+          // Subtitles on (the last ones, or the first text ones) and off.
+          if (subtitle) void selectSubtitle(null, true);
+          else {
+            const t = lastSubtitle.current ?? plan.current?.subtitle_tracks.find((x) => !x.image);
+            if (t) void selectSubtitle(t, true);
+          }
+          break;
         case 'm':
           setMuted((x) => !x);
           break;
@@ -389,7 +476,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       document.body.style.overflow = '';
       window.clearTimeout(hideTimer.current);
     };
-  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen]);
+  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle]);
 
   const onTimeUpdate = () => {
     const v = video.current;
@@ -454,6 +541,22 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
               report('paused');
             }}
           />
+          {cueText && (
+            <div
+              className={cn(
+                'pointer-events-none absolute inset-x-0 flex flex-col items-center gap-1 px-[8%] text-center transition-[bottom] duration-300',
+                showChrome ? 'bottom-36' : 'bottom-[7%]',
+              )}
+              style={{ fontSize: subtitleSizes[subtitleSize] }}
+              data-subtitles
+            >
+              {cueText.split('\n').map((line, i) => (
+                <span key={i} className="rounded-md bg-black/65 px-[0.4em] py-[0.05em] font-medium leading-snug text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.6)]">
+                  <CueLine text={line} />
+                </span>
+              ))}
+            </div>
+          )}
           {loading && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <Loader2 className="size-12 animate-spin text-white/80" strokeWidth={1.5} />
@@ -517,6 +620,42 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                 })}
               </PlayerMenu>
             )}
+            {planState && planState.subtitle_tracks.length > 0 && (
+              <PlayerMenu icon={<Captions />} label="Subtitles (C)" onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>Subtitles</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => void selectSubtitle(null, true)}>
+                  <span className="w-4">{!subtitle && <Check className="size-4 text-accent" />}</span>
+                  Off
+                </DropdownMenuItem>
+                {planState.subtitle_tracks.map((t, i) => {
+                  const { name, detail } = subtitleLabel(t, i);
+                  return (
+                    <DropdownMenuItem key={t.id} onSelect={() => t.id !== subtitle?.id && void selectSubtitle(t, true)}>
+                      <span className="w-4">{t.id === subtitle?.id && <Check className="size-4 text-accent" />}</span>
+                      <span className="min-w-0">
+                        <span className="block">{name}</span>
+                        {detail && <span className="block text-xs text-subtle">{detail}</span>}
+                      </span>
+                    </DropdownMenuItem>
+                  );
+                })}
+                {subtitleError && <p className="max-w-64 px-2.5 py-1.5 text-xs text-warning">{subtitleError}</p>}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Size</DropdownMenuLabel>
+                {(['small', 'medium', 'large'] as const).map((sz) => (
+                  <DropdownMenuItem
+                    key={sz}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setSubtitleSize(sz);
+                    }}
+                  >
+                    <span className="w-4">{sz === subtitleSize && <Check className="size-4 text-accent" />}</span>
+                    {sz[0].toUpperCase() + sz.slice(1)}
+                  </DropdownMenuItem>
+                ))}
+              </PlayerMenu>
+            )}
             <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>
               <DropdownMenuLabel>Speed</DropdownMenuLabel>
               {speeds.map((s) => (
@@ -532,7 +671,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                 <p className="max-w-64 px-2.5 pb-2 text-xs leading-relaxed text-muted">{methodLabel(planState).detail}</p>
                 <DropdownMenuSeparator />
                 <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">
-                  Space play/pause · ←/→ 5s · J/L 10s · ↑/↓ volume · M mute · F full screen · &lt;/&gt; speed · 0–9 jump
+                  Space play/pause · ←/→ 5s · J/L 10s · ↑/↓ volume · M mute · C subtitles · F full screen · &lt;/&gt; speed · 0–9 jump
                 </p>
               </PlayerMenu>
             )}
@@ -544,6 +683,43 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       )}
     </motion.div>
   );
+}
+
+type SubtitleSize = 'small' | 'medium' | 'large';
+const subtitleSizes: Record<SubtitleSize, string> = {
+  small: 'clamp(14px, 2.4vh, 28px)',
+  medium: 'clamp(16px, 3.2vh, 38px)',
+  large: 'clamp(18px, 4.3vh, 52px)',
+};
+
+function readSubtitleSize(): SubtitleSize {
+  try {
+    const v = localStorage.getItem('arc-subtitle-size');
+    if (v === 'small' || v === 'medium' || v === 'large') return v;
+  } catch {
+    // the default below
+  }
+  return 'medium';
+}
+
+/** One line of a cue, with its italic, bold and underline tags (and nothing else) applied. */
+function CueLine({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  const style = { i: 0, b: 0, u: 0 };
+  text.split(/(<\/?[ibu]>)/).forEach((tok, i) => {
+    const m = /^<(\/?)([ibu])>$/.exec(tok);
+    if (m) {
+      style[m[2] as 'i' | 'b' | 'u'] += m[1] ? -1 : 1;
+      return;
+    }
+    if (!tok) return;
+    parts.push(
+      <span key={i} className={cn(style.i > 0 && 'italic', style.b > 0 && 'font-bold', style.u > 0 && 'underline')}>
+        {tok}
+      </span>,
+    );
+  });
+  return <>{parts}</>;
 }
 
 function Message({ icon, title, children, onClose }: { icon: ReactNode; title: string; children: ReactNode; onClose: () => void }) {

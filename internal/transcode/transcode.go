@@ -41,6 +41,8 @@ type Options struct {
 	MaxHeight    int
 	VideoKbps    int
 	SourceHeight int
+	// A picture subtitle stream to burn into the video (re-encoding only), or -1.
+	BurnSubtitle int
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// Who started it and for what, for the server's own checks.
@@ -170,7 +172,21 @@ func buildArgs(o Options, start float64, dir string) []string {
 		a = append(a, "-copyts")
 	}
 	a = append(a, "-i", o.Path)
-	a = append(a, "-map", "0:"+strconv.Itoa(o.VideoStream))
+	var scale string
+	if !o.CopyVideo && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
+		scale = "scale=-2:" + strconv.Itoa(o.MaxHeight)
+	}
+	if o.BurnSubtitle >= 0 && !o.CopyVideo {
+		// Picture subtitles drawn onto the video, then scaled with it.
+		fc := fmt.Sprintf("[0:%d][0:%d]overlay=eof_action=pass", o.VideoStream, o.BurnSubtitle)
+		if scale != "" {
+			fc += "," + scale
+		}
+		a = append(a, "-filter_complex", fc+"[v]", "-map", "[v]")
+		scale = ""
+	} else {
+		a = append(a, "-map", "0:"+strconv.Itoa(o.VideoStream))
+	}
 	if o.AudioStream >= 0 {
 		a = append(a, "-map", "0:"+strconv.Itoa(o.AudioStream))
 	}
@@ -192,8 +208,8 @@ func buildArgs(o Options, start float64, dir string) []string {
 		} else {
 			a = append(a, "-crf", "21", "-maxrate", "20M", "-bufsize", "40M")
 		}
-		if o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
-			a = append(a, "-vf", "scale=-2:"+strconv.Itoa(o.MaxHeight))
+		if scale != "" {
+			a = append(a, "-vf", scale)
 		}
 	}
 	if o.AudioStream >= 0 {
