@@ -222,3 +222,43 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 	}
 	return out, rows.Err()
 }
+
+// LibraryItemFiles returns the present files of a library's movies and episodes, by item id.
+func (s *Store) LibraryItemFiles(ctx context.Context, libraryID int64) (map[string][]MediaFile, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT f.item_id, `+prefixCols("m.", fileCols)+`, f.part
+		FROM item_files f JOIN media_files m ON m.id = f.file_id JOIN items i ON i.id = f.item_id
+		WHERE i.library_id = ? AND i.kind IN ('movie', 'episode') AND m.missing_since IS NULL
+		ORDER BY f.item_id, f.part, m.path`, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]MediaFile{}
+	var all []*MediaFile
+	for rows.Next() {
+		var itemID string
+		var f MediaFile
+		if err := rows.Scan(&itemID, &f.ID, &f.LibraryID, &f.Path, &f.Size, &f.ModTime, &f.Container, &f.DurationMS,
+			&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.Part); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		f.Edition = EditionOf(f.Path)
+		out[itemID] = append(out[itemID], f)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for id := range out {
+		for i := range out[id] {
+			all = append(all, &out[id][i])
+		}
+	}
+	for _, f := range all {
+		if f.Streams, err = s.fileStreams(ctx, f.ID); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}

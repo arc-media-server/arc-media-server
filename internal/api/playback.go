@@ -586,3 +586,86 @@ func (s *Server) transcoderCaps() transcode.Capabilities {
 	}
 	return s.transcoder.Caps()
 }
+
+// compatibility: POST /api/libraries/{id}/compatibility {"caps": {...}} says how a library's titles
+// would play on a player that can play those things: how many directly, repackaged or converted,
+// why, and which titles need converting.
+func (s *Server) compatibility(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Caps clientCaps `json:"caps"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, `send {"caps": {...}}`)
+		return
+	}
+	ctx := r.Context()
+	byItem, err := s.store.LibraryItemFiles(ctx, lib.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	type converted struct {
+		Item    itemDTO  `json:"item"`
+		Reasons []string `json:"reasons"`
+	}
+	out := struct {
+		Counts    map[string]int `json:"counts"`  // direct, remux, transcode
+		Reasons   map[string]int `json:"reasons"` // why, across everything not played directly
+		Converted []converted    `json:"converted"`
+		Total     int            `json:"total"`
+	}{Counts: map[string]int{"direct": 0, "remux": 0, "transcode": 0}, Reasons: map[string]int{}, Converted: []converted{}}
+
+	var convertIDs []string
+	convertReasons := map[string][]string{}
+	for itemID, files := range byItem {
+		// Files that couldn't be read are listed in Library Health instead.
+		var readable []store.MediaFile
+		for _, f := range files {
+			if f.ProbeError == "" && videoStream(&f) != nil {
+				readable = append(readable, f)
+			}
+		}
+		f := bestVersion(readable, "", body.Caps)
+		if f == nil {
+			continue
+		}
+		d := decide(f, videoStream(f), defaultAudio(f), body.Caps)
+		out.Counts[d.Method]++
+		out.Total++
+		for _, reason := range d.Reasons {
+			out.Reasons[reason]++
+		}
+		if d.Method == "transcode" {
+			convertIDs = append(convertIDs, itemID)
+			convertReasons[itemID] = d.Reasons
+		}
+	}
+	// The titles needing conversion, by name; episodes with their show.
+	series := map[string]*store.Item{}
+	for _, id := range convertIDs {
+		it, err := s.store.GetItem(ctx, id)
+		if err != nil || it == nil {
+			continue
+		}
+		d := toDTO(*it)
+		if it.Kind == "episode" {
+			sr, ok := series[it.ParentID]
+			if !ok {
+				sr, _ = s.store.GetItem(ctx, it.ParentID)
+				series[it.ParentID] = sr
+			}
+			if sr != nil {
+				d.SeriesTitle = sr.Title
+			}
+		}
+		out.Converted = append(out.Converted, converted{Item: d, Reasons: convertReasons[id]})
+	}
+	slices.SortFunc(out.Converted, func(a, b converted) int {
+		return strings.Compare(a.Item.SeriesTitle+"\x00"+a.Item.SortTitle, b.Item.SeriesTitle+"\x00"+b.Item.SortTitle)
+	})
+	writeJSON(w, http.StatusOK, out)
+}

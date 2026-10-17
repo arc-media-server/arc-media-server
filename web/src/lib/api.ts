@@ -647,6 +647,7 @@ export const api = {
   scanLibrary: (id: number) => request<ScanStatus>('POST', `/api/libraries/${id}/scan`),
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
+  compatibility: (libraryId: number, caps: PlayerCaps) => request<Compatibility>('POST', `/api/libraries/${libraryId}/compatibility`, { caps }),
   facets: (libraryId: number) => request<LibraryFacets>('GET', `/api/libraries/${libraryId}/facets`),
   /** Problems needing the user, per library id. */
   healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),
@@ -727,4 +728,14 @@ export function itemHref(item: Item): string {
     default:
       return `/movie/${item.id}`;
   }
+}
+
+/** How a library's titles would play on a device. */
+export interface Compatibility {
+  total: number;
+  counts: Record<PlaybackMethod, number>;
+  /** Why titles can't play as they are, with how many. */
+  reasons: Record<string, number>;
+  /** Titles that would be converted, and why. */
+  converted: { item: Item; reasons: string[] }[];
 }

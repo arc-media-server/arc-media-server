@@ -116,3 +116,36 @@ export function versionLabel(v: Version) {
   const rest = [v.hdr, v.video_codec ? fmt.codec(v.video_codec) : '', fmt.fileSize(v.size)];
   return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || 'Version', detail: rest.filter(Boolean).join(' · ') };
 }
+
+/**
+ * Devices to check a library against. Browsers' support is what they can do on most computers;
+ * HEVC and Dolby audio depend on the hardware and system, so they're left out where uncertain.
+ */
+export const devicePresets: { id: string; label: string; caps: () => PlayerCaps }[] = [
+  { id: 'this', label: 'This browser', caps: playerCaps },
+  {
+    id: 'chrome',
+    label: 'Chrome',
+    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
+  },
+  {
+    id: 'edge',
+    label: 'Edge on Windows',
+    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
+  },
+  {
+    id: 'firefox',
+    label: 'Firefox',
+    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
+  },
+  {
+    id: 'safari',
+    label: 'Safari on Mac',
+    caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc', 'vp9'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac', 'opus'], max_height: 2160 }),
+  },
+  {
+    id: 'ios',
+    label: 'iPhone and iPad',
+    caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac'], max_height: 2160 }),
+  },
+];

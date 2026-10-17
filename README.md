@@ -38,6 +38,9 @@ Early development. Working today:
   audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
   within what's converted it's instant, beyond it the conversion restarts there. The player's Info
   menu says which method is in use and why
+- Playback compatibility (Library Health): for this browser, Chrome, Edge, Firefox, Safari or
+  iPhone/iPad, how many titles in each library play directly, are repackaged or are converted, why,
+  and which ones need converting
 - Converting uses the graphics card when there is one (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple
   VideoToolbox or VA-API, found by a quick test at start-up), falling back to the processor, and maps
   HDR to SDR so converted HDR doesn't look washed out. Both are on by default, as in Plex (Settings >
@@ -175,6 +178,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/extras/{id}/stream` | Play a trailer or other extra |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
+| POST | `/api/libraries/{id}/compatibility` | How a library plays on a device: `{"caps": {...}}` → `{"total", "counts": {"direct", "remux", "transcode"}, "reasons", "converted": [{"item", "reasons"}]}` |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
 | DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
