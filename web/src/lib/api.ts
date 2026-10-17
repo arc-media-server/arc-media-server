@@ -342,6 +342,30 @@ export interface PlaybackPlan {
   file_id: number;
   audio_stream: number;
   audio_tracks: AudioTrack[];
+  subtitle_tracks: SubtitleTrack[];
+  /** The picture subtitle track being burned into the video, if any. */
+  burn_subtitle?: string;
+}
+
+export interface SubtitleTrack {
+  id: string;
+  language?: string;
+  title?: string;
+  codec: string;
+  forced: boolean;
+  default: boolean;
+  hearing_impaired: boolean;
+  /** A file beside the video. */
+  external: boolean;
+  /** A picture format (Blu-ray, DVD): shown by burning it into the video. */
+  image: boolean;
+}
+
+export interface SubtitleCue {
+  start_ms: number;
+  end_ms: number;
+  /** Text with line breaks; only <i>, <b> and <u> tags. */
+  text: string;
 }
 
 export interface LogLine {
@@ -420,6 +444,8 @@ export interface Prefs {
   hide_spoilers: boolean;
   /** "" follows the device. */
   theme: Theme;
+  /** The subtitle language last chosen, e.g. "eng"; "" for off. */
+  subtitle_language: string;
   /** Empty means the default layout. */
   home: HomeRow[];
 }
@@ -599,8 +625,10 @@ export const api = {
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
-  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number }) =>
+  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string }) =>
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
+  subtitleCues: (itemId: string, track: string, fileId: number) =>
+    request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
   stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),

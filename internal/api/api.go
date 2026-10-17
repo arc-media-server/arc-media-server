@@ -22,6 +22,7 @@ import (
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
+	"ams/internal/subtitles"
 	"ams/internal/transcode"
 	"ams/internal/webui"
 )
@@ -45,6 +46,8 @@ type Deps struct {
 	UploadsDir string
 	// Converts files players can't play as they are; nil if unavailable.
 	Transcoder *transcode.Manager
+	// Reads subtitles; nil if unavailable.
+	Subtitles *subtitles.Cache
 	// Recent log lines, for the dashboard.
 	Logs    *logbuf.Buffer
 	Log     *slog.Logger
@@ -65,6 +68,7 @@ type Server struct {
 	previews         *previews
 	playing          *nowPlaying
 	transcoder       *transcode.Manager
+	subtitles        *subtitles.Cache
 	logs             *logbuf.Buffer
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -76,7 +80,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -97,6 +101,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
 	mux.HandleFunc("POST /api/items/{id}/playback", user(s.startPlayback))
+	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}", user(s.subtitleCues))
 	mux.HandleFunc("GET /api/transcode/{sid}/{file}", user(s.transcodeFile))
 	mux.HandleFunc("POST /api/transcode/{sid}/ping", user(s.pingTranscode))
 	mux.HandleFunc("DELETE /api/transcode/{sid}", user(s.stopTranscode))

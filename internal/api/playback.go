@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"ams/internal/store"
+	"ams/internal/subtitles"
 	"ams/internal/transcode"
 )
 
@@ -144,6 +146,10 @@ type playbackPlan struct {
 	FileID      int64           `json:"file_id"`
 	AudioStream int             `json:"audio_stream"` // -1 for none
 	AudioTracks []audioTrackDTO `json:"audio_tracks"`
+	// Subtitles: text ones are fetched as cues and drawn by the player; picture ones are burned
+	// in by asking again with "burn_subtitle".
+	SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
+	BurnSubtitle   string            `json:"burn_subtitle,omitempty"`
 }
 
 // startPlayback: POST /api/items/{id}/playback {"caps": {...}, "file_id", "audio_stream",
@@ -160,6 +166,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		FileID      int64      `json:"file_id"`
 		AudioStream *int       `json:"audio_stream"`
 		StartMS     int64      `json:"start_ms"`
+		// A picture subtitle track to burn into the video (which means converting it).
+		BurnSubtitle string `json:"burn_subtitle"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.StartMS < 0 {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id", "audio_stream", "start_ms"`)
@@ -201,9 +209,20 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	d := decide(f, video, audio, body.Caps)
+	burn := -1
+	if body.BurnSubtitle != "" {
+		t, ok := subtitles.Find(f, body.BurnSubtitle)
+		if !ok || !t.Image || t.External {
+			writeError(w, http.StatusBadRequest, "only picture subtitles inside the file are burned in")
+			return
+		}
+		burn = t.StreamIndex
+		d.Method = "transcode"
+		d.Reasons = append(d.Reasons, "picture subtitles shown")
+	}
 
 	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
-		AudioStream: -1, AudioTracks: []audioTrackDTO{}}
+		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: subtitles.Tracks(f), BurnSubtitle: body.BurnSubtitle}
 	if out.Reasons == nil {
 		out.Reasons = []string{}
 	}
@@ -230,8 +249,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	}
 	opts := transcode.Options{Path: f.Path, StartMS: body.StartMS, VideoStream: video.Index, AudioStream: -1,
 		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
-		VideoCodec: video.Codec,
-		Owner:      currentSession(r), ItemID: it.ID}
+		VideoCodec: video.Codec, BurnSubtitle: burn,
+		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
 	}
@@ -314,4 +333,45 @@ func (s *Server) stopTranscode(w http.ResponseWriter, r *http.Request) {
 		s.transcoder.Stop(sess.ID)
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// subtitleCues: GET /api/items/{id}/subtitles/{track}?file=<id> is a text subtitle track's cues
+// (times in the file's time), extracted the first time it's asked for.
+func (s *Server) subtitleCues(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	files, err := s.store.ItemFiles(r.Context(), it.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	fileID, _ := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
+	var f *store.MediaFile
+	for i := range files {
+		if !files[i].Missing && (fileID == 0 || files[i].ID == fileID) {
+			f = &files[i]
+			break
+		}
+	}
+	if f == nil {
+		writeError(w, http.StatusNotFound, "no file for this item")
+		return
+	}
+	t, ok := subtitles.Find(f, r.PathValue("track"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such subtitle track")
+		return
+	}
+	if s.subtitles == nil {
+		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
+		return
+	}
+	cues, err := s.subtitles.Cues(r.Context(), f, t)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"track": t, "cues": cues})
 }

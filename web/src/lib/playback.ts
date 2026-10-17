@@ -1,4 +1,4 @@
-import type { AudioTrack, PlaybackPlan, PlayerCaps } from '@/lib/api';
+import type { AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack } from '@/lib/api';
 import * as fmt from '@/lib/format';
 
 let cached: PlayerCaps | undefined;
@@ -73,4 +73,33 @@ export function methodLabel(p: PlaybackPlan) {
     case 'transcode':
       return { title: 'Converting', detail: `Arc is converting the video for this browser (${p.reasons.join(', ')}).` };
   }
+}
+
+/** e.g. "English" with "Forced · SDH · File" as detail. */
+export function subtitleLabel(t: SubtitleTrack, i: number) {
+  const name = t.language && t.language !== 'und' ? fmt.language(t.language) : t.title || `Subtitles ${i + 1}`;
+  const detail = [
+    t.forced && 'Forced',
+    t.hearing_impaired && 'SDH',
+    t.title && t.title !== name && !/^(forced|sdh)$/i.test(t.title) ? t.title : '',
+    t.image ? 'Picture' : '',
+    t.external ? 'File' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return { name, detail };
+}
+
+/**
+ * The subtitles to start with: the profile's chosen language (full subtitles rather than forced
+ * ones), or else forced subtitles for the audio's language (signs and foreign dialogue).
+ */
+export function chooseSubtitle(tracks: SubtitleTrack[], preferred: string, audioLanguage?: string): SubtitleTrack | undefined {
+  const same = (a?: string, b?: string) => !!a && !!b && fmt.language(a) === fmt.language(b);
+  if (preferred) {
+    const matching = tracks.filter((t) => same(t.language, preferred));
+    const best = matching.find((t) => !t.forced && !t.hearing_impaired && !t.image) ?? matching.find((t) => !t.forced) ?? matching[0];
+    if (best) return best;
+  }
+  return tracks.find((t) => t.forced && (!t.language || !audioLanguage || same(t.language, audioLanguage)));
 }

@@ -38,8 +38,12 @@ Early development. Working today:
   audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
   within what's converted it's instant, beyond it the conversion restarts there. The player's Info
   menu says which method is in use and why
+- Subtitles: inside the file or beside it (`Movie.en.srt`, `Movie.eng.forced.srt`, `.ass`, `.vtt`;
+  old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
+  picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
+  language turns subtitles on by themselves next time, and forced subtitles show for foreign dialogue
 - A player with its own controls: audio track choice, playback speed, volume, full screen, and
-  keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, F, < and >, 0–9)
+  keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, C, F, < and >, 0–9)
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg and `<file>-poster.jpg`,
   `<file>-fanart.jpg`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
@@ -141,6 +145,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
 | POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id", "audio_stream", "start_ms"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", ...}`; starting again ends the player's previous conversion |
+| GET | `/api/items/{id}/subtitles/{track}?file=` | A text subtitle track's cues `{"start_ms", "end_ms", "text"}` (tracks are listed in the playback plan; picture ones are burned in with `"burn_subtitle"`) |
 | GET | `/api/transcode/{session}/index.m3u8` | A conversion's HLS playlist (and its `init.mp4` and `sNNNNN.m4s` segments) |
 | POST | `/api/transcode/{session}/ping` | Keep a paused player's conversion alive (they end after 2 minutes unused) |
 | DELETE | `/api/transcode/{session}` | End a conversion |

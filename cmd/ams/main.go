@@ -30,6 +30,7 @@ import (
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
+	"ams/internal/subtitles"
 	"ams/internal/transcode"
 	"ams/internal/watcher"
 )
@@ -277,6 +278,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		UploadsDir:    filepath.Join(dataDir, "uploads"),
 		Logs:          logs,
 		Transcoder:    transcoder,
+		Subtitles: subtitles.NewCache(filepath.Join(dataDir, "subtitles"), func() string {
+			ffMu.Lock()
+			defer ffMu.Unlock()
+			return ffmpegBin
+		}),
 		FFprobeStatus: func() any {
 			ffMu.Lock()
 			defer ffMu.Unlock()
