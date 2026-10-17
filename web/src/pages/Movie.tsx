@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
@@ -23,6 +24,8 @@ export function MoviePage() {
   const qc = useQueryClient();
   const admin = useIsAdmin();
   const { open: openDialog, dialogs } = useItemDialogs(item);
+  // The edition chosen on this page (for titles with several); undefined until one is picked.
+  const [edition, setEdition] = useState<string>();
   const refresh = useMutation({
     mutationFn: () => api.refreshItem(id!),
     onSuccess: (updated) => {
@@ -36,14 +39,26 @@ export function MoviePage() {
   if (error) return <ErrorState error={error} />;
   if (!item) return <div className="h-[70vh] animate-pulse bg-surface" />;
 
-  const file = item.files?.find((f) => !f.missing) ?? item.files?.[0];
+  // The title's versions (several files of the same part), and the editions among them.
+  const present = item.files?.filter((f) => !f.missing && f.part <= 1) ?? [];
+  const editions = [...new Set(present.map((f) => f.edition ?? ''))];
+  const currentEdition = editions.includes(edition ?? '') ? (edition ?? '') : (editions[0] ?? '');
+  const file = present.find((f) => (f.edition ?? '') === currentEdition) ?? item.files?.find((f) => !f.missing) ?? item.files?.[0];
+  const resolutions = [...new Set(present.map((f) => fmt.videoStream(f)).filter(Boolean).map((v) => fmt.resolution(v!.width, v!.height)))];
   const video = fmt.videoStream(file);
   const audio = fmt.audioStreams(file)[0];
   const playable = !!item.stream_url && item.files?.some((f) => !f.missing);
   const resumeAt = item.user_data?.position_ms ?? 0;
   const details = detailParts(item);
   const playFrom = (startMS: number) =>
-    play({ title: item.title, subtitle: item.year ? String(item.year) : undefined, src: item.stream_url!, itemId: item.id, startMS });
+    play({
+      title: item.title,
+      subtitle: [item.year, currentEdition].filter(Boolean).join(' · ') || undefined,
+      src: item.stream_url!,
+      itemId: item.id,
+      startMS,
+      edition: currentEdition,
+    });
 
   return (
     <Page className="pb-20">
@@ -61,7 +76,9 @@ export function MoviePage() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <MetaLine parts={[item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
               {details.contentRating && <Badge>{details.contentRating}</Badge>}
-              {video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
+              {resolutions.length > 1
+                ? resolutions.map((res) => <Badge key={res}>{res}</Badge>)
+                : video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
               {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
             </div>
             {item.tagline && <p className="mt-5 text-[15px] italic text-foreground/70">{item.tagline}</p>}
@@ -75,7 +92,26 @@ export function MoviePage() {
                 </button>
               </p>
             )}
-            <div className="mt-7 flex flex-wrap gap-3">
+            {editions.length > 1 && (
+              <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Edition">
+                {editions.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    role="radio"
+                    aria-checked={e === currentEdition}
+                    onClick={() => setEdition(e)}
+                    className={cn(
+                      'rounded-full px-3.5 py-1.5 text-[13px] font-medium ring-1 transition-colors',
+                      e === currentEdition ? 'bg-foreground text-background ring-foreground' : 'bg-black/20 text-foreground/80 ring-white/15 hover:bg-black/30',
+                    )}
+                  >
+                    {e || 'Standard Edition'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className={cn('flex flex-wrap gap-3', editions.length > 1 ? 'mt-4' : 'mt-7')}>
               <Button
                 variant="primary"
                 size="lg"
@@ -113,19 +149,25 @@ export function MoviePage() {
 
       <CastRow credits={item.credits} />
       <ExtrasRow extras={item.extras} title={item.title} />
-      {item.files?.map((f) => <FileDetails key={f.id} file={f} />)}
+      {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
       {dialogs}
     </Page>
   );
 }
 
-export function FileDetails({ file }: { file: MediaFile }) {
+export function FileDetails({ file, several }: { file: MediaFile; several?: boolean }) {
   const video = fmt.videoStream(file);
   const audio = fmt.audioStreams(file);
   const subs = fmt.subtitleStreams(file);
   return (
     <section className="mx-6 mt-10 md:mx-10">
-      <h2 className="mb-4 text-lg font-semibold">About This File</h2>
+      <h2 className="mb-4 text-lg font-semibold">
+        {several
+          ? ['About This Version:', file.edition, video && fmt.resolution(video.width, video.height), file.part > 0 && `Part ${file.part}`]
+              .filter(Boolean)
+              .join(' ')
+          : 'About This File'}
+      </h2>
       <div className="grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2 lg:grid-cols-4">
         <Detail label="Video">
           {video ? `${fmt.resolution(video.width, video.height)} · ${fmt.codec(video.codec)}` : '—'}

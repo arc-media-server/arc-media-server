@@ -1,4 +1,4 @@
-import type { AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack } from '@/lib/api';
+import type { AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack, Version } from '@/lib/api';
 import * as fmt from '@/lib/format';
 
 let cached: PlayerCaps | undefined;
@@ -102,4 +102,11 @@ export function chooseSubtitle(tracks: SubtitleTrack[], preferred: string, audio
     if (best) return best;
   }
   return tracks.find((t) => t.forced && (!t.language || !audioLanguage || same(t.language, audioLanguage)));
+}
+
+/** e.g. "Director's Cut" with "4K · HDR10 · HEVC · 58 GB", or "4K" with "HDR10 · HEVC · 58 GB". */
+export function versionLabel(v: Version) {
+  const res = v.width && v.height ? fmt.resolution(v.width, v.height) : '';
+  const rest = [v.hdr, v.video_codec ? fmt.codec(v.video_codec) : '', fmt.fileSize(v.size)];
+  return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || 'Version', detail: rest.filter(Boolean).join(' · ') };
 }

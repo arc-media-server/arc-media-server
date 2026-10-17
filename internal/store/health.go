@@ -141,7 +141,8 @@ type Duplicate struct {
 	Files []FileProblem `json:"files,omitempty"`
 }
 
-// Duplicates finds movies and episodes with several present copies, and movies or shows that
+// Duplicates finds movies and episodes with redundant copies (the same edition at the same
+// resolution; other versions are on purpose), and movies or shows that
 // were identified as the same title (e.g. two folders of the same show).
 func (s *Store) Duplicates(ctx context.Context, libraryID int64) ([]Duplicate, error) {
 	out := []Duplicate{}
@@ -175,6 +176,12 @@ func (s *Store) Duplicates(ctx context.Context, libraryID int64) ([]Duplicate, e
 			continue
 		}
 		seen[id] = true
+		// 4K and 1080p, or two editions, are versions on purpose rather than duplicates.
+		if all, err := s.ItemFiles(ctx, id); err != nil {
+			return nil, err
+		} else if !redundantCopies(all) {
+			continue
+		}
 		it, err := s.GetItem(ctx, id)
 		if err != nil || it == nil {
 			return nil, err

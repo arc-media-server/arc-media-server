@@ -149,7 +149,9 @@ type playbackPlan struct {
 	// Subtitles: text ones are fetched as cues and drawn by the player; picture ones are burned
 	// in by asking again with "burn_subtitle".
 	SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
-	BurnSubtitle   string            `json:"burn_subtitle,omitempty"`
+	// The title's files to choose from (editions and versions), the one playing among them.
+	Versions     []versionDTO `json:"versions"`
+	BurnSubtitle string       `json:"burn_subtitle,omitempty"`
 }
 
 // startPlayback: POST /api/items/{id}/playback {"caps": {...}, "file_id", "audio_stream",
@@ -168,6 +170,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		StartMS     int64      `json:"start_ms"`
 		// A picture subtitle track to burn into the video (which means converting it).
 		BurnSubtitle string `json:"burn_subtitle"`
+		// Without file_id, play this edition (e.g. "Director's Cut"; "" for the standard one).
+		Edition string `json:"edition"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.StartMS < 0 {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id", "audio_stream", "start_ms"`)
@@ -179,11 +183,14 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var f *store.MediaFile
-	for i := range files {
-		if !files[i].Missing && (body.FileID == 0 || files[i].ID == body.FileID) {
-			f = &files[i]
-			break
+	if body.FileID != 0 {
+		for i := range files {
+			if !files[i].Missing && files[i].ID == body.FileID {
+				f = &files[i]
+			}
 		}
+	} else {
+		f = bestVersion(files, body.Edition, body.Caps)
 	}
 	if f == nil {
 		writeError(w, http.StatusNotFound, "no playable file for this item")
@@ -222,7 +229,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
-		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: subtitles.Tracks(f), BurnSubtitle: body.BurnSubtitle}
+		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: subtitles.Tracks(f), BurnSubtitle: body.BurnSubtitle,
+		Versions: versions(files)}
 	if out.Reasons == nil {
 		out.Reasons = []string{}
 	}
@@ -374,4 +382,101 @@ func (s *Server) subtitleCues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"track": t, "cues": cues})
+}
+
+// versionDTO describes one of a title's files, for choosing between editions and versions.
+type versionDTO struct {
+	FileID     int64  `json:"file_id"`
+	Edition    string `json:"edition,omitempty"`
+	Width      int    `json:"width,omitempty"`
+	Height     int    `json:"height,omitempty"`
+	VideoCodec string `json:"video_codec,omitempty"`
+	// HDR10 or HLG, from the colour transfer.
+	HDR        string `json:"hdr,omitempty"`
+	Size       int64  `json:"size"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+}
+
+func hdrName(st *store.Stream) string {
+	switch st.ColorTransfer {
+	case "smpte2084":
+		return "HDR10"
+	case "arib-std-b67":
+		return "HLG"
+	}
+	return ""
+}
+
+// versions lists a title's playable files (the first part of each, for multi-part movies).
+func versions(files []store.MediaFile) []versionDTO {
+	out := []versionDTO{}
+	for _, f := range files {
+		if f.Missing || f.Part > 1 {
+			continue
+		}
+		v := versionDTO{FileID: f.ID, Edition: f.Edition, Size: f.Size, DurationMS: f.DurationMS}
+		if st := videoStream(&f); st != nil {
+			v.Width, v.Height, v.VideoCodec, v.HDR = st.Width, st.Height, st.Codec, hdrName(st)
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+// bestVersion picks the file to play: of the chosen edition, one that needs no video conversion
+// if there is one, and then the sharpest that fits the screen.
+func bestVersion(files []store.MediaFile, edition string, caps clientCaps) *store.MediaFile {
+	var candidates []*store.MediaFile
+	for i := range files {
+		if !files[i].Missing && files[i].Part <= 1 {
+			candidates = append(candidates, &files[i])
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+	// Only the asked-for edition, if the title has it.
+	var ofEdition []*store.MediaFile
+	for _, f := range candidates {
+		if strings.EqualFold(f.Edition, edition) {
+			ofEdition = append(ofEdition, f)
+		}
+	}
+	if len(ofEdition) > 0 {
+		candidates = ofEdition
+	}
+	type scored struct {
+		f         *store.MediaFile
+		transcode bool
+		tooBig    bool
+		height    int
+	}
+	var all []scored
+	for _, f := range candidates {
+		v := videoStream(f)
+		sc := scored{f: f, transcode: decide(f, v, defaultAudio(f), caps).Method == "transcode"}
+		if v != nil {
+			sc.height = max(v.Height, v.Width*9/16)
+		}
+		sc.tooBig = caps.MaxHeight > 0 && sc.height > caps.MaxHeight*11/10
+		all = append(all, sc)
+	}
+	slices.SortStableFunc(all, func(a, b scored) int {
+		switch {
+		case a.transcode != b.transcode:
+			if a.transcode {
+				return 1
+			}
+			return -1
+		case a.tooBig != b.tooBig:
+			if a.tooBig {
+				return 1
+			}
+			return -1
+		case a.tooBig:
+			return a.height - b.height // smallest of those bigger than the screen
+		}
+		return b.height - a.height // otherwise the sharpest
+	})
+	return all[0].f
 }

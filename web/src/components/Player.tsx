@@ -6,6 +6,7 @@ import {
   AlertCircle,
   Check,
   Captions,
+  Film,
   Gauge,
   Info,
   Languages,
@@ -25,7 +26,7 @@ import {
 import { api, ApiError, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack } from '@/lib/api';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
-import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel } from '@/lib/playback';
+import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel, versionLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -39,6 +40,8 @@ interface NowPlaying {
   itemId?: string;
   /** Where to start, in milliseconds (a resume point). */
   startMS?: number;
+  /** The edition to play when the title has several (e.g. "Director's Cut"). */
+  edition?: string;
 }
 
 const PlayerContext = createContext<(item: NowPlaying) => void>(() => {});
@@ -166,7 +169,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       }
       let p: PlaybackPlan;
       try {
-        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current });
+        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition });
       } catch (e) {
         setLoading(false);
         if (e instanceof ApiError && e.status === 403) setStopped(e.message);
@@ -272,6 +275,23 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
     // updatePrefs.mutate is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [item.itemId, load, absMS],
+  );
+
+  // Switch to another of the title's files (an edition or version) where playback is now. Its
+  // audio and subtitle tracks are different, so they're chosen again.
+  const selectVersion = useCallback(
+    async (fileId: number) => {
+      const p = plan.current;
+      if (!p || p.file_id === fileId) return;
+      const at = absMS();
+      plan.current = { ...p, file_id: fileId };
+      burn.current = undefined;
+      setSubtitle(null);
+      setCues([]);
+      autoChosen.current = false;
+      await load(at);
+    },
+    [absMS, load],
   );
 
   // Turn subtitles on by themselves once: in the profile's language, or forced ones.
@@ -654,6 +674,23 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                     {sz[0].toUpperCase() + sz.slice(1)}
                   </DropdownMenuItem>
                 ))}
+              </PlayerMenu>
+            )}
+            {planState && planState.versions.length > 1 && (
+              <PlayerMenu icon={<Film />} label="Version" onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>Version</DropdownMenuLabel>
+                {planState.versions.map((v) => {
+                  const { name, detail } = versionLabel(v);
+                  return (
+                    <DropdownMenuItem key={v.file_id} onSelect={() => void selectVersion(v.file_id)}>
+                      <span className="w-4">{v.file_id === planState.file_id && <Check className="size-4 text-accent" />}</span>
+                      <span className="min-w-0">
+                        <span className="block">{name}</span>
+                        <span className="block text-xs text-subtle">{detail}</span>
+                      </span>
+                    </DropdownMenuItem>
+                  );
+                })}
               </PlayerMenu>
             )}
             <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>

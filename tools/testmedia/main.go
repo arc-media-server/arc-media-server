@@ -29,6 +29,10 @@ var movies = []string{
 	"Heat (1995)/Heat (1995) {tmdb-949}.mp4",
 	"Heat (1995)/Extras/Making of.mp4", // should be skipped
 	"Heat (1995)/heat-trailer.mp4",     // should be skipped
+	// Two editions of one film, and a second (SD) version of Inception beside its 720p MKV.
+	"Blade Runner (1982)/Blade Runner (1982) {edition-Final Cut}.mp4",
+	"Blade Runner (1982)/Blade Runner (1982) {edition-Theatrical Cut}.mp4",
+	"Inception (2010)/Inception (2010) - SD.mp4",
 }
 
 var shows = []series{

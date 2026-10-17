@@ -51,19 +51,21 @@ type Credit struct {
 }
 
 type MediaFile struct {
-	ID         int64    `json:"id"`
-	LibraryID  int64    `json:"-"`
-	Path       string   `json:"path"`
-	Size       int64    `json:"size"`
-	ModTime    int64    `json:"-"`
-	Container  string   `json:"container,omitempty"`
-	DurationMS int64    `json:"duration_ms,omitempty"`
-	Bitrate    int64    `json:"bitrate,omitempty"`
-	ProbeError string   `json:"probe_error,omitempty"`
-	Probed     bool     `json:"-"`
-	Missing    bool     `json:"missing,omitempty"`
-	Part       int      `json:"part"`
-	Streams    []Stream `json:"streams"`
+	ID         int64  `json:"id"`
+	LibraryID  int64  `json:"-"`
+	Path       string `json:"path"`
+	Size       int64  `json:"size"`
+	ModTime    int64  `json:"-"`
+	Container  string `json:"container,omitempty"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+	Bitrate    int64  `json:"bitrate,omitempty"`
+	ProbeError string `json:"probe_error,omitempty"`
+	Probed     bool   `json:"-"`
+	Missing    bool   `json:"missing,omitempty"`
+	Part       int    `json:"part"`
+	// The edition, from the file name (e.g. "Director's Cut"); "" for none.
+	Edition string   `json:"edition,omitempty"`
+	Streams []Stream `json:"streams"`
 }
 
 type Stream struct {
