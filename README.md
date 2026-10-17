@@ -26,7 +26,8 @@ Early development. Working today:
   `Extras/`, `Trailers/`… folders or named `<movie>-trailer.mkv`) shown with their movie or show
 - Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
 - TMDB and TheTVDB metadata matching, with genres, cast and crew (with photos), studio or network,
-  tagline, score and age ratings for your region
+  tagline, score, age ratings for your region, original language, and for shows whether they are
+  continuing, ended or cancelled and when the next episode airs
 - "Fix Match": see exactly what Arc read from a file name and searched for, then search TMDB or
   TheTVDB and pick the right movie or show
 - Edit any title, date, description or genres; edited fields (and artwork you choose to keep) are
@@ -207,7 +208,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline or description |
+| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline or description |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | PATCH | `/api/items/{id}` | Edit metadata (incl. `genres`); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |

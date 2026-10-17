@@ -364,6 +364,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Offset, _ = strconv.Atoi(q.Get("offset"))
 	query.Access = access(r)
 	query.Genre = q.Get("genre")
+	query.Language = q.Get("language")
 	query.Decade, _ = strconv.Atoi(q.Get("decade"))
 	query.Resolution = q.Get("resolution")
 	query.UserID = currentUserID(r)

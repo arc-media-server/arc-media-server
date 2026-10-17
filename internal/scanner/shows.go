@@ -13,6 +13,7 @@ import (
 
 	"ams/internal/metadata"
 	"ams/internal/store"
+	"ams/internal/subtitles"
 )
 
 // Series metadata (and their orderings) are refreshed at most this often during scans.
@@ -108,8 +109,15 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	}
 	age := time.Since(time.Unix(syncedAt, 0))
 
+	// A show still airing is also refreshed (at most daily) once its next episode's date has come.
+	nextAired, err := s.store.NextAired(ctx, id)
+	if err != nil {
+		return err
+	}
+	aired := nextAired != "" && nextAired <= time.Now().Format("2006-01-02") && age > 24*time.Hour
+
 	synced := false
-	if s.hasProviders() && (syncedAt == 0 || age > resyncAfter) {
+	if s.hasProviders() && (syncedAt == 0 || age > resyncAfter || aired) {
 		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -274,6 +282,14 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		it.TMDBID = 0
 	}
 	applyDetails(&it, primary.Details)
+	if secondary != nil {
+		if it.OriginalLanguage == "" {
+			it.OriginalLanguage = subtitles.LanguageCode2(secondary.OriginalLanguage)
+		}
+		if it.ShowStatus == "" {
+			it.ShowStatus, it.LastAired, it.NextAired = secondary.Status, secondary.LastAired, secondary.NextAired
+		}
+	}
 	it.MetadataState = "matched"
 	if err := s.store.UpdateMetadata(ctx, &it); err != nil {
 		return err

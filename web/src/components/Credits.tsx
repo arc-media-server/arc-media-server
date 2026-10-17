@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Credit, Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import * as fmt from '@/lib/format';
 
 /** "Directed by …", "Written by …", "Created by …" and the studio or network. */
 export function CrewLine({ item }: { item: Item }) {
@@ -13,6 +14,8 @@ export function CrewLine({ item }: { item: Item }) {
     ['Directed by', people('director')],
     ['Written by', people('writer').slice(0, 3)],
     [item.kind === 'series' ? 'Network' : 'Studio', item.studio ? item.studio.split(', ').slice(0, 2).map((name) => ({ name })) : []],
+    ['Language', item.original_language ? [{ name: fmt.language(item.original_language) }] : []],
+    ['Status', showStatus(item) ? [{ name: showStatus(item) }] : []],
   ];
   const shown = lines.filter(([, n]) => n.length);
   if (!shown.length) return null;
@@ -39,6 +42,23 @@ export function CrewLine({ item }: { item: Item }) {
       ))}
     </dl>
   );
+}
+
+/** "Ended in 2003", "Continuing · next episode 24 Oct 2026", and so on ("" if unknown). */
+export function showStatus(item: Item): string {
+  const year = item.last_aired?.slice(0, 4);
+  const today = new Date().toISOString().slice(0, 10);
+  switch (item.status) {
+    case 'ended':
+      return year ? `Ended in ${year}` : 'Ended';
+    case 'cancelled':
+      return year ? `Cancelled in ${year}` : 'Cancelled';
+    case 'upcoming':
+      return item.next_aired && item.next_aired >= today ? `Premieres ${fmt.date(item.next_aired)}` : 'Coming soon';
+    case 'continuing':
+      return item.next_aired && item.next_aired >= today ? `Continuing · next episode ${fmt.date(item.next_aired)}` : 'Continuing';
+  }
+  return '';
 }
 
 /** A scrolling row of the cast, with photos. */

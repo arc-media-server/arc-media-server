@@ -298,6 +298,7 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		IMDBID              string      `json:"imdb_id"`
 		Title               string      `json:"title"`
 		OriginalTitle       string      `json:"original_title"`
+		OriginalLanguage    string      `json:"original_language"`
 		Overview            string      `json:"overview"`
 		Tagline             string      `json:"tagline"`
 		ReleaseDate         string      `json:"release_date"`
@@ -361,14 +362,15 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		PosterPath:    d.PosterPath,
 		BackdropPath:  d.BackdropPath,
 		Details: Details{
-			Tagline:         d.Tagline,
-			LogoPath:        bestLogo(d.Images.Logos),
-			Recommendations: d.Recommendations.ids(),
-			ContentRating:   pickRating(c.Region(), ratings),
-			Studios:         names(d.ProductionCompanies),
-			Rating:          d.VoteAverage,
-			Genres:          names(d.Genres),
-			People:          credits(d.Credits.Cast, d.Credits.Crew),
+			Tagline:          d.Tagline,
+			LogoPath:         bestLogo(d.Images.Logos),
+			Recommendations:  d.Recommendations.ids(),
+			ContentRating:    pickRating(c.Region(), ratings),
+			Studios:          names(d.ProductionCompanies),
+			OriginalLanguage: d.OriginalLanguage,
+			Rating:           d.VoteAverage,
+			Genres:           names(d.Genres),
+			People:           credits(d.Credits.Cast, d.Credits.Crew),
 		},
 	}, nil
 }

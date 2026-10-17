@@ -46,6 +46,12 @@ type Item struct {
 	LocalLogo string `json:"-"`
 	// A show's own episode numbering, overriding its library's; "" follows the library.
 	SourceOrdering string `json:"source_ordering,omitempty"`
+	// The language it was made in (2-letter code, e.g. "ja").
+	OriginalLanguage string `json:"original_language,omitempty"`
+	// Shows: continuing, ended, cancelled or upcoming, and the last and next air dates.
+	ShowStatus string `json:"status,omitempty"`
+	LastAired  string `json:"last_aired,omitempty"`
+	NextAired  string `json:"next_aired,omitempty"`
 }
 
 // Credit is a person's part in a movie or show.
@@ -120,6 +126,7 @@ type ItemQuery struct {
 
 	// Filters for browsing. Zero values mean no filter.
 	Genre      string
+	Language   string // original language, 2-letter code
 	Decade     int    // e.g. 1990 for 1990–1999
 	Resolution string // 4k, 1080, 720 or sd (movies)
 	// The profile whose watch state Unwatched and the "watched" sort use.

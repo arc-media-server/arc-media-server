@@ -48,6 +48,13 @@ func (s *Store) MarkAllUnsynced(ctx context.Context) error {
 	return err
 }
 
+// NextAired returns the date a show's next episode airs (YYYY-MM-DD), or "" if none is known.
+func (s *Store) NextAired(ctx context.Context, id string) (string, error) {
+	var d string
+	err := s.db.QueryRowContext(ctx, `SELECT next_aired FROM items WHERE id = ?`, id).Scan(&d)
+	return d, err
+}
+
 // SyncedAt returns when an item's metadata was last synced (unix seconds, 0 for never).
 func (s *Store) SyncedAt(ctx context.Context, id string) (int64, error) {
 	var t int64

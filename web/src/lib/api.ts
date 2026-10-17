@@ -96,6 +96,12 @@ export interface Item {
   content_rating?: string;
   /** Studios (movies) or networks (shows), comma-separated. */
   studio?: string;
+  /** The language it was made in, 2-letter code (e.g. "ja"). */
+  original_language?: string;
+  /** Shows: whether new episodes are still coming, and the last and next air dates (YYYY-MM-DD). */
+  status?: 'continuing' | 'ended' | 'cancelled' | 'upcoming';
+  last_aired?: string;
+  next_aired?: string;
   /** Audience score out of 10. */
   rating?: number;
   /** On a movie or show's own page. */
@@ -464,6 +470,8 @@ export interface LibraryFacets {
   genres: Facet[];
   decades: Facet[];
   resolutions: Facet[];
+  /** Original languages, most titles first. */
+  languages: Facet[];
 }
 
 export interface ItemQuery {
@@ -472,6 +480,8 @@ export interface ItemQuery {
   q?: string;
   sort?: ItemSort;
   genre?: string;
+  /** Original language, 2-letter code. */
+  language?: string;
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
@@ -490,6 +500,7 @@ export interface ItemQuery {
 export interface RowFilter {
   library_id: number;
   genre?: string;
+  language?: string;
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;

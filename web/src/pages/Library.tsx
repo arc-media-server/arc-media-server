@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { plural } from '@/lib/format';
+import { language, plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { MediaRow } from '@/components/MediaRow';
@@ -39,6 +39,7 @@ export function LibraryPage() {
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
   const filters = {
     genre: params.get('genre') ?? undefined,
+    language: params.get('language') ?? undefined,
     decade: Number(params.get('decade')) || undefined,
     resolution: (params.get('resolution') as Resolution) || undefined,
     unwatched: params.get('unwatched') === '1' || undefined,
@@ -148,6 +149,14 @@ export function LibraryPage() {
             options={facets.data.genres.map((f) => [f.value, f.value, f.count])}
             onChange={(v) => setParam('genre', v)}
           />
+          {facets.data.languages.length > 1 && (
+            <FilterMenu
+              label="Language"
+              value={filters.language}
+              options={facets.data.languages.map((f) => [f.value, language(f.value), f.count])}
+              onChange={(v) => setParam('language', v)}
+            />
+          )}
           <FilterMenu
             label="Decade"
             value={filters.decade ? String(filters.decade) : undefined}
