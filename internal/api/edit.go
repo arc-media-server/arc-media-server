@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"ams/internal/config"
 	"ams/internal/scanner"
 	"ams/internal/store"
 )
@@ -33,7 +34,10 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		Studio        *string   `json:"studio"`
 		ReleaseDate   *string   `json:"release_date"`
 		RuntimeMin    *int      `json:"runtime_min"`
-		LockedFields  *[]string `json:"locked_fields"`
+		Genres        *[]string `json:"genres"`
+		// A show's episode numbering; "" follows its library.
+		SourceOrdering *string   `json:"source_ordering"`
+		LockedFields   *[]string `json:"locked_fields"`
 	}
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -66,6 +70,20 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	case e.RuntimeMin != nil && (*e.RuntimeMin < 0 || *e.RuntimeMin > 100000):
 		writeError(w, http.StatusBadRequest, "runtime_min must be 0 or more")
 		return
+	case body.SourceOrdering != nil && (it.Kind != "series" || *body.SourceOrdering != "" && !config.ValidSourceOrdering(*body.SourceOrdering)):
+		writeError(w, http.StatusBadRequest, "source_ordering is for shows: tmdb_aired, tvdb_aired, tvdb_dvd, tvdb_absolute, or \"\" for the library's")
+		return
+	}
+	if body.Genres != nil {
+		genres := []string{}
+		seen := map[string]bool{}
+		for _, g := range *body.Genres {
+			if g = strings.TrimSpace(g); g != "" && !seen[strings.ToLower(g)] && len(genres) < 30 {
+				seen[strings.ToLower(g)] = true
+				genres = append(genres, g)
+			}
+		}
+		e.Genres = &genres
 	}
 	if body.LockedFields != nil {
 		e.Locked = *body.LockedFields
@@ -82,6 +100,19 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.EditItem(r.Context(), it.ID, e); err != nil {
 		s.fail(w, err)
 		return
+	}
+	if body.SourceOrdering != nil && *body.SourceOrdering != it.SourceOrdering {
+		if err := s.store.SetSourceOrdering(r.Context(), it.ID, *body.SourceOrdering); err != nil {
+			s.fail(w, err)
+			return
+		}
+		// Match the files to episodes again with the new numbering.
+		if lib, err := s.store.GetLibrary(r.Context(), it.LibraryID); err == nil && lib != nil {
+			if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, it.ID, false); err != nil {
+				s.log.Warn("re-numbering a show failed", "series", it.Title, "err", err)
+			}
+			s.scanner.Start(lib.ID)
+		}
 	}
 	s.getItem(w, r)
 }

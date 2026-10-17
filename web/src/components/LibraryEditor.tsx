@@ -11,11 +11,11 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 
-const orderings: { value: SourceOrdering; label: string; hint: string }[] = [
-  { value: 'tvdb_aired', label: 'TheTVDB aired order', hint: "Sonarr's default; most libraries use this" },
+export const orderings: { value: SourceOrdering; label: string; hint: string }[] = [
+  { value: 'tmdb_aired', label: 'TMDB aired order', hint: 'Files numbered the way TMDB lists them; the default, as in Plex' },
+  { value: 'tvdb_aired', label: 'TheTVDB aired order', hint: "Files numbered the way TheTVDB lists them (Sonarr's default)" },
   { value: 'tvdb_dvd', label: 'TheTVDB DVD order', hint: 'Files numbered like the DVD releases' },
   { value: 'tvdb_absolute', label: 'TheTVDB absolute order', hint: 'Episodes numbered 1, 2, 3… across seasons (common for anime)' },
-  { value: 'tmdb_aired', label: 'TMDB aired order', hint: 'Files numbered the way TMDB lists them' },
 ];
 
 /** Adds a library (choose folders, preview what Arc finds, add), or edits one when `library` is set. */
@@ -34,7 +34,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [name, setName] = useState(library?.name ?? '');
   const [nameTouched, setNameTouched] = useState(editing);
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
-  const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tvdb_aired');
+  const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tmdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
   const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
   const [picking, setPicking] = useState(!editing);

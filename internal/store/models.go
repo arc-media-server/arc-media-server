@@ -44,6 +44,8 @@ type Item struct {
 	// Clear logo: provider path, and a logo file next to the media.
 	LogoPath  string `json:"-"`
 	LocalLogo string `json:"-"`
+	// A show's own episode numbering, overriding its library's; "" follows the library.
+	SourceOrdering string `json:"source_ordering,omitempty"`
 }
 
 // Credit is a person's part in a movie or show.

@@ -13,6 +13,7 @@ export type LockableField =
   | 'poster'
   | 'backdrop'
   | 'logo'
+  | 'genres'
   | 'tagline'
   | 'content_rating'
   | 'studio';
@@ -29,6 +30,9 @@ export interface ItemEdit {
   tagline?: string;
   content_rating?: string;
   studio?: string;
+  genres?: string[];
+  /** A show's episode numbering; "" follows its library. */
+  source_ordering?: SourceOrdering | '';
   locked_fields?: LockableField[];
 }
 
@@ -96,6 +100,8 @@ export interface Item {
   rating?: number;
   /** On a movie or show's own page. */
   genres?: string[];
+  /** A show's own episode numbering, when it overrides its library's. */
+  source_ordering?: SourceOrdering;
   credits?: Credit[];
   extras?: Extra[];
   /** On a movie or show's own page: the collections it's in. */

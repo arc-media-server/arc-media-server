@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -12,7 +13,7 @@ import (
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
-	logo_path, local_logo`
+	logo_path, local_logo, source_ordering`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -25,7 +26,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
-		&it.LogoPath, &it.LocalLogo}
+		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -43,6 +44,7 @@ var LockableFields = map[string]string{
 	"poster":         "poster_path",
 	"backdrop":       "backdrop_path",
 	"logo":           "logo_path",
+	"genres":         "item_genres", // its own table, not a column of items
 	"tagline":        "tagline",
 	"content_rating": "content_rating",
 	"studio":         "studio",
@@ -236,12 +238,19 @@ func (s *Store) SetItemDetails(ctx context.Context, itemID string, genres []stri
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM item_genres WHERE item_id = ?`, itemID); err != nil {
+	// Genres the user edited are kept.
+	var locked string
+	if err := tx.QueryRowContext(ctx, `SELECT locked_fields FROM items WHERE id = ?`, itemID).Scan(&locked); err != nil {
 		return err
 	}
-	for _, g := range genres {
-		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_genres (item_id, name) VALUES (?, ?)`, itemID, g); err != nil {
+	if !slices.Contains(splitLocked(locked), "genres") {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM item_genres WHERE item_id = ?`, itemID); err != nil {
 			return err
+		}
+		for _, g := range genres {
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_genres (item_id, name) VALUES (?, ?)`, itemID, g); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM item_people WHERE item_id = ?`, itemID); err != nil {
@@ -329,6 +338,7 @@ type ItemEdit struct {
 	Poster        *string
 	Backdrop      *string
 	Logo          *string
+	Genres        *[]string
 	ContentRating *string
 	Studio        *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
@@ -414,6 +424,17 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	}
 	if e.Logo != nil {
 		set("logo", *e.Logo)
+	}
+	if e.Genres != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM item_genres WHERE item_id = ?`, id); err != nil {
+			return err
+		}
+		for _, g := range *e.Genres {
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_genres (item_id, name) VALUES (?, ?)`, id, g); err != nil {
+				return err
+			}
+		}
+		locked["genres"] = true
 	}
 
 	fields := make([]string, 0, len(locked))

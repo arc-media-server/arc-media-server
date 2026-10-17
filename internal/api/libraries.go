@@ -39,7 +39,7 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		return errors.New("kind must be movies or shows")
 	}
 	if b.SourceOrdering == "" {
-		b.SourceOrdering = "tvdb_aired"
+		b.SourceOrdering = "tmdb_aired" // TMDB by default, as Plex does
 	}
 	if !config.ValidSourceOrdering(b.SourceOrdering) {
 		return fmt.Errorf("unknown source_ordering %q", b.SourceOrdering)
