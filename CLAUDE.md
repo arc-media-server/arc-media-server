@@ -42,9 +42,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 3 done (Oct 2026): artwork cache, backups + restore, field locks + Edit Details, Fix
   Match with explanations, Library Health page, folder watching, and libraries managed in the app
   with a preview before adding (the owner chose in-app libraries over ams.yaml).
-- Milestone 4 in progress: sign-in, profiles, Settings, watch state, Continue Watching/Up Next and
-  richer metadata (genres, cast, age ratings by region) and parental controls are done. Next:
-  #68 remove gone items.
+- Milestone 4 done (Oct 2026): sign-in, Plex-style profiles, Settings (no config file), watch state,
+  Continue Watching/Up Next, richer metadata (age ratings by region), parental controls, empty trash.
+- Next: milestone 5 (web app: admin area, filters, local artwork/NFO, extras, choose artwork, dashboard).
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

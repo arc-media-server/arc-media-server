@@ -124,6 +124,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |
+| POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
+| DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
 | GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
 | PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |

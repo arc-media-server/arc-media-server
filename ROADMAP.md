@@ -46,7 +46,7 @@ powerful when you need it.
 - [x] Local artwork cache
 - [x] Automatic database backups with retention, plus one-click restore
 
-### 4. Users and watch state
+### ✅ 4. Users and watch state
 - [x] Accounts, login, sessions/tokens; first-run setup creates the admin
 - [x] Settings in the web app, no config file: API keys, ffprobe found automatically, port and network access
 - [x] Per-user profiles with PINs (Plex-style managed users), optional sign-in bypass on the home network
@@ -55,7 +55,7 @@ powerful when you need it.
 - [x] Continue Watching, Next Up (follows the display ordering), Recently Added
 - [x] Richer metadata: genres, cast and crew, studio/network, content rating, tagline, ratings
 - [x] Parental controls by content rating
-- [ ] Remove items whose files are gone ("Empty trash")
+- [x] Remove items whose files are gone ("Empty trash")
 
 ### 5. AMS web app (Apple-style)
 _Started early (after milestone 2) so progress can be seen as it's built._

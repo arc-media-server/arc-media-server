@@ -65,6 +65,71 @@ func (s *Store) UnrecognisedFiles(ctx context.Context, libraryID int64) ([]FileP
 		`m.missing_since IS NULL AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.file_id = m.id)`)
 }
 
+// goneItemsSQL selects the movies, episodes and series in library ?1 that have files, none of
+// them present any more.
+const goneItemsSQL = `
+	SELECT i.id FROM items i
+	WHERE i.library_id = ?1 AND i.kind IN ('movie', 'episode')
+		AND EXISTS (SELECT 1 FROM item_files f WHERE f.item_id = i.id)
+		AND NOT EXISTS (SELECT 1 FROM item_files f JOIN media_files m ON m.id = f.file_id
+			WHERE f.item_id = i.id AND m.missing_since IS NULL)
+	UNION
+	SELECT s.id FROM items s
+	WHERE s.library_id = ?1 AND s.kind = 'series'
+		AND EXISTS (SELECT 1 FROM items e JOIN item_files f ON f.item_id = e.id WHERE e.parent_id = s.id)
+		AND NOT EXISTS (SELECT 1 FROM items e JOIN item_files f ON f.item_id = e.id
+			JOIN media_files m ON m.id = f.file_id WHERE e.parent_id = s.id AND m.missing_since IS NULL)`
+
+// EmptyTrash forgets everything in a library whose files are gone: the missing files, and the
+// movies, episodes and shows left with no file at all (with their watch history). Titles with at
+// least one file still present stay. It returns how many titles were removed.
+func (s *Store) EmptyTrash(ctx context.Context, libraryID int64) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE id IN (`+goneItemsSQL+`)`, libraryID)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM media_files WHERE library_id = ? AND missing_since IS NOT NULL`, libraryID); err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
+
+// RemoveGoneItem forgets one movie, episode or show whose files are all gone. It returns false
+// (and removes nothing) if any of its files is still present.
+func (s *Store) RemoveGoneItem(ctx context.Context, it *Item) (bool, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	var gone int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM (`+goneItemsSQL+`) WHERE id = ?2`, it.LibraryID, it.ID).Scan(&gone); err != nil {
+		return false, err
+	}
+	if gone == 0 {
+		return false, nil
+	}
+	// Its missing files go too (files shared with other titles, like double episodes, are kept).
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM media_files WHERE missing_since IS NOT NULL AND id IN (
+			SELECT f.file_id FROM item_files f JOIN items i ON i.id = f.item_id
+			WHERE i.id = ?1 OR i.parent_id = ?1)
+		AND NOT EXISTS (SELECT 1 FROM item_files f JOIN items i ON i.id = f.item_id
+			WHERE f.file_id = media_files.id AND i.id <> ?1 AND COALESCE(i.parent_id, '') <> ?1)`, it.ID); err != nil {
+		return false, err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, it.ID); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
 // Duplicate is something the library has more than once.
 type Duplicate struct {
 	// copies: one movie or episode with several files; same_title: several movies or shows

@@ -464,6 +464,8 @@ export const api = {
   createBackup: () => request<Backup>('POST', '/api/backups'),
   restoreBackup: (name: string) => request<void>('POST', `/api/backups/${encodeURIComponent(name)}/restore`),
   deleteBackup: (name: string) => request<void>('DELETE', `/api/backups/${encodeURIComponent(name)}`),
+  emptyTrash: (libraryId: number) => request<{ removed: number }>('POST', `/api/libraries/${libraryId}/empty-trash`),
+  removeItem: (id: string) => request<void>('DELETE', `/api/items/${id}`),
 };
 
 export function posterUrl(item: Item): string | undefined {

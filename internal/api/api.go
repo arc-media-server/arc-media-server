@@ -105,6 +105,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/libraries/{id}/scan", admin(s.startScan))
 	mux.HandleFunc("GET /api/libraries/{id}/unmatched", admin(s.unmatched))
 	mux.HandleFunc("GET /api/libraries/{id}/health", admin(s.libraryHealth))
+	mux.HandleFunc("POST /api/libraries/{id}/empty-trash", admin(s.emptyTrash))
+	mux.HandleFunc("DELETE /api/items/{id}", admin(s.removeItem))
 	mux.HandleFunc("GET /api/health/libraries", admin(s.healthSummary))
 	mux.HandleFunc("POST /api/library-previews", admin(s.startPreview))
 	mux.HandleFunc("GET /api/library-previews/{id}", admin(s.getPreview))

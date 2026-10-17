@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { useQueries } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2,
   ChevronRight,
@@ -12,6 +12,7 @@ import {
   HelpCircle,
   ListOrdered,
   ListX,
+  Trash2,
   Tv,
   type LucideIcon,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import { FixMatchDialog } from '@/components/FixMatch';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function HealthPage() {
   const { data: libraries } = useLibraries();
@@ -109,8 +111,9 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
         <Category
           icon={FileX2}
           title="Missing files"
-          hint="These files weren't found in the last scan. If a drive is disconnected, reconnect it and scan. Arc keeps these titles and their history until the files are back."
+          hint="These files weren't found in the last scan. If a drive is disconnected, reconnect it and scan. Arc keeps these titles and their history until the files are back, or until you remove them."
           items={r.missing_files}
+          action={<EmptyTrashButton libraryId={r.library.id} libraryName={r.library.name} />}
           render={(f) => (
             <FileRow
               key={f.file_id}
@@ -162,6 +165,7 @@ function Category<T>({
   hint,
   items,
   render,
+  action,
 }: {
   icon: LucideIcon;
   tone?: 'warning';
@@ -169,6 +173,8 @@ function Category<T>({
   hint: string;
   items: T[];
   render: (item: T, i: number) => ReactNode;
+  /** A button for the whole category, e.g. Remove All. */
+  action?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
@@ -180,12 +186,13 @@ function Category<T>({
         <div className={cn('mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl', tone === 'warning' ? 'bg-warning/12 text-warning' : 'bg-surface-2 text-muted')}>
           <Icon className="size-4" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold">
             {title} <span className="ml-1 font-normal text-subtle">{items.length}</span>
           </h3>
           <p className="mt-0.5 max-w-3xl text-sm text-muted">{hint}</p>
         </div>
+        {action}
       </div>
       <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
         {shown.map(render)}
@@ -196,6 +203,45 @@ function Category<T>({
         )}
       </div>
     </div>
+  );
+}
+
+/** Removes everything in a library whose files are gone, after asking. */
+function EmptyTrashButton({ libraryId, libraryName }: { libraryId: number; libraryName: string }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const empty = useMutation({
+    mutationFn: () => api.emptyTrash(libraryId),
+    onSuccess: () => {
+      setOpen(false);
+      qc.invalidateQueries();
+    },
+  });
+  return (
+    <>
+      <Button variant="secondary" size="sm" className="shrink-0" onClick={() => setOpen(true)}>
+        <Trash2 /> Remove All…
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) empty.reset();
+        }}
+        title="Remove titles whose files are gone?"
+        confirmLabel="Remove"
+        destructive
+        busy={empty.isPending}
+        error={empty.error?.message}
+        onConfirm={() => empty.mutate()}
+      >
+        <p>
+          Arc forgets the missing files in {libraryName}, and any movie, episode or show left with no files at all, including their
+          watch history. Titles that still have a file are kept.
+        </p>
+        <p>Only do this if the files are gone for good, not on a disconnected drive. A backup is made first.</p>
+      </ConfirmDialog>
+    </>
   );
 }
 

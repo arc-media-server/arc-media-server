@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"ams/internal/backup"
 	"ams/internal/store"
 )
 
@@ -105,6 +106,53 @@ func (s *Server) healthSummary(w http.ResponseWriter, r *http.Request) {
 		out[strconv.FormatInt(lib, 10)] = n
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// emptyTrash: POST /api/libraries/{id}/empty-trash forgets everything in a library whose files are
+// gone (after backing up the database). Media files aren't touched.
+func (s *Server) emptyTrash(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	if s.scanner.Status(lib.ID).Running {
+		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
+		return
+	}
+	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
+		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
+		return
+	}
+	n, err := s.store.EmptyTrash(r.Context(), lib.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.log.Info("removed titles whose files are gone", "library", lib.Name, "count", n)
+	writeJSON(w, http.StatusOK, map[string]int64{"removed": n})
+}
+
+// removeItem: DELETE /api/items/{id} forgets a movie, episode or show whose files are all gone
+// (after backing up the database). Refused if any of its files is still there.
+func (s *Server) removeItem(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
+		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
+		return
+	}
+	removed, err := s.store.RemoveGoneItem(r.Context(), it)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if !removed {
+		writeError(w, http.StatusConflict, "some of its files are still there; only titles whose files are all gone can be removed")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func toDTOs(items []store.Item) []itemDTO {
