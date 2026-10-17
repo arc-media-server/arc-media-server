@@ -189,6 +189,8 @@ type VideoFile struct {
 	Path          string
 	DurationMS    int64
 	Width, Height int
+	// The colour transfer (smpte2084 or arib-std-b67 for HDR).
+	ColorTransfer string
 }
 
 // VideoFiles lists present, readable movie and episode files in libraries with timeline
@@ -197,7 +199,8 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT m.id, m.path, m.duration_ms,
 			COALESCE((SELECT width FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
-			COALESCE((SELECT height FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0)
+			COALESCE((SELECT height FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
+			COALESCE((SELECT color_transfer FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), '')
 		FROM media_files m
 		JOIN item_files f ON f.file_id = m.id JOIN items i ON i.id = f.item_id
 		JOIN libraries l ON l.id = i.library_id AND l.trickplay = 1
@@ -212,7 +215,7 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 	var out []VideoFile
 	for rows.Next() {
 		var v VideoFile
-		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height); err != nil {
+		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height, &v.ColorTransfer); err != nil {
 			return nil, err
 		}
 		out = append(out, v)

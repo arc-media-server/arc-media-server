@@ -607,11 +607,14 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"ffprobe_path":  st.FFprobePath,
 		"ffprobe":       ff,
 		"local_bypass":  st.LocalBypass,
+		"hw_accel":      st.HWAccel,
+		"tone_mapping":  st.ToneMap,
 		"port":          st.Port,
 		"allow_network": st.AllowNetwork,
 		"region":        st.Region,
 		"listen":        st.ListenAddress(),
 		"from_env":      settings.FromEnv(),
+		"transcoder":    s.transcoderCaps(),
 	}
 }
 
@@ -639,6 +642,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		TVDBKey      *string `json:"tvdb_api_key"`
 		FFprobePath  *string `json:"ffprobe_path"`
 		LocalBypass  *bool   `json:"local_bypass"`
+		HWAccel      *bool   `json:"hw_accel"`
+		ToneMap      *bool   `json:"tone_mapping"`
 		Port         *int    `json:"port"`
 		AllowNetwork *bool   `json:"allow_network"`
 		Region       *string `json:"region"`
@@ -659,6 +664,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.LocalBypass != nil {
 		next.LocalBypass = *body.LocalBypass
+	}
+	if body.HWAccel != nil {
+		next.HWAccel = *body.HWAccel
+	}
+	if body.ToneMap != nil {
+		next.ToneMap = *body.ToneMap
 	}
 	if body.Port != nil {
 		if *body.Port < 1024 || *body.Port > 65535 {

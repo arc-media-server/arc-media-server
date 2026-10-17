@@ -43,6 +43,10 @@ type Options struct {
 	SourceHeight int
 	// A picture subtitle stream to burn into the video (re-encoding only), or -1.
 	BurnSubtitle int
+	// When re-encoding: a hardware H.264 encoder to use (e.g. h264_nvenc), "" for the CPU, and
+	// whether to map HDR to SDR.
+	HWEncoder string
+	ToneMap   bool
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// Who started it and for what, for the server's own checks.
@@ -74,6 +78,7 @@ type Manager struct {
 
 	mu       sync.Mutex
 	sessions map[string]*Session
+	caps     Capabilities
 }
 
 // New makes a manager keeping sessions under dir (cleared now: nothing in it outlives a restart).
@@ -160,6 +165,14 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 
 func buildArgs(o Options, start float64, dir string) []string {
 	a := []string{"-hide_banner", "-nostdin", "-v", "error"}
+	encode := !o.CopyVideo
+	if encode && o.HWEncoder == "h264_vaapi" {
+		a = append(a, "-vaapi_device", "/dev/dri/renderD128")
+	}
+	if encode && o.HWEncoder != "" {
+		// Decode on the graphics card too when it can; frames come back for filtering.
+		a = append(a, "-hwaccel", "auto")
+	}
 	if start > 0 {
 		a = append(a, "-ss", secs(start))
 		if o.CopyVideo {
@@ -172,18 +185,30 @@ func buildArgs(o Options, start float64, dir string) []string {
 		a = append(a, "-copyts")
 	}
 	a = append(a, "-i", o.Path)
-	var scale string
-	if !o.CopyVideo && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
-		scale = "scale=-2:" + strconv.Itoa(o.MaxHeight)
+
+	// Filters, in order: HDR to SDR, picture subtitles drawn on, scaling, hardware upload.
+	var pre, post []string
+	if encode && o.ToneMap {
+		pre = append(pre, ToneMapFilter)
 	}
-	if o.BurnSubtitle >= 0 && !o.CopyVideo {
-		// Picture subtitles drawn onto the video, then scaled with it.
-		fc := fmt.Sprintf("[0:%d][0:%d]overlay=eof_action=pass", o.VideoStream, o.BurnSubtitle)
-		if scale != "" {
-			fc += "," + scale
+	if encode && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
+		post = append(post, "scale=-2:"+strconv.Itoa(o.MaxHeight))
+	}
+	if encode && o.HWEncoder == "h264_vaapi" {
+		post = append(post, "format=nv12", "hwupload")
+	}
+	if encode && o.BurnSubtitle >= 0 {
+		in := fmt.Sprintf("[0:%d]", o.VideoStream)
+		fc := ""
+		if len(pre) > 0 {
+			fc = in + strings.Join(pre, ",") + "[pre];"
+			in = "[pre]"
+		}
+		fc += fmt.Sprintf("%s[0:%d]overlay=eof_action=pass", in, o.BurnSubtitle)
+		if len(post) > 0 {
+			fc += "," + strings.Join(post, ",")
 		}
 		a = append(a, "-filter_complex", fc+"[v]", "-map", "[v]")
-		scale = ""
 	} else {
 		a = append(a, "-map", "0:"+strconv.Itoa(o.VideoStream))
 	}
@@ -199,18 +224,12 @@ func buildArgs(o Options, start float64, dir string) []string {
 			a = append(a, "-tag:v", "hvc1")
 		}
 	} else {
-		a = append(a, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high", "-pix_fmt", "yuv420p",
-			// A keyframe every 3 seconds so segments are even and seeking is quick.
-			"-force_key_frames", "expr:gte(t,n_forced*3)")
-		if o.VideoKbps > 0 {
-			k := strconv.Itoa(o.VideoKbps)
-			a = append(a, "-b:v", k+"k", "-maxrate", k+"k", "-bufsize", strconv.Itoa(o.VideoKbps*2)+"k")
-		} else {
-			a = append(a, "-crf", "21", "-maxrate", "20M", "-bufsize", "40M")
+		if filters := append(pre, post...); o.BurnSubtitle < 0 && len(filters) > 0 {
+			a = append(a, "-vf", strings.Join(filters, ","))
 		}
-		if scale != "" {
-			a = append(a, "-vf", scale)
-		}
+		a = append(a, encoderArgs(o)...)
+		// A keyframe every 3 seconds so segments are even and seeking is quick.
+		a = append(a, "-force_key_frames", "expr:gte(t,n_forced*3)")
 	}
 	if o.AudioStream >= 0 {
 		if o.CopyAudio {
@@ -224,6 +243,56 @@ func buildArgs(o Options, start float64, dir string) []string {
 		"-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", "init.mp4", "-hls_flags", "temp_file+independent_segments",
 		// Forward slashes: FFmpeg finds the folder for init.mp4 by looking for "/".
 		"-hls_segment_filename", filepath.ToSlash(filepath.Join(dir, "s%05d.m4s")), filepath.ToSlash(filepath.Join(dir, "index.m3u8")))
+}
+
+// ToneMapFilter maps HDR (PQ or HLG) to SDR so converted video (and previews) don't look washed out.
+const ToneMapFilter = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+
+// encoderArgs chooses the H.264 encoder and its quality settings.
+func encoderArgs(o Options) []string {
+	if o.HWEncoder == "" {
+		a := []string{"-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high", "-pix_fmt", "yuv420p"}
+		if o.VideoKbps > 0 {
+			k := strconv.Itoa(o.VideoKbps)
+			return append(a, "-b:v", k+"k", "-maxrate", k+"k", "-bufsize", strconv.Itoa(o.VideoKbps*2)+"k")
+		}
+		return append(a, "-crf", "21", "-maxrate", "20M", "-bufsize", "40M")
+	}
+	// Hardware encoders: a bitrate that suits the picture size, unless one was asked for.
+	kbps := o.VideoKbps
+	if kbps == 0 {
+		h := o.SourceHeight
+		if o.MaxHeight > 0 && o.MaxHeight < h {
+			h = o.MaxHeight
+		}
+		switch {
+		case h > 1600:
+			kbps = 25000
+		case h > 1100:
+			kbps = 16000
+		case h > 800:
+			kbps = 10000
+		case h > 600:
+			kbps = 5000
+		default:
+			kbps = 2500
+		}
+	}
+	k, max, buf := strconv.Itoa(kbps)+"k", strconv.Itoa(kbps*3/2)+"k", strconv.Itoa(kbps*2)+"k"
+	a := []string{"-c:v", o.HWEncoder, "-b:v", k, "-maxrate", max, "-bufsize", buf}
+	switch o.HWEncoder {
+	case "h264_nvenc":
+		a = append(a, "-preset", "p4", "-profile:v", "high", "-pix_fmt", "yuv420p", "-forced-idr", "1")
+	case "h264_qsv":
+		a = append(a, "-preset", "medium", "-profile:v", "high", "-pix_fmt", "nv12")
+	case "h264_amf":
+		a = append(a, "-quality", "balanced", "-profile:v", "high", "-pix_fmt", "yuv420p")
+	case "h264_videotoolbox":
+		a = append(a, "-profile:v", "high", "-pix_fmt", "yuv420p", "-allow_sw", "1")
+	case "h264_vaapi":
+		a = append(a, "-profile:v", "high")
+	}
+	return a
 }
 
 // Ready waits for a session's first segment and, for copied video, measures where the output starts in

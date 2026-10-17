@@ -152,6 +152,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}, prober.Bin, log)
 	go transcoder.Run(ctx)
+	go transcoder.Detect(ctx)
 
 	tmdb, tvdb := metadata.NewTMDB(cfg.TMDBKey), metadata.NewTVDB(cfg.TVDBKey)
 	tmdb.SetRegion(cfg.Region)
@@ -243,6 +244,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				findFFprobe(current.FFprobePath)
 				return fmt.Errorf("no working ffprobe at %s", next.FFprobePath)
 			}
+			// A different FFmpeg may support different hardware.
+			go transcoder.Detect(context.WithoutCancel(ctx))
 		}
 		var ln net.Listener
 		if next.ListenAddress() != current.ListenAddress() {

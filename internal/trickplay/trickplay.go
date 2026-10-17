@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"ams/internal/store"
+	"ams/internal/transcode"
 )
 
 const (
@@ -194,7 +195,12 @@ func (m *Manager) make(ctx context.Context, f store.VideoFile) error {
 	}
 	w := ThumbWidth
 	h := int(float64(w)*float64(f.Height)/float64(f.Width)/2+0.5) * 2
-	frames, err := m.keyframes(ctx, f.Path, w, h)
+	hdr := f.ColorTransfer == "smpte2084" || f.ColorTransfer == "arib-std-b67"
+	frames, err := m.keyframes(ctx, f.Path, w, h, hdr)
+	if err != nil && hdr {
+		// No tone mapping in this FFmpeg: washed-out previews are better than none.
+		frames, err = m.keyframes(ctx, f.Path, w, h, false)
+	}
 	if err != nil {
 		return err
 	}
@@ -262,13 +268,17 @@ var showinfoRe = regexp.MustCompile(`\bn:\s*\d+\s+pts:\s*-?\d+\s+pts_time:(-?[\d
 
 // keyframes decodes only a file's keyframes, at w×h. Decoders can hand them back out of order
 // (HEVC does), so each comes with its own time, read from FFmpeg's showinfo log.
-func (m *Manager) keyframes(ctx context.Context, path string, w, h int) ([]frame, error) {
+func (m *Manager) keyframes(ctx context.Context, path string, w, h int, toneMap bool) ([]frame, error) {
+	vf := fmt.Sprintf("scale=%d:%d,showinfo", w, h)
+	if toneMap {
+		vf = transcode.ToneMapFilter + "," + vf
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Hour)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, m.ffmpeg(), "-hide_banner", "-nostdin", "-v", "info",
 		"-threads", "1", "-skip_frame", "nokey", "-i", path,
 		"-map", "0:v:0", "-an", "-sn", "-dn", "-filter_threads", "1",
-		"-vf", fmt.Sprintf("scale=%d:%d,showinfo", w, h), "-fps_mode", "passthrough",
+		"-vf", vf, "-fps_mode", "passthrough",
 		"-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

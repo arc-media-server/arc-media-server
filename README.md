@@ -38,6 +38,10 @@ Early development. Working today:
   audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
   within what's converted it's instant, beyond it the conversion restarts there. The player's Info
   menu says which method is in use and why
+- Converting uses the graphics card when there is one (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple
+  VideoToolbox or VA-API, found by a quick test at start-up), falling back to the processor, and maps
+  HDR to SDR so converted HDR doesn't look washed out. Both are on by default, as in Plex (Settings >
+  Converting)
 - Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
   "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
   the best version for the screen (one that needs no conversion, then the sharpest that fits), and
