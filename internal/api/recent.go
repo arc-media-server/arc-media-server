@@ -80,6 +80,29 @@ func (s *Server) seasonPostersFor(r *http.Request, series *store.Item) (map[int]
 	return s.store.SeasonPosters(ctx, series.ID)
 }
 
+// seasonPosterCache remembers shows' season posters while a list of episodes is built.
+type seasonPosterCache map[string]map[int]store.SeasonArt
+
+// withSeasonPoster adds an episode's season poster, when its season has one, as
+// images["season_primary"].
+func (s *Server) withSeasonPoster(r *http.Request, d *itemDTO, series *store.Item, cache seasonPosterCache) error {
+	if series == nil || d.SeasonNumber == nil {
+		return nil
+	}
+	art, ok := cache[series.ID]
+	if !ok {
+		var err error
+		if art, err = s.seasonPostersFor(r, series); err != nil {
+			return err
+		}
+		cache[series.ID] = art
+	}
+	if u := seasonPosterURL(series.ID, *d.SeasonNumber, art[*d.SeasonNumber]); u != "" {
+		d.Images["season_primary"] = u
+	}
+	return nil
+}
+
 // recentCard is one card in a TV library's Recently Added: a new show, several new episodes of
 // one season, or a single new episode.
 type recentCard struct {
@@ -173,7 +196,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 		g.episodes = append(g.episodes, ep)
 	}
 
-	posters := map[string]map[int]store.SeasonArt{}
+	posters := seasonPosterCache{}
 	out := make([]recentCard, 0, len(groups))
 	for _, g := range groups {
 		first := g.episodes[0]
@@ -194,6 +217,10 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 			c.SeasonPoster = seasonPosterURL(g.series.ID, *g.season, art[*g.season])
 		default:
 			c.Type, c.Item = "episode", s.episodeDTO(first, g.series, positions[g.series.ID])
+			if err := s.withSeasonPoster(r, &c.Item, g.series, posters); err != nil {
+				s.fail(w, err)
+				return
+			}
 		}
 		out = append(out, c)
 	}

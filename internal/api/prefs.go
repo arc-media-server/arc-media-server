@@ -38,6 +38,9 @@ type homeRow struct {
 	Style string `json:"style,omitempty"`
 	// A TV library's Recently Added: one card per show, instead of grouping new episodes by season.
 	ShowsOnly bool `json:"shows_only,omitempty"`
+	// For episodes and seasons on a poster row: the show's poster ("series") or the season's
+	// ("season"); "" for the row's usual choice.
+	Posters string `json:"posters,omitempty"`
 }
 
 // rowFilter is the same set of filters as browsing a library (GET /api/items).
@@ -73,6 +76,9 @@ func (p *prefs) validate() error {
 			return fmt.Errorf("each row needs its own id")
 		}
 		seen[r.ID] = true
+		if r.Posters != "" && r.Posters != "series" && r.Posters != "season" {
+			return fmt.Errorf(`a row's posters are "series" or "season"`)
+		}
 		if r.Style != "" && r.Style != "poster" && r.Style != "thumb" {
 			return fmt.Errorf(`a row's style is "poster" or "thumb"`)
 		}

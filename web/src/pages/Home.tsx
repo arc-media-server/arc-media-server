@@ -14,7 +14,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 
-function LibraryRow({ lib, style, showsOnly }: { lib: Library; style: CardStyle; showsOnly: boolean }) {
+function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; style: CardStyle; showsOnly: boolean; seasonPosters: boolean }) {
   const grouped = lib.kind === 'shows' && !showsOnly;
   const titles = useQuery({
     queryKey: ['items', { library_id: lib.id, sort: 'added', limit: 24 }],
@@ -29,14 +29,14 @@ function LibraryRow({ lib, style, showsOnly }: { lib: Library; style: CardStyle;
     <RowShell title={title} href={href} empty={!cards.data?.length}>
       {cards.data?.map((c) => {
         const Card = style === 'thumb' ? ThumbCard : PosterCard;
-        return <Card key={`${c.type}:${c.item.id}:${c.season_number ?? ''}`} item={c.item} overrides={recentOverrides(c, style)} className={cardClass(style)} />;
+        return <Card key={`${c.type}:${c.item.id}:${c.season_number ?? ''}`} item={c.item} overrides={recentOverrides(c, style, seasonPosters)} className={cardClass(style)} />;
       })}
     </RowShell>
   );
 }
 
 /** How a Recently Added card reads: a season shows its own poster and how many episodes are new. */
-function recentOverrides(c: RecentCard, style: CardStyle): CardOverrides | undefined {
+function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean): CardOverrides | undefined {
   const n = c.episodes;
   switch (c.type) {
     case 'series':
@@ -44,13 +44,13 @@ function recentOverrides(c: RecentCard, style: CardStyle): CardOverrides | undef
     case 'season': {
       const name = c.season_number === 0 ? 'Specials' : `Season ${c.season_number}`;
       return {
-        image: style === 'poster' ? (c.season_poster ?? c.item.images?.primary) : undefined,
+        image: style === 'poster' && seasonPosters ? (c.season_poster ?? c.item.images?.primary) : undefined,
         subtitle: `${name} · ${n} new episodes`,
         noBadge: true,
       };
     }
     default:
-      return undefined;
+      return seasonPosters && style === 'poster' && c.item.images?.season_primary ? { image: c.item.images.season_primary } : undefined;
   }
 }
 
@@ -68,11 +68,11 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
   const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
   switch (row.type) {
     case 'continue':
-      return <MediaRow title={row.title} items={continueWatching.data ?? []} style={row.style} play />;
+      return <MediaRow title={row.title} items={continueWatching.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play />;
     case 'next-up':
-      return <MediaRow title={row.title} items={nextUp.data ?? []} style={row.style} play />;
+      return <MediaRow title={row.title} items={nextUp.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play />;
     case 'recent':
-      return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} />;
+      return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':
       return row.season ? <QueryRow title={row.season.title} query={{ ...row.season.query, limit: 24 }} style={row.style} /> : null;
     case 'custom': {

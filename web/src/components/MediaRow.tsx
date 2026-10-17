@@ -17,12 +17,32 @@ export function cardClass(style: CardStyle) {
  * hover. With `play`, thumbnails play what they show (Continue Watching, Up Next) instead of
  * opening it.
  */
-export function MediaRow({ title, items, href, style = 'poster', play }: { title: string; items: Item[]; href?: string; style?: CardStyle; play?: boolean }) {
+export function MediaRow({
+  title,
+  items,
+  href,
+  style = 'poster',
+  play,
+  seasonPosters,
+}: {
+  title: string;
+  items: Item[];
+  href?: string;
+  style?: CardStyle;
+  play?: boolean;
+  /** Episodes on a poster row show their season's poster (when it has one) instead of the show's. */
+  seasonPosters?: boolean;
+}) {
   return (
     <RowShell title={title} href={href} empty={items.length === 0}>
       {items.map((item) =>
         style === 'poster' ? (
-          <PosterCard key={item.id} item={item} className={cardClass(style)} />
+          <PosterCard
+            key={item.id}
+            item={item}
+            className={cardClass(style)}
+            overrides={seasonPosters && item.images?.season_primary ? { image: item.images.season_primary } : undefined}
+          />
         ) : play ? (
           <ResumeCard key={item.id} item={item} className={cardClass(style)} />
         ) : (

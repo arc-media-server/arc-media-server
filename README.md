@@ -104,7 +104,7 @@ Early development. Working today:
   add your own rows from filters (library, genre, decade, quality, unwatched, added this week/month/
   year, length, rating, any sort including a daily shuffle) with a live preview
 - Each home row can use posters or landscape thumbnails (Continue Watching uses thumbnails by
-  default). A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
+  default); rows with episodes or seasons can show the show's poster or the season's. A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
   several new episodes of a season show as that season with its poster, a single new episode as
   itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
