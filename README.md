@@ -57,6 +57,8 @@ Early development. Working today:
   and a title's page shows the rest of its collection
 - Edit a collection like a title: name, sort name and description, and Poster and Background tabs
   (TMDB's for automatic collections, or your own upload); edits are kept when TMDB refreshes
+- Your own ratings (half stars out of five) and a Watchlist (bookmark a movie or show; a Watchlist
+  row on Home and page in the sidebar; a movie leaves it once watched), per profile, as in Plex
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
@@ -230,6 +232,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/libraries/{id}/recent-shows` | A TV library's Recently Added, grouped: `[{"type": "series"\|"season"\|"episode", "item", "season_number", "episodes", "season_poster"}]` |
 | GET | `/api/items/{id}/next` | The episode after this one in the profile's episode order (204 if none) |
 | DELETE | `/api/home/continue/{id}` | Remove a movie or episode (and its show) from Continue Watching until played again |
+| PUT | `/api/items/{id}/rating` | The profile's own rating `{"rating": 1-10}` (0 clears) |
+| PUT | `/api/items/{id}/watchlist` | `{"on": true}` puts a movie or show on the profile's watchlist |
+| GET | `/api/watchlist` | The profile's watchlist, newest first |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET / PATCH | `/api/profiles/{id}/prefs` | Another profile's preferences, e.g. its home (admin) |

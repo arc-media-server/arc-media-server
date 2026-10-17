@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
+import { Activity, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -217,6 +217,9 @@ export function Sidebar() {
           <NavItem to="/" icon={<Home />}>
             Home
           </NavItem>
+          <NavItem to="/watchlist" icon={<Bookmark />}>
+            Watchlist
+          </NavItem>
           <NavItem to="/playlists" icon={<ListVideo />}>
             Playlists
           </NavItem>
@@ -284,6 +287,9 @@ export function MobileBar() {
       <nav className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-3">
         <NavLink to="/" end className={link}>
           Home
+        </NavLink>
+        <NavLink to="/watchlist" className={link}>
+          Watchlist
         </NavLink>
         <NavLink to="/playlists" className={link}>
           Playlists

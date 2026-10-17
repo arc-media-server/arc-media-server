@@ -22,6 +22,7 @@ import { ErrorState, Page } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
+import { StarRating, WatchlistButton } from '@/components/Rating';
 import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
 import {
   DropdownMenu,
@@ -124,6 +125,9 @@ export function SeriesPage() {
             </div>
             {series.overview && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-foreground/85">{series.overview}</p>}
             <CrewLine item={series} />
+            <div className="mt-4">
+              <StarRating key={series.id} item={series} />
+            </div>
             {series.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
@@ -136,6 +140,7 @@ export function SeriesPage() {
               {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
               <TrailerButton extras={series.extras} title={series.title} />
               {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
+              <WatchlistButton item={series} />
               {available > 0 && <AddToPlaylistButton item={series} />}
               {admin && (
                 <>

@@ -20,10 +20,9 @@ func (s *Server) fillUserData(r *http.Request, items []*itemDTO) error {
 	}
 	var ids, seriesIDs []string
 	for _, d := range items {
+		ids = append(ids, d.ID) // ratings and the watchlist apply to shows too
 		if d.Kind == "series" {
 			seriesIDs = append(seriesIDs, d.ID)
-		} else {
-			ids = append(ids, d.ID)
 		}
 	}
 	data, err := s.store.UserDataFor(r.Context(), userID, ids)
@@ -35,12 +34,11 @@ func (s *Server) fillUserData(r *http.Request, items []*itemDTO) error {
 		return err
 	}
 	for _, d := range items {
+		u := data[d.ID]
+		d.UserData = &u
 		if d.Kind == "series" {
 			n := counts[d.ID]
 			d.UnwatchedCount = &n
-		} else {
-			u := data[d.ID]
-			d.UserData = &u
 		}
 	}
 	return nil
@@ -85,6 +83,12 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.fail(w, err)
 		return
+	}
+	if d.Played && it.Kind == "movie" {
+		// Watched: off the watchlist, as in Plex.
+		if err := s.store.SetWatchlist(r.Context(), currentUserID(r), it.ID, false); err != nil {
+			s.log.Warn("taking a watched movie off the watchlist failed", "err", err)
+		}
 	}
 	// The progress is saved either way, but a player the admin stopped is told to close.
 	why, play := s.playing.progress(r, it.ID, body.PositionMS, body.DurationMS, body.State)
@@ -150,6 +154,12 @@ func (s *Server) setPlayed(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.SetPlayed(r.Context(), currentUserID(r), ids, *body.Played); err != nil {
 		s.fail(w, err)
 		return
+	}
+	if *body.Played && it.Kind == "movie" {
+		if err := s.store.SetWatchlist(r.Context(), currentUserID(r), it.ID, false); err != nil {
+			s.fail(w, err)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -549,4 +559,65 @@ func (s *Server) removeFromContinue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// setUserRating: PUT /api/items/{id}/rating {"rating": 1-10, or 0 to clear} is the profile's own
+// rating of a movie, show or episode (half stars out of five).
+func (s *Server) setUserRating(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Rating *int `json:"rating"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Rating == nil || *body.Rating < 0 || *body.Rating > 10 {
+		writeError(w, http.StatusBadRequest, `send {"rating": 1 to 10, or 0 to clear}`)
+		return
+	}
+	if err := s.store.SetUserRating(r.Context(), currentUserID(r), it.ID, *body.Rating); err != nil {
+		s.fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// setWatchlist: PUT /api/items/{id}/watchlist {"on": true} puts a movie or show on the profile's
+// watchlist, or takes it off.
+func (s *Server) setWatchlist(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	if it.Kind != "movie" && it.Kind != "series" {
+		writeError(w, http.StatusBadRequest, "only movies and shows go on the watchlist")
+		return
+	}
+	var body struct {
+		On *bool `json:"on"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.On == nil {
+		writeError(w, http.StatusBadRequest, `send {"on": true or false}`)
+		return
+	}
+	if err := s.store.SetWatchlist(r.Context(), currentUserID(r), it.ID, *body.On); err != nil {
+		s.fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// watchlist: GET /api/watchlist is the profile's watchlist, most recently added first.
+func (s *Server) watchlist(w http.ResponseWriter, r *http.Request) {
+	items, err := s.store.Watchlist(r.Context(), currentUserID(r), access(r))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	out := toDTOs(items)
+	if err := s.fillUserData(r, ptrs(out)); err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }

@@ -14,6 +14,7 @@ import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
+import { StarRating, WatchlistButton } from '@/components/Rating';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { cn } from '@/lib/utils';
@@ -86,6 +87,9 @@ export function MoviePage() {
             {item.tagline && <p className="mt-5 text-[15px] italic text-foreground/70">{item.tagline}</p>}
             {item.overview && <p className={cn('text-[15px] leading-relaxed text-foreground/85', item.tagline ? 'mt-2' : 'mt-5')}>{item.overview}</p>}
             <CrewLine item={item} />
+            <div className="mt-4">
+              <StarRating key={item.id} item={item} />
+            </div>
             {item.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
@@ -135,6 +139,7 @@ export function MoviePage() {
               )}
               <TrailerButton extras={item.extras} title={item.title} />
               <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
+              <WatchlistButton item={item} />
               {playable && <AddToPlaylistButton item={item} />}
               {admin && (
                 <>
