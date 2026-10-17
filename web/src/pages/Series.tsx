@@ -8,6 +8,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
+import { useIsAdmin } from '@/lib/auth';
 import { Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -56,6 +57,7 @@ export function SeriesPage() {
   const data = seasons.data;
   const series = data?.series;
   const { open: openDialog, dialogs } = useItemDialogs(series);
+  const admin = useIsAdmin();
   const tabs = useMemo(() => {
     if (!data) return [];
     const t = data.seasons.map((s) => ({ number: s.season_number, name: s.name, count: s.episodes.length }));
@@ -94,7 +96,7 @@ export function SeriesPage() {
               <MetaLine parts={[series.year, fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'), fmt.plural(available, 'Episode')]} />
             </div>
             {series.overview && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-foreground/85">{series.overview}</p>}
-            {series.metadata_state === 'unmatched' && (
+            {series.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
                 <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
@@ -104,10 +106,14 @@ export function SeriesPage() {
             )}
             <div className="mt-7 flex flex-wrap gap-3">
               {firstPlayable && <PlayButton episode={firstPlayable} seriesTitle={series.title} />}
-              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-              </Button>
-              <MoreMenu onOpen={openDialog} />
+              {admin && (
+                <>
+                  <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+                    {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
+                  </Button>
+                  <MoreMenu onOpen={openDialog} />
+                </>
+              )}
             </div>
           </div>
         </div>

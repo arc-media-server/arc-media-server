@@ -279,14 +279,53 @@ export interface ItemQuery {
   offset?: number;
 }
 
+export type ProfileColor = 'violet' | 'blue' | 'teal' | 'green' | 'amber' | 'orange' | 'rose' | 'slate';
+
+export interface Profile {
+  id: string;
+  name: string;
+  color: ProfileColor;
+  has_pin: boolean;
+  is_admin: boolean;
+}
+
+export interface AuthStatus {
+  setup_needed: boolean;
+  signed_in: boolean;
+  /** Signed in with the password (rather than on the home network without it). */
+  password_session: boolean;
+  /** This request comes from the home network, and profiles can be picked without the password. */
+  bypass: boolean;
+  local: boolean;
+  profile: Profile | null;
+  profiles: Profile[];
+}
+
+export interface ServerSettings {
+  tmdb_api_key: string;
+  tvdb_api_key: string;
+  ffprobe_path: string;
+  ffprobe: { found: boolean; path?: string; version?: string; error?: string };
+  local_bypass: boolean;
+  port: number;
+  allow_network: boolean;
+  listen: string;
+  from_env: Record<string, boolean>;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** What the server needs to go on, e.g. "pin" or "password" when choosing a profile. */
+    readonly needs?: string,
   ) {
     super(message);
   }
 }
+
+/** Fired when the server says the session is gone, so the app can show the sign-in screen. */
+export const UNAUTHORIZED_EVENT = 'ams:unauthorized';
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
@@ -296,12 +335,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (!res.ok) {
     let message = res.statusText;
+    let needs: string | undefined;
     try {
-      message = (await res.json()).error ?? message;
+      const body = await res.json();
+      message = body.error ?? message;
+      needs = body.needs;
     } catch {
       // not JSON; keep the status text
     }
-    throw new ApiError(message, res.status);
+    if (res.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    throw new ApiError(message, res.status, needs);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -317,6 +360,23 @@ function query(params: object): string {
 }
 
 export const api = {
+  authStatus: () => request<AuthStatus>('GET', '/api/auth/status'),
+  setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string }) =>
+    request<Profile>('POST', '/api/auth/setup', body),
+  login: (password: string) => request<void>('POST', '/api/auth/login', { password }),
+  chooseProfile: (id: string, secret: { pin?: string; password?: string } = {}) =>
+    request<Profile>('POST', '/api/auth/profile', { id, ...secret }),
+  leaveProfile: () => request<void>('DELETE', '/api/auth/profile'),
+  logout: () => request<void>('POST', '/api/auth/logout'),
+  changePassword: (current: string, next: string) => request<void>('POST', '/api/auth/password', { current, new: next }),
+  profiles: () => request<Profile[]>('GET', '/api/profiles'),
+  createProfile: (p: { name: string; color: ProfileColor; pin?: string }) => request<Profile>('POST', '/api/profiles', p),
+  updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
+  deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
+  settings: () => request<ServerSettings>('GET', '/api/settings'),
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'port' | 'allow_network'>>) =>
+    request<ServerSettings>('PATCH', '/api/settings', s),
+
   libraries: () => request<Library[]>('GET', '/api/libraries'),
   createLibrary: (lib: LibraryInput) => request<Library>('POST', '/api/libraries', lib),
   updateLibrary: (id: number, lib: Partial<Omit<LibraryInput, 'kind'>>) => request<Library>('PATCH', `/api/libraries/${id}`, lib),

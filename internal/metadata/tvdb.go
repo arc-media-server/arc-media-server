@@ -18,10 +18,10 @@ const tvdbBase = "https://api4.thetvdb.com/v4"
 
 // TVDB is a client for TheTVDB v4 API.
 type TVDB struct {
-	key  string
 	http *http.Client
 
 	mu      sync.Mutex
+	key     string
 	token   string
 	tokenAt time.Time
 	next    time.Time
@@ -29,6 +29,33 @@ type TVDB struct {
 
 func NewTVDB(key string) *TVDB {
 	return &TVDB{key: key, http: &http.Client{Timeout: 30 * time.Second}}
+}
+
+// SetKey changes the API key (e.g. after it's edited in Settings). "" turns TheTVDB off.
+func (c *TVDB) SetKey(key string) {
+	c.mu.Lock()
+	if key != c.key {
+		c.key, c.token = key, ""
+	}
+	c.mu.Unlock()
+}
+
+// Configured reports whether there's an API key to use.
+func (c *TVDB) Configured() bool {
+	if c == nil {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.key != ""
+}
+
+// CheckTVDBKey logs in with key to see whether TheTVDB accepts it.
+func CheckTVDBKey(ctx context.Context, key string) error {
+	if _, err := NewTVDB(key).ensureToken(ctx, true); err != nil {
+		return errors.New("TheTVDB didn't accept this key")
+	}
+	return nil
 }
 
 // TVDB season types we expose, in display order, with friendly names.

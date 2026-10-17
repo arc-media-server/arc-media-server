@@ -65,7 +65,7 @@ func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, grou
 	return nil
 }
 
-func (s *Scanner) hasProviders() bool { return s.tvdb != nil || s.tmdb != nil }
+func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Configured() }
 
 func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *seriesGroup, log *slog.Logger) error {
 	id, created, err := s.store.EnsureItem(ctx, &store.Item{
@@ -161,7 +161,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return nil
 	}
 
-	if s.tvdb != nil {
+	if s.tvdb.Configured() {
 		if tvdbID == 0 {
 			if tvdbID, err = s.tvdb.SearchSeries(ctx, series.Title, series.Year); err != nil {
 				return fmt.Errorf("tvdb search: %w", err)
@@ -173,7 +173,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 		}
 	}
-	if s.tmdb != nil {
+	if s.tmdb.Configured() {
 		if tmdbID == 0 && tvdbID != 0 {
 			if tmdbID, err = s.tmdb.FindTV(ctx, strconv.FormatInt(tvdbID, 10), "tvdb_id"); err != nil {
 				return fmt.Errorf("tmdb find: %w", err)
@@ -196,7 +196,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 			tmdbSeries = ser
 			orderings = append(orderings, ords...)
-			if tvdbSeries == nil && ser.TVDBID != 0 && s.tvdb != nil {
+			if tvdbSeries == nil && ser.TVDBID != 0 && s.tvdb.Configured() {
 				tvdbID = ser.TVDBID
 				if err := fetchTVDB(); err != nil {
 					return err
@@ -460,7 +460,7 @@ func (s *Scanner) mapEpisodes(ctx context.Context, seriesID, canon string, tmdbS
 		return out, nil
 	}
 
-	if s.tmdb != nil && tmdbSeriesID != 0 && len(unresolved()) > 0 {
+	if s.tmdb.Configured() && tmdbSeriesID != 0 && len(unresolved()) > 0 {
 		if canon == "tvdb" {
 			for _, oid := range unresolved() {
 				e := otherEps[oid]

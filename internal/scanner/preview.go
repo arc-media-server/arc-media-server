@@ -218,7 +218,7 @@ func (s *Scanner) identify(ctx context.Context, kind string, n MovieName) (*meta
 	}
 
 	if kind == "movies" {
-		if s.tmdb == nil {
+		if !s.tmdb.Configured() {
 			return nil, noKey("TMDB")
 		}
 		m, err := s.tmdb.MatchMovie(ctx, n.Title, n.Year, n.TMDBID, n.IMDBID)
@@ -233,10 +233,10 @@ func (s *Scanner) identify(ctx context.Context, kind string, n MovieName) (*meta
 	}
 
 	// Shows: TheTVDB first, then TMDB, as a sync does.
-	if s.tvdb == nil && s.tmdb == nil {
+	if !s.tvdb.Configured() && !s.tmdb.Configured() {
 		return nil, noKey("TheTVDB or TMDB")
 	}
-	if s.tvdb != nil {
+	if s.tvdb.Configured() {
 		id := n.TVDBID
 		if id == 0 {
 			var err error
@@ -253,7 +253,7 @@ func (s *Scanner) identify(ctx context.Context, kind string, n MovieName) (*meta
 			}
 		}
 	}
-	if s.tmdb != nil {
+	if s.tmdb.Configured() {
 		id := n.TMDBID
 		var err error
 		if id == 0 && n.IMDBID != "" {

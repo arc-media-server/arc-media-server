@@ -5,16 +5,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Prober struct {
+	mu  sync.Mutex
 	bin string
 }
 
@@ -23,6 +28,69 @@ func New(bin string) *Prober {
 		bin = "ffprobe"
 	}
 	return &Prober{bin: bin}
+}
+
+// SetBin changes the ffprobe binary used.
+func (p *Prober) SetBin(bin string) {
+	p.mu.Lock()
+	p.bin = bin
+	p.mu.Unlock()
+}
+
+// Bin returns the ffprobe binary in use.
+func (p *Prober) Bin() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.bin
+}
+
+// Find looks for a working ffprobe: preferred (if set), then on the PATH, next to AMS itself, and
+// in the usual install locations. It returns the binary and its version line.
+func Find(ctx context.Context, preferred string) (bin, version string, err error) {
+	var candidates []string
+	if preferred != "" {
+		candidates = append(candidates, preferred)
+	}
+	exe := "ffprobe"
+	if runtime.GOOS == "windows" {
+		exe = "ffprobe.exe"
+	}
+	if p, err := exec.LookPath("ffprobe"); err == nil {
+		candidates = append(candidates, p)
+	}
+	if self, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(self), exe), filepath.Join(filepath.Dir(self), "ffmpeg", "bin", exe))
+	}
+	switch runtime.GOOS {
+	case "windows":
+		// winget installs FFmpeg into a versioned folder and only updates PATH for new shells.
+		if local := os.Getenv("LOCALAPPDATA"); local != "" {
+			m, _ := filepath.Glob(filepath.Join(local, "Microsoft", "WinGet", "Packages", "*FFmpeg*", "*", "bin", exe))
+			candidates = append(candidates, m...)
+		}
+		for _, base := range []string{os.Getenv("ProgramFiles"), `C:\`} {
+			if base != "" {
+				candidates = append(candidates, filepath.Join(base, "ffmpeg", "bin", exe))
+			}
+		}
+		if choco := os.Getenv("ChocolateyInstall"); choco != "" {
+			candidates = append(candidates, filepath.Join(choco, "bin", exe))
+		}
+	default:
+		candidates = append(candidates, "/usr/bin/ffprobe", "/usr/local/bin/ffprobe", "/opt/homebrew/bin/ffprobe",
+			"/usr/lib/jellyfin-ffmpeg/ffprobe")
+	}
+	seen := map[string]bool{}
+	for _, c := range candidates {
+		if seen[c] {
+			continue
+		}
+		seen[c] = true
+		if v, err := New(c).Version(ctx); err == nil {
+			return c, v, nil
+		}
+	}
+	return "", "", errors.New("ffprobe wasn't found; install FFmpeg, or give the full path to ffprobe in Settings")
 }
 
 type Result struct {
@@ -67,7 +135,7 @@ type ffprobeOutput struct {
 
 // Version runs ffprobe -version to check that the binary is usable.
 func (p *Prober) Version(ctx context.Context) (string, error) {
-	out, err := exec.CommandContext(ctx, p.bin, "-version").Output()
+	out, err := exec.CommandContext(ctx, p.Bin(), "-version").Output()
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +147,7 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, p.bin, "-v", "error", "-print_format", "json",
+	cmd := exec.CommandContext(ctx, p.Bin(), "-v", "error", "-print_format", "json",
 		"-show_format", "-show_streams", path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

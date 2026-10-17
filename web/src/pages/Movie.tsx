@@ -5,6 +5,7 @@ import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
+import { useIsAdmin } from '@/lib/auth';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
@@ -15,6 +16,7 @@ export function MoviePage() {
   const { data: item, error } = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id!) });
   const play = usePlayer();
   const qc = useQueryClient();
+  const admin = useIsAdmin();
   const { open: openDialog, dialogs } = useItemDialogs(item);
   const refresh = useMutation({
     mutationFn: () => api.refreshItem(id!),
@@ -53,7 +55,7 @@ export function MoviePage() {
               {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
             </div>
             {item.overview && <p className="mt-5 text-[15px] leading-relaxed text-foreground/85">{item.overview}</p>}
-            {item.metadata_state === 'unmatched' && (
+            {item.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
                 <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
@@ -70,10 +72,14 @@ export function MoviePage() {
               >
                 <Play className="fill-current" /> {playable ? 'Play' : 'File missing'}
               </Button>
-              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-              </Button>
-              <MoreMenu onOpen={openDialog} />
+              {admin && (
+                <>
+                  <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+                    {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
+                  </Button>
+                  <MoreMenu onOpen={openDialog} />
+                </>
+              )}
             </div>
             {refresh.error && <p className="mt-3 text-sm text-warning">{refresh.error.message}</p>}
           </div>

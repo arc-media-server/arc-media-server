@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -9,11 +10,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ams/internal/artwork"
+	"ams/internal/auth"
 	"ams/internal/backup"
 	"ams/internal/scanner"
+	"ams/internal/settings"
 	"ams/internal/store"
 	"ams/internal/webui"
 )
@@ -28,8 +32,13 @@ type Deps struct {
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
 	LibrariesChanged func()
-	Log              *slog.Logger
-	Version          string
+	// Settings returns the current settings; ApplySettings checks, saves and applies new ones.
+	Settings      func() settings.Settings
+	ApplySettings func(ctx context.Context, s settings.Settings) error
+	// FFprobeStatus describes the ffprobe in use, for the Settings page.
+	FFprobeStatus func() any
+	Log           *slog.Logger
+	Version       string
 }
 
 type Server struct {
@@ -39,50 +48,76 @@ type Server struct {
 	backups          *backup.Manager
 	afterRestore     func()
 	librariesChanged func()
+	settings         func() settings.Settings
+	applySettings    func(ctx context.Context, s settings.Settings) error
+	ffprobeStatus    func() any
 	previews         *previews
+	limiter          *auth.Limiter
+	setupMu          sync.Mutex
 	log              *slog.Logger
 	version          string
 }
 
 func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
-		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, previews: &previews{},
-		log: d.Log, version: d.Version}
+		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
+		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, previews: &previews{},
+		limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/libraries", s.createLibrary)
-	mux.HandleFunc("PATCH /api/libraries/{id}", s.updateLibrary)
-	mux.HandleFunc("DELETE /api/libraries/{id}", s.deleteLibrary)
-	mux.HandleFunc("POST /api/library-previews", s.startPreview)
-	mux.HandleFunc("GET /api/library-previews/{id}", s.getPreview)
-	mux.HandleFunc("GET /api/folders", s.listFolders)
-	mux.HandleFunc("GET /api/backups", s.listBackups)
-	mux.HandleFunc("POST /api/backups", s.createBackup)
-	mux.HandleFunc("POST /api/backups/{name}/restore", s.restoreBackup)
-	mux.HandleFunc("DELETE /api/backups/{name}", s.deleteBackup)
+
+	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
-	mux.HandleFunc("GET /api/libraries", s.listLibraries)
-	mux.HandleFunc("GET /api/libraries/{id}/scan", s.scanStatus)
-	mux.HandleFunc("POST /api/libraries/{id}/scan", s.startScan)
-	mux.HandleFunc("GET /api/items", s.listItems)
-	mux.HandleFunc("GET /api/items/{id}", s.getItem)
-	mux.HandleFunc("PATCH /api/items/{id}", s.editItem)
-	mux.HandleFunc("POST /api/items/{id}/refresh", s.refreshItem)
-	mux.HandleFunc("GET /api/items/{id}/match", s.matchInfo)
-	mux.HandleFunc("GET /api/items/{id}/match/search", s.searchMatches)
-	mux.HandleFunc("PUT /api/items/{id}/match", s.setMatch)
-	mux.HandleFunc("GET /api/items/{id}/stream", s.stream)
-	mux.HandleFunc("GET /api/items/{id}/images/{type}", s.image)
-	mux.HandleFunc("GET /api/libraries/{id}/unmatched", s.unmatched)
-	mux.HandleFunc("GET /api/libraries/{id}/health", s.libraryHealth)
-	mux.HandleFunc("GET /api/health/libraries", s.healthSummary)
-	mux.HandleFunc("GET /api/series/{id}/seasons", s.seasons)
-	mux.HandleFunc("GET /api/series/{id}/orderings", s.listOrderings)
-	mux.HandleFunc("POST /api/series/{id}/orderings", s.createOrdering)
-	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}", s.deleteOrdering)
-	mux.HandleFunc("PUT /api/series/{id}/orderings/{oid}/entries/{eid}", s.setEntry)
-	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", s.clearEntry)
-	mux.HandleFunc("PUT /api/series/{id}/display-ordering", s.setDisplayOrdering)
-	mux.HandleFunc("POST /api/series/{id}/refresh", s.refreshSeries)
+	mux.HandleFunc("GET /api/auth/status", s.authStatus)
+	mux.HandleFunc("POST /api/auth/setup", s.setup)
+	mux.HandleFunc("POST /api/auth/login", s.login)
+	mux.HandleFunc("POST /api/auth/profile", s.chooseProfile)
+	mux.HandleFunc("DELETE /api/auth/profile", s.leaveProfile)
+	mux.HandleFunc("POST /api/auth/logout", s.logout)
+
+	// Every profile: watching.
+	user, admin := s.signedIn, s.adminOnly
+	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
+	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
+	mux.HandleFunc("GET /api/items", user(s.listItems))
+	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
+	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
+	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
+	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
+	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
+	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
+
+	// The admin profile: running the server.
+	mux.HandleFunc("POST /api/auth/password", admin(s.changePassword))
+	mux.HandleFunc("GET /api/profiles", admin(s.listProfiles))
+	mux.HandleFunc("POST /api/profiles", admin(s.createProfile))
+	mux.HandleFunc("PATCH /api/profiles/{id}", admin(s.updateProfile))
+	mux.HandleFunc("DELETE /api/profiles/{id}", admin(s.deleteProfile))
+	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
+	mux.HandleFunc("PATCH /api/settings", admin(s.updateSettings))
+	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))
+	mux.HandleFunc("PATCH /api/libraries/{id}", admin(s.updateLibrary))
+	mux.HandleFunc("DELETE /api/libraries/{id}", admin(s.deleteLibrary))
+	mux.HandleFunc("POST /api/libraries/{id}/scan", admin(s.startScan))
+	mux.HandleFunc("GET /api/libraries/{id}/unmatched", admin(s.unmatched))
+	mux.HandleFunc("GET /api/libraries/{id}/health", admin(s.libraryHealth))
+	mux.HandleFunc("GET /api/health/libraries", admin(s.healthSummary))
+	mux.HandleFunc("POST /api/library-previews", admin(s.startPreview))
+	mux.HandleFunc("GET /api/library-previews/{id}", admin(s.getPreview))
+	mux.HandleFunc("GET /api/folders", admin(s.listFolders))
+	mux.HandleFunc("GET /api/backups", admin(s.listBackups))
+	mux.HandleFunc("POST /api/backups", admin(s.createBackup))
+	mux.HandleFunc("POST /api/backups/{name}/restore", admin(s.restoreBackup))
+	mux.HandleFunc("DELETE /api/backups/{name}", admin(s.deleteBackup))
+	mux.HandleFunc("PATCH /api/items/{id}", admin(s.editItem))
+	mux.HandleFunc("POST /api/items/{id}/refresh", admin(s.refreshItem))
+	mux.HandleFunc("GET /api/items/{id}/match", admin(s.matchInfo))
+	mux.HandleFunc("GET /api/items/{id}/match/search", admin(s.searchMatches))
+	mux.HandleFunc("PUT /api/items/{id}/match", admin(s.setMatch))
+	mux.HandleFunc("POST /api/series/{id}/orderings", admin(s.createOrdering))
+	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}", admin(s.deleteOrdering))
+	mux.HandleFunc("PUT /api/series/{id}/orderings/{oid}/entries/{eid}", admin(s.setEntry))
+	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", admin(s.clearEntry))
+	mux.HandleFunc("POST /api/series/{id}/refresh", admin(s.refreshSeries))
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})

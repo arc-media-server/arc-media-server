@@ -32,7 +32,7 @@ powerful when you need it.
 - [x] Display orderings: TVDB aired/DVD/absolute, TMDB aired, TMDB episode groups, custom
 - [x] Mapping between orderings: IDs first, then air date + title, then manual overrides
 - [x] Display ordering chosen per series
-- [ ] Display ordering overridable per user (needs users, milestone 4; database already supports it)
+- [x] Display ordering overridable per user
 - [ ] Display-order preview: compare orderings side by side before switching (API ready, UI in milestone 5)
 - [x] Unmatched episodes collected in a review bucket, never hidden
 
@@ -47,9 +47,9 @@ powerful when you need it.
 - [x] Automatic database backups with retention, plus one-click restore
 
 ### 4. Users and watch state
-- [ ] Accounts, login, sessions/tokens; first-run setup creates the admin
-- [ ] Settings in the web app, no config file: API keys, ffprobe found automatically, port and network access
-- [ ] Per-user profiles with PINs (Plex-style managed users), optional sign-in bypass on the home network
+- [x] Accounts, login, sessions/tokens; first-run setup creates the admin
+- [x] Settings in the web app, no config file: API keys, ffprobe found automatically, port and network access
+- [x] Per-user profiles with PINs (Plex-style managed users), optional sign-in bypass on the home network
 - [ ] Watched state, resume position, play counts
 - [ ] Mark a season or whole show as watched/unwatched
 - [ ] Continue Watching, Next Up (follows the display ordering), Recently Added

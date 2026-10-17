@@ -7,6 +7,7 @@ import { plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { useLibraries } from '@/components/Sidebar';
+import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ export function LibraryPage() {
   const sort = (params.get('sort') as Sort) in sorts ? (params.get('sort') as Sort) : 'title';
   const { data: libraries } = useLibraries();
   const lib = libraries?.find((l) => l.id === Number(id));
+  const admin = useIsAdmin();
 
   const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500 };
   const items = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query), enabled: !!lib });
@@ -55,7 +57,7 @@ export function LibraryPage() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <ScanButton lib={lib} />
+              {admin && <ScanButton lib={lib} />}
             </>
           )
         }

@@ -57,17 +57,17 @@ func (s *Scanner) MatchInfo(ctx context.Context, itemID string) (*MatchInfo, err
 }
 
 // Providers reports which metadata providers are configured.
-func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb != nil, s.tvdb != nil }
+func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb.Configured(), s.tvdb.Configured() }
 
 // Search looks up candidates for someone choosing a match by hand. kind is the item kind
 // (movie or series); provider is tmdb or tvdb (TV only).
 func (s *Scanner) Search(ctx context.Context, kind, provider, query string, year int) ([]metadata.Candidate, error) {
 	switch {
-	case kind == "movie" && provider == "tmdb" && s.tmdb != nil:
+	case kind == "movie" && provider == "tmdb" && s.tmdb.Configured():
 		return s.tmdb.SearchMovies(ctx, query, year)
-	case kind == "series" && provider == "tmdb" && s.tmdb != nil:
+	case kind == "series" && provider == "tmdb" && s.tmdb.Configured():
 		return s.tmdb.SearchTVShows(ctx, query, year)
-	case kind == "series" && provider == "tvdb" && s.tvdb != nil:
+	case kind == "series" && provider == "tvdb" && s.tvdb.Configured():
 		return s.tvdb.SearchShows(ctx, query, year)
 	case kind != "movie" && kind != "series":
 		return nil, fmt.Errorf("only movies and shows can be matched")
@@ -103,7 +103,7 @@ func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string,
 
 	switch it.Kind {
 	case "movie":
-		if provider != "tmdb" || s.tmdb == nil {
+		if provider != "tmdb" || !s.tmdb.Configured() {
 			return ErrNoProvider
 		}
 		if err := s.store.SetProviderIDs(ctx, it.ID, id, 0, ""); err != nil {
@@ -117,9 +117,9 @@ func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string,
 	case "series":
 		var tmdbID, tvdbID int64
 		switch {
-		case provider == "tmdb" && s.tmdb != nil:
+		case provider == "tmdb" && s.tmdb.Configured():
 			tmdbID = id
-		case provider == "tvdb" && s.tvdb != nil:
+		case provider == "tvdb" && s.tvdb.Configured():
 			tvdbID = id
 		default:
 			return ErrNoProvider

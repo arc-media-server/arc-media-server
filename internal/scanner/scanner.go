@@ -51,8 +51,8 @@ type Scanner struct {
 	ctx    context.Context
 	store  *store.Store
 	prober *probe.Prober
-	tmdb   *metadata.TMDB // nil when no API key is configured
-	tvdb   *metadata.TVDB // nil when no API key is configured
+	tmdb   *metadata.TMDB // check Configured() before use: there may be no API key
+	tvdb   *metadata.TVDB
 	log    *slog.Logger
 
 	// OnFinish, if set, is called after each scan (successful or not). Set it before starting scans.
@@ -205,7 +205,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 
 	switch lib.Kind {
 	case "movies":
-		if s.tmdb != nil {
+		if s.tmdb.Configured() {
 			if err := s.matchMovies(ctx, lib.ID); err != nil {
 				return fmt.Errorf("metadata: %w", err)
 			}
@@ -376,7 +376,7 @@ var ErrNoProvider = errors.New("no metadata provider is configured")
 // RefreshMovie fetches a movie's metadata again now. Fields the user locked are kept. It reports
 // whether a match was found.
 func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error) {
-	if s.tmdb == nil {
+	if !s.tmdb.Configured() {
 		return false, ErrNoProvider
 	}
 	it, err := s.store.GetItem(ctx, itemID)

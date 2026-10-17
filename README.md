@@ -33,6 +33,10 @@ Early development. Working today:
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
+- Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
+  everything, and optional sign-in without the password on your home network
+- Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
+  automatically, network access and port)
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
   can't identify, and why) before anything is added
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
@@ -46,13 +50,19 @@ Early development. Working today:
 Requirements: Go 1.27+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
 
 ```sh
-cp ams.example.yaml ams.yaml   # then add your TMDB/TVDB keys
 cd web && npm install && npm run build && cd ..   # builds the web app into the binary
 go run ./cmd/ams
 ```
 
-Then open http://127.0.0.1:8099 and add a library: choose its folders, see a preview of what Arc
-finds and identifies, then add it.
+Then open http://127.0.0.1:8099. Arc walks you through the rest: your admin profile and password,
+your free TMDB and TheTVDB API keys, and your first library (choose its folders, see a preview of
+what Arc finds, then add it). There are no config files; everything is set in the app.
+
+- `-data <folder>` (or `AMS_DATA`) chooses where Arc keeps its database, artwork cache and backups
+  (default: `data` in the current folder).
+- Forgot the password? Run `ams -reset-password` on the server for a new one.
+- `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
+  settings, for containers.
 
 ### Working on the web app
 
@@ -67,6 +77,21 @@ Motion for animation and TanStack Query for data loading.
 | Method | Path | |
 |---|---|---|
 | GET | `/api/health` | Server name and version |
+| GET | `/api/auth/status` | Setup needed? Signed in? Current profile and the profiles to pick from |
+| POST | `/api/auth/setup` | First run: create the admin profile (`name`, `password`, `local_bypass`, API keys) |
+| POST | `/api/auth/login` | Sign in with the password |
+| POST / DELETE | `/api/auth/profile` | Switch to a profile (`id`, `pin` or `password`) / back to the picker |
+| POST | `/api/auth/logout` | Sign out |
+| POST | `/api/auth/password` | Change the password (admin) |
+| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin"}` |
+| PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
+| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network (admin) |
+
+Everything except `/api/health` and `/api/auth/*` needs a signed-in profile (a session cookie);
+managing libraries, settings, profiles, backups and metadata needs the admin profile.
+
+| Method | Path | |
+|---|---|---|
 | GET | `/api/libraries` | Libraries with their size and scan status |
 | POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows", "paths": [...], "source_ordering"}` |
 | PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering |

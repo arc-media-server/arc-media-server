@@ -23,15 +23,47 @@ var ErrNotFound = errors.New("not found")
 // TMDB is a small client for The Movie Database API. It accepts either a v3 API key or a
 // v4 read access token.
 type TMDB struct {
-	key  string
 	http *http.Client
 
 	mu   sync.Mutex
+	key  string
 	next time.Time
 }
 
 func NewTMDB(key string) *TMDB {
 	return &TMDB{key: key, http: &http.Client{Timeout: 20 * time.Second}}
+}
+
+// SetKey changes the API key (e.g. after it's edited in Settings). "" turns TMDB off.
+func (c *TMDB) SetKey(key string) {
+	c.mu.Lock()
+	c.key = key
+	c.mu.Unlock()
+}
+
+// Configured reports whether there's an API key to use.
+func (c *TMDB) Configured() bool {
+	if c == nil {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.key != ""
+}
+
+func (c *TMDB) apiKey() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.key
+}
+
+// CheckTMDBKey makes a request with key to see whether TMDB accepts it.
+func CheckTMDBKey(ctx context.Context, key string) error {
+	err := NewTMDB(key).get(ctx, "/configuration", nil, &struct{}{})
+	if err != nil && strings.Contains(err.Error(), "401") {
+		return errors.New("TMDB didn't accept this key")
+	}
+	return err
 }
 
 // ImageURL builds a URL for an image path: TMDB paths such as "/abc.jpg" go to TMDB's CDN,
@@ -260,9 +292,10 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 	if q == nil {
 		q = url.Values{}
 	}
-	bearer := strings.HasPrefix(c.key, "eyJ") // v4 tokens are JWTs
+	key := c.apiKey()
+	bearer := strings.HasPrefix(key, "eyJ") // v4 tokens are JWTs
 	if !bearer {
-		q.Set("api_key", c.key)
+		q.Set("api_key", key)
 	}
 	u := tmdbBase + path + "?" + q.Encode()
 
@@ -276,7 +309,7 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		}
 		req.Header.Set("Accept", "application/json")
 		if bearer {
-			req.Header.Set("Authorization", "Bearer "+c.key)
+			req.Header.Set("Authorization", "Bearer "+key)
 		}
 		resp, err := c.http.Do(req)
 		if err != nil {

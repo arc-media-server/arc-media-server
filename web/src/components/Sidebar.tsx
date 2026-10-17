@@ -1,9 +1,12 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
-import { DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, Search, Tv } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronsUpDown, DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { Avatar } from '@/components/Avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function useLibraries() {
   return useQuery({
@@ -15,9 +18,10 @@ export function useLibraries() {
 }
 
 /** How many things across all libraries need the user (unidentified, unreadable, unrecognised). */
-export function useHealthCount() {
+export function useHealthCount(enabled: boolean) {
   return useQuery({
     queryKey: ['health-summary'],
+    enabled,
     queryFn: async () => Object.values(await api.healthSummary()).reduce((a, b) => a + b, 0),
   });
 }
@@ -91,9 +95,58 @@ function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactN
   );
 }
 
+/** The current profile, with Switch Profile and Sign Out. */
+function ProfileMenu({ compact }: { compact?: boolean }) {
+  const qc = useQueryClient();
+  const { data: status } = useAuth();
+  const profile = status?.profile;
+  if (!profile) return null;
+  const leave = async () => {
+    await api.leaveProfile();
+    qc.resetQueries();
+  };
+  const signOut = async () => {
+    await api.logout();
+    qc.resetQueries();
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {compact ? (
+          <button aria-label={`Profile: ${profile.name}`} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            <Avatar name={profile.name} color={profile.color} className="size-8 text-sm" />
+          </button>
+        ) : (
+          <button className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-surface-2">
+            <Avatar name={profile.name} color={profile.color} className="size-8 text-sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-medium">{profile.name}</span>
+              {profile.is_admin && <span className="block text-[11px] text-subtle">Admin</span>}
+            </span>
+            <ChevronsUpDown className="size-4 text-subtle" />
+          </button>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={compact ? 'end' : 'start'} side={compact ? 'bottom' : 'top'} className="w-56">
+        {(status.profiles.length > 1 || !status.password_session) && (
+          <DropdownMenuItem onSelect={leave}>
+            <Users className="size-4 text-muted" /> Switch Profile
+          </DropdownMenuItem>
+        )}
+        {status.password_session && (
+          <DropdownMenuItem onSelect={signOut}>
+            <LogOut className="size-4 text-muted" /> Sign Out
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function Sidebar() {
   const { data: libraries } = useLibraries();
-  const { data: problems } = useHealthCount();
+  const admin = useIsAdmin();
+  const { data: problems } = useHealthCount(admin);
 
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
@@ -127,28 +180,38 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        <div>
-          <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Manage</p>
-          <div className="space-y-0.5">
-            <NavItem to="/health" icon={<HeartPulse />} badge={problems}>
-              Library Health
-            </NavItem>
-            <NavItem to="/libraries" icon={<FolderCog />}>
-              Libraries
-            </NavItem>
-            <NavItem to="/backups" icon={<DatabaseBackup />}>
-              Backups
-            </NavItem>
+        {admin && (
+          <div>
+            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Manage</p>
+            <div className="space-y-0.5">
+              {manageLinks.map((l) => (
+                <NavItem key={l.to} to={l.to} icon={l.icon} badge={l.to === '/health' ? problems : undefined}>
+                  {l.label}
+                </NavItem>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </nav>
+      <div className="border-t border-border p-2">
+        <ProfileMenu />
+      </div>
     </aside>
   );
 }
 
+const manageLinks = [
+  { to: '/health', label: 'Library Health', icon: <HeartPulse /> },
+  { to: '/libraries', label: 'Libraries', icon: <FolderCog /> },
+  { to: '/profiles', label: 'Profiles', icon: <Users /> },
+  { to: '/backups', label: 'Backups', icon: <DatabaseBackup /> },
+  { to: '/settings', label: 'Settings', icon: <Settings /> },
+];
+
 /** Compact top bar used instead of the sidebar on small screens. */
 export function MobileBar() {
   const { data: libraries } = useLibraries();
+  const admin = useIsAdmin();
   const link = ({ isActive }: { isActive: boolean }) =>
     cn('shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors', isActive ? 'bg-foreground text-background' : 'bg-surface-2 text-muted');
   return (
@@ -156,6 +219,7 @@ export function MobileBar() {
       <div className="flex items-center gap-3 px-4 pt-3">
         <ArcLogo className="size-6" />
         <SearchBox className="flex-1" />
+        <ProfileMenu compact />
       </div>
       <nav className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-3">
         <NavLink to="/" end className={link}>
@@ -166,15 +230,12 @@ export function MobileBar() {
             {lib.name}
           </NavLink>
         ))}
-        <NavLink to="/health" className={link}>
-          Library Health
-        </NavLink>
-        <NavLink to="/libraries" className={link}>
-          Libraries
-        </NavLink>
-        <NavLink to="/backups" className={link}>
-          Backups
-        </NavLink>
+        {admin &&
+          manageLinks.map((l) => (
+            <NavLink key={l.to} to={l.to} className={link}>
+              {l.label}
+            </NavLink>
+          ))}
       </nav>
     </div>
   );

@@ -57,7 +57,7 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	display, err := s.store.DisplayOrdering(r.Context(), series.ID, "", lib.SourceOrdering)
+	display, err := s.store.DisplayOrdering(r.Context(), series.ID, currentUserID(r), lib.SourceOrdering)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -70,7 +70,9 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 }
 
 // setDisplayOrdering: PUT /api/series/{id}/display-ordering {"ordering_id": 12} (null resets).
-// Choosing an ordering from the other provider triggers a thorough episode mapping first.
+// The choice is the current profile's own; the admin's choice is also the default for profiles
+// that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode
+// mapping first.
 func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 	series, lib, ok := s.seriesFromPath(w, r)
 	if !ok {
@@ -83,10 +85,17 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	user := currentUser(r)
+	users := []string{user.ID}
+	if user.IsAdmin {
+		users = append(users, "")
+	}
 	if body.OrderingID == nil {
-		if err := s.store.ClearDisplayOrdering(r.Context(), series.ID, ""); err != nil {
-			s.fail(w, err)
-			return
+		for _, u := range users {
+			if err := s.store.ClearDisplayOrdering(r.Context(), series.ID, u); err != nil {
+				s.fail(w, err)
+				return
+			}
 		}
 		s.listOrderings(w, r)
 		return
@@ -100,9 +109,11 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "ordering does not belong to this series")
 		return
 	}
-	if err := s.store.SetDisplayOrdering(r.Context(), series.ID, "", o.ID); err != nil {
-		s.fail(w, err)
-		return
+	for _, u := range users {
+		if err := s.store.SetDisplayOrdering(r.Context(), series.ID, u, o.ID); err != nil {
+			s.fail(w, err)
+			return
+		}
 	}
 	if o.Source != "custom" && !strings.HasPrefix(o.Source, sourceProvider(lib.SourceOrdering)) {
 		if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, true); err != nil {
@@ -148,7 +159,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	oid, _ := strconv.ParseInt(q.Get("ordering"), 10, 64)
 	if oid == 0 {
 		var err error
-		if oid, err = s.store.DisplayOrdering(ctx, series.ID, "", lib.SourceOrdering); err != nil {
+		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), lib.SourceOrdering); err != nil {
 			s.fail(w, err)
 			return
 		}

@@ -1,4 +1,5 @@
-// Package config loads the AMS YAML configuration file.
+// Package config reads the YAML config file older versions of AMS used. It's only read once, to
+// import its settings and libraries into the database; everything is set in the web app now.
 package config
 
 import (

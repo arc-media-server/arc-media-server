@@ -25,15 +25,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
   give the owner the exact command above (installs need their go-ahead). If `go` or `ffprobe` aren't
   found right after installing, the shell's PATH is stale: use `C:\Program Files\Go\bin\go.exe`, and
   find ffprobe under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\...\bin`.
-- If `ams.yaml` doesn't exist, copy `ams.example.yaml` to it and ask the owner for their TMDB and
-  TVDB API keys (they have both; keys never go in git). If `ffprobe` isn't on PATH, put its full
-  path in `ams.yaml`.
 - Create the test library outside the repo with `go run ./tools/testmedia -out ../ams-test-media`,
   unless the owner gives real media paths.
 - Build the UI (`cd web && npm install && npm run build`), then `go run ./cmd/ams`, and tell the
-  owner to open http://127.0.0.1:8099. Libraries are added in the app (Manage > Libraries), or via
-  `POST /api/libraries` (e.g. the test library's `Movies` and `TV` folders). An existing database
-  already has its libraries; an old `ams.yaml` `libraries:` list is imported once on first start.
+  owner to open http://127.0.0.1:8099. There are no config files: first-run setup in the browser
+  creates their admin profile and takes the TMDB/TVDB keys (they have both; keys never go in git),
+  then libraries are added in the app (the test library's `Movies` and `TV` folders). ffprobe is
+  found automatically (PATH, winget folder, next to the binary). An old `ams.yaml` is imported once.
 - Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R JonzaUK/arc-media-server`) to
   see what's next, then carry on (see "Where things stand").
 
@@ -44,9 +42,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 3 done (Oct 2026): artwork cache, backups + restore, field locks + Edit Details, Fix
   Match with explanations, Library Health page, folder watching, and libraries managed in the app
   with a preview before adding (the owner chose in-app libraries over ams.yaml).
-- Next: milestone 4 (users and watch state).
-- The owner has said to keep working through milestones without check-ins, asking only for real
-  product decisions.
+- Milestone 4 in progress: sign-in, Plex-style profiles with PINs, per-profile episode orders and
+  Settings (no config file) are done. Next: watch state, Continue Watching/Next Up, richer metadata,
+  parental controls, removing gone items, mark season/show watched.
+- The owner has said to keep working through milestones without check-ins. For product decisions,
+  pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
+  ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
+  irreversible things.
+- Everything must be configurable in the web UI; no config files (issue #66).
 - Keep this section current at the end of each working session.
 
 ## Principles (non-negotiable)
@@ -74,8 +77,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
 ## Layout
 
 ```
-cmd/ams/             entrypoint (flags: -config, -debug)
-internal/config/     YAML config (ams.yaml; keys can also come from AMS_TMDB_API_KEY / AMS_TVDB_API_KEY)
+cmd/ams/             entrypoint (flags: -data, -debug, -reset-password; -config only imports an old ams.yaml)
+internal/settings/   server settings in the DB (keys, ffprobe, port, network, sign-in at home); env overrides
+internal/auth/       password/PIN hashing (bcrypt), session tokens, home-network check, rate limiting
+internal/config/     reads an old ams.yaml once, to import it
 internal/store/      SQLite (modernc, pure Go) + embedded migrations in store/migrations/*.sql
 internal/probe/      ffprobe wrapper
 internal/scanner/    folder walking, filename parsing (parse.go movies, parse_tv.go TV), shows.go TV sync
@@ -94,12 +99,17 @@ tools/testmedia/     generates a fake test library
 ```sh
 cd web && npm install && npm run build && cd ..   # MUST run before go build: the UI is embedded
 go vet ./... && go test ./...
-go run ./cmd/ams                                    # reads ams.yaml, serves http://127.0.0.1:8099
+go run ./cmd/ams                                    # data in ./data, serves http://127.0.0.1:8099
 cd web && npm run dev                               # UI hot reload; proxies /api to :8099
 cd web && npx tsc -b                                # type-check the UI
 ```
 
-- `ams.yaml` is git-ignored (holds API keys). Copy `ams.example.yaml`. The owner has TMDB and TVDB keys.
+- Settings (incl. API keys) live in the database; this PC's `data/ams.db` already has the owner's keys.
+- To test first-run setup or anything needing a clean slate without touching the owner's data, run a
+  second copy: `AMS_LISTEN=127.0.0.1:8199 ams -data <scratch folder> -config none`.
+- API calls from scripts need a session: `POST /api/auth/setup` or sign in, keeping the cookie.
+- One-line `useEffect(() => fn())` is a bug if fn returns anything (e.g. `window.scrollTo` returns a
+  promise in new Chromium): React treats it as the cleanup and crashes on unmount. Use braces.
 - Test library: `go run ./tools/testmedia -out ../ams-test-media` (needs ffmpeg); add its `Movies`
   and `TV` folders as libraries. It includes Firefly (TVDB 78874: aired vs DVD vs TMDB "Intended
   Order"), Mushoku Tensei (TVDB 371310: TMDB groups Cours/Crunchyroll/Seasons), a fake show (unmatched)
