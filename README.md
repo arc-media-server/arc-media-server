@@ -45,6 +45,10 @@ Early development. Working today:
   VideoToolbox or VA-API, found by a quick test at start-up), falling back to the processor, and maps
   HDR to SDR so converted HDR doesn't look washed out. Both are on by default, as in Plex (Settings >
   Converting)
+- Collections: films TMDB groups together (a trilogy) become a collection by themselves once you have
+  enough of them (2 by default, set per library); make your own by picking titles (in any order) or
+  as smart collections that hold everything matching a filter. Each library has a Collections view,
+  and a title's page shows the rest of its collection
 - Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
   "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
   the best version for the screen (one that needs no conversion, then the sharpest that fits), and
@@ -185,6 +189,11 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
 | POST | `/api/libraries/{id}/compatibility` | How a library plays on a device: `{"caps": {...}}` → `{"total", "counts": {"direct", "remux", "transcode"}, "reasons", "converted": [{"item", "reasons"}]}` |
+| GET | `/api/libraries/{id}/collections` | A library's collections |
+| GET | `/api/collections/{id}` | A collection and its titles |
+| POST | `/api/collections` | Make one: `{"library_id", "kind": "manual"|"smart", "title", "overview", "filter", "item_ids"}` |
+| PATCH / DELETE | `/api/collections/{id}` | Change or delete one (automatic ones are hidden) |
+| POST / DELETE / PUT | `/api/collections/{id}/items[/{item}]`, `/order` | Add, remove and order a manual collection's titles |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
 | DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |

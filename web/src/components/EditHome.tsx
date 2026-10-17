@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
-import { api, type ItemSort, type Library, type Resolution, type RowFilter } from '@/lib/api';
-import { defaultRowIds, resolveRows, rowQuery, seasons, toSaved, useUpdatePrefs, type ResolvedRow } from '@/lib/home';
+import type { Library, RowFilter } from '@/lib/api';
+import { defaultRowIds, resolveRows, seasons, toSaved, useUpdatePrefs, type ResolvedRow } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions, sorts } from '@/pages/Library';
-import { Artwork } from '@/components/Artwork';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field, inputClass } from '@/components/ui/field';
+import { FilterFields, FilterPreview } from '@/components/FilterFields';
 
 /** Reorder, hide and add rows on the profile's home page. */
 export function EditHomeDialog({
@@ -195,16 +194,6 @@ function RowItem({ row, onToggle, onEdit, onDelete }: { row: ResolvedRow; onTogg
   );
 }
 
-const addedOptions = [0, 7, 30, 90, 365];
-const lengthOptions: { label: string; min?: number; max?: number }[] = [
-  { label: 'Any length' },
-  { label: 'Under 90 minutes', max: 90 },
-  { label: 'Under 2 hours', max: 120 },
-  { label: 'Over 2 hours', min: 120 },
-  { label: 'Over 2½ hours', min: 150 },
-];
-const ratingOptions = [0, 6, 7, 8];
-
 function RowEditor({
   libraries,
   initial,
@@ -219,16 +208,6 @@ function RowEditor({
   const [title, setTitle] = useState(initial?.title ?? '');
   const [f, setF] = useState<RowFilter>(initial?.filter ?? { library_id: libraries[0]?.id ?? 0, sort: 'added' });
   const library = libraries.find((l) => l.id === f.library_id);
-  const movies = library?.kind !== 'shows';
-  const facets = useQuery({ queryKey: ['facets', f.library_id], queryFn: () => api.facets(f.library_id), enabled: !!f.library_id });
-  const preview = useQuery({
-    queryKey: ['items', 'row-preview', f],
-    queryFn: () => api.items(rowQuery(f, library, 8)),
-    enabled: !!f.library_id,
-    placeholderData: (prev) => prev,
-  });
-  const set = (patch: Partial<RowFilter>) => setF((cur) => ({ ...cur, ...patch }));
-  const length = lengthOptions.findIndex((o) => o.min === f.min_runtime && o.max === f.max_runtime);
 
   return (
     <DialogContent
@@ -257,111 +236,8 @@ function RowEditor({
             className={inputClass}
           />
         </Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Library">
-            <select
-              value={f.library_id}
-              onChange={(e) => setF({ library_id: Number(e.target.value), sort: f.sort, unwatched: f.unwatched })}
-              className={inputClass}
-            >
-              {libraries.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Order">
-            <select value={f.sort ?? 'title'} onChange={(e) => set({ sort: e.target.value as ItemSort })} className={inputClass}>
-              {Object.entries(sorts).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Genre">
-            <select value={f.genre ?? ''} onChange={(e) => set({ genre: e.target.value || undefined })} className={inputClass}>
-              <option value="">Any genre</option>
-              {facets.data?.genres.map((g) => (
-                <option key={g.value} value={g.value}>
-                  {g.value}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Decade">
-            <select value={f.decade ?? ''} onChange={(e) => set({ decade: Number(e.target.value) || undefined })} className={inputClass}>
-              <option value="">Any decade</option>
-              {facets.data?.decades.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.value}s
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Added">
-            <select value={f.added_within ?? 0} onChange={(e) => set({ added_within: Number(e.target.value) || undefined })} className={inputClass}>
-              {addedOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d === 0 ? 'Any time' : d === 7 ? 'This week' : d === 365 ? 'This year' : `In the last ${d} days`}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Length">
-            <select
-              value={Math.max(0, length)}
-              onChange={(e) => {
-                const o = lengthOptions[Number(e.target.value)];
-                set({ min_runtime: o.min, max_runtime: o.max });
-              }}
-              className={inputClass}
-            >
-              {lengthOptions.map((o, i) => (
-                <option key={o.label} value={i}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Rating">
-            <select value={f.min_rating ?? 0} onChange={(e) => set({ min_rating: Number(e.target.value) || undefined })} className={inputClass}>
-              {ratingOptions.map((r) => (
-                <option key={r} value={r}>
-                  {r === 0 ? 'Any rating' : `★ ${r} or more`}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {movies && (
-            <Field label="Quality">
-              <select value={f.resolution ?? ''} onChange={(e) => set({ resolution: (e.target.value as Resolution) || undefined })} className={inputClass}>
-                <option value="">Any quality</option>
-                {Object.entries(resolutions).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-        </div>
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-          <input type="checkbox" checked={!!f.unwatched} onChange={(e) => set({ unwatched: e.target.checked || undefined })} className="size-4 accent-[var(--color-accent)]" />
-          Only things I haven't watched
-        </label>
-
-        <div className="rounded-2xl bg-surface-2/60 p-3 ring-1 ring-border">
-          <p className="mb-2 text-xs font-medium text-muted">
-            {preview.data ? (preview.data.total === 0 ? 'Nothing matches yet. The row stays hidden until something does.' : `${fmt.plural(preview.data.total, movies ? 'movie' : 'show')} ${preview.data.total === 1 ? 'matches' : 'match'}`) : 'Looking…'}
-          </p>
-          <div className="grid grid-cols-8 gap-1.5">
-            {preview.data?.items.map((it) => (
-              <Artwork key={it.id} src={it.images?.primary} alt={it.title} className="aspect-[2/3] rounded-md" fallbackTitle={it.title} />
-            ))}
-          </div>
-        </div>
+        <FilterFields filter={f} onChange={setF} libraries={libraries} />
+        <FilterPreview filter={f} library={library} emptyText="Nothing matches yet. The row stays hidden until something does." />
       </div>
     </DialogContent>
   );

@@ -121,6 +121,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
 	mux.HandleFunc("GET /api/people/{id}/image", user(s.personImage))
 	mux.HandleFunc("GET /api/extras/{id}/stream", user(s.streamExtra))
+	mux.HandleFunc("GET /api/libraries/{id}/collections", user(s.listCollections))
+	mux.HandleFunc("GET /api/collections/{id}", user(s.getCollection))
+	mux.HandleFunc("GET /api/collections/{id}/images/{type}", user(s.collectionImage))
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
 	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
@@ -148,6 +151,12 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/libraries/{id}/scan", admin(s.startScan))
 	mux.HandleFunc("GET /api/libraries/{id}/unmatched", admin(s.unmatched))
 	mux.HandleFunc("GET /api/libraries/{id}/health", admin(s.libraryHealth))
+	mux.HandleFunc("POST /api/collections", admin(s.createCollection))
+	mux.HandleFunc("PATCH /api/collections/{id}", admin(s.updateCollection))
+	mux.HandleFunc("DELETE /api/collections/{id}", admin(s.deleteCollection))
+	mux.HandleFunc("POST /api/collections/{id}/items", admin(s.collectionAddItems))
+	mux.HandleFunc("DELETE /api/collections/{id}/items/{item}", admin(s.collectionRemoveItem))
+	mux.HandleFunc("PUT /api/collections/{id}/order", admin(s.orderCollection))
 	mux.HandleFunc("POST /api/libraries/{id}/compatibility", admin(s.compatibility))
 	mux.HandleFunc("POST /api/libraries/{id}/empty-trash", admin(s.emptyTrash))
 	mux.HandleFunc("DELETE /api/items/{id}", admin(s.removeItem))
@@ -192,12 +201,14 @@ type itemDTO struct {
 	UserData       *store.UserData `json:"user_data,omitempty"`
 	UnwatchedCount *int            `json:"unwatched_count,omitempty"`
 	// On a movie or show's own page: its genres, cast and crew.
-	Genres  []string          `json:"genres,omitempty"`
-	Credits []creditDTO       `json:"credits,omitempty"`
-	Extras  []extraDTO        `json:"extras,omitempty"`
-	Images  map[string]string `json:"images,omitempty"`
-	Stream  string            `json:"stream_url,omitempty"`
-	Files   []store.MediaFile `json:"files,omitempty"`
+	Genres  []string    `json:"genres,omitempty"`
+	Credits []creditDTO `json:"credits,omitempty"`
+	Extras  []extraDTO  `json:"extras,omitempty"`
+	// On a movie or show's own page: the collections it's in.
+	Collections []collectionRef   `json:"collections,omitempty"`
+	Images      map[string]string `json:"images,omitempty"`
+	Stream      string            `json:"stream_url,omitempty"`
+	Files       []store.MediaFile `json:"files,omitempty"`
 }
 
 // imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use

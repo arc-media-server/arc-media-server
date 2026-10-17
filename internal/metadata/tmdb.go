@@ -108,7 +108,17 @@ type Movie struct {
 	RuntimeMin    int
 	PosterPath    string
 	BackdropPath  string
+	// The TMDB collection it's part of (e.g. The Matrix Collection), if any.
+	Collection *CollectionRef
 	Details
+}
+
+// CollectionRef is a TMDB collection as a movie names it.
+type CollectionRef struct {
+	TMDBID       int64
+	Name         string
+	PosterPath   string
+	BackdropPath string
 }
 
 // MatchMovie identifies a movie, preferring explicit ids over a title search. It returns nil
@@ -297,7 +307,13 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		VoteAverage         float64     `json:"vote_average"`
 		Genres              []tmdbNamed `json:"genres"`
 		ProductionCompanies []tmdbNamed `json:"production_companies"`
-		Credits             struct {
+		BelongsToCollection *struct {
+			ID           int64  `json:"id"`
+			Name         string `json:"name"`
+			PosterPath   string `json:"poster_path"`
+			BackdropPath string `json:"backdrop_path"`
+		} `json:"belongs_to_collection"`
+		Credits struct {
 			Cast []tmdbCastMember `json:"cast"`
 			Crew []tmdbCrewMember `json:"crew"`
 		} `json:"credits"`
@@ -324,7 +340,12 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			}
 		}
 	}
+	var coll *CollectionRef
+	if b := d.BelongsToCollection; b != nil && b.ID != 0 {
+		coll = &CollectionRef{TMDBID: b.ID, Name: b.Name, PosterPath: b.PosterPath, BackdropPath: b.BackdropPath}
+	}
 	return &Movie{
+		Collection:    coll,
 		TMDBID:        d.ID,
 		IMDBID:        d.IMDBID,
 		Title:         d.Title,
@@ -436,4 +457,26 @@ func Normalize(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// CollectionInfo describes a TMDB collection.
+type CollectionInfo struct {
+	Name         string
+	Overview     string
+	PosterPath   string
+	BackdropPath string
+}
+
+// Collection fetches a TMDB collection's description and artwork.
+func (c *TMDB) Collection(ctx context.Context, id int64) (*CollectionInfo, error) {
+	var d struct {
+		Name         string `json:"name"`
+		Overview     string `json:"overview"`
+		PosterPath   string `json:"poster_path"`
+		BackdropPath string `json:"backdrop_path"`
+	}
+	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10), nil, &d); err != nil {
+		return nil, err
+	}
+	return &CollectionInfo{Name: d.Name, Overview: d.Overview, PosterPath: d.PosterPath, BackdropPath: d.BackdropPath}, nil
 }

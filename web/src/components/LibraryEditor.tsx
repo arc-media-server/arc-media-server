@@ -36,6 +36,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tvdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
+  const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
   const [picking, setPicking] = useState(!editing);
   const [step, setStep] = useState<'details' | 'preview'>('details');
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -55,8 +56,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay })
-        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay }),
+        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin })
+        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -171,6 +172,19 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                 {orderings.find((o) => o.value === ordering)?.hint}. This is only how files are named; you can show each series in any
                 order later.
               </p>
+            </Field>
+          )}
+          {kind === 'movies' && (
+            <Field label="Automatic collections">
+              <select value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
+                <option value={0}>Off</option>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    When I have {n === 1 ? 'any film' : `${n} or more films`} from one
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
             </Field>
           )}
           <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">

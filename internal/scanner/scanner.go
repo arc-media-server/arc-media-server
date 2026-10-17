@@ -508,6 +508,13 @@ func (s *Scanner) saveMovie(ctx context.Context, it store.Item, m *metadata.Movi
 	if err := s.store.UpdateMetadata(ctx, movieMetadata(it, m)); err != nil {
 		return err
 	}
+	var coll *store.CollectionRef
+	if c := m.Collection; c != nil {
+		coll = &store.CollectionRef{TMDBID: c.TMDBID, Name: c.Name, PosterPath: c.PosterPath, BackdropPath: c.BackdropPath}
+	}
+	if err := s.store.SetMovieCollection(ctx, it.ID, it.LibraryID, coll); err != nil {
+		return err
+	}
 	if err := s.saveDetails(ctx, it.ID, m.Details); err != nil {
 		return err
 	}
@@ -584,4 +591,12 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 func isSample(name string) bool {
 	stem := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
 	return stem == "sample" || strings.HasSuffix(stem, "-sample") || strings.HasSuffix(stem, ".sample")
+}
+
+// CollectionInfo fetches a TMDB collection's description and artwork, or nil without TMDB.
+func (s *Scanner) CollectionInfo(ctx context.Context, tmdbID int64) (*metadata.CollectionInfo, error) {
+	if !s.tmdb.Configured() {
+		return nil, nil
+	}
+	return s.tmdb.Collection(ctx, tmdbID)
 }

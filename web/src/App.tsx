@@ -12,6 +12,7 @@ import { SearchPage } from './pages/Search';
 import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
 import { DashboardPage } from './pages/Dashboard';
+import { CollectionPage } from './pages/Collection';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
@@ -37,6 +38,7 @@ export function App() {
             <Route path="/library/:id" element={<LibraryPage />} />
             <Route path="/movie/:id" element={<MoviePage />} />
             <Route path="/series/:id" element={<SeriesPage />} />
+            <Route path="/collection/:id" element={<CollectionPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/health" element={<HealthPage />} />
             <Route path="/attention" element={<Navigate to="/health" replace />} />

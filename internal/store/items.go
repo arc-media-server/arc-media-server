@@ -470,6 +470,10 @@ func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
 		UNION ALL
 		SELECT 'person', 'primary', profile_path, 3 FROM people
 			WHERE profile_path <> '' AND id IN (SELECT person_id FROM item_people)
+		UNION ALL
+		SELECT 'collection', 'primary', poster_path, 4 FROM collections WHERE poster_path <> ''
+		UNION ALL
+		SELECT 'collection', 'backdrop', backdrop_path, 4 FROM collections WHERE backdrop_path <> ''
 		ORDER BY 4`)
 	if err != nil {
 		return nil, err

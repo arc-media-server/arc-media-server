@@ -1,7 +1,7 @@
-import { forwardRef, useEffect, useRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, ChevronDown, FolderSearch, Loader2, RefreshCw, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { plural } from '@/lib/format';
@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { useLibraries } from '@/components/Sidebar';
 import { useIsAdmin } from '@/lib/auth';
+import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ export const resolutions: Record<Resolution, string> = { '4k': '4K', '1080': '10
 export function LibraryPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
   const filters = {
     genre: params.get('genre') ?? undefined,
@@ -45,6 +47,10 @@ export function LibraryPage() {
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
 
+  const view = params.get('view') === 'collections' ? 'collections' : 'titles';
+  const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
+  const [newCollection, setNewCollection] = useState(false);
+  const unit = lib?.kind === 'shows' ? 'show' : 'movie';
   const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500, ...filters };
   const items = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query), enabled: !!lib });
   const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
@@ -63,9 +69,20 @@ export function LibraryPage() {
     <Page className="pb-16">
       <PageHeader
         title={lib?.name ?? ''}
-        subtitle={items.data && plural(items.data.total, lib?.kind === 'shows' ? 'show' : 'movie')}
+        subtitle={
+          view === 'collections'
+            ? collections.data && plural(collections.data.length, 'collection')
+            : items.data && plural(items.data.total, unit)
+        }
         actions={
-          lib && (
+          lib &&
+          (view === 'collections' ? (
+            admin && (
+              <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
+                <Plus /> New Collection
+              </Button>
+            )
+          ) : (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -85,10 +102,35 @@ export function LibraryPage() {
               </DropdownMenu>
               {admin && <ScanButton lib={lib} />}
             </>
-          )
+          ))
         }
       />
-      {lib && facets.data && (
+      {lib && (admin || (collections.data?.length ?? 0) > 0) && (
+        <div className="-mt-3 mb-5 flex gap-1 px-6 md:px-10" role="tablist">
+          {(
+            [
+              ['titles', lib.kind === 'shows' ? 'Shows' : 'Movies'],
+              ['collections', 'Collections'],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setParams(v === 'collections' ? { view: 'collections' } : {}, { replace: true })}
+              className={cn(
+                'rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors',
+                view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {lib && <CollectionDialog library={lib} open={newCollection} onOpenChange={setNewCollection} onSaved={(c) => navigate(`/collection/${c.id}`)} />}
+      {lib && view === 'titles' && facets.data && (
         <div className="scrollbar-none -mt-2 mb-6 flex gap-2 overflow-x-auto px-6 md:px-10">
           <FilterChip active={!!filters.unwatched} onClick={() => setParam('unwatched', filters.unwatched ? undefined : '1')}>
             Unwatched
@@ -121,7 +163,21 @@ export function LibraryPage() {
         </div>
       )}
       <div className="px-6 md:px-10">
-        {items.error ? (
+        {view === 'collections' ? (
+          collections.error ? (
+            <ErrorState error={collections.error} />
+          ) : !collections.data ? (
+            <PosterGridSkeleton />
+          ) : collections.data.length === 0 ? (
+            <EmptyState icon={<Layers />} title="No collections yet">
+              {lib?.kind === 'shows'
+                ? 'Make one with New Collection: pick shows yourself, or let a smart collection gather everything that matches a filter.'
+                : 'Films TMDB groups together (like a trilogy) appear here by themselves. You can also make your own with New Collection.'}
+            </EmptyState>
+          ) : (
+            <CollectionGrid collections={collections.data} unit={unit} />
+          )
+        ) : items.error ? (
           <ErrorState error={items.error} />
         ) : !items.data ? (
           <PosterGridSkeleton />
