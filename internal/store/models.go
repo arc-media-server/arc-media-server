@@ -41,6 +41,9 @@ type Item struct {
 	// Artwork files next to the media, shown instead of the provider's.
 	LocalPoster   string `json:"-"`
 	LocalBackdrop string `json:"-"`
+	// Clear logo: provider path, and a logo file next to the media.
+	LogoPath  string `json:"-"`
+	LocalLogo string `json:"-"`
 }
 
 // Credit is a person's part in a movie or show.

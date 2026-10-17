@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Image is one piece of artwork a provider has for a title.
@@ -16,16 +17,17 @@ type Image struct {
 	Votes    float64 `json:"votes"`
 }
 
-// Images lists TMDB's posters and backdrops for a movie (kind "movie") or show ("tv"), English and
-// language-free first, most liked first.
-func (c *TMDB) Images(ctx context.Context, kind string, id int64) (posters, backdrops []Image, err error) {
+// Images lists TMDB's posters, backdrops and clear logos for a movie (kind "movie") or show
+// ("tv"), English and language-free first, most liked first.
+func (c *TMDB) Images(ctx context.Context, kind string, id int64) (posters, backdrops, logos []Image, err error) {
 	var d struct {
 		Posters   []tmdbImage `json:"posters"`
 		Backdrops []tmdbImage `json:"backdrops"`
+		Logos     []tmdbImage `json:"logos"`
 	}
 	q := url.Values{"include_image_language": {"en,null"}}
 	if err := c.get(ctx, "/"+kind+"/"+strconv.FormatInt(id, 10)+"/images", q, &d); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	conv := func(list []tmdbImage, size string) []Image {
 		out := make([]Image, 0, len(list))
@@ -35,7 +37,33 @@ func (c *TMDB) Images(ctx context.Context, kind string, id int64) (posters, back
 		}
 		return out
 	}
-	return conv(d.Posters, "w342"), conv(d.Backdrops, "w780"), nil
+	return conv(d.Posters, "w342"), conv(d.Backdrops, "w780"), conv(pngLogos(d.Logos), "w300"), nil
+}
+
+// pngLogos drops SVG logos, which TMDB doesn't resize.
+func pngLogos(list []tmdbImage) []tmdbImage {
+	var out []tmdbImage
+	for _, i := range list {
+		if !strings.HasSuffix(strings.ToLower(i.FilePath), ".svg") {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// bestLogo picks the logo to show: English before language-free (which is often another
+// script), then the most liked. TMDB lists them most liked first.
+func bestLogo(list []tmdbImage) string {
+	list = pngLogos(list)
+	for _, i := range list {
+		if i.Language == "en" {
+			return i.FilePath
+		}
+	}
+	if len(list) > 0 {
+		return list[0].FilePath
+	}
+	return ""
 }
 
 type tmdbImage struct {

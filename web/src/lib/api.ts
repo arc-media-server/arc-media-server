@@ -12,6 +12,7 @@ export type LockableField =
   | 'runtime_min'
   | 'poster'
   | 'backdrop'
+  | 'logo'
   | 'tagline'
   | 'content_rating'
   | 'studio';
@@ -99,7 +100,7 @@ export interface Item {
   extras?: Extra[];
   /** On a movie or show's own page: the collections it's in. */
   collections?: { id: string; title: string; kind: Collection['kind'] }[];
-  images?: { primary?: string; backdrop?: string; series_primary?: string; series_backdrop?: string };
+  images?: { primary?: string; backdrop?: string; logo?: string; series_primary?: string; series_backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
 }
@@ -504,7 +505,7 @@ export interface Prefs {
   home: HomeRow[];
 }
 
-export type ArtworkType = 'poster' | 'backdrop';
+export type ArtworkType = 'poster' | 'backdrop' | 'logo';
 
 export interface ArtworkImage {
   path: string;
@@ -518,6 +519,7 @@ export interface ArtworkImage {
 export interface ArtworkChoices {
   posters: ArtworkImage[];
   backdrops: ArtworkImage[];
+  logos: ArtworkImage[];
   current: Record<ArtworkType, string>;
   chosen: Record<ArtworkType, boolean>;
   local: Record<ArtworkType, boolean>;

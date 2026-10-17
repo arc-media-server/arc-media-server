@@ -28,7 +28,7 @@ import (
 const maxImageBytes = 25 << 20
 
 // Source returns the provider URL for an item's image, picking a size that suits how it's shown.
-// imageType is "primary" (poster, or still for episodes) or "backdrop".
+// imageType is "primary" (poster, or still for episodes), "backdrop" or "logo".
 func Source(itemKind, imageType, imagePath string) string {
 	if imagePath == "" {
 		return ""

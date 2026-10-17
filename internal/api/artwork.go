@@ -22,13 +22,15 @@ const maxUploadBytes = 20 << 20
 
 var uploadTypes = map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 
-// artworkField is the locked field for an artwork type ("poster" or "backdrop").
+// artworkField is the locked field for an artwork type ("poster", "backdrop" or "logo").
 func artworkField(typ string) (string, bool) {
 	switch typ {
 	case "poster", "primary":
 		return "poster", true
 	case "backdrop":
 		return "backdrop", true
+	case "logo":
+		return "logo", true
 	}
 	return "", false
 }
@@ -44,9 +46,9 @@ func (s *Server) listArtwork(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "only movies and shows have artwork to choose")
 		return
 	}
-	posters, backdrops, err := s.scanner.Images(r.Context(), it)
+	posters, backdrops, logos, err := s.scanner.Images(r.Context(), it)
 	if errors.Is(err, scanner.ErrNoProvider) {
-		posters, backdrops = []metadata.Image{}, []metadata.Image{}
+		posters, backdrops, logos = []metadata.Image{}, []metadata.Image{}, []metadata.Image{}
 	} else if err != nil {
 		s.log.Warn("listing artwork failed", "item", it.Title, "err", err)
 		writeError(w, http.StatusBadGateway, "couldn't get artwork from TMDB: "+err.Error())
@@ -55,10 +57,11 @@ func (s *Server) listArtwork(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"posters":   posters,
 		"backdrops": backdrops,
-		"current":   map[string]string{"poster": it.PosterPath, "backdrop": it.BackdropPath},
+		"logos":     logos,
+		"current":   map[string]string{"poster": it.PosterPath, "backdrop": it.BackdropPath, "logo": it.LogoPath},
 		"chosen": map[string]bool{"poster": slices.Contains(it.LockedFields, "poster"),
-			"backdrop": slices.Contains(it.LockedFields, "backdrop")},
-		"local": map[string]bool{"poster": it.LocalPoster != "", "backdrop": it.LocalBackdrop != ""},
+			"backdrop": slices.Contains(it.LockedFields, "backdrop"), "logo": slices.Contains(it.LockedFields, "logo")},
+		"local": map[string]bool{"poster": it.LocalPoster != "", "backdrop": it.LocalBackdrop != "", "logo": it.LocalLogo != ""},
 	})
 }
 
@@ -79,7 +82,7 @@ func (s *Server) chooseArtwork(w http.ResponseWriter, r *http.Request) {
 	}
 	field, ok := artworkField(body.Type)
 	if !ok {
-		writeError(w, http.StatusBadRequest, `type is "poster" or "backdrop"`)
+		writeError(w, http.StatusBadRequest, `type is "poster", "backdrop" or "logo"`)
 		return
 	}
 	if body.Path != nil && !strings.HasPrefix(*body.Path, "/") {
@@ -112,7 +115,7 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 	}
 	field, ok := artworkField(r.PathValue("type"))
 	if !ok {
-		writeError(w, http.StatusBadRequest, `type is "poster" or "backdrop"`)
+		writeError(w, http.StatusBadRequest, `type is "poster", "backdrop" or "logo"`)
 		return
 	}
 	data, err := io.ReadAll(io.LimitReader(r.Body, maxUploadBytes+1))
@@ -153,17 +156,23 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 // setArtwork uses an image (provider path or upload) as an item's poster or backdrop, locked.
 func (s *Server) setArtwork(r *http.Request, it *store.Item, field, path string) error {
 	e := store.ItemEdit{}
-	if field == "poster" {
+	switch field {
+	case "poster":
 		e.Poster = &path
-	} else {
+	case "logo":
+		e.Logo = &path
+	default:
 		e.Backdrop = &path
 	}
 	return s.store.EditItem(r.Context(), it.ID, e)
 }
 
 func imageField(it *store.Item, field string) string {
-	if field == "poster" {
+	switch field {
+	case "poster":
 		return it.PosterPath
+	case "logo":
+		return it.LogoPath
 	}
 	return it.BackdropPath
 }

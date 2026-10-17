@@ -9,7 +9,7 @@ import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
-import { Badge, Hero, MetaLine } from '@/components/Hero';
+import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -74,7 +74,7 @@ export function MoviePage() {
             className="hidden w-52 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block"
           />
           <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{item.title}</h1>
+            <TitleHeading item={item} />
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <MetaLine parts={[item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
               {details.contentRating && <Badge>{details.contentRating}</Badge>}

@@ -106,6 +106,8 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Storage report: what takes up the most space, and space used by never-watched titles
 - [ ] Most-watched titles, genres, and busiest days/times
 - [ ] Yearly "Wrapped"-style summary per user
+- [x] Clear logos on movie and series pages (#81)
+- [x] Cast higher up on series pages, not below every episode (#82)
 
 ### 11. Remote access
 - [ ] HTTPS, secure remote access setup

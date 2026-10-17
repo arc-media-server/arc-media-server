@@ -32,7 +32,7 @@ func findImage(dir string, bases ...string) string {
 
 // LocalArt is artwork found next to the media.
 type LocalArt struct {
-	Poster, Backdrop string
+	Poster, Backdrop, Logo string
 }
 
 // movieArt finds a movie's local artwork: "<file name>-poster.jpg" beside the file, or poster.jpg
@@ -43,6 +43,7 @@ func movieArt(path string, ownFolder bool) LocalArt {
 	art := LocalArt{
 		Poster:   findImage(dir, stem+"-poster", stem+".poster"),
 		Backdrop: findImage(dir, stem+"-fanart", stem+"-backdrop", stem+".fanart"),
+		Logo:     findImage(dir, stem+"-clearlogo", stem+"-logo"),
 	}
 	if ownFolder {
 		if art.Poster == "" {
@@ -50,6 +51,9 @@ func movieArt(path string, ownFolder bool) LocalArt {
 		}
 		if art.Backdrop == "" {
 			art.Backdrop = findImage(dir, "fanart", "backdrop", "background", "art")
+		}
+		if art.Logo == "" {
+			art.Logo = findImage(dir, "clearlogo", "logo")
 		}
 	}
 	return art
@@ -60,6 +64,7 @@ func seriesArt(dir string) LocalArt {
 	return LocalArt{
 		Poster:   findImage(dir, "poster", "folder", "cover", "show"),
 		Backdrop: findImage(dir, "fanart", "backdrop", "background", "art"),
+		Logo:     findImage(dir, "clearlogo", "logo"),
 	}
 }
 

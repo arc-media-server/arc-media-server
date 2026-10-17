@@ -11,7 +11,8 @@ import (
 
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
-	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop`
+	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
+	logo_path, local_logo`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -23,7 +24,8 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 	dest := []any{&it.ID, &it.LibraryID, &it.Kind, &it.ParentID, &it.Title, &it.SortTitle,
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
-		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop}
+		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
+		&it.LogoPath, &it.LocalLogo}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -40,6 +42,7 @@ var LockableFields = map[string]string{
 	"runtime_min":    "runtime_min",
 	"poster":         "poster_path",
 	"backdrop":       "backdrop_path",
+	"logo":           "logo_path",
 	"tagline":        "tagline",
 	"content_rating": "content_rating",
 	"studio":         "studio",
@@ -188,12 +191,12 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 			`+keepIfLocked("original_title")+`, `+keepIfLocked("year")+`, `+keepIfLocked("overview")+`,
 			`+keepIfLocked("runtime_min")+`, `+keepIfLocked("release_date")+`,
 			tmdb_id = ?, tvdb_id = ?, imdb_id = ?,
-			`+keepIfLocked("poster")+`, `+keepIfLocked("backdrop")+`,
+			`+keepIfLocked("poster")+`, `+keepIfLocked("backdrop")+`, `+keepIfLocked("logo")+`,
 			`+keepIfLocked("tagline")+`, `+keepIfLocked("content_rating")+`, `+keepIfLocked("studio")+`, rating = ?,
 			metadata_state = ?, updated_at = ?
 		WHERE id = ? AND metadata_state <> 'locked'`,
 		it.Title, SortTitle(it.Title), it.OriginalTitle, it.Year, it.Overview, it.RuntimeMin,
-		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath,
+		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath, it.LogoPath,
 		it.Tagline, it.ContentRating, it.Studio, it.Rating,
 		it.MetadataState, time.Now().Unix(), it.ID)
 	if err != nil {
@@ -203,9 +206,10 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 }
 
 // SetLocalArt records the artwork files found next to an item's media ("" for none).
-func (s *Store) SetLocalArt(ctx context.Context, id, poster, backdrop string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_poster = ?, local_backdrop = ?
-		WHERE id = ? AND (local_poster <> ? OR local_backdrop <> ?)`, poster, backdrop, id, poster, backdrop)
+func (s *Store) SetLocalArt(ctx context.Context, id, poster, backdrop, logo string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_poster = ?, local_backdrop = ?, local_logo = ?
+		WHERE id = ? AND (local_poster <> ? OR local_backdrop <> ? OR local_logo <> ?)`,
+		poster, backdrop, logo, id, poster, backdrop, logo)
 	return err
 }
 
@@ -324,6 +328,7 @@ type ItemEdit struct {
 	// Chosen artwork: a provider image path or an uploaded file ("upload:...").
 	Poster        *string
 	Backdrop      *string
+	Logo          *string
 	ContentRating *string
 	Studio        *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
@@ -407,6 +412,9 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	if e.Backdrop != nil {
 		set("backdrop", *e.Backdrop)
 	}
+	if e.Logo != nil {
+		set("logo", *e.Logo)
+	}
 
 	fields := make([]string, 0, len(locked))
 	for f := range LockableFields {
@@ -473,6 +481,8 @@ func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
 		SELECT kind, 'primary', poster_path, CASE kind WHEN 'episode' THEN 2 ELSE 0 END FROM items WHERE poster_path <> ''
 		UNION ALL
 		SELECT kind, 'backdrop', backdrop_path, 1 FROM items WHERE backdrop_path <> ''
+		UNION ALL
+		SELECT kind, 'logo', logo_path, 1 FROM items WHERE logo_path <> ''
 		UNION ALL
 		SELECT 'person', 'primary', profile_path, 3 FROM people
 			WHERE profile_path <> '' AND id IN (SELECT person_id FROM item_people)

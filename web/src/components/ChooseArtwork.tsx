@@ -6,7 +6,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-/** Choose a poster or background from TMDB's, upload one, or go back to automatic. */
+const typeNames: Record<ArtworkType, string> = { poster: 'Poster', backdrop: 'Background', logo: 'Logo' };
+
+/** Choose a poster, background or logo from TMDB's, upload one, or go back to automatic. */
 export function ChooseArtworkDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -31,7 +33,7 @@ function Chooser({ item, onDone }: { item: Item; onDone: () => void }) {
   const error = choose.error ?? upload.error;
 
   const c = choices.data;
-  const images = type === 'poster' ? c?.posters : c?.backdrops;
+  const images = type === 'poster' ? c?.posters : type === 'logo' ? c?.logos : c?.backdrops;
   const current = c?.current[type];
   const chosen = c?.chosen[type];
 
@@ -40,7 +42,7 @@ function Chooser({ item, onDone }: { item: Item; onDone: () => void }) {
       title="Choose Artwork"
       description={
         c?.local[type] && !chosen
-          ? `Arc is using the ${type === 'poster' ? 'poster' : 'background'} image in this title's folder. Choosing one here replaces it in Arc (the file isn't changed).`
+          ? `Arc is using the ${typeNames[type].toLowerCase()} image in this title's folder. Choosing one here replaces it in Arc (the file isn't changed).`
           : 'Pick an image from TMDB or upload your own. Your choice is kept when the details are refreshed.'
       }
       className="w-[min(860px,calc(100vw-32px))]"
@@ -70,14 +72,14 @@ function Chooser({ item, onDone }: { item: Item; onDone: () => void }) {
       }
     >
       <div className="mb-4 flex gap-1">
-        {(['poster', 'backdrop'] as const).map((t) => (
+        {(['poster', 'backdrop', 'logo'] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setType(t)}
             className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', type === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
           >
-            {t === 'poster' ? 'Poster' : 'Background'}
+            {typeNames[t]}
           </button>
         ))}
       </div>
@@ -96,11 +98,12 @@ function Chooser({ item, onDone }: { item: Item; onDone: () => void }) {
               className={cn(
                 'group relative overflow-hidden rounded-xl bg-surface-2 ring-1 ring-border transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-accent/60',
                 type === 'poster' ? 'aspect-[2/3]' : 'aspect-video',
+                type === 'logo' && 'bg-[repeating-conic-gradient(var(--color-surface-2)_0_25%,var(--color-surface)_0_50%)] bg-[length:16px_16px] p-4',
                 selected && 'ring-2 ring-accent',
               )}
               title={`${img.width}×${img.height}${img.language ? ` · ${img.language}` : ''}`}
             >
-              <img src={img.thumb} alt="" loading="lazy" className="size-full object-cover" />
+              <img src={img.thumb} alt="" loading="lazy" className={cn('size-full', type === 'logo' ? 'object-contain' : 'object-cover')} />
               {selected && (
                 <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-accent-strong text-white shadow">
                   <Check className="size-3.5" strokeWidth={3} />
