@@ -29,6 +29,7 @@ import * as fmt from '@/lib/format';
 import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel, versionLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
+import { SubtitleSearch } from './SubtitleSearch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 interface NowPlaying {
@@ -127,6 +128,8 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   // Thumbnails for the timeline, if the library makes them.
   const [thumbs, setThumbs] = useState<{ info: TrickplayInfo; sheets: string[] } | null>(null);
   const lastSubtitle = useRef<SubtitleTrack | null>(null);
+  // The panel for finding subtitles online.
+  const [searching, setSearching] = useState(false);
   const hideTimer = useRef<number>(undefined);
   const lastReport = useRef(0);
 
@@ -449,11 +452,12 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
   // Keyboard shortcuts.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey || e.altKey) return;
       const v = video.current;
       switch (e.key) {
         case 'Escape':
-          if (!document.fullscreenElement && !menuOpen) onClose();
+          if (searching) setSearching(false);
+          else if (!document.fullscreenElement && !menuOpen) onClose();
           return;
         case ' ':
         case 'k':
@@ -513,7 +517,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
       document.body.style.overflow = '';
       window.clearTimeout(hideTimer.current);
     };
-  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle]);
+  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle, searching]);
 
   const onTimeUpdate = () => {
     const v = video.current;
@@ -617,6 +621,25 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
         </Button>
       </div>
 
+      {searching && planState && item.itemId && (
+        <SubtitleSearch
+          itemId={item.itemId}
+          fileId={planState.file_id}
+          defaultLanguage={prefs.data?.subtitle_language || planState.audio_tracks.find((a) => a.index === planState.audio_stream)?.language || 'eng'}
+          onClose={() => setSearching(false)}
+          onAdded={async (track) => {
+            setSearching(false);
+            const p = plan.current;
+            if (p && item.itemId) {
+              const tracks = await api.subtitleTracks(item.itemId, p.file_id).catch(() => [...p.subtitle_tracks, track]);
+              plan.current = { ...p, subtitle_tracks: tracks };
+              setPlanState(plan.current);
+            }
+            await selectSubtitle(track, true);
+            video.current?.play().catch(() => {});
+          }}
+        />
+      )}
       {stopped === null && !error && (
         <div
           className={cn(
@@ -657,7 +680,7 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                 })}
               </PlayerMenu>
             )}
-            {planState && planState.subtitle_tracks.length > 0 && (
+            {planState && (planState.subtitle_tracks.length > 0 || item.itemId) && (
               <PlayerMenu icon={<Captions />} label="Subtitles (C)" onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>Subtitles</DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => void selectSubtitle(null, true)}>
@@ -677,6 +700,20 @@ function PlayerOverlay({ item, onClose }: { item: NowPlaying; onClose: () => voi
                   );
                 })}
                 {subtitleError && <p className="max-w-64 px-2.5 py-1.5 text-xs text-warning">{subtitleError}</p>}
+                {item.itemId && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        video.current?.pause();
+                        setSearching(true);
+                      }}
+                    >
+                      <span className="w-4" />
+                      Find Online…
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Size</DropdownMenuLabel>
                 {(['small', 'medium', 'large'] as const).map((sz) => (

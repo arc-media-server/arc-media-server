@@ -56,6 +56,9 @@ Early development. Working today:
   old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
   picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
   language turns subtitles on by themselves next time, and forced subtitles show for foreign dialogue
+- Find subtitles online from the player (Subtitles > Find Online…) on OpenSubtitles.com, matched by
+  TMDB/IMDb id and the file's hash (exact matches first). Needs a free OpenSubtitles API key in
+  Settings; an account allows more downloads a day. Downloads are kept in Arc's data folder
 - A player with its own controls: audio track choice, playback speed, volume, full screen, and
   keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, C, F, < and >, 0–9)
 - Artwork cached locally after each scan, so it loads fast and works offline
@@ -160,6 +163,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
 | POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id" or "edition", "audio_stream", "start_ms", "burn_subtitle"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", "subtitle_tracks", "versions", ...}`; starting again ends the player's previous conversion |
 | GET | `/api/items/{id}/trickplay?file=` | A file's scrubbing previews `{"info": {"interval_ms", "width", "height", "columns", "rows", "count"}, "sheets": [urls]}`; 404 until made |
+| GET | `/api/items/{id}/subtitles?file=` | A file's subtitle tracks (in it, beside it, downloaded) |
+| GET | `/api/items/{id}/subtitles/search?file=&languages=eng` | Find subtitles on OpenSubtitles |
+| POST | `/api/items/{id}/subtitles/download` | Download one: `{"file", "result", "language", "forced", "hearing_impaired"}` |
 | GET | `/api/items/{id}/subtitles/{track}?file=` | A text subtitle track's cues `{"start_ms", "end_ms", "text"}` (tracks are listed in the playback plan; picture ones are burned in with `"burn_subtitle"`) |
 | GET | `/api/transcode/{session}/index.m3u8` | A conversion's HLS playlist (and its `init.mp4` and `sNNNNN.m4s` segments) |
 | POST | `/api/transcode/{session}/ping` | Keep a paused player's conversion alive (they end after 2 minutes unused) |

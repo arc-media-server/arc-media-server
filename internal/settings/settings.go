@@ -29,6 +29,9 @@ type Settings struct {
 	HWAccel bool
 	// Map HDR to SDR when converting HDR video (on unless turned off).
 	ToneMap bool
+	// OpenSubtitles.com, for finding subtitles online: an API key, and optionally an account
+	// (which allows more downloads a day).
+	OpenSubtitlesKey, OpenSubtitlesUser, OpenSubtitlesPassword string
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -47,10 +50,14 @@ const (
 	keyRegion       = "region"
 	keyHWAccel      = "hw_accel"
 	keyToneMap      = "tone_mapping"
+	keyOSKey        = "opensubtitles_api_key"
+	keyOSUser       = "opensubtitles_username"
+	keyOSPassword   = "opensubtitles_password"
 )
 
 // Environment variables that override settings.
-var envOverrides = map[string]string{keyTMDB: "AMS_TMDB_API_KEY", keyTVDB: "AMS_TVDB_API_KEY", keyFFprobe: "AMS_FFPROBE"}
+var envOverrides = map[string]string{keyTMDB: "AMS_TMDB_API_KEY", keyTVDB: "AMS_TVDB_API_KEY", keyFFprobe: "AMS_FFPROBE",
+	keyOSKey: "AMS_OPENSUBTITLES_API_KEY"}
 
 // FromEnv reports which settings (by JSON name) are fixed by environment variables.
 func FromEnv() map[string]bool {
@@ -114,6 +121,15 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.ToneMap = v != "0"
+	if s.OpenSubtitlesKey, err = get(keyOSKey); err != nil {
+		return s, err
+	}
+	if s.OpenSubtitlesUser, err = get(keyOSUser); err != nil {
+		return s, err
+	}
+	if s.OpenSubtitlesPassword, err = get(keyOSPassword); err != nil {
+		return s, err
+	}
 	return s, nil
 }
 
@@ -124,6 +140,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,
 		keyHWAccel: boolString(s.HWAccel), keyToneMap: boolString(s.ToneMap),
+		keyOSKey: s.OpenSubtitlesKey, keyOSUser: s.OpenSubtitlesUser, keyOSPassword: s.OpenSubtitlesPassword,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

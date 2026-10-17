@@ -40,6 +40,8 @@ type Track struct {
 	// For people who are deaf or hard of hearing (SDH / CC).
 	HearingImpaired bool `json:"hearing_impaired"`
 	External        bool `json:"external"`
+	// Found online and kept in Arc's data folder (never beside the video).
+	Downloaded bool `json:"downloaded"`
 	// A picture format: shown by burning it into the video.
 	Image bool `json:"image"`
 
@@ -382,3 +384,102 @@ var langNames = map[string]string{"english": "eng", "french": "fra", "german": "
 	"finnish": "fin", "polish": "pol", "czech": "ces", "hungarian": "hun", "romanian": "ron", "greek": "ell",
 	"turkish": "tur", "russian": "rus", "ukrainian": "ukr", "arabic": "ara", "hebrew": "heb", "hindi": "hin",
 	"japanese": "jpn", "korean": "kor", "chinese": "zho", "thai": "tha", "vietnamese": "vie", "indonesian": "ind"}
+
+// downloadDir is where subtitles found online for a file are kept.
+func (c *Cache) downloadDir(fileID int64) string {
+	return filepath.Join(c.dir, "downloaded", strconv.FormatInt(fileID, 10))
+}
+
+// Tracks lists a file's subtitles: inside it, beside it, then any downloaded for it.
+func (c *Cache) Tracks(f *store.MediaFile) []Track {
+	out := Tracks(f)
+	entries, err := os.ReadDir(c.downloadDir(f.ID))
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".srt") {
+			continue
+		}
+		// Named <language>[.forced][.sdh].<n>.srt
+		t := Track{Codec: "subrip", External: true, Downloaded: true, Path: filepath.Join(c.downloadDir(f.ID), name)}
+		for i, part := range strings.Split(strings.TrimSuffix(name, ".srt"), ".") {
+			switch {
+			case i == 0:
+				t.Language = languageCode(part)
+			case part == "forced":
+				t.Forced = true
+			case part == "sdh":
+				t.HearingImpaired = true
+			}
+		}
+		sum := sha256.Sum256([]byte("downloaded/" + name))
+		t.ID = "d" + hex.EncodeToString(sum[:6])
+		out = append(out, t)
+	}
+	return out
+}
+
+// Find returns a file's track by id, including downloaded ones.
+func (c *Cache) Find(f *store.MediaFile, id string) (Track, bool) {
+	for _, t := range c.Tracks(f) {
+		if t.ID == id {
+			return t, true
+		}
+	}
+	return Track{}, false
+}
+
+// SaveDownload keeps a subtitle file found online for a video file, in Arc's data folder.
+// language is a 2- or 3-letter code.
+func (c *Cache) SaveDownload(f *store.MediaFile, language string, forced, sdh bool, data []byte) (Track, error) {
+	lang := languageCode(strings.SplitN(strings.ToLower(language), "-", 2)[0])
+	if lang == "" {
+		lang = "und"
+	}
+	name := lang
+	if forced {
+		name += ".forced"
+	}
+	if sdh {
+		name += ".sdh"
+	}
+	dir := c.downloadDir(f.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return Track{}, err
+	}
+	n := 1
+	for {
+		if _, err := os.Stat(filepath.Join(dir, fmt.Sprintf("%s.%d.srt", name, n))); err != nil {
+			break
+		}
+		n++
+	}
+	file := fmt.Sprintf("%s.%d.srt", name, n)
+	if err := os.WriteFile(filepath.Join(dir, file), toUTF8(data), 0o644); err != nil {
+		return Track{}, err
+	}
+	sum := sha256.Sum256([]byte("downloaded/" + file))
+	id := "d" + hex.EncodeToString(sum[:6])
+	t, ok := c.Find(f, id)
+	if !ok {
+		return Track{}, errors.New("the downloaded subtitles couldn't be read back")
+	}
+	return t, nil
+}
+
+// LanguageCode2 turns a 3-letter language code into the 2-letter one services use ("eng" -> "en").
+func LanguageCode2(code string) string {
+	code = strings.ToLower(code)
+	if c, ok := bibliographic[code]; ok {
+		code = c
+	}
+	if two, ok := langCodes[code]; ok {
+		return two
+	}
+	if len(code) == 2 {
+		return code
+	}
+	return ""
+}
