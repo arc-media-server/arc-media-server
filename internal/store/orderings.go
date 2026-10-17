@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -36,22 +38,60 @@ func (s *Store) UpsertOrdering(ctx context.Context, seriesID, source, ref, name,
 	return id, err
 }
 
-// ReplaceOrdering rewrites an ordering's seasons and automatic entries. Locked (manually set)
-// entries are kept, and episodes that have one are not given an automatic position.
-func (s *Store) ReplaceOrdering(ctx context.Context, orderingID int64, seasons map[int]string, entries []OrderingEntry) error {
+// ReplaceOrdering rewrites an ordering's seasons (names and summaries) and automatic entries.
+// Season fields the user edited are kept, as are locked (manually set) entries; episodes that have
+// one are not given an automatic position.
+func (s *Store) ReplaceOrdering(ctx context.Context, orderingID int64, seasons, overviews map[int]string, entries []OrderingEntry) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
+	edited := map[int]Season{}
+	rows, err := tx.QueryContext(ctx, `SELECT season_number, name, overview, locked_fields FROM ordering_seasons
+		WHERE ordering_id = ? AND locked_fields <> ''`, orderingID)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var se Season
+		var locked string
+		if err := rows.Scan(&se.Number, &se.Name, &se.Overview, &locked); err != nil {
+			rows.Close()
+			return err
+		}
+		se.LockedFields = splitLocked(locked)
+		edited[se.Number] = se
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ordering_seasons WHERE ordering_id = ?`, orderingID); err != nil {
 		return err
 	}
-	for num, name := range seasons {
+	all := map[int]bool{}
+	for n := range seasons {
+		all[n] = true
+	}
+	for n := range edited {
+		all[n] = true
+	}
+	for num := range all {
+		se := Season{Number: num, Name: seasons[num], Overview: overviews[num]}
+		if e, ok := edited[num]; ok {
+			se.LockedFields = e.LockedFields
+			if slices.Contains(e.LockedFields, "name") {
+				se.Name = e.Name
+			}
+			if slices.Contains(e.LockedFields, "overview") {
+				se.Overview = e.Overview
+			}
+		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO ordering_seasons (ordering_id, season_number, name) VALUES (?, ?, ?)`,
-			orderingID, num, name); err != nil {
+			`INSERT INTO ordering_seasons (ordering_id, season_number, name, overview, locked_fields) VALUES (?, ?, ?, ?, ?)`,
+			orderingID, num, se.Name, se.Overview, strings.Join(se.LockedFields, ",")); err != nil {
 			return err
 		}
 	}
@@ -60,7 +100,7 @@ func (s *Store) ReplaceOrdering(ctx context.Context, orderingID int64, seasons m
 		return err
 	}
 	locked := map[string]bool{}
-	rows, err := tx.QueryContext(ctx, `SELECT episode_id FROM ordering_entries WHERE ordering_id = ?`, orderingID)
+	rows, err = tx.QueryContext(ctx, `SELECT episode_id FROM ordering_entries WHERE ordering_id = ?`, orderingID)
 	if err != nil {
 		return err
 	}
@@ -161,6 +201,84 @@ func (s *Store) OrderingEntries(ctx context.Context, orderingID int64) ([]Orderi
 		out = append(out, e)
 	}
 	return out, rows.Err()
+}
+
+// Season is a season of one ordering: its name and summary, and the fields the user edited.
+type Season struct {
+	Number       int      `json:"season_number"`
+	Name         string   `json:"name"`
+	Overview     string   `json:"overview,omitempty"`
+	LockedFields []string `json:"locked_fields"`
+}
+
+// SeasonDetails returns an ordering's seasons by number.
+func (s *Store) SeasonDetails(ctx context.Context, orderingID int64) (map[int]Season, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT season_number, name, overview, locked_fields FROM ordering_seasons WHERE ordering_id = ?`, orderingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int]Season{}
+	for rows.Next() {
+		var se Season
+		var locked string
+		if err := rows.Scan(&se.Number, &se.Name, &se.Overview, &locked); err != nil {
+			return nil, err
+		}
+		se.LockedFields = splitLocked(locked)
+		out[se.Number] = se
+	}
+	return out, rows.Err()
+}
+
+// EditSeason sets a season's name and summary by hand in one ordering; fields sent are locked, and
+// locked replaces the locked set when not nil.
+func (s *Store) EditSeason(ctx context.Context, orderingID int64, season int, name, overview *string, locked []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var se Season
+	var current string
+	err = tx.QueryRowContext(ctx, `SELECT name, overview, locked_fields FROM ordering_seasons WHERE ordering_id = ? AND season_number = ?`,
+		orderingID, season).Scan(&se.Name, &se.Overview, &current)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	lock := map[string]bool{}
+	if locked != nil {
+		for _, f := range locked {
+			if f != "name" && f != "overview" {
+				return errors.New("unknown season field: " + f)
+			}
+			lock[f] = true
+		}
+	} else {
+		for _, f := range splitLocked(current) {
+			lock[f] = true
+		}
+	}
+	if name != nil {
+		se.Name, lock["name"] = *name, true
+	}
+	if overview != nil {
+		se.Overview, lock["overview"] = *overview, true
+	}
+	var fields []string
+	for _, f := range []string{"name", "overview"} {
+		if lock[f] {
+			fields = append(fields, f)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO ordering_seasons (ordering_id, season_number, name, overview, locked_fields)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (ordering_id, season_number) DO UPDATE SET name = excluded.name, overview = excluded.overview,
+			locked_fields = excluded.locked_fields`, orderingID, season, se.Name, se.Overview, strings.Join(fields, ",")); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) OrderingSeasons(ctx context.Context, orderingID int64) (map[int]string, error) {

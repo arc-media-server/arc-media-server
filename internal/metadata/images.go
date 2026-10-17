@@ -62,6 +62,26 @@ func (c *TMDB) SeasonImages(ctx context.Context, tvID int64, season int) ([]Imag
 	return out, nil
 }
 
+// EpisodeStills lists TMDB's stills for an episode, by its TMDB aired position.
+func (c *TMDB) EpisodeStills(ctx context.Context, tvID int64, season, episode int) ([]Image, error) {
+	var d struct {
+		Stills []tmdbImage `json:"stills"`
+	}
+	path := "/tv/" + strconv.FormatInt(tvID, 10) + "/season/" + strconv.Itoa(season) + "/episode/" + strconv.Itoa(episode) + "/images"
+	if err := c.get(ctx, path, nil, &d); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return []Image{}, nil
+		}
+		return nil, err
+	}
+	out := make([]Image, 0, len(d.Stills))
+	for _, i := range d.Stills {
+		out = append(out, Image{Path: i.FilePath, Thumb: ImageURL(i.FilePath, "w300"), Width: i.Width, Height: i.Height,
+			Language: i.Language, Votes: i.VoteAverage})
+	}
+	return out, nil
+}
+
 // pngLogos drops SVG logos, which TMDB doesn't resize.
 func pngLogos(list []tmdbImage) []tmdbImage {
 	var out []tmdbImage

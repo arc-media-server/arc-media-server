@@ -41,7 +41,9 @@ type Ordering struct {
 	Name        string
 	Description string
 	Seasons     map[int]string
-	Entries     []Entry
+	// Season summaries, where the provider has them (TMDB aired order).
+	SeasonOverviews map[int]string
+	Entries         []Entry
 }
 
 type Entry struct {

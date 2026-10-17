@@ -82,6 +82,17 @@ func (s *Scanner) SeasonImages(ctx context.Context, series *store.Item, season i
 	return s.tmdb.SeasonImages(ctx, series.TMDBID, season)
 }
 
+// EpisodeStills lists the stills TMDB has for an episode at its TMDB aired position.
+func (s *Scanner) EpisodeStills(ctx context.Context, series *store.Item, season, episode int) ([]metadata.Image, error) {
+	if !s.tmdb.Configured() {
+		return nil, ErrNoProvider
+	}
+	if series.TMDBID == 0 {
+		return []metadata.Image{}, nil
+	}
+	return s.tmdb.EpisodeStills(ctx, series.TMDBID, season, episode)
+}
+
 // Providers reports which metadata providers are configured.
 func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb.Configured(), s.tvdb.Configured() }
 

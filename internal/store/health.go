@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"time"
 )
@@ -314,7 +315,7 @@ func (s *Store) MissingEpisodes(ctx context.Context, lib *Library) ([]SeriesGaps
 		if len(available) == 0 {
 			continue // nothing of it is on disk (e.g. its drive is offline)
 		}
-		oid, err := s.DisplayOrdering(ctx, se.ID, "", lib.SourceOrdering)
+		oid, err := s.DisplayOrdering(ctx, se.ID, "", cmp.Or(se.SourceOrdering, lib.SourceOrdering))
 		if err != nil || oid == 0 {
 			if err != nil {
 				return nil, err

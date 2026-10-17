@@ -72,7 +72,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
   // Movies and shows have artwork to choose; episodes just their details.
   const tabs: ('details' | ArtworkType | 'seasons')[] =
-    item.kind === 'episode' ? ['details'] : item.kind === 'series' ? ['details', 'poster', 'backdrop', 'logo', 'seasons'] : ['details', 'poster', 'backdrop', 'logo'];
+    item.kind === 'episode' ? ['details', 'poster'] : item.kind === 'series' ? ['details', 'poster', 'backdrop', 'logo', 'seasons'] : ['details', 'poster', 'backdrop', 'logo'];
   const [tab, setTab] = useState<(typeof tabs)[number]>('details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
@@ -160,7 +160,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
               onClick={() => setTab(t)}
               className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : artworkNames[t]}
+              {t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : item.kind === 'episode' ? 'Thumbnail' : artworkNames[t]}
               {(t === 'seasons' ? Object.keys(seasonArt).length > 0 : t !== 'details' && art[t]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
             </button>
           ))}
@@ -244,14 +244,6 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
             </span>
           </label>
         )}
-        {item.kind === 'episode' && (
-          <div className="col-span-2 mt-1">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Artwork</p>
-            <div className="overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
-              <ArtworkLock label="Keep this thumbnail" locked={locked.has('poster')} onToggle={() => toggle('poster')} />
-            </div>
-          </div>
-        )}
         <button type="submit" hidden />
       </form>
     </DialogContent>
@@ -308,7 +300,7 @@ function Field({ label, locked, onToggle, half, children }: { label: string; loc
   );
 }
 
-function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: () => void }) {
+export function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"
@@ -329,11 +321,3 @@ function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: () => voi
   );
 }
 
-function ArtworkLock({ label, locked, onToggle }: { label: string; locked: boolean; onToggle: () => void }) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-      <span className="text-sm">{label}</span>
-      <LockToggle locked={locked} onToggle={onToggle} />
-    </div>
-  );
-}

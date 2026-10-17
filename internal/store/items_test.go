@@ -123,3 +123,45 @@ func TestEditedGenresSurviveRefresh(t *testing.T) {
 		t.Errorf("after unlocking: %v", got)
 	}
 }
+
+func TestEditedSeasonSurvivesRefresh(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, _ := st.SyncLibrary(ctx, "TV", "shows", "tmdb_aired", []string{"/tv"})
+	series, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "series", Title: "Firefly"}, "series:firefly")
+	oid, err := st.UpsertOrdering(ctx, series, "tmdb_aired", "", "Aired Order", "TMDB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refresh := func() map[int]Season {
+		t.Helper()
+		if err := st.ReplaceOrdering(ctx, oid, map[int]string{1: "Season 1", 2: "Season 2"},
+			map[int]string{1: "The crew of Serenity.", 2: "More."}, nil); err != nil {
+			t.Fatal(err)
+		}
+		d, err := st.SeasonDetails(ctx, oid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	refresh()
+	name := "The Only Season"
+	if err := st.EditSeason(ctx, oid, 1, &name, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	d := refresh()
+	if d[1].Name != name || d[1].Overview != "The crew of Serenity." || !slices.Equal(d[1].LockedFields, []string{"name"}) {
+		t.Errorf("edited season after refresh: %+v", d[1])
+	}
+	if d[2].Name != "Season 2" || d[2].Overview != "More." {
+		t.Errorf("untouched season: %+v", d[2])
+	}
+	// Unlocking lets the provider's name back.
+	if err := st.EditSeason(ctx, oid, 1, nil, nil, []string{}); err != nil {
+		t.Fatal(err)
+	}
+	if d = refresh(); d[1].Name != "Season 1" {
+		t.Errorf("after unlocking: %+v", d[1])
+	}
+}

@@ -213,7 +213,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 			Rating: d.VoteAverage, Genres: names(d.Genres), People: people}}
 
 	// Aired order: fetch seasons 20 at a time using append_to_response.
-	aired := Ordering{Source: "tmdb_aired", Name: "Aired Order", Description: "TMDB", Seasons: map[int]string{}}
+	aired := Ordering{Source: "tmdb_aired", Name: "Aired Order", Description: "TMDB", Seasons: map[int]string{}, SeasonOverviews: map[int]string{}}
 	var nums []int
 	s.SeasonPosters = map[int]string{}
 	for _, season := range d.Seasons {
@@ -239,10 +239,14 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 				continue
 			}
 			var season struct {
+				Overview string        `json:"overview"`
 				Episodes []tmdbEpisode `json:"episodes"`
 			}
 			if err := json.Unmarshal(data, &season); err != nil {
 				return nil, nil, fmt.Errorf("tmdb season %d: %w", n, err)
+			}
+			if season.Overview != "" {
+				aired.SeasonOverviews[n] = season.Overview
 			}
 			for _, e := range season.Episodes {
 				aired.Entries = append(aired.Entries, Entry{Season: e.SeasonNumber, Number: e.EpisodeNumber, Episode: e.toEpisode()})

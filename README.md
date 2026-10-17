@@ -30,7 +30,9 @@ Early development. Working today:
 - "Fix Match": see exactly what Arc read from a file name and searched for, then search TMDB or
   TheTVDB and pick the right movie or show
 - Edit any title, date, description or genres; edited fields (and artwork you choose to keep) are
-  locked so refreshes never undo them
+  locked so refreshes never undo them. Episodes have Edit in their ⋯ menu (with a Thumbnail tab of
+  TMDB stills), and seasons have Edit Season (name, summary and poster, in the order you're viewing);
+  season summaries from TMDB show above the episode list
 - Episode numbering: TV libraries read file names in TMDB's numbering by default (as Plex does), or
   TheTVDB's aired, DVD or absolute order; any show can override its library in Edit Details.
   Switching keeps episodes and their watch history
@@ -232,6 +234,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
 | DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
 | GET | `/api/series/{id}/seasons/{n}/image` | A season's poster |
+| PATCH | `/api/series/{id}/seasons/{n}?ordering=` | Edit a season's `name` and `overview` in an order (the display order by default); edited fields are locked, `locked_fields` replaces the set |
 | GET | `/api/series/{id}/season-art` | A show's seasons and the poster each uses (`chosen`, `local`) |
 | GET / PUT / POST | `/api/series/{id}/seasons/{n}/artwork` | TMDB's posters for a season; choose one `{"path"}` (`null` for automatic); upload one (image body) |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |

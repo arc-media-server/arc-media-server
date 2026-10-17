@@ -173,7 +173,7 @@ func (s *Server) seriesEpisodeIDs(r *http.Request, series *store.Item, season *i
 	if err != nil {
 		return nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), lib.SourceOrdering)
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (s *Server) orderPositions(ctx context.Context, userID string, series *stor
 	if err != nil || lib == nil {
 		return nil, nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, userID, lib.SourceOrdering)
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, userID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return map[string][2]int{}, nil, err
 	}

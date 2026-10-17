@@ -198,6 +198,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", admin(s.clearEntry))
 	mux.HandleFunc("POST /api/series/{id}/refresh", admin(s.refreshSeries))
 	mux.HandleFunc("GET /api/series/{id}/season-art", admin(s.seasonArtList))
+	mux.HandleFunc("PATCH /api/series/{id}/seasons/{n}", admin(s.editSeason))
 	mux.HandleFunc("GET /api/series/{id}/seasons/{n}/artwork", admin(s.seasonArtwork))
 	mux.HandleFunc("PUT /api/series/{id}/seasons/{n}/artwork", admin(s.chooseSeasonArtwork))
 	mux.HandleFunc("POST /api/series/{id}/seasons/{n}/artwork", admin(s.uploadSeasonArtwork))
