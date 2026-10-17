@@ -21,6 +21,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { FixMatchDialog } from '@/components/FixMatch';
+import { PlaybackReport } from '@/components/PlaybackReport';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ export function HealthPage() {
 
   return (
     <Page className="pb-16">
-      <PageHeader title="Library Health" subtitle="Anything in your libraries worth a look. Arc never changes your files to fix things." />
+      <PageHeader title="Library Health" subtitle="Anything in your libraries worth a look, and how they play on different devices. Arc never changes your files to fix things." />
       <div className="space-y-12 px-6 md:px-10">
         {error && <ErrorState error={error} />}
         {!loaded && !error && <div className="h-64 animate-pulse rounded-2xl bg-surface" />}
@@ -54,6 +55,7 @@ export function HealthPage() {
         {loaded &&
           !healthy &&
           reports.map((r) => <LibraryReport key={r.data!.library.id} report={r.data!} onIdentify={setIdentifying} />)}
+        {libraries && libraries.length > 0 && <PlaybackReport libraries={libraries} />}
       </div>
       {identifying && <FixMatchDialog item={identifying} open onOpenChange={(o) => !o && setIdentifying(null)} />}
     </Page>
