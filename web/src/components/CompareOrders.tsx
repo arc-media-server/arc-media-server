@@ -6,6 +6,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { inputClass } from '@/components/ui/field';
 
 /** Compare two episode orders side by side before switching to one. */
 export function CompareOrdersDialog({
@@ -181,7 +182,7 @@ function OrderSelect({ orderings, value, current, onChange }: { orderings: Order
     <select
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="h-10 w-full min-w-0 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none focus:ring-2 focus:ring-accent [color-scheme:inherit]"
+      className={cn(inputClass, 'min-w-0')}
     >
       {orderings.map((o) => (
         <option key={o.id} value={o.id}>

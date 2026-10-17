@@ -16,6 +16,7 @@ import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
 import { AuthGate } from './components/auth/AuthGate';
+import { useProfileTheme } from './lib/theme';
 
 export function App() {
   const { pathname } = useLocation();
@@ -27,6 +28,7 @@ export function App() {
   return (
     <AuthGate>
       <PlayerProvider>
+        <ProfileTheme />
         <Sidebar />
         <MobileBar />
         <main className="min-h-dvh md:pl-[248px]">
@@ -58,4 +60,10 @@ export function App() {
       </PlayerProvider>
     </AuthGate>
   );
+}
+
+/** Keeps the page in the signed-in profile's chosen theme. */
+function ProfileTheme() {
+  useProfileTheme();
+  return null;
 }

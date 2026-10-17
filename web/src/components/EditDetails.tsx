@@ -5,6 +5,7 @@ import { api, type Item, type ItemEdit, type LockableField } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
+import { inputClass } from '@/components/ui/field';
 
 type TextField = Exclude<LockableField, 'poster' | 'backdrop'>;
 
@@ -164,8 +165,6 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   );
 }
 
-const inputClass =
-  'h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none transition-shadow placeholder:text-subtle focus:ring-2 focus:ring-accent [color-scheme:inherit]';
 
 function Field({ label, locked, onToggle, half, children }: { label: string; locked: boolean; onToggle: () => void; half?: boolean; children: ReactNode }) {
   return (

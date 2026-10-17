@@ -5,6 +5,7 @@ import { api, type Item, type MatchCandidate, type MatchInfo, type MatchStep, ty
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { inputClass } from '@/components/ui/field';
 
 const providerName: Record<Provider, string> = { tmdb: 'TMDB', tvdb: 'TheTVDB' };
 
@@ -301,8 +302,6 @@ function Candidate({
   );
 }
 
-const inputClass =
-  'h-10 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none transition-shadow placeholder:text-subtle focus:ring-2 focus:ring-accent';
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-subtle">{children}</h3>;

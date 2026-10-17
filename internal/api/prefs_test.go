@@ -26,6 +26,7 @@ func TestPrefsValidate(t *testing.T) {
 		"no filter":      {Home: []homeRow{{ID: "custom:a", Title: "x"}}},
 		"bad sort":       {Home: []homeRow{{ID: "custom:a", Title: "x", Filter: &rowFilter{LibraryID: 1, Sort: "nope"}}}},
 		"rating over 10": {Home: []homeRow{{ID: "custom:a", Title: "x", Filter: &rowFilter{LibraryID: 1, MinRating: 11}}}},
+		"unknown theme":  {Theme: "pink"},
 	} {
 		if err := p.validate(); err == nil {
 			t.Errorf("%s: accepted", name)

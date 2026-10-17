@@ -61,7 +61,7 @@ powerful when you need it.
 _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Foundation: React + TypeScript + Tailwind + Radix, embedded in the binary
 - [x] Design system basics: typography, colour tokens, motion, light/dark
-- [ ] Design system: refine spacing, components and states as the app grows
+- [x] Design system: refine spacing, components and states as the app grows
 - [x] Home, library browsing, item detail, search, player (direct play)
 - [x] Admin area that's simple: setup wizard, libraries, users, health
 - [x] Admin dashboard: now playing, stop a stream, server log

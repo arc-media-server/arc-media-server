@@ -10,6 +10,7 @@ import { Avatar } from '@/components/Avatar';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { inputClass } from '@/components/ui/field';
 
 export function DashboardPage() {
   const playing = useQuery({ queryKey: ['playing'], queryFn: api.playing, refetchInterval: 3000 });
@@ -137,7 +138,7 @@ function StopDialog({ playback, onClose }: { playback: Playback | null; onClose:
         onChange={(e) => setMessage(e.target.value)}
         maxLength={300}
         placeholder="Message to show them (optional)"
-        className="h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm text-foreground ring-1 ring-border outline-none transition-shadow placeholder:text-subtle focus:ring-2 focus:ring-accent"
+        className={inputClass}
       />
     </ConfirmDialog>
   );

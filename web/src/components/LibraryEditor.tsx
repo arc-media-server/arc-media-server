@@ -8,6 +8,7 @@ import { FolderPicker } from '@/components/FolderPicker';
 import { ParsedStep, StepRow } from '@/components/FixMatch';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
+import { inputClass } from '@/components/ui/field';
 
 const orderings: { value: SourceOrdering; label: string; hint: string }[] = [
   { value: 'tvdb_aired', label: 'TheTVDB aired order', hint: "Sonarr's default; most libraries use this" },
@@ -179,8 +180,6 @@ function parentOf(path: string) {
   return i > 0 ? path.slice(0, i) : path;
 }
 
-const inputClass =
-  'h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none transition-shadow focus:ring-2 focus:ring-accent [&>option]:bg-surface';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

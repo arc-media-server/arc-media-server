@@ -377,9 +377,13 @@ export interface HomeRow {
   filter?: RowFilter;
 }
 
+export type Theme = '' | 'dark' | 'light';
+
 /** The current profile's own preferences. */
 export interface Prefs {
   hide_spoilers: boolean;
+  /** "" follows the device. */
+  theme: Theme;
   /** Empty means the default layout. */
   home: HomeRow[];
 }

@@ -58,6 +58,7 @@ Early development. Working today:
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
 - Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
   episodes you haven't started
+- Appearance per profile (profile menu): Automatic (follows the device), Dark or Light
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
@@ -137,7 +138,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
-| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "home": [rows]}` (an empty `home` is the default layout) |
+| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "home": [rows]}` (an empty `home` is the default layout) |
 | PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |

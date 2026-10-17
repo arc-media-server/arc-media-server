@@ -8,6 +8,7 @@ import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
+import { inputClass } from '@/components/ui/field';
 
 export function ProfilesPage() {
   const qc = useQueryClient();
@@ -230,4 +231,3 @@ function limitLabel(age: number) {
   return age ? `Ages up to ${age}` : 'Can watch everything';
 }
 
-const inputClass = 'h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none focus:ring-2 focus:ring-accent';

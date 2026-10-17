@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { resolutions, sorts } from '@/pages/Library';
 import { Artwork } from '@/components/Artwork';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Field, inputClass } from '@/components/ui/field';
 
 /** Reorder, hide and add rows on the profile's home page. */
 export function EditHomeDialog({
@@ -366,14 +367,3 @@ function RowEditor({
   );
 }
 
-const inputClass =
-  'h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none transition-shadow placeholder:text-subtle focus:ring-2 focus:ring-accent [color-scheme:inherit]';
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</span>
-      {children}
-    </label>
-  );
-}

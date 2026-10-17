@@ -1,8 +1,8 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
-import { api } from '@/lib/api';
+import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
+import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
@@ -11,6 +11,9 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -151,6 +154,15 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           </span>
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={prefs.data?.theme ?? ''} onValueChange={(v) => updatePrefs.mutate({ theme: v as Theme })}>
+          {themes.map((t) => (
+            <DropdownMenuRadioItem key={t.value} value={t.value} disabled={!prefs.data} onSelect={(e) => e.preventDefault()}>
+              {t.icon} {t.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
         {(status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
             <Users className="size-4 text-muted" /> Switch Profile
@@ -264,3 +276,9 @@ export function MobileBar() {
     </div>
   );
 }
+
+const themes: { value: Theme; label: string; icon: ReactNode }[] = [
+  { value: '', label: 'Automatic', icon: <Monitor className="size-4 text-muted" /> },
+  { value: 'dark', label: 'Dark', icon: <Moon className="size-4 text-muted" /> },
+  { value: 'light', label: 'Light', icon: <Sun className="size-4 text-muted" /> },
+];

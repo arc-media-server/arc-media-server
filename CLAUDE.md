@@ -44,7 +44,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   with a preview before adding (the owner chose in-app libraries over ams.yaml).
 - Milestone 4 done (Oct 2026): sign-in, Plex-style profiles, Settings (no config file), watch state,
   Continue Watching/Up Next, richer metadata (age ratings by region), parental controls, empty trash.
-- Next: milestone 5 (web app: admin area, filters, local artwork/NFO, extras, choose artwork, dashboard).
+- Milestone 5 done (Oct 2026): browse filters and sorts, local artwork/NFO, extras and trailers,
+  Choose Artwork, admin Dashboard (now playing, stop, server log), Compare Orders, per-profile
+  preferences (Edit Home with custom and seasonal rows, Hide Spoilers, theme), shared form styles.
+- Next: milestone 6 (Jellyfin-compatible API: #30–#33).
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

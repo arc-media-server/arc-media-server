@@ -2,7 +2,8 @@
 @import "@fontsource-variable/inter";
 
 /*
- * Arc design tokens. Dark is the default look; light follows the system setting.
+ * Arc design tokens. Dark is the default look; light follows the device, unless the profile chose
+ * one (data-theme="dark" | "light" on <html>).
  * Components use the semantic names (bg-surface, text-muted...), never raw colours.
  */
 :root {
@@ -23,7 +24,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --background: #f5f5f7;
     --surface: #ffffff;
     --surface-2: #ececf1;
@@ -39,6 +40,24 @@
     --glass: rgb(255 255 255 / 0.72);
     color-scheme: light;
   }
+}
+
+/* The same light tokens, when the profile chose light. Keep the two in step. */
+:root[data-theme="light"] {
+  --background: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #ececf1;
+  --surface-3: #dedee5;
+  --foreground: #1d1d1f;
+  --muted: #5f5f6b;
+  --subtle: #8e8e99;
+  --border: rgb(0 0 0 / 0.08);
+  --accent: #6d5ce8;
+  --accent-strong: #5a48d9;
+  --accent-foreground: #ffffff;
+  --warning: #c77700;
+  --glass: rgb(255 255 255 / 0.72);
+  color-scheme: light;
 }
 
 @theme inline {
