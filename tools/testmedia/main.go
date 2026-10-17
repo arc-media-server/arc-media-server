@@ -127,7 +127,7 @@ func run(out, ffmpeg string) error {
 	}
 
 	// Files a browser can't play as they are, for testing conversion: an MKV with two audio
-	// tracks (AAC English, AC-3 French) and subtitles, and 10-bit HEVC with E-AC-3.
+	// tracks (AAC English, AC-3 French) and subtitles, and 10-bit HDR10 HEVC with E-AC-3.
 	srt := "1\n00:00:01,000 --> 00:00:04,000\nHello from the subtitles\n\n2\n00:00:30,000 --> 00:00:33,000\nHalfway there\n"
 	for _, f := range []struct {
 		path string
@@ -141,7 +141,9 @@ func run(out, ffmpeg string) error {
 			"-metadata:s:s:0", "language=eng"}},
 		{"Interstellar (2014)/Interstellar (2014).mkv", []string{
 			"-f", "lavfi", "-i", "testsrc2=duration=20:size=1280x720:rate=24", "-f", "lavfi", "-i", "sine=duration=20",
-			"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le", "-x265-params", "log-level=error", "-c:a", "eac3"}},
+			"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le", "-x265-params", "log-level=error",
+			// Tagged as HDR10 (BT.2020, PQ), for testing tone mapping.
+			"-bsf:v", "hevc_metadata=colour_primaries=9:transfer_characteristics=16:matrix_coefficients=9", "-c:a", "eac3"}},
 	} {
 		dst := filepath.Join(out, "Movies", filepath.FromSlash(f.path))
 		if _, err := os.Stat(dst); err == nil {

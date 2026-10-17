@@ -106,3 +106,69 @@ func TestSession(t *testing.T) {
 		})
 	}
 }
+
+func TestHardwareAndToneMapArgs(t *testing.T) {
+	nv := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: -1, HWEncoder: "h264_nvenc", ToneMap: true,
+		SourceHeight: 2160, MaxHeight: 1080}, 0, "out"), " ")
+	for _, want := range []string{"-hwaccel auto -i in.mkv", "-vf " + ToneMapFilter + ",scale=-2:1080", "-c:v h264_nvenc -b:v 10000k", "-forced-idr 1"} {
+		if !strings.Contains(nv, want) {
+			t.Errorf("nvenc args missing %q:\n%s", want, nv)
+		}
+	}
+	burn := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: 4, ToneMap: true}, 0, "out"), " ")
+	if !strings.Contains(burn, "-filter_complex [0:0]"+ToneMapFilter+"[pre];[pre][0:4]overlay=eof_action=pass[v]") {
+		t.Errorf("tone mapped burn-in:\n%s", burn)
+	}
+	va := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: -1, HWEncoder: "h264_vaapi"}, 0, "out"), " ")
+	if !strings.Contains(va, "-vaapi_device /dev/dri/renderD128 -hwaccel auto") || !strings.Contains(va, "-vf format=nv12,hwupload") {
+		t.Errorf("vaapi:\n%s", va)
+	}
+	// Copying ignores all of it.
+	cp := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: -1, CopyVideo: true, HWEncoder: "h264_nvenc", ToneMap: true}, 0, "out"), " ")
+	if strings.Contains(cp, "hwaccel") || strings.Contains(cp, "zscale") {
+		t.Errorf("copy:\n%s", cp)
+	}
+}
+
+// TestConvertHDR converts HDR10 HEVC to SDR H.264 for real, with this computer's hardware encoder
+// if it has one.
+func TestConvertHDR(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	ffprobe, _ := exec.LookPath("ffprobe")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "hdr.mkv")
+	if out, err := exec.Command(ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=duration=4:size=640x360:rate=24",
+		"-c:v", "libx265", "-pix_fmt", "yuv420p10le", "-x265-params", "log-level=error",
+		"-bsf:v", "hevc_metadata=colour_primaries=9:transfer_characteristics=16:matrix_coefficients=9", src).CombinedOutput(); err != nil {
+		t.Fatalf("making source: %v %s", err, out)
+	}
+	m := New(filepath.Join(dir, "sessions"), func() string { return ffmpeg }, func() string { return ffprobe },
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	caps := m.Detect(context.Background())
+	if !caps.ToneMapping {
+		t.Skip("this FFmpeg has no zscale")
+	}
+	t.Logf("hardware encoder: %q", caps.HWEncoder)
+	s, err := m.Start(Options{Path: src, VideoStream: 0, AudioStream: -1, BurnSubtitle: -1, HWEncoder: caps.HWEncoder, ToneMap: true, SourceHeight: 360})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	if err := m.Ready(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	<-s.done
+	if err := s.Err(); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := exec.Command(ffprobe, "-v", "error", "-show_entries", "stream=codec_name,pix_fmt,color_transfer", "-of", "csv=p=0",
+		filepath.Join(s.dir, "index.m3u8")).Output()
+	if got := strings.TrimSpace(string(out)); !strings.HasPrefix(got, "h264,yuv420p") || strings.Contains(got, "smpte2084") {
+		t.Errorf("output: %q", got)
+	}
+	m.Stop(s.ID)
+}

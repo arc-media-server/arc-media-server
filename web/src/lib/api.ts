@@ -352,6 +352,9 @@ export interface PlaybackPlan {
   versions: Version[];
   /** The picture subtitle track being burned into the video, if any. */
   burn_subtitle?: string;
+  /** When converting: the graphics card doing it (e.g. "NVIDIA NVENC"), and whether HDR is mapped to SDR. */
+  encoder?: string;
+  tone_mapped?: boolean;
 }
 
 export interface Version {
@@ -553,6 +556,12 @@ export interface ServerSettings {
   ffprobe_path: string;
   ffprobe: { found: boolean; path?: string; version?: string; error?: string; /** FFmpeg beside it, for converting. */ ffmpeg?: string };
   local_bypass: boolean;
+  /** Convert with the graphics card when one can. */
+  hw_accel: boolean;
+  /** Map HDR to SDR when converting. */
+  tone_mapping: boolean;
+  /** What this server's FFmpeg can do. */
+  transcoder: { hw_encoder: string; hw_label: string; tone_mapping: boolean; checked: boolean };
   port: number;
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
@@ -624,7 +633,7 @@ export const api = {
   updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'port' | 'allow_network' | 'region'>>) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region'>>) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

@@ -77,8 +77,8 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 ### 7. Transcoding and subtitles
 - [x] Direct play / direct stream / transcode decision per client
 - [x] FFmpeg to HLS, with segment cache and cleanup
-- [ ] Hardware acceleration: NVENC, Quick Sync, VAAPI, VideoToolbox
-- [ ] HDR to SDR tone mapping
+- [x] Hardware acceleration: NVENC, Quick Sync, VAAPI, VideoToolbox
+- [x] HDR to SDR tone mapping
 - [x] Multiple versions: group 4K/1080p copies of the same title, auto-pick the best one for the device and connection
 - [x] Editions (Director's Cut, Extended…) as choices on one movie
 - [x] Player basics: audio track choice, keyboard shortcuts, playback speed

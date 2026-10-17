@@ -71,7 +71,13 @@ export function methodLabel(p: PlaybackPlan) {
     case 'remux':
       return { title: 'Repackaged', detail: `The video is sent as it is; Arc adapts the rest for this browser (${p.reasons.join(', ')}).` };
     case 'transcode':
-      return { title: 'Converting', detail: `Arc is converting the video for this browser (${p.reasons.join(', ')}).` };
+      return {
+        title: 'Converting',
+        detail:
+          `Arc is converting the video for this browser (${p.reasons.join(', ')})` +
+          (p.encoder ? ` with the graphics card (${p.encoder})` : ' with the processor') +
+          (p.tone_mapped ? ', mapping HDR to SDR.' : '.'),
+      };
   }
 }
 

@@ -88,6 +88,33 @@ export function SettingsPage() {
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
+          <Section title="Converting" hint="For players that can't play a file as it is, Arc converts it while it's watched.">
+            <ToggleRow
+              label="Use hardware acceleration"
+              description={
+                !s.transcoder.checked
+                  ? 'Checking this computer…'
+                  : s.transcoder.hw_encoder
+                    ? `Convert with the graphics card (${s.transcoder.hw_label}): faster, and leaves the processor free. Arc falls back to the processor if the card can't handle a file.`
+                    : 'No supported graphics card was found (NVIDIA, Intel, AMD or Apple), so Arc converts with the processor.'
+              }
+              checked={s.hw_accel && !!s.transcoder.hw_encoder}
+              busy={update.isPending || !s.transcoder.hw_encoder}
+              onChange={(v) => update.mutate({ hw_accel: v })}
+            />
+            <ToggleRow
+              label="HDR tone mapping"
+              description={
+                s.transcoder.checked && !s.transcoder.tone_mapping
+                  ? "This FFmpeg can't map HDR to SDR (it needs the zscale filter), so converted HDR video looks washed out."
+                  : 'When converting HDR video, map its colours to SDR so it looks right on ordinary screens and in browsers.'
+              }
+              checked={s.tone_mapping && s.transcoder.tone_mapping}
+              busy={update.isPending || !s.transcoder.tone_mapping}
+              onChange={(v) => update.mutate({ tone_mapping: v })}
+            />
+          </Section>
+
           {update.error && <p className="text-sm text-warning">{update.error.message}</p>}
         </div>
       )}

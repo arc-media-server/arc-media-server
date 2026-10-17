@@ -25,6 +25,10 @@ type Settings struct {
 	AllowNetwork bool
 	// Country (ISO 3166-1, e.g. "GB") whose age ratings are shown and used by parental controls.
 	Region string
+	// Convert video with the graphics card when there's one that can (on unless turned off).
+	HWAccel bool
+	// Map HDR to SDR when converting HDR video (on unless turned off).
+	ToneMap bool
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -41,6 +45,8 @@ const (
 	keyPort         = "port"
 	keyAllowNetwork = "allow_network"
 	keyRegion       = "region"
+	keyHWAccel      = "hw_accel"
+	keyToneMap      = "tone_mapping"
 )
 
 // Environment variables that override settings.
@@ -100,6 +106,14 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.Region == "" {
 		s.Region = DefaultRegion
 	}
+	if v, err = get(keyHWAccel); err != nil {
+		return s, err
+	}
+	s.HWAccel = v != "0"
+	if v, err = get(keyToneMap); err != nil {
+		return s, err
+	}
+	s.ToneMap = v != "0"
 	return s, nil
 }
 
@@ -109,6 +123,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,
+		keyHWAccel: boolString(s.HWAccel), keyToneMap: boolString(s.ToneMap),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

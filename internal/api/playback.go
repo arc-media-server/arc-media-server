@@ -149,6 +149,10 @@ type playbackPlan struct {
 	// Subtitles: text ones are fetched as cues and drawn by the player; picture ones are burned
 	// in by asking again with "burn_subtitle".
 	SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
+	// When converting: the graphics card doing it ("NVIDIA NVENC"; "" for the CPU), and whether
+	// HDR is being mapped to SDR.
+	Encoder    string `json:"encoder,omitempty"`
+	ToneMapped bool   `json:"tone_mapped,omitempty"`
 	// The title's files to choose from (editions and versions), the one playing among them.
 	Versions     []versionDTO `json:"versions"`
 	BurnSubtitle string       `json:"burn_subtitle,omitempty"`
@@ -262,17 +266,25 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	if audio != nil {
 		opts.AudioStream = audio.Index
 	}
-	sess, err := s.transcoder.Start(opts)
-	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, err.Error())
-		return
+	if d.Method == "transcode" {
+		caps, st := s.transcoder.Caps(), s.settings()
+		if st.HWAccel {
+			opts.HWEncoder = caps.HWEncoder
+		}
+		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
 	}
-	// The first segment, and for copied video where it really starts (the player's clock offset).
-	if err := s.transcoder.Ready(r.Context(), sess); err != nil {
-		s.transcoder.Stop(sess.ID)
+	sess, err := s.startConversion(r, opts)
+	if err != nil && opts.HWEncoder != "" {
+		// The graphics card couldn't do this one (an unusual format, a busy or old driver): use the CPU.
+		s.log.Warn("hardware conversion failed; using the CPU", "encoder", opts.HWEncoder, "err", err)
+		opts.HWEncoder = ""
+		sess, err = s.startConversion(r, opts)
+	}
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
 	s.playing.setMethod(r, it.ID, d.Method, sess.ID, s.transcoder)
 	out.HLS, out.SessionID, out.OffsetMS = true, sess.ID, sess.OffsetMS
 	out.URL = "/api/transcode/" + sess.ID + "/index.m3u8"
@@ -551,4 +563,26 @@ func (s *Server) itemHasFile(w http.ResponseWriter, r *http.Request, itemID stri
 	}
 	writeError(w, http.StatusNotFound, "that file isn't part of this title")
 	return false
+}
+
+// startConversion starts a conversion and waits for its first segment (and, for copied video, where
+// it really starts: the player's clock offset).
+func (s *Server) startConversion(r *http.Request, opts transcode.Options) (*transcode.Session, error) {
+	sess, err := s.transcoder.Start(opts)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.transcoder.Ready(r.Context(), sess); err != nil {
+		s.transcoder.Stop(sess.ID)
+		return nil, err
+	}
+	return sess, nil
+}
+
+// transcoderCaps is what the converter can do, for the Settings page.
+func (s *Server) transcoderCaps() transcode.Capabilities {
+	if s.transcoder == nil {
+		return transcode.Capabilities{}
+	}
+	return s.transcoder.Caps()
 }
