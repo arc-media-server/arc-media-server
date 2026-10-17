@@ -55,6 +55,12 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
   }
 }
 
+/** The profile's watchlist (hidden while it's empty). */
+function WatchlistRow({ style }: { style: CardStyle }) {
+  const { data } = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
+  return <MediaRow title="Watchlist" items={data ?? []} href="/watchlist" style={style} />;
+}
+
 /** A collection on the home page, as it is now. */
 function CollectionRow({ id, fallback, style }: { id: string; fallback: string; style: CardStyle }) {
   const { data } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), retry: false });
@@ -97,6 +103,8 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
       return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':
       return row.season ? <QueryRow title={row.season.title} query={{ ...row.season.query, limit: 24 }} style={row.style} /> : null;
+    case 'watchlist':
+      return <WatchlistRow style={row.style} />;
     case 'collection':
       return <CollectionRow id={row.ref} fallback={row.title} style={row.style} />;
     case 'playlist':

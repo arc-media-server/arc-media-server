@@ -70,3 +70,40 @@ func TestWatchState(t *testing.T) {
 		t.Error("another profile shouldn't see Sam's watch state")
 	}
 }
+
+func TestRatingsAndWatchlist(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, _ := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{"/m"})
+	sam, _ := st.CreateUser(ctx, "Sam", false, "blue", "", "")
+	add := func(title string) string {
+		id, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		fid, _ := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/m/" + title, Size: 1, ModTime: 1}, 1, 1)
+		st.SetFileItems(ctx, fid, []string{id}, 0)
+		return id
+	}
+	heat, alien := add("Heat"), add("Alien")
+
+	st.SetUserRating(ctx, sam.ID, heat, 9)
+	st.SetWatchlist(ctx, sam.ID, alien, true)
+	st.SetWatchlist(ctx, sam.ID, heat, true)
+	d, _ := st.UserDataFor(ctx, sam.ID, []string{heat, alien})
+	if d[heat].Rating != 9 || !d[heat].Watchlisted || d[alien].Rating != 0 || !d[alien].Watchlisted {
+		t.Fatalf("user data: %+v", d)
+	}
+	list, err := st.Watchlist(ctx, sam.ID, Access{})
+	if err != nil || len(list) != 2 {
+		t.Fatalf("watchlist: %+v %v", list, err)
+	}
+	// Taking one off leaves the other; its rating stays.
+	st.SetWatchlist(ctx, sam.ID, heat, false)
+	if list, _ = st.Watchlist(ctx, sam.ID, Access{}); len(list) != 1 || list[0].ID != alien {
+		t.Errorf("after removing Heat: %+v", list)
+	}
+	if d, _ = st.UserDataFor(ctx, sam.ID, []string{heat}); d[heat].Rating != 9 || d[heat].Watchlisted {
+		t.Errorf("Heat after removing it: %+v", d[heat])
+	}
+	if other, _ := st.Watchlist(ctx, "someone-else", Access{}); len(other) != 0 {
+		t.Error("another profile sees the watchlist")
+	}
+}

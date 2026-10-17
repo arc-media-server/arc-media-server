@@ -587,6 +587,9 @@ export interface UserData {
   played: boolean;
   play_count?: number;
   last_played_at?: number;
+  /** The profile's own rating, 1-10 (half stars out of five). */
+  rating?: number;
+  watchlisted?: boolean;
 }
 
 export type ProfileColor = 'violet' | 'blue' | 'teal' | 'green' | 'amber' | 'orange' | 'rose' | 'slate';
@@ -777,6 +780,9 @@ export const api = {
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
   stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),
+  setRating: (id: string, rating: number) => request<void>('PUT', `/api/items/${id}/rating`, { rating }),
+  setWatchlist: (id: string, on: boolean) => request<void>('PUT', `/api/items/${id}/watchlist`, { on }),
+  watchlist: () => request<Item[]>('GET', '/api/watchlist'),
   setPlayed: (id: string, played: boolean, season?: number) =>
     request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),
   playlists: () => request<Playlist[]>('GET', '/api/playlists'),

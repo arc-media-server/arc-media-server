@@ -245,6 +245,8 @@ function describe(r: ResolvedRow, merged: boolean): string {
       return seasonsSummary;
     case 'custom':
       return filterSummary(r.filter, r.library);
+    case 'watchlist':
+      return "Movies and shows you've saved for later";
     case 'collection':
       return 'A collection';
     case 'playlist':

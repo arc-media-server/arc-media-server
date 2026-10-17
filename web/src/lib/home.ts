@@ -68,7 +68,7 @@ export interface RowLook {
 /** A row ready to show: where its items come from and what it's called. */
 export type ResolvedRow = RowLook &
   (
-    | { id: string; hidden: boolean; type: 'continue' | 'next-up'; title: string }
+    | { id: string; hidden: boolean; type: 'continue' | 'next-up' | 'watchlist'; title: string }
     | { id: string; hidden: boolean; type: 'seasonal'; title: string; season?: Season }
     | { id: string; hidden: boolean; type: 'recent'; title: string; library: Library }
     | { id: string; hidden: boolean; type: 'custom'; title: string; library?: Library; filter: RowFilter }
@@ -97,6 +97,7 @@ function look(type: ResolvedRow['type'], saved?: HomeRow): RowLook {
 function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
   if (id === 'continue') return { id, hidden: false, type: 'continue', title: 'Continue Watching', ...look('continue', saved) };
   if (id === 'next-up') return { id, hidden: false, type: 'next-up', title: 'Up Next', ...look('next-up', saved) };
+  if (id === 'watchlist') return { id, hidden: false, type: 'watchlist', title: 'Watchlist', ...look('watchlist', saved) };
   if (id === 'seasonal') {
     const season = currentSeason();
     return { id, hidden: false, type: 'seasonal', title: season?.title ?? 'Seasonal Picks', season, ...look('seasonal', saved) };
@@ -110,7 +111,7 @@ function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow
 
 /** The default home page: carry on watching, anything seasonal, then each library's newest. */
 export function defaultRowIds(libraries: Library[]) {
-  return ['continue', 'next-up', 'seasonal', ...libraries.map((l) => `recent:${l.id}`)];
+  return ['continue', 'next-up', 'watchlist', 'seasonal', ...libraries.map((l) => `recent:${l.id}`)];
 }
 
 /**

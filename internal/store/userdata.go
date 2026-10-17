@@ -14,6 +14,9 @@ type UserData struct {
 	Played       bool  `json:"played"`
 	PlayCount    int   `json:"play_count,omitempty"`
 	LastPlayedAt int64 `json:"last_played_at,omitempty"`
+	// The profile's own rating (1-10, half stars out of five), and whether it's on its watchlist.
+	Rating      int  `json:"rating,omitempty"`
+	Watchlisted bool `json:"watchlisted,omitempty"`
 }
 
 // Watched thresholds, as in Plex: a resume point is kept after the first minute, and anything
@@ -104,7 +107,8 @@ func (s *Store) UserDataFor(ctx context.Context, userID string, itemIDs []string
 		for _, id := range batch {
 			args = append(args, id)
 		}
-		rows, err := s.db.QueryContext(ctx, `SELECT item_id, position_ms, played, play_count, COALESCE(last_played_at, 0)
+		rows, err := s.db.QueryContext(ctx, `SELECT item_id, position_ms, played, play_count, COALESCE(last_played_at, 0),
+				user_rating, watchlisted_at IS NOT NULL
 			FROM user_item_data WHERE user_id = ? AND item_id IN (`+placeholders(len(batch))+`)`, args...)
 		if err != nil {
 			return nil, err
@@ -112,7 +116,7 @@ func (s *Store) UserDataFor(ctx context.Context, userID string, itemIDs []string
 		for rows.Next() {
 			var id string
 			var d UserData
-			if err := rows.Scan(&id, &d.PositionMS, &d.Played, &d.PlayCount, &d.LastPlayedAt); err != nil {
+			if err := rows.Scan(&id, &d.PositionMS, &d.Played, &d.PlayCount, &d.LastPlayedAt, &d.Rating, &d.Watchlisted); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -247,4 +251,31 @@ func (s *Store) ContinueDismissed(ctx context.Context, userID string) (map[strin
 		out[id] = at
 	}
 	return out, rows.Err()
+}
+
+// SetUserRating sets a profile's rating of an item (1-10), or clears it (0).
+func (s *Store) SetUserRating(ctx context.Context, userID, itemID string, rating int) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, user_rating) VALUES (?, ?, ?)
+		ON CONFLICT (user_id, item_id) DO UPDATE SET user_rating = excluded.user_rating`, userID, itemID, rating)
+	return err
+}
+
+// SetWatchlist puts an item on a profile's watchlist, or takes it off.
+func (s *Store) SetWatchlist(ctx context.Context, userID, itemID string, on bool) error {
+	var at any
+	if on {
+		at = time.Now().Unix()
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, watchlisted_at) VALUES (?, ?, ?)
+		ON CONFLICT (user_id, item_id) DO UPDATE SET watchlisted_at = CASE WHEN excluded.watchlisted_at IS NULL THEN NULL
+			ELSE COALESCE(watchlisted_at, excluded.watchlisted_at) END`, userID, itemID, at)
+	return err
+}
+
+// Watchlist lists the titles on a profile's watchlist that it can see, most recently added first.
+func (s *Store) Watchlist(ctx context.Context, userID string, acc Access) ([]Item, error) {
+	q := `SELECT ` + prefixCols("items.", itemCols) + ` FROM items JOIN user_item_data u ON u.item_id = items.id
+		WHERE u.user_id = ? AND u.watchlisted_at IS NOT NULL AND ` + playableSQL
+	q, args := acc.Where("items", q, []any{userID})
+	return s.queryItems(ctx, q+` ORDER BY u.watchlisted_at DESC`, args...)
 }
