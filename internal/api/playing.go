@@ -23,6 +23,11 @@ import (
 // while its file is being streamed or the player keeps reporting progress.
 
 const (
+	// A viewing goes into watch history once it has played this long.
+	minPlayMS = 60_000
+	// Progress reports come every 10 seconds while playing; a longer gap (a stalled tab, a
+	// sleeping laptop) counts as at most this much watching.
+	maxReportGap = 30 * time.Second
 	// A playback with no stream open and no progress report for this long has ended. The player
 	// reports every 10 seconds while playing; a paused one goes quiet, so it's given longer.
 	playingTimeout = 45 * time.Second
@@ -48,6 +53,25 @@ type playback struct {
 	// direct, remux or transcode, and the conversion's session if there is one.
 	method    string
 	sessionID string
+	// Watch history: time spent playing so far, when it was last counted, whether it got to the
+	// end, and its history row once it has one (adding is set while that row is being written).
+	watchedMS  int64
+	counted    time.Time
+	completed  bool
+	historyID  int64
+	addingPlay bool
+}
+
+// playUpdate is what a progress report changes in watch history.
+type playUpdate struct {
+	key                               string
+	add                               bool // the viewing is long enough to record: add its row
+	historyID                         int64
+	userID                            string
+	started                           time.Time
+	watchedMS, positionMS, durationMS int64
+	completed                         bool
+	device, method                    string
 }
 
 type stopped struct {
@@ -121,21 +145,48 @@ func (n *nowPlaying) openStream(r *http.Request, itemID, extraID string) (stop c
 }
 
 // progress records a player's report. state is "playing", "paused" or "stopped" (the player
-// closed). It returns a reason if the admin has stopped the playback.
-func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durationMS int64, state string) string {
+// closed). It returns a reason if the admin has stopped the playback, and what to record in
+// watch history (nil if nothing).
+func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durationMS int64, state string) (string, *playUpdate) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	key := playbackKey(r, itemID, "")
 	if why := n.refusal(key); why != "" {
-		return why
+		return why, nil
+	}
+	p := n.touch(r, itemID, "")
+	// Count the time since the last report if it was playing (not paused) in between.
+	now := time.Now()
+	if !p.counted.IsZero() && !p.paused {
+		p.watchedMS += min(now.Sub(p.counted), maxReportGap).Milliseconds()
+	}
+	p.counted = now
+	p.positionMS, p.durationMS, p.paused = positionMS, durationMS, state == "paused"
+	if durationMS > 0 && float64(positionMS) >= 0.9*float64(durationMS) {
+		p.completed = true
 	}
 	if state == "stopped" {
 		delete(n.byKey, key)
-		return ""
 	}
-	p := n.touch(r, itemID, "")
-	p.positionMS, p.durationMS, p.paused = positionMS, durationMS, state == "paused"
-	return ""
+	u := &playUpdate{key: key, historyID: p.historyID, userID: p.userID, started: p.started, watchedMS: p.watchedMS,
+		positionMS: positionMS, durationMS: durationMS, completed: p.completed, device: p.device, method: cmp.Or(p.method, "direct")}
+	switch {
+	case p.historyID != 0:
+	case p.addingPlay || p.watchedMS < minPlayMS:
+		return "", nil // not long enough yet, or its row is being added
+	default:
+		p.addingPlay, u.add = true, true
+	}
+	return "", u
+}
+
+// played notes a playback's watch history row once it's added.
+func (n *nowPlaying) played(key string, id int64) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if p := n.byKey[key]; p != nil {
+		p.historyID, p.addingPlay = id, false
+	}
 }
 
 // refusalFor says why the admin stopped this player playing an item, or "".

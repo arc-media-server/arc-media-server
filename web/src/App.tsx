@@ -12,6 +12,8 @@ import { SearchPage } from './pages/Search';
 import { HealthPage } from './pages/Health';
 import { BackupsPage } from './pages/Backups';
 import { DashboardPage } from './pages/Dashboard';
+import { InsightsPage } from './pages/Insights';
+import { YearPage } from './pages/Year';
 import { CollectionPage } from './pages/Collection';
 import { PlaylistPage, PlaylistsPage } from './pages/Playlists';
 import { PersonPage } from './pages/Person';
@@ -49,6 +51,8 @@ export function App() {
             <Route path="/attention" element={<Navigate to="/health" replace />} />
             <Route path="/backups" element={<BackupsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/year" element={<YearPage />} />
             <Route path="/libraries" element={<LibrariesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profiles" element={<ProfilesPage />} />

@@ -141,6 +141,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/playlists/{id}/items", user(s.playlistAdd))
 	mux.HandleFunc("DELETE /api/playlists/{id}/entries/{entry}", user(s.playlistRemove))
 	mux.HandleFunc("PUT /api/playlists/{id}/order", user(s.playlistOrder))
+	mux.HandleFunc("GET /api/me/year", user(s.myYear))
 	mux.HandleFunc("GET /api/me/prefs", user(s.getPrefs))
 	mux.HandleFunc("PATCH /api/me/prefs", user(s.updatePrefs))
 
@@ -153,6 +154,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/playing", admin(s.listPlaying))
 	mux.HandleFunc("POST /api/playing/{id}/stop", admin(s.stopPlaying))
 	mux.HandleFunc("GET /api/logs", admin(s.serverLog))
+	mux.HandleFunc("GET /api/stats", admin(s.statsOverview))
+	mux.HandleFunc("GET /api/stats/history", admin(s.statsHistory))
+	mux.HandleFunc("GET /api/stats/storage", admin(s.statsStorage))
 	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
 	mux.HandleFunc("PATCH /api/settings", admin(s.updateSettings))
 	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))

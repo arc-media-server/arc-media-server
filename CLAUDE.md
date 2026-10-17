@@ -52,7 +52,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   compatibility report.
 - Milestone 9 done (Oct 2026): collections (automatic from TMDB, manual, smart), playlists with a player
   queue, and search across titles, episodes, people, collections and genres with typo forgiveness,
-  plus person pages. Next: milestone 10 (insights and stats).
+  plus person pages.
+- Milestone 10 done (Oct 2026): watch history (play_history, recorded from player progress after a
+  minute of playing), admin Insights page (activity, history, storage/never watched), Year in Review
+  per profile, plus clear logos on title pages and the cast moved up on series pages (#81, #82).
+  Next: milestones 8 (intro/credits skipping) and 11 (remote access).
   The owner's order: finish 7, then 9, then 10, carrying on between them without waiting. The Jellyfin-compatible API
   (old milestone 6, #30–#33) was moved to Later at the owner's request (Oct 2026): Arc's own features
   come first, so don't start it unless they ask.
@@ -107,6 +111,7 @@ internal/logbuf/     the last log lines in memory for the Dashboard
 internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
 internal/opensubtitles/ OpenSubtitles.com client (search, download, file hash); AMS_OPENSUBTITLES_URL for a stand-in
 internal/subtitles/  subtitle tracks (in the file and beside it), extracted to cues with FFmpeg, cached in data/subtitles
+internal/insights/   watch-history stats: activity overview and a profile's year in review
 internal/search/     search normalising and fuzzy scoring (accents, case, small typos)
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query

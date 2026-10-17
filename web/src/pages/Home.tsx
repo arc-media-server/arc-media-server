@@ -5,7 +5,7 @@ import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
 import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library } from '@/lib/api';
 import { resolveRows, rowHref, rowQuery, usePrefs, type ResolvedRow } from '@/lib/home';
 import { runtime } from '@/lib/format';
-import { Hero, MetaLine } from '@/components/Hero';
+import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { MediaRow } from '@/components/MediaRow';
 import { EditHomeDialog } from '@/components/EditHome';
 import { EmptyState, Page } from '@/components/Page';
@@ -116,7 +116,7 @@ function Featured({ item }: { item: Item }) {
     <Hero backdrop={backdropUrl(item)} className="h-[62vh] min-h-[420px] max-h-[720px]">
       <div className="flex h-full max-w-2xl flex-col justify-end px-6 pb-16 md:px-10">
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Recently Added</p>
-        <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{item.title}</h1>
+        <TitleHeading item={item} />
         <div className="mt-3">
           <MetaLine parts={meta} />
         </div>

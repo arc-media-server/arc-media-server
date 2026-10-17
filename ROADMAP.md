@@ -100,12 +100,12 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Playlists
 - [x] Better search (people, genres, fuzzy matching)
 
-### 10. Insights and stats
-- [ ] Watch time and history per user, per library, over time
-- [ ] Never-watched report: series and movies nobody has played
-- [ ] Storage report: what takes up the most space, and space used by never-watched titles
-- [ ] Most-watched titles, genres, and busiest days/times
-- [ ] Yearly "Wrapped"-style summary per user
+### ✅ 10. Insights and stats
+- [x] Watch time and history per user, per library, over time
+- [x] Never-watched report: series and movies nobody has played
+- [x] Storage report: what takes up the most space, and space used by never-watched titles
+- [x] Most-watched titles, genres, and busiest days/times
+- [x] Yearly "Wrapped"-style summary per user
 - [x] Clear logos on movie and series pages (#81)
 - [x] Cast higher up on series pages, not below every episode (#82)
 

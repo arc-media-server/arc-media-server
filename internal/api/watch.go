@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"ams/internal/store"
 )
@@ -84,11 +85,40 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The progress is saved either way, but a player the admin stopped is told to close.
-	if why := s.playing.progress(r, it.ID, body.PositionMS, body.DurationMS, body.State); why != "" {
+	why, play := s.playing.progress(r, it.ID, body.PositionMS, body.DurationMS, body.State)
+	if play != nil {
+		s.recordPlay(r.Context(), it, play)
+	}
+	if why != "" {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": why, "needs": "stopped"})
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+// recordPlay adds a viewing to watch history, or updates it. Failures are only logged: they
+// mustn't interrupt playback.
+func (s *Server) recordPlay(ctx context.Context, it *store.Item, u *playUpdate) {
+	p := store.Play{ID: u.historyID, UserID: u.userID, ItemID: it.ID, Kind: it.Kind, LibraryID: it.LibraryID, Title: it.Title,
+		StartedAt: u.started.Unix(), EndedAt: time.Now().Unix(), WatchedMS: u.watchedMS, PositionMS: u.positionMS,
+		DurationMS: u.durationMS, Completed: u.completed, Device: u.device, Method: u.method}
+	if !u.add {
+		if err := s.store.UpdatePlay(ctx, p); err != nil {
+			s.log.Warn("updating watch history failed", "item", it.Title, "err", err)
+		}
+		return
+	}
+	if it.Kind == "episode" {
+		p.SeriesID = it.ParentID
+		if series, err := s.store.GetItem(ctx, it.ParentID); err == nil && series != nil {
+			p.SeriesTitle = series.Title
+		}
+	}
+	id, err := s.store.AddPlay(ctx, p)
+	if err != nil {
+		s.log.Warn("adding to watch history failed", "item", it.Title, "err", err)
+	}
+	s.playing.played(u.key, id)
 }
 
 // setPlayed: PUT /api/items/{id}/played {"played": true} marks a movie or episode watched or

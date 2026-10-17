@@ -94,6 +94,7 @@ export function language(code?: string): string {
 }
 
 export function fileSize(bytes: number): string {
+  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(1)} TB`;
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
   if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
   return `${Math.round(bytes / 1e3)} KB`;
@@ -136,4 +137,25 @@ export function subtitleStreams(file?: MediaFile): Stream[] {
 
 export function plural(n: number, word: string, pluralWord = `${word}s`): string {
   return `${n} ${n === 1 ? word : pluralWord}`;
+}
+
+/** Time spent watching: "45m", "3h 20m", or "128 hours" for long stretches. */
+export function watchTime(ms: number): string {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 100) return `${hours.toLocaleString('en-GB')} hours`;
+  return minutes % 60 ? `${hours}h ${minutes % 60}m` : `${hours}h`;
+}
+
+/** How long ago a unix time was: "today", "3 days ago", "2 months ago", "over a year ago". */
+export function ago(unix: number): string {
+  const days = Math.floor((Date.now() / 1000 - unix) / 86_400);
+  if (days < 1) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? 'a month ago' : `${months} months ago`;
+  const years = Math.floor(days / 365);
+  return years <= 1 ? 'over a year ago' : `over ${years} years ago`;
 }

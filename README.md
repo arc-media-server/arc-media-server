@@ -86,6 +86,13 @@ Early development. Working today:
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
+- Insights (admin): watch time over time, the most watched movies, shows and genres, the busiest
+  days and hours, and watching by profile, library, device and how it played; full watch history
+  per profile and library; and storage: the space each library takes, the biggest titles, and the
+  space taken by titles nobody has watched. A viewing counts once it has played for a minute, and
+  history keeps what was watched even if it later leaves the library
+- Your Year in Review (every profile, from the profile menu): hours watched, top movies and shows,
+  genres, favourite actors, busiest month, day and hour, longest streak and biggest binge
 - Parental controls: limit a profile to titles rated for ages up to 7, 12 or 15 (age ratings for
   your region); anything else is hidden from it everywhere
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
@@ -191,6 +198,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "home": [rows]}` (an empty `home` is the default layout) |
+| GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
 | PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
@@ -222,6 +230,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
 | POST | `/api/playing/{id}/stop` | Stop a playback, with an optional `{"message": "..."}` for the viewer |
 | GET | `/api/logs?level=info\|warn\|error\|debug&after=<seq>` | Recent server log lines, oldest first |
+| GET | `/api/stats?days=30&profile=&library=` | Watch activity (`days=0` for all time): totals, timeline, top movies, shows and genres, by profile, library, device and method, and watch time by weekday and hour |
+| GET | `/api/stats/history?profile=&library=&before=&limit=50` | Watch history, newest first; pass the last id as `before` for more |
+| GET | `/api/stats/storage?library=` | Space per library, the biggest titles, and titles nobody has watched |
 | GET | `/api/backups` | Database backups, newest first |
 | POST | `/api/backups` | Back up now |
 | POST | `/api/backups/{name}/restore` | Restore a backup (the current state is backed up first) |

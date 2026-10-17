@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
+import { Activity, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -109,6 +109,7 @@ function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactN
 /** The current profile, with Switch Profile and Sign Out. */
 function ProfileMenu({ compact }: { compact?: boolean }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: status } = useAuth();
   const prefs = usePrefs();
   const updatePrefs = useUpdatePrefs();
@@ -162,6 +163,10 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate('/year')}>
+          <Sparkles className="size-4 text-muted" /> Your Year in Review
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         {(status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
@@ -240,6 +245,7 @@ export function Sidebar() {
 
 const manageLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: <Activity /> },
+  { to: '/insights', label: 'Insights', icon: <ChartColumn /> },
   { to: '/health', label: 'Library Health', icon: <HeartPulse /> },
   { to: '/libraries', label: 'Libraries', icon: <FolderCog /> },
   { to: '/profiles', label: 'Profiles', icon: <Users /> },
