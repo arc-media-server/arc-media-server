@@ -40,7 +40,7 @@ func (s *Server) playlistFromPath(w http.ResponseWriter, r *http.Request) (*stor
 // playlistItems describes a playlist's titles: episodes with their show and place in it.
 func (s *Server) playlistItems(r *http.Request, id string) ([]playlistEntryDTO, error) {
 	ctx := r.Context()
-	entries, items, err := s.store.PlaylistEntries(ctx, id, maxAge(r))
+	entries, items, err := s.store.PlaylistEntries(ctx, id, access(r))
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (s *Server) playlistItems(r *http.Request, id string) ([]playlistEntryDTO, 
 
 // listPlaylists: GET /api/playlists is the profile's playlists.
 func (s *Server) listPlaylists(w http.ResponseWriter, r *http.Request) {
-	lists, err := s.store.Playlists(r.Context(), currentUserID(r), maxAge(r))
+	lists, err := s.store.Playlists(r.Context(), currentUserID(r), access(r))
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -82,7 +82,7 @@ func (s *Server) listPlaylists(w http.ResponseWriter, r *http.Request) {
 	out := make([]playlistDTO, 0, len(lists))
 	for _, p := range lists {
 		d := playlistDTO{Playlist: p, Images: []string{}}
-		if _, items, err := s.store.PlaylistEntries(r.Context(), p.ID, maxAge(r)); err == nil {
+		if _, items, err := s.store.PlaylistEntries(r.Context(), p.ID, access(r)); err == nil {
 			for _, it := range items {
 				img := toDTO(it).Images["primary"]
 				if it.Kind == "episode" {
@@ -134,7 +134,7 @@ func (s *Server) playlistItemIDs(r *http.Request, ids []string) ([]string, error
 		}
 		switch it.Kind {
 		case "movie", "episode":
-			if ok, err := s.store.AgeAllowed(r.Context(), it, maxAge(r)); err != nil || !ok {
+			if ok, err := s.store.CanSee(r.Context(), it, access(r)); err != nil || !ok {
 				return nil, errMsg("a title to add wasn't found")
 			}
 			out = append(out, it.ID)

@@ -8,24 +8,18 @@ import (
 )
 
 // SearchTitles returns every movie and show a profile can see, for ranking against a search.
-func (s *Store) SearchTitles(ctx context.Context, maxAge int) ([]Item, error) {
+func (s *Store) SearchTitles(ctx context.Context, acc Access) ([]Item, error) {
 	q := `SELECT ` + itemCols + ` FROM items WHERE kind IN ('movie', 'series') AND ` + playableSQL
 	var args []any
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	return s.queryItems(ctx, q, args...)
 }
 
 // SearchEpisodes returns episodes whose titles contain the text, newest shows' first.
-func (s *Store) SearchEpisodes(ctx context.Context, text string, maxAge, limit int) ([]Item, error) {
+func (s *Store) SearchEpisodes(ctx context.Context, text string, acc Access, limit int) ([]Item, error) {
 	q := `SELECT ` + itemCols + ` FROM items WHERE kind = 'episode' AND title LIKE ? AND ` + playableSQL
 	args := []any{"%" + strings.ReplaceAll(text, "%", "") + "%"}
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	q += ` ORDER BY sort_title LIMIT ?`
 	return s.queryItems(ctx, q, append(args, limit)...)
 }
@@ -106,16 +100,13 @@ type PersonCredit struct {
 }
 
 // PersonCredits lists the titles a profile can see that someone is in, newest first.
-func (s *Store) PersonCredits(ctx context.Context, personID int64, maxAge int) ([]PersonCredit, error) {
+func (s *Store) PersonCredits(ctx context.Context, personID int64, acc Access) ([]PersonCredit, error) {
 	q := `SELECT ` + itemCols + `,
 			(SELECT GROUP_CONCAT(role) FROM item_people r WHERE r.item_id = items.id AND r.person_id = ?),
 			COALESCE((SELECT character FROM item_people r WHERE r.item_id = items.id AND r.person_id = ? AND role = 'actor'), '')
 		FROM items WHERE id IN (SELECT item_id FROM item_people WHERE person_id = ?) AND ` + playableSQL
 	args := []any{personID, personID, personID}
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	rows, err := s.db.QueryContext(ctx, q+` ORDER BY year DESC, sort_title`, args...)
 	if err != nil {
 		return nil, err
@@ -142,14 +133,11 @@ type GenreCount struct {
 }
 
 // GenreCounts lists every genre in each library, with how many titles a profile can see in it.
-func (s *Store) GenreCounts(ctx context.Context, maxAge int) ([]GenreCount, error) {
+func (s *Store) GenreCounts(ctx context.Context, acc Access) ([]GenreCount, error) {
 	q := `SELECT items.library_id, g.name, COUNT(*) FROM item_genres g JOIN items ON items.id = g.item_id
 		WHERE items.kind IN ('movie', 'series') AND ` + playableSQL
 	var args []any
-	if maxAge > 0 {
-		q += ` AND ` + AgeAllowedSQL("items")
-		args = append(args, maxAge)
-	}
+	q, args = acc.Where("items", q, args)
 	rows, err := s.db.QueryContext(ctx, q+` GROUP BY items.library_id, g.name`, args...)
 	if err != nil {
 		return nil, err

@@ -597,6 +597,8 @@ export interface Profile {
   is_admin: boolean;
   /** Age limit: the oldest age rating this profile may watch, 0 for none. */
   max_age: number;
+  /** The libraries this profile may see; null for all of them. */
+  library_ids: number[] | null;
 }
 
 export interface AuthStatus {
@@ -693,8 +695,8 @@ export const api = {
   logout: () => request<void>('POST', '/api/auth/logout'),
   changePassword: (current: string, next: string) => request<void>('POST', '/api/auth/password', { current, new: next }),
   profiles: () => request<Profile[]>('GET', '/api/profiles'),
-  createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number }) => request<Profile>('POST', '/api/profiles', p),
-  updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
+  createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('POST', '/api/profiles', p),
+  updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
   updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username'>> & { opensubtitles_password?: string }) =>

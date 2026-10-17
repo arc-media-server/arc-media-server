@@ -364,7 +364,7 @@ func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
 		if max(dismissed[it.ID], dismissed[it.ParentID]) >= at {
 			continue
 		}
-		if ok, err := s.store.AgeAllowed(ctx, &it, maxAge(r)); err != nil {
+		if ok, err := s.store.CanSee(ctx, &it, access(r)); err != nil {
 			return nil, err
 		} else if ok {
 			out = append(out, homeEntry{it, at})
@@ -397,7 +397,7 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 		if series == nil {
 			continue
 		}
-		if ok, err := s.store.AgeAllowed(ctx, series, maxAge(r)); err != nil {
+		if ok, err := s.store.CanSee(ctx, series, access(r)); err != nil {
 			return nil, err
 		} else if !ok {
 			continue
@@ -498,7 +498,7 @@ func (s *Server) nextEpisode(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if ok, err := s.store.AgeAllowed(ctx, ep, maxAge(r)); err != nil || !ok {
+	if ok, err := s.store.CanSee(ctx, ep, access(r)); err != nil || !ok {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

@@ -59,7 +59,7 @@ func (s *Server) collectionDTO(c store.Collection, first *store.Item) collection
 func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int) ([]store.Item, int, error) {
 	ctx := r.Context()
 	if c.Kind != "smart" {
-		items, err := s.store.CollectionItems(ctx, c, maxAge(r))
+		items, err := s.store.CollectionItems(ctx, c, access(r))
 		if err != nil {
 			return nil, 0, err
 		}
@@ -79,7 +79,7 @@ func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int
 	}
 	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Decade: f.Decade, Resolution: f.Resolution,
 		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
-		MinRating: f.MinRating, Sort: f.Sort, MaxAge: maxAge(r), UserID: currentUserID(r), Limit: 500}
+		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: 500}
 	if lib.Kind == "shows" {
 		q.Kind = "series"
 	}
@@ -95,7 +95,7 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	cols, err := s.store.Collections(r.Context(), lib.ID, maxAge(r))
+	cols, err := s.store.Collections(r.Context(), lib.ID, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -126,7 +126,7 @@ func (s *Server) collectionFromPath(w http.ResponseWriter, r *http.Request) (*st
 		s.fail(w, err)
 		return nil, false
 	}
-	if c == nil || c.Hidden {
+	if c == nil || c.Hidden || !access(r).LibraryAllowed(c.LibraryID) {
 		writeError(w, http.StatusNotFound, "collection not found")
 		return nil, false
 	}
@@ -389,7 +389,7 @@ func (s *Server) orderCollection(w http.ResponseWriter, r *http.Request) {
 
 // itemCollections lists the collections a title is in, for its page.
 func (s *Server) itemCollections(r *http.Request, it *store.Item) []collectionRef {
-	cols, err := s.store.ItemCollections(r.Context(), it, maxAge(r))
+	cols, err := s.store.ItemCollections(r.Context(), it, access(r))
 	if err != nil {
 		return nil
 	}

@@ -295,8 +295,11 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		Scan  scanner.Status `json:"scan"`
 	}
 	out := make([]libDTO, 0, len(libs))
+	acc := access(r)
 	for _, l := range libs {
-		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
+		if acc.LibraryAllowed(l.ID) {
+			out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -312,7 +315,7 @@ func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store
 		s.fail(w, err)
 		return nil, false
 	}
-	if lib == nil {
+	if lib == nil || !access(r).LibraryAllowed(lib.ID) {
 		writeError(w, http.StatusNotFound, "library not found")
 		return nil, false
 	}
@@ -347,7 +350,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
 	query.Limit, _ = strconv.Atoi(q.Get("limit"))
 	query.Offset, _ = strconv.Atoi(q.Get("offset"))
-	query.MaxAge = maxAge(r)
+	query.Access = access(r)
 	query.Genre = q.Get("genre")
 	query.Decade, _ = strconv.Atoi(q.Get("decade"))
 	query.Resolution = q.Get("resolution")
@@ -389,7 +392,7 @@ func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.It
 		return nil, false
 	}
 	// Titles above a profile's age limit don't exist as far as that profile is concerned.
-	if ok, err := s.store.AgeAllowed(r.Context(), it, maxAge(r)); err != nil {
+	if ok, err := s.store.CanSee(r.Context(), it, access(r)); err != nil {
 		s.fail(w, err)
 		return nil, false
 	} else if !ok {
@@ -400,11 +403,13 @@ func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.It
 }
 
 // maxAge is the current profile's age limit (0 = none).
-func maxAge(r *http.Request) int {
-	if u := currentUser(r); u != nil {
-		return u.MaxAge
+// access is what the current profile may see: its age limit and libraries. The admin sees all.
+func access(r *http.Request) store.Access {
+	u := currentUser(r)
+	if u == nil || u.IsAdmin {
+		return store.Access{}
 	}
-	return 0
+	return store.Access{MaxAge: u.MaxAge, Libraries: u.LibraryIDs}
 }
 
 func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {

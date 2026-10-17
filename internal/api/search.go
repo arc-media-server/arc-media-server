@@ -49,10 +49,10 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	age := maxAge(r)
+	acc := access(r)
 
 	// Movies and shows, by title or original title.
-	titles, err := s.store.SearchTitles(ctx, age)
+	titles, err := s.store.SearchTitles(ctx, acc)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -88,7 +88,7 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 
 	// Episodes, by title (not for one or two letters, which match nearly everything).
 	if len([]rune(q)) >= 3 {
-		eps, err := s.store.SearchEpisodes(ctx, raw, age, 20)
+		eps, err := s.store.SearchEpisodes(ctx, raw, acc, 20)
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -147,7 +147,10 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 	libNames := map[int64]string{}
 	for _, lib := range libs {
 		libNames[lib.ID] = lib.Name
-		cols, err := s.store.Collections(ctx, lib.ID, age)
+		if !acc.LibraryAllowed(lib.ID) {
+			continue
+		}
+		cols, err := s.store.Collections(ctx, lib.ID, acc)
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -164,7 +167,7 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 			res.Collections = append(res.Collections, s.collectionDTO(c, &first[0]))
 		}
 	}
-	genres, err := s.store.GenreCounts(ctx, age)
+	genres, err := s.store.GenreCounts(ctx, acc)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -202,7 +205,7 @@ func (s *Server) getPerson(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "person not found")
 		return
 	}
-	credits, err := s.store.PersonCredits(r.Context(), id, maxAge(r))
+	credits, err := s.store.PersonCredits(r.Context(), id, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return

@@ -111,7 +111,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Picture-in-Picture (#88)
 
 ### 13. Profiles and home
-- [ ] Choose which libraries each profile sees (#89)
+- [x] Choose which libraries each profile sees (#89)
 - [ ] Admin-set home layout for other profiles (#90)
 - [ ] Collections and playlists as home rows (#91)
 - [ ] Personal ratings and a watchlist (#79)
