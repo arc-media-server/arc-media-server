@@ -724,7 +724,15 @@ export const api = {
   collection: (id: string) => request<{ collection: Collection; items: Item[] }>('GET', `/api/collections/${id}`),
   createCollection: (c: { library_id: number; kind: 'manual' | 'smart'; title: string; overview?: string; filter?: RowFilter; item_ids?: string[] }) =>
     request<Collection>('POST', '/api/collections', c),
-  updateCollection: (id: string, c: { title?: string; overview?: string; filter?: RowFilter }) => request<Collection>('PATCH', `/api/collections/${id}`, c),
+  updateCollection: (id: string, c: { title?: string; sort_title?: string; overview?: string; filter?: RowFilter; locked_fields?: string[] }) =>
+    request<Collection>('PATCH', `/api/collections/${id}`, c),
+  collectionArtwork: (id: string) => request<ArtworkChoices>('GET', `/api/collections/${id}/artwork`),
+  chooseCollectionArtwork: (id: string, type: 'poster' | 'backdrop', path: string | null) =>
+    request<unknown>('PUT', `/api/collections/${id}/artwork`, { type, path }),
+  uploadCollectionArtwork: async (id: string, type: 'poster' | 'backdrop', file: File) => {
+    const res = await fetch(`/api/collections/${id}/artwork/${type}`, { method: 'POST', body: file });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? res.statusText, res.status);
+  },
   deleteCollection: (id: string) => request<void>('DELETE', `/api/collections/${id}`),
   addToCollection: (id: string, itemIds: string[]) => request<void>('POST', `/api/collections/${id}/items`, { item_ids: itemIds }),
   removeFromCollection: (id: string, itemId: string) => request<void>('DELETE', `/api/collections/${id}/items/${itemId}`),
@@ -872,7 +880,10 @@ export interface Collection {
   kind: 'auto' | 'manual' | 'smart';
   tmdb_id?: number;
   title: string;
+  sort_title: string;
   overview?: string;
+  /** Fields edited by hand, which TMDB refreshes leave alone. */
+  locked_fields: string[];
   count: number;
   images: { primary?: string; backdrop?: string };
   smart_filter?: RowFilter;

@@ -82,6 +82,27 @@ func (c *TMDB) EpisodeStills(ctx context.Context, tvID int64, season, episode in
 	return out, nil
 }
 
+// CollectionImages lists TMDB's posters and backdrops for a collection.
+func (c *TMDB) CollectionImages(ctx context.Context, id int64) (posters, backdrops []Image, err error) {
+	var d struct {
+		Posters   []tmdbImage `json:"posters"`
+		Backdrops []tmdbImage `json:"backdrops"`
+	}
+	q := url.Values{"include_image_language": {"en,null"}}
+	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10)+"/images", q, &d); err != nil {
+		return nil, nil, err
+	}
+	conv := func(list []tmdbImage, size string) []Image {
+		out := make([]Image, 0, len(list))
+		for _, i := range list {
+			out = append(out, Image{Path: i.FilePath, Thumb: ImageURL(i.FilePath, size), Width: i.Width, Height: i.Height,
+				Language: i.Language, Votes: i.VoteAverage})
+		}
+		return out
+	}
+	return conv(d.Posters, "w342"), conv(d.Backdrops, "w780"), nil
+}
+
 // pngLogos drops SVG logos, which TMDB doesn't resize.
 func pngLogos(list []tmdbImage) []tmdbImage {
 	var out []tmdbImage

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronLeft, RotateCcw, Upload } from 'lucide-react';
-import { api, type ArtworkImage, type ArtworkType, type Item } from '@/lib/api';
+import { api, type ArtworkChoices, type ArtworkImage, type ArtworkType, type Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -25,14 +25,17 @@ export function ArtworkPanel({
   type,
   change,
   onChange,
+  source,
 }: {
-  item: Item;
+  item: Pick<Item, 'id' | 'kind'>;
   type: ArtworkType;
   change?: ArtworkChange;
   onChange: (change: ArtworkChange | undefined) => void;
+  /** Where the choices come from, when not a title's own (e.g. a collection's). */
+  source?: { key: unknown[]; load: () => Promise<ArtworkChoices> };
 }) {
   const file = useRef<HTMLInputElement>(null);
-  const choices = useQuery({ queryKey: ['artwork', item.id], queryFn: () => api.artwork(item.id) });
+  const choices = useQuery({ queryKey: source?.key ?? ['artwork', item.id], queryFn: source?.load ?? (() => api.artwork(item.id)) });
   const c = choices.data;
   const images = type === 'poster' ? c?.posters : type === 'logo' ? c?.logos : c?.backdrops;
   const chosen = c?.chosen[type];

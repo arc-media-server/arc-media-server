@@ -3,11 +3,16 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"ams/internal/artwork"
+	"ams/internal/metadata"
+	"ams/internal/scanner"
 	"ams/internal/store"
 )
 
@@ -140,7 +145,7 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// An automatic collection's description comes from TMDB the first time it's opened.
-	if c.Kind == "auto" && c.Overview == "" {
+	if c.Kind == "auto" && c.Overview == "" && !slices.Contains(c.LockedFields, "overview") {
 		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 		if info, err := s.scanner.CollectionInfo(ctx, c.TMDBID); err == nil && info != nil {
 			if s.store.SetCollectionInfo(r.Context(), c.ID, info.Overview, info.PosterPath, info.BackdropPath) == nil {
@@ -195,16 +200,24 @@ func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
+	// Uploaded artwork lives in the data folder.
+	if name, ok := strings.CutPrefix(path, metadata.UploadPrefix); ok {
+		http.ServeFile(w, r, filepath.Join(s.uploadsDir, filepath.Base(name)))
+		return
+	}
 	s.serveArtwork(w, r, artwork.Source("collection", typ, path))
 }
 
 type collectionBody struct {
-	LibraryID int64      `json:"library_id"`
-	Kind      string     `json:"kind"`
-	Title     *string    `json:"title"`
-	Overview  *string    `json:"overview"`
-	Filter    *rowFilter `json:"filter"`
-	ItemIDs   []string   `json:"item_ids"`
+	LibraryID int64   `json:"library_id"`
+	Kind      string  `json:"kind"`
+	Title     *string `json:"title"`
+	SortTitle *string `json:"sort_title"`
+	Overview  *string `json:"overview"`
+	// Replaces the locked fields (fields sent are locked as well).
+	LockedFields *[]string  `json:"locked_fields"`
+	Filter       *rowFilter `json:"filter"`
+	ItemIDs      []string   `json:"item_ids"`
 }
 
 // createCollection: POST /api/collections {"library_id", "kind": "manual"|"smart", "title",
@@ -248,14 +261,44 @@ func (s *Server) createCollection(w http.ResponseWriter, r *http.Request) {
 
 // applyCollectionBody copies a body's changes onto a collection, returning a problem if any.
 func applyCollectionBody(c *store.Collection, b *collectionBody) string {
-	if b.Title != nil {
-		c.Title = strings.TrimSpace(*b.Title)
+	locked := map[string]bool{}
+	if b.LockedFields != nil {
+		for _, f := range *b.LockedFields {
+			switch f {
+			case "title", "sort_title", "overview", "poster", "backdrop":
+				locked[f] = true
+			default:
+				return "unknown field in locked_fields: " + f
+			}
+		}
+	} else {
+		for _, f := range c.LockedFields {
+			locked[f] = true
+		}
+	}
+	if b.Title != nil && strings.TrimSpace(*b.Title) != c.Title {
+		c.Title, locked["title"] = strings.TrimSpace(*b.Title), true
 	}
 	if c.Title == "" || len([]rune(c.Title)) > 100 {
 		return "give the collection a name of up to 100 characters"
 	}
-	if b.Overview != nil {
-		c.Overview = strings.TrimSpace(*b.Overview)
+	if b.SortTitle != nil {
+		if v := strings.ToLower(strings.TrimSpace(*b.SortTitle)); v != "" {
+			c.SortTitle, locked["sort_title"] = v, true
+		} else {
+			c.SortTitle, locked["sort_title"] = "", false // follows the title
+		}
+	} else if !locked["sort_title"] {
+		c.SortTitle = ""
+	}
+	if b.Overview != nil && strings.TrimSpace(*b.Overview) != c.Overview {
+		c.Overview, locked["overview"] = strings.TrimSpace(*b.Overview), true
+	}
+	c.LockedFields = c.LockedFields[:0]
+	for _, f := range []string{"title", "sort_title", "overview", "poster", "backdrop"} {
+		if locked[f] {
+			c.LockedFields = append(c.LockedFields, f)
+		}
 	}
 	if c.Kind == "smart" {
 		if b.Filter != nil {
@@ -398,4 +441,97 @@ func (s *Server) itemCollections(r *http.Request, it *store.Item) []collectionRe
 		out = append(out, collectionRef{ID: c.ID, Title: c.Title, Kind: c.Kind})
 	}
 	return out
+}
+
+// listCollectionArtwork: GET /api/collections/{id}/artwork lists the posters and backgrounds TMDB
+// has for an automatic collection (none for the admin's own), with the ones in use.
+func (s *Server) listCollectionArtwork(w http.ResponseWriter, r *http.Request) {
+	c, ok := s.collectionFromPath(w, r)
+	if !ok {
+		return
+	}
+	posters, backdrops := []metadata.Image{}, []metadata.Image{}
+	if c.Kind == "auto" && c.TMDBID != 0 {
+		p, b, err := s.scanner.CollectionImages(r.Context(), c.TMDBID)
+		if err != nil && !errors.Is(err, scanner.ErrNoProvider) {
+			writeError(w, http.StatusBadGateway, "couldn't get artwork from TMDB: "+err.Error())
+			return
+		}
+		if err == nil {
+			posters, backdrops = p, b
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"posters": posters, "backdrops": backdrops, "logos": []metadata.Image{},
+		"current": map[string]string{"poster": c.PosterPath, "backdrop": c.BackdropPath},
+		"chosen":  map[string]bool{"poster": slices.Contains(c.LockedFields, "poster"), "backdrop": slices.Contains(c.LockedFields, "backdrop")},
+		"local":   map[string]bool{},
+	})
+}
+
+// chooseCollectionArtwork: PUT /api/collections/{id}/artwork {"type": "poster", "path": "/abc.jpg"}
+// uses a TMDB image; a null path goes back to automatic (TMDB's for automatic collections, none
+// otherwise).
+func (s *Server) chooseCollectionArtwork(w http.ResponseWriter, r *http.Request) {
+	c, ok := s.collectionFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Type string  `json:"type"`
+		Path *string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || (body.Type != "poster" && body.Type != "backdrop") ||
+		body.Path != nil && !strings.HasPrefix(*body.Path, "/") {
+		writeError(w, http.StatusBadRequest, `send {"type": "poster" or "backdrop", "path": "/abc.jpg" or null}`)
+		return
+	}
+	old := c.PosterPath
+	if body.Type == "backdrop" {
+		old = c.BackdropPath
+	}
+	path := ""
+	if body.Path != nil {
+		path = *body.Path
+	}
+	if err := s.store.SetCollectionArt(r.Context(), c.ID, body.Type, path); err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.removeUpload(old)
+	if path == "" && c.Kind == "auto" {
+		// Back to TMDB's own.
+		if info, err := s.scanner.CollectionInfo(r.Context(), c.TMDBID); err == nil && info != nil {
+			s.store.SetCollectionInfo(r.Context(), c.ID, info.Overview, info.PosterPath, info.BackdropPath)
+		}
+	}
+	s.getCollection(w, r)
+}
+
+// uploadCollectionArtwork: POST /api/collections/{id}/artwork/{type} with an image as the body.
+func (s *Server) uploadCollectionArtwork(w http.ResponseWriter, r *http.Request) {
+	c, ok := s.collectionFromPath(w, r)
+	if !ok {
+		return
+	}
+	typ := r.PathValue("type")
+	if typ != "poster" && typ != "backdrop" {
+		writeError(w, http.StatusBadRequest, `type is "poster" or "backdrop"`)
+		return
+	}
+	path, ok := s.saveUpload(w, r, "collection-"+c.ID+"-"+typ)
+	if !ok {
+		return
+	}
+	old := c.PosterPath
+	if typ == "backdrop" {
+		old = c.BackdropPath
+	}
+	if err := s.store.SetCollectionArt(r.Context(), c.ID, typ, path); err != nil {
+		s.removeUpload(path)
+		s.fail(w, err)
+		return
+	}
+	s.removeUpload(old)
+	s.getCollection(w, r)
 }
