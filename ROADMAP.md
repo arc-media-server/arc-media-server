@@ -87,13 +87,6 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Subtitles: embedded, external .srt/.ass/.vtt, burn-in when needed
 - [x] Online subtitle download
 
-### 8. Intro and credits skipping
-- [ ] Crowdsourced timestamp source (IntroDB or similar) as the first choice
-- [ ] Check timestamps against each file's runtime before trusting them
-- [ ] Local detection fallback (audio fingerprinting across episodes), run in the background at low priority
-- [ ] Skip Intro / Skip Credits / auto-play next episode in the player and Jellyfin layer
-- [ ] Manual editing of markers
-
 ### ✅ 9. Collections, playlists and discovery
 - [x] Collections (TMDB collections automatically, plus manual)
 - [x] Smart collections using the same filter engine as home rows
@@ -109,11 +102,6 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Clear logos on movie and series pages (#81)
 - [x] Cast higher up on series pages, not below every episode (#82)
 
-### 11. Remote access
-- [ ] HTTPS, secure remote access setup
-- [ ] Sharing with friends, library access per user
-- [ ] Bandwidth limits for remote streams
-
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
 - [ ] TheTVDB and TMDB attribution (required by their API terms)
@@ -121,6 +109,11 @@ _Doesn't block development; must be done before AMS is shared or published._
 
 ## Later
 
+- Intro and credits skipping (was milestone 8; moved here in Oct 2026): crowdsourced timestamps
+  (IntroDB or similar) checked against each file's runtime, local audio-fingerprint detection as a
+  fallback, Skip Intro / Skip Credits in the player, manual marker editing
+- Remote access (was milestone 11; moved here in Oct 2026): HTTPS and secure remote setup, sharing
+  with friends with library access per user, bandwidth limits for remote streams
 - Music (deliberately deferred)
 - Jellyfin-compatible API (was milestone 6; deferred in Oct 2026 so Arc's own features come first):
   discovery, auth, browsing, images; PlaybackInfo, streaming, progress reporting; display orderings
