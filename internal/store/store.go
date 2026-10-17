@@ -59,6 +59,11 @@ func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	// Ages for parental controls follow the age ratings (and the rules for reading them).
+	if err := s.syncMinAges(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return s, nil
 }
 

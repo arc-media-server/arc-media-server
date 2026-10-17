@@ -10,20 +10,22 @@ import (
 
 // User is a profile. The admin profile holds the household password; others may have a PIN.
 type User struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	IsAdmin      bool   `json:"is_admin"`
-	Color        string `json:"color"`
-	HasPIN       bool   `json:"has_pin"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	IsAdmin bool   `json:"is_admin"`
+	Color   string `json:"color"`
+	HasPIN  bool   `json:"has_pin"`
+	// The oldest age rating the profile may watch; 0 means no limit.
+	MaxAge       int    `json:"max_age"`
 	PasswordHash string `json:"-"`
 	PINHash      string `json:"-"`
 	CreatedAt    int64  `json:"created_at"`
 }
 
-const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at`
+const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age`
 
 func scanUser(row interface{ Scan(...any) error }, u *User) error {
-	return row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt)
+	return row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge)
 }
 
 // ErrNameTaken means another profile already has the name.
@@ -101,6 +103,7 @@ type UserUpdate struct {
 	Color        *string
 	PINHash      *string
 	PasswordHash *string
+	MaxAge       *int
 }
 
 func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error {
@@ -115,6 +118,10 @@ func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error 
 	add("color", up.Color)
 	add("pin_hash", up.PINHash)
 	add("password_hash", up.PasswordHash)
+	if up.MaxAge != nil {
+		sets = append(sets, "max_age = ?")
+		args = append(args, *up.MaxAge)
+	}
 	if len(sets) == 0 {
 		return nil
 	}

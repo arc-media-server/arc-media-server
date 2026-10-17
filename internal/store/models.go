@@ -85,4 +85,6 @@ type ItemQuery struct {
 	Sort      string // title (default), added, year
 	Limit     int
 	Offset    int
+	// Only items rated for this age or younger (0 = no limit; unrated items are left out).
+	MaxAge int
 }

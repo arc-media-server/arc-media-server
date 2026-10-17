@@ -45,7 +45,7 @@ export function ProfilesPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{p.name}</p>
                 <p className="flex items-center gap-1.5 text-xs text-subtle">
-                  {p.is_admin ? 'Admin · manages libraries and settings' : 'Can watch everything'}
+                  {p.is_admin ? 'Admin · manages libraries and settings' : limitLabel(p.max_age)}
                   {p.has_pin && (
                     <>
                       {' · '}
@@ -93,10 +93,13 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
   // PIN: unchanged (undefined), a new PIN, or removed ("").
   const [pin, setPin] = useState<string | undefined>(undefined);
   const [settingPin, setSettingPin] = useState(false);
+  const [maxAge, setMaxAge] = useState(profile?.max_age ?? 0);
 
   const save = useMutation({
     mutationFn: () =>
-      profile ? api.updateProfile(profile.id, { name, color, pin }) : api.createProfile({ name, color, pin: pin || undefined }),
+      profile
+        ? api.updateProfile(profile.id, { name, color, pin, max_age: profile.is_admin ? undefined : maxAge })
+        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] });
       qc.invalidateQueries({ queryKey: ['auth'] });
@@ -185,10 +188,46 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
             </div>
           )}
         </div>
+        {!profile?.is_admin && (
+          <div>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Can watch</span>
+            <div className="grid grid-cols-2 gap-2">
+              {ageLimits.map((l) => (
+                <button
+                  key={l.age}
+                  type="button"
+                  aria-pressed={maxAge === l.age}
+                  onClick={() => setMaxAge(l.age)}
+                  className={cn(
+                    'rounded-xl px-3 py-2.5 text-left ring-1 transition-colors',
+                    maxAge === l.age ? 'bg-accent/10 ring-2 ring-accent' : 'bg-surface-2/50 ring-border hover:bg-surface-2',
+                  )}
+                >
+                  <span className="block text-sm font-medium">{l.label}</span>
+                  <span className="block text-xs text-subtle">{l.hint}</span>
+                </button>
+              ))}
+            </div>
+            {maxAge > 0 && <p className="mt-2 text-xs text-subtle">Titles without an age rating are hidden too. You can add a rating in Edit Details.</p>}
+          </div>
+        )}
         <button type="submit" hidden />
       </form>
     </DialogContent>
   );
+}
+
+// Age limits a profile can have, like Plex's restriction profiles.
+const ageLimits = [
+  { age: 0, label: 'Everything', hint: 'No restrictions' },
+  { age: 7, label: 'Young children', hint: 'Rated for ages up to 7' },
+  { age: 12, label: 'Older children', hint: 'Rated for ages up to 12' },
+  { age: 15, label: 'Teens', hint: 'Rated for ages up to 15' },
+];
+
+/** "Can watch everything" or the profile's limit, for the list. */
+function limitLabel(age: number) {
+  return age ? `Ages up to ${age}` : 'Can watch everything';
 }
 
 const inputClass = 'h-10 w-full rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none focus:ring-2 focus:ring-accent';

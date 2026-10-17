@@ -204,6 +204,12 @@ func (s *Server) continueWatching(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]itemDTO, 0, len(items))
 	for _, it := range items {
+		if ok, err := s.store.AgeAllowed(ctx, &it, maxAge(r)); err != nil {
+			s.fail(w, err)
+			return
+		} else if !ok {
+			continue
+		}
 		if it.Kind == "movie" {
 			out = append(out, toDTO(it))
 			continue
@@ -248,6 +254,12 @@ func (s *Server) nextUp(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if series == nil {
+			continue
+		}
+		if ok, err := s.store.AgeAllowed(ctx, series, maxAge(r)); err != nil {
+			s.fail(w, err)
+			return
+		} else if !ok {
 			continue
 		}
 		pos, entries, err := s.orderPositions(ctx, userID, series)

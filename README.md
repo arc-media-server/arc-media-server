@@ -36,6 +36,8 @@ Early development. Working today:
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
   everything, and optional sign-in without the password on your home network
+- Parental controls: limit a profile to titles rated for ages up to 7, 12 or 15 (age ratings for
+  your region); anything else is hidden from it everywhere
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
   counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
   (Up Next follows the episode order you chose)

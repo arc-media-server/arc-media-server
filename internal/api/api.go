@@ -240,6 +240,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
 	query.Limit, _ = strconv.Atoi(q.Get("limit"))
 	query.Offset, _ = strconv.Atoi(q.Get("offset"))
+	query.MaxAge = maxAge(r)
 
 	items, total, err := s.store.ListItems(r.Context(), query)
 	if err != nil {
@@ -264,7 +265,23 @@ func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.It
 		writeError(w, http.StatusNotFound, "item not found")
 		return nil, false
 	}
+	// Titles above a profile's age limit don't exist as far as that profile is concerned.
+	if ok, err := s.store.AgeAllowed(r.Context(), it, maxAge(r)); err != nil {
+		s.fail(w, err)
+		return nil, false
+	} else if !ok {
+		writeError(w, http.StatusNotFound, "item not found")
+		return nil, false
+	}
 	return it, true
+}
+
+// maxAge is the current profile's age limit (0 = none).
+func maxAge(r *http.Request) int {
+	if u := currentUser(r); u != nil {
+		return u.MaxAge
+	}
+	return 0
 }
 
 func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {

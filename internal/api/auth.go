@@ -118,10 +118,12 @@ type profileDTO struct {
 	Color   string `json:"color"`
 	HasPIN  bool   `json:"has_pin"`
 	IsAdmin bool   `json:"is_admin"`
+	// Age limit: the oldest age rating the profile may watch, 0 for none.
+	MaxAge int `json:"max_age"`
 }
 
 func toProfile(u store.User) profileDTO {
-	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin}
+	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge}
 }
 
 // authStatus: GET /api/auth/status tells the web app what to show: first-run setup, the sign-in
@@ -425,6 +427,8 @@ type profileBody struct {
 	Color *string `json:"color"`
 	// A four-digit PIN; "" removes it.
 	PIN *string `json:"pin"`
+	// Age limit: 0 (none), or the oldest age rating allowed.
+	MaxAge *int `json:"max_age"`
 }
 
 func (b *profileBody) validate() error {
@@ -440,6 +444,9 @@ func (b *profileBody) validate() error {
 	}
 	if b.PIN != nil && *b.PIN != "" && !auth.ValidPIN(*b.PIN) {
 		return errors.New("a PIN is four digits")
+	}
+	if b.MaxAge != nil && (*b.MaxAge < 0 || *b.MaxAge > 21) {
+		return errors.New("max_age is 0 (no limit) or an age up to 21")
 	}
 	return nil
 }
@@ -493,6 +500,13 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	if b.MaxAge != nil && *b.MaxAge > 0 {
+		if err := s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{MaxAge: b.MaxAge}); err != nil {
+			s.fail(w, err)
+			return
+		}
+		u.MaxAge = *b.MaxAge
+	}
 	writeJSON(w, http.StatusCreated, toProfile(*u))
 }
 
@@ -521,7 +535,11 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	err = s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{Name: b.Name, Color: b.Color, PINHash: pin})
+	if u.IsAdmin && b.MaxAge != nil && *b.MaxAge != 0 {
+		writeError(w, http.StatusBadRequest, "the admin profile can't have an age limit")
+		return
+	}
+	err = s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{Name: b.Name, Color: b.Color, PINHash: pin, MaxAge: b.MaxAge})
 	if errors.Is(err, store.ErrNameTaken) {
 		writeError(w, http.StatusConflict, err.Error())
 		return

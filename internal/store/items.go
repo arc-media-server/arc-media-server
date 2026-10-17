@@ -190,7 +190,10 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath,
 		it.Tagline, it.ContentRating, it.Studio, it.Rating,
 		it.MetadataState, time.Now().Unix(), it.ID)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.syncMinAges(ctx, it.ID)
 }
 
 // SetItemDetails replaces an item's genres and credits (people are shared between items).
@@ -379,7 +382,10 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE items SET `+strings.Join(sets, ", ")+` WHERE id = ?`, args...); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return s.syncMinAges(ctx, id)
 }
 
 // SetMatchInfo records how an item was identified (JSON written by the scanner).
@@ -472,6 +478,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		where = append(where, "(title LIKE ? OR original_title LIKE ?)")
 		like := "%" + q.Search + "%"
 		args = append(args, like, like)
+	}
+	if q.MaxAge > 0 {
+		where = append(where, AgeAllowedSQL("items"))
+		args = append(args, q.MaxAge)
 	}
 	cond := strings.Join(where, " AND ")
 

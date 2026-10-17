@@ -43,7 +43,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Match with explanations, Library Health page, folder watching, and libraries managed in the app
   with a preview before adding (the owner chose in-app libraries over ams.yaml).
 - Milestone 4 in progress: sign-in, profiles, Settings, watch state, Continue Watching/Up Next and
-  richer metadata (genres, cast, age ratings by region) are done. Next: #21 parental controls,
+  richer metadata (genres, cast, age ratings by region) and parental controls are done. Next:
   #68 remove gone items.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
