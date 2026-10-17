@@ -405,7 +405,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		if err != nil {
 			return err
 		}
-		if err := s.store.ReplaceOrdering(ctx, oid, o.Seasons, entries); err != nil {
+		if err := s.store.ReplaceOrdering(ctx, oid, o.Seasons, o.SeasonOverviews, entries); err != nil {
 			return err
 		}
 		keep[oid] = true

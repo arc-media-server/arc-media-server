@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, RefreshCw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
+import { EditDetailsDialog } from '@/components/EditDetails';
+import { EditSeasonDialog } from '@/components/EditSeason';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
@@ -40,6 +42,8 @@ export function SeriesPage() {
   const [showMissing, setShowMissing] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
   const [comparing, setComparing] = useState(false);
+  const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
+  const [editingSeason, setEditingSeason] = useState(false);
 
   const orderings = useQuery({ queryKey: ['orderings', id], queryFn: () => api.orderings(id!) });
   const seasons = useQuery({
@@ -88,6 +92,8 @@ export function SeriesPage() {
   const upNext = nextToPlay(data.seasons.flatMap((s) => s.episodes));
   const details = detailParts(series);
   const seasonEpisodes = season === UNPLACED ? [] : episodes.filter((e) => e.available);
+  const currentSeason = season === UNPLACED ? undefined : data.seasons.find((s) => s.season_number === season);
+  const aired = data.ordering?.source === 'tmdb_aired' || data.ordering?.source === 'tvdb_aired';
   const seasonWatched = seasonEpisodes.length > 0 && seasonEpisodes.every((e) => e.user_data?.played);
 
   return (
@@ -173,6 +179,11 @@ export function SeriesPage() {
           {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
             <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
           )}
+          {admin && currentSeason && (
+            <Button variant="ghost" size="sm" onClick={() => setEditingSeason(true)}>
+              <Pencil /> Edit Season
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title="Show episodes you don't have">
             {showMissing ? <EyeOff /> : <Eye />} {showMissing ? 'Hide Missing' : 'Show Missing'}
           </Button>
@@ -189,6 +200,7 @@ export function SeriesPage() {
       </div>
 
       <div className="px-6 pt-6 md:px-10">
+        {currentSeason?.overview && <p className="mb-4 max-w-3xl text-sm leading-relaxed text-muted">{currentSeason.overview}</p>}
         {season === UNPLACED && (
           <p className="mb-5 max-w-2xl text-sm text-muted">
             You have these episodes, but <span className="text-foreground">{data.ordering?.name}</span> doesn't include them.
@@ -203,13 +215,32 @@ export function SeriesPage() {
           className="divide-y divide-border"
         >
           {episodes.map((ep) => (
-            <EpisodeRow key={`${ep.id}-${ep.episode_number}`} episode={ep} seriesTitle={series.title} unplaced={season === UNPLACED} />
+            <EpisodeRow
+              key={`${ep.id}-${ep.episode_number}`}
+              episode={ep}
+              seriesTitle={series.title}
+              unplaced={season === UNPLACED}
+              onEdit={admin ? () => setEditingEpisode(ep) : undefined}
+            />
           ))}
         </motion.div>
       </div>
       <CollectionRows item={series} />
       <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}
+      {editingEpisode && (
+        <EditDetailsDialog item={editingEpisode} open onOpenChange={(o) => !o && setEditingEpisode(null)} />
+      )}
+      {currentSeason && (
+        <EditSeasonDialog
+          series={series}
+          season={currentSeason}
+          orderingId={data.ordering?.id}
+          aired={aired}
+          open={editingSeason}
+          onOpenChange={setEditingSeason}
+        />
+      )}
       {orderings.data && (
         <CompareOrdersDialog
           seriesId={id!}
@@ -333,7 +364,17 @@ function providerLabel(o: Ordering) {
   return '';
 }
 
-function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpisode; seriesTitle: string; unplaced: boolean }) {
+function EpisodeRow({
+  episode: ep,
+  seriesTitle,
+  unplaced,
+  onEdit,
+}: {
+  episode: SeasonEpisode;
+  seriesTitle: string;
+  unplaced: boolean;
+  onEdit?: () => void;
+}) {
   const play = usePlayer();
   const playable = ep.available && ep.stream_url;
   const onPlay = () => playable && playEpisode(play, ep, seriesTitle);
@@ -391,6 +432,27 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
           variant="ghost"
           className={cn('mt-0.5 shrink-0 transition-opacity', !watched && 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100')}
         />
+      )}
+      {onEdit && (
+        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`More for ${ep.title}`}
+                className="mt-0.5 size-8 shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-4"
+              >
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil className="size-4 text-muted" /> Edit…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
     </div>
   );

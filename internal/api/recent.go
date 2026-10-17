@@ -86,7 +86,7 @@ func (s *Server) seasonPostersFor(r *http.Request, series *store.Item) (map[int]
 	if err != nil || lib == nil {
 		return nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), lib.SourceOrdering)
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return nil, err
 	}

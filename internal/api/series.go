@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -57,14 +58,14 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	display, err := s.store.DisplayOrdering(r.Context(), series.ID, currentUserID(r), lib.SourceOrdering)
+	display, err := s.store.DisplayOrdering(r.Context(), series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"display_ordering_id": display,
-		"source_ordering":     lib.SourceOrdering,
+		"source_ordering":     cmp.Or(series.SourceOrdering, lib.SourceOrdering),
 		"orderings":           orderings,
 	})
 }
@@ -115,7 +116,7 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if o.Source != "custom" && !strings.HasPrefix(o.Source, sourceProvider(lib.SourceOrdering)) {
+	if o.Source != "custom" && !strings.HasPrefix(o.Source, sourceProvider(cmp.Or(series.SourceOrdering, lib.SourceOrdering))) {
 		if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, true); err != nil {
 			s.log.Warn("deep episode mapping failed", "series", series.Title, "err", err)
 		}
@@ -139,9 +140,14 @@ type seasonEpisode struct {
 }
 
 type seasonDTO struct {
-	SeasonNumber int             `json:"season_number"`
-	Name         string          `json:"name"`
-	Episodes     []seasonEpisode `json:"episodes"`
+	SeasonNumber int    `json:"season_number"`
+	Name         string `json:"name"`
+	Overview     string `json:"overview,omitempty"`
+	// Season fields edited by hand ("name", "overview").
+	LockedFields []string `json:"locked_fields"`
+	// The season's poster, when the order is one season posters belong to.
+	Poster   string          `json:"poster,omitempty"`
+	Episodes []seasonEpisode `json:"episodes"`
 }
 
 // seasons: GET /api/series/{id}/seasons?ordering=<id>&missing=1
@@ -159,7 +165,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	oid, _ := strconv.ParseInt(q.Get("ordering"), 10, 64)
 	if oid == 0 {
 		var err error
-		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), lib.SourceOrdering); err != nil {
+		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
 			s.fail(w, err)
 			return
 		}
@@ -200,10 +206,17 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, err)
 			return
 		}
-		names, err := s.store.OrderingSeasons(ctx, ordering.ID)
+		details, err := s.store.SeasonDetails(ctx, ordering.ID)
 		if err != nil {
 			s.fail(w, err)
 			return
+		}
+		var posters map[int]store.SeasonArt
+		if ordering.Source == "tmdb_aired" || ordering.Source == "tvdb_aired" {
+			if posters, err = s.store.SeasonPosters(ctx, series.ID); err != nil {
+				s.fail(w, err)
+				return
+			}
 		}
 		bySeason := map[int]*seasonDTO{}
 		for _, e := range entries { // sorted by season, episode
@@ -219,7 +232,12 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			}
 			sd := bySeason[e.Season]
 			if sd == nil {
-				sd = &seasonDTO{SeasonNumber: e.Season, Name: names[e.Season]}
+				d := details[e.Season]
+				sd = &seasonDTO{SeasonNumber: e.Season, Name: d.Name, Overview: d.Overview, LockedFields: d.LockedFields,
+					Poster: seasonPosterURL(series.ID, e.Season, posters[e.Season])}
+				if sd.LockedFields == nil {
+					sd.LockedFields = []string{}
+				}
 				if sd.Name == "" {
 					sd.Name = defaultSeasonName(e.Season)
 				}
@@ -429,4 +447,70 @@ func (s *Server) unmatched(w http.ResponseWriter, r *http.Request) {
 		out = append(out, toDTO(it))
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// editSeason: PATCH /api/series/{id}/seasons/{n}?ordering=<id> {"name", "overview", "locked_fields"}
+// changes a season's name and summary in an episode order (the profile's display order by default).
+// Fields sent are locked so refreshes keep them; "locked_fields" replaces the locked set.
+func (s *Server) editSeason(w http.ResponseWriter, r *http.Request) {
+	series, lib, ok := s.seriesFromPath(w, r)
+	if !ok {
+		return
+	}
+	ctx := r.Context()
+	n, err := strconv.Atoi(r.PathValue("n"))
+	if err != nil || n < 0 {
+		writeError(w, http.StatusBadRequest, "invalid season number")
+		return
+	}
+	oid, _ := strconv.ParseInt(r.URL.Query().Get("ordering"), 10, 64)
+	if oid == 0 {
+		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if o, err := s.store.GetOrdering(ctx, oid); err != nil {
+		s.fail(w, err)
+		return
+	} else if o == nil || o.SeriesID != series.ID {
+		writeError(w, http.StatusNotFound, "ordering not found")
+		return
+	}
+	var body struct {
+		Name         *string   `json:"name"`
+		Overview     *string   `json:"overview"`
+		LockedFields *[]string `json:"locked_fields"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if body.Name != nil {
+		v := strings.TrimSpace(*body.Name)
+		if v == "" {
+			writeError(w, http.StatusBadRequest, "a season needs a name")
+			return
+		}
+		body.Name = &v
+	}
+	if body.Overview != nil {
+		v := strings.TrimSpace(*body.Overview)
+		body.Overview = &v
+	}
+	var locked []string
+	if body.LockedFields != nil {
+		locked = append([]string{}, *body.LockedFields...)
+	}
+	if err := s.store.EditSeason(ctx, oid, n, body.Name, body.Overview, locked); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	// Unlocked fields go back to the provider's on the next refresh; do it now.
+	if body.LockedFields != nil {
+		if err := s.scanner.SyncSeriesMetadata(ctx, lib, series.ID, false); err != nil {
+			s.log.Warn("refreshing series after a season edit failed", "series", series.Title, "err", err)
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

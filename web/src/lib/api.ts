@@ -208,6 +208,11 @@ export interface SeasonEpisode extends Item {
 export interface Season {
   season_number: number;
   name: string;
+  overview?: string;
+  /** Season fields edited by hand. */
+  locked_fields: ('name' | 'overview')[];
+  /** The season's poster, in orders that season posters belong to. */
+  poster?: string;
   episodes: SeasonEpisode[];
 }
 
@@ -769,6 +774,8 @@ export const api = {
   searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
     request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),
   artwork: (id: string) => request<ArtworkChoices>('GET', `/api/items/${id}/artwork`),
+  editSeason: (seriesId: string, season: number, orderingId: number | undefined, edit: { name?: string; overview?: string; locked_fields?: string[] }) =>
+    request<void>('PATCH', `/api/series/${seriesId}/seasons/${season}${orderingId ? `?ordering=${orderingId}` : ''}`, edit),
   seasonArt: (seriesId: string) => request<{ seasons: SeasonArt[] }>('GET', `/api/series/${seriesId}/season-art`),
   seasonArtwork: (seriesId: string, season: number) =>
     request<{ posters: ArtworkImage[] }>('GET', `/api/series/${seriesId}/seasons/${season}/artwork`),

@@ -42,11 +42,15 @@ func (s *Server) listArtwork(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if it.Kind != "movie" && it.Kind != "series" {
-		writeError(w, http.StatusBadRequest, "only movies and shows have artwork to choose")
-		return
+	var posters, backdrops, logos []metadata.Image
+	var err error
+	if it.Kind == "episode" {
+		// An episode's "poster" is its thumbnail: TMDB's stills for it.
+		posters, err = s.episodeStills(r, it)
+		backdrops, logos = []metadata.Image{}, []metadata.Image{}
+	} else {
+		posters, backdrops, logos, err = s.scanner.Images(r.Context(), it)
 	}
-	posters, backdrops, logos, err := s.scanner.Images(r.Context(), it)
 	if errors.Is(err, scanner.ErrNoProvider) {
 		posters, backdrops, logos = []metadata.Image{}, []metadata.Image{}, []metadata.Image{}
 	} else if err != nil {
@@ -63,6 +67,34 @@ func (s *Server) listArtwork(w http.ResponseWriter, r *http.Request) {
 			"backdrop": slices.Contains(it.LockedFields, "backdrop"), "logo": slices.Contains(it.LockedFields, "logo")},
 		"local": map[string]bool{"poster": it.LocalPoster != "", "backdrop": it.LocalBackdrop != "", "logo": it.LocalLogo != ""},
 	})
+}
+
+// episodeStills lists TMDB's stills for an episode, found by its position in TMDB's aired order.
+func (s *Server) episodeStills(r *http.Request, ep *store.Item) ([]metadata.Image, error) {
+	ctx := r.Context()
+	series, err := s.store.GetItem(ctx, ep.ParentID)
+	if err != nil || series == nil {
+		return []metadata.Image{}, err
+	}
+	orderings, err := s.store.ListOrderings(ctx, series.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range orderings {
+		if o.Source != "tmdb_aired" {
+			continue
+		}
+		entries, err := s.store.OrderingEntries(ctx, o.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range entries {
+			if e.EpisodeID == ep.ID {
+				return s.scanner.EpisodeStills(ctx, series, e.Season, e.Episode)
+			}
+		}
+	}
+	return []metadata.Image{}, nil
 }
 
 // chooseArtwork: PUT /api/items/{id}/artwork {"type": "poster", "path": "/abc.jpg"} uses a TMDB

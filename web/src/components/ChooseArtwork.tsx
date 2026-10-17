@@ -38,7 +38,8 @@ export function ArtworkPanel({
   const chosen = c?.chosen[type];
   // What's selected: the pending pick, or what's in use now.
   const selected = change && 'path' in change ? change.path : change ? undefined : c?.current[type];
-  const name = artworkNames[type].toLowerCase();
+  const name = item.kind === 'episode' ? 'thumbnail' : artworkNames[type].toLowerCase();
+  const tile = item.kind === 'episode' ? 'backdrop' : type;
 
   let note = 'Pick an image from TMDB or upload your own. Your choice is kept when the details are refreshed.';
   if (change && 'automatic' in change) note = `Arc will go back to choosing the ${name} itself when you save.`;
@@ -74,12 +75,12 @@ export function ArtworkPanel({
       {images?.length === 0 && !(change && 'file' in change) && (
         <p className="py-10 text-center text-sm text-muted">TMDB has no {name} images for this title. You can upload one.</p>
       )}
-      <div className={cn('grid gap-3 pb-2', type === 'poster' ? 'grid-cols-[repeat(auto-fill,minmax(120px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))]')}>
-        {change && 'file' in change && <Tile type={type} src={change.preview} selected title="Your upload" onClick={() => undefined} />}
+      <div className={cn('grid gap-3 pb-2', tile === 'poster' ? 'grid-cols-[repeat(auto-fill,minmax(120px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))]')}>
+        {change && 'file' in change && <Tile type={tile} src={change.preview} selected title="Your upload" onClick={() => undefined} />}
         {images?.map((img) => (
           <Tile
             key={img.path}
-            type={type}
+            type={tile}
             src={img.thumb}
             selected={img.path === selected}
             title={`${img.width}×${img.height}${img.language ? ` · ${img.language}` : ''}`}
@@ -189,7 +190,7 @@ function PendingThumb({ seriesId, season, path }: { seriesId: string; season: nu
   return img ? <img src={img.thumb} alt="" className="size-full object-cover" /> : null;
 }
 
-function SeasonPicker({
+export function SeasonPicker({
   item,
   season,
   change,
