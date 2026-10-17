@@ -8,6 +8,7 @@ import {
   Captions,
   Film,
   Gauge,
+  SlidersHorizontal,
   Info,
   Languages,
   Loader2,
@@ -29,7 +30,7 @@ import { api, ApiError, type Item, type PlaybackPlan, type PlayerCaps, type Subt
 import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
-import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, subtitleLabel, versionLabel } from '@/lib/playback';
+import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, qualities, qualityName, readQuality, saveQuality, subtitleLabel, versionLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
@@ -162,6 +163,9 @@ function PlayerOverlay({
   const caps = useRef<PlayerCaps>(playerCaps());
   // A picture subtitle track being burned into the video; restarts keep it.
   const burn = useRef<string | undefined>(undefined);
+  // The quality limit chosen on this device (0 for the original); restarts keep it.
+  const quality = useRef(readQuality());
+  const [qualityState, setQualityState] = useState(quality.current);
   const prefs = usePrefs();
   const updatePrefs = useUpdatePrefs();
 
@@ -238,7 +242,7 @@ function PlayerOverlay({
       }
       let p: PlaybackPlan;
       try {
-        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition });
+        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
       } catch (e) {
         setLoading(false);
         if (e instanceof ApiError && e.status === 403) setStopped(e.message);
@@ -837,6 +841,26 @@ function PlayerOverlay({
                     </DropdownMenuItem>
                   );
                 })}
+              </PlayerMenu>
+            )}
+            {planState && item.itemId && (
+              <PlayerMenu icon={<SlidersHorizontal />} label="Quality" onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>Quality</DropdownMenuLabel>
+                {[0, ...qualities.filter((q) => !planState.source_kbps || q < planState.source_kbps)].map((q) => (
+                  <DropdownMenuItem
+                    key={q}
+                    onSelect={() => {
+                      if (q === quality.current) return;
+                      quality.current = q;
+                      setQualityState(q);
+                      saveQuality(q);
+                      void load(absMS(), planState.audio_stream);
+                    }}
+                  >
+                    <span className="w-4">{q === qualityState && <Check className="size-4 text-accent" />}</span>
+                    {q ? qualityName(q) : 'Original'}
+                  </DropdownMenuItem>
+                ))}
               </PlayerMenu>
             )}
             <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>

@@ -117,3 +117,11 @@ func TestPreferredAudio(t *testing.T) {
 		t.Errorf("a language the file hasn't: %+v", a)
 	}
 }
+
+func TestQualitySteps(t *testing.T) {
+	for kbps, want := range map[int]string{20000: "20 Mbps 1080p", 8000: "8 Mbps 1080p", 4000: "4 Mbps 720p", 1500: "1.5 Mbps 480p", 720: "720 kbps 360p"} {
+		if got := qualityName(kbps); got != want {
+			t.Errorf("%d: got %q, want %q", kbps, got, want)
+		}
+	}
+}
