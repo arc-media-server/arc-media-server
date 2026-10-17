@@ -127,12 +127,8 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Scheduled maintenance window for heavy background jobs (#97)
 - [x] TMDB numbering by default, per-show episode numbering, editable genres (#103)
 - [ ] "Other videos" (home videos) library type (#77)
-- [ ] Fill blank episode details from the other provider (#104)
-- [ ] Keep every country's age rating (#105)
-- [ ] Per-episode cast and crew, and actor episode counts (#106)
 - [x] Show status and next air date (#107)
 - [x] Original language of movies and shows (#108)
-- [ ] Place specials between seasons (TheTVDB "airs before") (#109)
 - [ ] Search by alternative titles and keywords (#110)
 - [ ] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
 
@@ -171,6 +167,10 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
+- Fill blank episode details from the other provider (#104)
+- Keep every country's age rating (#105)
+- Per-episode cast and crew, and actor episode counts (#106)
+- Place specials between seasons (TheTVDB "airs before") (#109)
 
 ## Explicitly not planned
 
