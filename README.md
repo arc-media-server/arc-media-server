@@ -116,6 +116,7 @@ Early development. Working today:
   default); rows with episodes or seasons can show the show's poster or the season's. A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
   several new episodes of a season show as that season with its poster, a single new episode as
   itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
+- Any collection (smart ones too) or one of your playlists can be a home row (Edit Home > Add Row)
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
 - Remove from Continue Watching (the ⋯ on a card): it stays out, without being marked watched or
   losing its resume point, until you play it (or, for a show, any episode) again
