@@ -56,11 +56,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 10 done (Oct 2026): watch history (play_history, recorded from player progress after a
   minute of playing), admin Insights page (activity, history, storage/never watched), Year in Review
   per profile, plus clear logos on title pages and the cast moved up on series pages (#81, #82).
-  Milestones 8 (intro/credits skipping) and 11 (remote access) were moved to Later at the owner's
-  request (Oct 2026). No numbered milestones are left: ask the owner what's next.
-  The Jellyfin-compatible API
-  (old milestone 6, #30–#33) was moved to Later at the owner's request (Oct 2026): Arc's own features
-  come first, so don't start it unless they ask.
+- After 10 (Oct 2026): home rows got Plex-style options (Continue Watching merged with Up Next,
+  posters/thumbnails, show or season posters, Recently Added TV grouped by season, season posters).
+- Plan re-ordered with the owner (Oct 2026), from a Plex gap review: 12 Everyday playback, 13 Profiles
+  and home, 14 Library management, 15 Moving in and extras, 16 Intro and credits skipping, 17 Remote
+  access and devices, 18 Jellyfin-compatible API. Old milestones 6, 8 and 11 became 18, 16 and 17.
+  Deleting media from the app was left out on purpose (principle 1). Next: 12, pending the owner's
+  review of the order.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
