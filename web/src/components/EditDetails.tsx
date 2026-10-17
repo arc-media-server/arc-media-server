@@ -1,13 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Lock, LockOpen } from 'lucide-react';
-import { api, type Item, type ItemEdit, type LockableField } from '@/lib/api';
+import { Loader2, Lock, LockOpen, X } from 'lucide-react';
+import { api, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
+import { orderings } from '@/components/LibraryEditor';
+import { useLibraries } from '@/components/Sidebar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 
-type TextField = Exclude<LockableField, 'poster' | 'backdrop' | 'logo'>;
+type TextField = Exclude<LockableField, 'poster' | 'backdrop' | 'logo' | 'genres'>;
 
 interface FieldSpec {
   field: TextField;
@@ -62,6 +64,10 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const specs = fieldsFor(item.kind);
   const [values, setValues] = useState(() => Object.fromEntries(specs.map((s) => [s.field, initialValue(item, s.field)])) as Record<TextField, string>);
   const [locked, setLocked] = useState(() => new Set<LockableField>(item.locked_fields));
+  const [genres, setGenres] = useState<string[]>(() => item.genres ?? []);
+  const [source, setSource] = useState<SourceOrdering | ''>(() => item.source_ordering ?? '');
+  const library = useLibraries().data?.find((l) => l.id === item.library_id);
+  const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
 
   const save = useMutation({
@@ -73,6 +79,8 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         if (s.field === 'year' || s.field === 'runtime_min') edit[s.field] = v ? Number(v) : 0;
         else edit[s.field] = v;
       }
+      if (genresChanged) edit.genres = genres;
+      if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       let updated = await api.editItem(item.id, edit);
       // Fields just unlocked should go back to the online value straight away.
       if (item.locked_fields.some((f) => !locked.has(f))) {
@@ -152,6 +160,38 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
             )}
           </Field>
         ))}
+        {item.kind !== 'episode' && (
+          <div className="col-span-2">
+            <span className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Genres</span>
+              <LockToggle locked={locked.has('genres')} onToggle={() => toggle('genres')} />
+            </span>
+            <GenreInput
+              value={genres}
+              onChange={(g) => {
+                setGenres(g);
+                setLocked((prev) => new Set(prev).add('genres'));
+              }}
+            />
+          </div>
+        )}
+        {item.kind === 'series' && (
+          <label className="col-span-2 block">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Episode Numbering</span>
+            <select value={source} onChange={(e) => setSource(e.target.value as SourceOrdering | '')} className={inputClass}>
+              <option value="">Library default ({orderings.find((o) => o.value === library?.source_ordering)?.label ?? 'TMDB aired order'})</option>
+              {orderings.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1.5 block text-xs text-subtle">
+              How this show's files are numbered. Changing it matches the files to episodes again; watch history is kept. To watch in another
+              order, use the episode order menu on the show's page instead.
+            </span>
+          </label>
+        )}
         <div className="col-span-2 mt-1">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Artwork</p>
           <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
@@ -165,6 +205,43 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   );
 }
 
+
+/** Genres as removable chips, with a box to type more (Enter or comma adds one). */
+function GenreInput({ value, onChange }: { value: string[]; onChange: (genres: string[]) => void }) {
+  const [text, setText] = useState('');
+  const add = () => {
+    const g = text.trim();
+    if (g && !value.some((v) => v.toLowerCase() === g.toLowerCase())) onChange([...value, g]);
+    setText('');
+  };
+  return (
+    <div className={cn(inputClass, 'flex h-auto min-h-10 flex-wrap items-center gap-1.5 py-1.5')}>
+      {value.map((g) => (
+        <span key={g} className="flex items-center gap-1 rounded-full bg-surface-3 py-0.5 pl-2.5 pr-1 text-[13px]">
+          {g}
+          <button type="button" aria-label={`Remove ${g}`} onClick={() => onChange(value.filter((v) => v !== g))} className="rounded-full p-0.5 text-subtle hover:text-foreground">
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            add();
+          } else if (e.key === 'Backspace' && !text && value.length) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+        onBlur={add}
+        placeholder={value.length ? 'Add a genre' : 'e.g. Drama'}
+        className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle"
+      />
+    </div>
+  );
+}
 
 function Field({ label, locked, onToggle, half, children }: { label: string; locked: boolean; onToggle: () => void; half?: boolean; children: ReactNode }) {
   return (

@@ -29,6 +29,13 @@ func (s *Store) RekeyItem(ctx context.Context, id, matchKey string) error {
 	return err
 }
 
+// SetSourceOrdering sets a show's own episode numbering ("" to follow its library).
+func (s *Store) SetSourceOrdering(ctx context.Context, seriesID, source string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET source_ordering = ?, updated_at = ? WHERE id = ? AND kind = 'series'`,
+		source, time.Now().Unix(), seriesID)
+	return err
+}
+
 // MarkSynced records that an item's provider metadata is up to date.
 func (s *Store) MarkSynced(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = ? WHERE id = ?`, time.Now().Unix(), id)

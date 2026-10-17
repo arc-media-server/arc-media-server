@@ -91,3 +91,35 @@ func TestLockedFieldsSurviveRefresh(t *testing.T) {
 		t.Error("unknown locked field accepted")
 	}
 }
+
+func TestEditedGenresSurviveRefresh(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, _ := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{"/m"})
+	id, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: "Alien"}, "title:alien:1979")
+	if err := st.SetItemDetails(ctx, id, []string{"Horror", "Science Fiction"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	mine := []string{"Horror", "Space"}
+	if err := st.EditItem(ctx, id, ItemEdit{Genres: &mine}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetItemDetails(ctx, id, []string{"Horror", "Science Fiction"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := st.ItemGenres(ctx, id)
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"Horror", "Space"}) {
+		t.Errorf("edited genres replaced by a refresh: %v", got)
+	}
+	// Unlocked, a refresh brings the provider's back.
+	if err := st.EditItem(ctx, id, ItemEdit{Locked: []string{}}); err != nil {
+		t.Fatal(err)
+	}
+	st.SetItemDetails(ctx, id, []string{"Horror", "Science Fiction"}, nil)
+	got, _ = st.ItemGenres(ctx, id)
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"Horror", "Science Fiction"}) {
+		t.Errorf("after unlocking: %v", got)
+	}
+}

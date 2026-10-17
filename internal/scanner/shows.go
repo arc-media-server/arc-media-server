@@ -160,6 +160,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if series == nil {
 		return fmt.Errorf("series %s not found", seriesID)
 	}
+	lib = forSeries(lib, series)
 	log := s.log.With("series", series.Title)
 	ctx, save := s.traced(ctx, series.ID)
 	defer save()
@@ -354,7 +355,14 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		e := canonEps[cid]
 		key := episodeKey(series.ID, canon, cid)
 		if fk, ok := sourcePos[cid]; ok {
-			if err := s.adoptFileEpisode(ctx, lib.ID, fk, key); err != nil {
+			if err := s.adoptEpisode(ctx, lib.ID, fk, key); err != nil {
+				return err
+			}
+		}
+		// If the show was numbered by the other provider before (its library's or its own setting
+		// changed), its episodes move to this provider's keys, keeping their ids and watch history.
+		if o := canonToOther[cid]; o != 0 {
+			if err := s.adoptEpisode(ctx, lib.ID, episodeKey(series.ID, otherProvider(canon), o), key); err != nil {
 				return err
 			}
 		}
@@ -556,6 +564,16 @@ func (s *Scanner) mapEpisodes(ctx context.Context, seriesID, canon string, tmdbS
 	return out, nil
 }
 
+// forSeries is the library as one show sees it: with the show's own episode numbering, if it has one.
+func forSeries(lib *store.Library, series *store.Item) *store.Library {
+	if series == nil || series.SourceOrdering == "" || series.SourceOrdering == lib.SourceOrdering {
+		return lib
+	}
+	l := *lib
+	l.SourceOrdering = series.SourceOrdering
+	return &l
+}
+
 func otherProvider(p string) string {
 	if p == "tvdb" {
 		return "tmdb"
@@ -563,9 +581,10 @@ func otherProvider(p string) string {
 	return "tvdb"
 }
 
-// adoptFileEpisode re-keys a file-only episode (created before metadata knew about it) to its
-// provider key, unless an item with that key already exists.
-func (s *Scanner) adoptFileEpisode(ctx context.Context, libraryID int64, fileKey, providerKey string) error {
+// adoptEpisode re-keys an episode to its provider key (keeping its id, and so its watch history),
+// unless an item with that key already exists: a file-only episode (created before metadata knew
+// about it), or one keyed by the provider the show used to be numbered by.
+func (s *Scanner) adoptEpisode(ctx context.Context, libraryID int64, fileKey, providerKey string) error {
 	fileItem, err := s.store.GetItemByKey(ctx, libraryID, fileKey)
 	if err != nil || fileItem == nil {
 		return err
@@ -582,6 +601,11 @@ func (s *Scanner) adoptFileEpisode(ctx context.Context, libraryID int64, fileKey
 // createMissing is set they get file-only episodes so they're still visible and playable.
 func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seriesID string, files []episodeFile,
 	createMissing bool) (unknown int, err error) {
+	series, err := s.store.GetItem(ctx, seriesID)
+	if err != nil {
+		return 0, err
+	}
+	lib = forSeries(lib, series)
 	orderings, err := s.store.ListOrderings(ctx, seriesID)
 	if err != nil {
 		return 0, err
