@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
+import { Activity, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -164,6 +164,9 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate('/?edit=1')}>
+          <SlidersHorizontal className="size-4 text-muted" /> Edit Home…
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/year')}>
           <Sparkles className="size-4 text-muted" /> Your Year in Review
         </DropdownMenuItem>

@@ -98,7 +98,9 @@ Early development. Working today:
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
   counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
   (Up Next follows the episode order you chose)
-- A home page each profile arranges for itself ("Edit Home"): drag rows into order, hide rows, and
+- A home page each profile arranges for itself ("Edit Home", top right of Home or in the profile
+  menu): drag rows into order, hide rows, choose whether Up Next is part of Continue Watching (as
+  in Plex, the default) or its own row, and
   add your own rows from filters (library, genre, decade, quality, unwatched, added this week/month/
   year, length, rating, any sort including a daily shuffle) with a live preview
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
@@ -195,9 +197,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET / PATCH / DELETE | `/api/playlists/{id}` | A playlist and its entries; rename `{"title"}`; delete |
 | POST | `/api/playlists/{id}/items` | Add `{"item_ids"}` (movies, episodes, or shows for all their episodes) |
 | DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
-| GET | `/api/home/continue` | What the profile is part-way through |
+| GET | `/api/home/continue?with_up_next=1` | What the profile is part-way through; with `with_up_next=1`, also the next episode of each show, most recent first (one per show) |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
-| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "home": [rows]}` (an empty `home` is the default layout) |
+| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""|"dark"|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
 | PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |

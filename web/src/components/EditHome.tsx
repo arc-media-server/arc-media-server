@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Library, RowFilter } from '@/lib/api';
-import { defaultRowIds, resolveRows, seasons, toSaved, useUpdatePrefs, type ResolvedRow } from '@/lib/home';
+import { defaultRowIds, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions, sorts } from '@/pages/Library';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { Field, inputClass } from '@/components/ui/field';
 import { FilterFields, FilterPreview } from '@/components/FilterFields';
 
@@ -33,7 +34,17 @@ export function EditHomeDialog({
 function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; libraries: Library[]; onDone: () => void }) {
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
+  const prefs = usePrefs();
+  const [split, setSplit] = useState(() => !!prefs.data?.split_up_next);
   const save = useUpdatePrefs();
+  // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
+  const reorder = (shown: ResolvedRow[]) => {
+    if (split) return setRows(shown);
+    const upNext = rows.find((r) => r.type === 'next-up');
+    const next = [...shown];
+    if (upNext) next.splice(next.findIndex((r) => r.type === 'continue') + 1, 0, upNext);
+    setRows(next);
+  };
 
   if (editing) {
     const existing = editing === 'new' ? undefined : (editing as Extract<ResolvedRow, { type: 'custom' }>);
@@ -84,7 +95,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
               const saved = toSaved(rows);
               const isDefault =
                 rows.every((r) => !r.hidden && r.type !== 'custom') && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
-              save.mutate({ home: isDefault ? [] : saved }, { onSuccess: onDone });
+              save.mutate({ home: isDefault ? [] : saved, split_up_next: split }, { onSuccess: onDone });
             }}
           >
             Done
@@ -92,11 +103,30 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
         </>
       }
     >
-      <Reorder.Group axis="y" values={rows} onReorder={setRows} className="space-y-1.5">
-        {rows.map((r) => (
+      <label className="mb-4 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border">
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">Show Up Next separately</span>
+          <span className="block text-xs text-subtle">
+            {split
+              ? 'Next episodes have their own row, apart from what you\'re part-way through.'
+              : 'Next episodes of your shows are in Continue Watching, as in Plex.'}
+          </span>
+        </span>
+        <Switch
+          checked={split}
+          onCheckedChange={(on) => {
+            setSplit(on);
+            // Splitting it out is pointless if the row is hidden, so show it.
+            if (on) setRows((rs) => rs.map((r) => (r.type === 'next-up' ? { ...r, hidden: false } : r)));
+          }}
+        />
+      </label>
+      <Reorder.Group axis="y" values={visibleRows(rows, split)} onReorder={reorder} className="space-y-1.5">
+        {visibleRows(rows, split).map((r) => (
           <RowItem
             key={r.id}
             row={r}
+            merged={!split}
             onToggle={() => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, hidden: !x.hidden } : x)))}
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
             onDelete={r.type === 'custom' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
@@ -107,10 +137,10 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
   );
 }
 
-function describe(r: ResolvedRow): string {
+function describe(r: ResolvedRow, merged: boolean): string {
   switch (r.type) {
     case 'continue':
-      return "What you're part-way through";
+      return merged ? "What you're part-way through, and the next episode of each show" : "What you're part-way through";
     case 'next-up':
       return 'The next episode of each show you watch';
     case 'recent':
@@ -150,7 +180,19 @@ function runtimeLabel(min: number) {
   return min % 60 === 0 ? fmt.plural(min / 60, 'hour') : `${min} min`;
 }
 
-function RowItem({ row, onToggle, onEdit, onDelete }: { row: ResolvedRow; onToggle: () => void; onEdit?: () => void; onDelete?: () => void }) {
+function RowItem({
+  row,
+  merged,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  row: ResolvedRow;
+  merged: boolean;
+  onToggle: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const drag = useDragControls();
   const icon =
     row.type === 'custom' ? <Filter className="size-4" /> : row.type === 'seasonal' ? <CalendarHeart className="size-4" /> : null;
@@ -175,7 +217,7 @@ function RowItem({ row, onToggle, onEdit, onDelete }: { row: ResolvedRow; onTogg
           {icon && <span className="text-accent">{icon}</span>}
           {row.type === 'seasonal' ? 'Seasonal Picks' : row.title}
         </p>
-        <p className="truncate text-xs text-subtle">{describe(row)}</p>
+        <p className="truncate text-xs text-subtle">{describe(row, merged)}</p>
       </div>
       {onEdit && (
         <Button variant="ghost" size="icon" aria-label={`Edit ${row.title}`} onClick={onEdit}>

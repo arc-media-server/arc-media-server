@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
 import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library } from '@/lib/api';
-import { resolveRows, rowHref, rowQuery, usePrefs, type ResolvedRow } from '@/lib/home';
+import { resolveRows, rowHref, rowQuery, usePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
 import { runtime } from '@/lib/format';
 import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { MediaRow } from '@/components/MediaRow';
@@ -30,8 +30,12 @@ function QueryRow({ title, query, href }: { title: string; query: ItemQuery; hre
   return <MediaRow title={title} items={data?.items ?? []} href={href} />;
 }
 
-function HomeRowView({ row }: { row: ResolvedRow }) {
-  const continueWatching = useQuery({ queryKey: ['continue'], queryFn: api.continueWatching, enabled: row.type === 'continue' });
+function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolean }) {
+  const continueWatching = useQuery({
+    queryKey: ['continue', withUpNext],
+    queryFn: () => api.continueWatching(withUpNext),
+    enabled: row.type === 'continue',
+  });
   const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
   switch (row.type) {
     case 'continue':
@@ -54,7 +58,11 @@ function HomeRowView({ row }: { row: ResolvedRow }) {
 export function Home() {
   const { data: libraries, isLoading } = useLibraries();
   const prefs = usePrefs();
-  const [editing, setEditing] = useState(false);
+  // ?edit=1 opens Edit Home, so the profile menu can link to it from anywhere.
+  const [params, setParams] = useSearchParams();
+  const editing = params.get('edit') === '1';
+  const setEditing = (open: boolean) => setParams(open ? { edit: '1' } : {}, { replace: true });
+  const split = !!prefs.data?.split_up_next;
   const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data]);
   // The featured item: the most recently added thing with a backdrop.
   const featuredQuery = useQuery({
@@ -87,13 +95,22 @@ export function Home() {
   }
 
   return (
-    <Page className="pb-16">
+    <Page className="relative pb-16">
+      {prefs.data && (
+        <Button
+          size="sm"
+          onClick={() => setEditing(true)}
+          className="absolute right-6 top-5 z-20 bg-black/30 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/45 md:right-10"
+        >
+          <SlidersHorizontal /> Edit Home
+        </Button>
+      )}
       {featuredQuery.data ? <Featured item={featuredQuery.data} /> : <div className="h-10" />}
       <div className="relative z-10 -mt-6 space-y-10">
-        {rows
+        {visibleRows(rows, split)
           .filter((r) => !r.hidden)
           .map((r) => (
-            <HomeRowView key={r.id} row={r} />
+            <HomeRowView key={r.id} row={r} withUpNext={!split} />
           ))}
       </div>
       {prefs.data && (

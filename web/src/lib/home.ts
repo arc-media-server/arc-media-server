@@ -114,6 +114,11 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
   return out;
 }
 
+/** The rows a layout shows: without Up Next when it's part of Continue Watching. */
+export function visibleRows(rows: ResolvedRow[], splitUpNext: boolean) {
+  return splitUpNext ? rows : rows.filter((r) => r.type !== 'next-up');
+}
+
 /** What gets saved for a layout. */
 export function toSaved(rows: ResolvedRow[]): HomeRow[] {
   return rows.map((r) =>
