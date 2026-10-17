@@ -728,6 +728,8 @@ export const api = {
   addToPlaylist: (id: string, itemIds: string[]) => request<{ added: number }>('POST', `/api/playlists/${id}/items`, { item_ids: itemIds }),
   removeFromPlaylist: (id: string, entryId: number) => request<void>('DELETE', `/api/playlists/${id}/entries/${entryId}`),
   orderPlaylist: (id: string, entryIds: number[]) => request<void>('PUT', `/api/playlists/${id}/order`, { entry_ids: entryIds }),
+  search: (q: string) => request<SearchResults>('GET', `/api/search${query({ q })}`),
+  person: (id: number) => request<{ person: Person; credits: PersonCredit[] }>('GET', `/api/people/${id}`),
   continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),
@@ -819,4 +821,29 @@ export interface Playlist {
 export interface PlaylistEntry {
   entry_id: number;
   item: Item;
+}
+
+/** Someone in the cast or crew. */
+export interface Person {
+  id: number;
+  name: string;
+  image?: string;
+  /** How many titles in the libraries they're in. */
+  count: number;
+  known_for?: 'actor' | 'director' | 'writer' | 'creator' | '';
+}
+
+export interface PersonCredit {
+  item: Item;
+  roles: Credit['role'][];
+  character?: string;
+}
+
+export interface SearchResults {
+  movies: Item[];
+  shows: Item[];
+  episodes: Item[];
+  people: Person[];
+  collections: Collection[];
+  genres: { library_id: number; library_name: string; name: string; count: number }[];
 }

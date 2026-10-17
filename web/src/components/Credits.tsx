@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { Fragment, useRef } from 'react';
+import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Credit, Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -6,13 +7,13 @@ import { cn } from '@/lib/utils';
 /** "Directed by …", "Written by …", "Created by …" and the studio or network. */
 export function CrewLine({ item }: { item: Item }) {
   const credits = item.credits ?? [];
-  const names = (role: Credit['role']) => credits.filter((c) => c.role === role).map((c) => c.name);
-  const lines = [
-    ['Created by', names('creator')],
-    ['Directed by', names('director')],
-    ['Written by', names('writer').slice(0, 3)],
-    [item.kind === 'series' ? 'Network' : 'Studio', item.studio ? item.studio.split(', ').slice(0, 2) : []],
-  ] as const;
+  const people = (role: Credit['role']) => credits.filter((c) => c.role === role).map((c) => ({ name: c.name, id: c.person_id }));
+  const lines: [string, { name: string; id?: number }[]][] = [
+    ['Created by', people('creator')],
+    ['Directed by', people('director')],
+    ['Written by', people('writer').slice(0, 3)],
+    [item.kind === 'series' ? 'Network' : 'Studio', item.studio ? item.studio.split(', ').slice(0, 2).map((name) => ({ name })) : []],
+  ];
   const shown = lines.filter(([, n]) => n.length);
   if (!shown.length) return null;
   return (
@@ -20,7 +21,20 @@ export function CrewLine({ item }: { item: Item }) {
       {shown.map(([label, n]) => (
         <div key={label} className="contents">
           <dt className="text-subtle">{label}</dt>
-          <dd className="text-foreground/85">{n.join(', ')}</dd>
+          <dd className="text-foreground/85">
+            {n.map((p, i) => (
+              <Fragment key={p.name}>
+                {i > 0 && ', '}
+                {p.id ? (
+                  <Link to={`/person/${p.id}`} className="hover:underline">
+                    {p.name}
+                  </Link>
+                ) : (
+                  p.name
+                )}
+              </Fragment>
+            ))}
+          </dd>
         </div>
       ))}
     </dl>
@@ -38,8 +52,8 @@ export function CastRow({ credits }: { credits?: Credit[] }) {
       <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">Cast</h2>
       <div ref={scroller} className="scrollbar-none flex gap-5 overflow-x-auto px-6 pb-2 md:px-10">
         {cast.map((c) => (
-          <div key={c.person_id} className="w-24 shrink-0 text-center">
-            <div className="mx-auto size-24 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border">
+          <Link key={c.person_id} to={`/person/${c.person_id}`} className="group/person w-24 shrink-0 text-center outline-none">
+            <div className="mx-auto size-24 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border transition-transform duration-300 group-hover/person:scale-105 group-focus-visible/person:ring-2 group-focus-visible/person:ring-accent">
               {c.image ? (
                 <img src={c.image} alt="" loading="lazy" className="size-full object-cover" />
               ) : (
@@ -48,7 +62,7 @@ export function CastRow({ credits }: { credits?: Credit[] }) {
             </div>
             <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-tight">{c.name}</p>
             {c.character && <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-subtle">{c.character}</p>}
-          </div>
+          </Link>
         ))}
       </div>
       {cast.length > 8 &&
