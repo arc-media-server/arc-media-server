@@ -38,6 +38,10 @@ Early development. Working today:
   audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
   within what's converted it's instant, beyond it the conversion restarts there. The player's Info
   menu says which method is in use and why
+- Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
+  "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
+  the best version for the screen (one that needs no conversion, then the sharpest that fits), and
+  the player's Version menu switches where you are. Library Health only reports real duplicates
 - Subtitles: inside the file or beside it (`Movie.en.srt`, `Movie.eng.forced.srt`, `.ass`, `.vtt`;
   old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
   picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
@@ -144,7 +148,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |
 | PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
 | GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
-| POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id", "audio_stream", "start_ms"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", ...}`; starting again ends the player's previous conversion |
+| POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id" or "edition", "audio_stream", "start_ms", "burn_subtitle"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", "subtitle_tracks", "versions", ...}`; starting again ends the player's previous conversion |
 | GET | `/api/items/{id}/subtitles/{track}?file=` | A text subtitle track's cues `{"start_ms", "end_ms", "text"}` (tracks are listed in the playback plan; picture ones are burned in with `"burn_subtitle"`) |
 | GET | `/api/transcode/{session}/index.m3u8` | A conversion's HLS playlist (and its `init.mp4` and `sNNNNN.m4s` segments) |
 | POST | `/api/transcode/{session}/ping` | Keep a paused player's conversion alive (they end after 2 minutes unused) |

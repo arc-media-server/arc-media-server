@@ -124,6 +124,7 @@ func (s *Store) ItemFiles(ctx context.Context, itemID string) ([]MediaFile, erro
 			rows.Close()
 			return nil, err
 		}
+		f.Edition = EditionOf(f.Path)
 		files = append(files, f)
 	}
 	rows.Close()

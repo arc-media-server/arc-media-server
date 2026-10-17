@@ -62,3 +62,40 @@ func TestDecide(t *testing.T) {
 		t.Errorf("hevc on edge: %+v", d)
 	}
 }
+
+func TestBestVersion(t *testing.T) {
+	chrome := clientCaps{Containers: []string{"mp4"}, Video: []string{"h264"}, Audio: []string{"aac"}, MaxHeight: 1080}
+	file := func(id int64, edition, codec string, height int) store.MediaFile {
+		return store.MediaFile{ID: id, Container: "matroska", Edition: edition, Streams: []store.Stream{
+			{Index: 0, Kind: "video", Codec: codec, BitDepth: 8, Width: height * 16 / 9, Height: height},
+			{Index: 1, Kind: "audio", Codec: "aac", Channels: 2, IsDefault: true}}}
+	}
+	files := []store.MediaFile{
+		file(1, "", "hevc", 2160), // needs converting in Chrome
+		file(2, "", "h264", 1080), // repackaged only
+		file(3, "", "h264", 720),
+		file(4, "Director's Cut", "h264", 1080),
+		{ID: 5, Missing: true},
+	}
+	pick := func(edition string, caps clientCaps) int64 { return bestVersion(files, edition, caps).ID }
+	if got := pick("", chrome); got != 2 {
+		t.Errorf("chrome: picked %d, want the 1080p H.264", got)
+	}
+	// A 4K screen that plays HEVC gets the 4K file.
+	tv := clientCaps{Containers: []string{"mp4", "mkv"}, Video: []string{"h264", "hevc"}, Audio: []string{"aac"}, MaxHeight: 2160}
+	if got := pick("", tv); got != 1 {
+		t.Errorf("4K HEVC screen: picked %d", got)
+	}
+	// A small screen gets the smallest that fills it, not 4K.
+	phone := chrome
+	phone.MaxHeight = 720
+	if got := pick("", phone); got != 3 {
+		t.Errorf("720p screen: picked %d", got)
+	}
+	if got := pick("director's cut", chrome); got != 4 {
+		t.Errorf("edition: picked %d", got)
+	}
+	if got := len(versions(files)); got != 4 {
+		t.Errorf("versions lists %d (missing files are left out)", got)
+	}
+}

@@ -55,6 +55,8 @@ export interface MediaFile {
   probe_error?: string;
   missing?: boolean;
   part: number;
+  /** The edition, from the file name, e.g. "Director's Cut". */
+  edition?: string;
   streams: Stream[];
 }
 
@@ -343,8 +345,22 @@ export interface PlaybackPlan {
   audio_stream: number;
   audio_tracks: AudioTrack[];
   subtitle_tracks: SubtitleTrack[];
+  /** The title's files: editions and versions (e.g. 4K and 1080p). */
+  versions: Version[];
   /** The picture subtitle track being burned into the video, if any. */
   burn_subtitle?: string;
+}
+
+export interface Version {
+  file_id: number;
+  edition?: string;
+  width?: number;
+  height?: number;
+  video_codec?: string;
+  /** HDR10 or HLG. */
+  hdr?: string;
+  size: number;
+  duration_ms?: number;
 }
 
 export interface SubtitleTrack {
@@ -625,7 +641,7 @@ export const api = {
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
-  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string }) =>
+  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string }) =>
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
   subtitleCues: (itemId: string, track: string, fileId: number) =>
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
