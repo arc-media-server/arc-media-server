@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
-import { api, type Library, type RowFilter } from '@/lib/api';
+import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
+import { useLibraries } from '@/components/Sidebar';
 import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -33,19 +34,93 @@ export function EditHomeDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const prefs = usePrefs();
+  const update = useUpdatePrefs();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <Editor initial={rows} libraries={libraries} onDone={() => onOpenChange(false)} />}
+      {open && (
+        <Editor
+          initial={rows}
+          libraries={libraries}
+          initialSplit={!!prefs.data?.split_up_next}
+          onSave={(patch) => update.mutateAsync(patch)}
+          onDone={() => onOpenChange(false)}
+        />
+      )}
     </Dialog>
   );
 }
 
-function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; libraries: Library[]; onDone: () => void }) {
+/** Whose home is being arranged by the admin: another profile's, or the default for profiles that haven't arranged their own. */
+export type HomeTarget = { kind: 'profile'; id: string; name: string } | { kind: 'default' };
+
+/** The admin arranging another profile's home page, or the default home. */
+export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: HomeTarget | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const qc = useQueryClient();
+  const { data: libraries } = useLibraries();
+  const key = target?.kind === 'profile' ? ['prefs', 'profile', target.id] : ['prefs', 'default'];
+  const prefs = useQuery({
+    queryKey: key,
+    enabled: open && !!target,
+    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default'>> =>
+      target?.kind === 'profile' ? api.profilePrefs(target.id) : { ...(await api.defaultHome()), split_up_next: false },
+  });
+  const ready = open && target && prefs.data && libraries;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {ready && (
+        <Editor
+          key={key.join(':')}
+          initial={resolveRows(prefs.data!.home, libraries!)}
+          libraries={libraries!}
+          initialSplit={!!prefs.data!.split_up_next}
+          showSplit={target!.kind === 'profile'}
+          title={target!.kind === 'profile' ? `${possessive(target!.name)} Home` : 'Default Home'}
+          description={
+            target!.kind === 'profile'
+              ? `Arrange ${possessive(target!.name)} home page. They can still change it themselves.`
+              : "The home page for profiles that haven't arranged their own, including new ones."
+          }
+          onSave={async (patch) => {
+            if (target!.kind === 'profile') await api.updateProfilePrefs(target!.id, patch);
+            else await api.setDefaultHome(patch.home ?? []);
+            qc.invalidateQueries({ queryKey: ['prefs'] });
+          }}
+          onDone={() => onOpenChange(false)}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+/** "Sam's", "Kids'". */
+function possessive(name: string) {
+  return name.endsWith('s') ? `${name}'` : `${name}'s`;
+}
+
+function Editor({
+  initial,
+  libraries,
+  initialSplit,
+  showSplit = true,
+  title = 'Edit Home',
+  description = "Drag rows to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
+  onSave,
+  onDone,
+}: {
+  initial: ResolvedRow[];
+  libraries: Library[];
+  initialSplit: boolean;
+  showSplit?: boolean;
+  title?: string;
+  description?: string;
+  onSave: (patch: Partial<Prefs>) => Promise<unknown>;
+  onDone: () => void;
+}) {
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
-  const prefs = usePrefs();
-  const [split, setSplit] = useState(() => !!prefs.data?.split_up_next);
-  const save = useUpdatePrefs();
+  const [split, setSplit] = useState(initialSplit);
+  const save = useMutation({ mutationFn: onSave, onSuccess: onDone });
   // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
   const reorder = (shown: ResolvedRow[]) => {
     if (split) return setRows(shown);
@@ -95,8 +170,8 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
 
   return (
     <DialogContent
-      title="Edit Home"
-      description="Drag rows to reorder them, hide the ones you don't want, or add your own. This is just for your profile."
+      title={title}
+      description={description}
       className="w-[min(600px,calc(100vw-32px))]"
       footer={
         <>
@@ -115,7 +190,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
               const saved = toSaved(rows);
               const isDefault =
                 rows.every((r) => !r.hidden && r.type !== 'custom' && isDefaultLook(r)) && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
-              save.mutate({ home: isDefault ? [] : saved, split_up_next: split }, { onSuccess: onDone });
+              save.mutate(showSplit ? { home: isDefault ? [] : saved, split_up_next: split } : { home: isDefault ? [] : saved });
             }}
           >
             Done
@@ -123,7 +198,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
         </>
       }
     >
-      <label className="mb-4 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border">
+      <label className={cn('mb-4 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border', !showSplit && 'hidden')}>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium">Show Up Next separately</span>
           <span className="block text-xs text-subtle">
