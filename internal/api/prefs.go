@@ -32,8 +32,9 @@ type prefs struct {
 	Home []homeRow `json:"home"`
 }
 
-// homeRow is a built-in row ("continue", "next-up", "recent:<library id>", "seasonal") or a
-// custom one ("custom:<anything>") with a title and a filter.
+// homeRow is a built-in row ("continue", "next-up", "recent:<library id>", "seasonal"), a custom
+// one ("custom:<anything>") with a title and a filter, or a collection ("collection:<id>") or
+// playlist ("playlist:<id>").
 type homeRow struct {
 	ID     string     `json:"id"`
 	Hidden bool       `json:"hidden,omitempty"`
@@ -89,6 +90,14 @@ func (p *prefs) validate() error {
 		}
 		if r.Style != "" && r.Style != "poster" && r.Style != "thumb" {
 			return fmt.Errorf(`a row's style is "poster" or "thumb"`)
+		}
+		if strings.HasPrefix(r.ID, "collection:") || strings.HasPrefix(r.ID, "playlist:") {
+			// A collection or playlist: its name is kept for Edit Home; the row shows the current one.
+			r.Filter = nil
+			if len([]rune(r.Title)) > 120 {
+				return fmt.Errorf("a row's name can be up to 120 characters")
+			}
+			continue
 		}
 		if !strings.HasPrefix(r.ID, "custom:") {
 			r.Title, r.Filter = "", nil

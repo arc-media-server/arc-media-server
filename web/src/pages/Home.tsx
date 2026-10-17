@@ -55,6 +55,26 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
   }
 }
 
+/** A collection on the home page, as it is now. */
+function CollectionRow({ id, fallback, style }: { id: string; fallback: string; style: CardStyle }) {
+  const { data } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), retry: false });
+  return <MediaRow title={data?.collection.title ?? fallback} items={data?.items ?? []} href={`/collection/${id}`} style={style} />;
+}
+
+/** One of the profile's playlists on the home page, in its order. */
+function PlaylistRow({ id, fallback, style, seasonPosters }: { id: string; fallback: string; style: CardStyle; seasonPosters: boolean }) {
+  const { data } = useQuery({ queryKey: ['playlist', id], queryFn: () => api.playlist(id), retry: false });
+  return (
+    <MediaRow
+      title={data?.playlist.title ?? fallback}
+      items={data?.entries.map((e) => e.item) ?? []}
+      href={`/playlist/${id}`}
+      style={style}
+      seasonPosters={seasonPosters}
+    />
+  );
+}
+
 function QueryRow({ title, query, href, style }: { title: string; query: ItemQuery; href?: string; style: CardStyle }) {
   const { data } = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query) });
   return <MediaRow title={title} items={data?.items ?? []} href={href} style={style} />;
@@ -77,6 +97,10 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
       return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':
       return row.season ? <QueryRow title={row.season.title} query={{ ...row.season.query, limit: 24 }} style={row.style} /> : null;
+    case 'collection':
+      return <CollectionRow id={row.ref} fallback={row.title} style={row.style} />;
+    case 'playlist':
+      return <PlaylistRow id={row.ref} fallback={row.title} style={row.style} seasonPosters={row.posters === 'season'} />;
     case 'custom': {
       const f = row.filter;
       // The library page can show the same list unless the row uses filters only rows have.

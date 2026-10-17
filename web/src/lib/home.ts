@@ -72,6 +72,7 @@ export type ResolvedRow = RowLook &
     | { id: string; hidden: boolean; type: 'seasonal'; title: string; season?: Season }
     | { id: string; hidden: boolean; type: 'recent'; title: string; library: Library }
     | { id: string; hidden: boolean; type: 'custom'; title: string; library?: Library; filter: RowFilter }
+    | { id: string; hidden: boolean; type: 'collection' | 'playlist'; title: string; ref: string }
   );
 
 /** Carrying on watching uses landscape thumbnails, everything else posters, as in Plex. */
@@ -86,7 +87,7 @@ export function defaultPosters(type: ResolvedRow['type']): RowLook['posters'] {
 
 /** Whether a row can show episodes or seasons, so season posters mean something. */
 export function hasEpisodes(r: ResolvedRow) {
-  return r.type === 'continue' || r.type === 'next-up' || (r.type === 'recent' && r.library.kind === 'shows');
+  return r.type === 'continue' || r.type === 'next-up' || r.type === 'playlist' || (r.type === 'recent' && r.library.kind === 'shows');
 }
 
 function look(type: ResolvedRow['type'], saved?: HomeRow): RowLook {
@@ -120,7 +121,10 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
   const out: ResolvedRow[] = [];
   const placed = new Set<string>();
   for (const r of saved) {
-    if (r.id.startsWith('custom:')) {
+    if (r.id.startsWith('collection:') || r.id.startsWith('playlist:')) {
+      const type = r.id.startsWith('collection:') ? 'collection' : 'playlist';
+      out.push({ id: r.id, hidden: !!r.hidden, type, title: r.title || (type === 'collection' ? 'Collection' : 'Playlist'), ref: r.id.slice(type.length + 1), ...look(type, r) });
+    } else if (r.id.startsWith('custom:')) {
       if (!r.filter || !r.title) continue;
       const library = libraries.find((l) => l.id === r.filter!.library_id);
       if (!library) continue;
@@ -159,6 +163,7 @@ export function toSaved(rows: ResolvedRow[]): HomeRow[] {
     id: r.id,
     hidden: r.hidden || undefined,
     ...(r.type === 'custom' && { title: r.title, filter: r.filter }),
+    ...((r.type === 'collection' || r.type === 'playlist') && { title: r.title }),
     style: r.style === defaultStyle(r.type) ? undefined : r.style,
     shows_only: r.showsOnly || undefined,
     posters: r.posters === defaultPosters(r.type) ? undefined : r.posters,

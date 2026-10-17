@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
-import type { Library, RowFilter } from '@/lib/api';
+import { useQueries, useQuery } from '@tanstack/react-query';
+import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
+import { api, type Library, type RowFilter } from '@/lib/api';
 import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -61,6 +62,17 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
         libraries={libraries}
         initial={existing}
         onCancel={() => setEditing(null)}
+        onPick={(kind, ref, title) => {
+          const id = `${kind}:${ref}`;
+          setRows((rs) => {
+            if (rs.some((r) => r.id === id)) return rs;
+            const at = rs.findIndex((r) => r.type !== 'continue' && r.type !== 'next-up');
+            const next = [...rs];
+            next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: kind, title, ref, style: 'poster', showsOnly: false, posters: 'series' });
+            return next;
+          });
+          setEditing(null);
+        }}
         onSave={(title, filter) => {
           const library = libraries.find((l) => l.id === filter.library_id);
           if (existing) {
@@ -138,7 +150,7 @@ function Editor({ initial, libraries, onDone }: { initial: ResolvedRow[]; librar
             onToggle={() => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, hidden: !x.hidden } : x)))}
             onChange={(patch) => setRows((rs) => rs.map((x) => (x.id === r.id ? ({ ...x, ...patch } as ResolvedRow) : x)))}
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
-            onDelete={r.type === 'custom' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
+            onDelete={r.type === 'custom' || r.type === 'collection' || r.type === 'playlist' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
           />
         ))}
       </Reorder.Group>
@@ -158,6 +170,10 @@ function describe(r: ResolvedRow, merged: boolean): string {
       return seasonsSummary;
     case 'custom':
       return filterSummary(r.filter, r.library);
+    case 'collection':
+      return 'A collection';
+    case 'playlist':
+      return 'Your playlist, in its order';
   }
 }
 
@@ -239,7 +255,15 @@ function RowItem({
 }) {
   const drag = useDragControls();
   const icon =
-    row.type === 'custom' ? <Filter className="size-4" /> : row.type === 'seasonal' ? <CalendarHeart className="size-4" /> : null;
+    row.type === 'custom' ? (
+      <Filter className="size-4" />
+    ) : row.type === 'seasonal' ? (
+      <CalendarHeart className="size-4" />
+    ) : row.type === 'collection' ? (
+      <Layers className="size-4" />
+    ) : row.type === 'playlist' ? (
+      <ListVideo className="size-4" />
+    ) : null;
   return (
     <Reorder.Item
       value={row}
@@ -299,12 +323,26 @@ function RowEditor({
   initial,
   onCancel,
   onSave,
+  onPick,
 }: {
   libraries: Library[];
   initial?: Extract<ResolvedRow, { type: 'custom' }>;
   onCancel: () => void;
   onSave: (title: string, filter: RowFilter) => void;
+  /** A collection or playlist was chosen instead of filters. */
+  onPick: (kind: 'collection' | 'playlist', ref: string, title: string) => void;
 }) {
+  // What the new row shows: titles matching filters, a collection, or a playlist.
+  const [source, setSource] = useState<'filter' | 'collection' | 'playlist'>('filter');
+  const [picked, setPicked] = useState('');
+  const collections = useQueries({
+    queries: libraries.map((l) => ({ queryKey: ['collections', l.id], queryFn: () => api.collections(l.id), enabled: source === 'collection' })),
+  });
+  const playlists = useQuery({ queryKey: ['playlists'], queryFn: api.playlists, enabled: source === 'playlist' });
+  const options =
+    source === 'collection'
+      ? collections.flatMap((q, i) => (q.data ?? []).map((c) => ({ id: c.id, title: c.title, group: libraries[i].name })))
+      : (playlists.data ?? []).map((p) => ({ id: p.id, title: p.title, group: '' }));
   const [title, setTitle] = useState(initial?.title ?? '');
   const [f, setF] = useState<RowFilter>(initial?.filter ?? { library_id: libraries[0]?.id ?? 0, sort: 'added' });
   const library = libraries.find((l) => l.id === f.library_id);
@@ -319,25 +357,66 @@ function RowEditor({
           <Button variant="ghost" className="mr-auto" onClick={onCancel}>
             <ChevronLeft /> Back
           </Button>
-          <Button variant="primary" disabled={!title.trim() || !f.library_id} onClick={() => onSave(title.trim(), f)}>
-            {initial ? 'Save Row' : 'Add Row'}
-          </Button>
+          {source === 'filter' ? (
+            <Button variant="primary" disabled={!title.trim() || !f.library_id} onClick={() => onSave(title.trim(), f)}>
+              {initial ? 'Save Row' : 'Add Row'}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              disabled={!picked}
+              onClick={() => onPick(source, picked, options.find((o) => o.id === picked)?.title ?? '')}
+            >
+              Add Row
+            </Button>
+          )}
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Name">
-          <input
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={60}
-            placeholder="e.g. Unwatched 90s Action"
-            className={inputClass}
-          />
-        </Field>
-        <FilterFields filter={f} onChange={setF} libraries={libraries} />
-        <FilterPreview filter={f} library={library} emptyText="Nothing matches yet. The row stays hidden until something does." />
+        {!initial && (
+          <Field label="Show">
+            <select
+              value={source}
+              onChange={(e) => {
+                setSource(e.target.value as typeof source);
+                setPicked('');
+              }}
+              className={inputClass}
+            >
+              <option value="filter">Titles that match filters</option>
+              <option value="collection">A collection</option>
+              <option value="playlist">One of your playlists</option>
+            </select>
+          </Field>
+        )}
+        {source !== 'filter' ? (
+          <Field label={source === 'collection' ? 'Collection' : 'Playlist'}>
+            <select value={picked} onChange={(e) => setPicked(e.target.value)} className={inputClass}>
+              <option value="">{options.length ? 'Choose…' : source === 'collection' ? 'No collections yet' : 'No playlists yet'}</option>
+              {options.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.group ? `${o.title} (${o.group})` : o.title}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          <>
+            <Field label="Name">
+              <input
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={60}
+                placeholder="e.g. Unwatched 90s Action"
+                className={inputClass}
+              />
+            </Field>
+            <FilterFields filter={f} onChange={setF} libraries={libraries} />
+            <FilterPreview filter={f} library={library} emptyText="Nothing matches yet. The row stays hidden until something does." />
+          </>
+        )}
       </div>
     </DialogContent>
   );
