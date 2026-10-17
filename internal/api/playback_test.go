@@ -99,3 +99,21 @@ func TestBestVersion(t *testing.T) {
 		t.Errorf("versions lists %d (missing files are left out)", got)
 	}
 }
+
+func TestPreferredAudio(t *testing.T) {
+	f := &store.MediaFile{Streams: []store.Stream{
+		{Index: 0, Kind: "video"},
+		{Index: 1, Kind: "audio", Language: "eng", IsDefault: true},
+		{Index: 2, Kind: "audio", Language: "jpn"},
+		{Index: 3, Kind: "audio", Language: "jpn", Title: "Commentary"},
+	}}
+	if a := preferredAudio(f, "jpn"); a == nil || a.Index != 2 {
+		t.Errorf("jpn: %+v", a)
+	}
+	if a := preferredAudio(f, "ja"); a == nil || a.Index != 2 {
+		t.Errorf("2-letter code: %+v", a)
+	}
+	if a := preferredAudio(f, "fre"); a != nil {
+		t.Errorf("a language the file hasn't: %+v", a)
+	}
+}

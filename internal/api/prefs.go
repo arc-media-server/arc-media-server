@@ -20,6 +20,9 @@ type prefs struct {
 	// The subtitle language last chosen (e.g. "eng"), used to turn subtitles on by themselves;
 	// "" means off unless there are forced subtitles.
 	SubtitleLanguage string `json:"subtitle_language"`
+	// The audio language last chosen (e.g. "jpn"), played by default when a file has it; "" for
+	// each file's own default.
+	AudioLanguage string `json:"audio_language"`
 	// Show Up Next as its own row; otherwise the next episodes are part of Continue Watching, as in Plex.
 	SplitUpNext bool `json:"split_up_next"`
 	// Play the next episode after a countdown when one ends; on unless turned off, as in Plex.
@@ -65,6 +68,9 @@ func (p *prefs) validate() error {
 	}
 	if len(p.SubtitleLanguage) > 8 {
 		return fmt.Errorf("subtitle_language is a language code like \"eng\"")
+	}
+	if len(p.AudioLanguage) > 8 {
+		return fmt.Errorf("audio_language is a language code like \"jpn\"")
 	}
 	if len(p.Home) > 60 {
 		return fmt.Errorf("a home page can have up to 60 rows")
@@ -144,6 +150,7 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		HideSpoilers     *bool     `json:"hide_spoilers"`
 		Theme            *string   `json:"theme"`
 		SubtitleLanguage *string   `json:"subtitle_language"`
+		AudioLanguage    *string   `json:"audio_language"`
 		SplitUpNext      *bool     `json:"split_up_next"`
 		AutoPlay         *bool     `json:"auto_play"`
 		Home             []homeRow `json:"home"`
@@ -160,6 +167,9 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.SubtitleLanguage != nil {
 		p.SubtitleLanguage = *body.SubtitleLanguage
+	}
+	if body.AudioLanguage != nil {
+		p.AudioLanguage = *body.AudioLanguage
 	}
 	if body.SplitUpNext != nil {
 		p.SplitUpNext = *body.SplitUpNext

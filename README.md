@@ -115,6 +115,8 @@ Early development. Working today:
   several new episodes of a season show as that season with its poster, a single new episode as
   itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
+- Preferred audio language (per profile, as in Plex): the audio language you pick in the player is
+  remembered and played by default in every file that has it, e.g. Japanese audio for anime
 - Auto-Play (per profile, in the profile menu, on by default as in Plex): when an episode ends, the
   next one in your episode order plays after a 10-second countdown, wherever you started it
 - Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
