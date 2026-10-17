@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen, X } from 'lucide-react';
 import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
-import { applyArtwork, ArtworkPanel, artworkNames, type ArtworkChange } from '@/components/ChooseArtwork';
+import { applyArtwork, applySeasonArtwork, ArtworkPanel, artworkNames, SeasonsPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { cn } from '@/lib/utils';
@@ -71,9 +71,11 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
   // Movies and shows have artwork to choose; episodes just their details.
-  const tabs: ('details' | ArtworkType)[] = item.kind === 'episode' ? ['details'] : ['details', 'poster', 'backdrop', 'logo'];
+  const tabs: ('details' | ArtworkType | 'seasons')[] =
+    item.kind === 'episode' ? ['details'] : item.kind === 'series' ? ['details', 'poster', 'backdrop', 'logo', 'seasons'] : ['details', 'poster', 'backdrop', 'logo'];
   const [tab, setTab] = useState<(typeof tabs)[number]>('details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
+  const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
 
   const save = useMutation({
     mutationFn: async () => {
@@ -89,6 +91,9 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       let updated = await api.editItem(item.id, edit);
       for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange][]) {
         updated = await applyArtwork(item.id, type, change);
+      }
+      for (const [season, change] of Object.entries(seasonArt)) {
+        await applySeasonArtwork(item.id, Number(season), change);
       }
       // Fields just unlocked should go back to the online value straight away.
       if (item.locked_fields.some((f) => !locked.has(f))) {
@@ -106,7 +111,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       qc.invalidateQueries({ queryKey: ['seasons'] });
       qc.invalidateQueries({ queryKey: ['items'] });
       qc.invalidateQueries({ queryKey: ['featured'] });
-      for (const key of ['artwork', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['artwork', 'continue', 'next-up', 'items']) qc.invalidateQueries({ queryKey: [key] });
       onDone();
     },
   });
@@ -155,13 +160,27 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
               onClick={() => setTab(t)}
               className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'details' ? 'Details' : artworkNames[t]}
-              {t !== 'details' && art[t] && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+              {t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : artworkNames[t]}
+              {(t === 'seasons' ? Object.keys(seasonArt).length > 0 : t !== 'details' && art[t]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
             </button>
           ))}
         </div>
       )}
-      {tab !== 'details' && (
+      {tab === 'seasons' && (
+        <SeasonsPanel
+          item={item}
+          changes={seasonArt}
+          onChange={(n, c) =>
+            setSeasonArt((prev) => {
+              const next = { ...prev };
+              if (c) next[n] = c;
+              else delete next[n];
+              return next;
+            })
+          }
+        />
+      )}
+      {tab !== 'details' && tab !== 'seasons' && (
         <ArtworkPanel item={item} type={tab} change={art[tab]} onChange={(c) => setArt((prev) => ({ ...prev, [tab]: c }))} />
       )}
       <form

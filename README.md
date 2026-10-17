@@ -81,7 +81,8 @@ Early development. Working today:
   Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
 - Clear logos: movie and series pages show the title's logo artwork (from TMDB, or a local
   clearlogo.png / logo.png) instead of plain text, and the cast sits right under the summary
-- Artwork, in the Edit dialog (Details, Poster, Background and Logo tabs, as in Plex): pick any poster, background or logo TMDB has for a title, or upload your own (kept in
+- Artwork, in the Edit dialog (Details, Poster, Background and Logo tabs, plus Seasons for a show's
+  season posters, as in Plex): pick any poster, background or logo TMDB has for a title, or upload your own (kept in
   the data folder; media files are never touched). "Automatic" goes back to local or online artwork
 - Automatic daily database backups (plus one before every upgrade), with one-click restore that
   saves the current state first
@@ -231,6 +232,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
 | DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
 | GET | `/api/series/{id}/seasons/{n}/image` | A season's poster |
+| GET | `/api/series/{id}/season-art` | A show's seasons and the poster each uses (`chosen`, `local`) |
+| GET / PUT / POST | `/api/series/{id}/seasons/{n}/artwork` | TMDB's posters for a season; choose one `{"path"}` (`null` for automatic); upload one (image body) |
 | GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
 | GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
 | PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |

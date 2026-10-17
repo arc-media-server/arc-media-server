@@ -197,6 +197,10 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/series/{id}/orderings/{oid}/entries/{eid}", admin(s.setEntry))
 	mux.HandleFunc("DELETE /api/series/{id}/orderings/{oid}/entries/{eid}", admin(s.clearEntry))
 	mux.HandleFunc("POST /api/series/{id}/refresh", admin(s.refreshSeries))
+	mux.HandleFunc("GET /api/series/{id}/season-art", admin(s.seasonArtList))
+	mux.HandleFunc("GET /api/series/{id}/seasons/{n}/artwork", admin(s.seasonArtwork))
+	mux.HandleFunc("PUT /api/series/{id}/seasons/{n}/artwork", admin(s.chooseSeasonArtwork))
+	mux.HandleFunc("POST /api/series/{id}/seasons/{n}/artwork", admin(s.uploadSeasonArtwork))
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
