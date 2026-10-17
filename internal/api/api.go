@@ -120,6 +120,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/transcode/{sid}", user(s.stopTranscode))
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
 	mux.HandleFunc("GET /api/people/{id}/image", user(s.personImage))
+	mux.HandleFunc("GET /api/people/{id}", user(s.getPerson))
+	mux.HandleFunc("GET /api/search", user(s.searchAll))
 	mux.HandleFunc("GET /api/extras/{id}/stream", user(s.streamExtra))
 	mux.HandleFunc("GET /api/libraries/{id}/collections", user(s.listCollections))
 	mux.HandleFunc("GET /api/collections/{id}", user(s.getCollection))

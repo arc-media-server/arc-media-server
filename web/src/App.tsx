@@ -14,6 +14,7 @@ import { BackupsPage } from './pages/Backups';
 import { DashboardPage } from './pages/Dashboard';
 import { CollectionPage } from './pages/Collection';
 import { PlaylistPage, PlaylistsPage } from './pages/Playlists';
+import { PersonPage } from './pages/Person';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
@@ -41,6 +42,7 @@ export function App() {
             <Route path="/series/:id" element={<SeriesPage />} />
             <Route path="/collection/:id" element={<CollectionPage />} />
             <Route path="/playlists" element={<PlaylistsPage />} />
+            <Route path="/person/:id" element={<PersonPage />} />
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/health" element={<HealthPage />} />

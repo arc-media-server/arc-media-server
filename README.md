@@ -52,6 +52,9 @@ Early development. Working today:
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
+- Search everything at once: movies, shows, episodes, people, collections and genres. Accents and
+  case don't matter and small typos are forgiven ("matirx" finds The Matrix). Cast and crew open a
+  page with everything in your libraries they're in
 - Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
   "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
   the best version for the screen (one that needs no conversion, then the sharpest that fits), and
@@ -191,6 +194,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
 | PUT | `/api/items/{id}/artwork` | Choose one: `{"type": "poster\|backdrop", "path": "/abc.jpg"}`; `"path": null` goes back to automatic |
 | POST | `/api/items/{id}/artwork/{poster\|backdrop}` | Upload your own (JPEG, PNG or WebP body, up to 20 MB) |
+| GET | `/api/search?q=` | Search everything: `{"movies", "shows", "episodes", "people", "collections", "genres"}`, best matches first; ignores accents and case, and forgives small typos |
+| GET | `/api/people/{id}` | Someone in the cast or crew and the titles in the libraries they're in: `{"person", "credits": [{"item", "roles", "character"}]}` |
 | GET | `/api/people/{id}/image` | A cast or crew member's photo |
 | GET | `/api/extras/{id}/stream` | Play a trailer or other extra |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |

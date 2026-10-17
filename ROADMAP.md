@@ -94,11 +94,11 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Skip Intro / Skip Credits / auto-play next episode in the player and Jellyfin layer
 - [ ] Manual editing of markers
 
-### 9. Collections, playlists and discovery
+### ✅ 9. Collections, playlists and discovery
 - [x] Collections (TMDB collections automatically, plus manual)
 - [x] Smart collections using the same filter engine as home rows
 - [x] Playlists
-- [ ] Better search (people, genres, fuzzy matching)
+- [x] Better search (people, genres, fuzzy matching)
 
 ### 10. Insights and stats
 - [ ] Watch time and history per user, per library, over time
