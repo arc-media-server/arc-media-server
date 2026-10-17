@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"ams/internal/artwork"
+	"ams/internal/store"
 )
 
 type creditDTO struct {
@@ -28,6 +29,14 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 	if err != nil {
 		return err
 	}
+	extras, err := s.store.ItemExtras(r.Context(), d.ID)
+	if err != nil {
+		return err
+	}
+	d.Extras = make([]extraDTO, 0, len(extras))
+	for _, e := range extras {
+		d.Extras = append(d.Extras, extraDTO{Extra: e, Stream: "/api/extras/" + e.ID + "/stream"})
+	}
 	d.Genres = genres
 	d.Credits = make([]creditDTO, 0, len(credits))
 	for _, c := range credits {
@@ -38,6 +47,35 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 		d.Credits = append(d.Credits, cd)
 	}
 	return nil
+}
+
+type extraDTO struct {
+	store.Extra
+	Stream string `json:"stream_url"`
+}
+
+// streamExtra: GET /api/extras/{id}/stream plays a trailer or other extra (direct play), if the
+// profile may see the title it belongs to.
+func (s *Server) streamExtra(w http.ResponseWriter, r *http.Request) {
+	e, err := s.store.GetExtra(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if e == nil {
+		writeError(w, http.StatusNotFound, "extra not found")
+		return
+	}
+	owner, err := s.store.GetItem(r.Context(), e.ItemID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if ok, err := s.store.AgeAllowed(r.Context(), owner, maxAge(r)); err != nil || !ok {
+		writeError(w, http.StatusNotFound, "extra not found")
+		return
+	}
+	s.serveFile(w, r, e.Path)
 }
 
 // libraryFacets: GET /api/libraries/{id}/facets lists the genres, decades and resolutions a

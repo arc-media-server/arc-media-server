@@ -39,6 +39,41 @@ func TestReadNFO(t *testing.T) {
 	}
 }
 
+func TestClassifyExtra(t *testing.T) {
+	root := filepath.FromSlash("/media/Movies")
+	p := func(s string) string { return filepath.Join(root, filepath.FromSlash(s)) }
+	tests := []struct {
+		path                        string
+		ok                          bool
+		kind, ownerDir, stem, title string
+	}{
+		{"Heat (1995)/Extras/Making of.mp4", true, "other", "Heat (1995)", "", "Making of"},
+		{"Heat (1995)/Behind The Scenes/On set.mkv", true, "behind_the_scenes", "Heat (1995)", "", "On set"},
+		{"Heat (1995)/Heat (1995)-trailer.mkv", true, "trailer", "Heat (1995)", "Heat (1995)", "Trailer"},
+		{"Heat (1995)/Heat (1995) - Final Trailer-trailer.mkv", true, "trailer", "Heat (1995)", "Heat (1995) - Final Trailer", "Trailer"},
+		{"Heat (1995)/Heat (1995).mkv", false, "", "", "", ""},
+	}
+	for _, tt := range tests {
+		ex, ok := classifyExtra(root, p(tt.path))
+		if ok != tt.ok {
+			t.Errorf("%s: extra = %v, want %v", tt.path, ok, tt.ok)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if ex.kind != tt.kind || ex.ownerDir != p(tt.ownerDir) || ex.ownerStem != tt.stem {
+			t.Errorf("%s: got %+v", tt.path, ex)
+		}
+		if got := extraTitle(ex); got != tt.title {
+			t.Errorf("%s: title %q, want %q", tt.path, got, tt.title)
+		}
+	}
+	if !isSample("sample.mkv") || !isSample("movie-sample.mkv") || isSample("Sampler (2020).mkv") {
+		t.Error("isSample")
+	}
+}
+
 func TestMovieArt(t *testing.T) {
 	dir := t.TempDir()
 	touch := func(name string) {

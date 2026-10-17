@@ -67,7 +67,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Admin dashboard: now playing, stop a stream, server log
 - [x] Browse filters (genre, decade, unwatched, resolution, rating) and more sort options
 - [x] Use local artwork and NFO files (read-only)
-- [ ] Extras and trailers on movie and show pages
+- [x] Extras and trailers on movie and show pages
 - [ ] Choose artwork from TMDB/TVDB alternatives or upload your own
 - [ ] Customisable home: reorder and hide built-in rows
 - [ ] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")

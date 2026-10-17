@@ -94,6 +94,7 @@ export interface Item {
   /** On a movie or show's own page. */
   genres?: string[];
   credits?: Credit[];
+  extras?: Extra[];
   images?: { primary?: string; backdrop?: string; series_primary?: string; series_backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
@@ -317,6 +318,15 @@ export interface ItemQuery {
   unwatched?: boolean;
   limit?: number;
   offset?: number;
+}
+
+export interface Extra {
+  id: string;
+  item_id: string;
+  kind: 'trailer' | 'featurette' | 'behind_the_scenes' | 'deleted_scene' | 'interview' | 'scene' | 'short' | 'other';
+  title: string;
+  duration_ms?: number;
+  stream_url: string;
 }
 
 export interface Credit {

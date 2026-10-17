@@ -12,6 +12,7 @@ import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
+import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { cn } from '@/lib/utils';
 import { progressOf } from '@/components/WatchState';
 
@@ -94,6 +95,7 @@ export function MoviePage() {
                   <RotateCcw />
                 </Button>
               )}
+              <TrailerButton extras={item.extras} title={item.title} />
               <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
               {admin && (
                 <>
@@ -110,6 +112,7 @@ export function MoviePage() {
       </Hero>
 
       <CastRow credits={item.credits} />
+      <ExtrasRow extras={item.extras} title={item.title} />
       {item.files?.map((f) => <FileDetails key={f.id} file={f} />)}
       {dialogs}
     </Page>

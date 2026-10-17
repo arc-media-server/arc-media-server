@@ -84,6 +84,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
 	mux.HandleFunc("GET /api/people/{id}/image", user(s.personImage))
+	mux.HandleFunc("GET /api/extras/{id}/stream", user(s.streamExtra))
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
 	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
@@ -148,6 +149,7 @@ type itemDTO struct {
 	// On a movie or show's own page: its genres, cast and crew.
 	Genres  []string          `json:"genres,omitempty"`
 	Credits []creditDTO       `json:"credits,omitempty"`
+	Extras  []extraDTO        `json:"extras,omitempty"`
 	Images  map[string]string `json:"images,omitempty"`
 	Stream  string            `json:"stream_url,omitempty"`
 	Files   []store.MediaFile `json:"files,omitempty"`
@@ -359,9 +361,14 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fh, err := os.Open(chosen.Path)
+	s.serveFile(w, r, chosen.Path)
+}
+
+// serveFile sends a media file as it is, with range requests for seeking.
+func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, path string) {
+	fh, err := os.Open(path)
 	if err != nil {
-		s.log.Warn("cannot open media file", "path", chosen.Path, "err", err)
+		s.log.Warn("cannot open media file", "path", path, "err", err)
 		writeError(w, http.StatusNotFound, "media file unavailable")
 		return
 	}
@@ -371,10 +378,10 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if mime := videoMIME[strings.ToLower(filepath.Ext(chosen.Path))]; mime != "" {
+	if mime := videoMIME[strings.ToLower(filepath.Ext(path))]; mime != "" {
 		w.Header().Set("Content-Type", mime)
 	}
-	http.ServeContent(w, r, filepath.Base(chosen.Path), info.ModTime(), fh)
+	http.ServeContent(w, r, filepath.Base(path), info.ModTime(), fh)
 }
 
 // image serves an item's artwork from the local cache, downloading it on first use. If it can't

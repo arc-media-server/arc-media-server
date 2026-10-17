@@ -19,7 +19,9 @@ Early development. Working today:
   groups) per series, mapped onto your files whichever way they're named. Pick one per series, make
   custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
-  multi-part `cd1`/`part2` files; extras and trailers are skipped)
+  multi-part `cd1`/`part2` files; samples are skipped)
+- Extras: trailers, featurettes, behind the scenes, deleted scenes, interviews and shorts (in
+  `Extras/`, `Trailers/`… folders or named `<movie>-trailer.mkv`) shown with their movie or show
 - Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
 - TMDB and TheTVDB metadata matching, with genres, cast and crew (with photos), studio or network,
   tagline, score and age ratings for your region
@@ -125,6 +127,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/people/{id}/image` | A cast or crew member's photo |
+| GET | `/api/extras/{id}/stream` | Play a trailer or other extra |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |

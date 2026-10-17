@@ -11,6 +11,7 @@ import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
+import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -122,6 +123,7 @@ export function SeriesPage() {
             )}
             <div className="mt-7 flex flex-wrap gap-3">
               {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
+              <TrailerButton extras={series.extras} title={series.title} />
               {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
               {admin && (
                 <>
@@ -197,6 +199,7 @@ export function SeriesPage() {
         </motion.div>
       </div>
       <CastRow credits={series.credits} />
+      <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}
     </Page>
   );

@@ -25,11 +25,30 @@ var videoExts = map[string]bool{
 	".ts": true, ".m2ts": true, ".webm": true, ".mpg": true, ".mpeg": true, ".flv": true,
 }
 
-// Folders holding bonus material rather than the main feature.
-var skipDirs = map[string]bool{
-	"extras": true, "featurettes": true, "behind the scenes": true, "deleted scenes": true,
-	"interviews": true, "scenes": true, "shorts": true, "trailers": true, "samples": true,
-	"sample": true, "other": true, "@eadir": true, "$recycle.bin": true,
+// Folders holding extras rather than the main feature (Plex/Jellyfin naming), and what kind.
+var extraDirs = map[string]string{
+	"extras": "other", "featurettes": "featurette", "behind the scenes": "behind_the_scenes",
+	"deleted scenes": "deleted_scene", "interviews": "interview", "scenes": "scene", "shorts": "short",
+	"trailers": "trailer", "other": "other",
+}
+
+// Folders that are never looked in.
+var ignoredDirs = map[string]bool{"samples": true, "sample": true, "@eadir": true, "$recycle.bin": true}
+
+// File-name endings that mark an extra ("Alien (1979)-trailer.mkv"), and what kind.
+var extraSuffixes = []struct{ suffix, kind string }{
+	{"-trailer", "trailer"}, {".trailer", "trailer"}, {"_trailer", "trailer"},
+	{"-featurette", "featurette"}, {"-behindthescenes", "behind_the_scenes"}, {"-deleted", "deleted_scene"},
+	{"-interview", "interview"}, {"-scene", "scene"}, {"-short", "short"}, {"-other", "other"},
+}
+
+// extraFile is an extra found while walking a library folder.
+type extraFile struct {
+	fileID int64
+	path   string
+	kind   string
+	// The folder its movie or show is in, and for "<movie file>-trailer.mkv" the movie file's name.
+	ownerDir, ownerStem string
 }
 
 type Status struct {
@@ -182,12 +201,21 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 		return fmt.Errorf("unknown library kind %q", lib.Kind)
 	}
 
+	var extras []extraFile
 	for _, root := range lib.Paths {
 		complete, err := walkVideos(ctx, root, log, func(path string, d fs.DirEntry) {
 			if err := addFile(root, path, d); err != nil {
 				log.Warn("failed to add file", "path", path, "err", err)
 			}
-		}, nil)
+		}, func(path string, d fs.DirEntry, ex extraFile) {
+			id, err := s.recordFile(ctx, lib, path, d, scanStart)
+			if err != nil {
+				log.Warn("failed to add file", "path", path, "err", err)
+				return
+			}
+			ex.fileID = id
+			extras = append(extras, ex)
+		})
 		if err != nil {
 			return err
 		}
@@ -218,6 +246,10 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 			return err
 		}
 	}
+	// Extras last, once their movies and shows are linked to files.
+	if err := s.linkExtras(ctx, lib, extras); err != nil {
+		return err
+	}
 
 	st := s.Status(lib.ID)
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
@@ -225,10 +257,11 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 	return nil
 }
 
-// walkVideos calls visit for every main video file below root, skipping hidden folders, extras,
-// trailers and samples (bonus is called for each of those, if set). complete is false when root or
-// part of it couldn't be read, e.g. a drive is offline.
-func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(path string, d fs.DirEntry), bonus func(path string)) (complete bool, err error) {
+// walkVideos calls visit for every main video file below root and extra (if set) for every
+// trailer, featurette and other extra, skipping hidden folders and samples. complete is false when
+// root or part of it couldn't be read, e.g. a drive is offline.
+func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(path string, d fs.DirEntry),
+	extra func(path string, d fs.DirEntry, ex extraFile)) (complete bool, err error) {
 	if _, err := os.Stat(root); err != nil {
 		log.Warn("library folder unavailable", "path", root, "err", err)
 		return false, nil
@@ -251,20 +284,17 @@ func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(p
 			if path != root && strings.HasPrefix(name, ".") {
 				return fs.SkipDir
 			}
-			if path != root && skipDirs[strings.ToLower(name)] {
-				if bonus != nil {
-					bonus(path)
-				}
+			if path != root && ignoredDirs[strings.ToLower(name)] {
 				return fs.SkipDir
 			}
 			return nil
 		}
-		if !videoExts[strings.ToLower(filepath.Ext(name))] {
+		if !videoExts[strings.ToLower(filepath.Ext(name))] || isSample(name) {
 			return nil
 		}
-		if isBonusFile(name) {
-			if bonus != nil {
-				bonus(path)
+		if ex, ok := classifyExtra(root, path); ok {
+			if extra != nil {
+				extra(path, d, ex)
 			}
 			return nil
 		}
@@ -272,6 +302,81 @@ func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(p
 		return nil
 	})
 	return complete, err
+}
+
+// classifyExtra reports whether a file is an extra: inside an extras folder (the owner is the
+// folder holding that one), or named "<movie file>-trailer.mkv" and so on.
+func classifyExtra(root, path string) (extraFile, bool) {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return extraFile{}, false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	for i, dir := range parts[:len(parts)-1] {
+		if kind, ok := extraDirs[strings.ToLower(dir)]; ok {
+			return extraFile{path: path, kind: kind, ownerDir: filepath.Join(append([]string{root}, parts[:i]...)...)}, true
+		}
+	}
+	name := filepath.Base(path)
+	stem := strings.TrimSuffix(name, filepath.Ext(name))
+	for _, s := range extraSuffixes {
+		if strings.HasSuffix(strings.ToLower(stem), s.suffix) {
+			return extraFile{path: path, kind: s.kind, ownerDir: filepath.Dir(path), ownerStem: stem[:len(stem)-len(s.suffix)]}, true
+		}
+	}
+	return extraFile{}, false
+}
+
+// extraTitle makes a readable title from an extra's file name.
+func extraTitle(ex extraFile) string {
+	name := filepath.Base(ex.path)
+	stem := strings.TrimSuffix(name, filepath.Ext(name))
+	if ex.ownerStem != "" {
+		if t := cleanTitle(sepRe.ReplaceAllString(stem[len(ex.ownerStem):], " ")); t != "" && !isKindWord(t) {
+			return t
+		}
+		return extraKindNames[ex.kind]
+	}
+	return cleanTitle(sepRe.ReplaceAllString(stem, " "))
+}
+
+var extraKindNames = map[string]string{"trailer": "Trailer", "featurette": "Featurette", "behind_the_scenes": "Behind the Scenes",
+	"deleted_scene": "Deleted Scene", "interview": "Interview", "scene": "Scene", "short": "Short", "other": "Extra"}
+
+func isKindWord(s string) bool {
+	s = strings.ToLower(strings.Trim(s, " -._"))
+	for _, x := range extraSuffixes {
+		if strings.Trim(x.suffix, "-._") == s {
+			return true
+		}
+	}
+	return false
+}
+
+// linkExtras attaches the extras found in a scan to their movie or show.
+func (s *Scanner) linkExtras(ctx context.Context, lib *store.Library, extras []extraFile) error {
+	for _, ex := range extras {
+		owner := ""
+		var err error
+		if ex.ownerStem != "" && lib.Kind == "movies" {
+			if owner, err = s.store.MovieByFileStem(ctx, lib.ID, ex.ownerDir, ex.ownerStem); err != nil {
+				return err
+			}
+		}
+		if owner == "" {
+			if owner, err = s.store.OwnerInFolder(ctx, lib.ID, lib.Kind, ex.ownerDir); err != nil {
+				return err
+			}
+		}
+		if owner == "" {
+			s.log.Debug("extra without a movie or show", "path", ex.path)
+			continue
+		}
+		if err := s.store.SaveExtra(ctx, owner, ex.fileID, ex.kind, extraTitle(ex)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // recordFile stores a file (probing it if it is new or changed) and marks it seen in this scan.
@@ -473,16 +578,8 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 	}
 }
 
-func isBonusFile(name string) bool {
+// isSample reports whether a file is a release sample, which is never shown.
+func isSample(name string) bool {
 	stem := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
-	if stem == "sample" {
-		return true
-	}
-	for _, suffix := range []string{"-trailer", ".trailer", "_trailer", "-sample", ".sample", "-featurette",
-		"-behindthescenes", "-deleted", "-interview", "-scene", "-short", "-other"} {
-		if strings.HasSuffix(stem, suffix) {
-			return true
-		}
-	}
-	return false
+	return stem == "sample" || strings.HasSuffix(stem, "-sample") || strings.HasSuffix(stem, ".sample")
 }

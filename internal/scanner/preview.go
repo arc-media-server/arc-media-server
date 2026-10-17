@@ -129,7 +129,7 @@ func (s *Scanner) Preview(ctx context.Context, kind, sourceOrdering string, path
 					g.episodes[strconv.Itoa(ep.Season)+"x"+strconv.Itoa(n)+strconv.FormatBool(ep.Absolute)] = true
 				}
 			}
-		}, func(string) { ps.update(func(p *Preview) { p.Extras++ }) })
+		}, func(string, fs.DirEntry, extraFile) { ps.update(func(p *Preview) { p.Extras++ }) })
 		if err != nil {
 			ps.update(func(p *Preview) { p.Stage, p.Error = "done", err.Error() })
 			return

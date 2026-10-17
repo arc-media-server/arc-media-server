@@ -62,7 +62,8 @@ func (s *Store) MissingFiles(ctx context.Context, libraryID int64) ([]FileProble
 // library whose name doesn't look like an episode.
 func (s *Store) UnrecognisedFiles(ctx context.Context, libraryID int64) ([]FileProblem, error) {
 	return s.fileProblems(ctx, libraryID,
-		`m.missing_since IS NULL AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.file_id = m.id)`)
+		`m.missing_since IS NULL AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.file_id = m.id)
+			AND NOT EXISTS (SELECT 1 FROM extras x WHERE x.file_id = m.id)`)
 }
 
 // goneItemsSQL selects the movies, episodes and series in library ?1 that have files, none of
@@ -244,7 +245,8 @@ func (s *Store) ProblemCounts(ctx context.Context) (map[int64]int, error) {
 		UNION ALL
 		SELECT library_id, COUNT(*) FROM media_files m
 		WHERE m.missing_since IS NULL AND (m.probe_error <> ''
-			OR NOT EXISTS (SELECT 1 FROM item_files f WHERE f.file_id = m.id))
+			OR NOT EXISTS (SELECT 1 FROM item_files f WHERE f.file_id = m.id)
+			AND NOT EXISTS (SELECT 1 FROM extras x WHERE x.file_id = m.id))
 		GROUP BY library_id`)
 	if err != nil {
 		return nil, err
