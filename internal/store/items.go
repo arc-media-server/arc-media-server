@@ -13,7 +13,7 @@ import (
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
-	logo_path, local_logo, source_ordering`
+	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -26,7 +26,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
-		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering}
+		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -195,11 +195,13 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 			tmdb_id = ?, tvdb_id = ?, imdb_id = ?,
 			`+keepIfLocked("poster")+`, `+keepIfLocked("backdrop")+`, `+keepIfLocked("logo")+`,
 			`+keepIfLocked("tagline")+`, `+keepIfLocked("content_rating")+`, `+keepIfLocked("studio")+`, rating = ?,
+			original_language = ?, show_status = ?, last_aired = ?, next_aired = ?,
 			metadata_state = ?, updated_at = ?
 		WHERE id = ? AND metadata_state <> 'locked'`,
 		it.Title, SortTitle(it.Title), it.OriginalTitle, it.Year, it.Overview, it.RuntimeMin,
 		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath, it.LogoPath,
 		it.Tagline, it.ContentRating, it.Studio, it.Rating,
+		it.OriginalLanguage, it.ShowStatus, it.LastAired, it.NextAired,
 		it.MetadataState, time.Now().Unix(), it.ID)
 	if err != nil {
 		return err
@@ -540,6 +542,8 @@ type LibraryFacets struct {
 	Genres      []Facet `json:"genres"`
 	Decades     []Facet `json:"decades"`
 	Resolutions []Facet `json:"resolutions"`
+	// Original languages (2-letter codes), most titles first.
+	Languages []Facet `json:"languages"`
 }
 
 // Facet is one filter value and how many titles have it.
@@ -574,6 +578,10 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 	var err error
 	if out.Genres, err = query(`SELECT g.name, COUNT(*) FROM item_genres g JOIN items ON items.id = g.item_id
 		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
+		return out, err
+	}
+	if out.Languages, err = query(`SELECT original_language, COUNT(*) FROM items
+		WHERE ` + base + ` AND original_language <> '' GROUP BY original_language ORDER BY COUNT(*) DESC, original_language`); err != nil {
 		return out, err
 	}
 	if out.Decades, err = query(`SELECT CAST(year / 10 * 10 AS TEXT), COUNT(*) FROM items
@@ -625,6 +633,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 	if q.Genre != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM item_genres g WHERE g.item_id = items.id AND g.name = ?)")
 		args = append(args, q.Genre)
+	}
+	if q.Language != "" {
+		where = append(where, "original_language = ?")
+		args = append(args, q.Language)
 	}
 	if q.Decade > 0 {
 		where = append(where, "year BETWEEN ? AND ?")

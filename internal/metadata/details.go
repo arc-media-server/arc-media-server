@@ -1,5 +1,7 @@
 package metadata
 
+import "strings"
+
 // Details are the extras a movie or show has beyond its title and overview.
 type Details struct {
 	Tagline string
@@ -15,6 +17,27 @@ type Details struct {
 	People []Credit
 	// TMDB's recommendations (TMDB ids, best first), for "More like this".
 	Recommendations []int64
+	// The language it was made in, as the provider gives it ("en" from TMDB, "eng" from TVDB).
+	OriginalLanguage string
+	// Shows only: continuing, ended, cancelled or upcoming ("" if unknown), and the dates the
+	// last episode aired and the next one airs (YYYY-MM-DD).
+	Status               string
+	LastAired, NextAired string
+}
+
+// showStatus turns TMDB's and TheTVDB's show statuses into Arc's.
+func showStatus(s string) string {
+	switch strings.ToLower(s) {
+	case "returning series", "continuing":
+		return "continuing"
+	case "ended":
+		return "ended"
+	case "canceled", "cancelled":
+		return "cancelled"
+	case "in production", "planned", "pilot", "upcoming":
+		return "upcoming"
+	}
+	return ""
 }
 
 type tmdbRecommendations struct {

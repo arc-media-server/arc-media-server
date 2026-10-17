@@ -173,13 +173,19 @@ func (c *TVDB) SearchSeries(ctx context.Context, title string, year int) (int64,
 func (c *TVDB) Series(ctx context.Context, id int64) (*Series, []string, error) {
 	var resp struct {
 		Data struct {
-			ID          int64  `json:"id"`
-			Name        string `json:"name"`
-			Overview    string `json:"overview"`
-			FirstAired  string `json:"firstAired"`
-			Year        string `json:"year"`
-			Image       string `json:"image"`
-			SeasonTypes []struct {
+			ID         int64  `json:"id"`
+			Name       string `json:"name"`
+			Overview   string `json:"overview"`
+			FirstAired string `json:"firstAired"`
+			LastAired  string `json:"lastAired"`
+			NextAired  string `json:"nextAired"`
+			Status     struct {
+				Name string `json:"name"`
+			} `json:"status"`
+			OriginalLanguage string `json:"originalLanguage"`
+			Year             string `json:"year"`
+			Image            string `json:"image"`
+			SeasonTypes      []struct {
 				Type string `json:"type"`
 			} `json:"seasonTypes"`
 			RemoteIDs []struct {
@@ -194,6 +200,7 @@ func (c *TVDB) Series(ctx context.Context, id int64) (*Series, []string, error) 
 	d := resp.Data
 	s := &Series{TVDBID: d.ID, Title: d.Name, OriginalTitle: d.Name, Overview: d.Overview,
 		FirstAired: d.FirstAired, PosterPath: tvdbImage(d.Image)}
+	s.OriginalLanguage, s.Status, s.LastAired, s.NextAired = d.OriginalLanguage, showStatus(d.Status.Name), d.LastAired, d.NextAired
 	s.Year, _ = strconv.Atoi(d.Year)
 	for _, r := range d.RemoteIDs {
 		switch r.Type {

@@ -150,9 +150,15 @@ func (e tmdbEpisode) toEpisode() *Episode {
 // TV fetches series metadata plus all of its orderings: TMDB aired order and every episode group.
 func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	var d struct {
-		ID           int64  `json:"id"`
-		Name         string `json:"name"`
-		OriginalName string `json:"original_name"`
+		ID               int64  `json:"id"`
+		Name             string `json:"name"`
+		OriginalName     string `json:"original_name"`
+		OriginalLanguage string `json:"original_language"`
+		Status           string `json:"status"`
+		LastAirDate      string `json:"last_air_date"`
+		NextEpisode      *struct {
+			AirDate string `json:"air_date"`
+		} `json:"next_episode_to_air"`
 		Overview     string `json:"overview"`
 		FirstAirDate string `json:"first_air_date"`
 		PosterPath   string `json:"poster_path"`
@@ -211,7 +217,11 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
 		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
 		Details: Details{Tagline: d.Tagline, LogoPath: bestLogo(d.Images.Logos), Recommendations: d.Recommendations.ids(), ContentRating: pickRating(c.Region(), ratings), Studios: names(d.Networks),
-			Rating: d.VoteAverage, Genres: names(d.Genres), People: people}}
+			Rating: d.VoteAverage, Genres: names(d.Genres), People: people,
+			OriginalLanguage: d.OriginalLanguage, Status: showStatus(d.Status), LastAired: d.LastAirDate}}
+	if d.NextEpisode != nil {
+		s.NextAired = d.NextEpisode.AirDate
+	}
 
 	// Aired order: fetch seasons 20 at a time using append_to_response.
 	aired := Ordering{Source: "tmdb_aired", Name: "Aired Order", Description: "TMDB", Seasons: map[int]string{}, SeasonOverviews: map[int]string{}}

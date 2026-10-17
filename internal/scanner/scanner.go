@@ -18,6 +18,7 @@ import (
 	"ams/internal/metadata"
 	"ams/internal/probe"
 	"ams/internal/store"
+	"ams/internal/subtitles"
 )
 
 var videoExts = map[string]bool{
@@ -502,6 +503,8 @@ func applyDetails(it *store.Item, d metadata.Details) {
 	it.Tagline, it.ContentRating, it.Rating = d.Tagline, d.ContentRating, d.Rating
 	it.LogoPath = d.LogoPath
 	it.Studio = strings.Join(d.Studios, ", ")
+	it.OriginalLanguage = subtitles.LanguageCode2(d.OriginalLanguage)
+	it.ShowStatus, it.LastAired, it.NextAired = d.Status, d.LastAired, d.NextAired
 }
 
 // saveMovie stores a movie's metadata, genres and credits, and notes when it was fetched.

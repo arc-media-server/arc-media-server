@@ -56,6 +56,7 @@ type homeRow struct {
 type rowFilter struct {
 	LibraryID   int64   `json:"library_id,omitempty"`
 	Genre       string  `json:"genre,omitempty"`
+	Language    string  `json:"language,omitempty"`
 	Decade      int     `json:"decade,omitempty"`
 	Resolution  string  `json:"resolution,omitempty"`
 	Unwatched   bool    `json:"unwatched,omitempty"`
