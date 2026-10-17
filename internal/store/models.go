@@ -75,6 +75,15 @@ type MediaFile struct {
 	// The edition, from the file name (e.g. "Director's Cut"); "" for none.
 	Edition string   `json:"edition,omitempty"`
 	Streams []Stream `json:"streams"`
+	// Chapter marks; filled when probing, and read separately for playback.
+	Chapters []Chapter `json:"-"`
+}
+
+// Chapter is a chapter mark in a media file.
+type Chapter struct {
+	StartMS int64  `json:"start_ms"`
+	EndMS   int64  `json:"end_ms"`
+	Title   string `json:"title,omitempty"`
 }
 
 type Stream struct {

@@ -8,6 +8,7 @@ import {
   Captions,
   Film,
   Gauge,
+  ListOrdered,
   SlidersHorizontal,
   Info,
   Languages,
@@ -26,7 +27,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
+import { api, ApiError, type Chapter, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
 import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
@@ -47,18 +48,6 @@ export interface NowPlaying {
   startMS?: number;
   /** The edition to play when the title has several (e.g. "Director's Cut"). */
   edition?: string;
-}
-
-/** How an episode is played: titled with its show and number, from where the profile left off. */
-export function episodePlayable(ep: Item, fromStart = false): NowPlaying {
-  const code = episodeCode(ep.season_number, ep.episode_number);
-  return {
-    title: ep.title,
-    subtitle: [ep.series_title, code].filter(Boolean).join(' · '),
-    src: ep.stream_url,
-    itemId: ep.id,
-    startMS: fromStart ? 0 : ep.user_data?.position_ms,
-  };
 }
 
 const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
@@ -93,7 +82,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .nextEpisode(current.itemId)
       .then((ep) => {
         if (cancelled || !ep?.stream_url) return;
-        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, episodePlayable(ep, true)] } : q));
+        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, nowPlayingFor(ep, true)] } : q));
       })
       .catch(() => undefined); // playing on is a nicety; the episode itself plays regardless
     return () => {
@@ -532,13 +521,24 @@ function PlayerOverlay({
           togglePlay();
           break;
         case 'ArrowLeft':
-        case 'j':
-          seekTo(absMS() - (e.key === 'j' ? 10_000 : 5_000));
+        case 'j': {
+          const ch = plan.current?.chapters ?? [];
+          if (e.shiftKey && ch.length) {
+            // Back to the start of this chapter, or the one before if just past its start.
+            const i = chapterAt(ch, absMS());
+            seekTo(ch[absMS() - ch[i].start_ms < 3000 ? Math.max(0, i - 1) : i].start_ms);
+          } else seekTo(absMS() - (e.key === 'j' ? 10_000 : 5_000));
           break;
+        }
         case 'ArrowRight':
-        case 'l':
-          seekTo(absMS() + (e.key === 'l' ? 10_000 : 5_000));
+        case 'l': {
+          const ch = plan.current?.chapters ?? [];
+          if (e.shiftKey && ch.length) {
+            const nextChapter = ch[chapterAt(ch, absMS()) + 1];
+            if (nextChapter) seekTo(nextChapter.start_ms);
+          } else seekTo(absMS() + (e.key === 'l' ? 10_000 : 5_000));
           break;
+        }
         case 'ArrowUp':
           setVolume((x) => Math.min(1, Math.round((x + 0.1) * 10) / 10));
           setMuted(false);
@@ -725,7 +725,15 @@ function PlayerOverlay({
             showChrome ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
         >
-          <Scrubber positionMS={positionMS} durationMS={dur} bufferedMS={bufferedMS} readyMS={planState?.hls ? readyMS : 0} onSeek={seekTo} thumbs={thumbs} />
+          <Scrubber
+            positionMS={positionMS}
+            durationMS={dur}
+            bufferedMS={bufferedMS}
+            readyMS={planState?.hls ? readyMS : 0}
+            onSeek={seekTo}
+            thumbs={thumbs}
+            chapters={planState?.chapters ?? []}
+          />
           <div className="mt-3 flex items-center gap-1">
             <ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>
               {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
@@ -863,6 +871,20 @@ function PlayerOverlay({
                 ))}
               </PlayerMenu>
             )}
+            {planState && planState.chapters.length > 1 && (
+              <PlayerMenu icon={<ListOrdered />} label="Chapters" onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>Chapters</DropdownMenuLabel>
+                <div className="max-h-80 overflow-y-auto">
+                  {planState.chapters.map((c, i) => (
+                    <DropdownMenuItem key={c.start_ms} onSelect={() => seekTo(c.start_ms)}>
+                      <span className="w-4">{i === chapterAt(planState.chapters, positionMS) && <Check className="size-4 text-accent" />}</span>
+                      <span className="min-w-0 flex-1 truncate">{chapterName(planState.chapters, i)}</span>
+                      <span className="ml-4 text-xs tabular-nums text-subtle">{fmt.clock(c.start_ms)}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </PlayerMenu>
+            )}
             <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>
               <DropdownMenuLabel>Speed</DropdownMenuLabel>
               {speeds.map((s) => (
@@ -878,7 +900,7 @@ function PlayerOverlay({
                 <p className="max-w-64 px-2.5 pb-2 text-xs leading-relaxed text-muted">{methodLabel(planState).detail}</p>
                 <DropdownMenuSeparator />
                 <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">
-                  Space play/pause · ←/→ 5s · J/L 10s · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · &lt;/&gt; speed · 0–9 jump
+                  Space play/pause · ←/→ 5s · J/L 10s · Shift+←/→ chapters · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · &lt;/&gt; speed · 0–9 jump
                 </p>
               </PlayerMenu>
             )}
@@ -1058,6 +1080,7 @@ function Scrubber({
   readyMS,
   onSeek,
   thumbs,
+  chapters,
 }: {
   positionMS: number;
   durationMS: number;
@@ -1065,6 +1088,7 @@ function Scrubber({
   readyMS: number;
   onSeek: (ms: number) => void;
   thumbs: { info: TrickplayInfo; sheets: string[] } | null;
+  chapters: Chapter[];
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -1107,6 +1131,9 @@ function Scrubber({
         {readyMS > 0 && <div className="absolute inset-y-0 left-0 bg-white/15" style={{ width: pct(readyMS) }} />}
         <div className="absolute inset-y-0 left-0 bg-white/30" style={{ width: pct(bufferedMS) }} />
         <div className="absolute inset-y-0 left-0 bg-white" style={{ width: pct(shown) }} />
+        {chapters.slice(1).map((c) => (
+          <div key={c.start_ms} className="absolute inset-y-0 w-[3px] -translate-x-1/2 bg-black/70" style={{ left: pct(c.start_ms) }} />
+        ))}
       </div>
       <div
         className="absolute size-3.5 -translate-x-1/2 rounded-full bg-white shadow opacity-0 transition-opacity group-hover/scrub:opacity-100"
@@ -1118,11 +1145,27 @@ function Scrubber({
           style={{ left: pct(drag ?? hover) }}
         >
           {thumbs && <Thumb ms={drag ?? hover} thumbs={thumbs} />}
+          {chapters.length > 0 && (
+            <span className="max-w-48 truncate font-medium">{chapterName(chapters, chapterAt(chapters, drag ?? hover))}</span>
+          )}
           {fmt.clock(drag ?? hover)}
         </div>
       )}
     </div>
   );
+}
+
+/** The index of the chapter a time (ms) falls in: the last one starting at or before it. */
+function chapterAt(chapters: Chapter[], ms: number) {
+  let i = 0;
+  while (i + 1 < chapters.length && chapters[i + 1].start_ms <= ms) i++;
+  return i;
+}
+
+/** A chapter's name: its title, unless that's missing or just a number or time. */
+function chapterName(chapters: Chapter[], i: number) {
+  const t = chapters[i]?.title?.trim();
+  return t && !/^(chapter\s*)?[\d:.]+$/i.test(t) ? t : `Chapter ${i + 1}`;
 }
 
 /** What the player needs to play a movie or episode, from where the profile left off. */

@@ -107,7 +107,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Preferred audio language per profile (#84)
 - [x] Quality choice in the player (#85)
 - [x] Remove from Continue Watching (#86)
-- [ ] Chapters in the player (#87)
+- [x] Chapters in the player (#87)
 - [ ] Picture-in-Picture (#88)
 
 ### 13. Profiles and home

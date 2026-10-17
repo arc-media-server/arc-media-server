@@ -577,6 +577,9 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 
 func applyProbe(f *store.MediaFile, res *probe.Result) {
 	f.Container, f.DurationMS, f.Bitrate = res.Container, res.DurationMS, res.Bitrate
+	for _, c := range res.Chapters {
+		f.Chapters = append(f.Chapters, store.Chapter{StartMS: c.StartMS, EndMS: c.EndMS, Title: c.Title})
+	}
 	for _, ps := range res.Streams {
 		f.Streams = append(f.Streams, store.Stream{
 			Index: ps.Index, Kind: ps.Kind, Codec: ps.Codec, Profile: ps.Profile, Language: ps.Language,
