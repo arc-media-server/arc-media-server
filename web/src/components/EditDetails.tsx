@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Lock, LockOpen, X } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
 import { applyArtwork, applySeasonArtwork, ArtworkPanel, artworkNames, SeasonsPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
+import { ChipInput } from '@/components/ChipInput';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -69,6 +70,9 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [source, setSource] = useState<SourceOrdering | ''>(() => item.source_ordering ?? '');
   const library = useLibraries().data?.find((l) => l.id === item.library_id);
   const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
+  const [labels, setLabels] = useState<string[]>(() => item.labels ?? []);
+  const labelsChanged = labels.join('\n') !== (item.labels ?? []).join('\n');
+  const allLabels = useQuery({ queryKey: ['labels'], queryFn: api.labels, enabled: item.kind !== 'episode' });
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
   // Movies and shows have artwork to choose; episodes just their details.
   const tabs: ('details' | ArtworkType | 'seasons')[] =
@@ -87,6 +91,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         else edit[s.field] = v;
       }
       if (genresChanged) edit.genres = genres;
+      if (labelsChanged) edit.labels = labels;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       let updated = await api.editItem(item.id, edit);
       for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange][]) {
@@ -107,6 +112,8 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
     },
     onSuccess: (updated) => {
       qc.setQueryData(['item', item.id], (old: Item | undefined) => (old ? { ...old, ...updated } : updated));
+      qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['facets'] });
       qc.invalidateQueries({ queryKey: ['item', item.id] });
       qc.invalidateQueries({ queryKey: ['seasons'] });
       qc.invalidateQueries({ queryKey: ['items'] });
@@ -218,13 +225,22 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Genres</span>
               <LockToggle locked={locked.has('genres')} onToggle={() => toggle('genres')} />
             </span>
-            <GenreInput
+            <ChipInput
               value={genres}
+              placeholder="e.g. Drama"
+              morePlaceholder="Add a genre"
               onChange={(g) => {
                 setGenres(g);
                 setLocked((prev) => new Set(prev).add('genres'));
               }}
             />
+          </div>
+        )}
+        {item.kind !== 'episode' && (
+          <div className="col-span-2">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Labels</span>
+            <ChipInput value={labels} onChange={setLabels} placeholder="Your own tags, e.g. Not for kids" morePlaceholder="Add a label" suggestions={allLabels.data} />
+            <p className="mt-1.5 text-xs text-subtle">Only you see these. Use them to filter, build smart collections, or hide titles from a profile.</p>
           </div>
         )}
         {item.kind === 'series' && (
@@ -250,43 +266,6 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   );
 }
 
-
-/** Genres as removable chips, with a box to type more (Enter or comma adds one). */
-function GenreInput({ value, onChange }: { value: string[]; onChange: (genres: string[]) => void }) {
-  const [text, setText] = useState('');
-  const add = () => {
-    const g = text.trim();
-    if (g && !value.some((v) => v.toLowerCase() === g.toLowerCase())) onChange([...value, g]);
-    setText('');
-  };
-  return (
-    <div className={cn(inputClass, 'flex h-auto min-h-10 flex-wrap items-center gap-1.5 py-1.5')}>
-      {value.map((g) => (
-        <span key={g} className="flex items-center gap-1 rounded-full bg-surface-3 py-0.5 pl-2.5 pr-1 text-[13px]">
-          {g}
-          <button type="button" aria-label={`Remove ${g}`} onClick={() => onChange(value.filter((v) => v !== g))} className="rounded-full p-0.5 text-subtle hover:text-foreground">
-            <X className="size-3" />
-          </button>
-        </span>
-      ))}
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            add();
-          } else if (e.key === 'Backspace' && !text && value.length) {
-            onChange(value.slice(0, -1));
-          }
-        }}
-        onBlur={add}
-        placeholder={value.length ? 'Add a genre' : 'e.g. Drama'}
-        className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle"
-      />
-    </div>
-  );
-}
 
 function Field({ label, locked, onToggle, half, children }: { label: string; locked: boolean; onToggle: () => void; half?: boolean; children: ReactNode }) {
   return (

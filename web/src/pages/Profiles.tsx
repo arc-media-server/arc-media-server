@@ -11,6 +11,7 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { useLibraries } from '@/components/Sidebar';
+import { ChipInput } from '@/components/ChipInput';
 import { EditOtherHomeDialog, type HomeTarget } from '@/components/EditHome';
 
 export function ProfilesPage() {
@@ -57,7 +58,9 @@ export function ProfilesPage() {
                 <p className="flex items-center gap-1.5 text-xs text-subtle">
                   {p.is_admin
                     ? 'Admin · manages libraries and settings'
-                    : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length)].filter(Boolean).join(' · ')}
+                    : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length), p.exclude_labels?.length && `hides ${p.exclude_labels.join(', ')}`]
+                        .filter(Boolean)
+                        .join(' · ')}
                   {p.has_pin && (
                     <>
                       {' · '}
@@ -114,6 +117,8 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
   const [maxAge, setMaxAge] = useState(profile?.max_age ?? 0);
   // null for every library.
   const [libraryIds, setLibraryIds] = useState<number[] | null>(profile?.library_ids ?? null);
+  const [hiddenLabels, setHiddenLabels] = useState<string[]>(profile?.exclude_labels ?? []);
+  const allLabels = useQuery({ queryKey: ['labels'], queryFn: api.labels });
   const libraries = useLibraries().data ?? [];
 
   const save = useMutation({
@@ -125,8 +130,9 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
             pin,
             max_age: profile.is_admin ? undefined : maxAge,
             library_ids: profile.is_admin ? undefined : libraryIds,
+            exclude_labels: profile.is_admin ? undefined : hiddenLabels,
           })
-        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge, library_ids: libraryIds }),
+        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge, library_ids: libraryIds, exclude_labels: hiddenLabels }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profiles'] });
       qc.invalidateQueries({ queryKey: ['auth'] });
@@ -263,6 +269,13 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
                 ))}
             </div>
             {libraryIds?.length === 0 && <p className="mt-2 text-xs text-warning">This profile won't see anything until you choose a library.</p>}
+          </div>
+        )}
+        {!profile?.is_admin && (
+          <div>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Hide titles labelled</span>
+            <ChipInput value={hiddenLabels} onChange={setHiddenLabels} placeholder="e.g. Not for kids" morePlaceholder="Add a label" suggestions={allLabels.data} />
+            <p className="mt-2 text-xs text-subtle">Add labels to titles with Edit on their page.</p>
           </div>
         )}
         <button type="submit" hidden />

@@ -18,6 +18,30 @@ var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 // refreshes keep it; "locked_fields" replaces the locked set (leave a field out to unlock it).
 //
 //	{"title": "Alien", "year": 1979, "locked_fields": ["title", "year", "poster"]}
+//
+// cleanLabels trims labels and drops blanks and repeats (ignoring case), up to 50.
+func cleanLabels(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, l := range in {
+		if l = strings.TrimSpace(l); l != "" && len(l) <= 60 && !seen[strings.ToLower(l)] && len(out) < 50 {
+			seen[strings.ToLower(l)] = true
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// listLabels: GET /api/labels lists every label in use (admin), for suggestions.
+func (s *Server) listLabels(w http.ResponseWriter, r *http.Request) {
+	labels, err := s.store.AllLabels(r.Context())
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, labels)
+}
+
 func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
@@ -35,6 +59,7 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		ReleaseDate   *string   `json:"release_date"`
 		RuntimeMin    *int      `json:"runtime_min"`
 		Genres        *[]string `json:"genres"`
+		Labels        *[]string `json:"labels"`
 		// A show's episode numbering; "" follows its library.
 		SourceOrdering *string   `json:"source_ordering"`
 		LockedFields   *[]string `json:"locked_fields"`
@@ -84,6 +109,10 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		e.Genres = &genres
+	}
+	if body.Labels != nil {
+		labels := cleanLabels(*body.Labels)
+		e.Labels = &labels
 	}
 	if body.LockedFields != nil {
 		e.Locked = *body.LockedFields

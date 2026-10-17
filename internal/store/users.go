@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -19,20 +20,24 @@ type User struct {
 	// The oldest age rating the profile may watch; 0 means no limit.
 	MaxAge int `json:"max_age"`
 	// The libraries the profile may see; nil for all of them.
-	LibraryIDs   []int64 `json:"library_ids"`
-	PasswordHash string  `json:"-"`
-	PINHash      string  `json:"-"`
-	CreatedAt    int64   `json:"created_at"`
+	LibraryIDs []int64 `json:"library_ids"`
+	// Titles with these labels are hidden from the profile.
+	ExcludeLabels []string `json:"exclude_labels"`
+	PasswordHash  string   `json:"-"`
+	PINHash       string   `json:"-"`
+	CreatedAt     int64    `json:"created_at"`
 }
 
-const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids`
+const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids, exclude_labels`
 
 func scanUser(row interface{ Scan(...any) error }, u *User) error {
-	var libs string
-	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs); err != nil {
+	var libs, labels string
+	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs, &labels); err != nil {
 		return err
 	}
 	u.LibraryIDs = parseIDs(libs)
+	u.ExcludeLabels = []string{}
+	json.Unmarshal([]byte(labels), &u.ExcludeLabels)
 	return nil
 }
 
@@ -128,8 +133,9 @@ type UserUpdate struct {
 	MaxAge       *int
 	// The libraries the profile may see: set with a list (nil field leaves it alone); AllLibraries
 	// lifts the restriction.
-	LibraryIDs   *[]int64
-	AllLibraries bool
+	LibraryIDs    *[]int64
+	AllLibraries  bool
+	ExcludeLabels *[]string
 }
 
 func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error {
@@ -162,6 +168,11 @@ func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error 
 		}
 		sets = append(sets, "library_ids = ?")
 		args = append(args, list)
+	}
+	if up.ExcludeLabels != nil {
+		b, _ := json.Marshal(*up.ExcludeLabels)
+		sets = append(sets, "exclude_labels = ?")
+		args = append(args, string(b))
 	}
 	if len(sets) == 0 {
 		return nil

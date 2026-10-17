@@ -104,6 +104,7 @@ func New(d Deps) http.Handler {
 	user, admin := s.signedIn, s.adminOnly
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
+	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
 	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
@@ -237,6 +238,7 @@ type itemDTO struct {
 	UnwatchedCount *int            `json:"unwatched_count,omitempty"`
 	// On a movie or show's own page: its genres, cast and crew.
 	Genres  []string    `json:"genres,omitempty"`
+	Labels  []string    `json:"labels,omitempty"`
 	Credits []creditDTO `json:"credits,omitempty"`
 	Extras  []extraDTO  `json:"extras,omitempty"`
 	// On a movie or show's own page: the collections it's in.
@@ -365,6 +367,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Access = access(r)
 	query.Genre = q.Get("genre")
 	query.Language = q.Get("language")
+	query.Label = q.Get("label")
 	query.Decade, _ = strconv.Atoi(q.Get("decade"))
 	query.Resolution = q.Get("resolution")
 	query.UserID = currentUserID(r)
@@ -422,7 +425,7 @@ func access(r *http.Request) store.Access {
 	if u == nil || u.IsAdmin {
 		return store.Access{}
 	}
-	return store.Access{MaxAge: u.MaxAge, Libraries: u.LibraryIDs}
+	return store.Access{MaxAge: u.MaxAge, Libraries: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels}
 }
 
 func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {

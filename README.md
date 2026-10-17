@@ -113,6 +113,8 @@ Early development. Working today:
   your region); anything else is hidden from it everywhere
 - Library access per profile (as in Plex Home): choose which libraries a profile sees; the others
   are hidden from it everywhere (sidebar, home, search, collections, playlists)
+- Labels: your own tags on movies and shows (Edit → Labels), used as a library filter, in custom
+  Home rows and smart collections, and to hide titles from a profile (e.g. "Not for kids")
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
   counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
   (Up Next follows the episode order you chose)
@@ -191,7 +193,7 @@ Motion for animation and TanStack Query for data loading.
 | POST / DELETE | `/api/auth/profile` | Switch to a profile (`id`, `pin` or `password`) / back to the picker |
 | POST | `/api/auth/logout` | Sign out |
 | POST | `/api/auth/password` | Change the password (admin) |
-| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin"}` |
+| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels"}` |
 | PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
 | GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network (admin) |
 
@@ -209,10 +211,11 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
+| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
-| PATCH | `/api/items/{id}` | Edit metadata (incl. `genres`); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
+| GET | `/api/labels` | Every label in use (admin) |
+| PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
 | POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |
 | GET | `/api/items/{id}/match` | How the item was identified: what was read from its names and every search made |
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |

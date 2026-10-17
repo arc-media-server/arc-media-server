@@ -31,6 +31,7 @@ export interface ItemEdit {
   content_rating?: string;
   studio?: string;
   genres?: string[];
+  labels?: string[];
   /** A show's episode numbering; "" follows its library. */
   source_ordering?: SourceOrdering | '';
   locked_fields?: LockableField[];
@@ -106,6 +107,8 @@ export interface Item {
   rating?: number;
   /** On a movie or show's own page. */
   genres?: string[];
+  /** Your own labels (on a movie or show's own page). */
+  labels?: string[];
   /** A show's own episode numbering, when it overrides its library's. */
   source_ordering?: SourceOrdering;
   credits?: Credit[];
@@ -472,6 +475,7 @@ export interface LibraryFacets {
   resolutions: Facet[];
   /** Original languages, most titles first. */
   languages: Facet[];
+  labels: Facet[];
 }
 
 export interface ItemQuery {
@@ -482,6 +486,7 @@ export interface ItemQuery {
   genre?: string;
   /** Original language, 2-letter code. */
   language?: string;
+  label?: string;
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
@@ -501,6 +506,7 @@ export interface RowFilter {
   library_id: number;
   genre?: string;
   language?: string;
+  label?: string;
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
@@ -615,6 +621,8 @@ export interface Profile {
   max_age: number;
   /** The libraries this profile may see; null for all of them. */
   library_ids: number[] | null;
+  /** Titles with these labels are hidden from this profile. */
+  exclude_labels: string[];
 }
 
 export interface AuthStatus {
@@ -711,8 +719,8 @@ export const api = {
   logout: () => request<void>('POST', '/api/auth/logout'),
   changePassword: (current: string, next: string) => request<void>('POST', '/api/auth/password', { current, new: next }),
   profiles: () => request<Profile[]>('GET', '/api/profiles'),
-  createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('POST', '/api/profiles', p),
-  updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
+  createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('POST', '/api/profiles', p),
+  updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   profilePrefs: (id: string) => request<Prefs>('GET', `/api/profiles/${id}/prefs`),
   updateProfilePrefs: (id: string, patch: Partial<Prefs>) => request<Prefs>('PATCH', `/api/profiles/${id}/prefs`, patch),
   defaultHome: () => request<{ home: HomeRow[] }>('GET', '/api/home/default'),
@@ -751,6 +759,7 @@ export const api = {
   addToCollection: (id: string, itemIds: string[]) => request<void>('POST', `/api/collections/${id}/items`, { item_ids: itemIds }),
   removeFromCollection: (id: string, itemId: string) => request<void>('DELETE', `/api/collections/${id}/items/${itemId}`),
   orderCollection: (id: string, itemIds: string[]) => request<void>('PUT', `/api/collections/${id}/order`, { item_ids: itemIds }),
+  labels: () => request<string[]>('GET', '/api/labels'),
   facets: (libraryId: number) => request<LibraryFacets>('GET', `/api/libraries/${libraryId}/facets`),
   /** Problems needing the user, per library id. */
   healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),

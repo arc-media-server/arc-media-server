@@ -268,6 +268,7 @@ function filterSummary(f: RowFilter, library?: Library) {
   const parts = [library?.name ?? 'Library'];
   if (f.unwatched) parts.push('unwatched');
   if (f.genre) parts.push(f.genre);
+  if (f.label) parts.push(`labelled “${f.label}”`);
   if (f.language) parts.push(`in ${fmt.language(f.language)}`);
   if (f.decade) parts.push(`${f.decade}s`);
   if (f.resolution) parts.push(resolutions[f.resolution]);

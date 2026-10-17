@@ -38,6 +38,9 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 		d.Extras = append(d.Extras, extraDTO{Extra: e, Stream: "/api/extras/" + e.ID + "/stream"})
 	}
 	d.Genres = genres
+	if d.Labels, err = s.store.ItemLabels(r.Context(), d.ID); err != nil {
+		return err
+	}
 	d.Collections = s.itemCollections(r, &d.Item)
 	d.Credits = make([]creditDTO, 0, len(credits))
 	for _, c := range credits {

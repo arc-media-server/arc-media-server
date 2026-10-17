@@ -178,6 +178,7 @@ export function rowQuery(f: RowFilter, library: Library | undefined, limit = 24)
     kind: library?.kind === 'shows' ? 'series' : 'movie',
     genre: f.genre,
     language: f.language,
+    label: f.label,
     decade: f.decade,
     resolution: f.resolution,
     unwatched: f.unwatched,
@@ -195,6 +196,7 @@ export function rowHref(f: RowFilter) {
   const p = new URLSearchParams();
   if (f.genre) p.set('genre', f.genre);
   if (f.language) p.set('language', f.language);
+  if (f.label) p.set('label', f.label);
   if (f.decade) p.set('decade', String(f.decade));
   if (f.resolution) p.set('resolution', f.resolution);
   if (f.unwatched) p.set('unwatched', '1');
