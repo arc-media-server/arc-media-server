@@ -1,12 +1,20 @@
 package api
 
 import (
+	"cmp"
+	"encoding/json"
+	"errors"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 
 	"ams/internal/artwork"
+	"ams/internal/metadata"
+	"ams/internal/scanner"
 	"ams/internal/store"
 )
 
@@ -14,6 +22,10 @@ import (
 func seasonPosterURL(seriesID string, season int, art store.SeasonArt) string {
 	base := "/api/series/" + seriesID + "/seasons/" + strconv.Itoa(season) + "/image"
 	switch {
+	case strings.HasPrefix(art.Chosen, metadata.UploadPrefix):
+		return base + "?v=" + artwork.Key(art.Chosen)
+	case art.Chosen != "":
+		return base + "?v=" + artwork.Key(artwork.Source("season", "primary", art.Chosen))
 	case art.Local != "":
 		return base + "?local=" + artwork.Key(art.Local)
 	case art.Path != "":
@@ -40,6 +52,11 @@ func (s *Server) seasonImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	art := posters[n]
+	if name, ok := strings.CutPrefix(art.Chosen, metadata.UploadPrefix); ok {
+		art.Local = filepath.Join(s.uploadsDir, filepath.Base(name))
+	} else if art.Chosen != "" {
+		art.Local, art.Path = "", art.Chosen
+	}
 	if art.Local != "" {
 		if f, err := os.Open(art.Local); err == nil {
 			defer f.Close()
@@ -233,4 +250,154 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+type seasonArtDTO struct {
+	SeasonNumber int    `json:"season_number"`
+	Name         string `json:"name"`
+	Image        string `json:"image,omitempty"`
+	// Chosen by hand (rather than automatic), and whether there's a poster file in the folder.
+	Chosen bool `json:"chosen"`
+	Local  bool `json:"local"`
+}
+
+// seasonArtList: GET /api/series/{id}/season-art lists a show's seasons (in aired order, which
+// season posters belong to) with the poster each uses.
+func (s *Server) seasonArtList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	series, _, ok := s.seriesFromPath(w, r)
+	if !ok {
+		return
+	}
+	orderings, err := s.store.ListOrderings(ctx, series.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	var oid int64
+	for _, src := range []string{"tmdb_aired", "tvdb_aired"} {
+		for _, o := range orderings {
+			if o.Source == src && oid == 0 {
+				oid = o.ID
+			}
+		}
+	}
+	names := map[int]string{}
+	if oid != 0 {
+		if names, err = s.store.OrderingSeasons(ctx, oid); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	art, err := s.store.SeasonPosters(ctx, series.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	for n := range art {
+		if _, ok := names[n]; !ok {
+			names[n] = ""
+		}
+	}
+	out := []seasonArtDTO{}
+	for n, name := range names {
+		if name == "" {
+			name = "Season " + strconv.Itoa(n)
+			if n == 0 {
+				name = "Specials"
+			}
+		}
+		a := art[n]
+		out = append(out, seasonArtDTO{SeasonNumber: n, Name: name, Image: seasonPosterURL(series.ID, n, a), Chosen: a.Chosen != "", Local: a.Local != ""})
+	}
+	// Specials last, as on the show's page.
+	slices.SortFunc(out, func(a, b seasonArtDTO) int {
+		return cmp.Compare(seasonSortKey(a.SeasonNumber), seasonSortKey(b.SeasonNumber))
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"seasons": out})
+}
+
+func seasonSortKey(n int) int {
+	if n == 0 {
+		return math.MaxInt
+	}
+	return n
+}
+
+// seasonFromPath reads a show and a season number from the request.
+func (s *Server) seasonFromPath(w http.ResponseWriter, r *http.Request) (*store.Item, int, bool) {
+	series, _, ok := s.seriesFromPath(w, r)
+	if !ok {
+		return nil, 0, false
+	}
+	n, err := strconv.Atoi(r.PathValue("n"))
+	if err != nil || n < 0 {
+		writeError(w, http.StatusBadRequest, "invalid season number")
+		return nil, 0, false
+	}
+	return series, n, true
+}
+
+// seasonArtwork: GET /api/series/{id}/seasons/{n}/artwork lists the posters TMDB has for a season.
+func (s *Server) seasonArtwork(w http.ResponseWriter, r *http.Request) {
+	series, n, ok := s.seasonFromPath(w, r)
+	if !ok {
+		return
+	}
+	posters, err := s.scanner.SeasonImages(r.Context(), series, n)
+	if errors.Is(err, scanner.ErrNoProvider) {
+		posters = []metadata.Image{}
+	} else if err != nil {
+		writeError(w, http.StatusBadGateway, "couldn't get artwork from TMDB: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"posters": posters})
+}
+
+// chooseSeasonArtwork: PUT /api/series/{id}/seasons/{n}/artwork {"path": "/abc.jpg"} uses a TMDB
+// poster for a season; a null path goes back to automatic.
+func (s *Server) chooseSeasonArtwork(w http.ResponseWriter, r *http.Request) {
+	series, n, ok := s.seasonFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Path *string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Path != nil && !strings.HasPrefix(*body.Path, "/") {
+		writeError(w, http.StatusBadRequest, `send {"path": "/abc.jpg"} or {"path": null}`)
+		return
+	}
+	path := ""
+	if body.Path != nil {
+		path = *body.Path
+	}
+	s.setSeasonChosen(w, r, series, n, path)
+}
+
+// uploadSeasonArtwork: POST /api/series/{id}/seasons/{n}/artwork with an image as the body uses it
+// as the season's poster.
+func (s *Server) uploadSeasonArtwork(w http.ResponseWriter, r *http.Request) {
+	series, n, ok := s.seasonFromPath(w, r)
+	if !ok {
+		return
+	}
+	path, ok := s.saveUpload(w, r, series.ID+"-season"+strconv.Itoa(n))
+	if !ok {
+		return
+	}
+	s.setSeasonChosen(w, r, series, n, path)
+}
+
+func (s *Server) setSeasonChosen(w http.ResponseWriter, r *http.Request, series *store.Item, n int, path string) {
+	old, err := s.store.SetSeasonChosen(r.Context(), series.ID, n, path)
+	if err != nil {
+		s.removeUpload(path)
+		s.fail(w, err)
+		return
+	}
+	if old != path {
+		s.removeUpload(old)
+	}
+	s.seasonArtList(w, r)
 }

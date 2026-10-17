@@ -71,6 +71,17 @@ func (s *Scanner) Images(ctx context.Context, it *store.Item) (posters, backdrop
 	return s.tmdb.Images(ctx, kind, it.TMDBID)
 }
 
+// SeasonImages lists the posters TMDB has for a show's season.
+func (s *Scanner) SeasonImages(ctx context.Context, series *store.Item, season int) ([]metadata.Image, error) {
+	if !s.tmdb.Configured() {
+		return nil, ErrNoProvider
+	}
+	if series.TMDBID == 0 {
+		return []metadata.Image{}, nil
+	}
+	return s.tmdb.SeasonImages(ctx, series.TMDBID, season)
+}
+
 // Providers reports which metadata providers are configured.
 func (s *Scanner) Providers() (tmdb, tvdb bool) { return s.tmdb.Configured(), s.tvdb.Configured() }
 

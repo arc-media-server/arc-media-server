@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strconv"
 	"strings"
@@ -38,6 +39,27 @@ func (c *TMDB) Images(ctx context.Context, kind string, id int64) (posters, back
 		return out
 	}
 	return conv(d.Posters, "w342"), conv(d.Backdrops, "w780"), conv(pngLogos(d.Logos), "w300"), nil
+}
+
+// SeasonImages lists TMDB's posters for one season of a show, English and language-free first.
+func (c *TMDB) SeasonImages(ctx context.Context, tvID int64, season int) ([]Image, error) {
+	var d struct {
+		Posters []tmdbImage `json:"posters"`
+	}
+	q := url.Values{"include_image_language": {"en,null"}}
+	path := "/tv/" + strconv.FormatInt(tvID, 10) + "/season/" + strconv.Itoa(season) + "/images"
+	if err := c.get(ctx, path, q, &d); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return []Image{}, nil
+		}
+		return nil, err
+	}
+	out := make([]Image, 0, len(d.Posters))
+	for _, i := range d.Posters {
+		out = append(out, Image{Path: i.FilePath, Thumb: ImageURL(i.FilePath, "w342"), Width: i.Width, Height: i.Height,
+			Language: i.Language, Votes: i.VoteAverage})
+	}
+	return out, nil
 }
 
 // pngLogos drops SVG logos, which TMDB doesn't resize.

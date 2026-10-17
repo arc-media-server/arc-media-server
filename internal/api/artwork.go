@@ -118,39 +118,49 @@ func (s *Server) uploadArtwork(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `type is "poster", "backdrop" or "logo"`)
 		return
 	}
-	data, err := io.ReadAll(io.LimitReader(r.Body, maxUploadBytes+1))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "couldn't read the upload")
-		return
-	}
-	if len(data) > maxUploadBytes {
-		writeError(w, http.StatusRequestEntityTooLarge, "images can be up to 20 MB")
-		return
-	}
-	ext, ok := uploadTypes[http.DetectContentType(data)]
+	path, ok := s.saveUpload(w, r, it.ID+"-"+field)
 	if !ok {
-		writeError(w, http.StatusUnsupportedMediaType, "upload a JPEG, PNG or WebP image")
-		return
-	}
-	var rnd [6]byte
-	rand.Read(rnd[:])
-	name := it.ID + "-" + field + "-" + hex.EncodeToString(rnd[:]) + ext
-	if err := os.MkdirAll(s.uploadsDir, 0o755); err != nil {
-		s.fail(w, err)
-		return
-	}
-	if err := os.WriteFile(filepath.Join(s.uploadsDir, name), data, 0o644); err != nil {
-		s.fail(w, err)
 		return
 	}
 	old := imageField(it, field)
-	if err := s.setArtwork(r, it, field, metadata.UploadPrefix+name); err != nil {
-		os.Remove(filepath.Join(s.uploadsDir, name))
+	if err := s.setArtwork(r, it, field, path); err != nil {
+		s.removeUpload(path)
 		s.fail(w, err)
 		return
 	}
 	s.removeUpload(old)
 	s.getItem(w, r)
+}
+
+// saveUpload keeps an uploaded image (JPEG, PNG or WebP, up to 20 MB) in the data folder and
+// returns its path ("upload:<file>"), or writes the error and returns false.
+func (s *Server) saveUpload(w http.ResponseWriter, r *http.Request, prefix string) (string, bool) {
+	data, err := io.ReadAll(io.LimitReader(r.Body, maxUploadBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "couldn't read the upload")
+		return "", false
+	}
+	if len(data) > maxUploadBytes {
+		writeError(w, http.StatusRequestEntityTooLarge, "images can be up to 20 MB")
+		return "", false
+	}
+	ext, ok := uploadTypes[http.DetectContentType(data)]
+	if !ok {
+		writeError(w, http.StatusUnsupportedMediaType, "upload a JPEG, PNG or WebP image")
+		return "", false
+	}
+	var rnd [6]byte
+	rand.Read(rnd[:])
+	name := prefix + "-" + hex.EncodeToString(rnd[:]) + ext
+	if err := os.MkdirAll(s.uploadsDir, 0o755); err != nil {
+		s.fail(w, err)
+		return "", false
+	}
+	if err := os.WriteFile(filepath.Join(s.uploadsDir, name), data, 0o644); err != nil {
+		s.fail(w, err)
+		return "", false
+	}
+	return metadata.UploadPrefix + name, true
 }
 
 // setArtwork uses an image (provider path or upload) as an item's poster or backdrop, locked.

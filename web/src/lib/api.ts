@@ -769,6 +769,16 @@ export const api = {
   searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
     request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),
   artwork: (id: string) => request<ArtworkChoices>('GET', `/api/items/${id}/artwork`),
+  seasonArt: (seriesId: string) => request<{ seasons: SeasonArt[] }>('GET', `/api/series/${seriesId}/season-art`),
+  seasonArtwork: (seriesId: string, season: number) =>
+    request<{ posters: ArtworkImage[] }>('GET', `/api/series/${seriesId}/seasons/${season}/artwork`),
+  chooseSeasonArtwork: (seriesId: string, season: number, path: string | null) =>
+    request<{ seasons: SeasonArt[] }>('PUT', `/api/series/${seriesId}/seasons/${season}/artwork`, { path }),
+  uploadSeasonArtwork: async (seriesId: string, season: number, file: File) => {
+    const res = await fetch(`/api/series/${seriesId}/seasons/${season}/artwork`, { method: 'POST', body: file });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? res.statusText, res.status);
+    return (await res.json()) as { seasons: SeasonArt[] };
+  },
   chooseArtwork: (id: string, type: ArtworkType, path: string | null) => request<Item>('PUT', `/api/items/${id}/artwork`, { type, path }),
   uploadArtwork: async (id: string, type: ArtworkType, file: File) => {
     const res = await fetch(`/api/items/${id}/artwork/${type}`, { method: 'POST', body: file });
@@ -987,4 +997,15 @@ export interface YearReview extends Bucket {
   binge?: { series_id: string; title: string; date: string; episodes: number };
   first?: Play;
   items: Record<string, Item>;
+}
+
+/** A season of a show and the poster it uses. */
+export interface SeasonArt {
+  season_number: number;
+  name: string;
+  image?: string;
+  /** Chosen by hand, rather than automatic. */
+  chosen: boolean;
+  /** There's a poster file for it in the show's folder. */
+  local: boolean;
 }
