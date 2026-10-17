@@ -39,6 +39,8 @@ func Source(itemKind, imageType, imagePath string) string {
 		size = "w1280"
 	case itemKind == "episode":
 		size = "w780" // episode stills are landscape
+	case itemKind == "person":
+		size = "w185" // small round photos
 	}
 	return metadata.ImageURL(imagePath, size)
 }

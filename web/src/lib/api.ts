@@ -11,7 +11,10 @@ export type LockableField =
   | 'release_date'
   | 'runtime_min'
   | 'poster'
-  | 'backdrop';
+  | 'backdrop'
+  | 'tagline'
+  | 'content_rating'
+  | 'studio';
 
 /** A manual metadata edit: fields sent are set and locked; locked_fields replaces the locked set. */
 export interface ItemEdit {
@@ -22,6 +25,9 @@ export interface ItemEdit {
   overview?: string;
   release_date?: string;
   runtime_min?: number;
+  tagline?: string;
+  content_rating?: string;
+  studio?: string;
   locked_fields?: LockableField[];
 }
 
@@ -78,6 +84,16 @@ export interface Item {
   user_data?: UserData;
   /** Series: episodes on disk the current profile hasn't watched. */
   unwatched_count?: number;
+  tagline?: string;
+  /** Age rating for the server's region, e.g. "15" or "PG-13". */
+  content_rating?: string;
+  /** Studios (movies) or networks (shows), comma-separated. */
+  studio?: string;
+  /** Audience score out of 10. */
+  rating?: number;
+  /** On a movie or show's own page. */
+  genres?: string[];
+  credits?: Credit[];
   images?: { primary?: string; backdrop?: string; series_primary?: string; series_backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
@@ -285,6 +301,14 @@ export interface ItemQuery {
   offset?: number;
 }
 
+export interface Credit {
+  person_id: number;
+  name: string;
+  role: 'actor' | 'director' | 'writer' | 'creator';
+  character?: string;
+  image?: string;
+}
+
 export interface UserData {
   position_ms?: number;
   played: boolean;
@@ -322,6 +346,8 @@ export interface ServerSettings {
   local_bypass: boolean;
   port: number;
   allow_network: boolean;
+  /** Country whose age ratings are used, e.g. "GB". */
+  region: string;
   listen: string;
   from_env: Record<string, boolean>;
 }
@@ -376,7 +402,7 @@ function query(params: object): string {
 
 export const api = {
   authStatus: () => request<AuthStatus>('GET', '/api/auth/status'),
-  setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string }) =>
+  setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string; region?: string }) =>
     request<Profile>('POST', '/api/auth/setup', body),
   login: (password: string) => request<void>('POST', '/api/auth/login', { password }),
   chooseProfile: (id: string, secret: { pin?: string; password?: string } = {}) =>
@@ -389,7 +415,7 @@ export const api = {
   updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'port' | 'allow_network'>>) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'port' | 'allow_network' | 'region'>>) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

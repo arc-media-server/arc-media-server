@@ -243,6 +243,10 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seriesDTO := toDTO(*series)
+	if err := s.addDetails(r, &seriesDTO); err != nil {
+		s.fail(w, err)
+		return
+	}
 	all := []*itemDTO{&seriesDTO}
 	for _, sd := range seasons {
 		for i := range sd.Episodes {

@@ -14,6 +14,8 @@ type Series struct {
 	Year          int
 	PosterPath    string // TMDB path ("/x.jpg") or full URL
 	BackdropPath  string
+	// Genres, cast and so on: from TMDB (TheTVDB's series record leaves these empty).
+	Details
 }
 
 // Episode is one provider episode. Its identity is (Provider, ID).

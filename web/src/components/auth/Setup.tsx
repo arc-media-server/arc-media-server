@@ -22,7 +22,7 @@ export function Setup() {
   const accountError =
     password && password.length < 8 ? 'At least 8 characters' : confirm && confirm !== password ? "The passwords don't match" : '';
   const setup = useMutation({
-    mutationFn: () => api.setup({ name, password, local_bypass: bypass, tmdb_api_key: tmdb, tvdb_api_key: tvdb }),
+    mutationFn: () => api.setup({ name, password, local_bypass: bypass, tmdb_api_key: tmdb, tvdb_api_key: tvdb, region: browserRegion() }),
     onSuccess: async () => {
       // Straight on to adding the first library.
       navigate('/libraries?add=1', { replace: true });
@@ -109,6 +109,15 @@ export function Setup() {
       )}
     </AuthScreen>
   );
+}
+
+/** The country from the browser's language setting (en-GB → GB), for age ratings. Changeable in Settings. */
+function browserRegion(): string | undefined {
+  try {
+    return new Intl.Locale(navigator.language).maximize().region;
+  } catch {
+    return undefined;
+  }
 }
 
 function KeyLink({ href, children }: { href: string; children: string }) {

@@ -25,9 +25,27 @@ var ErrNotFound = errors.New("not found")
 type TMDB struct {
 	http *http.Client
 
-	mu   sync.Mutex
-	key  string
-	next time.Time
+	mu     sync.Mutex
+	key    string
+	region string
+	next   time.Time
+}
+
+// SetRegion sets the country (ISO 3166-1, e.g. "GB") whose age ratings are used.
+func (c *TMDB) SetRegion(region string) {
+	c.mu.Lock()
+	c.region = region
+	c.mu.Unlock()
+}
+
+// Region is the country whose age ratings are used ("US" by default).
+func (c *TMDB) Region() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.region == "" {
+		return "US"
+	}
+	return c.region
 }
 
 func NewTMDB(key string) *TMDB {
@@ -86,6 +104,7 @@ type Movie struct {
 	RuntimeMin    int
 	PosterPath    string
 	BackdropPath  string
+	Details
 }
 
 // MatchMovie identifies a movie, preferring explicit ids over a title search. It returns nil
@@ -261,18 +280,45 @@ func (c *TMDB) findByIMDB(ctx context.Context, imdbID string) (int64, error) {
 
 func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 	var d struct {
-		ID            int64  `json:"id"`
-		IMDBID        string `json:"imdb_id"`
-		Title         string `json:"title"`
-		OriginalTitle string `json:"original_title"`
-		Overview      string `json:"overview"`
-		ReleaseDate   string `json:"release_date"`
-		Runtime       int    `json:"runtime"`
-		PosterPath    string `json:"poster_path"`
-		BackdropPath  string `json:"backdrop_path"`
+		ID                  int64       `json:"id"`
+		IMDBID              string      `json:"imdb_id"`
+		Title               string      `json:"title"`
+		OriginalTitle       string      `json:"original_title"`
+		Overview            string      `json:"overview"`
+		Tagline             string      `json:"tagline"`
+		ReleaseDate         string      `json:"release_date"`
+		Runtime             int         `json:"runtime"`
+		PosterPath          string      `json:"poster_path"`
+		BackdropPath        string      `json:"backdrop_path"`
+		VoteAverage         float64     `json:"vote_average"`
+		Genres              []tmdbNamed `json:"genres"`
+		ProductionCompanies []tmdbNamed `json:"production_companies"`
+		Credits             struct {
+			Cast []tmdbCastMember `json:"cast"`
+			Crew []tmdbCrewMember `json:"crew"`
+		} `json:"credits"`
+		ReleaseDates struct {
+			Results []struct {
+				Country string `json:"iso_3166_1"`
+				Dates   []struct {
+					Certification string `json:"certification"`
+					Type          int    `json:"type"`
+				} `json:"release_dates"`
+			} `json:"results"`
+		} `json:"release_dates"`
 	}
-	if err := c.get(ctx, "/movie/"+strconv.FormatInt(id, 10), nil, &d); err != nil {
+	q := url.Values{"append_to_response": {"credits,release_dates"}}
+	if err := c.get(ctx, "/movie/"+strconv.FormatInt(id, 10), q, &d); err != nil {
 		return nil, err
+	}
+	ratings := map[string]string{}
+	for _, r := range d.ReleaseDates.Results {
+		for _, rd := range r.Dates {
+			// Prefer the theatrical rating; any other release's if there's no theatrical one.
+			if rd.Certification != "" && (ratings[r.Country] == "" || rd.Type == 3) {
+				ratings[r.Country] = rd.Certification
+			}
+		}
 	}
 	return &Movie{
 		TMDBID:        d.ID,
@@ -285,6 +331,14 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		RuntimeMin:    d.Runtime,
 		PosterPath:    d.PosterPath,
 		BackdropPath:  d.BackdropPath,
+		Details: Details{
+			Tagline:       d.Tagline,
+			ContentRating: pickRating(c.Region(), ratings),
+			Studios:       names(d.ProductionCompanies),
+			Rating:        d.VoteAverage,
+			Genres:        names(d.Genres),
+			People:        credits(d.Credits.Cast, d.Credits.Crew),
+		},
 	}, nil
 }
 

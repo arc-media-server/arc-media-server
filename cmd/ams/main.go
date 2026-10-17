@@ -134,6 +134,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	tmdb, tvdb := metadata.NewTMDB(cfg.TMDBKey), metadata.NewTVDB(cfg.TVDBKey)
+	tmdb.SetRegion(cfg.Region)
 	if cfg.TMDBKey == "" {
 		log.Warn("no TMDB API key yet; add one in Settings so Arc can identify movies and shows")
 	}
@@ -227,6 +228,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		tmdb.SetKey(next.TMDBKey)
 		tvdb.SetKey(next.TVDBKey)
+		if next.Region != current.Region {
+			tmdb.SetRegion(next.Region)
+			// Age ratings are per region: fetch everything again, a batch per scan.
+			if err := st.MarkAllUnsynced(ctx); err != nil {
+				return err
+			}
+		}
 		current = next
 		if ln != nil {
 			listeners <- ln

@@ -35,6 +35,12 @@ func (s *Store) MarkSynced(ctx context.Context, id string) error {
 	return err
 }
 
+// MarkAllUnsynced makes every movie and series fetch its metadata again over the next scans.
+func (s *Store) MarkAllUnsynced(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE kind IN ('movie', 'series')`)
+	return err
+}
+
 // SyncedAt returns when an item's metadata was last synced (unix seconds, 0 for never).
 func (s *Store) SyncedAt(ctx context.Context, id string) (int64, error) {
 	var t int64

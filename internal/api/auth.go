@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 )
 
 const sessionCookie = "ams_session"
+
+var regionRe = regexp.MustCompile(`^[A-Z]{2}$`)
 
 // Profile colours a profile can have (matched by the web app).
 var profileColors = map[string]bool{"violet": true, "blue": true, "teal": true, "green": true, "amber": true,
@@ -167,6 +170,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		LocalBypass bool   `json:"local_bypass"`
 		TMDBKey     string `json:"tmdb_api_key"`
 		TVDBKey     string `json:"tvdb_api_key"`
+		Region      string `json:"region"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -197,6 +201,9 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	if k := strings.TrimSpace(body.TVDBKey); k != "" {
 		next.TVDBKey = k
+	}
+	if regionRe.MatchString(body.Region) {
+		next.Region = body.Region
 	}
 	if err := s.applySettings(ctx, next); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -574,6 +581,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"local_bypass":  st.LocalBypass,
 		"port":          st.Port,
 		"allow_network": st.AllowNetwork,
+		"region":        st.Region,
 		"listen":        st.ListenAddress(),
 		"from_env":      settings.FromEnv(),
 	}
@@ -605,6 +613,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		LocalBypass  *bool   `json:"local_bypass"`
 		Port         *int    `json:"port"`
 		AllowNetwork *bool   `json:"allow_network"`
+		Region       *string `json:"region"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -632,6 +641,13 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.AllowNetwork != nil {
 		next.AllowNetwork = *body.AllowNetwork
+	}
+	if body.Region != nil {
+		if !regionRe.MatchString(*body.Region) {
+			writeError(w, http.StatusBadRequest, "region is a two-letter country code such as GB")
+			return
+		}
+		next.Region = *body.Region
 	}
 	if err := s.applySettings(r.Context(), next); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

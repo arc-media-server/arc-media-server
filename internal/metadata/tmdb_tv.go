@@ -173,14 +173,39 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 				EpisodeCount int    `json:"episode_count"`
 			} `json:"results"`
 		} `json:"episode_groups"`
+		Tagline        string           `json:"tagline"`
+		VoteAverage    float64          `json:"vote_average"`
+		Genres         []tmdbNamed      `json:"genres"`
+		Networks       []tmdbNamed      `json:"networks"`
+		CreatedBy      []tmdbCastMember `json:"created_by"`
+		ContentRatings struct {
+			Results []struct {
+				Country string `json:"iso_3166_1"`
+				Rating  string `json:"rating"`
+			} `json:"results"`
+		} `json:"content_ratings"`
+		AggregateCredits struct {
+			Cast []tmdbCastMember `json:"cast"`
+		} `json:"aggregate_credits"`
 	}
 	base := "/tv/" + strconv.FormatInt(id, 10)
-	if err := c.get(ctx, base, url.Values{"append_to_response": {"external_ids,episode_groups"}}, &d); err != nil {
+	q := url.Values{"append_to_response": {"external_ids,episode_groups,content_ratings,aggregate_credits"}}
+	if err := c.get(ctx, base, q, &d); err != nil {
 		return nil, nil, err
+	}
+	ratings := map[string]string{}
+	for _, r := range d.ContentRatings.Results {
+		ratings[r.Country] = r.Rating
+	}
+	people := credits(d.AggregateCredits.Cast, nil)
+	for _, cr := range d.CreatedBy {
+		people = append(people, Credit{TMDBID: cr.ID, Name: cr.Name, ProfilePath: cr.ProfilePath, Role: "creator", Order: len(people)})
 	}
 	s := &Series{TMDBID: d.ID, TVDBID: d.ExternalIDs.TVDBID, IMDBID: d.ExternalIDs.IMDBID, Title: d.Name,
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
-		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath}
+		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
+		Details: Details{Tagline: d.Tagline, ContentRating: pickRating(c.Region(), ratings), Studios: names(d.Networks),
+			Rating: d.VoteAverage, Genres: names(d.Genres), People: people}}
 
 	// Aired order: fetch seasons 20 at a time using append_to_response.
 	aired := Ordering{Source: "tmdb_aired", Name: "Aired Order", Description: "TMDB", Seasons: map[int]string{}}

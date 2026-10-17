@@ -11,13 +11,14 @@ import (
 
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
-	metadata_state, added_at, locked_fields`
+	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	var locked string
 	err := row.Scan(&it.ID, &it.LibraryID, &it.Kind, &it.ParentID, &it.Title, &it.SortTitle,
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
-		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked)
+		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
+		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating)
 	it.LockedFields = splitLocked(locked)
 	return err
 }
@@ -33,6 +34,9 @@ var LockableFields = map[string]string{
 	"runtime_min":    "runtime_min",
 	"poster":         "poster_path",
 	"backdrop":       "backdrop_path",
+	"tagline":        "tagline",
+	"content_rating": "content_rating",
+	"studio":         "studio",
 }
 
 func splitLocked(s string) []string {
@@ -148,6 +152,26 @@ func (s *Store) ItemsWithMetadataState(ctx context.Context, libraryID int64, kin
 	return items, rows.Err()
 }
 
+// UnsyncedItems lists matched items of a kind whose metadata has never been fully fetched.
+func (s *Store) UnsyncedItems(ctx context.Context, libraryID int64, kind string, limit int) ([]Item, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items
+		WHERE library_id = ? AND kind = ? AND metadata_state = 'matched' AND synced_at = 0
+		ORDER BY added_at DESC LIMIT ?`, libraryID, kind, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Item
+	for rows.Next() {
+		var it Item
+		if err := scanItem(rows, &it); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
 // UpdateMetadata writes provider metadata onto an item. Fields the user locked keep their values,
 // and items whose whole metadata is locked are left untouched.
 func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
@@ -159,12 +183,99 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 			`+keepIfLocked("runtime_min")+`, `+keepIfLocked("release_date")+`,
 			tmdb_id = ?, tvdb_id = ?, imdb_id = ?,
 			`+keepIfLocked("poster")+`, `+keepIfLocked("backdrop")+`,
+			`+keepIfLocked("tagline")+`, `+keepIfLocked("content_rating")+`, `+keepIfLocked("studio")+`, rating = ?,
 			metadata_state = ?, updated_at = ?
 		WHERE id = ? AND metadata_state <> 'locked'`,
 		it.Title, SortTitle(it.Title), it.OriginalTitle, it.Year, it.Overview, it.RuntimeMin,
 		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath,
+		it.Tagline, it.ContentRating, it.Studio, it.Rating,
 		it.MetadataState, time.Now().Unix(), it.ID)
 	return err
+}
+
+// SetItemDetails replaces an item's genres and credits (people are shared between items).
+func (s *Store) SetItemDetails(ctx context.Context, itemID string, genres []string, credits []Credit) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM item_genres WHERE item_id = ?`, itemID); err != nil {
+		return err
+	}
+	for _, g := range genres {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_genres (item_id, name) VALUES (?, ?)`, itemID, g); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM item_people WHERE item_id = ?`, itemID); err != nil {
+		return err
+	}
+	for _, c := range credits {
+		var pid int64
+		if err := tx.QueryRowContext(ctx, `
+			INSERT INTO people (tmdb_id, name, profile_path) VALUES (?, ?, ?)
+			ON CONFLICT (tmdb_id) DO UPDATE SET name = excluded.name,
+				profile_path = CASE WHEN excluded.profile_path <> '' THEN excluded.profile_path ELSE people.profile_path END
+			RETURNING id`, c.TMDBID, c.Name, c.ProfilePath).Scan(&pid); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT OR IGNORE INTO item_people (item_id, person_id, role, character, ord) VALUES (?, ?, ?, ?, ?)`,
+			itemID, pid, c.Role, c.Character, c.Order); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ItemGenres returns an item's genres.
+func (s *Store) ItemGenres(ctx context.Context, itemID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM item_genres WHERE item_id = ? ORDER BY rowid`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// ItemCredits returns an item's cast and crew in billing order.
+func (s *Store) ItemCredits(ctx context.Context, itemID string) ([]Credit, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT p.id, p.tmdb_id, p.name, p.profile_path, ip.role, ip.character, ip.ord
+		FROM item_people ip JOIN people p ON p.id = ip.person_id
+		WHERE ip.item_id = ? ORDER BY ip.ord`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Credit{}
+	for rows.Next() {
+		var c Credit
+		if err := rows.Scan(&c.PersonID, &c.TMDBID, &c.Name, &c.ProfilePath, &c.Role, &c.Character, &c.Order); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// PersonImage returns a person's TMDB image path, or "".
+func (s *Store) PersonImage(ctx context.Context, personID int64) (string, error) {
+	var p string
+	err := s.db.QueryRowContext(ctx, `SELECT profile_path FROM people WHERE id = ?`, personID).Scan(&p)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return p, err
 }
 
 // ItemEdit is a user's change to an item's metadata. Nil fields are left as they are; every
@@ -177,6 +288,9 @@ type ItemEdit struct {
 	Overview      *string
 	ReleaseDate   *string
 	RuntimeMin    *int
+	Tagline       *string
+	ContentRating *string
+	Studio        *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
 	// Unlocking a field lets the next refresh replace its value.
 	Locked []string
@@ -243,6 +357,15 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	if e.RuntimeMin != nil {
 		set("runtime_min", *e.RuntimeMin)
 	}
+	if e.Tagline != nil {
+		set("tagline", *e.Tagline)
+	}
+	if e.ContentRating != nil {
+		set("content_rating", *e.ContentRating)
+	}
+	if e.Studio != nil {
+		set("studio", *e.Studio)
+	}
 
 	fields := make([]string, 0, len(locked))
 	for f := range LockableFields {
@@ -306,6 +429,9 @@ func (s *Store) ItemImages(ctx context.Context) ([]ItemImage, error) {
 		SELECT kind, 'primary', poster_path, CASE kind WHEN 'episode' THEN 2 ELSE 0 END FROM items WHERE poster_path <> ''
 		UNION ALL
 		SELECT kind, 'backdrop', backdrop_path, 1 FROM items WHERE backdrop_path <> ''
+		UNION ALL
+		SELECT 'person', 'primary', profile_path, 3 FROM people
+			WHERE profile_path <> '' AND id IN (SELECT person_id FROM item_people)
 		ORDER BY 4`)
 	if err != nil {
 		return nil, err

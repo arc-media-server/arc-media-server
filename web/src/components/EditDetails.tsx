@@ -25,6 +25,9 @@ function fieldsFor(kind: Item['kind']): FieldSpec[] {
     kind !== 'episode' && { field: 'year', label: 'Year', type: 'number', half: true },
     { field: 'release_date', label: dateLabel, type: 'date', half: true },
     kind !== 'series' && { field: 'runtime_min', label: 'Runtime (minutes)', type: 'number', half: true },
+    kind !== 'episode' && { field: 'content_rating', label: 'Age Rating', half: true, placeholder: 'e.g. 12A' },
+    kind !== 'episode' && { field: 'studio', label: kind === 'series' ? 'Network' : 'Studio', half: true },
+    kind !== 'episode' && { field: 'tagline', label: 'Tagline' },
     { field: 'overview', label: 'Overview', type: 'textarea' },
   ];
   return all.filter((f): f is FieldSpec => !!f);

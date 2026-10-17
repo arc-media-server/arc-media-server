@@ -209,6 +209,9 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 			if err := s.matchMovies(ctx, lib.ID); err != nil {
 				return fmt.Errorf("metadata: %w", err)
 			}
+			if err := s.refreshUnsyncedMovies(ctx, lib.ID); err != nil {
+				return fmt.Errorf("metadata: %w", err)
+			}
 		}
 	case "shows":
 		if err := s.syncSeriesGroups(ctx, lib, series, log); err != nil {
@@ -353,7 +356,7 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 			}
 			continue
 		}
-		if err := s.store.UpdateMetadata(ctx, movieMetadata(it, m)); err != nil {
+		if err := s.saveMovie(ctx, it, m); err != nil {
 			return err
 		}
 		s.update(libraryID, func(st *Status) { st.Matched++ })
@@ -366,8 +369,53 @@ func movieMetadata(it store.Item, m *metadata.Movie) *store.Item {
 	it.Year, it.ReleaseDate, it.RuntimeMin = m.Year, m.ReleaseDate, m.RuntimeMin
 	it.TMDBID, it.IMDBID = m.TMDBID, m.IMDBID
 	it.PosterPath, it.BackdropPath = m.PosterPath, m.BackdropPath
+	applyDetails(&it, m.Details)
 	it.MetadataState = "matched"
 	return &it
+}
+
+func applyDetails(it *store.Item, d metadata.Details) {
+	it.Tagline, it.ContentRating, it.Rating = d.Tagline, d.ContentRating, d.Rating
+	it.Studio = strings.Join(d.Studios, ", ")
+}
+
+// saveMovie stores a movie's metadata, genres and credits, and notes when it was fetched.
+func (s *Scanner) saveMovie(ctx context.Context, it store.Item, m *metadata.Movie) error {
+	if err := s.store.UpdateMetadata(ctx, movieMetadata(it, m)); err != nil {
+		return err
+	}
+	if err := s.saveDetails(ctx, it.ID, m.Details); err != nil {
+		return err
+	}
+	return s.store.MarkSynced(ctx, it.ID)
+}
+
+// saveDetails stores genres and credits.
+func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Details) error {
+	credits := make([]store.Credit, 0, len(d.People))
+	for _, p := range d.People {
+		credits = append(credits, store.Credit{TMDBID: p.TMDBID, Name: p.Name, ProfilePath: p.ProfilePath,
+			Role: p.Role, Character: p.Character, Order: p.Order})
+	}
+	return s.store.SetItemDetails(ctx, itemID, d.Genres, credits)
+}
+
+// refreshUnsyncedMovies fetches matched movies that have never been fully fetched (e.g. matched
+// before AMS stored genres and cast), a batch per scan.
+func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) error {
+	items, err := s.store.UnsyncedItems(ctx, libraryID, "movie", 200)
+	if err != nil {
+		return err
+	}
+	for _, it := range items {
+		if _, err := s.RefreshMovie(ctx, it.ID); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			s.log.Warn("refreshing movie failed", "title", it.Title, "err", err)
+		}
+	}
+	return nil
 }
 
 // ErrNoProvider means the metadata provider needed isn't configured (no API key).
@@ -392,7 +440,7 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	if m == nil {
 		return false, s.store.SetMetadataState(ctx, it.ID, "unmatched")
 	}
-	return true, s.store.UpdateMetadata(ctx, movieMetadata(*it, m))
+	return true, s.saveMovie(ctx, *it, m)
 }
 
 func applyProbe(f *store.MediaFile, res *probe.Result) {

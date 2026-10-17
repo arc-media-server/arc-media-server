@@ -23,7 +23,12 @@ type Settings struct {
 	Port        int
 	// Accept connections from other devices (otherwise only this computer).
 	AllowNetwork bool
+	// Country (ISO 3166-1, e.g. "GB") whose age ratings are shown and used by parental controls.
+	Region string
 }
+
+// DefaultRegion is used until a region is chosen.
+const DefaultRegion = "US"
 
 const DefaultPort = 8099
 
@@ -35,6 +40,7 @@ const (
 	keyLocalBypass  = "local_bypass"
 	keyPort         = "port"
 	keyAllowNetwork = "allow_network"
+	keyRegion       = "region"
 )
 
 // Environment variables that override settings.
@@ -88,6 +94,12 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if p, err := strconv.Atoi(v); err == nil && p > 0 && p < 65536 {
 		s.Port = p
 	}
+	if s.Region, err = get(keyRegion); err != nil {
+		return s, err
+	}
+	if s.Region == "" {
+		s.Region = DefaultRegion
+	}
 	return s, nil
 }
 
@@ -96,7 +108,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 	for key, v := range map[string]string{
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
-		keyPort: strconv.Itoa(s.Port),
+		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

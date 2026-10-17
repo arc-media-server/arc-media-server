@@ -29,6 +29,22 @@ type Item struct {
 	AddedAt       int64  `json:"added_at"`
 	// Fields provider refreshes leave alone, because the user edited or locked them.
 	LockedFields []string `json:"locked_fields"`
+
+	Tagline       string  `json:"tagline,omitempty"`
+	ContentRating string  `json:"content_rating,omitempty"`
+	Studio        string  `json:"studio,omitempty"`
+	Rating        float64 `json:"rating,omitempty"`
+}
+
+// Credit is a person's part in a movie or show.
+type Credit struct {
+	PersonID    int64  `json:"person_id"`
+	TMDBID      int64  `json:"tmdb_id"`
+	Name        string `json:"name"`
+	ProfilePath string `json:"-"`
+	Role        string `json:"role"` // actor, director, writer, creator
+	Character   string `json:"character,omitempty"`
+	Order       int    `json:"-"`
 }
 
 type MediaFile struct {

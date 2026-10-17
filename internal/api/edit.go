@@ -28,6 +28,9 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		OriginalTitle *string   `json:"original_title"`
 		Year          *int      `json:"year"`
 		Overview      *string   `json:"overview"`
+		Tagline       *string   `json:"tagline"`
+		ContentRating *string   `json:"content_rating"`
+		Studio        *string   `json:"studio"`
 		ReleaseDate   *string   `json:"release_date"`
 		RuntimeMin    *int      `json:"runtime_min"`
 		LockedFields  *[]string `json:"locked_fields"`
@@ -48,6 +51,7 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	e := store.ItemEdit{
 		Title: trim(body.Title), SortTitle: trim(body.SortTitle), OriginalTitle: trim(body.OriginalTitle),
 		Year: body.Year, Overview: trim(body.Overview), ReleaseDate: trim(body.ReleaseDate), RuntimeMin: body.RuntimeMin,
+		Tagline: trim(body.Tagline), ContentRating: trim(body.ContentRating), Studio: trim(body.Studio),
 	}
 	switch {
 	case e.Title != nil && *e.Title == "":

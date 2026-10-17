@@ -248,8 +248,12 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if tmdbSeries == nil {
 		it.TMDBID = 0
 	}
+	applyDetails(&it, primary.Details)
 	it.MetadataState = "matched"
 	if err := s.store.UpdateMetadata(ctx, &it); err != nil {
+		return err
+	}
+	if err := s.saveDetails(ctx, it.ID, primary.Details); err != nil {
 		return err
 	}
 

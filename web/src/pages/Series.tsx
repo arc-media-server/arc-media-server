@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
-import { Hero, MetaLine } from '@/components/Hero';
+import { Badge, Hero, MetaLine } from '@/components/Hero';
+import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,7 @@ export function SeriesPage() {
     season === UNPLACED ? data.unplaced : (data.seasons.find((s) => s.season_number === season)?.episodes ?? []);
   const available = data.seasons.reduce((n, s) => n + s.episodes.filter((e) => e.available).length, 0);
   const upNext = nextToPlay(data.seasons.flatMap((s) => s.episodes));
+  const details = detailParts(series);
   const seasonEpisodes = season === UNPLACED ? [] : episodes.filter((e) => e.available);
   const seasonWatched = seasonEpisodes.length > 0 && seasonEpisodes.every((e) => e.user_data?.played);
 
@@ -97,9 +99,19 @@ export function SeriesPage() {
           <div className="max-w-2xl">
             <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{series.title}</h1>
             <div className="mt-4">
-              <MetaLine parts={[series.year, fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'), fmt.plural(available, 'Episode')]} />
+              <MetaLine
+                parts={[
+                  series.year,
+                  fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'),
+                  fmt.plural(available, 'Episode'),
+                  details.genres,
+                  details.rating,
+                  details.contentRating && <Badge>{details.contentRating}</Badge>,
+                ]}
+              />
             </div>
             {series.overview && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-foreground/85">{series.overview}</p>}
+            <CrewLine item={series} />
             {series.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
@@ -184,6 +196,7 @@ export function SeriesPage() {
           ))}
         </motion.div>
       </div>
+      <CastRow credits={series.credits} />
       {dialogs}
     </Page>
   );

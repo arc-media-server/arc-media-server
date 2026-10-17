@@ -11,6 +11,8 @@ import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
+import { CastRow, CrewLine, detailParts } from '@/components/Credits';
+import { cn } from '@/lib/utils';
 import { progressOf } from '@/components/WatchState';
 
 export function MoviePage() {
@@ -38,6 +40,7 @@ export function MoviePage() {
   const audio = fmt.audioStreams(file)[0];
   const playable = !!item.stream_url && item.files?.some((f) => !f.missing);
   const resumeAt = item.user_data?.position_ms ?? 0;
+  const details = detailParts(item);
   const playFrom = (startMS: number) =>
     play({ title: item.title, subtitle: item.year ? String(item.year) : undefined, src: item.stream_url!, itemId: item.id, startMS });
 
@@ -55,11 +58,14 @@ export function MoviePage() {
           <div className="max-w-2xl">
             <h1 className="text-4xl font-bold leading-[1.05] md:text-6xl">{item.title}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <MetaLine parts={[item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms))]} />
+              <MetaLine parts={[item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
+              {details.contentRating && <Badge>{details.contentRating}</Badge>}
               {video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
               {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
             </div>
-            {item.overview && <p className="mt-5 text-[15px] leading-relaxed text-foreground/85">{item.overview}</p>}
+            {item.tagline && <p className="mt-5 text-[15px] italic text-foreground/70">{item.tagline}</p>}
+            {item.overview && <p className={cn('text-[15px] leading-relaxed text-foreground/85', item.tagline ? 'mt-2' : 'mt-5')}>{item.overview}</p>}
+            <CrewLine item={item} />
             {item.metadata_state === 'unmatched' && admin && (
               <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
                 <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
@@ -103,6 +109,7 @@ export function MoviePage() {
         </div>
       </Hero>
 
+      <CastRow credits={item.credits} />
       {item.files?.map((f) => <FileDetails key={f.id} file={f} />)}
       {dialogs}
     </Page>

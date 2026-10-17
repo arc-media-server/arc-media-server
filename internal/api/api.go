@@ -82,6 +82,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
 	mux.HandleFunc("GET /api/items/{id}/images/{type}", user(s.image))
+	mux.HandleFunc("GET /api/people/{id}/image", user(s.personImage))
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
 	mux.HandleFunc("GET /api/series/{id}/orderings", user(s.listOrderings))
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", user(s.setDisplayOrdering))
@@ -139,11 +140,14 @@ type itemDTO struct {
 	EpisodeNumber *int   `json:"episode_number,omitempty"`
 	// The current profile's watch state: for movies and episodes, and for series the number of
 	// episodes on disk not watched yet.
-	UserData       *store.UserData   `json:"user_data,omitempty"`
-	UnwatchedCount *int              `json:"unwatched_count,omitempty"`
-	Images         map[string]string `json:"images,omitempty"`
-	Stream         string            `json:"stream_url,omitempty"`
-	Files          []store.MediaFile `json:"files,omitempty"`
+	UserData       *store.UserData `json:"user_data,omitempty"`
+	UnwatchedCount *int            `json:"unwatched_count,omitempty"`
+	// On a movie or show's own page: its genres, cast and crew.
+	Genres  []string          `json:"genres,omitempty"`
+	Credits []creditDTO       `json:"credits,omitempty"`
+	Images  map[string]string `json:"images,omitempty"`
+	Stream  string            `json:"stream_url,omitempty"`
+	Files   []store.MediaFile `json:"files,omitempty"`
 }
 
 func toDTO(it store.Item) itemDTO {
@@ -275,6 +279,10 @@ func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {
 	}
 	d := toDTO(*it)
 	d.Files = files
+	if err := s.addDetails(r, &d); err != nil {
+		s.fail(w, err)
+		return
+	}
 	if err := s.fillUserData(r, []*itemDTO{&d}); err != nil {
 		s.fail(w, err)
 		return
@@ -354,7 +362,12 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
-	src := artwork.Source(it.Kind, r.PathValue("type"), imagePath)
+	s.serveArtwork(w, r, artwork.Source(it.Kind, r.PathValue("type"), imagePath))
+}
+
+// serveArtwork serves an image from the cache (downloading it if needed), cacheable forever when
+// the link carries its version; if it can't be had, the browser is sent to the provider.
+func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string) {
 	f, err := s.artwork.Open(r.Context(), src)
 	if err != nil {
 		s.log.Debug("artwork unavailable locally", "url", src, "err", err)
