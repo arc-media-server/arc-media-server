@@ -21,7 +21,8 @@ Early development. Working today:
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
   multi-part `cd1`/`part2` files; extras and trailers are skipped)
 - Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
-- TMDB and TheTVDB metadata matching
+- TMDB and TheTVDB metadata matching, with genres, cast and crew (with photos), studio or network,
+  tagline, score and age ratings for your region
 - "Fix Match": see exactly what Arc read from a file name and searched for, then search TMDB or
   TheTVDB and pick the right movie or show
 - Edit any title, date or description; edited fields (and artwork you choose to keep) are locked so
@@ -117,6 +118,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
+| GET | `/api/people/{id}/image` | A cast or crew member's photo |
 | GET | `/api/libraries/{id}/unmatched` | Items that need attention |
 | GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |

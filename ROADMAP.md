@@ -53,7 +53,7 @@ powerful when you need it.
 - [x] Watched state, resume position, play counts
 - [x] Mark a season or whole show as watched/unwatched
 - [x] Continue Watching, Next Up (follows the display ordering), Recently Added
-- [ ] Richer metadata: genres, cast and crew, studio/network, content rating, tagline, ratings
+- [x] Richer metadata: genres, cast and crew, studio/network, content rating, tagline, ratings
 - [ ] Parental controls by content rating
 - [ ] Remove items whose files are gone ("Empty trash")
 

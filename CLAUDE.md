@@ -42,13 +42,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 3 done (Oct 2026): artwork cache, backups + restore, field locks + Edit Details, Fix
   Match with explanations, Library Health page, folder watching, and libraries managed in the app
   with a preview before adding (the owner chose in-app libraries over ams.yaml).
-- Milestone 4 in progress: sign-in, profiles, Settings, watch state, Continue Watching/Up Next done.
-  #67 richer metadata is coded and committed (WIP, builds and tests pass) but NOT yet verified live:
-  test with a TMDB key that The Matrix gets genres/cast/age rating, then screenshot and close #67.
-  Then #21 parental controls, #68 remove gone items. (Old line follows.)
-- Earlier: sign-in, Plex-style profiles with PINs, per-profile episode orders and
-  Settings (no config file) are done. Next: watch state, Continue Watching/Next Up, richer metadata,
-  parental controls, removing gone items, mark season/show watched.
+- Milestone 4 in progress: sign-in, profiles, Settings, watch state, Continue Watching/Up Next and
+  richer metadata (genres, cast, age ratings by region) are done. Next: #21 parental controls,
+  #68 remove gone items.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
