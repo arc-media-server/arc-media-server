@@ -52,6 +52,12 @@ Early development. Working today:
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
   counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
   (Up Next follows the episode order you chose)
+- A home page each profile arranges for itself ("Edit Home"): drag rows into order, hide rows, and
+  add your own rows from filters (library, genre, decade, quality, unwatched, added this week/month/
+  year, length, rating, any sort including a daily shuffle) with a live preview
+- Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
+- Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
+  episodes you haven't started
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
@@ -118,7 +124,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&decade=&resolution=&unwatched=1&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched. Resolutions: 4k, 1080, 720, sd |
+| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline or description |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | PATCH | `/api/items/{id}` | Edit metadata; edited fields are locked. `locked_fields` replaces the locked set |
@@ -131,6 +137,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
+| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "home": [rows]}` (an empty `home` is the default layout) |
+| PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
 | PUT | `/api/items/{id}/artwork` | Choose one: `{"type": "poster\|backdrop", "path": "/abc.jpg"}`; `"path": null` goes back to automatic |

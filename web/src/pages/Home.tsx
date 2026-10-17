@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { FolderPlus, Info, Play } from 'lucide-react';
-import { api, backdropUrl, itemHref, type Item, type Library } from '@/lib/api';
+import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
+import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library } from '@/lib/api';
+import { resolveRows, rowHref, rowQuery, usePrefs, type ResolvedRow } from '@/lib/home';
 import { runtime } from '@/lib/format';
 import { Hero, MetaLine } from '@/components/Hero';
 import { MediaRow } from '@/components/MediaRow';
+import { EditHomeDialog } from '@/components/EditHome';
 import { EmptyState, Page } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
@@ -23,10 +25,37 @@ function LibraryRow({ lib }: { lib: Library }) {
   return <MediaRow title={`Recently Added in ${lib.name}`} items={data?.items ?? []} href={`/library/${lib.id}`} />;
 }
 
+function QueryRow({ title, query, href }: { title: string; query: ItemQuery; href?: string }) {
+  const { data } = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query) });
+  return <MediaRow title={title} items={data?.items ?? []} href={href} />;
+}
+
+function HomeRowView({ row }: { row: ResolvedRow }) {
+  const continueWatching = useQuery({ queryKey: ['continue'], queryFn: api.continueWatching, enabled: row.type === 'continue' });
+  const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
+  switch (row.type) {
+    case 'continue':
+      return <MediaRow title={row.title} items={continueWatching.data ?? []} landscape />;
+    case 'next-up':
+      return <MediaRow title={row.title} items={nextUp.data ?? []} landscape />;
+    case 'recent':
+      return <LibraryRow lib={row.library} />;
+    case 'seasonal':
+      return row.season ? <QueryRow title={row.season.title} query={{ ...row.season.query, limit: 24 }} /> : null;
+    case 'custom': {
+      const f = row.filter;
+      // The library page can show the same list unless the row uses filters only rows have.
+      const linkable = !f.added_within && !f.min_runtime && !f.max_runtime && !f.min_rating;
+      return <QueryRow title={row.title} query={rowQuery(f, row.library)} href={linkable ? rowHref(f) : undefined} />;
+    }
+  }
+}
+
 export function Home() {
   const { data: libraries, isLoading } = useLibraries();
-  const continueWatching = useQuery({ queryKey: ['continue'], queryFn: api.continueWatching });
-  const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp });
+  const prefs = usePrefs();
+  const [editing, setEditing] = useState(false);
+  const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data]);
   // The featured item: the most recently added thing with a backdrop.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
@@ -61,12 +90,20 @@ export function Home() {
     <Page className="pb-16">
       {featuredQuery.data ? <Featured item={featuredQuery.data} /> : <div className="h-10" />}
       <div className="relative z-10 -mt-6 space-y-10">
-        <MediaRow title="Continue Watching" items={continueWatching.data ?? []} landscape />
-        <MediaRow title="Up Next" items={nextUp.data ?? []} landscape />
-        {libraries.map((lib) => (
-          <LibraryRow key={lib.id} lib={lib} />
-        ))}
+        {rows
+          .filter((r) => !r.hidden)
+          .map((r) => (
+            <HomeRowView key={r.id} row={r} />
+          ))}
       </div>
+      {prefs.data && (
+        <div className="mt-12 flex justify-center">
+          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+            <SlidersHorizontal /> Edit Home
+          </Button>
+        </div>
+      )}
+      <EditHomeDialog rows={rows} libraries={libraries} open={editing} onOpenChange={setEditing} />
     </Page>
   );
 }

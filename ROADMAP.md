@@ -69,10 +69,10 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Use local artwork and NFO files (read-only)
 - [x] Extras and trailers on movie and show pages
 - [x] Choose artwork from TMDB/TVDB alternatives or upload your own
-- [ ] Customisable home: reorder and hide built-in rows
-- [ ] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")
-- [ ] Seasonal rows (Christmas films in December, horror in October), built on the same filter engine
-- [ ] Spoiler protection: blur thumbnails and hide descriptions of unwatched episodes
+- [x] Customisable home: reorder and hide built-in rows
+- [x] Custom rows from filters ("Unwatched 90s action", "Added this week", "Short films under 90m")
+- [x] Seasonal rows (Christmas films in December, horror in October), built on the same filter engine
+- [x] Spoiler protection: blur thumbnails and hide descriptions of unwatched episodes
 
 ### 6. Jellyfin-compatible API
 - [ ] Discovery, auth, browsing, images

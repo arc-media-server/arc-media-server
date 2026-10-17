@@ -102,6 +102,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
 	mux.HandleFunc("GET /api/home/continue", user(s.continueWatching))
 	mux.HandleFunc("GET /api/home/next-up", user(s.nextUp))
+	mux.HandleFunc("GET /api/me/prefs", user(s.getPrefs))
+	mux.HandleFunc("PATCH /api/me/prefs", user(s.updatePrefs))
 
 	// The admin profile: running the server.
 	mux.HandleFunc("POST /api/auth/password", admin(s.changePassword))
@@ -286,6 +288,13 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Resolution = q.Get("resolution")
 	query.UserID = currentUserID(r)
 	query.Unwatched = q.Get("unwatched") == "1" || q.Get("unwatched") == "true"
+	query.AddedWithinDays, _ = strconv.Atoi(q.Get("added_within"))
+	query.MinRuntime, _ = strconv.Atoi(q.Get("min_runtime"))
+	query.MaxRuntime, _ = strconv.Atoi(q.Get("max_runtime"))
+	query.MinRating, _ = strconv.ParseFloat(q.Get("min_rating"), 64)
+	if v := q.Get("about"); v != "" {
+		query.About = strings.Split(v, ",")
+	}
 	if query.Sort != "" && !store.ItemSorts[query.Sort] {
 		writeError(w, http.StatusBadRequest, "unknown sort")
 		return

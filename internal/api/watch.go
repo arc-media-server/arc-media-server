@@ -163,9 +163,10 @@ func (s *Server) episodeDTO(ep store.Item, series *store.Item, positions map[str
 	d := toDTO(ep)
 	if series != nil {
 		d.SeriesTitle = series.Title
-		// Show the series' backdrop behind an episode that has no still of its own.
-		if ep.PosterPath == "" && series.BackdropPath != "" {
-			d.Images["series_backdrop"] = "/api/items/" + series.ID + "/images/backdrop"
+		// The series' backdrop, for an episode with no still of its own or whose still would be a
+		// spoiler.
+		if b := toDTO(*series).Images["backdrop"]; b != "" {
+			d.Images["series_backdrop"] = b
 		}
 		d.Images["series_primary"] = "/api/items/" + series.ID + "/images/primary"
 	}

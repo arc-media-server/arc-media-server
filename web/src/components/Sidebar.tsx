@@ -1,12 +1,20 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChevronsUpDown, DatabaseBackup, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
+import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Search, Settings, Tv, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { usePrefs, useUpdatePrefs } from '@/lib/home';
 
 export function useLibraries() {
   return useQuery({
@@ -99,6 +107,8 @@ function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactN
 function ProfileMenu({ compact }: { compact?: boolean }) {
   const qc = useQueryClient();
   const { data: status } = useAuth();
+  const prefs = usePrefs();
+  const updatePrefs = useUpdatePrefs();
   const profile = status?.profile;
   if (!profile) return null;
   const leave = async () => {
@@ -127,7 +137,20 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           </button>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={compact ? 'end' : 'start'} side={compact ? 'bottom' : 'top'} className="w-56">
+      <DropdownMenuContent align={compact ? 'end' : 'start'} side={compact ? 'bottom' : 'top'} className="w-60">
+        <DropdownMenuCheckboxItem
+          checked={!!prefs.data?.hide_spoilers}
+          disabled={!prefs.data}
+          onSelect={(e) => e.preventDefault()}
+          onCheckedChange={(on) => updatePrefs.mutate({ hide_spoilers: on })}
+        >
+          <EyeOff className="size-4 shrink-0 self-start text-muted mt-0.5" />
+          <span className="min-w-0">
+            <span className="block">Hide Spoilers</span>
+            <span className="block text-xs text-subtle">Blur stills and hide descriptions of episodes you haven't seen</span>
+          </span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
         {(status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
             <Users className="size-4 text-muted" /> Switch Profile

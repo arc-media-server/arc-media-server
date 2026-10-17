@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestListItemFilters(t *testing.T) {
@@ -58,6 +59,30 @@ func TestListItemFilters(t *testing.T) {
 	check("1080", titles(ItemQuery{Resolution: "1080"}), "Alien")
 	check("unwatched", titles(ItemQuery{UserID: user.ID, Unwatched: true}), "Dune", "Heat")
 	check("watched sort", titles(ItemQuery{UserID: user.ID, Sort: "watched"}), "Alien", "Dune", "Heat")
+
+	for _, u := range []struct {
+		title, overview string
+		runtime         int
+		rating          float64
+		addedDaysAgo    int
+	}{
+		{"Alien", "In space no one can hear you scream.", 117, 8.2, 400},
+		{"Heat", "A Christmas-time heist in Los Angeles.", 170, 7.9, 3},
+		{"Dune", "Paul Atreides travels to Arrakis.", 155, 7.8, 30},
+	} {
+		if _, err := st.db.ExecContext(ctx, `UPDATE items SET overview = ?, runtime_min = ?, rating = ?, added_at = ? WHERE title = ?`,
+			u.overview, u.runtime, u.rating, time.Now().AddDate(0, 0, -u.addedDaysAgo).Unix(), u.title); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("added within", titles(ItemQuery{AddedWithinDays: 7}), "Heat")
+	check("max runtime", titles(ItemQuery{MaxRuntime: 120}), "Alien")
+	check("min runtime", titles(ItemQuery{MinRuntime: 150}), "Dune", "Heat")
+	check("min rating", titles(ItemQuery{MinRating: 8}), "Alien")
+	check("about", titles(ItemQuery{About: []string{"santa", "christmas"}}), "Heat")
+	if got := titles(ItemQuery{Sort: "shuffle"}); len(got) != 3 {
+		t.Errorf("shuffle: %v", got)
+	}
 
 	f, err := st.Facets(ctx, lib, "movie", 0)
 	if err != nil {

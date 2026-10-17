@@ -58,3 +58,18 @@ export function DropdownMenuLabel({ className, ...props }: ComponentPropsWithout
 export function DropdownMenuSeparator({ className, ...props }: ComponentPropsWithoutRef<typeof Menu.Separator>) {
   return <Menu.Separator className={cn('mx-1 my-1.5 h-px bg-border', className)} {...props} />;
 }
+
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<typeof Menu.CheckboxItem> & { children: ReactNode }) {
+  return (
+    <Menu.CheckboxItem className={cn(itemClass, 'pr-8', className)} {...props}>
+      {children}
+      <Menu.ItemIndicator className="absolute right-2.5 text-accent">
+        <Check className="size-4" />
+      </Menu.ItemIndicator>
+    </Menu.CheckboxItem>
+  );
+}

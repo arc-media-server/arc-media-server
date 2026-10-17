@@ -98,8 +98,15 @@ type ItemQuery struct {
 	// The profile whose watch state Unwatched and the "watched" sort use.
 	UserID    string
 	Unwatched bool
+	// Added in the last this many days.
+	AddedWithinDays int
+	// Runtime in minutes, at least / at most.
+	MinRuntime, MaxRuntime int
+	MinRating              float64
+	// Any of these words in the title, tagline or description (e.g. "christmas", "santa").
+	About []string
 }
 
-// Sorts ListItems understands.
+// Sorts ListItems understands. "shuffle" is a random order that stays the same all day.
 var ItemSorts = map[string]bool{"title": true, "added": true, "year": true, "release": true, "rating": true,
-	"runtime": true, "watched": true}
+	"runtime": true, "watched": true, "shuffle": true}

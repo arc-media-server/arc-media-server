@@ -321,7 +321,7 @@ export interface BackupsResponse {
   backups: Backup[];
 }
 
-export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'runtime' | 'watched';
+export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'runtime' | 'watched' | 'shuffle';
 export type Resolution = '4k' | '1080' | '720' | 'sd';
 
 export interface Facet {
@@ -344,8 +344,44 @@ export interface ItemQuery {
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
+  /** Added in the last this many days. */
+  added_within?: number;
+  min_runtime?: number;
+  max_runtime?: number;
+  min_rating?: number;
+  /** Any of these words in the title, tagline or description, comma-separated. */
+  about?: string;
   limit?: number;
   offset?: number;
+}
+
+/** The browse filters a custom home row is made of. */
+export interface RowFilter {
+  library_id: number;
+  genre?: string;
+  decade?: number;
+  resolution?: Resolution;
+  unwatched?: boolean;
+  added_within?: number;
+  min_runtime?: number;
+  max_runtime?: number;
+  min_rating?: number;
+  sort?: ItemSort;
+}
+
+/** A row on the home page: built in ("continue", "next-up", "recent:<library>", "seasonal") or "custom:…". */
+export interface HomeRow {
+  id: string;
+  hidden?: boolean;
+  title?: string;
+  filter?: RowFilter;
+}
+
+/** The current profile's own preferences. */
+export interface Prefs {
+  hide_spoilers: boolean;
+  /** Empty means the default layout. */
+  home: HomeRow[];
 }
 
 export type ArtworkType = 'poster' | 'backdrop';
@@ -528,6 +564,8 @@ export const api = {
     request<void>('PUT', `/api/items/${id}/played`, { played, season_number: season }),
   continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
+  prefs: () => request<Prefs>('GET', '/api/me/prefs'),
+  updatePrefs: (patch: Partial<Prefs>) => request<Prefs>('PATCH', '/api/me/prefs', patch),
   matchInfo: (id: string) => request<MatchInfo>('GET', `/api/items/${id}/match`),
   searchMatches: (id: string, provider: Provider, q: string, year?: number) =>
     request<MatchCandidate[]>('GET', `/api/items/${id}/match/search${query({ provider, q, year })}`),

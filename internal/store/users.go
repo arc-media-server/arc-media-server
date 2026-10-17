@@ -211,3 +211,19 @@ func (s *Store) DeleteStaleSessions(ctx context.Context, before int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE last_seen_at < ?`, before)
 	return err
 }
+
+// UserPrefs returns a profile's preferences JSON ("{}" when none are set).
+func (s *Store) UserPrefs(ctx context.Context, userID string) (string, error) {
+	var p string
+	err := s.db.QueryRowContext(ctx, `SELECT prefs FROM users WHERE id = ?`, userID).Scan(&p)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "{}", nil
+	}
+	return p, err
+}
+
+// SetUserPrefs replaces a profile's preferences JSON.
+func (s *Store) SetUserPrefs(ctx context.Context, userID, prefs string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET prefs = ? WHERE id = ?`, prefs, userID)
+	return err
+}

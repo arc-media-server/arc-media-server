@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
+import { useSpoilerGuard } from '@/lib/home';
 import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
@@ -332,6 +333,7 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
   const playable = ep.available && ep.stream_url;
   const onPlay = () => playable && playEpisode(play, ep, seriesTitle);
   const watched = !!ep.user_data?.played;
+  const hideSpoilers = useSpoilerGuard()(ep);
 
   return (
     <div
@@ -342,7 +344,7 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
       onKeyDown={(e) => e.key === 'Enter' && onPlay()}
     >
       <div className="relative w-36 shrink-0 overflow-hidden rounded-xl ring-1 ring-border sm:w-56">
-        <Artwork src={ep.images?.primary} alt={ep.title} kind="still" icon="tv" />
+        <Artwork src={ep.images?.primary} alt={ep.title} kind="still" icon="tv" className={cn(hideSpoilers && 'scale-110 blur-xl')} />
         {playable && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-300 group-hover:bg-black/35">
             <div className="flex size-11 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
@@ -364,7 +366,8 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
                   <span key={i}>{p}</span>
                 ))}
             </div>
-            {ep.overview && <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted">{ep.overview}</p>}
+            {ep.overview && !hideSpoilers && <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted">{ep.overview}</p>}
+            {ep.overview && hideSpoilers && <p className="mt-2 text-sm italic text-subtle">Description hidden until you watch it.</p>}
           </div>
         </div>
       </div>

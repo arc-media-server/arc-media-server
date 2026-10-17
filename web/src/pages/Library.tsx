@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const sorts: Record<ItemSort, string> = {
+export const sorts: Record<ItemSort, string> = {
   title: 'Title',
   added: 'Recently Added',
   watched: 'Recently Watched',
@@ -26,8 +26,9 @@ const sorts: Record<ItemSort, string> = {
   year: 'Year',
   rating: 'Rating',
   runtime: 'Length',
+  shuffle: 'Shuffle',
 };
-const resolutions: Record<Resolution, string> = { '4k': '4K', '1080': '1080p', '720': '720p', sd: 'SD' };
+export const resolutions: Record<Resolution, string> = { '4k': '4K', '1080': '1080p', '720': '720p', sd: 'SD' };
 
 export function LibraryPage() {
   const { id } = useParams();

@@ -605,6 +605,33 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 			ELSE NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND u.played = 1) END`)
 		args = append(args, q.UserID, q.UserID)
 	}
+	if q.AddedWithinDays > 0 {
+		where = append(where, "added_at >= ?")
+		args = append(args, time.Now().Add(-time.Duration(q.AddedWithinDays)*24*time.Hour).Unix())
+	}
+	if q.MinRuntime > 0 {
+		where = append(where, "runtime_min >= ?")
+		args = append(args, q.MinRuntime)
+	}
+	if q.MaxRuntime > 0 {
+		where = append(where, "runtime_min > 0 AND runtime_min <= ?")
+		args = append(args, q.MaxRuntime)
+	}
+	if q.MinRating > 0 {
+		where = append(where, "rating >= ?")
+		args = append(args, q.MinRating)
+	}
+	var about []string
+	for _, w := range q.About {
+		if w = strings.TrimSpace(w); w != "" {
+			about = append(about, "title LIKE ? OR tagline LIKE ? OR overview LIKE ?")
+			like := "%" + w + "%"
+			args = append(args, like, like, like)
+		}
+	}
+	if len(about) > 0 {
+		where = append(where, "("+strings.Join(about, " OR ")+")")
+	}
 	cond := strings.Join(where, " AND ")
 
 	var total int
@@ -630,6 +657,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
 			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
 		orderArgs = append(orderArgs, q.UserID)
+	case "shuffle":
+		// A different order each day, but the same one all day so rows don't jump around.
+		order = "(items.rowid * 2654435761 + ?) % 4294967291"
+		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
 	}
 	limit := q.Limit
 	if limit <= 0 || limit > 500 {
