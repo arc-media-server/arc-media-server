@@ -15,6 +15,7 @@ import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
+import { SimilarRow } from '@/components/Similar';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { cn } from '@/lib/utils';
@@ -157,6 +158,7 @@ export function MoviePage() {
 
       <CastRow credits={item.credits} />
       <CollectionRows item={item} />
+      <SimilarRow item={item} />
       <ExtrasRow extras={item.extras} title={item.title} />
       {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
       {dialogs}

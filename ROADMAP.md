@@ -110,12 +110,12 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Chapters in the player (#87)
 - [x] Picture-in-Picture (#88)
 
-### 13. Profiles and home
+### ✅ 13. Profiles and home
 - [x] Choose which libraries each profile sees (#89)
 - [x] Admin-set home layout for other profiles (#90)
 - [x] Collections and playlists as home rows (#91)
 - [x] Personal ratings and a watchlist (#79)
-- [ ] "More like this" on title pages and a Recommended view per library (#92)
+- [x] "More like this" on title pages and a Recommended view per library (#92)
 - [x] Edit collections: artwork and details (#111)
 - [x] Season posters on the show page (#112)
 
@@ -134,6 +134,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Original language of movies and shows (#108)
 - [ ] Place specials between seasons (TheTVDB "airs before") (#109)
 - [ ] Search by alternative titles and keywords (#110)
+- [ ] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
 
 ### 15. Moving in and extras
 - [ ] Import from Plex and Jellyfin: users, watch history, resume points (#22)

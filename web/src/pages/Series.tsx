@@ -23,6 +23,7 @@ import { nowPlayingFor, usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
+import { SimilarRow } from '@/components/Similar';
 import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
 import {
   DropdownMenu,
@@ -242,6 +243,7 @@ export function SeriesPage() {
         </motion.div>
       </div>
       <CollectionRows item={series} />
+      <SimilarRow item={series} />
       <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}
       {editingEpisode && (

@@ -68,7 +68,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   on a provider switch), editable genres, artwork and season posters in the Edit dialog, season and
   episode editing, TMDB season summaries.
 - Milestone 12 done (Oct 2026): Auto-Play, preferred audio language, quality menu, remove from
-  Continue Watching, chapters, Picture-in-Picture. Next: 13 (Profiles and home).
+  Continue Watching, chapters, Picture-in-Picture.
+- Milestone 13 done (Oct 2026): library access per profile, collection/playlist home rows, admin-set
+  and default Home, ratings and watchlist, More Like This and Recommended. Next: 14 (Library management).
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
