@@ -15,6 +15,7 @@ import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
+import { AddToPlaylistButton } from '@/components/Playlists';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -129,6 +130,7 @@ export function SeriesPage() {
               {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
               <TrailerButton extras={series.extras} title={series.title} />
               {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
+              {available > 0 && <AddToPlaylistButton item={series} />}
               {admin && (
                 <>
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
@@ -373,6 +375,13 @@ function EpisodeRow({ episode: ep, seriesTitle, unplaced }: { episode: SeasonEpi
           </div>
         </div>
       </div>
+      {ep.available && (
+        <AddToPlaylistButton
+          item={{ ...ep, series_title: seriesTitle }}
+          size="icon"
+          className="mt-0.5 size-8 shrink-0 bg-transparent opacity-0 transition-opacity hover:bg-surface-2 focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-4"
+        />
+      )}
       {ep.available && (
         <WatchedButton
           itemId={ep.id}

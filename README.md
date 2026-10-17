@@ -49,6 +49,9 @@ Early development. Working today:
   enough of them (2 by default, set per library); make your own by picking titles (in any order) or
   as smart collections that hold everything matching a filter. Each library has a Collections view,
   and a title's page shows the rest of its collection
+- Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
+  order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
+  after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
 - Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
   "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
   the best version for the screen (one that needs no conversion, then the sharpest that fits), and
@@ -176,6 +179,10 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/transcode/{session}` | End a conversion |
 | PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms", "state": "playing\|paused\|stopped"}`; past 90% counts as watched. 409 means the admin stopped playback |
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
+| GET / POST | `/api/playlists` | The profile's playlists; make one `{"title", "item_ids"}` |
+| GET / PATCH / DELETE | `/api/playlists/{id}` | A playlist and its entries; rename `{"title"}`; delete |
+| POST | `/api/playlists/{id}/items` | Add `{"item_ids"}` (movies, episodes, or shows for all their episodes) |
+| DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
 | GET | `/api/home/continue` | What the profile is part-way through |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "home": [rows]}` (an empty `home` is the default layout) |

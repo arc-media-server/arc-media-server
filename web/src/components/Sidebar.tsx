@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
+import { Activity, ChevronsUpDown, DatabaseBackup, EyeOff, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, Sun, Tv, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -197,6 +197,9 @@ export function Sidebar() {
           <NavItem to="/" icon={<Home />}>
             Home
           </NavItem>
+          <NavItem to="/playlists" icon={<ListVideo />}>
+            Playlists
+          </NavItem>
         </div>
         {!!libraries?.length && (
           <div>
@@ -260,6 +263,9 @@ export function MobileBar() {
       <nav className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-3">
         <NavLink to="/" end className={link}>
           Home
+        </NavLink>
+        <NavLink to="/playlists" className={link}>
+          Playlists
         </NavLink>
         {libraries?.map((lib) => (
           <NavLink key={lib.id} to={`/library/${lib.id}`} className={link}>

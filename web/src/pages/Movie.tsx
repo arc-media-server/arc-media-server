@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { CollectionRows } from '@/components/Collections';
+import { AddToPlaylistButton } from '@/components/Playlists';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
@@ -134,6 +135,7 @@ export function MoviePage() {
               )}
               <TrailerButton extras={item.extras} title={item.title} />
               <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
+              {playable && <AddToPlaylistButton item={item} />}
               {admin && (
                 <>
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
