@@ -337,10 +337,12 @@ type ItemEdit struct {
 	RuntimeMin    *int
 	Tagline       *string
 	// Chosen artwork: a provider image path or an uploaded file ("upload:...").
-	Poster        *string
-	Backdrop      *string
-	Logo          *string
-	Genres        *[]string
+	Poster   *string
+	Backdrop *string
+	Logo     *string
+	Genres   *[]string
+	// Labels are the user's own, so they're never locked or replaced by refreshes.
+	Labels        *[]string
 	ContentRating *string
 	Studio        *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
@@ -437,6 +439,16 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 			}
 		}
 		locked["genres"] = true
+	}
+	if e.Labels != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM item_labels WHERE item_id = ?`, id); err != nil {
+			return err
+		}
+		for _, l := range *e.Labels {
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO item_labels (item_id, label) VALUES (?, ?)`, id, l); err != nil {
+				return err
+			}
+		}
 	}
 
 	fields := make([]string, 0, len(locked))
@@ -544,6 +556,7 @@ type LibraryFacets struct {
 	Resolutions []Facet `json:"resolutions"`
 	// Original languages (2-letter codes), most titles first.
 	Languages []Facet `json:"languages"`
+	Labels    []Facet `json:"labels"`
 }
 
 // Facet is one filter value and how many titles have it.
@@ -578,6 +591,10 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 	var err error
 	if out.Genres, err = query(`SELECT g.name, COUNT(*) FROM item_genres g JOIN items ON items.id = g.item_id
 		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
+		return out, err
+	}
+	if out.Labels, err = query(`SELECT l.label, COUNT(*) FROM item_labels l JOIN items ON items.id = l.item_id
+		WHERE ` + base + ` GROUP BY l.label ORDER BY l.label COLLATE NOCASE`); err != nil {
 		return out, err
 	}
 	if out.Languages, err = query(`SELECT original_language, COUNT(*) FROM items
@@ -633,6 +650,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 	if q.Genre != "" {
 		where = append(where, "EXISTS (SELECT 1 FROM item_genres g WHERE g.item_id = items.id AND g.name = ?)")
 		args = append(args, q.Genre)
+	}
+	if q.Label != "" {
+		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND l.label = ?)")
+		args = append(args, q.Label)
 	}
 	if q.Language != "" {
 		where = append(where, "original_language = ?")

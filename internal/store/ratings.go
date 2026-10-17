@@ -90,6 +90,8 @@ type Access struct {
 	MaxAge int
 	// The libraries allowed; nil for all of them.
 	Libraries []int64
+	// Titles with any of these labels are hidden.
+	ExcludeLabels []string
 }
 
 // Conds are SQL conditions (and their arguments) that an item (alias, e.g. "items") is visible.
@@ -109,6 +111,12 @@ func (a Access) Conds(alias string) ([]string, []any) {
 			ids = append(ids, "-1") // no libraries at all
 		}
 		conds = append(conds, alias+".library_id IN ("+strings.Join(ids, ",")+")")
+	}
+	if len(a.ExcludeLabels) > 0 {
+		conds = append(conds, labelsHiddenSQL(alias, len(a.ExcludeLabels)))
+		for _, l := range a.ExcludeLabels {
+			args = append(args, l)
+		}
 	}
 	return conds, args
 }
@@ -133,12 +141,26 @@ func (s *Store) CanSee(ctx context.Context, it *Item, a Access) (bool, error) {
 	if !a.LibraryAllowed(it.LibraryID) {
 		return false, nil
 	}
-	if a.MaxAge <= 0 {
-		return true, nil
-	}
 	id := it.ID
 	if it.Kind == "episode" {
 		id = it.ParentID
+	}
+	if len(a.ExcludeLabels) > 0 {
+		args := []any{id}
+		for _, l := range a.ExcludeLabels {
+			args = append(args, l)
+		}
+		var hidden bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM item_labels WHERE item_id = ? AND label IN (`+
+			strings.TrimSuffix(strings.Repeat("?,", len(a.ExcludeLabels)), ",")+`))`, args...).Scan(&hidden); err != nil {
+			return false, err
+		}
+		if hidden {
+			return false, nil
+		}
+	}
+	if a.MaxAge <= 0 {
+		return true, nil
 	}
 	var age int
 	if err := s.db.QueryRowContext(ctx, `SELECT min_age FROM items WHERE id = ?`, id).Scan(&age); err != nil {

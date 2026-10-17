@@ -82,7 +82,7 @@ func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int
 	if err != nil || lib == nil {
 		return nil, 0, err
 	}
-	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Language: f.Language, Decade: f.Decade, Resolution: f.Resolution,
+	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
 		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
 		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: 500}
 	if lib.Kind == "shows" {

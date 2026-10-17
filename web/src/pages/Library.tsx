@@ -40,6 +40,7 @@ export function LibraryPage() {
   const filters = {
     genre: params.get('genre') ?? undefined,
     language: params.get('language') ?? undefined,
+    label: params.get('label') ?? undefined,
     decade: Number(params.get('decade')) || undefined,
     resolution: (params.get('resolution') as Resolution) || undefined,
     unwatched: params.get('unwatched') === '1' || undefined,
@@ -149,6 +150,14 @@ export function LibraryPage() {
             options={facets.data.genres.map((f) => [f.value, f.value, f.count])}
             onChange={(v) => setParam('genre', v)}
           />
+          {facets.data.labels.length > 0 && (
+            <FilterMenu
+              label="Label"
+              value={filters.label}
+              options={facets.data.labels.map((f) => [f.value, f.value, f.count])}
+              onChange={(v) => setParam('label', v)}
+            />
+          )}
           {facets.data.languages.length > 1 && (
             <FilterMenu
               label="Language"

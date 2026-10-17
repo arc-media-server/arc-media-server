@@ -74,6 +74,18 @@ export function FilterFields({
             ))}
           </select>
         </Field>
+        {(facets.data?.labels.length ?? 0) > 0 && (
+          <Field label="Label">
+            <select value={f.label ?? ''} onChange={(e) => set({ label: e.target.value || undefined })} className={inputClass}>
+              <option value="">Any label</option>
+              {facets.data?.labels.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.value}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         {(facets.data?.languages.length ?? 0) > 1 && (
           <Field label="Original language">
             <select value={f.language ?? ''} onChange={(e) => set({ language: e.target.value || undefined })} className={inputClass}>

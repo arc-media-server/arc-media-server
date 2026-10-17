@@ -132,10 +132,12 @@ type profileDTO struct {
 	MaxAge int `json:"max_age"`
 	// The libraries the profile may see; null for all of them.
 	LibraryIDs []int64 `json:"library_ids"`
+	// Titles with these labels are hidden from the profile.
+	ExcludeLabels []string `json:"exclude_labels"`
 }
 
 func toProfile(u store.User) profileDTO {
-	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge, LibraryIDs: u.LibraryIDs}
+	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge, LibraryIDs: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels}
 }
 
 // authStatus: GET /api/auth/status tells the web app what to show: first-run setup, the sign-in
@@ -444,6 +446,8 @@ type profileBody struct {
 	// The libraries the profile may see: a list of ids, or null for all of them. Leave the field
 	// out to keep them as they are.
 	LibraryIDs json.RawMessage `json:"library_ids"`
+	// Labels whose titles the profile doesn't see.
+	ExcludeLabels *[]string `json:"exclude_labels"`
 }
 
 // libraries reads library_ids from a profile body: whether it was sent, and the list (nil for all).
@@ -542,7 +546,12 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		up.LibraryIDs = &ids
 		u.LibraryIDs = ids
 	}
-	if up.MaxAge != nil || up.LibraryIDs != nil {
+	if b.ExcludeLabels != nil {
+		labels := cleanLabels(*b.ExcludeLabels)
+		up.ExcludeLabels = &labels
+		u.ExcludeLabels = labels
+	}
+	if up.MaxAge != nil || up.LibraryIDs != nil || up.ExcludeLabels != nil {
 		if err := s.store.UpdateUser(r.Context(), u.ID, up); err != nil {
 			s.fail(w, err)
 			return
@@ -592,6 +601,14 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	if sent {
 		up.LibraryIDs, up.AllLibraries = &ids, ids == nil
+	}
+	if b.ExcludeLabels != nil {
+		if u.IsAdmin && len(*b.ExcludeLabels) > 0 {
+			writeError(w, http.StatusBadRequest, "the admin profile sees every title")
+			return
+		}
+		labels := cleanLabels(*b.ExcludeLabels)
+		up.ExcludeLabels = &labels
 	}
 	err = s.store.UpdateUser(r.Context(), u.ID, up)
 	if errors.Is(err, store.ErrNameTaken) {
