@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,6 +31,8 @@ type prefs struct {
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
+	// Set in responses when Home is the admin's default home (the profile hasn't arranged its own).
+	HomeIsDefault bool `json:"home_is_default,omitempty"`
 }
 
 // homeRow is a built-in row ("continue", "next-up", "recent:<library id>", "seasonal"), a custom
@@ -121,14 +124,19 @@ func (p *prefs) validate() error {
 }
 
 func (s *Server) loadPrefs(r *http.Request) (prefs, error) {
+	return s.loadPrefsFor(r.Context(), currentUserID(r))
+}
+
+// loadPrefsFor reads a profile's preferences as stored (an empty home means the default layout).
+func (s *Server) loadPrefsFor(ctx context.Context, userID string) (prefs, error) {
 	p := prefs{Home: []homeRow{}}
-	raw, err := s.store.UserPrefs(r.Context(), currentUserID(r))
+	raw, err := s.store.UserPrefs(ctx, userID)
 	if err != nil {
 		return p, err
 	}
 	// Preferences that can't be read fall back to the defaults rather than breaking the app.
 	if err := json.Unmarshal([]byte(raw), &p); err != nil {
-		s.log.Warn("ignoring unreadable profile preferences", "profile", currentUser(r).Name, "err", err)
+		s.log.Warn("ignoring unreadable profile preferences", "profile", userID, "err", err)
 		p = prefs{}
 	}
 	if p.Home == nil {
@@ -137,20 +145,114 @@ func (s *Server) loadPrefs(r *http.Request) (prefs, error) {
 	return p, nil
 }
 
+const defaultHomeKey = "default_home"
+
+// defaultHome is the home layout the admin set for profiles that haven't arranged their own;
+// empty for Arc's own.
+func (s *Server) defaultHome(ctx context.Context) []homeRow {
+	rows := []homeRow{}
+	if raw, err := s.store.Setting(ctx, defaultHomeKey); err == nil && raw != "" {
+		if err := json.Unmarshal([]byte(raw), &rows); err != nil {
+			s.log.Warn("ignoring an unreadable default home", "err", err)
+			return []homeRow{}
+		}
+	}
+	return rows
+}
+
+// withDefaultHome fills in the admin's default home for a profile that hasn't arranged its own,
+// for showing (it's never saved into the profile's preferences).
+func (s *Server) withDefaultHome(ctx context.Context, p prefs) prefs {
+	if len(p.Home) == 0 {
+		if def := s.defaultHome(ctx); len(def) > 0 {
+			p.Home, p.HomeIsDefault = def, true
+		}
+	}
+	return p
+}
+
 // getPrefs: GET /api/me/prefs is the current profile's preferences.
 func (s *Server) getPrefs(w http.ResponseWriter, r *http.Request) {
-	p, err := s.loadPrefs(r)
+	s.writePrefs(w, r, currentUserID(r))
+}
+
+// getProfilePrefs: GET /api/profiles/{id}/prefs is a profile's preferences (admin), e.g. to
+// arrange its home page.
+func (s *Server) getProfilePrefs(w http.ResponseWriter, r *http.Request) {
+	if u, ok := s.profileFromPath(w, r); ok {
+		s.writePrefs(w, r, u.ID)
+	}
+}
+
+func (s *Server) writePrefs(w http.ResponseWriter, r *http.Request, userID string) {
+	p, err := s.loadPrefsFor(r.Context(), userID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, p)
+	writeJSON(w, http.StatusOK, s.withDefaultHome(r.Context(), p))
+}
+
+func (s *Server) profileFromPath(w http.ResponseWriter, r *http.Request) (*store.User, bool) {
+	u, err := s.store.GetUser(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.fail(w, err)
+		return nil, false
+	}
+	if u == nil {
+		writeError(w, http.StatusNotFound, "no such profile")
+		return nil, false
+	}
+	return u, true
 }
 
 // updatePrefs: PATCH /api/me/prefs changes the fields sent ({"hide_spoilers": true} or
 // {"home": [...]}) and returns them all.
 func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
-	p, err := s.loadPrefs(r)
+	s.patchPrefs(w, r, currentUserID(r))
+}
+
+// updateProfilePrefs: PATCH /api/profiles/{id}/prefs changes another profile's preferences
+// (admin), e.g. arranging its home page.
+func (s *Server) updateProfilePrefs(w http.ResponseWriter, r *http.Request) {
+	if u, ok := s.profileFromPath(w, r); ok {
+		s.patchPrefs(w, r, u.ID)
+	}
+}
+
+// getDefaultHome: GET /api/home/default is the home layout for profiles that haven't arranged
+// their own ([] for Arc's own).
+func (s *Server) getDefaultHome(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"home": s.defaultHome(r.Context())})
+}
+
+// setDefaultHome: PUT /api/home/default {"home": [...]} sets it ([] goes back to Arc's own).
+func (s *Server) setDefaultHome(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Home []homeRow `json:"home"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil || body.Home == nil {
+		writeError(w, http.StatusBadRequest, `send {"home": [rows]}`)
+		return
+	}
+	p := prefs{Home: body.Home}
+	if err := p.validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	raw, _ := json.Marshal(p.Home)
+	if len(p.Home) == 0 {
+		raw = nil
+	}
+	if err := s.store.SetSetting(r.Context(), defaultHomeKey, string(raw)); err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"home": p.Home})
+}
+
+func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID string) {
+	p, err := s.loadPrefsFor(r.Context(), userID)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -193,10 +295,11 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	p.HomeIsDefault = false
 	raw, _ := json.Marshal(p)
-	if err := s.store.SetUserPrefs(r.Context(), currentUserID(r), string(raw)); err != nil {
+	if err := s.store.SetUserPrefs(r.Context(), userID, string(raw)); err != nil {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, p)
+	writeJSON(w, http.StatusOK, s.withDefaultHome(r.Context(), p))
 }

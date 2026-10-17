@@ -116,6 +116,8 @@ Early development. Working today:
   default); rows with episodes or seasons can show the show's poster or the season's. A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
   several new episodes of a season show as that season with its poster, a single new episode as
   itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
+- The admin can arrange any profile's home page (Profiles > Home) and set a Default Home for
+  profiles that haven't arranged their own, including new ones
 - Any collection (smart ones too) or one of your playlists can be a home row (Edit Home > Add Row)
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
 - Remove from Continue Watching (the ⋯ on a card): it stays out, without being marked watched or
@@ -228,6 +230,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/home/continue/{id}` | Remove a movie or episode (and its show) from Continue Watching until played again |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
+| GET / PATCH | `/api/profiles/{id}/prefs` | Another profile's preferences, e.g. its home (admin) |
+| GET / PUT | `/api/home/default` | The Default Home for profiles that haven't arranged their own: `{"home": [rows]}` (admin) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
 | PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |

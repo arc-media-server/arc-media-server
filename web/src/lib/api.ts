@@ -541,6 +541,8 @@ export interface Prefs {
   auto_play?: boolean;
   /** Empty means the default layout. */
   home: HomeRow[];
+  /** The rows are the admin's default home: the profile hasn't arranged its own. */
+  home_is_default?: boolean;
 }
 
 export type ArtworkType = 'poster' | 'backdrop' | 'logo';
@@ -697,6 +699,10 @@ export const api = {
   profiles: () => request<Profile[]>('GET', '/api/profiles'),
   createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('POST', '/api/profiles', p),
   updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
+  profilePrefs: (id: string) => request<Prefs>('GET', `/api/profiles/${id}/prefs`),
+  updateProfilePrefs: (id: string, patch: Partial<Prefs>) => request<Prefs>('PATCH', `/api/profiles/${id}/prefs`, patch),
+  defaultHome: () => request<{ home: HomeRow[] }>('GET', '/api/home/default'),
+  setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
   updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username'>> & { opensubtitles_password?: string }) =>

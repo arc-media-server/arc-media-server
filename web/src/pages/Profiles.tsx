@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, Loader2, Lock, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { api, type Profile, type ProfileColor } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Avatar, profileColors } from '@/components/Avatar';
@@ -11,12 +11,14 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { useLibraries } from '@/components/Sidebar';
+import { EditOtherHomeDialog, type HomeTarget } from '@/components/EditHome';
 
 export function ProfilesPage() {
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: api.profiles });
   const [editing, setEditing] = useState<Profile | 'new' | null>(null);
   const [removing, setRemoving] = useState<Profile | null>(null);
+  const [home, setHome] = useState<HomeTarget | null>(null);
   const remove = useMutation({
     mutationFn: (p: Profile) => api.deleteProfile(p.id),
     onSuccess: () => {
@@ -34,9 +36,14 @@ export function ProfilesPage() {
         title="Profiles"
         subtitle="Everyone in your household gets their own watch history and Continue Watching. A PIN keeps a profile private."
         actions={
-          <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
-            <Plus /> Add Profile
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'default' })} title="The home page for profiles that haven't arranged their own">
+              <SlidersHorizontal /> Default Home
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
+              <Plus /> Add Profile
+            </Button>
+          </>
         }
       />
       <div className="px-6 md:px-10">
@@ -59,6 +66,11 @@ export function ProfilesPage() {
                   )}
                 </p>
               </div>
+              {!p.is_admin && (
+                <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'profile', id: p.id, name: p.name })}>
+                  <SlidersHorizontal /> Home
+                </Button>
+              )}
               <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>
                 <Pencil /> Edit
               </Button>
@@ -72,6 +84,7 @@ export function ProfilesPage() {
         </div>
       </div>
 
+      <EditOtherHomeDialog target={home} open={!!home} onOpenChange={(o) => !o && setHome(null)} />
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         {editing && <ProfileForm profile={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}
       </Dialog>
