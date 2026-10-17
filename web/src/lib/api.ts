@@ -367,6 +367,9 @@ export interface PlaybackPlan {
   subtitle_tracks: SubtitleTrack[];
   /** The title's files: editions and versions (e.g. 4K and 1080p). */
   versions: Version[];
+  /** The file's overall bitrate (kbit/s) and picture height, for offering lower qualities. */
+  source_kbps: number;
+  source_height: number;
   /** The picture subtitle track being burned into the video, if any. */
   burn_subtitle?: string;
   /** When converting: the graphics card doing it (e.g. "NVIDIA NVENC"), and whether HDR is mapped to SDR. */
@@ -733,7 +736,10 @@ export const api = {
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
-  startPlayback: (itemId: string, body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string }) =>
+  startPlayback: (
+    itemId: string,
+    body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string; max_kbps?: number },
+  ) =>
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
   trickplay: (itemId: string, fileId: number) =>
     request<{ info: TrickplayInfo; sheets: string[] }>('GET', `/api/items/${itemId}/trickplay${query({ file: fileId })}`),

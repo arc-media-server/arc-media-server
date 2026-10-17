@@ -87,6 +87,28 @@ func defaultAudio(f *store.MediaFile) *store.Stream {
 	return first
 }
 
+// qualityHeight is the picture height a quality limit (kbit/s) is converted to, as Plex's steps.
+func qualityHeight(kbps int) int {
+	switch {
+	case kbps >= 8000:
+		return 1080
+	case kbps >= 2000:
+		return 720
+	case kbps >= 1500:
+		return 480
+	}
+	return 360
+}
+
+// qualityName is how a quality limit reads, e.g. "4 Mbps 720p" or "720 kbps 360p".
+func qualityName(kbps int) string {
+	rate := fmt.Sprintf("%d kbps", kbps)
+	if kbps >= 1000 {
+		rate = strconv.FormatFloat(float64(kbps)/1000, 'f', -1, 64) + " Mbps"
+	}
+	return fmt.Sprintf("%s %dp", rate, qualityHeight(kbps))
+}
+
 // preferredAudio is the audio stream in a language (the profile's preferred one), or nil if the
 // file has none: the one marked default among them, or the first.
 func preferredAudio(f *store.MediaFile, language string) *store.Stream {
@@ -175,6 +197,9 @@ type playbackPlan struct {
 	// The title's files to choose from (editions and versions), the one playing among them.
 	Versions     []versionDTO `json:"versions"`
 	BurnSubtitle string       `json:"burn_subtitle,omitempty"`
+	// The file's overall bitrate and picture height, so the player offers only lower qualities.
+	SourceKbps   int `json:"source_kbps"`
+	SourceHeight int `json:"source_height"`
 }
 
 // startPlayback: POST /api/items/{id}/playback {"caps": {...}, "file_id", "audio_stream",
@@ -193,6 +218,9 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		StartMS     int64      `json:"start_ms"`
 		// A picture subtitle track to burn into the video (which means converting it).
 		BurnSubtitle string `json:"burn_subtitle"`
+		// A quality limit chosen in the player, in kbit/s (e.g. 4000 for "4 Mbps 720p"); 0 for the
+		// original.
+		MaxKbps int `json:"max_kbps"`
 		// Without file_id, play this edition (e.g. "Director's Cut"; "" for the standard one).
 		Edition string `json:"edition"`
 	}
@@ -257,10 +285,23 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		d.Method = "transcode"
 		d.Reasons = append(d.Reasons, "picture subtitles shown")
 	}
+	limitHeight := 0
+	if body.MaxKbps > 0 && video != nil {
+		limitHeight = qualityHeight(body.MaxKbps)
+		if f.Bitrate == 0 || f.Bitrate > int64(body.MaxKbps)*1000*11/10 || video.Height > limitHeight*11/10 {
+			d.Method = "transcode"
+			d.Reasons = append(d.Reasons, fmt.Sprintf("quality set to %s", qualityName(body.MaxKbps)))
+		} else {
+			limitHeight = 0 // the file is already within the limit
+		}
+	}
 
 	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
 		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: s.subtitleTracks(f), BurnSubtitle: body.BurnSubtitle,
-		Versions: versions(files)}
+		Versions: versions(files), SourceKbps: int(f.Bitrate / 1000)}
+	if video != nil {
+		out.SourceHeight = video.Height
+	}
 	if out.Reasons == nil {
 		out.Reasons = []string{}
 	}
@@ -291,6 +332,13 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
+	}
+	if limitHeight > 0 {
+		// Leave room for the audio (AAC stereo) within the limit.
+		opts.VideoKbps = max(body.MaxKbps-160, 300)
+		if opts.MaxHeight == 0 || limitHeight < opts.MaxHeight {
+			opts.MaxHeight = limitHeight
+		}
 	}
 	if d.Method == "transcode" {
 		caps, st := s.transcoder.Caps(), s.settings()

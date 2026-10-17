@@ -110,6 +110,34 @@ export function chooseSubtitle(tracks: SubtitleTrack[], preferred: string, audio
   return tracks.find((t) => t.forced && (!t.language || !audioLanguage || same(t.language, audioLanguage)));
 }
 
+/** The quality limits the player offers (kbit/s), as Plex's: each converts to a size that suits it. */
+export const qualities = [20000, 12000, 8000, 4000, 3000, 2000, 1500, 720];
+
+/** e.g. "4 Mbps 720p" or "720 kbps 360p". */
+export function qualityName(kbps: number) {
+  const height = kbps >= 8000 ? 1080 : kbps >= 2000 ? 720 : kbps >= 1500 ? 480 : 360;
+  return `${kbps >= 1000 ? `${kbps / 1000} Mbps` : `${kbps} kbps`} ${height}p`;
+}
+
+/** The quality chosen on this device (0 for the original); kept per device, as in Plex. */
+export function readQuality(): number {
+  try {
+    const v = Number(localStorage.getItem('arc-quality'));
+    return qualities.includes(v) ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveQuality(kbps: number) {
+  try {
+    if (kbps) localStorage.setItem('arc-quality', String(kbps));
+    else localStorage.removeItem('arc-quality');
+  } catch {
+    // Private browsing: the choice lasts for this playback only.
+  }
+}
+
 /** e.g. "Director's Cut" with "4K · HDR10 · HEVC · 58 GB", or "4K" with "HDR10 · HEVC · 58 GB". */
 export function versionLabel(v: Version) {
   const res = v.width && v.height ? fmt.resolution(v.width, v.height) : '';
