@@ -8,6 +8,8 @@ type Library struct {
 	Paths          []string `json:"paths"`
 	// Make thumbnails for scrubbing along the timeline (off unless turned on).
 	Trickplay bool `json:"trickplay"`
+	// The fewest films a TMDB collection needs before it's shown; 0 for no automatic collections.
+	CollectionMin int `json:"collection_min"`
 }
 
 type Item struct {

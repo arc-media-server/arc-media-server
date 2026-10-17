@@ -14,6 +14,7 @@ import { Badge, Hero, MetaLine } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
+import { CollectionRows } from '@/components/Collections';
 import { ErrorState, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
@@ -203,6 +204,7 @@ export function SeriesPage() {
         </motion.div>
       </div>
       <CastRow credits={series.credits} />
+      <CollectionRows item={series} />
       <ExtrasRow extras={series.extras} title={series.title} />
       {dialogs}
       {orderings.data && (

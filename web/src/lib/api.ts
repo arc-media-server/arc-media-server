@@ -97,6 +97,8 @@ export interface Item {
   genres?: string[];
   credits?: Credit[];
   extras?: Extra[];
+  /** On a movie or show's own page: the collections it's in. */
+  collections?: { id: string; title: string; kind: Collection['kind'] }[];
   images?: { primary?: string; backdrop?: string; series_primary?: string; series_backdrop?: string };
   stream_url?: string;
   files?: MediaFile[];
@@ -127,6 +129,8 @@ export interface Library {
   paths: string[];
   /** Thumbnails for scrubbing along the player's timeline (off by default). */
   trickplay: boolean;
+  /** The fewest films a TMDB collection needs to be shown; 0 for no automatic collections. */
+  collection_min: number;
   /** How many movies or shows it lists. */
   count: number;
   scan: ScanStatus;
@@ -138,6 +142,7 @@ export interface LibraryInput {
   source_ordering: SourceOrdering;
   paths: string[];
   trickplay?: boolean;
+  collection_min?: number;
 }
 
 export interface PreviewItem {
@@ -667,6 +672,15 @@ export const api = {
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
   compatibility: (libraryId: number, caps: PlayerCaps) => request<Compatibility>('POST', `/api/libraries/${libraryId}/compatibility`, { caps }),
+  collections: (libraryId: number) => request<Collection[]>('GET', `/api/libraries/${libraryId}/collections`),
+  collection: (id: string) => request<{ collection: Collection; items: Item[] }>('GET', `/api/collections/${id}`),
+  createCollection: (c: { library_id: number; kind: 'manual' | 'smart'; title: string; overview?: string; filter?: RowFilter; item_ids?: string[] }) =>
+    request<Collection>('POST', '/api/collections', c),
+  updateCollection: (id: string, c: { title?: string; overview?: string; filter?: RowFilter }) => request<Collection>('PATCH', `/api/collections/${id}`, c),
+  deleteCollection: (id: string) => request<void>('DELETE', `/api/collections/${id}`),
+  addToCollection: (id: string, itemIds: string[]) => request<void>('POST', `/api/collections/${id}/items`, { item_ids: itemIds }),
+  removeFromCollection: (id: string, itemId: string) => request<void>('DELETE', `/api/collections/${id}/items/${itemId}`),
+  orderCollection: (id: string, itemIds: string[]) => request<void>('PUT', `/api/collections/${id}/order`, { item_ids: itemIds }),
   facets: (libraryId: number) => request<LibraryFacets>('GET', `/api/libraries/${libraryId}/facets`),
   /** Problems needing the user, per library id. */
   healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),
@@ -768,4 +782,17 @@ export interface Compatibility {
   reasons: Record<string, number>;
   /** Titles that would be converted, and why. */
   converted: { item: Item; reasons: string[] }[];
+}
+
+/** A group of a library's titles: automatic (a TMDB collection), manual, or smart (a filter). */
+export interface Collection {
+  id: string;
+  library_id: number;
+  kind: 'auto' | 'manual' | 'smart';
+  tmdb_id?: number;
+  title: string;
+  overview?: string;
+  count: number;
+  images: { primary?: string; backdrop?: string };
+  smart_filter?: RowFilter;
 }

@@ -27,6 +27,8 @@ type libraryBody struct {
 	Paths          []string `json:"paths"`
 	// Make timeline thumbnails for scrubbing (off by default).
 	Trickplay bool `json:"trickplay"`
+	// The fewest films a TMDB collection needs to be shown (default 2; 0 for none).
+	CollectionMin *int `json:"collection_min"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -136,6 +138,12 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if b.CollectionMin != nil && *b.CollectionMin >= 0 && *b.CollectionMin <= 10 {
+		if err := s.store.SetLibraryCollectionMin(r.Context(), id, *b.CollectionMin); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
@@ -184,6 +192,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		SourceOrdering *string  `json:"source_ordering"`
 		Paths          []string `json:"paths"`
 		Trickplay      *bool    `json:"trickplay"`
+		CollectionMin  *int     `json:"collection_min"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -191,6 +200,16 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
 		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if patch.CollectionMin != nil {
+		if *patch.CollectionMin < 0 || *patch.CollectionMin > 10 {
+			writeError(w, http.StatusBadRequest, "collection_min is 0 (off) to 10")
+			return
+		}
+		if err := s.store.SetLibraryCollectionMin(r.Context(), lib.ID, *patch.CollectionMin); err != nil {
 			s.fail(w, err)
 			return
 		}

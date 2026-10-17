@@ -151,14 +151,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay, collection_min FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -180,8 +180,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, kind, source_ordering, trickplay FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay)
+		`SELECT id, name, kind, source_ordering, trickplay, collection_min FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

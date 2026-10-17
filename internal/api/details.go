@@ -38,6 +38,7 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 		d.Extras = append(d.Extras, extraDTO{Extra: e, Stream: "/api/extras/" + e.ID + "/stream"})
 	}
 	d.Genres = genres
+	d.Collections = s.itemCollections(r, &d.Item)
 	d.Credits = make([]creditDTO, 0, len(credits))
 	for _, c := range credits {
 		cd := creditDTO{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character}

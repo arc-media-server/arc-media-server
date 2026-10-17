@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
+import { CollectionRows } from '@/components/Collections';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
@@ -148,6 +149,7 @@ export function MoviePage() {
       </Hero>
 
       <CastRow credits={item.credits} />
+      <CollectionRows item={item} />
       <ExtrasRow extras={item.extras} title={item.title} />
       {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
       {dialogs}
