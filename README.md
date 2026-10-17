@@ -199,7 +199,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
 | GET | `/api/home/continue?with_up_next=1` | What the profile is part-way through; with `with_up_next=1`, also the next episode of each show, most recent first (one per show) |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
-| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""|"dark"|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
+| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
 | PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
