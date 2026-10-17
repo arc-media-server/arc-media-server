@@ -370,6 +370,8 @@ export interface PlaybackPlan {
   /** The file's overall bitrate (kbit/s) and picture height, for offering lower qualities. */
   source_kbps: number;
   source_height: number;
+  /** The file's chapter marks (times in the file). */
+  chapters: Chapter[];
   /** The picture subtitle track being burned into the video, if any. */
   burn_subtitle?: string;
   /** When converting: the graphics card doing it (e.g. "NVIDIA NVENC"), and whether HDR is mapped to SDR. */
@@ -1028,4 +1030,11 @@ export interface SeasonArt {
   chosen: boolean;
   /** There's a poster file for it in the show's folder. */
   local: boolean;
+}
+
+/** A chapter mark in a media file. */
+export interface Chapter {
+  start_ms: number;
+  end_ms: number;
+  title?: string;
 }

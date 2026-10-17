@@ -98,6 +98,13 @@ type Result struct {
 	DurationMS int64
 	Bitrate    int64
 	Streams    []Stream
+	Chapters   []Chapter
+}
+
+// Chapter is a chapter mark in a file.
+type Chapter struct {
+	StartMS, EndMS int64
+	Title          string
 }
 
 type Stream struct {
@@ -144,6 +151,11 @@ type ffprobeOutput struct {
 		Tags        map[string]string `json:"tags"`
 		Disposition map[string]int    `json:"disposition"`
 	} `json:"streams"`
+	Chapters []struct {
+		StartTime string            `json:"start_time"`
+		EndTime   string            `json:"end_time"`
+		Tags      map[string]string `json:"tags"`
+	} `json:"chapters"`
 }
 
 // Version runs ffprobe -version to check that the binary is usable.
@@ -161,7 +173,7 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, p.Bin(), "-v", "error", "-print_format", "json",
-		"-show_format", "-show_streams", path)
+		"-show_format", "-show_streams", "-show_chapters", path)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -204,6 +216,20 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 			ColorTransfer: s.Transfer, ColorPrimaries: s.Primaries, FrameRate: frameRate(s.AvgRate),
 			Bitrate: parseInt(s.BitRate),
 		})
+	}
+	for _, c := range raw.Chapters {
+		start, err1 := strconv.ParseFloat(c.StartTime, 64)
+		end, err2 := strconv.ParseFloat(c.EndTime, 64)
+		if err1 != nil || err2 != nil || end <= start {
+			continue
+		}
+		title := ""
+		for k, v := range c.Tags {
+			if strings.EqualFold(k, "title") {
+				title = strings.TrimSpace(v)
+			}
+		}
+		res.Chapters = append(res.Chapters, Chapter{StartMS: int64(start * 1000), EndMS: int64(end * 1000), Title: title})
 	}
 	return res, nil
 }

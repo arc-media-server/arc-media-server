@@ -200,6 +200,8 @@ type playbackPlan struct {
 	// The file's overall bitrate and picture height, so the player offers only lower qualities.
 	SourceKbps   int `json:"source_kbps"`
 	SourceHeight int `json:"source_height"`
+	// The file's chapter marks (times in the file).
+	Chapters []store.Chapter `json:"chapters"`
 }
 
 // startPlayback: POST /api/items/{id}/playback {"caps": {...}, "file_id", "audio_stream",
@@ -301,6 +303,10 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		Versions: versions(files), SourceKbps: int(f.Bitrate / 1000)}
 	if video != nil {
 		out.SourceHeight = video.Height
+	}
+	if out.Chapters, err = s.store.FileChapters(r.Context(), f.ID); err != nil {
+		s.fail(w, err)
+		return
 	}
 	if out.Reasons == nil {
 		out.Reasons = []string{}

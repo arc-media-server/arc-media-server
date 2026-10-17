@@ -55,6 +55,17 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	if _, err := tx.ExecContext(ctx, `DELETE FROM media_streams WHERE file_id = ?`, id); err != nil {
 		return 0, err
 	}
+	if probedAt > 0 {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM media_chapters WHERE file_id = ?`, id); err != nil {
+			return 0, err
+		}
+		for i, c := range f.Chapters {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO media_chapters (file_id, idx, start_ms, end_ms, title) VALUES (?, ?, ?, ?, ?)`,
+				id, i, c.StartMS, c.EndMS, c.Title); err != nil {
+				return 0, err
+			}
+		}
+	}
 	for _, st := range f.Streams {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO media_streams (file_id, idx, kind, codec, profile, language, title, width, height,
@@ -67,6 +78,24 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 		}
 	}
 	return id, tx.Commit()
+}
+
+// FileChapters returns a file's chapter marks in order.
+func (s *Store) FileChapters(ctx context.Context, fileID int64) ([]Chapter, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT start_ms, end_ms, title FROM media_chapters WHERE file_id = ? ORDER BY idx`, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Chapter{}
+	for rows.Next() {
+		var c Chapter
+		if err := rows.Scan(&c.StartMS, &c.EndMS, &c.Title); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 // TouchFile marks an unchanged file as seen in the current scan.

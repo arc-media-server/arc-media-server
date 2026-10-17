@@ -136,6 +136,8 @@ func run(out, ffmpeg string) error {
 		{"Inception (2010)/Inception (2010).mkv", []string{
 			"-f", "lavfi", "-i", "testsrc2=duration=60:size=1280x720:rate=24",
 			"-f", "lavfi", "-i", "sine=f=440:duration=60", "-f", "lavfi", "-i", "sine=f=880:duration=60", "-i", "{srt}",
+			// Chapters, for testing the player's chapter marks and list.
+			"-i", "{chapters}", "-map_chapters", "4",
 			"-map", "0", "-map", "1", "-map", "2", "-map", "3", "-c:v", "libx264", "-preset", "veryfast", "-g", "60",
 			"-c:a:0", "aac", "-c:a:1", "ac3", "-c:s", "srt", "-metadata:s:a:0", "language=eng", "-metadata:s:a:1", "language=fra",
 			"-metadata:s:s:0", "language=eng"}},
@@ -156,13 +158,19 @@ func run(out, ffmpeg string) error {
 		if err := os.WriteFile(sub, []byte(srt), 0o644); err != nil {
 			return err
 		}
+		chapters := dst + ".chapters.txt"
+		if err := os.WriteFile(chapters, []byte(chapterMetadata), 0o644); err != nil {
+			return err
+		}
 		args := []string{"-v", "error", "-y"}
 		for _, a := range f.args {
-			args = append(args, strings.ReplaceAll(a, "{srt}", sub))
+			args = append(args, strings.NewReplacer("{srt}", sub, "{chapters}", chapters).Replace(a))
 		}
 		cmd := exec.Command(ffmpeg, append(args, dst)...)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-		if err := cmd.Run(); err != nil {
+		err := cmd.Run()
+		os.Remove(chapters)
+		if err != nil {
 			return fmt.Errorf("ffmpeg %s: %w", f.path, err)
 		}
 		n++
@@ -193,3 +201,27 @@ func copyFile(src, dst string) error {
 	}
 	return f.Close()
 }
+
+// chapterMetadata is an FFmpeg metadata file with four chapters across a minute.
+const chapterMetadata = `;FFMETADATA1
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=12000
+title=Opening
+[CHAPTER]
+TIMEBASE=1/1000
+START=12000
+END=30000
+title=The Dream Within a Dream
+[CHAPTER]
+TIMEBASE=1/1000
+START=30000
+END=48000
+title=Limbo
+[CHAPTER]
+TIMEBASE=1/1000
+START=48000
+END=60000
+title=The Kick
+`

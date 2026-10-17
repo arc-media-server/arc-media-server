@@ -117,6 +117,8 @@ Early development. Working today:
 - Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
 - Remove from Continue Watching (the ⋯ on a card): it stays out, without being marked watched or
   losing its resume point, until you play it (or, for a show, any episode) again
+- Chapters from the file: marks on the timeline, the chapter's name while scrubbing, a chapter list,
+  and Shift+←/→ to move between chapters
 - Quality in the player, as in Plex: Original, or a limit from 20 Mbps 1080p down to 720 kbps 360p
   (only ones below the file's own bitrate) for slow connections; remembered per device
 - Preferred audio language (per profile, as in Plex): the audio language you pick in the player is
