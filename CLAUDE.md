@@ -63,8 +63,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
   access and devices, 18 Arc apps and client API. Old milestones 8 and 11 became 16 and 17.
   No Jellyfin-compatible layer, ever (owner, Oct 2026): Arc has its own clients and an open API;
   #30–#33 are closed as not planned.
-  Deleting media from the app was left out on purpose (principle 1). Next: 12, pending the owner's
-  review of the order.
+  Deleting media from the app was left out on purpose (principle 1).
+- Since then (Oct 2026): TMDB numbering by default with per-show override (episodes re-keyed safely
+  on a provider switch), editable genres, artwork and season posters in the Edit dialog, season and
+  episode editing, TMDB season summaries.
+- Milestone 12 done (Oct 2026): Auto-Play, preferred audio language, quality menu, remove from
+  Continue Watching, chapters, Picture-in-Picture. Next: 13 (Profiles and home).
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
