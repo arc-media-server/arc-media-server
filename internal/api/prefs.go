@@ -20,6 +20,8 @@ type prefs struct {
 	// The subtitle language last chosen (e.g. "eng"), used to turn subtitles on by themselves;
 	// "" means off unless there are forced subtitles.
 	SubtitleLanguage string `json:"subtitle_language"`
+	// Show Up Next as its own row; otherwise the next episodes are part of Continue Watching, as in Plex.
+	SplitUpNext bool `json:"split_up_next"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
@@ -127,6 +129,7 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		HideSpoilers     *bool     `json:"hide_spoilers"`
 		Theme            *string   `json:"theme"`
 		SubtitleLanguage *string   `json:"subtitle_language"`
+		SplitUpNext      *bool     `json:"split_up_next"`
 		Home             []homeRow `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
@@ -141,6 +144,9 @@ func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.SubtitleLanguage != nil {
 		p.SubtitleLanguage = *body.SubtitleLanguage
+	}
+	if body.SplitUpNext != nil {
+		p.SplitUpNext = *body.SplitUpNext
 	}
 	if body.Home != nil {
 		p.Home = body.Home

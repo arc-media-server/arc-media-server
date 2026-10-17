@@ -501,6 +501,8 @@ export interface Prefs {
   theme: Theme;
   /** The subtitle language last chosen, e.g. "eng"; "" for off. */
   subtitle_language: string;
+  /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
+  split_up_next: boolean;
   /** Empty means the default layout. */
   home: HomeRow[];
 }
@@ -736,7 +738,7 @@ export const api = {
   statsHistory: (p: StatsParams & { before?: number }) => request<StatsHistory>('GET', `/api/stats/history${query(p)}`),
   statsStorage: (library?: number) => request<StatsStorage>('GET', `/api/stats/storage${query({ library })}`),
   myYear: (year?: number) => request<YearReview>('GET', `/api/me/year${query({ year })}`),
-  continueWatching: () => request<Item[]>('GET', '/api/home/continue'),
+  continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),
   nextUp: () => request<Item[]>('GET', '/api/home/next-up'),
   prefs: () => request<Prefs>('GET', '/api/me/prefs'),
   updatePrefs: (patch: Partial<Prefs>) => request<Prefs>('PATCH', '/api/me/prefs', patch),
