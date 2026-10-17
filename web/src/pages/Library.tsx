@@ -1,12 +1,13 @@
 import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
+import { MediaRow } from '@/components/MediaRow';
 import { useLibraries } from '@/components/Sidebar';
 import { useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
@@ -47,7 +48,8 @@ export function LibraryPage() {
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
 
-  const view = params.get('view') === 'collections' ? 'collections' : 'titles';
+  const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : 'titles';
+  const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
   const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
   const unit = lib?.kind === 'shows' ? 'show' : 'movie';
@@ -72,11 +74,13 @@ export function LibraryPage() {
         subtitle={
           view === 'collections'
             ? collections.data && plural(collections.data.length, 'collection')
-            : items.data && plural(items.data.total, unit)
+            : view === 'recommended'
+              ? 'Picked for you from what you watch'
+              : items.data && plural(items.data.total, unit)
         }
         actions={
           lib &&
-          (view === 'collections' ? (
+          (view === 'recommended' ? null : view === 'collections' ? (
             admin && (
               <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
                 <Plus /> New Collection
@@ -105,20 +109,23 @@ export function LibraryPage() {
           ))
         }
       />
-      {lib && (admin || (collections.data?.length ?? 0) > 0) && (
+      {lib && (
         <div className="-mt-3 mb-5 flex gap-1 px-6 md:px-10" role="tablist">
           {(
             [
               ['titles', lib.kind === 'shows' ? 'Shows' : 'Movies'],
+              ['recommended', 'Recommended'],
               ['collections', 'Collections'],
             ] as const
-          ).map(([v, label]) => (
+          )
+            .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
+            .map(([v, label]) => (
             <button
               key={v}
               type="button"
               role="tab"
               aria-selected={view === v}
-              onClick={() => setParams(v === 'collections' ? { view: 'collections' } : {}, { replace: true })}
+              onClick={() => setParams(v === 'titles' ? {} : { view: v }, { replace: true })}
               className={cn(
                 'rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors',
                 view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
@@ -162,7 +169,30 @@ export function LibraryPage() {
           )}
         </div>
       )}
-      <div className="px-6 md:px-10">
+      {view === 'recommended' && (
+        <div className="space-y-10">
+          {recommended.error ? (
+            <div className="px-6 md:px-10">
+              <ErrorState error={recommended.error} />
+            </div>
+          ) : !recommended.data ? (
+            <div className="px-6 md:px-10">
+              <PosterGridSkeleton count={6} />
+            </div>
+          ) : recommended.data.rows.length === 0 ? (
+            <div className="px-6 md:px-10">
+              <EmptyState icon={<Sparkles />} title="Nothing to recommend yet">
+                As you watch, this fills with titles like the ones you've enjoyed, the best rated you haven't seen, and more of your favourite genres.
+              </EmptyState>
+            </div>
+          ) : (
+            recommended.data.rows.map((row) => (
+              <MediaRow key={row.title} title={row.title} items={row.items} href={row.genre ? `/library/${id}?genre=${encodeURIComponent(row.genre)}&unwatched=1` : undefined} />
+            ))
+          )}
+        </div>
+      )}
+      <div className={cn('px-6 md:px-10', view === 'recommended' && 'hidden')}>
         {view === 'collections' ? (
           collections.error ? (
             <ErrorState error={collections.error} />

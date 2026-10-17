@@ -529,7 +529,10 @@ func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Det
 		credits = append(credits, store.Credit{TMDBID: p.TMDBID, Name: p.Name, ProfilePath: p.ProfilePath,
 			Role: p.Role, Character: p.Character, Order: p.Order})
 	}
-	return s.store.SetItemDetails(ctx, itemID, d.Genres, credits)
+	if err := s.store.SetItemDetails(ctx, itemID, d.Genres, credits); err != nil {
+		return err
+	}
+	return s.store.SetRecommendations(ctx, itemID, d.Recommendations)
 }
 
 // refreshUnsyncedMovies fetches matched movies that have never been fully fetched (e.g. matched

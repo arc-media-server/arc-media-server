@@ -59,6 +59,9 @@ Early development. Working today:
   (TMDB's for automatic collections, or your own upload); edits are kept when TMDB refreshes
 - Your own ratings (half stars out of five) and a Watchlist (bookmark a movie or show; a Watchlist
   row on Home and page in the sidebar; a movie leaves it once watched), per profile, as in Plex
+- More Like This on movie and show pages (TMDB's recommendations that are in your library, then
+  titles sharing a collection, genres or lead actors), and a Recommended tab per library: Because
+  you watched…, top rated you haven't seen, and more of your favourite genres
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
@@ -235,6 +238,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/items/{id}/rating` | The profile's own rating `{"rating": 1-10}` (0 clears) |
 | PUT | `/api/items/{id}/watchlist` | `{"on": true}` puts a movie or show on the profile's watchlist |
 | GET | `/api/watchlist` | The profile's watchlist, newest first |
+| GET | `/api/items/{id}/similar` | More like this: movies or shows from the same library |
+| GET | `/api/libraries/{id}/recommended` | Recommended rows for the profile (`{rows: [{title, items, genre?}]}`) |
 | GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
 | GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
 | GET / PATCH | `/api/profiles/{id}/prefs` | Another profile's preferences, e.g. its home (admin) |

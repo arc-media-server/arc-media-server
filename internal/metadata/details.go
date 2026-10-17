@@ -13,6 +13,22 @@ type Details struct {
 	Rating float64
 	Genres []string
 	People []Credit
+	// TMDB's recommendations (TMDB ids, best first), for "More like this".
+	Recommendations []int64
+}
+
+type tmdbRecommendations struct {
+	Results []struct {
+		ID int64 `json:"id"`
+	} `json:"results"`
+}
+
+func (r tmdbRecommendations) ids() []int64 {
+	out := make([]int64, 0, len(r.Results))
+	for _, x := range r.Results {
+		out = append(out, x.ID)
+	}
+	return out
 }
 
 // Credit is a person's part in a movie or show.

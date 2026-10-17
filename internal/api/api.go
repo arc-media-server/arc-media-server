@@ -134,6 +134,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/items/{id}/progress", user(s.reportProgress))
 	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
 	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
+	mux.HandleFunc("GET /api/items/{id}/similar", user(s.similar))
+	mux.HandleFunc("GET /api/libraries/{id}/recommended", user(s.recommended))
 	mux.HandleFunc("PUT /api/items/{id}/rating", user(s.setUserRating))
 	mux.HandleFunc("PUT /api/items/{id}/watchlist", user(s.setWatchlist))
 	mux.HandleFunc("GET /api/watchlist", user(s.watchlist))

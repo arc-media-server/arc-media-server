@@ -801,6 +801,9 @@ export const api = {
   myYear: (year?: number) => request<YearReview>('GET', `/api/me/year${query({ year })}`),
   recentShows: (libraryId: number) => request<RecentCard[]>('GET', `/api/libraries/${libraryId}/recent-shows`),
   /** The episode that follows one in the profile's episode order, if any. */
+  similar: (id: string) => request<Item[]>('GET', `/api/items/${id}/similar`),
+  recommended: (libraryId: number) =>
+    request<{ rows: { title: string; items: Item[]; genre?: string }[] }>('GET', `/api/libraries/${libraryId}/recommended`),
   removeFromContinue: (id: string) => request<void>('DELETE', `/api/home/continue/${id}`),
   nextEpisode: (id: string) => request<Item | undefined>('GET', `/api/items/${id}/next`),
   continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),
