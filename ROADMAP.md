@@ -175,6 +175,7 @@ _First scans of big libraries (about 1,800 films on Unraid) are much slower than
 - [ ] Read files in parallel, kindly to spinning disks (#126)
 - [ ] Clearer scan progress (#127)
 - [ ] Measure scan speed on a large, slow library (#128)
+- [ ] Reuse the preview's matches when the library is added (#129)
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
