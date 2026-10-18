@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -766,10 +769,29 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"https_key":              st.HTTPSKey,
 		"https_domain":           st.HTTPSDomain,
 		"home_networks":          st.HomeNetworks,
+		"transcode_dir":          st.TranscodeDir,
+		"max_transcodes":         st.MaxTranscodes,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
 	}
+}
+
+// writableDir checks Arc can write in a folder (made if it isn't there yet).
+func writableDir(dir string) error {
+	if !filepath.IsAbs(dir) {
+		return errors.New("choose a full path, such as D:\\Arc Transcode")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("can't use %s: %w", dir, err)
+	}
+	f, err := os.CreateTemp(dir, ".arc-check-*")
+	if err != nil {
+		return fmt.Errorf("Arc can't write in %s", dir)
+	}
+	f.Close()
+	os.Remove(f.Name())
+	return nil
 }
 
 func maskKey(k string) string {
@@ -822,6 +844,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		HTTPSKey      *string `json:"https_key"`
 		HTTPSDomain   *string `json:"https_domain"`
 		HomeNetworks  *string `json:"home_networks"`
+		TranscodeDir  *string `json:"transcode_dir"`
+		MaxTranscodes *int    `json:"max_transcodes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -907,6 +931,23 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.UploadKbps != nil {
 		next.UploadKbps = *body.UploadKbps
+	}
+	if body.TranscodeDir != nil {
+		dir := strings.TrimSpace(*body.TranscodeDir)
+		if dir != "" {
+			if err := writableDir(dir); err != nil {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
+		next.TranscodeDir = dir
+	}
+	if body.MaxTranscodes != nil {
+		if *body.MaxTranscodes < 0 || *body.MaxTranscodes > 50 {
+			writeError(w, http.StatusBadRequest, "max_transcodes is 0 (no limit) to 50")
+			return
+		}
+		next.MaxTranscodes = *body.MaxTranscodes
 	}
 	if body.HomeNetworks != nil {
 		_, tidy, err := auth.ParseNetworks(*body.HomeNetworks)

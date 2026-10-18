@@ -58,6 +58,10 @@ type Settings struct {
 	HTTPSMode, HTTPSCert, HTTPSKey, HTTPSDomain string
 	// Networks that count as home besides private addresses, e.g. "100.64.0.0/10" (comma-separated).
 	HomeNetworks string
+	// Where converted streams are written while they're watched ("" for Arc's data folder), and
+	// how many videos may be converted at once (0 for no limit).
+	TranscodeDir  string
+	MaxTranscodes int
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -97,6 +101,8 @@ const (
 	keyHTTPSKey      = "https_key"
 	keyHTTPSDomain   = "https_domain"
 	keyHomeNetworks  = "home_networks"
+	keyTranscodeDir  = "transcode_dir"
+	keyMaxTranscodes = "max_transcodes"
 )
 
 // Environment variables that override settings.
@@ -247,6 +253,13 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.HomeNetworks, err = get(keyHomeNetworks); err != nil {
 		return s, err
 	}
+	if s.TranscodeDir, err = get(keyTranscodeDir); err != nil {
+		return s, err
+	}
+	if v, err = get(keyMaxTranscodes); err != nil {
+		return s, err
+	}
+	s.MaxTranscodes, _ = strconv.Atoi(v)
 	return s, nil
 }
 
@@ -265,7 +278,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
 		keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
 		keyHTTPSMode: s.HTTPSMode, keyHTTPSCert: s.HTTPSCert, keyHTTPSKey: s.HTTPSKey, keyHTTPSDomain: s.HTTPSDomain,
-		keyHomeNetworks: s.HomeNetworks,
+		keyHomeNetworks: s.HomeNetworks, keyTranscodeDir: s.TranscodeDir, keyMaxTranscodes: strconv.Itoa(s.MaxTranscodes),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

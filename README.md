@@ -50,6 +50,8 @@ Early development. Working today:
 - Playback compatibility (Library Health): for this browser, Chrome, Edge, Firefox, Safari or
   iPhone/iPad, how many titles in each library play directly, are repackaged or are converted, why,
   and which ones need converting
+- Converting settings, as in Plex: how many videos may be converted at once (no limit by default;
+  anyone over it is told to try again) and the temporary folder converted video is written to
 - Converting uses the graphics card when there is one (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple
   VideoToolbox or VA-API, found by a quick test at start-up), falling back to the processor, and maps
   HDR to SDR so converted HDR doesn't look washed out. Both are on by default, as in Plex (Settings >
@@ -267,7 +269,7 @@ Motion for animation and TanStack Query for data loading.
 | GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels", "friend"}`; a friend comes back with an `invite_token` |
 | POST | `/api/profiles/{id}/invite` | A new invite link for a friend, e.g. to reset their password (admin) |
 | PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
-| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`) |
+| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit) |
 | POST | `/api/cast` | Turn a stream URL from `/playback` into a link a cast device can open: `{"url"}` → `{"url", "local_only"}` |
 | GET | `/api/cast/{token}/...` | A stream (file, or HLS playlist and segments) for a cast device, with CORS headers |
 | GET | `/api/remote` | Remote access: the outside address, the router's port forwarding and the HTTPS certificate (admin) |

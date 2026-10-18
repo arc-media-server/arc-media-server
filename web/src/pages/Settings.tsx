@@ -12,6 +12,7 @@ import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
+import { FolderPicker } from '@/components/FolderPicker';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -294,6 +295,22 @@ function ServerSettings() {
               busy={update.isPending || !s.transcoder.tone_mapping}
               onChange={(v) => update.mutate({ tone_mapping: v })}
             />
+            <Row label="Videos converted at once" description="More at once needs a faster computer. Anyone over the limit is told to try again shortly; files that play as they are, or only need repackaging, don't count.">
+              <select
+                value={s.max_transcodes}
+                disabled={update.isPending}
+                onChange={(e) => update.mutate({ max_transcodes: Number(e.target.value) })}
+                className={`${inputClass} w-40 [&>option]:bg-surface`}
+              >
+                <option value={0}>No limit</option>
+                {[1, 2, 3, 4, 6, 8, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
           </Section>
 
           <Section
@@ -796,6 +813,51 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
         </div>
       )}
     </Row>
+  );
+}
+
+/** Where converted streams are written while they're watched. */
+function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const [picking, setPicking] = useState(false);
+  const [error, setError] = useState('');
+  const save = async (v: string) => {
+    setError('');
+    try {
+      await onSave(v);
+      setPicking(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <>
+      <Row
+        label="Temporary folder"
+        description={
+          <>
+            Where converted video is kept while it&apos;s watched (deleted afterwards). A fast drive with free space is best.{' '}
+            <span className="font-mono text-foreground/80">{value || "Arc's data folder"}</span>
+            {error && <span className="mt-1 block text-warning">{error}</span>}
+          </>
+        }
+      >
+        <div className="flex gap-2">
+          {value && (
+            <Button size="sm" variant="ghost" onClick={() => void save('')}>
+              Use Default
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
+            Choose…
+          </Button>
+        </div>
+      </Row>
+      {picking && (
+        <div className="px-4 pb-4">
+          <FolderPicker start={value || undefined} onChoose={(p) => void save(p)} onCancel={() => setPicking(false)} />
+        </div>
+      )}
+    </>
   );
 }
 

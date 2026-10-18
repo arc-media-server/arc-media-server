@@ -330,10 +330,19 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return publicURL(c)
 	}
 	listeners := make(chan net.Listener, 1)
+	// Where converted streams are written: the folder chosen in Settings (in an "Arc Transcode"
+	// folder of its own), or the data folder's.
+	transcodeDir := func(c settings.Settings) string {
+		if c.TranscodeDir != "" {
+			return filepath.Join(c.TranscodeDir, "Arc Transcode")
+		}
+		return filepath.Join(dataDir, "transcode")
+	}
 	// Remote access: HTTPS on the same port, the router's port forwarding, the outside address.
 	remoteAccess := remote.New(remote.NewCerts(filepath.Join(dataDir, "certs")), remote.NewMapper(log))
 	remoteAccess.Certs.Configure(cfg.HTTPSMode, cfg.HTTPSCert, cfg.HTTPSKey, cfg.HTTPSDomain)
 	applyHomeNetworks(cfg.HomeNetworks)
+	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
 	go remoteAccess.Mapper.Run(ctx)
 	applySettings := func(ctx context.Context, next settings.Settings) error {
@@ -402,6 +411,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		current = next
 		applyHomeNetworks(next.HomeNetworks)
+		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
 		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
 		if ln != nil {

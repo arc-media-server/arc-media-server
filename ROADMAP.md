@@ -161,7 +161,7 @@ _Arc has its own clients; the API is open for anyone to build more._
 ### 19. Quick wins and server resources
 _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource graphs._
 - [x] Home networks setting (#115)
-- [ ] Transcoder: temporary folder and conversions at once (#116)
+- [x] Transcoder: temporary folder and conversions at once (#116)
 - [ ] Shuffle play (#117)
 - [ ] Subtitle styling and subtitle mode (#118)
 - [ ] Collection display mode (#119)
