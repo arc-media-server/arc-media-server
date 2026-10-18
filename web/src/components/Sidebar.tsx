@@ -1,7 +1,7 @@
 import { createElement, useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
+import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Music, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -167,6 +167,18 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           <span className="min-w-0">
             <span className="block">Auto-Play</span>
             <span className="block text-xs text-subtle">Play the next episode after a short countdown</span>
+          </span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem
+          checked={prefs.data?.theme_music !== false}
+          disabled={!prefs.data}
+          onSelect={(e) => e.preventDefault()}
+          onCheckedChange={(on) => updatePrefs.mutate({ theme_music: on })}
+        >
+          <Music className="size-4 shrink-0 self-start text-muted mt-0.5" />
+          <span className="min-w-0">
+            <span className="block">Theme Music</span>
+            <span className="block text-xs text-subtle">Play a show's theme quietly on its page, when there's one</span>
           </span>
         </DropdownMenuCheckboxItem>
         <DropdownMenuSeparator />

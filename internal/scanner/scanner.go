@@ -544,6 +544,9 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	if err := s.store.SetLocalArt(ctx, itemID, art.Poster, art.Backdrop, art.Logo); err != nil {
 		return err
 	}
+	if err := s.store.SetLocalTheme(ctx, itemID, art.Theme); err != nil {
+		return err
+	}
 	if nfo := movieNFO(path, ownFolder); !nfo.empty() {
 		return s.store.AdoptIDs(ctx, itemID, nfo.TMDBID, 0, nfo.IMDBID)
 	}

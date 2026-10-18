@@ -60,6 +60,8 @@ type Item struct {
 	IMDbVotes      int     `json:"imdb_votes,omitempty"`
 	RottenTomatoes *int    `json:"rotten_tomatoes,omitempty"`
 	Metacritic     *int    `json:"metacritic,omitempty"`
+	// A theme tune next to the media (a file path).
+	LocalTheme string `json:"-"`
 }
 
 // Credit is a person's part in a movie or show.

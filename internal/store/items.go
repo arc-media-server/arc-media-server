@@ -14,7 +14,7 @@ const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_tit
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
 	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired,
-	imdb_rating, imdb_votes, rt_critics, metacritic`
+	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -28,7 +28,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
 		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired,
-		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic}
+		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -216,6 +216,12 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 		return err
 	}
 	return s.syncMinAges(ctx, it.ID)
+}
+
+// SetLocalTheme records the theme tune found next to a show or movie ("" for none).
+func (s *Store) SetLocalTheme(ctx context.Context, id, path string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_theme = ? WHERE id = ? AND local_theme <> ?`, path, id, path)
+	return err
 }
 
 // SetLocalArt records the artwork files found next to an item's media ("" for none).

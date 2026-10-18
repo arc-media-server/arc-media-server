@@ -28,6 +28,8 @@ type prefs struct {
 	SplitUpNext bool `json:"split_up_next"`
 	// Play the next episode after a countdown when one ends; on unless turned off, as in Plex.
 	AutoPlay *bool `json:"auto_play,omitempty"`
+	// Play a title's theme tune quietly on its page; on unless turned off, as in Plex.
+	ThemeMusic *bool `json:"theme_music,omitempty"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
@@ -266,6 +268,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		AudioLanguage    *string   `json:"audio_language"`
 		SplitUpNext      *bool     `json:"split_up_next"`
 		AutoPlay         *bool     `json:"auto_play"`
+		ThemeMusic       *bool     `json:"theme_music"`
 		Home             []homeRow `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
@@ -286,6 +289,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.SplitUpNext != nil {
 		p.SplitUpNext = *body.SplitUpNext
+	}
+	if body.ThemeMusic != nil {
+		p.ThemeMusic = body.ThemeMusic
 	}
 	if body.AutoPlay != nil {
 		p.AutoPlay = body.AutoPlay
