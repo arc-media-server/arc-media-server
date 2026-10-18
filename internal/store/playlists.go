@@ -14,6 +14,8 @@ type Playlist struct {
 	Title     string `json:"title"`
 	CreatedAt int64  `json:"created_at"`
 	UpdatedAt int64  `json:"updated_at"`
+	// A smart playlist's filter (JSON); "" for a list of entries.
+	Filter string `json:"-"`
 	// Filled in when listing.
 	Count      int   `json:"count"`
 	DurationMS int64 `json:"duration_ms"`
@@ -25,10 +27,10 @@ type PlaylistEntry struct {
 	ItemID string
 }
 
-const playlistCols = `id, user_id, title, created_at, updated_at`
+const playlistCols = `id, user_id, title, created_at, updated_at, filter`
 
 func scanPlaylist(row interface{ Scan(...any) error }, p *Playlist) error {
-	return row.Scan(&p.ID, &p.UserID, &p.Title, &p.CreatedAt, &p.UpdatedAt)
+	return row.Scan(&p.ID, &p.UserID, &p.Title, &p.CreatedAt, &p.UpdatedAt, &p.Filter)
 }
 
 // Playlists lists a profile's playlists, most recently changed first, with how many titles each
@@ -109,6 +111,12 @@ func (s *Store) CreatePlaylist(ctx context.Context, userID, title string) (*Play
 	_, err := s.db.ExecContext(ctx, `INSERT INTO playlists (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
 		p.ID, p.UserID, p.Title, now, now)
 	return p, err
+}
+
+// SetPlaylistFilter makes a playlist smart with a filter (JSON), or a list again with "".
+func (s *Store) SetPlaylistFilter(ctx context.Context, id, filter string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE playlists SET filter = ?, updated_at = ? WHERE id = ?`, filter, time.Now().Unix(), id)
+	return err
 }
 
 // RenamePlaylist changes a playlist's title.

@@ -277,9 +277,9 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/playlists` | profile | Is the profile's playlists. |
-| POST | `/api/playlists` | profile | {"title", "item_ids"} makes a playlist for the profile. |
+| POST | `/api/playlists` | profile | {"title", "item_ids"} makes a playlist for the profile; with "filter" (a library filter, as for a smart collection) it's a smart playlist kept up to date. |
 | GET | `/api/playlists/{id}` | profile | Is a playlist and its titles in order. |
-| PATCH | `/api/playlists/{id}` | profile | {"title"} renames a playlist. |
+| PATCH | `/api/playlists/{id}` | profile | {"title", "filter"} renames a playlist, or changes a smart playlist's rules. |
 | DELETE | `/api/playlists/{id}` | profile | A playlist and its entries; rename `{"title"}`; delete |
 | POST | `/api/playlists/{id}/items` | profile | {"item_ids"} adds movies, episodes or whole shows. |
 | DELETE | `/api/playlists/{id}/entries/{entry}` | profile | Takes an entry out of a playlist. |
