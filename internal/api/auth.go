@@ -683,6 +683,8 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"preroll_paths":          st.PrerollPaths,
 		"preroll_mode":           st.PrerollMode,
 		"preroll_found":          len(prerollFiles(st.PrerollPaths)),
+		"theintrodb_api_key":     maskKey(st.TheIntroDBKey),
+		"detect_intros":          st.DetectIntros,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -727,6 +729,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		OMDbKey       *string `json:"omdb_api_key"`
 		PrerollPaths  *string `json:"preroll_paths"`
 		PrerollMode   *string `json:"preroll_mode"`
+		TheIntroDBKey *string `json:"theintrodb_api_key"`
+		DetectIntros  *bool   `json:"detect_intros"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -794,6 +798,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.PreviewsNight != nil {
 		next.PreviewsAtNight = *body.PreviewsNight
+	}
+	if body.TheIntroDBKey != nil {
+		next.TheIntroDBKey = strings.TrimSpace(*body.TheIntroDBKey)
+	}
+	if body.DetectIntros != nil {
+		next.DetectIntros = *body.DetectIntros
 	}
 	if body.PrerollPaths != nil {
 		next.PrerollPaths = strings.TrimSpace(*body.PrerollPaths)

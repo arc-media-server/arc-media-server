@@ -139,12 +139,12 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Theme music on show pages (#98)
 - [x] Pre-roll videos before movies (#99)
 
-### 16. Intro and credits skipping
-- [ ] Crowdsourced timestamp source (IntroDB or similar) as the first choice (#43)
-- [ ] Check timestamps against each file's runtime before trusting them (#44)
-- [ ] Local detection fallback (audio fingerprinting across episodes), run in the background at low priority (#45)
-- [ ] Skip Intro / Skip Credits in the player (#46)
-- [ ] Manual editing of markers (#47)
+### ✅ 16. Intro and credits skipping
+- [x] Crowdsourced timestamp source (IntroDB or similar) as the first choice (#43)
+- [x] Check timestamps against each file's runtime before trusting them (#44)
+- [x] Local detection fallback (audio fingerprinting across episodes), run in the background at low priority (#45)
+- [x] Skip Intro / Skip Credits in the player (#46)
+- [x] Manual editing of markers (#47)
 
 ### 17. Remote access and devices
 - [ ] HTTPS, secure remote access setup (#57)

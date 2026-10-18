@@ -107,6 +107,10 @@ Early development. Working today:
 - Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
   refreshing week-old show details and month-old movie details, the daily backup and a check of
   every library; scrubbing previews can wait for it too
+- Skip Intro, Skip Recap and Skip Credits: timings from the file's chapters (Opening, Ending),
+  IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
+  overnight by comparing a season's episodes' audio. At the credits Up Next counts down; Skip
+  Intros Automatically is in the profile menu; times can be set by hand under Edit > Skip Markers
 - Pre-roll videos (Settings): files or folders of clips played before a movie started from the
   beginning, one at random or all in order, with Skip; ones that won't play are skipped
 - Theme music: a theme.mp3 (or .flac, .m4a, .ogg) in a show's or movie's folder, or a theme-music
@@ -326,6 +330,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET / POST | `/api/webhooks` | Webhooks with their last delivery and the event names (admin) / add one: `{"name", "url", "events": []}` (empty for all) |
 | PUT / DELETE | `/api/webhooks/{id}` | Change or remove a webhook (admin) |
 | POST | `/api/webhooks/{id}/test` | Send a test message now |
+| GET / PUT / DELETE | `/api/items/{id}/markers` | A movie's or episode's skip markers with their sources (admin) / set them by hand: `{"markers": [{"kind": "intro", "start_ms", "end_ms"}]}` / forget them so they're found again |
 | GET | `/api/items/{id}/preroll` | The pre-roll videos to play before a movie: `[{title, url}]` (empty for episodes, home videos, or none set) |
 | GET | `/api/items/{id}/theme` | A show's or movie's theme tune (the item's `theme_url` when it has one) |
 | GET | `/api/news` | New for You: `{entries: [{item, count, added_at, unread}], unread}` |

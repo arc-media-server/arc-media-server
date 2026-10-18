@@ -6,6 +6,7 @@ import { applyArtwork, applySeasonArtwork, ArtworkPanel, artworkNames, SeasonsPa
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { ChipInput } from '@/components/ChipInput';
+import { MarkersPanel, type MarkerEdit } from '@/components/MarkersPanel';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -75,8 +76,14 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const allLabels = useQuery({ queryKey: ['labels'], queryFn: api.labels, enabled: item.kind !== 'episode' });
   const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
   // Movies and shows have artwork to choose; episodes just their details.
-  const tabs: ('details' | ArtworkType | 'seasons')[] =
-    item.kind === 'episode' ? ['details', 'poster'] : item.kind === 'series' ? ['details', 'poster', 'backdrop', 'logo', 'seasons'] : ['details', 'poster', 'backdrop', 'logo'];
+  // Episodes and movies also have their skip markers.
+  const tabs: ('details' | ArtworkType | 'seasons' | 'markers')[] =
+    item.kind === 'episode'
+      ? ['details', 'poster', 'markers']
+      : item.kind === 'series'
+        ? ['details', 'poster', 'backdrop', 'logo', 'seasons']
+        : ['details', 'poster', 'backdrop', 'logo', 'markers'];
+  const [markerEdit, setMarkerEdit] = useState<{ edit: MarkerEdit | null; valid: boolean }>({ edit: null, valid: true });
   const [tab, setTab] = useState<(typeof tabs)[number]>('details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
@@ -94,6 +101,10 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       if (labelsChanged) edit.labels = labels;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       let updated = await api.editItem(item.id, edit);
+      if (markerEdit.edit) {
+        await api.setItemMarkers(item.id, markerEdit.edit);
+        qc.invalidateQueries({ queryKey: ['markers', item.id] });
+      }
       for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange][]) {
         updated = await applyArtwork(item.id, type, change);
       }
@@ -150,7 +161,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
               Cancel
             </Button>
           </DialogClose>
-          <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !values.title?.trim()}>
+          <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !values.title?.trim() || !markerEdit.valid}>
             {save.isPending && <Loader2 className="animate-spin" />} Save
           </Button>
         </>
@@ -167,8 +178,8 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
               onClick={() => setTab(t)}
               className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : item.kind === 'episode' ? 'Thumbnail' : artworkNames[t]}
-              {(t === 'seasons' ? Object.keys(seasonArt).length > 0 : t !== 'details' && art[t]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+              {t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : t === 'markers' ? 'Skip Markers' : item.kind === 'episode' ? 'Thumbnail' : artworkNames[t]}
+              {(t === 'seasons' ? Object.keys(seasonArt).length > 0 : t === 'markers' ? !!markerEdit.edit : t !== 'details' && art[t]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
             </button>
           ))}
         </div>
@@ -187,7 +198,8 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
           }
         />
       )}
-      {tab !== 'details' && tab !== 'seasons' && (
+      {tab === 'markers' && <MarkersPanel item={item} onChange={(edit, valid) => setMarkerEdit({ edit, valid })} />}
+      {tab !== 'details' && tab !== 'seasons' && tab !== 'markers' && (
         <ArtworkPanel item={item} type={tab} change={art[tab]} onChange={(c) => setArt((prev) => ({ ...prev, [tab]: c }))} />
       )}
       <form

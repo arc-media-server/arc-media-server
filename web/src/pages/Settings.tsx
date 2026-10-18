@@ -105,6 +105,28 @@ export function SettingsPage() {
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
+          <Section title="Skip Intro" hint="Where intros, recaps and credits are, for Skip Intro and Skip Credits in the player.">
+            <Row
+              label="Chapters and IntroDB"
+              description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
+            />
+            <KeyRow
+              label="TheIntroDB"
+              description="A bigger community database, looked up first when you add a free key."
+              current={s.theintrodb_api_key}
+              fixed={s.from_env.theintrodb_api_key}
+              link="https://theintrodb.org"
+              onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
+            />
+            <ToggleRow
+              label="Find intros on this computer"
+              description="When an episode isn't in either database, compare it with the rest of its season to find the intro and credits they share. Runs in the maintenance time."
+              checked={s.detect_intros}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ detect_intros: v })}
+            />
+          </Section>
+
           <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
             <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
           </Section>
