@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import type { Item } from '@/lib/api';
 
@@ -11,15 +11,20 @@ export function Hero({ backdrop, children, className }: { backdrop?: string; chi
   return (
     <div className={cn('relative isolate overflow-hidden', className)}>
       {backdrop ? (
-        <motion.img
-          src={backdrop}
-          alt=""
-          draggable={false}
-          initial={{ opacity: 0, scale: 1.04 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]"
-        />
+        // Keyed by the picture, so a new one fades in over the last (the home page's rotating banner).
+        <AnimatePresence initial={true}>
+          <motion.img
+            key={backdrop}
+            src={backdrop}
+            alt=""
+            draggable={false}
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, transition: { duration: 1 } }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]"
+          />
+        </AnimatePresence>
       ) : (
         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-accent-strong/30 via-surface to-background" />
       )}

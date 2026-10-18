@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
+import { cn } from '@/lib/utils';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
@@ -127,17 +129,18 @@ export function Home() {
   const setEditing = (open: boolean) => setParams(open ? { edit: '1' } : {}, { replace: true });
   const split = !!prefs.data?.split_up_next;
   const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data]);
-  // The featured item: the most recently added thing with a backdrop.
+  // The banner: the most recently added titles with a backdrop, taking turns.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
     enabled: !!libraries?.length,
     queryFn: async () => {
+      // Home videos stay out of it: they're personal, and rarely have artwork worth a banner.
       const lists = await Promise.all(
-        libraries!.map((l) => api.items({ library_id: l.id, kind: l.kind === 'shows' ? 'series' : 'movie', sort: 'added', limit: 12 })),
+        libraries!.filter((l) => l.kind !== 'videos').map((l) => api.items({ library_id: l.id, kind: l.kind === 'shows' ? 'series' : 'movie', sort: 'added', limit: 12 })),
       );
       const all = lists.flatMap((l) => l.items).filter((i) => i.images?.backdrop);
       all.sort((a, b) => b.added_at - a.added_at);
-      return all[0] ?? null;
+      return all.slice(0, featuredCount);
     },
   });
 
@@ -168,7 +171,7 @@ export function Home() {
           <SlidersHorizontal /> Edit Home
         </Button>
       )}
-      {featuredQuery.data ? <Featured item={featuredQuery.data} /> : <div className="h-10" />}
+      {featuredQuery.data?.length ? <Featured items={featuredQuery.data} /> : <div className="h-10" />}
       <div className="relative z-10 -mt-6 space-y-10">
         {visibleRows(rows, split)
           .filter((r) => !r.hidden)
@@ -188,13 +191,55 @@ export function Home() {
   );
 }
 
-function Featured({ item }: { item: Item }) {
+// How many titles the banner takes turns with, and how long each shows.
+const featuredCount = 6;
+const featuredMS = 8000;
+
+function Featured({ items }: { items: Item[] }) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const item = items[index % items.length];
+  // Move on every few seconds, unless the pointer is over it or the device asks for less motion.
+  useEffect(() => {
+    if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = window.setTimeout(() => setIndex((i) => (i + 1) % items.length), featuredMS);
+    return () => window.clearTimeout(t);
+  }, [index, items.length, paused]);
+  return (
+    <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="relative">
+      <FeaturedItem item={item} />
+      {items.length > 1 && (
+        <div className="absolute bottom-16 right-6 z-10 flex gap-1.5 md:right-10" role="tablist" aria-label="Featured titles">
+          {items.map((it, i) => (
+            <button
+              key={it.id}
+              role="tab"
+              aria-selected={i === index % items.length}
+              aria-label={it.title}
+              title={it.title}
+              onClick={() => setIndex(i)}
+              className={cn('h-1.5 rounded-full transition-all duration-300', i === index % items.length ? 'w-6 bg-foreground' : 'w-1.5 bg-foreground/35 hover:bg-foreground/60')}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeaturedItem({ item }: { item: Item }) {
   const play = usePlayer();
   const canPlay = item.kind === 'movie' && item.stream_url;
   const meta = useMemo(() => [item.year, runtime(item.runtime_min), item.kind === 'series' && 'TV Series'], [item]);
   return (
     <Hero backdrop={backdropUrl(item)} className="h-[62vh] min-h-[420px] max-h-[720px]">
-      <div className="flex h-full max-w-2xl flex-col justify-end px-6 pb-16 md:px-10">
+      <motion.div
+        key={item.id}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="flex h-full max-w-2xl flex-col justify-end px-6 pb-16 md:px-10"
+      >
         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Recently Added</p>
         <TitleHeading item={item} />
         <div className="mt-3">
@@ -213,7 +258,7 @@ function Featured({ item }: { item: Item }) {
             </Button>
           </Link>
         </div>
-      </div>
+      </motion.div>
     </Hero>
   );
 }
