@@ -229,7 +229,7 @@ Early development. Working today:
   and each folder becomes a collection
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
   can't identify, and why) before anything is added
-- **Web app**: home with featured title and recently added rows, library grids with sorting and
+- **Web app**: home with a banner taking turns through the newest titles (every 8 seconds, as in Plex) and recently added rows, library grids with sorting and
   scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
   search, and a Library Health page (unidentified titles, unreadable, unrecognised and missing
   files, duplicates, missing episodes). Light and dark mode follow your system
