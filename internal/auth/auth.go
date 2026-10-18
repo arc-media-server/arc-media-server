@@ -57,17 +57,71 @@ func HashToken(token string) string {
 }
 
 // IsLocal reports whether a request comes from this computer or the home network (a private
-// address). Forwarding headers are ignored: they can be forged.
+// address, or one in the extra home networks). Forwarding headers are ignored: they can be forged.
 func IsLocal(r *http.Request) bool {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	ip := net.ParseIP(strings.Trim(host, "[]"))
+	return IsHomeIP(strings.Trim(host, "[]"))
+}
+
+// extraHome are networks that count as home besides private addresses (Plex's "LAN networks"),
+// e.g. Tailscale's 100.64.0.0/10.
+var extraHome struct {
+	sync.RWMutex
+	nets []*net.IPNet
+}
+
+// SetHomeNetworks sets the extra networks that count as home.
+func SetHomeNetworks(nets []*net.IPNet) {
+	extraHome.Lock()
+	extraHome.nets = nets
+	extraHome.Unlock()
+}
+
+// IsHomeIP reports whether an address is this computer or on the home network.
+func IsHomeIP(addr string) bool {
+	ip := net.ParseIP(addr)
 	if ip == nil {
 		return false
 	}
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+		return true
+	}
+	extraHome.RLock()
+	defer extraHome.RUnlock()
+	for _, n := range extraHome.nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// ParseNetworks reads networks written one per line or separated by commas ("100.64.0.0/10", or a
+// single address), returning them in a tidy form.
+func ParseNetworks(s string) ([]*net.IPNet, string, error) {
+	var nets []*net.IPNet
+	var tidy []string
+	for _, f := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == ';' }) {
+		if !strings.Contains(f, "/") {
+			if ip := net.ParseIP(f); ip != nil {
+				if ip.To4() != nil {
+					f += "/32"
+				} else {
+					f += "/128"
+				}
+			}
+		}
+		_, n, err := net.ParseCIDR(f)
+		if err != nil {
+			return nil, "", errors.New(f + " isn't a network: write it like 100.64.0.0/10 or 203.0.113.5")
+		}
+		nets = append(nets, n)
+		tidy = append(tidy, n.String())
+	}
+	return nets, strings.Join(tidy, ", "), nil
 }
 
 // ErrTooManyAttempts means too many wrong passwords or PINs were tried recently.

@@ -765,6 +765,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"https_cert":             st.HTTPSCert,
 		"https_key":              st.HTTPSKey,
 		"https_domain":           st.HTTPSDomain,
+		"home_networks":          st.HomeNetworks,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -820,6 +821,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		HTTPSCert     *string `json:"https_cert"`
 		HTTPSKey      *string `json:"https_key"`
 		HTTPSDomain   *string `json:"https_domain"`
+		HomeNetworks  *string `json:"home_networks"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -905,6 +907,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.UploadKbps != nil {
 		next.UploadKbps = *body.UploadKbps
+	}
+	if body.HomeNetworks != nil {
+		_, tidy, err := auth.ParseNetworks(*body.HomeNetworks)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		next.HomeNetworks = tidy
 	}
 	if body.RemoteAccess != nil {
 		next.RemoteAccess = *body.RemoteAccess

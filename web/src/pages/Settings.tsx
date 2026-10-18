@@ -161,6 +161,7 @@ function ServerSettings() {
               onChange={(v) => update.mutate({ allow_network: v })}
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
+            <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
           </Section>
 
           <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
@@ -794,6 +795,53 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
           </Button>
         </div>
       )}
+    </Row>
+  );
+}
+
+/** Networks that count as home besides the usual private ones (Plex's "LAN networks"). */
+function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const [text, setText] = useState(value);
+  const [error, setError] = useState('');
+  const save = async (v: string) => {
+    setError('');
+    try {
+      await onSave(v);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const tailscale = '100.64.0.0/10';
+  return (
+    <Row
+      label="Home networks"
+      description={
+        <>
+          Other networks to treat as home, as well as this one: for skipping the password and for remote quality limits. For example a VPN, or
+          Tailscale ({tailscale}).
+          {!value.includes(tailscale) && (
+            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>
+              Add Tailscale
+            </button>
+          )}
+          {error && <span className="mt-1 block text-warning">{error}</span>}
+        </>
+      }
+    >
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save(text);
+        }}
+      >
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="None" spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        {text.trim() !== value && (
+          <Button size="sm" variant="primary" type="submit">
+            Save
+          </Button>
+        )}
+      </form>
     </Row>
   );
 }

@@ -333,6 +333,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// Remote access: HTTPS on the same port, the router's port forwarding, the outside address.
 	remoteAccess := remote.New(remote.NewCerts(filepath.Join(dataDir, "certs")), remote.NewMapper(log))
 	remoteAccess.Certs.Configure(cfg.HTTPSMode, cfg.HTTPSCert, cfg.HTTPSKey, cfg.HTTPSDomain)
+	applyHomeNetworks(cfg.HomeNetworks)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
 	go remoteAccess.Mapper.Run(ctx)
 	applySettings := func(ctx context.Context, next settings.Settings) error {
@@ -400,6 +401,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 		}
 		current = next
+		applyHomeNetworks(next.HomeNetworks)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
 		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
 		if ln != nil {
@@ -592,6 +594,12 @@ func publicURL(c settings.Settings) string {
 		}
 	}
 	return "http://" + net.JoinHostPort(host, port)
+}
+
+// applyHomeNetworks sets the extra networks that count as home (saved settings were checked).
+func applyHomeNetworks(s string) {
+	nets, _, _ := auth.ParseNetworks(s)
+	auth.SetHomeNetworks(nets)
 }
 
 // listenPort is the port Arc listens on (AMS_LISTEN can differ from the setting).
