@@ -172,6 +172,7 @@ _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource grap
 _Doesn't block development; must be done before AMS is shared or published._
 - [ ] TheTVDB and TMDB attribution (required by their API terms)
 - [ ] Check TheTVDB licence terms for open-source distribution (shipped key vs each user's own key)
+- [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
 
 ## Later
 
