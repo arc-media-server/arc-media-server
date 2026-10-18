@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Filter, Layers, ListPlus, Loader2, Plus } from 'lucide-react';
-import { api, type Collection, type Item, type Library, type RowFilter } from '@/lib/api';
+import { api, type Collection, type Item, type Library, type RowFilter, type CollectionMode } from '@/lib/api';
 import { kindUnit } from '@/lib/kinds';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,13 @@ export function CollectionGrid({ collections, unit }: { collections: Collection[
   );
 }
 
+/** Plex's collection modes, as Arc says them. */
+export const gridLabels: Record<CollectionMode, string> = {
+  items: 'Show its titles',
+  collection: 'Show the collection instead of its titles',
+  both: 'Show the collection and its titles',
+};
+
 /** Make a manual or smart collection, or edit one. */
 export function CollectionDialog({
   library,
@@ -81,6 +88,7 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
   const [title, setTitle] = useState(collection?.title ?? '');
   const [sortTitle, setSortTitle] = useState(collection?.locked_fields.includes('sort_title') ? collection.sort_title : '');
   const [overview, setOverview] = useState(collection?.overview ?? '');
+  const [gridMode, setGridMode] = useState<Collection['grid_mode']>(collection?.grid_mode ?? '');
   // Editing: Details, or its poster or background (chosen images wait for Save).
   const [tab, setTab] = useState<'details' | 'poster' | 'backdrop'>('details');
   const [art, setArt] = useState<Partial<Record<'poster' | 'backdrop', ArtworkChange>>>({});
@@ -90,7 +98,7 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
   const save = useMutation({
     mutationFn: async () => {
       if (!editing) return api.createCollection({ library_id: library.id, kind, title, overview, filter: kind === 'smart' ? filter : undefined });
-      const c = await api.updateCollection(collection!.id, { title, sort_title: sortTitle, overview, filter: kind === 'smart' ? filter : undefined });
+      const c = await api.updateCollection(collection!.id, { title, sort_title: sortTitle, overview, filter: kind === 'smart' ? filter : undefined, grid_mode: gridMode });
       for (const [type, change] of Object.entries(art) as ['poster' | 'backdrop', ArtworkChange][]) {
         if ('file' in change) await api.uploadCollectionArtwork(collection!.id, type, change.file);
         else await api.chooseCollectionArtwork(collection!.id, type, 'path' in change ? change.path : null);
@@ -193,6 +201,18 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
         <Field label="Description">
           <textarea value={overview} onChange={(e) => setOverview(e.target.value)} rows={2} className={cn(inputClass, 'h-auto resize-y py-2.5')} />
         </Field>
+        {editing && collection?.kind !== 'folder' && (
+          <Field label="In the library">
+            <select value={gridMode} onChange={(e) => setGridMode(e.target.value as Collection['grid_mode'])} className={inputClass}>
+              <option value="">As the library is set ({gridLabels[library.collection_grid || 'items'].toLowerCase()})</option>
+              {(['items', 'collection', 'both'] as const).map((m) => (
+                <option key={m} value={m}>
+                  {gridLabels[m]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         {kind === 'smart' && (
           <>
             <FilterFields filter={filter} onChange={setFilter} unwatchedLabel="Only what the person watching hasn't seen" />

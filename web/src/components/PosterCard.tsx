@@ -2,7 +2,8 @@ import type { MouseEvent } from 'react';
 import { Link } from 'react-router';
 import { Check } from 'lucide-react';
 import type { Item } from '@/lib/api';
-import { itemHref, posterUrl } from '@/lib/api';
+import { itemHref, posterUrl, type Collection } from '@/lib/api';
+import { CollectionCard } from '@/components/Collections';
 import { useSpoilerGuard } from '@/lib/home';
 import { cn } from '@/lib/utils';
 import { cardYear } from '@/lib/kinds';
@@ -169,14 +170,40 @@ export function PosterGrid({
   items,
   select,
   landscape,
+  collections,
+  collectionUnit = 'title',
 }: {
   items: Item[];
+  /** Collections shown among the titles (Plex's collection mode): each takes the place of its first
+   * title, and hides its titles when it says so. */
+  collections?: { collection: Collection; hideItems: boolean }[];
+  collectionUnit?: string;
   /** Choosing titles: which are chosen, and what a click does (shift-click picks a range). */
   select?: { selected: Set<string>; onToggle: (item: Item, index: number, e: MouseEvent) => void };
   /** Landscape thumbnails instead of posters (home videos). */
   landscape?: boolean;
 }) {
   const Card = landscape ? ThumbCard : PosterCard;
+  if (collections?.length) {
+    // Where each collection goes: at its first title; and the titles it hides.
+    const hidden = new Set<string>();
+    const at = new Map<string, Collection[]>();
+    for (const { collection, hideItems } of collections) {
+      const ids = new Set(collection.item_ids);
+      const first = items.find((it) => ids.has(it.id));
+      if (!first) continue;
+      at.set(first.id, [...(at.get(first.id) ?? []), collection]);
+      if (hideItems) for (const id of ids) hidden.add(id);
+    }
+    return (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
+        {items.flatMap((item) => [
+          ...(at.get(item.id) ?? []).map((c) => <CollectionCard key={`c-${c.id}`} collection={c} unit={collectionUnit} />),
+          ...(hidden.has(item.id) ? [] : [<PosterCard key={item.id} item={item} />]),
+        ])}
+      </div>
+    );
+  }
   return (
     <div
       className={cn(

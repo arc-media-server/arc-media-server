@@ -35,6 +35,8 @@ type libraryBody struct {
 	// Offer Skip Intro and Skip Credits (on by default where they apply).
 	SkipIntros  *bool `json:"skip_intros"`
 	SkipCredits *bool `json:"skip_credits"`
+	// How collections show in the grid by default: "" their titles, "collection" or "both".
+	CollectionGrid string `json:"collection_grid"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -168,6 +170,12 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	if b.CollectionGrid == "collection" || b.CollectionGrid == "both" {
+		if err := s.store.SetLibraryCollectionGrid(r.Context(), id, b.CollectionGrid); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
@@ -220,6 +228,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		Language       *string  `json:"metadata_language"`
 		SkipIntros     *bool    `json:"skip_intros"`
 		SkipCredits    *bool    `json:"skip_credits"`
+		CollectionGrid *string  `json:"collection_grid"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -227,6 +236,16 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
 		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if patch.CollectionGrid != nil {
+		if *patch.CollectionGrid != "" && *patch.CollectionGrid != "collection" && *patch.CollectionGrid != "both" {
+			writeError(w, http.StatusBadRequest, `collection_grid is "" (titles), "collection" or "both"`)
+			return
+		}
+		if err := s.store.SetLibraryCollectionGrid(r.Context(), lib.ID, *patch.CollectionGrid); err != nil {
 			s.fail(w, err)
 			return
 		}

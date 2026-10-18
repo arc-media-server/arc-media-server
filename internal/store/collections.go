@@ -31,14 +31,16 @@ type Collection struct {
 	LockedFields []string `json:"locked_fields"`
 	// How many titles the profile can see in it (filled in when listing).
 	Count int `json:"count"`
+	// How it shows in the library's grid: "" as the library says, or "items", "collection", "both".
+	GridMode string `json:"grid_mode"`
 }
 
-const collectionCols = `id, library_id, kind, tmdb_id, title, sort_title, overview, poster_path, backdrop_path, filter, hidden, locked_fields`
+const collectionCols = `id, library_id, kind, tmdb_id, title, sort_title, overview, poster_path, backdrop_path, filter, hidden, locked_fields, grid_mode`
 
 func scanCollection(row interface{ Scan(...any) error }, c *Collection) error {
 	var locked string
 	if err := row.Scan(&c.ID, &c.LibraryID, &c.Kind, &c.TMDBID, &c.Title, &c.SortTitle, &c.Overview, &c.PosterPath,
-		&c.BackdropPath, &c.Filter, &c.Hidden, &locked); err != nil {
+		&c.BackdropPath, &c.Filter, &c.Hidden, &locked, &c.GridMode); err != nil {
 		return err
 	}
 	c.LockedFields = splitLocked(locked)
@@ -220,8 +222,8 @@ func (s *Store) UpdateCollection(ctx context.Context, c *Collection) error {
 	if c.SortTitle == "" {
 		c.SortTitle = SortTitle(c.Title)
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE collections SET title = ?, sort_title = ?, overview = ?, filter = ?, locked_fields = ? WHERE id = ?`,
-		c.Title, c.SortTitle, c.Overview, c.Filter, strings.Join(c.LockedFields, ","), c.ID)
+	_, err := s.db.ExecContext(ctx, `UPDATE collections SET title = ?, sort_title = ?, overview = ?, filter = ?, locked_fields = ?, grid_mode = ? WHERE id = ?`,
+		c.Title, c.SortTitle, c.Overview, c.Filter, strings.Join(c.LockedFields, ","), c.GridMode, c.ID)
 	return err
 }
 

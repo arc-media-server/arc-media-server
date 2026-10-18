@@ -175,6 +175,8 @@ export interface Library {
   trickplay: boolean;
   /** The fewest films a TMDB collection needs to be shown; 0 for no automatic collections. */
   collection_min: number;
+  /** How collections show in the grid unless they say: "" their titles, or the collection instead, or both. */
+  collection_grid: '' | 'collection' | 'both';
   /** The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English. */
   metadata_language: string;
   /** Offer Skip Intro (TV) and Skip Credits (TV and movies). */
@@ -195,6 +197,7 @@ export interface LibraryInput {
   metadata_language?: string;
   skip_intros?: boolean;
   skip_credits?: boolean;
+  collection_grid?: Library['collection_grid'];
 }
 
 export interface PreviewItem {
@@ -917,7 +920,7 @@ export const api = {
   collection: (id: string) => request<{ collection: Collection; items: Item[] }>('GET', `/api/collections/${id}`),
   createCollection: (c: { library_id: number; kind: 'manual' | 'smart'; title: string; overview?: string; filter?: RowFilter; item_ids?: string[] }) =>
     request<Collection>('POST', '/api/collections', c),
-  updateCollection: (id: string, c: { title?: string; sort_title?: string; overview?: string; filter?: RowFilter; locked_fields?: string[] }) =>
+  updateCollection: (id: string, c: { title?: string; sort_title?: string; overview?: string; filter?: RowFilter; locked_fields?: string[]; grid_mode?: Collection['grid_mode'] }) =>
     request<Collection>('PATCH', `/api/collections/${id}`, c),
   collectionArtwork: (id: string) => request<ArtworkChoices>('GET', `/api/collections/${id}/artwork`),
   chooseCollectionArtwork: (id: string, type: 'poster' | 'backdrop', path: string | null) =>
@@ -1121,7 +1124,14 @@ export interface Collection {
   count: number;
   images: { primary?: string; backdrop?: string };
   smart_filter?: RowFilter;
+  /** How it shows in its library's grid: "" as the library says. */
+  grid_mode: '' | CollectionMode;
+  /** Listing a library: its titles, when it shows in the grid in their place or beside them. */
+  item_ids?: string[];
 }
+
+/** Plex's collection mode: the titles, the collection in their place, or both. */
+export type CollectionMode = 'items' | 'collection' | 'both';
 
 /** A profile's playlist of movies and episodes. */
 export interface Playlist {

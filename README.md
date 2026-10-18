@@ -60,6 +60,9 @@ Early development. Working today:
   enough of them (2 by default, set per library); make your own by picking titles (in any order) or
   as smart collections that hold everything matching a filter. Each library has a Collections view,
   and a title's page shows the rest of its collection
+- Collection mode (as in Plex): a collection can show in the library grid in place of its titles, or
+  beside them, or not at all (the default); each library sets a default (Libraries > Edit) and each
+  collection can choose for itself (Edit). Filtering the library shows the titles as usual
 - Edit a collection like a title: name, sort name and description, and Poster and Background tabs
   (TMDB's for automatic collections, or your own upload); edits are kept when TMDB refreshes
 - Your own ratings (half stars out of five) and a Watchlist (bookmark a movie or show; a Watchlist
@@ -289,7 +292,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 |---|---|---|
 | GET | `/api/libraries` | Libraries with their size and scan status |
 | POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows"\|"videos", "paths": [...], "source_ordering", "trickplay", "metadata_language"}` |
-| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again), `skip_intros` or `skip_credits` |
+| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again), `skip_intros`, `skip_credits`, or `collection_grid` (`""` titles, `collection`, `both`) |
 | DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
 | POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |
 | GET | `/api/library-previews/{id}` | The preview's progress and results |
@@ -355,7 +358,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET / PUT | `/api/collections/{id}/artwork` | Posters and backgrounds to choose from; choose one `{"type", "path"}` (`null` for automatic) |
 | POST | `/api/collections/{id}/artwork/{poster|backdrop}` | Upload a collection's poster or background |
 | POST | `/api/collections` | Make one: `{"library_id", "kind": "manual"|"smart", "title", "overview", "filter", "item_ids"}` |
-| PATCH / DELETE | `/api/collections/{id}` | Change or delete one (automatic ones are hidden) |
+| PATCH / DELETE | `/api/collections/{id}` | Change (incl. `grid_mode`: `""` the library's, `items`, `collection`, `both`) or delete one (automatic ones are hidden) |
 | POST / DELETE / PUT | `/api/collections/{id}/items[/{item}]`, `/order` | Add, remove and order a manual collection's titles |
 | GET | `/api/health/libraries` | Count of problems needing the user, per library |
 | POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
