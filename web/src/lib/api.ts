@@ -627,6 +627,13 @@ export interface RecentCard {
 }
 
 export type Theme = '' | 'dark' | 'light';
+export type SubtitleMode = '' | 'manual' | 'foreign' | 'always';
+export interface SubtitleStyle {
+  size?: 'small' | 'medium' | 'large' | 'huge';
+  color?: 'white' | 'yellow';
+  background?: 'box' | 'solid' | 'none';
+  position?: 'bottom' | 'top';
+}
 
 /** The current profile's own preferences. */
 export interface Prefs {
@@ -639,6 +646,10 @@ export interface Prefs {
   audio_language?: string;
   /** Skip intros and recaps without asking. */
   auto_skip?: boolean;
+  /** When subtitles turn on by themselves (Plex's subtitle mode); absent: in the language last chosen. */
+  subtitle_mode?: SubtitleMode;
+  /** How subtitles look; absent fields use the defaults. */
+  subtitle_style: SubtitleStyle;
   /** Play a title's theme tune on its page; on unless false. */
   theme_music?: boolean;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
