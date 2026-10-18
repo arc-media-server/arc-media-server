@@ -741,6 +741,11 @@ export interface ServerSettings {
   previews_at_night: boolean;
   /** OMDb, for Rotten Tomatoes' and Metacritic's scores (masked). */
   omdb_api_key: string;
+  /** Pre-roll videos before movies: files or folders, one per line; and whether one plays at random or all. */
+  preroll_paths: string;
+  preroll_mode: 'random' | 'all';
+  /** How many pre-roll videos those paths hold. */
+  preroll_found: number;
   listen: string;
   from_env: Record<string, boolean>;
 }
@@ -812,7 +817,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
@@ -869,6 +874,7 @@ export const api = {
     h.id ? request<Webhook>('PUT', `/api/webhooks/${h.id}`, h) : request<Webhook>('POST', '/api/webhooks', h),
   deleteWebhook: (id: string) => request<void>('DELETE', `/api/webhooks/${id}`),
   testWebhook: (id: string) => request<{ ok: boolean; status: string }>('POST', `/api/webhooks/${id}/test`),
+  preroll: (itemId: string) => request<{ title: string; url: string }[]>('GET', `/api/items/${itemId}/preroll`),
   news: () => request<{ entries: NewsEntry[]; unread: number }>('GET', '/api/news'),
   newsSeen: () => request<void>('POST', '/api/news/seen'),
   startImport: (b: { source: 'plex' } | { source: 'jellyfin'; url: string; username: string; password: string }) =>

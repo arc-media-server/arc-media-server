@@ -105,6 +105,10 @@ export function SettingsPage() {
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
+          <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
+            <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
+          </Section>
+
           <Section title="Notifications" hint="Send messages to Discord, Slack or anywhere else when things happen.">
             <Webhooks />
           </Section>
@@ -203,6 +207,58 @@ const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 export function regionOptions(current?: string): [string, string][] {
   const codes = current && !regionCodes.includes(current) ? [...regionCodes, current] : regionCodes;
   return codes.map((c) => [c, regionNames.of(c) ?? c] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+/** Pre-roll videos: files or folders, and whether one plays at random or all of them. */
+function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const [paths, setPaths] = useState(s.preroll_paths);
+  const [busy, setBusy] = useState(false);
+  const changed = paths.trim() !== s.preroll_paths;
+  const save = async (patch: Patch) => {
+    setBusy(true);
+    try {
+      await onSave(patch);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-3 px-4 py-3.5">
+      <div>
+        <p className="text-sm font-medium">Videos</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">
+          Files or folders of them, one per line. MP4 (H.264) plays everywhere. They play when a movie starts from the beginning, not when you
+          carry on.
+        </p>
+      </div>
+      <textarea
+        value={paths}
+        onChange={(e) => setPaths(e.target.value)}
+        rows={3}
+        placeholder={'D:\\Pre-rolls\nD:\\Trailers\\Arc intro.mp4'}
+        className={`${inputClass} h-auto w-full resize-y py-2 font-mono text-xs leading-relaxed`}
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={s.preroll_mode}
+          disabled={busy}
+          onChange={(e) => save({ preroll_mode: e.target.value as 'random' | 'all' })}
+          className={`${inputClass} [&>option]:bg-surface`}
+        >
+          <option value="random">Play one at random</option>
+          <option value="all">Play them all, in order</option>
+        </select>
+        <span className="flex-1 text-xs text-muted">
+          {s.preroll_paths ? (s.preroll_found ? `${s.preroll_found} video${s.preroll_found === 1 ? '' : 's'} found` : 'No videos found there') : 'Off'}
+        </span>
+        {changed && (
+          <Button variant="primary" size="sm" disabled={busy} onClick={() => save({ preroll_paths: paths.trim() })}>
+            {busy && <Loader2 className="animate-spin" />} Save
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** An hour of the day, as 24-hour time. */

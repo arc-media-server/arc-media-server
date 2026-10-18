@@ -680,6 +680,9 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"maintenance_end":        st.MaintenanceEnd,
 		"previews_at_night":      st.PreviewsAtNight,
 		"omdb_api_key":           maskKey(st.OMDbKey),
+		"preroll_paths":          st.PrerollPaths,
+		"preroll_mode":           st.PrerollMode,
+		"preroll_found":          len(prerollFiles(st.PrerollPaths)),
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -722,6 +725,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		MaintEnd      *int    `json:"maintenance_end"`
 		PreviewsNight *bool   `json:"previews_at_night"`
 		OMDbKey       *string `json:"omdb_api_key"`
+		PrerollPaths  *string `json:"preroll_paths"`
+		PrerollMode   *string `json:"preroll_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -789,6 +794,16 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.PreviewsNight != nil {
 		next.PreviewsAtNight = *body.PreviewsNight
+	}
+	if body.PrerollPaths != nil {
+		next.PrerollPaths = strings.TrimSpace(*body.PrerollPaths)
+	}
+	if body.PrerollMode != nil {
+		if *body.PrerollMode != "all" && *body.PrerollMode != "random" {
+			writeError(w, http.StatusBadRequest, `preroll_mode is "random" or "all"`)
+			return
+		}
+		next.PrerollMode = *body.PrerollMode
 	}
 	if body.OMDbKey != nil {
 		next.OMDbKey = strings.TrimSpace(*body.OMDbKey)

@@ -39,6 +39,9 @@ type Settings struct {
 	PreviewsAtNight bool
 	// OMDb, for Rotten Tomatoes' and Metacritic's scores ("" for none).
 	OMDbKey string
+	// Pre-roll videos before movies: files or folders, one per line; "random" plays one of them,
+	// "all" every one in order.
+	PrerollPaths, PrerollMode string
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -64,6 +67,8 @@ const (
 	keyMaintEnd      = "maintenance_end"
 	keyPreviewsNight = "previews_at_night"
 	keyOMDb          = "omdb_api_key"
+	keyPrerollPaths  = "preroll_paths"
+	keyPrerollMode   = "preroll_mode"
 )
 
 // Environment variables that override settings.
@@ -161,6 +166,15 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.OMDbKey, err = get(keyOMDb); err != nil {
 		return s, err
 	}
+	if s.PrerollPaths, err = get(keyPrerollPaths); err != nil {
+		return s, err
+	}
+	if s.PrerollMode, err = get(keyPrerollMode); err != nil {
+		return s, err
+	}
+	if s.PrerollMode != "all" {
+		s.PrerollMode = "random"
+	}
 	return s, nil
 }
 
@@ -174,6 +188,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyOSKey: s.OpenSubtitlesKey, keyOSUser: s.OpenSubtitlesUser, keyOSPassword: s.OpenSubtitlesPassword,
 		keyMaintStart: strconv.Itoa(s.MaintenanceStart), keyMaintEnd: strconv.Itoa(s.MaintenanceEnd),
 		keyPreviewsNight: boolString(s.PreviewsAtNight), keyOMDb: s.OMDbKey,
+		keyPrerollPaths: s.PrerollPaths, keyPrerollMode: s.PrerollMode,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

@@ -49,6 +49,8 @@ export interface NowPlaying {
   startMS?: number;
   /** The edition to play when the title has several (e.g. "Director's Cut"). */
   edition?: string;
+  /** A pre-roll video before a movie: it carries straight on, and can be skipped. */
+  preroll?: boolean;
 }
 
 const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
@@ -66,10 +68,22 @@ const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const [queue, setQueue] = useState<{ items: NowPlaying[]; index: number } | null>(null);
-  const play = useCallback(
-    (item: NowPlaying, list?: NowPlaying[]) => setQueue(list?.length ? { items: list, index: Math.max(0, list.indexOf(item)) } : { items: [item], index: 0 }),
-    [],
-  );
+  const play = useCallback((item: NowPlaying, list?: NowPlaying[]) => {
+    const start = list?.length ? { items: list, index: Math.max(0, list.indexOf(item)) } : { items: [item], index: 0 };
+    // A movie played from the start gets the pre-roll videos set in Settings first.
+    if (!item.itemId || item.preroll || (item.startMS ?? 0) > 0) {
+      setQueue(start);
+      return;
+    }
+    api
+      .preroll(item.itemId)
+      .catch(() => [])
+      .then((clips) => {
+        if (!clips.length) return setQueue(start);
+        const prerolls: NowPlaying[] = clips.map((c) => ({ title: c.title, subtitle: `Before ${item.title}`, src: c.url, preroll: true }));
+        setQueue({ items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index });
+      });
+  }, []);
   const go = useCallback((delta: number) => setQueue((q) => (q && q.items[q.index + delta] ? { ...q, index: q.index + delta } : q)), []);
   // Auto-Play: an episode with nothing queued after it carries on with the next one in the
   // profile's episode order (the countdown, Next and Shift+N then work as in a playlist).
@@ -107,7 +121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             item={queue.items[queue.index]}
             next={queue.items[queue.index + 1]}
             onNext={() => go(1)}
-            onPrevious={queue.index > 0 ? () => go(-1) : undefined}
+            onPrevious={queue.index > 0 && !queue.items[queue.index - 1].preroll ? () => go(-1) : undefined}
             onClose={close}
           />
         )}
@@ -308,8 +322,10 @@ function PlayerOverlay({
     }
     detach();
     setLoading(false);
+    // A pre-roll that won't play is skipped rather than holding up the movie.
+    if (item.preroll && next) return onNext();
     setError(item.itemId ? "Arc couldn't play this file." : "This file can't be played in the browser.");
-  }, [absMS, detach, item.itemId, item.src, load]);
+  }, [absMS, detach, item.itemId, item.src, item.preroll, next, onNext, load]);
 
   // Show a subtitle track (null for none). Text ones are drawn here; picture ones are burned into
   // the video, which restarts it converted. remember saves the language for next time.
@@ -700,7 +716,9 @@ function PlayerOverlay({
             onEnded={() => {
               setPaused(true);
               report('paused');
-              if (next) setUpNextIn(10);
+              // A pre-roll goes straight on to the movie; anything else counts down first.
+              if (next && item.preroll) onNext();
+              else if (next) setUpNextIn(10);
             }}
           />
           {cueText && (
@@ -742,6 +760,11 @@ function PlayerOverlay({
         </Button>
       </div>
 
+      {item.preroll && next && (
+        <Button variant="glass" className="absolute bottom-28 right-6 z-10" onClick={onNext}>
+          Skip <SkipForward />
+        </Button>
+      )}
       {upNextIn !== null && next && (
         <UpNext item={next} seconds={upNextIn} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
       )}
