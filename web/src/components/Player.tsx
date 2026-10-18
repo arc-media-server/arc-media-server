@@ -664,6 +664,31 @@ function PlayerOverlay({
     if (!v.paused && Date.now() - lastReport.current >= reportEveryMS) report();
   };
 
+  // Skip Intro and Skip Credits.
+  const markers = planState?.markers ?? [];
+  const skippable = item.preroll ? undefined : markers.find((m) => m.kind !== 'credits' && positionMS >= m.start_ms && positionMS < m.end_ms - 1500);
+  const credits = item.preroll ? undefined : markers.find((m) => m.kind === 'credits');
+  const inCredits = !!credits && positionMS >= credits.start_ms && positionMS < credits.end_ms - 1500;
+  const autoSkipped = useRef(new Set<string>());
+  const creditsShown = useRef(false);
+  const [skippedNote, setSkippedNote] = useState<string | null>(null);
+  useEffect(() => {
+    // "Skip intros automatically": once per intro or recap, so seeking back into one lets it play.
+    if (!skippable || !prefs.data?.auto_skip || autoSkipped.current.has(skippable.kind) || paused) return;
+    autoSkipped.current.add(skippable.kind);
+    seekTo(skippable.end_ms);
+    setSkippedNote(skippable.kind === 'intro' ? 'Skipped the intro' : 'Skipped the recap');
+    const t = window.setTimeout(() => setSkippedNote(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [skippable, prefs.data?.auto_skip, paused, seekTo]);
+  useEffect(() => {
+    // When the credits start, Up Next counts down (as Plex does); Cancel lets them play.
+    if (inCredits && next && !creditsShown.current && upNextIn === null) {
+      creditsShown.current = true;
+      setUpNextIn(10);
+    }
+  }, [inCredits, next, upNextIn]);
+
   const showChrome = chromeVisible || paused || menuOpen || !!error || stopped !== null;
   const dur = durationMS;
 
@@ -760,6 +785,19 @@ function PlayerOverlay({
         </Button>
       </div>
 
+      {skippable && !skippedNote && (
+        <Button variant="primary" size="lg" className="absolute bottom-28 right-6 z-10 shadow-2xl shadow-black/50" onClick={() => seekTo(skippable.end_ms)}>
+          {skippable.kind === 'intro' ? 'Skip Intro' : 'Skip Recap'} <SkipForward />
+        </Button>
+      )}
+      {inCredits && upNextIn === null && credits && (
+        <Button variant="primary" size="lg" className="absolute bottom-28 right-6 z-10 shadow-2xl shadow-black/50" onClick={() => (next ? onNext() : seekTo(credits.end_ms))}>
+          {next ? 'Play Next' : 'Skip Credits'} <SkipForward />
+        </Button>
+      )}
+      {skippedNote && (
+        <div className="pointer-events-none absolute bottom-28 right-6 z-10 rounded-full bg-black/70 px-4 py-2 text-sm text-white ring-1 ring-white/15">{skippedNote}</div>
+      )}
       {item.preroll && next && (
         <Button variant="glass" className="absolute bottom-28 right-6 z-10" onClick={onNext}>
           Skip <SkipForward />

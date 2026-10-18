@@ -76,7 +76,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   nightly maintenance window, Other videos libraries, IMDb/Rotten Tomatoes/Metacritic scores. The owner
   put cross-provider metadata details on the back burner (#104-#106, #109 in Later). 
 - Milestone 15 done (Oct 2026): import from Plex/Jellyfin, webhooks + New for You, theme music, pre-roll.
-  Next: 16 (intro and credits skipping), then 17, 18; the owner asked for 15-18 in one go.
+- Milestone 16 done (Oct 2026): skip markers from chapters, IntroDB/TheIntroDB (checked against file
+  length) and Chromaprint detection across a season; Skip Intro/Recap/Credits in the player; manual editing.
+  Next: 17, then 18; the owner asked for 15-18 in one go.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
@@ -126,6 +128,7 @@ internal/watcher/    fsnotify on library folders -> scanner.Request after 10s qu
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
 internal/schedule/   the maintenance window (hours of the night heavy work waits for)
+internal/markers/    intro/recap/credits markers: chapters, IntroDB, TheIntroDB, Chromaprint detection (ffmpeg)
 internal/notify/     webhook events (library.new, playback.start/watched, server.problem); Discord/Slack formats
 internal/importer/   imports watch state from Plex (plex.tv PIN sign-in) and Jellyfin; AMS_PLEX_TV_URL for a stand-in
 internal/ratings/    IMDb ratings file (weekly) and OMDb critics' scores; AMS_OMDB_URL / AMS_IMDB_RATINGS_URL for stand-ins

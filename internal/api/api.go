@@ -41,6 +41,8 @@ type Deps struct {
 	Activity *activity.Tracker
 	// Notify sends events to webhooks.
 	Notify *notify.Notifier
+	// Markers finds intros and credits; told when markers are reset.
+	Markers interface{ Wake() }
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -86,6 +88,7 @@ type Server struct {
 	logs             *logbuf.Buffer
 	activity         *activity.Tracker
 	notify           *notify.Notifier
+	markers          interface{ Wake() }
 	imports          importSessions
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -97,7 +100,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -124,6 +127,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/news", user(s.news))
 	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
 	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
+	mux.HandleFunc("GET /api/items/{id}/markers", admin(s.itemMarkers))
+	mux.HandleFunc("PUT /api/items/{id}/markers", admin(s.setItemMarkers))
+	mux.HandleFunc("DELETE /api/items/{id}/markers", admin(s.resetItemMarkers))
 	mux.HandleFunc("GET /api/preroll/{n}", user(s.prerollVideo))
 	mux.HandleFunc("POST /api/news/seen", user(s.newsSeen))
 	mux.HandleFunc("GET /api/imports/{id}", admin(s.getImport))

@@ -202,6 +202,8 @@ type playbackPlan struct {
 	SourceHeight int `json:"source_height"`
 	// The file's chapter marks (times in the file).
 	Chapters []store.Chapter `json:"chapters"`
+	// Where the intro, recap and credits are, for Skip Intro and Skip Credits (times in the file).
+	Markers []store.Marker `json:"markers"`
 }
 
 // startPlayback: POST /api/items/{id}/playback {"caps": {...}, "file_id", "audio_stream",
@@ -305,6 +307,10 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		out.SourceHeight = video.Height
 	}
 	if out.Chapters, err = s.store.FileChapters(r.Context(), f.ID); err != nil {
+		s.fail(w, err)
+		return
+	}
+	if out.Markers, err = s.playableMarkers(r, f.ID); err != nil {
 		s.fail(w, err)
 		return
 	}

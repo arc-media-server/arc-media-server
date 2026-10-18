@@ -42,6 +42,10 @@ type Settings struct {
 	// Pre-roll videos before movies: files or folders, one per line; "random" plays one of them,
 	// "all" every one in order.
 	PrerollPaths, PrerollMode string
+	// TheIntroDB, for intro and credits timings ("" to use IntroDB alone), and whether to find them
+	// on this computer when there are none online (on unless turned off).
+	TheIntroDBKey string
+	DetectIntros  bool
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -69,6 +73,8 @@ const (
 	keyOMDb          = "omdb_api_key"
 	keyPrerollPaths  = "preroll_paths"
 	keyPrerollMode   = "preroll_mode"
+	keyTheIntroDB    = "theintrodb_api_key"
+	keyDetectIntros  = "detect_intros"
 )
 
 // Environment variables that override settings.
@@ -175,6 +181,13 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.PrerollMode != "all" {
 		s.PrerollMode = "random"
 	}
+	if s.TheIntroDBKey, err = get(keyTheIntroDB); err != nil {
+		return s, err
+	}
+	if v, err = get(keyDetectIntros); err != nil {
+		return s, err
+	}
+	s.DetectIntros = v != "0"
 	return s, nil
 }
 
@@ -189,6 +202,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyMaintStart: strconv.Itoa(s.MaintenanceStart), keyMaintEnd: strconv.Itoa(s.MaintenanceEnd),
 		keyPreviewsNight: boolString(s.PreviewsAtNight), keyOMDb: s.OMDbKey,
 		keyPrerollPaths: s.PrerollPaths, keyPrerollMode: s.PrerollMode,
+		keyTheIntroDB: s.TheIntroDBKey, keyDetectIntros: boolString(s.DetectIntros),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

@@ -355,7 +355,7 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import';
+  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
@@ -457,6 +457,7 @@ export interface PlaybackPlan {
   source_height: number;
   /** The file's chapter marks (times in the file). */
   chapters: Chapter[];
+  markers: Marker[];
   /** The picture subtitle track being burned into the video, if any. */
   burn_subtitle?: string;
   /** When converting: the graphics card doing it (e.g. "NVIDIA NVENC"), and whether HDR is mapped to SDR. */
@@ -628,6 +629,8 @@ export interface Prefs {
   subtitle_language: string;
   /** The audio language last chosen, e.g. "jpn"; played by default when a file has it. */
   audio_language?: string;
+  /** Skip intros and recaps without asking. */
+  auto_skip?: boolean;
   /** Play a title's theme tune on its page; on unless false. */
   theme_music?: boolean;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
@@ -739,6 +742,9 @@ export interface ServerSettings {
   maintenance_end: number;
   /** Make scrubbing previews only in the maintenance window. */
   previews_at_night: boolean;
+  /** TheIntroDB, for intro and credits timings (masked), and whether to find them on this computer. */
+  theintrodb_api_key: string;
+  detect_intros: boolean;
   /** OMDb, for Rotten Tomatoes' and Metacritic's scores (masked). */
   omdb_api_key: string;
   /** Pre-roll videos before movies: files or folders, one per line; and whether one plays at random or all. */
@@ -817,7 +823,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
@@ -874,6 +880,10 @@ export const api = {
     h.id ? request<Webhook>('PUT', `/api/webhooks/${h.id}`, h) : request<Webhook>('POST', '/api/webhooks', h),
   deleteWebhook: (id: string) => request<void>('DELETE', `/api/webhooks/${id}`),
   testWebhook: (id: string) => request<{ ok: boolean; status: string }>('POST', `/api/webhooks/${id}/test`),
+  itemMarkers: (id: string) => request<{ file_id: number; duration_ms: number; markers: Marker[] }>('GET', `/api/items/${id}/markers`),
+  setItemMarkers: (id: string, markers: { kind: string; start_ms: number; end_ms: number }[]) =>
+    request<{ file_id: number; duration_ms: number; markers: Marker[] }>('PUT', `/api/items/${id}/markers`, { markers }),
+  resetItemMarkers: (id: string) => request<void>('DELETE', `/api/items/${id}/markers`),
   preroll: (itemId: string) => request<{ title: string; url: string }[]>('GET', `/api/items/${itemId}/preroll`),
   news: () => request<{ entries: NewsEntry[]; unread: number }>('GET', '/api/news'),
   newsSeen: () => request<void>('POST', '/api/news/seen'),
@@ -1189,6 +1199,14 @@ export interface SeasonArt {
 }
 
 /** A chapter mark in a media file. */
+/** Where a file's intro, recap or credits are, for Skip Intro and Skip Credits. */
+export interface Marker {
+  kind: 'intro' | 'recap' | 'credits';
+  start_ms: number;
+  end_ms: number;
+  source: 'manual' | 'chapters' | 'theintrodb' | 'introdb' | 'detected';
+}
+
 export interface Chapter {
   start_ms: number;
   end_ms: number;

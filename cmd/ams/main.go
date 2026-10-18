@@ -27,6 +27,7 @@ import (
 	"ams/internal/backup"
 	"ams/internal/config"
 	"ams/internal/logbuf"
+	"ams/internal/markers"
 	"ams/internal/metadata"
 	"ams/internal/notify"
 	"ams/internal/opensubtitles"
@@ -209,9 +210,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}
 	// After each scan, download new artwork so it's there offline.
+	var skips *markers.Manager // set below; scans finishing wake it
 	sc.OnFinish = func(libraryID int64) {
 		artKeeper.Trigger()
 		extRatings.Changed()
+		if skips != nil {
+			skips.Wake()
+		}
 		// Tell webhooks what's new, or that the scan failed.
 		status := sc.Status(libraryID)
 		lib, err := st.GetLibrary(ctx, libraryID)
@@ -239,6 +244,16 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	thumbs.Activity = tasks
 	thumbs.Allowed = func() bool { return !previewsAtNight.Load() || window.Open() }
 	go thumbs.Run(ctx)
+	// Intro and credits markers, found in the background.
+	skips = markers.New(st, log)
+	skips.Activity, skips.Window = tasks, window
+	skips.FFmpeg = func() string {
+		ffMu.Lock()
+		defer ffMu.Unlock()
+		return ffmpegBin
+	}
+	skips.Configure(cfg.TheIntroDBKey, cfg.DetectIntros)
+	go skips.Run(ctx)
 	librariesChanged := func(scan bool) {
 		thumbs.Wake()
 		libs, err := st.ListLibraries(ctx)
@@ -358,6 +373,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		tvdb.SetKey(next.TVDBKey)
 		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
 		extRatings.SetOMDbKey(next.OMDbKey)
+		skips.Configure(next.TheIntroDBKey, next.DetectIntros)
 		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
 		if next.PreviewsAtNight != current.PreviewsAtNight {
 			previewsAtNight.Store(next.PreviewsAtNight)
@@ -378,7 +394,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },

@@ -30,6 +30,8 @@ type prefs struct {
 	AutoPlay *bool `json:"auto_play,omitempty"`
 	// Play a title's theme tune quietly on its page; on unless turned off, as in Plex.
 	ThemeMusic *bool `json:"theme_music,omitempty"`
+	// Skip intros and recaps without asking (off unless turned on).
+	AutoSkip bool `json:"auto_skip"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
@@ -269,6 +271,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		SplitUpNext      *bool     `json:"split_up_next"`
 		AutoPlay         *bool     `json:"auto_play"`
 		ThemeMusic       *bool     `json:"theme_music"`
+		AutoSkip         *bool     `json:"auto_skip"`
 		Home             []homeRow `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
@@ -289,6 +292,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.SplitUpNext != nil {
 		p.SplitUpNext = *body.SplitUpNext
+	}
+	if body.AutoSkip != nil {
+		p.AutoSkip = *body.AutoSkip
 	}
 	if body.ThemeMusic != nil {
 		p.ThemeMusic = body.ThemeMusic
