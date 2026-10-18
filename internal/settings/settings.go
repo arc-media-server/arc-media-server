@@ -56,6 +56,8 @@ type Settings struct {
 	UPnP         bool
 	// HTTPS on the same port: "" off, "files" (HTTPSCert and HTTPSKey) or "letsencrypt" (HTTPSDomain).
 	HTTPSMode, HTTPSCert, HTTPSKey, HTTPSDomain string
+	// Networks that count as home besides private addresses, e.g. "100.64.0.0/10" (comma-separated).
+	HomeNetworks string
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -94,6 +96,7 @@ const (
 	keyHTTPSCert     = "https_cert"
 	keyHTTPSKey      = "https_key"
 	keyHTTPSDomain   = "https_domain"
+	keyHomeNetworks  = "home_networks"
 )
 
 // Environment variables that override settings.
@@ -241,6 +244,9 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.HTTPSDomain, err = get(keyHTTPSDomain); err != nil {
 		return s, err
 	}
+	if s.HomeNetworks, err = get(keyHomeNetworks); err != nil {
+		return s, err
+	}
 	return s, nil
 }
 
@@ -259,6 +265,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
 		keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
 		keyHTTPSMode: s.HTTPSMode, keyHTTPSCert: s.HTTPSCert, keyHTTPSKey: s.HTTPSKey, keyHTTPSDomain: s.HTTPSDomain,
+		keyHomeNetworks: s.HomeNetworks,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

@@ -69,3 +69,21 @@ func TestTokens(t *testing.T) {
 		t.Error("tokens should be long, random and hash consistently")
 	}
 }
+
+func TestHomeNetworks(t *testing.T) {
+	nets, tidy, err := ParseNetworks("100.64.0.0/10, 203.0.113.5")
+	if err != nil || tidy != "100.64.0.0/10, 203.0.113.5/32" {
+		t.Fatalf("got %q %v", tidy, err)
+	}
+	if IsHomeIP("100.101.1.2") || !IsHomeIP("192.168.1.4") {
+		t.Fatal("before setting networks")
+	}
+	SetHomeNetworks(nets)
+	defer SetHomeNetworks(nil)
+	if !IsHomeIP("100.101.1.2") || !IsHomeIP("203.0.113.5") || IsHomeIP("8.8.8.8") {
+		t.Fatal("after setting networks")
+	}
+	if _, _, err := ParseNetworks("not a network"); err == nil {
+		t.Fatal("bad input accepted")
+	}
+}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"ams/internal/auth"
 	"cmp"
 	"crypto/rand"
 	"encoding/hex"
@@ -8,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"maps"
-	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -441,7 +441,4 @@ func (n *nowPlaying) remoteOthers(r *http.Request, itemID string) int {
 }
 
 // isHomeAddress reports whether an IP address is this computer or the home network.
-func isHomeAddress(addr string) bool {
-	ip := net.ParseIP(addr)
-	return ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast())
-}
+func isHomeAddress(addr string) bool { return auth.IsHomeIP(addr) }
