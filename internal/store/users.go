@@ -23,16 +23,18 @@ type User struct {
 	LibraryIDs []int64 `json:"library_ids"`
 	// Titles with these labels are hidden from the profile.
 	ExcludeLabels []string `json:"exclude_labels"`
-	PasswordHash  string   `json:"-"`
-	PINHash       string   `json:"-"`
-	CreatedAt     int64    `json:"created_at"`
+	// A friend: someone outside the household who signs in with their own name and password.
+	IsFriend     bool   `json:"is_friend"`
+	PasswordHash string `json:"-"`
+	PINHash      string `json:"-"`
+	CreatedAt    int64  `json:"created_at"`
 }
 
-const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids, exclude_labels`
+const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids, exclude_labels, is_friend`
 
 func scanUser(row interface{ Scan(...any) error }, u *User) error {
 	var libs, labels string
-	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs, &labels); err != nil {
+	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs, &labels, &u.IsFriend); err != nil {
 		return err
 	}
 	u.LibraryIDs = parseIDs(libs)
@@ -277,5 +279,52 @@ func (s *Store) UserPrefs(ctx context.Context, userID string) (string, error) {
 // SetUserPrefs replaces a profile's preferences JSON.
 func (s *Store) SetUserPrefs(ctx context.Context, userID, prefs string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET prefs = ? WHERE id = ?`, prefs, userID)
+	return err
+}
+
+// SetInvite makes a profile a friend with an invite link (its token's hash) that works until a time.
+func (s *Store) SetInvite(ctx context.Context, userID, tokenHash string, expires int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET is_friend = 1, invite_hash = ?, invite_expires = ? WHERE id = ?`,
+		tokenHash, expires, userID)
+	return err
+}
+
+// UserByInvite finds the friend an invite link is for, or nil when it's unknown or has run out.
+func (s *Store) UserByInvite(ctx context.Context, tokenHash string) (*User, error) {
+	var u User
+	err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users
+		WHERE invite_hash = ? AND invite_hash <> '' AND invite_expires > ? AND is_friend = 1`, tokenHash, time.Now().Unix()), &u)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// AcceptInvite sets a friend's password and uses up their invite link.
+func (s *Store) AcceptInvite(ctx context.Context, userID, passwordHash string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET password_hash = ?, invite_hash = '', invite_expires = 0 WHERE id = ?`,
+		passwordHash, userID)
+	return err
+}
+
+// FriendByName finds a friend by name (any case), or nil.
+func (s *Store) FriendByName(ctx context.Context, name string) (*User, error) {
+	var u User
+	err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE name = ? COLLATE NOCASE AND is_friend = 1`, name), &u)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// DeleteUserSessions signs a profile out everywhere.
+func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
 	return err
 }

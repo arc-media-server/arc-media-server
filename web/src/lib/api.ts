@@ -704,6 +704,11 @@ export interface Profile {
   library_ids: number[] | null;
   /** Titles with these labels are hidden from this profile. */
   exclude_labels: string[];
+  /** A friend outside the household, and whether they've used their invite yet. */
+  is_friend?: boolean;
+  joined?: boolean;
+  /** A new friend's invite link token (only when they've just been added). */
+  invite_token?: string;
 }
 
 export interface AuthStatus {
@@ -716,6 +721,8 @@ export interface AuthStatus {
   local: boolean;
   profile: Profile | null;
   profiles: Profile[];
+  /** Signed in as a friend (with their own name and password): no profile picker. */
+  friend: boolean;
 }
 
 export interface ServerSettings {
@@ -812,13 +819,17 @@ export const api = {
   setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string; region?: string }) =>
     request<Profile>('POST', '/api/auth/setup', body),
   login: (password: string) => request<void>('POST', '/api/auth/login', { password }),
+  friendLogin: (name: string, password: string) => request<void>('POST', '/api/auth/friend', { name, password }),
+  invite: (token: string) => request<{ name: string }>('GET', `/api/invites/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string, password: string) => request<void>('POST', `/api/invites/${encodeURIComponent(token)}`, { password }),
+  reinvite: (id: string) => request<{ invite_token: string }>('POST', `/api/profiles/${id}/invite`),
   chooseProfile: (id: string, secret: { pin?: string; password?: string } = {}) =>
     request<Profile>('POST', '/api/auth/profile', { id, ...secret }),
   leaveProfile: () => request<void>('DELETE', '/api/auth/profile'),
   logout: () => request<void>('POST', '/api/auth/logout'),
   changePassword: (current: string, next: string) => request<void>('POST', '/api/auth/password', { current, new: next }),
   profiles: () => request<Profile[]>('GET', '/api/profiles'),
-  createProfile: (p: { name: string; color: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('POST', '/api/profiles', p),
+  createProfile: (p: { name: string; color: ProfileColor; friend?: boolean; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('POST', '/api/profiles', p),
   updateProfile: (id: string, p: { name?: string; color?: ProfileColor; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('PATCH', `/api/profiles/${id}`, p),
   profilePrefs: (id: string) => request<Prefs>('GET', `/api/profiles/${id}/prefs`),
   updateProfilePrefs: (id: string, patch: Partial<Prefs>) => request<Prefs>('PATCH', `/api/profiles/${id}/prefs`, patch),

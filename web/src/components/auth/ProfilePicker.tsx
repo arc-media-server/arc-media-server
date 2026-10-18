@@ -7,12 +7,15 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui/button';
 import { AuthScreen, fieldClass } from './Screen';
+import { SignIn } from './SignIn';
 
 /** "Who's watching?": pick a profile, entering its PIN (or for the admin at home, the password). */
 export function ProfilePicker({ status }: { status: AuthStatus }) {
   const qc = useQueryClient();
   const [chosen, setChosen] = useState<Profile | null>(null);
   const [needs, setNeeds] = useState<'pin' | 'password' | null>(null);
+  // A friend visiting the home network signs in with their own name and password.
+  const [asFriend, setAsFriend] = useState(false);
 
   const choose = useMutation({
     mutationFn: ({ profile, secret }: { profile: Profile; secret?: { pin?: string; password?: string } }) => api.chooseProfile(profile.id, secret),
@@ -39,6 +42,8 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
     setNeeds(null);
     choose.reset();
   };
+
+  if (asFriend) return <SignIn asFriend />;
 
   if (chosen && needs) {
     const wrong = choose.error instanceof ApiError && choose.error.status !== 401 ? choose.error.message : choose.error && 'Try again';
@@ -103,6 +108,11 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
         ))}
       </div>
       {choose.error && !needs && <p className="mt-6 text-center text-sm text-warning">{choose.error.message}</p>}
+      {!status.signed_in && (
+        <button type="button" onClick={() => setAsFriend(true)} className="mx-auto mt-12 block text-sm text-muted transition-colors hover:text-foreground">
+          Not part of this household? Sign in as a friend
+        </button>
+      )}
       {status.password_session && (
         <div className="mt-12 flex justify-center">
           <Button

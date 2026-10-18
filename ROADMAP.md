@@ -148,7 +148,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 
 ### 17. Remote access and devices
 - [ ] HTTPS, secure remote access setup (#57)
-- [ ] Sharing with friends, library access per user (#58)
+- [x] Sharing with friends, library access per user (#58)
 - [x] Bandwidth limits for remote streams (#59)
 - [ ] Casting: Chromecast and AirPlay (#100)
 - [x] Pre-converted versions for difficult devices (#101)
