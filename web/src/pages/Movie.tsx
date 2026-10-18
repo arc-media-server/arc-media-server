@@ -18,6 +18,7 @@ import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
 import { SimilarRow } from '@/components/Similar';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
+import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { cn } from '@/lib/utils';
 import { progressOf } from '@/components/WatchState';
@@ -40,6 +41,8 @@ export function MoviePage() {
       qc.invalidateQueries({ queryKey: ['health-summary'] });
     },
   });
+
+  useThemeMusic(item?.theme_url);
 
   if (error) return <ErrorState error={error} />;
   if (!item) return <div className="h-[70vh] animate-pulse bg-surface" />;

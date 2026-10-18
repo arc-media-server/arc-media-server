@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -30,9 +31,35 @@ func findImage(dir string, bases ...string) string {
 	return ""
 }
 
+// themeExts are the audio files a theme tune can be.
+var themeExts = []string{".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav"}
+
+// findTheme returns a folder's theme tune: theme.mp3 (Plex, Kodi) or the first tune in a
+// theme-music folder (Jellyfin), or "".
+func findTheme(dir string) string {
+	for _, ext := range themeExts {
+		p := filepath.Join(dir, "theme"+ext)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() && info.Size() > 0 {
+			return p
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, "theme-music"))
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if !e.IsDir() && slices.Contains(themeExts, strings.ToLower(filepath.Ext(e.Name()))) {
+			return filepath.Join(dir, "theme-music", e.Name())
+		}
+	}
+	return ""
+}
+
 // LocalArt is artwork found next to the media.
 type LocalArt struct {
 	Poster, Backdrop, Logo string
+	// A theme tune, played quietly on the title's page.
+	Theme string
 	// Season posters (shows): season number -> file.
 	Seasons map[int]string
 }
@@ -48,6 +75,7 @@ func movieArt(path string, ownFolder bool) LocalArt {
 		Logo:     findImage(dir, stem+"-clearlogo", stem+"-logo"),
 	}
 	if ownFolder {
+		art.Theme = findTheme(dir)
 		if art.Poster == "" {
 			art.Poster = findImage(dir, "poster", "folder", "cover", "movie")
 		}
@@ -68,6 +96,7 @@ func seriesArt(dir string) LocalArt {
 		Backdrop: findImage(dir, "fanart", "backdrop", "background", "art"),
 		Logo:     findImage(dir, "clearlogo", "logo"),
 		Seasons:  seasonPosters(dir),
+		Theme:    findTheme(dir),
 	}
 }
 

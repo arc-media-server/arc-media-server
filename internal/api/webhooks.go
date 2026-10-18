@@ -156,3 +156,17 @@ func (s *Server) newsSeen(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// theme: GET /api/items/{id}/theme plays a show's or movie's theme tune.
+func (s *Server) theme(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	if it.LocalTheme == "" {
+		writeError(w, http.StatusNotFound, "no theme music")
+		return
+	}
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeFile(w, r, it.LocalTheme)
+}

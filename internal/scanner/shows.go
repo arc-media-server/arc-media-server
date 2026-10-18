@@ -96,6 +96,9 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		if err := s.store.SetLocalArt(ctx, id, art.Poster, art.Backdrop, art.Logo); err != nil {
 			return err
 		}
+		if err := s.store.SetLocalTheme(ctx, id, art.Theme); err != nil {
+			return err
+		}
 		if err := s.store.SetSeasonLocalPosters(ctx, id, art.Seasons); err != nil {
 			return err
 		}

@@ -131,6 +131,8 @@ export interface Item {
   genres?: string[];
   /** Your own labels (on a movie or show's own page). */
   labels?: string[];
+  /** A theme tune found beside the title, played quietly on its page. */
+  theme_url?: string;
   /** A show's own episode numbering, when it overrides its library's. */
   source_ordering?: SourceOrdering;
   credits?: Credit[];
@@ -626,6 +628,8 @@ export interface Prefs {
   subtitle_language: string;
   /** The audio language last chosen, e.g. "jpn"; played by default when a file has it. */
   audio_language?: string;
+  /** Play a title's theme tune on its page; on unless false. */
+  theme_music?: boolean;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
   split_up_next: boolean;
   /** Play the next episode after a countdown; absent means on, as in Plex. */

@@ -126,6 +126,16 @@ func run(out, ffmpeg string) error {
 		}
 	}
 
+	// Theme music: a short tune in Firefly's folder, played quietly on its page.
+	theme := filepath.Join(out, "TV", "Firefly (2002)", "theme.mp3")
+	if _, err := os.Stat(theme); err != nil {
+		cmd := exec.Command(ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=523:duration=8", "-af", "afade=t=out:st=6:d=2", theme)
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("ffmpeg theme: %w", err)
+		}
+	}
+
 	// Files a browser can't play as they are, for testing conversion: an MKV with two audio
 	// tracks (AAC English, AC-3 French) and subtitles, and 10-bit HDR10 HEVC with E-AC-3.
 	srt := "1\n00:00:01,000 --> 00:00:04,000\nHello from the subtitles\n\n2\n00:00:30,000 --> 00:00:33,000\nHalfway there\n"

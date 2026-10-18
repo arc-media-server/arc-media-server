@@ -14,6 +14,7 @@ import { useIsAdmin } from '@/lib/auth';
 import { useSpoilerGuard } from '@/lib/home';
 import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
+import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
@@ -84,6 +85,8 @@ export function SeriesPage() {
   useEffect(() => {
     if (tabs.length && (season === null || !tabs.some((t) => t.number === season))) setSeason(tabs[0].number);
   }, [tabs, season]);
+
+  useThemeMusic(series?.theme_url);
 
   if (seasons.error) return <ErrorState error={seasons.error} />;
   if (!data || !series) return <div className="h-[60vh] animate-pulse bg-surface" />;

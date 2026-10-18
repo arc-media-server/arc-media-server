@@ -122,6 +122,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/webhooks/{id}", admin(s.deleteWebhook))
 	mux.HandleFunc("POST /api/webhooks/{id}/test", admin(s.testWebhook))
 	mux.HandleFunc("GET /api/news", user(s.news))
+	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
 	mux.HandleFunc("POST /api/news/seen", user(s.newsSeen))
 	mux.HandleFunc("GET /api/imports/{id}", admin(s.getImport))
 	mux.HandleFunc("POST /api/imports/{id}/server", admin(s.chooseImportServer))
@@ -269,7 +270,9 @@ type itemDTO struct {
 	Collections []collectionRef   `json:"collections,omitempty"`
 	Images      map[string]string `json:"images,omitempty"`
 	Stream      string            `json:"stream_url,omitempty"`
-	Files       []store.MediaFile `json:"files,omitempty"`
+	// The title's theme tune, when there's one beside it.
+	Theme string            `json:"theme_url,omitempty"`
+	Files []store.MediaFile `json:"files,omitempty"`
 }
 
 // imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use
@@ -307,6 +310,9 @@ func toDTO(it store.Item) itemDTO {
 	}
 	if it.Kind == "movie" || it.Kind == "episode" {
 		d.Stream = base + "/stream"
+	}
+	if it.LocalTheme != "" {
+		d.Theme = base + "/theme?v=" + artwork.Key(it.LocalTheme)
 	}
 	return d
 }
