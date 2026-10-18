@@ -171,6 +171,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return fmt.Errorf("series %s not found", seriesID)
 	}
 	lib = forSeries(lib, series)
+	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	log := s.log.With("series", series.Title)
 	ctx, save := s.traced(ctx, series.ID)
 	defer save()
@@ -624,6 +625,7 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		return 0, err
 	}
 	lib = forSeries(lib, series)
+	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	orderings, err := s.store.ListOrderings(ctx, seriesID)
 	if err != nil {
 		return 0, err

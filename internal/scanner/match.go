@@ -130,7 +130,7 @@ var ErrNotFound = errors.New("not found")
 func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string, id int64) (err error) {
 	tr := &metadata.Trace{Steps: []metadata.Step{{Provider: provider, Kind: "chosen", Picked: id,
 		Results: []metadata.Candidate{}, Note: "Chosen by you."}}}
-	ctx = metadata.WithTrace(ctx, tr)
+	ctx = metadata.WithTrace(s.inLanguage(ctx, it.LibraryID), tr)
 	defer func() {
 		if err == nil {
 			s.saveTrace(ctx, it.ID, tr)

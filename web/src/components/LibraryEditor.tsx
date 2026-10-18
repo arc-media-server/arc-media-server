@@ -37,6 +37,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tmdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
   const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
+  const [language, setLanguage] = useState(library?.metadata_language ?? '');
   const [picking, setPicking] = useState(!editing);
   const [step, setStep] = useState<'details' | 'preview'>('details');
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -56,8 +57,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin })
-        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin }),
+        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language })
+        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -187,6 +188,24 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
             </Field>
           )}
+          <Field label="Metadata language">
+            <div className="relative">
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
+                {metadataLanguages.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
+            </div>
+            <p className="mt-1.5 text-xs text-subtle">
+              {language && !language.startsWith('en')
+                ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
+                : 'The language titles and descriptions are shown in.'}
+              {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
+            </p>
+          </Field>
           <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
             <span>
               <span className="block text-sm font-medium">Scrubbing previews</span>
@@ -397,3 +416,40 @@ function PreviewRow({ item }: { item: PreviewItem }) {
     </div>
   );
 }
+
+// Languages TMDB has good coverage in; "" is TMDB's default, American English.
+const metadataLanguages: [string, string][] = [
+  ['', 'English (US)'],
+  ['en-GB', 'English (UK)'],
+  ['ar-SA', 'Arabic'],
+  ['zh-CN', 'Chinese (Simplified)'],
+  ['zh-TW', 'Chinese (Traditional)'],
+  ['cs-CZ', 'Czech'],
+  ['da-DK', 'Danish'],
+  ['nl-NL', 'Dutch'],
+  ['fi-FI', 'Finnish'],
+  ['fr-FR', 'French'],
+  ['fr-CA', 'French (Canada)'],
+  ['de-DE', 'German'],
+  ['el-GR', 'Greek'],
+  ['he-IL', 'Hebrew'],
+  ['hi-IN', 'Hindi'],
+  ['hu-HU', 'Hungarian'],
+  ['id-ID', 'Indonesian'],
+  ['it-IT', 'Italian'],
+  ['ja-JP', 'Japanese'],
+  ['ko-KR', 'Korean'],
+  ['nb-NO', 'Norwegian'],
+  ['pl-PL', 'Polish'],
+  ['pt-BR', 'Portuguese (Brazil)'],
+  ['pt-PT', 'Portuguese (Portugal)'],
+  ['ro-RO', 'Romanian'],
+  ['ru-RU', 'Russian'],
+  ['es-ES', 'Spanish (Spain)'],
+  ['es-MX', 'Spanish (Latin America)'],
+  ['sv-SE', 'Swedish'],
+  ['th-TH', 'Thai'],
+  ['tr-TR', 'Turkish'],
+  ['uk-UA', 'Ukrainian'],
+  ['vi-VN', 'Vietnamese'],
+];

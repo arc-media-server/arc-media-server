@@ -151,14 +151,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay, collection_min FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay, collection_min, metadata_language FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -180,8 +180,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, kind, source_ordering, trickplay, collection_min FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin)
+		`SELECT id, name, kind, source_ordering, trickplay, collection_min, metadata_language FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -233,4 +233,14 @@ func (s *Store) LibraryFileIDs(ctx context.Context, id int64) ([]int64, error) {
 		ids = append(ids, fid)
 	}
 	return ids, rows.Err()
+}
+
+// SetLibraryLanguage changes the language a library's metadata is fetched in, and has every movie
+// and show fetched again over the next scans.
+func (s *Store) SetLibraryLanguage(ctx context.Context, id int64, lang string) error {
+	if _, err := s.db.ExecContext(ctx, `UPDATE libraries SET metadata_language = ? WHERE id = ?`, lang, id); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE library_id = ? AND kind IN ('movie', 'series')`, id)
+	return err
 }

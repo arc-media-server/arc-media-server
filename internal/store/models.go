@@ -10,6 +10,8 @@ type Library struct {
 	Trickplay bool `json:"trickplay"`
 	// The fewest films a TMDB collection needs before it's shown; 0 for no automatic collections.
 	CollectionMin int `json:"collection_min"`
+	// The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English.
+	MetadataLanguage string `json:"metadata_language"`
 }
 
 type Item struct {

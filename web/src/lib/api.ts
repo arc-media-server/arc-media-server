@@ -163,6 +163,8 @@ export interface Library {
   trickplay: boolean;
   /** The fewest films a TMDB collection needs to be shown; 0 for no automatic collections. */
   collection_min: number;
+  /** The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English. */
+  metadata_language: string;
   /** How many movies or shows it lists. */
   count: number;
   scan: ScanStatus;
@@ -175,6 +177,7 @@ export interface LibraryInput {
   paths: string[];
   trickplay?: boolean;
   collection_min?: number;
+  metadata_language?: string;
 }
 
 export interface PreviewItem {
