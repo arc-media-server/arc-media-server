@@ -4,10 +4,16 @@ package webui
 import (
 	"embed"
 	"io/fs"
+	"mime"
 	"net/http"
 	"path"
 	"strings"
 )
+
+func init() {
+	// For "Add to Home Screen": the app's manifest.
+	mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 //go:embed all:dist
 var dist embed.FS

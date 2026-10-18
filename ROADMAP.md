@@ -155,7 +155,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 
 ### 18. Arc apps and client API
 _Arc has its own clients; the API is open for anyone to build more._
-- [ ] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
+- [x] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
 - [ ] Native apps (tvOS, iOS, Android TV) (#63)
 
 ### Before public release

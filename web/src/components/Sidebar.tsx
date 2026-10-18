@@ -1,7 +1,7 @@
 import { createElement, useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, FastForward, Monitor, Moon, Music, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
+import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, Tv, HeartPulse, Home, ListVideo, Loader2, LogOut, FastForward, Monitor, Moon, Music, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -208,6 +208,9 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/year')}>
           <Sparkles className="size-4 text-muted" /> Your Year in Review
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/link')}>
+          <Tv className="size-4 text-muted" /> Link a Device…
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {!status.friend && (status.profiles.length > 1 || !status.password_session) && (

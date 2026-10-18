@@ -143,6 +143,7 @@ internal/search/     search normalising and fuzzy scoring (accents, case, small 
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library
+tools/apidoc/        regenerates docs/API.md from internal/api (internal/apidoc; a test fails when it's stale)
 ```
 
 ## Build, run, test
@@ -153,6 +154,7 @@ go vet ./... && go test ./...
 go run ./cmd/ams                                    # data in ./data, serves http://127.0.0.1:8099
 cd web && npm run dev                               # UI hot reload; proxies /api to :8099
 cd web && npx tsc -b                                # type-check the UI
+go run ./tools/apidoc                               # after changing API routes or handler comments
 ```
 
 - Settings (incl. API keys) live in the database; this PC's `data/ams.db` already has the owner's keys.

@@ -182,7 +182,7 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"collection": s.collectionDTO(*c, first), "items": out})
 }
 
-// collectionImage: GET /api/collections/{id}/images/{primary|backdrop}.
+// collectionImage: GET /api/collections/{id}/images/{primary|backdrop} is a collection's poster or background.
 func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.collectionFromPath(w, r)
 	if !ok {
@@ -397,7 +397,7 @@ func (s *Server) collectionAddItems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// collectionRemoveItem: DELETE /api/collections/{id}/items/{item}.
+// collectionRemoveItem: DELETE /api/collections/{id}/items/{item} takes a title out of a manual collection.
 func (s *Server) collectionRemoveItem(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.collectionFromPath(w, r)
 	if !ok {

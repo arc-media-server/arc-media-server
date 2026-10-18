@@ -200,9 +200,11 @@ func isUniqueViolation(err error) bool {
 type Session struct {
 	TokenHash string
 	UserID    string // "" until a profile is picked
-	Via       string // password or local
+	Via       string // password, local or friend
 	CreatedAt int64
 	LastSeen  int64
+	// An app's name for itself; "" for a browser.
+	Device string
 }
 
 func (s *Store) CreateSession(ctx context.Context, tokenHash, userID, via, userAgent string) error {
@@ -221,8 +223,8 @@ func (s *Store) CreateSession(ctx context.Context, tokenHash, userID, via, userA
 func (s *Store) GetSession(ctx context.Context, tokenHash string) (*Session, error) {
 	var se Session
 	err := s.db.QueryRowContext(ctx, `
-		SELECT token_hash, COALESCE(user_id, ''), via, created_at, last_seen_at FROM sessions WHERE token_hash = ?`,
-		tokenHash).Scan(&se.TokenHash, &se.UserID, &se.Via, &se.CreatedAt, &se.LastSeen)
+		SELECT token_hash, COALESCE(user_id, ''), via, created_at, last_seen_at, device FROM sessions WHERE token_hash = ?`,
+		tokenHash).Scan(&se.TokenHash, &se.UserID, &se.Via, &se.CreatedAt, &se.LastSeen, &se.Device)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -327,4 +329,43 @@ func (s *Store) FriendByName(ctx context.Context, name string) (*User, error) {
 func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
 	return err
+}
+
+// SetSessionDevice names the app a session belongs to.
+func (s *Store) SetSessionDevice(ctx context.Context, tokenHash, device string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET device = ? WHERE token_hash = ?`, device, tokenHash)
+	return err
+}
+
+// SessionInfo is a signed-in browser or app, for Settings > Devices.
+type SessionInfo struct {
+	TokenHash string `json:"id"`
+	Device    string `json:"device,omitempty"`
+	UserAgent string `json:"user_agent,omitempty"`
+	Via       string `json:"via"`
+	UserID    string `json:"profile_id,omitempty"`
+	UserName  string `json:"profile,omitempty"`
+	CreatedAt int64  `json:"created_at"`
+	LastSeen  int64  `json:"last_seen_at"`
+}
+
+// ListSessions lists every signed-in browser and app, most recently used first.
+func (s *Store) ListSessions(ctx context.Context) ([]SessionInfo, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT se.token_hash, se.device, se.user_agent, se.via, COALESCE(se.user_id, ''), COALESCE(u.name, ''), se.created_at, se.last_seen_at
+		FROM sessions se LEFT JOIN users u ON u.id = se.user_id
+		ORDER BY se.last_seen_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []SessionInfo
+	for rows.Next() {
+		var si SessionInfo
+		if err := rows.Scan(&si.TokenHash, &si.Device, &si.UserAgent, &si.Via, &si.UserID, &si.UserName, &si.CreatedAt, &si.LastSeen); err != nil {
+			return nil, err
+		}
+		out = append(out, si)
+	}
+	return out, rows.Err()
 }

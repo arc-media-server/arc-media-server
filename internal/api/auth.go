@@ -53,11 +53,11 @@ func currentUserID(r *http.Request) string {
 // session finds the request's valid session, if any. A session started without the password only
 // counts while the request still comes from the home network and that's still allowed.
 func (s *Server) session(r *http.Request) *store.Session {
-	c, err := r.Cookie(sessionCookie)
-	if err != nil || c.Value == "" {
+	token := requestToken(r)
+	if token == "" {
 		return nil
 	}
-	se, err := s.store.GetSession(r.Context(), auth.HashToken(c.Value))
+	se, err := s.store.GetSession(r.Context(), auth.HashToken(token))
 	if err != nil || se == nil {
 		return nil
 	}
@@ -68,6 +68,18 @@ func (s *Server) session(r *http.Request) *store.Session {
 		s.store.TouchSession(r.Context(), se.TokenHash)
 	}
 	return se
+}
+
+// requestToken is the session token a request carries: an app's "Authorization: Bearer" header,
+// or the browser's cookie.
+func requestToken(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); len(h) > 7 && strings.EqualFold(h[:7], "bearer ") {
+		return strings.TrimSpace(h[7:])
+	}
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		return c.Value
+	}
+	return ""
 }
 
 // bypassApplies reports whether this request may pick a profile without the password.
@@ -111,6 +123,37 @@ func (s *Server) adminOnly(h http.HandlerFunc) http.HandlerFunc {
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, MaxAge: 365 * 24 * 3600})
+}
+
+// signIn starts a session: for an app (device named), it answers with the token for its
+// Authorization header; for a browser, it sets the cookie and answers 204.
+func (s *Server) signIn(w http.ResponseWriter, r *http.Request, userID, via, device string) {
+	if device == "" {
+		if _, err := s.startSession(w, r, userID, via); err != nil {
+			s.fail(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	token, err := s.deviceSession(r, userID, via, device)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"token": token})
+}
+
+// deviceSession creates an app's session and returns its token.
+func (s *Server) deviceSession(r *http.Request, userID, via, device string) (string, error) {
+	token, hash := auth.NewToken()
+	if err := s.store.CreateSession(r.Context(), hash, userID, via, r.UserAgent()); err != nil {
+		return "", err
+	}
+	if len(device) > 80 {
+		device = device[:80]
+	}
+	return token, s.store.SetSessionDevice(r.Context(), hash, device)
 }
 
 // startSession creates a session and sets its cookie.
@@ -258,6 +301,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Password string `json:"password"`
+		// An app signing in: its name, e.g. "Living Room Apple TV". It gets a token back.
+		Device string `json:"device"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -279,14 +324,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.Succeed(key)
-	if old := s.session(r); old != nil {
+	if old := s.session(r); old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
-	if _, err := s.startSession(w, r, "", "password"); err != nil {
-		s.fail(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	s.signIn(w, r, "", "password", strings.TrimSpace(body.Device))
 }
 
 // chooseProfile: POST /api/auth/profile {"id", "pin", "password"} switches to a profile. A PIN is
@@ -387,8 +428,8 @@ func (s *Server) leaveProfile(w http.ResponseWriter, r *http.Request) {
 
 // logout: POST /api/auth/logout signs this browser out.
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	if c, err := r.Cookie(sessionCookie); err == nil {
-		s.store.DeleteSession(r.Context(), auth.HashToken(c.Value))
+	if token := requestToken(r); token != "" {
+		s.store.DeleteSession(r.Context(), auth.HashToken(token))
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
 	w.WriteHeader(http.StatusNoContent)

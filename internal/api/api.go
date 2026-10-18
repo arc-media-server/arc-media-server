@@ -99,6 +99,7 @@ type Server struct {
 	optimizer        *optimize.Manager
 	remote           *remote.Service
 	imports          importSessions
+	links            linkCodes
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
 	log              *slog.Logger
@@ -121,6 +122,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/auth/profile", s.leaveProfile)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	mux.HandleFunc("POST /api/auth/friend", s.friendLogin)
+	mux.HandleFunc("POST /api/auth/link", s.startLink)
+	mux.HandleFunc("GET /api/auth/link/{poll}", s.pollLink)
 	mux.HandleFunc("GET /api/invites/{token}", s.getInvite)
 	mux.HandleFunc("POST /api/invites/{token}", s.acceptInvite)
 
@@ -141,6 +144,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
 	mux.HandleFunc("POST /api/optimize", admin(s.optimizeItems))
 	mux.HandleFunc("POST /api/cast", user(s.castLink))
+	mux.HandleFunc("POST /api/auth/link/approve", user(s.approveLink))
+	mux.HandleFunc("GET /api/devices", admin(s.listDevices))
+	mux.HandleFunc("DELETE /api/devices/{id}", admin(s.signOutDevice))
 	mux.HandleFunc("GET /api/cast/{token}/{rest...}", s.castStream)
 	mux.HandleFunc("OPTIONS /api/cast/{token}/{rest...}", s.castStream)
 	mux.HandleFunc("GET /api/remote", admin(s.remoteStatus))
@@ -275,7 +281,7 @@ func New(d Deps) http.Handler {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	mux.Handle("/", webui.Handler())
-	return s.logRequests(mux)
+	return s.logRequests(versioned(mux))
 }
 
 // itemDTO adds links and files to a stored item.
@@ -347,7 +353,7 @@ func toDTO(it store.Item) itemDTO {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"name": "Arc Media Server", "version": s.version, "status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]any{"name": "Arc Media Server", "version": s.version, "api_version": APIVersion, "status": "ok"})
 }
 
 func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
@@ -672,6 +678,24 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
+}
+
+// APIVersion is the version of the stable API at /api/v1. Apps use /api/v1/...; the same endpoints
+// without the version are the web app's, and may change with it.
+const APIVersion = 1
+
+// versioned serves /api/v1/... with the current endpoints.
+func versioned(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/v1/"); ok {
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/api/" + rest
+			r2.URL.RawPath = ""
+			next.ServeHTTP(w, r2)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {
