@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
-import { api, type RemoteStatus, type ServerSettings, type Theme } from '@/lib/api';
+import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
+import { subtitleLook } from '@/components/Player';
+import * as fmt from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, Page, PageHeader } from '@/components/Page';
@@ -61,6 +64,37 @@ function ProfileSettings() {
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
+      <Section title="Subtitles" hint="Also in the player's Subtitles menu, where choosing a track sets your language.">
+        <Row label="Turn on by themselves" description={subtitleModeHints[p.subtitle_mode ?? '']}>
+          <select
+            value={p.subtitle_mode ?? ''}
+            disabled={busy}
+            onChange={(e) => update.mutate({ subtitle_mode: e.target.value as SubtitleMode })}
+            className={`${inputClass} w-56 [&>option]:bg-surface`}
+          >
+            <option value="">In the language I last chose</option>
+            <option value="foreign">When the audio is in another language</option>
+            <option value="always">Always</option>
+            <option value="manual">Only when I choose them</option>
+          </select>
+        </Row>
+        <Row label="Language" description="The subtitles to turn on. Forced subtitles (for foreign lines) show whatever is chosen here.">
+          <select
+            value={p.subtitle_language}
+            disabled={busy}
+            onChange={(e) => update.mutate({ subtitle_language: e.target.value })}
+            className={`${inputClass} w-56 [&>option]:bg-surface`}
+          >
+            <option value="">None</option>
+            {subtitleLanguages(p.subtitle_language).map(([code, name]) => (
+              <option key={code} value={code}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <SubtitleStyleRows style={p.subtitle_style ?? {}} busy={busy} onChange={(subtitle_style) => update.mutate({ subtitle_style })} />
+      </Section>
       <Section title="Display">
         <ToggleRow
           label="Hide spoilers"
@@ -83,6 +117,60 @@ function ProfileSettings() {
         </Row>
       </Section>
     </>
+  );
+}
+
+const subtitleModeHints: Record<SubtitleMode, string> = {
+  '': 'Subtitles come on in the language you last picked in the player, until you turn them off.',
+  foreign: "Subtitles come on in your language when a film or episode's audio is in a different one (Plex's \"Shown with foreign audio\").",
+  always: 'Subtitles come on in your language whenever there are some.',
+  manual: 'Subtitles stay off unless you pick them in the player (forced subtitles still show).',
+};
+
+/** Common subtitle languages (ISO 639-2), with the profile's current one if it isn't among them. */
+function subtitleLanguages(current: string): [string, string][] {
+  const codes = ['eng', 'spa', 'fre', 'ger', 'ita', 'por', 'dut', 'swe', 'nor', 'dan', 'fin', 'pol', 'cze', 'hun', 'gre', 'tur', 'rus', 'ukr', 'ara', 'heb', 'hin', 'jpn', 'kor', 'chi', 'tha', 'vie', 'ind'];
+  if (current && !codes.includes(current)) codes.unshift(current);
+  return codes.map((c) => [c, fmt.language(c)] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+/** How subtitles look, with a sample. */
+function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; busy: boolean; onChange: (s: SubtitleStyle) => void }) {
+  const pick = <K extends keyof SubtitleStyle>(key: K, options: [NonNullable<SubtitleStyle[K]>, string][], def: NonNullable<SubtitleStyle[K]>) => (
+    <select
+      value={style[key] ?? def}
+      disabled={busy}
+      onChange={(e) => onChange({ ...style, [key]: e.target.value })}
+      className={`${inputClass} w-32 [&>option]:bg-surface`}
+      aria-label={key}
+    >
+      {options.map(([v, label]) => (
+        <option key={v} value={v}>
+          {label}
+        </option>
+      ))}
+    </select>
+  );
+  return (
+    <div className="space-y-3 px-4 py-3.5">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="text-sm font-medium">Style</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">Size, colour, background and where they sit. For subtitles drawn as text; picture subtitles (from Blu-rays and DVDs) look as they were made.</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {pick('size', [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large'], ['huge', 'Huge']], 'medium')}
+        {pick('color', [['white', 'White'], ['yellow', 'Yellow']], 'white')}
+        {pick('background', [['box', 'Shaded box'], ['solid', 'Black box'], ['none', 'Outline only']], 'box')}
+        {pick('position', [['bottom', 'Bottom'], ['top', 'Top']], 'bottom')}
+      </div>
+      <div className="flex h-24 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-500 via-sky-800 to-amber-700 p-3" aria-hidden>
+        <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>
+          Where are we going?
+        </span>
+      </div>
+    </div>
   );
 }
 

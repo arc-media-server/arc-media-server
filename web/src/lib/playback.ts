@@ -1,4 +1,4 @@
-import type { AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack, Version } from '@/lib/api';
+import type { SubtitleMode, AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack, Version } from '@/lib/api';
 import * as fmt from '@/lib/format';
 
 let cached: PlayerCaps | undefined;
@@ -100,9 +100,12 @@ export function subtitleLabel(t: SubtitleTrack, i: number) {
  * The subtitles to start with: the profile's chosen language (full subtitles rather than forced
  * ones), or else forced subtitles for the audio's language (signs and foreign dialogue).
  */
-export function chooseSubtitle(tracks: SubtitleTrack[], preferred: string, audioLanguage?: string): SubtitleTrack | undefined {
+export function chooseSubtitle(tracks: SubtitleTrack[], preferred: string, audioLanguage?: string, mode: SubtitleMode = ''): SubtitleTrack | undefined {
   const same = (a?: string, b?: string) => !!a && !!b && fmt.language(a) === fmt.language(b);
-  if (preferred) {
+  // Plex's subtitle modes: only forced ones by themselves, or the profile's language when the
+  // audio is in another one, or always; "" turns on the language last chosen.
+  const wanted = mode === 'manual' ? false : mode === 'foreign' ? !!preferred && !!audioLanguage && !same(audioLanguage, preferred) : true;
+  if (preferred && wanted) {
     const matching = tracks.filter((t) => same(t.language, preferred));
     const best = matching.find((t) => !t.forced && !t.hearing_impaired && !t.image) ?? matching.find((t) => !t.forced) ?? matching[0];
     if (best) return best;

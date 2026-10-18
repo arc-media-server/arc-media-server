@@ -163,7 +163,7 @@ _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource grap
 - [x] Home networks setting (#115)
 - [x] Transcoder: temporary folder and conversions at once (#116)
 - [x] Shuffle play (#117)
-- [ ] Subtitle styling and subtitle mode (#118)
+- [x] Subtitle styling and subtitle mode (#118)
 - [ ] Collection display mode (#119)
 - [ ] Smart playlists (#120)
 - [ ] Dashboard: server resource graphs (#121)

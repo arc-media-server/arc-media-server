@@ -30,7 +30,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type Chapter, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
+import { api, ApiError, type SubtitleStyle, type Chapter, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
 import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
@@ -195,7 +195,9 @@ function PlayerOverlay({
   const [subtitle, setSubtitle] = useState<SubtitleTrack | null>(null);
   const [cues, setCues] = useState<SubtitleCue[]>([]);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
-  const [subtitleSize, setSubtitleSize] = useState(readSubtitleSize);
+  const subStyle = prefs.data?.subtitle_style ?? {};
+  const subtitleSize: SubtitleSize = subStyle.size ?? readSubtitleSize();
+  const setSubtitleSize = (size: SubtitleSize) => updatePrefs.mutate({ subtitle_style: { ...subStyle, size } });
   const [cueText, setCueText] = useState('');
   const autoChosen = useRef(false);
   // Thumbnails for the timeline, if the library makes them.
@@ -354,7 +356,9 @@ function PlayerOverlay({
     async (t: SubtitleTrack | null, remember: boolean) => {
       const p = plan.current;
       if (!p || !item.itemId) return;
-      if (remember) updatePrefs.mutate({ subtitle_language: t && !t.forced ? (t.language ?? '') : '' });
+      // Turning them off forgets the language only where the language is what turns them on.
+      if (remember && t && !t.forced) updatePrefs.mutate({ subtitle_language: t.language ?? '' });
+      else if (remember && !t && !prefs.data?.subtitle_mode) updatePrefs.mutate({ subtitle_language: '' });
       if (t) lastSubtitle.current = t;
       setSubtitle(t);
       setCues([]);
@@ -414,7 +418,7 @@ function PlayerOverlay({
     if (autoChosen.current || !planState || !prefs.data) return;
     autoChosen.current = true;
     const audioLang = planState.audio_tracks.find((a) => a.index === planState.audio_stream)?.language;
-    const t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang);
+    const t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang, prefs.data.subtitle_mode);
     if (t) void selectSubtitle(t, false);
   }, [planState, prefs.data, selectSubtitle]);
 
@@ -437,14 +441,6 @@ function PlayerOverlay({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [cues, absMS]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('arc-subtitle-size', subtitleSize);
-    } catch {
-      // not remembered
-    }
-  }, [subtitleSize]);
 
   // Start playing when the player opens; end the conversion and save progress when it closes.
   useEffect(() => {
@@ -813,14 +809,14 @@ function PlayerOverlay({
           {cueText && (
             <div
               className={cn(
-                'pointer-events-none absolute inset-x-0 flex flex-col items-center gap-1 px-[8%] text-center transition-[bottom] duration-300',
-                showChrome ? 'bottom-36' : 'bottom-[7%]',
+                'pointer-events-none absolute inset-x-0 flex flex-col items-center gap-1 px-[8%] text-center transition-[bottom,top] duration-300',
+                subStyle.position === 'top' ? (showChrome ? 'top-28' : 'top-[7%]') : showChrome ? 'bottom-36' : 'bottom-[7%]',
               )}
               style={{ fontSize: subtitleSizes[subtitleSize] }}
               data-subtitles
             >
               {cueText.split('\n').map((line, i) => (
-                <span key={i} className="rounded-md bg-black/65 px-[0.4em] py-[0.05em] font-medium leading-snug text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.6)]">
+                <span key={i} className={cn('rounded-md px-[0.4em] py-[0.05em] font-medium leading-snug', subtitleLook(subStyle))}>
                   <CueLine text={line} />
                 </span>
               ))}
@@ -991,7 +987,7 @@ function PlayerOverlay({
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Size</DropdownMenuLabel>
-                {(['small', 'medium', 'large'] as const).map((sz) => (
+                {(['small', 'medium', 'large', 'huge'] as const).map((sz) => (
                   <DropdownMenuItem
                     key={sz}
                     onSelect={(e) => {
@@ -1103,13 +1099,27 @@ function PlayerOverlay({
   );
 }
 
-type SubtitleSize = 'small' | 'medium' | 'large';
+type SubtitleSize = NonNullable<SubtitleStyle['size']>;
 const subtitleSizes: Record<SubtitleSize, string> = {
   small: 'clamp(14px, 2.4vh, 28px)',
   medium: 'clamp(16px, 3.2vh, 38px)',
   large: 'clamp(18px, 4.3vh, 52px)',
+  huge: 'clamp(22px, 5.6vh, 68px)',
 };
 
+/** A cue line's colour and background, from the profile's subtitle style. */
+export function subtitleLook(st: SubtitleStyle) {
+  return cn(
+    st.color === 'yellow' ? 'text-[#ffe14d]' : 'text-white',
+    st.background === 'solid'
+      ? 'bg-black'
+      : st.background === 'none'
+        ? '[text-shadow:0_0_3px_#000,0_0_3px_#000,0_1px_2px_#000,0_0_8px_rgb(0_0_0/0.8)]'
+        : 'bg-black/65 [text-shadow:0_1px_2px_rgb(0_0_0/0.6)]',
+  );
+}
+
+/** The size chosen on this device before sizes were kept with the profile. */
 function readSubtitleSize(): SubtitleSize {
   try {
     const v = localStorage.getItem('arc-subtitle-size');

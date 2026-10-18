@@ -87,6 +87,9 @@ Early development. Working today:
   old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
   picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
   language turns subtitles on by themselves next time, and forced subtitles show for foreign dialogue
+- Subtitle mode and style per profile (Settings > Subtitles, as in Plex): turn on in the language last
+  chosen, when the audio is in another language, always, or only when picked (forced ones always
+  show); size, colour (white or yellow), background (shaded box, black box or outline) and position
 - Find subtitles online from the player (Subtitles > Find Online…) on OpenSubtitles.com, matched by
   TMDB/IMDb id and the file's hash (exact matches first). Needs a free OpenSubtitles API key in
   Settings; an account allows more downloads a day. Downloads are kept in Arc's data folder
@@ -335,7 +338,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET / PATCH | `/api/profiles/{id}/prefs` | Another profile's preferences, e.g. its home (admin) |
 | GET / PUT | `/api/home/default` | The Default Home for profiles that haven't arranged their own: `{"home": [rows]}` (admin) |
 | GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
-| PATCH | `/api/me/prefs` | Change them; a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
+| PATCH | `/api/me/prefs` | Change them (incl. `subtitle_mode`: `""`, `manual`, `foreign`, `always`; `subtitle_style`: `{size, color, background, position}`); a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
 | GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
 | GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
 | PUT | `/api/items/{id}/artwork` | Choose one: `{"type": "poster\|backdrop", "path": "/abc.jpg"}`; `"path": null` goes back to automatic |

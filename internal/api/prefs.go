@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"ams/internal/store"
@@ -32,11 +33,25 @@ type prefs struct {
 	ThemeMusic *bool `json:"theme_music,omitempty"`
 	// Skip intros and recaps without asking (off unless turned on).
 	AutoSkip bool `json:"auto_skip"`
+	// When subtitles turn on by themselves, as Plex's subtitle mode: "" in the language last chosen,
+	// "manual" only when picked (forced ones still show), "foreign" when the audio isn't in the
+	// subtitle language, "always" whenever there are some in it.
+	SubtitleMode string `json:"subtitle_mode,omitempty"`
+	// How subtitles look: size (small, medium, large, huge), colour (white, yellow), background
+	// (box, solid, none) and position (bottom, top); "" for each default.
+	SubtitleStyle subtitleStyle `json:"subtitle_style"`
 	// The home rows in order. Empty means the default layout; rows the app knows about that
 	// aren't listed (e.g. a new library's) are added in their usual place.
 	Home []homeRow `json:"home"`
 	// Set in responses when Home is the admin's default home (the profile hasn't arranged its own).
 	HomeIsDefault bool `json:"home_is_default,omitempty"`
+}
+
+type subtitleStyle struct {
+	Size       string `json:"size,omitempty"`
+	Color      string `json:"color,omitempty"`
+	Background string `json:"background,omitempty"`
+	Position   string `json:"position,omitempty"`
 }
 
 // homeRow is a built-in row ("continue", "next-up", "recent:<library id>", "seasonal"), a custom
@@ -81,6 +96,16 @@ func (p *prefs) validate() error {
 	}
 	if len(p.AudioLanguage) > 8 {
 		return fmt.Errorf("audio_language is a language code like \"jpn\"")
+	}
+	if !slices.Contains([]string{"", "manual", "foreign", "always"}, p.SubtitleMode) {
+		return fmt.Errorf(`subtitle_mode is "", "manual", "foreign" or "always"`)
+	}
+	st := p.SubtitleStyle
+	if !slices.Contains([]string{"", "small", "medium", "large", "huge"}, st.Size) ||
+		!slices.Contains([]string{"", "white", "yellow"}, st.Color) ||
+		!slices.Contains([]string{"", "box", "solid", "none"}, st.Background) ||
+		!slices.Contains([]string{"", "bottom", "top"}, st.Position) {
+		return fmt.Errorf("subtitle_style: size small/medium/large/huge, color white/yellow, background box/solid/none, position bottom/top")
 	}
 	if len(p.Home) > 60 {
 		return fmt.Errorf("a home page can have up to 60 rows")
@@ -264,15 +289,17 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		return
 	}
 	var body struct {
-		HideSpoilers     *bool     `json:"hide_spoilers"`
-		Theme            *string   `json:"theme"`
-		SubtitleLanguage *string   `json:"subtitle_language"`
-		AudioLanguage    *string   `json:"audio_language"`
-		SplitUpNext      *bool     `json:"split_up_next"`
-		AutoPlay         *bool     `json:"auto_play"`
-		ThemeMusic       *bool     `json:"theme_music"`
-		AutoSkip         *bool     `json:"auto_skip"`
-		Home             []homeRow `json:"home"`
+		HideSpoilers     *bool          `json:"hide_spoilers"`
+		Theme            *string        `json:"theme"`
+		SubtitleLanguage *string        `json:"subtitle_language"`
+		AudioLanguage    *string        `json:"audio_language"`
+		SplitUpNext      *bool          `json:"split_up_next"`
+		AutoPlay         *bool          `json:"auto_play"`
+		ThemeMusic       *bool          `json:"theme_music"`
+		AutoSkip         *bool          `json:"auto_skip"`
+		SubtitleMode     *string        `json:"subtitle_mode"`
+		SubtitleStyle    *subtitleStyle `json:"subtitle_style"`
+		Home             []homeRow      `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "send the preferences to change as JSON")
@@ -295,6 +322,12 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.AutoSkip != nil {
 		p.AutoSkip = *body.AutoSkip
+	}
+	if body.SubtitleMode != nil {
+		p.SubtitleMode = *body.SubtitleMode
+	}
+	if body.SubtitleStyle != nil {
+		p.SubtitleStyle = *body.SubtitleStyle
 	}
 	if body.ThemeMusic != nil {
 		p.ThemeMusic = body.ThemeMusic
