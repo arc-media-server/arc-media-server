@@ -262,6 +262,25 @@ Changes appear instantly; API calls are forwarded to the running server.
 The web app is React + TypeScript, styled with Tailwind CSS, using Radix UI primitives,
 Motion for animation and TanStack Query for data loading.
 
+## Running with Docker
+
+GitHub builds an image on every push to `main` (`.github/workflows/docker.yml`), for normal PCs
+and servers (amd64) and ARM boards like the Raspberry Pi (arm64):
+`ghcr.io/jonzauk/arc-media-server:latest`. It includes FFmpeg.
+
+1. The repository is private, so sign in to the registry once: `docker login ghcr.io` (your GitHub
+   name, and a personal access token with `read:packages` as the password).
+2. Copy `docker-compose.yml`, set your media folders (mounted read-only), and run
+   `docker compose up -d`.
+3. Open `http://<that computer>:8099`, set up your profile and keys, and add `/media/movies` and
+   `/media/tv` as libraries.
+
+Settings, the database, artwork and backups live in `/config` (`./arc-config` in the example).
+Host networking is recommended on Linux so Arc sees devices' real addresses (for "at home" sign-in)
+and can open the router port. Docker Desktop on Windows or Mac uses `ports: ["8099:8099"]` instead.
+Graphics cards: pass `/dev/dri` (Intel/AMD), or use the NVIDIA Container Toolkit; both are in the
+example. To build locally: `docker build -t arc .`.
+
 ## API
 
 | Method | Path | |
