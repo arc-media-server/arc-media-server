@@ -8,18 +8,17 @@ import {
   FileQuestion,
   FileWarning,
   FileX2,
-  Film,
   HelpCircle,
   ListOrdered,
   ListX,
   Merge,
   Trash2,
-  Tv,
   type LucideIcon,
 } from 'lucide-react';
 import { api, posterUrl, type FileProblem, type Item, type LibraryHealth, type MissingEpisode } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { kindIcon } from '@/lib/kinds';
 import { Artwork } from '@/components/Artwork';
 import { FixMatchDialog } from '@/components/FixMatch';
 import { PlaybackReport } from '@/components/PlaybackReport';
@@ -69,7 +68,7 @@ function problemCount(r: LibraryHealth) {
 }
 
 function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIdentify: (item: Item) => void }) {
-  const LibIcon = r.library.kind === 'shows' ? Tv : Film;
+  const LibIcon = kindIcon(r.library.kind);
   if (problemCount(r) === 0) {
     return (
       <section className="flex items-center gap-3 text-sm text-muted">

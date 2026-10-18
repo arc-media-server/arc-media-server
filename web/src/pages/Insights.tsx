@@ -4,6 +4,7 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-qu
 import { motion } from 'motion/react';
 import { Check, ChartColumn, HardDrive, History, Loader2 } from 'lucide-react';
 import { api, itemHref, type Bucket, type Item, type Play, type RankedTitle, type StatsContext, type TitleSize } from '@/lib/api';
+import { kindUnit } from '@/lib/kinds';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
@@ -453,7 +454,7 @@ function Storage({ library }: { library?: number }) {
                 <p className="text-2xl font-semibold tabular-nums tracking-tight">{fmt.fileSize(l.size)}</p>
               </div>
               <p className="mt-0.5 text-[13px] text-muted">
-                {fmt.plural(l.titles, l.kind === 'shows' ? 'show' : 'movie')} · {fmt.plural(l.files, 'file')}
+                {fmt.plural(l.titles, kindUnit(l.kind)[0])} · {fmt.plural(l.files, 'file')}
               </p>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-accent">
                 <div className="ml-auto h-full bg-warning/80" style={{ width: `${unwatchedPct}%` }} />

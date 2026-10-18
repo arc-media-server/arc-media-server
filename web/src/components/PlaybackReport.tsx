@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useQueries } from '@tanstack/react-query';
 import { ChevronRight, MonitorPlay } from 'lucide-react';
 import { api, type Compatibility, type Library } from '@/lib/api';
+import { kindUnit } from '@/lib/kinds';
 import { devicePresets } from '@/lib/playback';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -69,7 +70,7 @@ function LibraryPlayback({ library, report: r, error }: { library: Library; repo
   if (!r) return <div className="h-28 animate-pulse rounded-2xl bg-surface" />;
   const reasons = Object.entries(r.reasons).sort((a, b) => b[1] - a[1]);
   const shown = expanded ? r.converted : r.converted.slice(0, 5);
-  const unit = library.kind === 'shows' ? 'episode' : 'movie';
+  const unit = library.kind === 'shows' ? 'episode' : kindUnit(library.kind)[0];
 
   return (
     <div className="rounded-2xl bg-surface p-5 ring-1 ring-border">

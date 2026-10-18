@@ -113,6 +113,9 @@ type Scanner struct {
 	Activity *activity.Tracker
 	// Window, if set, is when regular metadata refreshes happen (always, if nil).
 	Window *schedule.Window
+	// For Other videos libraries: FFmpeg (for a frame of each video) and where the frames are kept.
+	FFmpeg   func() string
+	ThumbDir string
 
 	wg     sync.WaitGroup
 	mu     sync.Mutex
@@ -254,7 +257,12 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 
 	var addFile func(root, path string, d fs.DirEntry) error
 	series := map[string]*seriesGroup{}
+	folders := map[string]*videoFolder{}
 	switch lib.Kind {
+	case "videos":
+		addFile = func(root, path string, d fs.DirEntry) error {
+			return s.scanVideoFile(ctx, lib, root, path, d, scanStart, folders)
+		}
 	case "movies":
 		addFile = func(root, path string, d fs.DirEntry) error {
 			return s.scanMovieFile(ctx, lib, path, d, scanStart)
@@ -274,6 +282,13 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 				log.Warn("failed to add file", "path", path, "err", err)
 			}
 		}, func(path string, d fs.DirEntry, ex extraFile) {
+			// Home videos have no extras: a "Behind the scenes" folder is just more videos.
+			if lib.Kind == "videos" {
+				if err := addFile(root, path, d); err != nil {
+					log.Warn("failed to add file", "path", path, "err", err)
+				}
+				return
+			}
 			id, err := s.recordFile(ctx, lib, path, d, scanStart)
 			if err != nil {
 				log.Warn("failed to add file", "path", path, "err", err)
@@ -309,6 +324,10 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 		}
 	case "shows":
 		if err := s.syncSeriesGroups(ctx, lib, series, log); err != nil {
+			return err
+		}
+	case "videos":
+		if err := s.syncVideoFolders(ctx, lib, folders, allRootsOK); err != nil {
 			return err
 		}
 	}
@@ -668,6 +687,9 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	it, err := s.store.GetItem(ctx, itemID)
 	if err != nil || it == nil {
 		return false, err
+	}
+	if it.MetadataState == "locked" {
+		return true, nil // a home video: nothing to look up
 	}
 	ctx = s.inLanguage(ctx, it.LibraryID)
 	tctx, save := s.traced(ctx, it.ID)

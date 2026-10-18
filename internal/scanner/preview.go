@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"io/fs"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
@@ -26,6 +27,8 @@ type Preview struct {
 	Items        []PreviewItem `json:"items"`
 	// Progress through identifying Items.
 	Checked int `json:"checked"`
+	// Other videos: how many folders (collections) there are.
+	Folders int `json:"folders,omitempty"`
 }
 
 // PreviewItem is one movie or show the folders hold.
@@ -37,7 +40,7 @@ type PreviewItem struct {
 	Episodes int    `json:"episodes,omitempty"`
 	// An example file, and what was read from its name.
 	Example ParsedName `json:"example"`
-	// pending until looked up, then identified or unidentified.
+	// pending until looked up, then identified or unidentified; local for home videos.
 	Status string              `json:"status"`
 	Match  *metadata.Candidate `json:"match,omitempty"`
 	Steps  []metadata.Step     `json:"steps"`
@@ -94,10 +97,17 @@ func (s *Scanner) Preview(ctx context.Context, kind, sourceOrdering string, path
 		return g
 	}
 
+	folders := map[string]bool{}
 	for _, root := range paths {
 		complete, err := walkVideos(ctx, root, s.log, func(path string, d fs.DirEntry) {
 			ps.update(func(p *Preview) { p.Files++ })
 			switch kind {
+			case "videos":
+				if rel, err := filepath.Rel(root, filepath.Dir(path)); err == nil && rel != "." {
+					folders[rel] = true
+				}
+				add("file:"+path, &group{item: PreviewItem{Kind: "movie", Title: videoTitle(path),
+					Example: ParsedName{Path: path, Source: filepath.Base(path), SourceKind: "file", Title: videoTitle(path)}}}).item.Files++
 			case "movies":
 				n := ParseMovie(path)
 				key := "title:" + metadata.Normalize(n.Title) + ":" + strconv.Itoa(n.Year)
@@ -161,6 +171,14 @@ func (s *Scanner) Preview(ctx context.Context, kind, sourceOrdering string, path
 	sortedNames := make([]MovieName, len(items))
 	for i, j := range idx {
 		sortedItems[i], sortedNames[i] = items[j], names[j]
+	}
+	// Home videos aren't looked up.
+	if kind == "videos" {
+		for i := range sortedItems {
+			sortedItems[i].Status = "local"
+		}
+		ps.update(func(p *Preview) { p.Items, p.Folders, p.Stage = sortedItems, len(folders), "done" })
+		return
 	}
 	ps.update(func(p *Preview) { p.Items, p.Stage = sortedItems, "identifying" })
 

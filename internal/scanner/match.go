@@ -130,6 +130,9 @@ var ErrNotFound = errors.New("not found")
 func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string, id int64) (err error) {
 	tr := &metadata.Trace{Steps: []metadata.Step{{Provider: provider, Kind: "chosen", Picked: id,
 		Results: []metadata.Candidate{}, Note: "Chosen by you."}}}
+	if it.MetadataState == "locked" {
+		return ErrLocalVideo
+	}
 	ctx = metadata.WithTrace(s.inLanguage(ctx, it.LibraryID), tr)
 	defer func() {
 		if err == nil {
@@ -187,3 +190,6 @@ func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string,
 	}
 	return fmt.Errorf("only movies and shows can be matched")
 }
+
+// ErrLocalVideo means a title is in an Other videos library, which isn't looked up online.
+var ErrLocalVideo = errors.New("videos in an Other videos library aren't identified online")

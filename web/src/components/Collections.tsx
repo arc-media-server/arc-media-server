@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Filter, Layers, ListPlus, Loader2, Plus } from 'lucide-react';
 import { api, type Collection, type Item, type Library, type RowFilter } from '@/lib/api';
+import { kindUnit } from '@/lib/kinds';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
@@ -101,7 +102,7 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
       onDone(c);
     },
   });
-  const unit = library.kind === 'shows' ? 'show' : 'movie';
+  const unit = kindUnit(library.kind)[0];
 
   return (
     <DialogContent
@@ -300,7 +301,7 @@ function CollectionRow({ id, title, exclude }: { id: string; title: string; excl
   const items = data?.items.filter((i) => i.id !== exclude) ?? [];
   return (
     <div className="mt-10">
-      <MediaRow title={title} items={items} href={`/collection/${id}`} />
+      <MediaRow title={title} items={items} href={`/collection/${id}`} style={data?.collection.kind === 'folder' ? 'thumb' : undefined} />
     </div>
   );
 }

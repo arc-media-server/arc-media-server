@@ -163,6 +163,10 @@ Early development. Working today:
 - Appearance per profile (profile menu): Automatic (follows the device), Dark or Light
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
+- Other videos libraries, for home videos and anything else that isn't a film or show: each file is
+  its own title, named from its file and dated by a date in the name (2019-07-14, IMG_20190714)
+  or the file's own date, with a frame of the video as its picture; nothing is looked up online,
+  and each folder becomes a collection
 - Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
   can't identify, and why) before anything is added
 - **Web app**: home with featured title and recently added rows, library grids with sorting and
@@ -219,7 +223,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | Method | Path | |
 |---|---|---|
 | GET | `/api/libraries` | Libraries with their size and scan status |
-| POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows", "paths": [...], "source_ordering", "trickplay"}` |
+| POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows"\|"videos", "paths": [...], "source_ordering", "trickplay", "metadata_language"}` |
 | PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, or `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again) |
 | DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
 | POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |

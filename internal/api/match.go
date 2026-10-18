@@ -124,7 +124,10 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 	err := s.scanner.SetMatch(r.Context(), it, body.Provider, body.ID)
 	switch {
 	case errors.Is(err, scanner.ErrNoProvider):
-		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(body.Provider)+" API key to ams.yaml to use it")
+		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(body.Provider)+" API key in Settings to use it")
+		return
+	case errors.Is(err, scanner.ErrLocalVideo):
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, scanner.ErrNotFound):
 		writeError(w, http.StatusNotFound, strings.ToUpper(body.Provider)+" has nothing with that id")

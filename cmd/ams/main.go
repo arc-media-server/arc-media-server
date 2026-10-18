@@ -193,6 +193,12 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
 	sc.Activity = tasks
 	sc.Window = window
+	sc.ThumbDir = filepath.Join(dataDir, "videothumbs")
+	sc.FFmpeg = func() string {
+		ffMu.Lock()
+		defer ffMu.Unlock()
+		return ffmpegBin
+	}
 	// After each scan, download new artwork so it's there offline.
 	sc.OnFinish = func(int64) { artKeeper.Trigger() }
 	artKeeper.Trigger()

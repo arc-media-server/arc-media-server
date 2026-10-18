@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Film, FolderPlus, Loader2, Pencil, Plus, Trash2, Tv } from 'lucide-react';
+import { FolderPlus, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { kindIcon, kindUnit } from '@/lib/kinds';
 import { api, type Library } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { LibraryEditorDialog } from '@/components/LibraryEditor';
@@ -80,7 +81,7 @@ export function LibrariesPage() {
         onConfirm={() => removing && remove.mutate(removing)}
       >
         <p>
-          Arc forgets everything about this library: its {removing?.kind === 'shows' ? 'shows, episode orders' : 'movies'} and anything
+          Arc forgets everything about this library: its {removing?.kind === 'shows' ? 'shows, episode orders' : kindUnit(removing?.kind)[1]} and anything
           you've edited. Your files aren't touched, and you can add the folders again at any time.
         </p>
         <p>A backup is made first, so you can undo this from Backups.</p>
@@ -90,8 +91,8 @@ export function LibrariesPage() {
 }
 
 function LibraryRow({ lib, onEdit, onRemove }: { lib: Library; onEdit: () => void; onRemove: () => void }) {
-  const Icon = lib.kind === 'shows' ? Tv : Film;
-  const what = lib.kind === 'shows' ? ['show', 'shows'] : ['movie', 'movies'];
+  const Icon = kindIcon(lib.kind);
+  const what = kindUnit(lib.kind);
   return (
     <div className="flex items-center gap-4 px-4 py-3.5">
       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted">
