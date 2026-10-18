@@ -121,6 +121,9 @@ Early development. Working today:
   opened with UPnP (or forwarded by hand), the outside address is shown with a Check button, and
   HTTPS runs on the same port with your own certificate files or a free Let's Encrypt certificate
   for your domain, renewed automatically; people away from home are sent to HTTPS
+- Casting from the web player: a Cast button for Chromecasts (Chrome and Edge, over HTTPS or on
+  the server's own computer) with a remote-control panel that saves progress, and AirPlay in
+  Safari. The device plays a cast link (a token in the address) since it has no sign-in cookie
 - Remote streams (Settings > Remote Access): a quality limit for each stream away from home, and
   the home's upload speed shared between remote streams; streams at home are never limited
 - Pre-roll videos (Settings): files or folders of clips played before a movie started from the
@@ -250,6 +253,8 @@ Motion for animation and TanStack Query for data loading.
 | POST | `/api/profiles/{id}/invite` | A new invite link for a friend, e.g. to reset their password (admin) |
 | PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
 | GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain` |
+| POST | `/api/cast` | Turn a stream URL from `/playback` into a link a cast device can open: `{"url"}` → `{"url", "local_only"}` |
+| GET | `/api/cast/{token}/...` | A stream (file, or HLS playlist and segments) for a cast device, with CORS headers |
 | GET | `/api/remote` | Remote access: the outside address, the router's port forwarding and the HTTPS certificate (admin) |
 | POST | `/api/remote/check` | Try to reach Arc at its outside address (admin) |
 

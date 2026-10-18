@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import type HlsType from 'hls.js';
 import {
   AlertCircle,
+  Airplay,
+  Cast,
   Check,
   Captions,
   Film,
@@ -36,6 +38,7 @@ import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, qual
 import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
+import { CastSession, chooseChromecast, useCastAvailable } from './Cast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 export interface NowPlaying {
@@ -204,6 +207,14 @@ function PlayerOverlay({
   const [upNextIn, setUpNextIn] = useState<number | null>(null);
   const hideTimer = useRef<number>(undefined);
   const lastReport = useRef(0);
+  // Casting to a Chromecast: where it started (the cast panel takes over until it stops).
+  const castAvailable = useCastAvailable();
+  const [castFrom, setCastFrom] = useState<number | null>(null);
+  const castOn = useRef(false);
+  castOn.current = castFrom !== null;
+  // AirPlay (Safari): the video element plays a cast link the Apple TV can open itself.
+  const airplay = useRef(false);
+  const [airplayAvailable, setAirplayAvailable] = useState(false);
 
   const absMS = useCallback(() => offset.current + (video.current?.currentTime ?? 0) * 1000, []);
 
@@ -259,6 +270,16 @@ function PlayerOverlay({
       offset.current = p.hls ? p.offset_ms : 0;
       pendingSeek.current = p.hls ? null : startMS / 1000;
       setReadyMS(offset.current);
+      if (airplay.current) {
+        // The Apple TV fetches the stream itself (HLS natively), without the sign-in cookie.
+        try {
+          v.src = (await api.castLink(p.url)).url;
+        } catch {
+          v.src = p.url;
+        }
+        v.play().catch(() => {});
+        return;
+      }
       if (!p.hls) {
         v.src = p.url;
       } else {
@@ -442,6 +463,37 @@ function PlayerOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // AirPlay: offered when Safari finds an Apple TV; the stream switches to a cast link when one is
+  // chosen, and back when it's left.
+  useEffect(() => {
+    const v = video.current as (HTMLVideoElement & { webkitCurrentPlaybackTargetIsWireless?: boolean }) | null;
+    if (!v || !('WebKitPlaybackTargetAvailabilityEvent' in window)) return;
+    const onAvailability = (e: Event) => setAirplayAvailable((e as Event & { availability: string }).availability === 'available');
+    const onTarget = () => {
+      const wireless = !!v.webkitCurrentPlaybackTargetIsWireless;
+      if (wireless === airplay.current || !item.itemId) return;
+      airplay.current = wireless;
+      void load(absMS());
+    };
+    v.addEventListener('webkitplaybacktargetavailabilitychanged', onAvailability);
+    v.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', onTarget);
+    return () => {
+      v.removeEventListener('webkitplaybacktargetavailabilitychanged', onAvailability);
+      v.removeEventListener('webkitcurrentplaybacktargetiswirelesschanged', onTarget);
+    };
+  }, [item.itemId, load, absMS]);
+
+  const startCast = useCallback(async () => {
+    const at = absMS();
+    if (!(await chooseChromecast())) return;
+    const v = video.current;
+    v?.pause();
+    detach();
+    v?.removeAttribute('src');
+    v?.load();
+    setCastFrom(at);
+  }, [absMS, detach]);
+
   // Keep a converting session alive while paused.
   useEffect(() => {
     const sid = planState?.session_id;
@@ -569,6 +621,7 @@ function PlayerOverlay({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (castOn.current && e.key !== 'Escape') return; // the cast panel has its own controls
       const v = video.current;
       switch (e.key) {
         case 'Escape':
@@ -701,7 +754,18 @@ function PlayerOverlay({
       transition={{ duration: 0.25 }}
       onMouseMove={poke}
     >
-      {stopped !== null ? (
+      {castFrom !== null && item.itemId ? (
+        <CastSession
+          itemId={item.itemId}
+          title={item.title}
+          subtitle={item.subtitle}
+          startMS={castFrom}
+          onEnd={(ms) => {
+            setCastFrom(null);
+            void load(ms);
+          }}
+        />
+      ) : stopped !== null ? (
         <Message icon={<OctagonX className="text-white/70" />} title="Playback was stopped" onClose={onClose}>
           {stopped}
         </Message>
@@ -825,7 +889,7 @@ function PlayerOverlay({
           }}
         />
       )}
-      {stopped === null && !error && (
+      {stopped === null && !error && castFrom === null && (
         <div
           className={cn(
             'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-6 pb-5 pt-16 text-white transition-opacity duration-500',
@@ -1010,6 +1074,19 @@ function PlayerOverlay({
                   Space play/pause · ←/→ 5s · J/L 10s · Shift+←/→ chapters · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · I picture-in-picture · &lt;/&gt; speed · 0–9 jump
                 </p>
               </PlayerMenu>
+            )}
+            {castAvailable && item.itemId && (
+              <ControlButton label="Cast to a Chromecast" onClick={() => void startCast()}>
+                <Cast />
+              </ControlButton>
+            )}
+            {airplayAvailable && item.itemId && (
+              <ControlButton
+                label="AirPlay"
+                onClick={() => (video.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void } | null)?.webkitShowPlaybackTargetPicker?.()}
+              >
+                <Airplay />
+              </ControlButton>
             )}
             {pipSupported && (
               <ControlButton label={pip ? 'Back from Picture-in-Picture (I)' : 'Picture-in-Picture (I)'} onClick={togglePip}>
