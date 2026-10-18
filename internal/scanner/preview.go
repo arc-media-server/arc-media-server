@@ -197,6 +197,7 @@ func (s *Scanner) Preview(ctx context.Context, kind, sourceOrdering string, path
 			defer wg.Done()
 			for i := range work {
 				match, steps := s.identify(ctx, kind, sortedNames[i])
+				s.remembered.put(kind, sortedNames[i], match)
 				ps.update(func(p *Preview) {
 					it := &p.Items[i]
 					it.Match, it.Steps = match, steps

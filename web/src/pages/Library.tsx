@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import * as fmt from '@/lib/format';
 import { kindUnit } from '@/lib/kinds';
 import { language, plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
@@ -386,11 +387,17 @@ function ScanButton({ lib }: { lib: Library }) {
     }
     wasRunning.current = lib.scan.running;
   }, [lib.scan.running, qc]);
+  // Titles appear as they're identified, without waiting for the whole scan.
+  useEffect(() => {
+    if (!lib.scan.running) return;
+    const t = window.setInterval(() => qc.invalidateQueries({ queryKey: ['items'] }), 5000);
+    return () => window.clearInterval(t);
+  }, [lib.scan.running, qc]);
 
   if (lib.scan.running) {
     return (
-      <Button variant="secondary" size="sm" disabled>
-        <Loader2 className="animate-spin" /> Scanning · {lib.scan.files_seen} files
+      <Button variant="secondary" size="sm" disabled title={fmt.scanProgress(lib.scan)}>
+        <Loader2 className="animate-spin" /> <span className="max-w-[22rem] truncate">{fmt.scanProgress(lib.scan)}</span>
       </Button>
     );
   }

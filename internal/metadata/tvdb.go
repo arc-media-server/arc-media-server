@@ -28,7 +28,7 @@ type TVDB struct {
 }
 
 func NewTVDB(key string) *TVDB {
-	return &TVDB{key: key, http: &http.Client{Timeout: 30 * time.Second}}
+	return &TVDB{key: key, http: &http.Client{Timeout: 30 * time.Second, Transport: pooled()}}
 }
 
 // SetKey changes the API key (e.g. after it's edited in Settings). "" turns TheTVDB off.

@@ -168,9 +168,20 @@ func (p *Prober) Version(ctx context.Context) (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
+// probeDelay, from AMS_PROBE_DELAY_MS, slows every probe down to mimic slow disks when timing
+// scans in tests.
+var probeDelay, _ = strconv.Atoi(os.Getenv("AMS_PROBE_DELAY_MS"))
+
 func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
+	if probeDelay > 0 {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(probeDelay) * time.Millisecond):
+		}
+	}
 
 	cmd := exec.CommandContext(ctx, p.Bin(), "-v", "error", "-print_format", "json",
 		"-show_format", "-show_streams", "-show_chapters", path)

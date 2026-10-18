@@ -235,6 +235,13 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	files, err := s.store.ItemFiles(r.Context(), it.ID)
+	if err == nil && s.scanner != nil {
+		// A title played before its scan got to reading its files: read them now.
+		var read bool
+		if read, err = s.scanner.EnsureProbed(r.Context(), files); err == nil && read {
+			files, err = s.store.ItemFiles(r.Context(), it.ID)
+		}
+	}
 	if err != nil {
 		s.fail(w, err)
 		return

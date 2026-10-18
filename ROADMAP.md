@@ -168,14 +168,14 @@ _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource grap
 - [x] Smart playlists (#120)
 - [x] Dashboard: server resource graphs (#121)
 
-### 20. Faster scanning (priority)
+### 20. Faster scanning ✅
 _First scans of big libraries (about 1,800 films on Unraid) are much slower than Plex's._
-- [ ] Identify titles from names first, read files in the background (#124)
-- [ ] Look up several titles at once (#125)
-- [ ] Read files in parallel, kindly to spinning disks (#126)
-- [ ] Clearer scan progress (#127)
-- [ ] Measure scan speed on a large, slow library (#128)
-- [ ] Reuse the preview's matches when the library is added (#129)
+- [x] Identify titles from names first, read files in the background (#124)
+- [x] Look up several titles at once (#125)
+- [x] Read files in parallel, kindly to spinning disks (#126)
+- [x] Clearer scan progress (#127)
+- [x] Measure scan speed on a large, slow library (#128)
+- [x] Reuse the preview's matches when the library is added (#129)
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._

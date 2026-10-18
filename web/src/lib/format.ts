@@ -135,6 +135,16 @@ export function subtitleStreams(file?: MediaFile): Stream[] {
   return file?.streams.filter((s) => s.kind === 'subtitle') ?? [];
 }
 
+/** What a running scan is doing, e.g. "Matching movies · 120 of 1,812 · 98 identified". */
+export function scanProgress(scan: { files_seen: number; matched: number; phase?: string; done?: number; total?: number }): string {
+  const parts = [
+    scan.phase ? scan.phase : `Looking through folders · ${plural(scan.files_seen, 'file')}`,
+    scan.phase && scan.total ? `${Math.min(scan.done ?? 0, scan.total).toLocaleString()} of ${scan.total.toLocaleString()}` : '',
+    scan.matched ? `${scan.matched.toLocaleString()} identified` : '',
+  ];
+  return parts.filter(Boolean).join(' · ');
+}
+
 export function plural(n: number, word: string, pluralWord = `${word}s`): string {
   return `${n} ${n === 1 ? word : pluralWord}`;
 }

@@ -58,7 +58,8 @@ func videoDate(path string, mod time.Time) string {
 
 func (s *Scanner) scanVideoFile(ctx context.Context, lib *store.Library, root, path string, d fs.DirEntry, scanStart int64,
 	folders map[string]*videoFolder) error {
-	fileID, err := s.recordFile(ctx, lib, path, d, scanStart)
+	// Home videos are read straight away: their thumbnails are taken partway through.
+	fileID, err := s.recordFile(ctx, lib, path, d, scanStart, true)
 	if err != nil {
 		return err
 	}
