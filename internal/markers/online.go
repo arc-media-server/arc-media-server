@@ -68,6 +68,27 @@ func introDB(ctx context.Context, client *http.Client, imdb string, season, epis
 	return out, nil
 }
 
+// theIntroDBMovie looks a movie up on TheIntroDB by TMDB's (else IMDb's) id; only its credits are kept.
+func theIntroDBMovie(ctx context.Context, client *http.Client, key string, tmdb int64, imdb string) ([]store.Marker, int64, error) {
+	q := url.Values{}
+	switch {
+	case tmdb != 0:
+		q.Set("tmdb_id", strconv.FormatInt(tmdb, 10))
+	case imdb != "":
+		q.Set("imdb_id", imdb)
+	default:
+		return nil, 0, nil
+	}
+	ms, dur, err := theIntroDBQuery(ctx, client, key, q)
+	var out []store.Marker
+	for _, m := range ms {
+		if m.Kind == "credits" {
+			out = append(out, m)
+		}
+	}
+	return out, dur, err
+}
+
 // theIntroDB looks an episode up on TheIntroDB (theintrodb.org) by TheTVDB id (else TMDB's or
 // IMDb's), returning the timings and the length of the version they were timed on (0 if unknown).
 func theIntroDB(ctx context.Context, client *http.Client, key string, tvdb, tmdb int64, imdb string, season, episode int) ([]store.Marker, int64, error) {
@@ -87,6 +108,11 @@ func theIntroDB(ctx context.Context, client *http.Client, key string, tvdb, tmdb
 	}
 	q.Set("season", strconv.Itoa(season))
 	q.Set("episode", strconv.Itoa(episode))
+	return theIntroDBQuery(ctx, client, key, q)
+}
+
+// theIntroDBQuery asks TheIntroDB for a movie's or episode's timings.
+func theIntroDBQuery(ctx context.Context, client *http.Client, key string, q url.Values) ([]store.Marker, int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base("AMS_THEINTRODB_URL", "https://api.theintrodb.org/v4")+"/media?"+q.Encode(), nil)
 	if err != nil {
 		return nil, 0, err

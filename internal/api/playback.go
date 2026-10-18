@@ -315,7 +315,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if out.Markers, err = s.playableMarkers(r, f.ID); err != nil {
+	if out.Markers, err = s.playableMarkers(r, it.LibraryID, f.ID); err != nil {
 		s.fail(w, err)
 		return
 	}

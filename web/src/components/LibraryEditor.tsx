@@ -37,6 +37,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tmdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
+  // Plex's defaults: intros for TV, credits for TV and movies.
+  const [skipIntros, setSkipIntros] = useState(library?.skip_intros ?? true);
+  const [skipCredits, setSkipCredits] = useState(library?.skip_credits ?? true);
   const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
   const [language, setLanguage] = useState(library?.metadata_language ?? '');
   const [picking, setPicking] = useState(!editing);
@@ -58,8 +61,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language })
-        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language }),
+        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits })
+        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -226,6 +229,30 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
             </span>
             <Switch checked={trickplay} onCheckedChange={setTrickplay} aria-label="Scrubbing previews" />
           </label>
+          {kind === 'shows' && (
+            <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+              <span>
+                <span className="block text-sm font-medium">Skip intros</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                  Offer Skip Intro and Skip Recap. Arc finds them from chapters, online databases, or by comparing a season&apos;s episodes.
+                </span>
+              </span>
+              <Switch checked={skipIntros} onCheckedChange={setSkipIntros} aria-label="Skip intros" />
+            </label>
+          )}
+          {kind !== 'videos' && (
+            <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+              <span>
+                <span className="block text-sm font-medium">Skip credits</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                  {kind === 'shows'
+                    ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.'
+                    : 'Offer Skip Credits. Arc finds them from chapters, TheIntroDB, or by spotting the closing credits at night.'}
+                </span>
+              </span>
+              <Switch checked={skipCredits} onCheckedChange={setSkipCredits} aria-label="Skip credits" />
+            </label>
+          )}
         </div>
       )}
     </DialogContent>

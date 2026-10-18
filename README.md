@@ -114,8 +114,11 @@ Early development. Working today:
   every library; scrubbing previews can wait for it too
 - Skip Intro, Skip Recap and Skip Credits: timings from the file's chapters (Opening, Ending),
   IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
-  overnight by comparing a season's episodes' audio. At the credits Up Next counts down; Skip
-  intros automatically is in Settings > Playback; times can be set by hand under Edit > Skip Markers
+  overnight by comparing a season's episodes' audio. Movies get Skip Credits too (chapters,
+  TheIntroDB, or the closing credits spotted from the picture overnight). Each library chooses
+  Skip intros and Skip credits (as in Plex: both for TV, credits for movies). At the credits Up Next
+  counts down; Skip intros automatically is in Settings > Playback; times can be set by hand under
+  Edit > Skip Markers
 - Optimize (a title's ⋯ menu, or Select in a library): easy-to-play 1080p or 720p H.264 copies made
   in the background in Arc's data folder, played instead of converting live when a player can't play
   the original; listed with their size in Settings
@@ -277,7 +280,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 |---|---|---|
 | GET | `/api/libraries` | Libraries with their size and scan status |
 | POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows"\|"videos", "paths": [...], "source_ordering", "trickplay", "metadata_language"}` |
-| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, or `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again) |
+| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again), `skip_intros` or `skip_credits` |
 | DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
 | POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |
 | GET | `/api/library-previews/{id}` | The preview's progress and results |
