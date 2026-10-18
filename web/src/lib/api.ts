@@ -773,6 +773,18 @@ export interface RemoteStatus {
   double_nat?: boolean;
 }
 
+/** One moment of the Dashboard's graphs; -1 where the system can't say. */
+export interface ResourceSample {
+  t: number;
+  cpu_arc: number;
+  cpu_system: number;
+  mem_arc: number;
+  mem_used: number;
+  /** Bytes a second sent to devices at home and away. */
+  net_home: number;
+  net_away: number;
+}
+
 export interface ServerSettings {
   tmdb_api_key: string;
   tvdb_api_key: string;
@@ -899,6 +911,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
+  resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
   updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>

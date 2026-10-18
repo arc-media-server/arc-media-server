@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-158 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+159 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -100,6 +100,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/collections/{id}/items` | admin | {"item_ids": [...]} adds titles to a manual collection. |
 | DELETE | `/api/collections/{id}/items/{item}` | admin | Takes a title out of a manual collection. |
 | PUT | `/api/collections/{id}/order` | admin | {"item_ids": [...]} orders a manual collection. |
+
+### dashboard
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/dashboard/resources` | admin | ?range=day is how busy the server has been: CPU, memory and data sent, every 2 seconds for the last 5 minutes, or each minute for the last day. |
 
 ### devices
 

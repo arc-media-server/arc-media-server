@@ -28,6 +28,7 @@ import (
 	"ams/internal/settings"
 	"ams/internal/store"
 	"ams/internal/subtitles"
+	"ams/internal/sysstats"
 	"ams/internal/transcode"
 	"ams/internal/trickplay"
 	"ams/internal/webui"
@@ -49,6 +50,8 @@ type Deps struct {
 	Optimize *optimize.Manager
 	// Remote is remote access (HTTPS, the router, the outside address).
 	Remote *remote.Service
+	// Stats samples CPU, memory and network use for the Dashboard.
+	Stats *sysstats.Collector
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -98,6 +101,7 @@ type Server struct {
 	markers          interface{ Wake() }
 	optimizer        *optimize.Manager
 	remote           *remote.Service
+	stats            *sysstats.Collector
 	imports          importSessions
 	links            linkCodes
 	limiter          *auth.Limiter
@@ -110,7 +114,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -226,6 +230,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/home/default", admin(s.setDefaultHome))
 	mux.HandleFunc("DELETE /api/profiles/{id}", admin(s.deleteProfile))
 	mux.HandleFunc("GET /api/playing", admin(s.listPlaying))
+	mux.HandleFunc("GET /api/dashboard/resources", admin(s.resources))
 	mux.HandleFunc("POST /api/playing/{id}/stop", admin(s.stopPlaying))
 	mux.HandleFunc("GET /api/logs", admin(s.serverLog))
 	mux.HandleFunc("GET /api/stats", admin(s.statsOverview))
@@ -350,6 +355,16 @@ func toDTO(it store.Item) itemDTO {
 		d.Theme = base + "/theme?v=" + artwork.Key(it.LocalTheme)
 	}
 	return d
+}
+
+// resources: GET /api/dashboard/resources?range=day (admin) is how busy the server has been: CPU,
+// memory and data sent, every 2 seconds for the last 5 minutes, or each minute for the last day.
+func (s *Server) resources(w http.ResponseWriter, r *http.Request) {
+	if s.stats == nil {
+		writeError(w, http.StatusNotFound, "not available")
+		return
+	}
+	writeJSON(w, http.StatusOK, s.stats.Recent(r.URL.Query().Get("range") == "day"))
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
@@ -673,7 +688,17 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
+	home   bool // the device is at home, for the Dashboard's network graph
 }
+
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	n, err := r.ResponseWriter.Write(b)
+	sysstats.AddSent(r.home, n)
+	return n, err
+}
+
+// Unwrap lets http.ResponseController reach the connection (to flush, or set deadlines).
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
 
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
@@ -701,7 +726,7 @@ func versioned(next http.Handler) http.Handler {
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK, home: auth.IsLocal(r)}
 		next.ServeHTTP(rec, r)
 		s.log.Debug("http", "method", r.Method, "path", r.URL.Path, "status", rec.status,
 			"took", time.Since(start).Round(time.Millisecond))

@@ -117,6 +117,8 @@ Early development. Working today:
 - Sharing with friends (as in Plex): Profiles > Add Friend makes an invite link; the friend chooses a
   password with it and signs in from anywhere with their name and password. They see only the
   libraries (and age ratings) you allow, and never see your household's profiles
+- Server graphs on the Dashboard (as Plex's): CPU and memory, Arc's and the whole computer's, and
+  data sent to devices at home and away, for the last 5 minutes or 24 hours
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
@@ -378,6 +380,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Place an episode: `{"season_number": 1, "episode_number": 3}` |
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
+| GET | `/api/dashboard/resources` | CPU, memory and data sent, every 2 seconds for 5 minutes, or `?range=day` each minute for 24 hours (admin) |
 | GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
 | GET / POST | `/api/webhooks` | Webhooks with their last delivery and the event names (admin) / add one: `{"name", "url", "events": []}` (empty for all) |
 | PUT / DELETE | `/api/webhooks/{id}` | Change or remove a webhook (admin) |
