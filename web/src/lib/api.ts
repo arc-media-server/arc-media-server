@@ -120,6 +120,11 @@ export interface Item {
   status?: 'continuing' | 'ended' | 'cancelled' | 'upcoming';
   last_aired?: string;
   next_aired?: string;
+  /** Other sites' scores: IMDb (out of 10, and its votes), Rotten Tomatoes' critics (percent), Metacritic (out of 100). */
+  imdb_rating?: number;
+  imdb_votes?: number;
+  rotten_tomatoes?: number;
+  metacritic?: number;
   /** Audience score out of 10. */
   rating?: number;
   /** On a movie or show's own page. */
@@ -348,7 +353,7 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance';
+  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
@@ -498,7 +503,7 @@ export interface BackupsResponse {
   backups: Backup[];
 }
 
-export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'runtime' | 'watched' | 'shuffle';
+export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'imdb' | 'critics' | 'runtime' | 'watched' | 'shuffle';
 export type Resolution = '4k' | '1080' | '720' | 'sd';
 
 export interface Facet {
@@ -698,6 +703,8 @@ export interface ServerSettings {
   maintenance_end: number;
   /** Make scrubbing previews only in the maintenance window. */
   previews_at_night: boolean;
+  /** OMDb, for Rotten Tomatoes' and Metacritic's scores (masked). */
+  omdb_api_key: string;
   listen: string;
   from_env: Record<string, boolean>;
 }
@@ -769,7 +776,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

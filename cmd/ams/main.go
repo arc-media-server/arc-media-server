@@ -30,6 +30,7 @@ import (
 	"ams/internal/metadata"
 	"ams/internal/opensubtitles"
 	"ams/internal/probe"
+	"ams/internal/ratings"
 	"ams/internal/scanner"
 	"ams/internal/schedule"
 	"ams/internal/settings"
@@ -131,6 +132,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	window.Set(cfg.MaintenanceStart, cfg.MaintenanceEnd)
 	previewsAtNight.Store(cfg.PreviewsAtNight)
+	// Other sites' ratings (IMDb, and Rotten Tomatoes and Metacritic with an OMDb key).
+	extRatings := ratings.New(filepath.Join(dataDir, "ratings"), st, log)
+	extRatings.Activity, extRatings.Window = tasks, window
+	extRatings.SetOMDbKey(cfg.OMDbKey)
+	go extRatings.Run(ctx)
 
 	prober := probe.New("ffprobe")
 	var ffMu sync.Mutex
@@ -200,7 +206,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}
 	// After each scan, download new artwork so it's there offline.
-	sc.OnFinish = func(int64) { artKeeper.Trigger() }
+	sc.OnFinish = func(int64) {
+		artKeeper.Trigger()
+		extRatings.Changed()
+	}
 	artKeeper.Trigger()
 
 	// Scan libraries when their folders change.
@@ -292,6 +301,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				return err
 			}
 		}
+		if next.OMDbKey != current.OMDbKey && next.OMDbKey != "" {
+			if err := ratings.CheckOMDbKey(ctx, next.OMDbKey); err != nil {
+				return err
+			}
+		}
 		if next.TVDBKey != current.TVDBKey && next.TVDBKey != "" {
 			if err := metadata.CheckTVDBKey(ctx, next.TVDBKey); err != nil {
 				return err
@@ -321,6 +335,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		tmdb.SetKey(next.TMDBKey)
 		tvdb.SetKey(next.TVDBKey)
 		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
+		extRatings.SetOMDbKey(next.OMDbKey)
 		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
 		if next.PreviewsAtNight != current.PreviewsAtNight {
 			previewsAtNight.Store(next.PreviewsAtNight)

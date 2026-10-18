@@ -679,6 +679,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"maintenance_start":      st.MaintenanceStart,
 		"maintenance_end":        st.MaintenanceEnd,
 		"previews_at_night":      st.PreviewsAtNight,
+		"omdb_api_key":           maskKey(st.OMDbKey),
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -720,6 +721,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		MaintStart    *int    `json:"maintenance_start"`
 		MaintEnd      *int    `json:"maintenance_end"`
 		PreviewsNight *bool   `json:"previews_at_night"`
+		OMDbKey       *string `json:"omdb_api_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -787,6 +789,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.PreviewsNight != nil {
 		next.PreviewsAtNight = *body.PreviewsNight
+	}
+	if body.OMDbKey != nil {
+		next.OMDbKey = strings.TrimSpace(*body.OMDbKey)
 	}
 	if err := s.applySettings(r.Context(), next); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

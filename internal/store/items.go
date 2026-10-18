@@ -13,7 +13,8 @@ import (
 const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_title, original_title, year,
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
-	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired`
+	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired,
+	imdb_rating, imdb_votes, rt_critics, metacritic`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -26,7 +27,8 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.OriginalTitle, &it.Year, &it.Overview, &it.RuntimeMin, &it.ReleaseDate, &it.TMDBID,
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
-		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired}
+		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired,
+		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -732,6 +734,10 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		order = "release_date DESC, sort_title"
 	case "rating":
 		order = "rating DESC, sort_title"
+	case "imdb":
+		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
+	case "critics":
+		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
 	case "runtime":
 		order = "runtime_min DESC, sort_title"
 	case "watched":

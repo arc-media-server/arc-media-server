@@ -54,6 +54,12 @@ type Item struct {
 	ShowStatus string `json:"status,omitempty"`
 	LastAired  string `json:"last_aired,omitempty"`
 	NextAired  string `json:"next_aired,omitempty"`
+	// Other sites' ratings: IMDb (out of 10, with its vote count), Rotten Tomatoes' critics (percent)
+	// and Metacritic (out of 100); nil when there's none.
+	IMDbRating     float64 `json:"imdb_rating,omitempty"`
+	IMDbVotes      int     `json:"imdb_votes,omitempty"`
+	RottenTomatoes *int    `json:"rotten_tomatoes,omitempty"`
+	Metacritic     *int    `json:"metacritic,omitempty"`
 }
 
 // Credit is a person's part in a movie or show.
@@ -146,4 +152,5 @@ type ItemQuery struct {
 
 // Sorts ListItems understands. "shuffle" is a random order that stays the same all day.
 var ItemSorts = map[string]bool{"title": true, "added": true, "year": true, "release": true, "rating": true,
+	"imdb": true, "critics": true,
 	"runtime": true, "watched": true, "shuffle": true}
