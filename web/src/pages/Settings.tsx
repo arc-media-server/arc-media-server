@@ -6,6 +6,7 @@ import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
+import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
@@ -85,6 +86,25 @@ export function SettingsPage() {
               onChange={(v) => update.mutate({ allow_network: v })}
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
+          </Section>
+
+          <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
+            <Row label="Limit each remote stream" description="Videos are converted down to this when they're bigger, so they play smoothly on slower connections.">
+              <select
+                value={s.remote_kbps}
+                disabled={update.isPending}
+                onChange={(e) => update.mutate({ remote_kbps: Number(e.target.value) })}
+                className={`${inputClass} w-48 [&>option]:bg-surface`}
+              >
+                <option value={0}>Original (no limit)</option>
+                {qualities.map((q) => (
+                  <option key={q} value={q}>
+                    {qualityName(q)}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
           </Section>
 
           <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
@@ -229,6 +249,29 @@ const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 export function regionOptions(current?: string): [string, string][] {
   const codes = current && !regionCodes.includes(current) ? [...regionCodes, current] : regionCodes;
   return codes.map((c) => [c, regionNames.of(c) ?? c] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+/** The home's internet upload speed, shared between remote streams. */
+function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => Promise<unknown> }) {
+  const [mbps, setMbps] = useState(kbps ? String(kbps / 1000) : '');
+  const value = mbps.trim() === '' ? 0 : Math.round(Number(mbps) * 1000);
+  const valid = mbps.trim() === '' || (Number.isFinite(value) && value >= 0);
+  return (
+    <Row
+      label="Internet upload speed"
+      description="Your connection's upload speed (a speed test shows it). Remote streams share 80% of it, so several at once still play."
+    >
+      <div className="flex items-center gap-2">
+        <input value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
+        <span className="text-sm text-muted">Mbps</span>
+        {valid && value !== kbps && (
+          <Button variant="secondary" size="sm" onClick={() => onSave(value)}>
+            Save
+          </Button>
+        )}
+      </div>
+    </Row>
+  );
 }
 
 /** Pre-roll videos: files or folders, and whether one plays at random or all of them. */

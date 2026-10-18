@@ -111,6 +111,8 @@ Early development. Working today:
   IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
   overnight by comparing a season's episodes' audio. At the credits Up Next counts down; Skip
   Intros Automatically is in the profile menu; times can be set by hand under Edit > Skip Markers
+- Remote streams (Settings > Remote Access): a quality limit for each stream away from home, and
+  the home's upload speed shared between remote streams; streams at home are never limited
 - Pre-roll videos (Settings): files or folders of clips played before a movie started from the
   beginning, one at random or all in order, with Skip; ones that won't play are skipped
 - Theme music: a theme.mp3 (or .flac, .m4a, .ogg) in a show's or movie's folder, or a theme-music

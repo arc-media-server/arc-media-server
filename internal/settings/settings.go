@@ -46,6 +46,9 @@ type Settings struct {
 	// on this computer when there are none online (on unless turned off).
 	TheIntroDBKey string
 	DetectIntros  bool
+	// Streams to people away from home: the most each may use (kbps, 0 for no limit), and the
+	// home's internet upload speed (kbps, 0 if not set), shared between them.
+	RemoteKbps, UploadKbps int
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -75,6 +78,8 @@ const (
 	keyPrerollMode   = "preroll_mode"
 	keyTheIntroDB    = "theintrodb_api_key"
 	keyDetectIntros  = "detect_intros"
+	keyRemoteKbps    = "remote_kbps"
+	keyUploadKbps    = "upload_kbps"
 )
 
 // Environment variables that override settings.
@@ -188,6 +193,14 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.DetectIntros = v != "0"
+	if v, err = get(keyRemoteKbps); err != nil {
+		return s, err
+	}
+	s.RemoteKbps, _ = strconv.Atoi(v)
+	if v, err = get(keyUploadKbps); err != nil {
+		return s, err
+	}
+	s.UploadKbps, _ = strconv.Atoi(v)
 	return s, nil
 }
 
@@ -203,6 +216,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyPreviewsNight: boolString(s.PreviewsAtNight), keyOMDb: s.OMDbKey,
 		keyPrerollPaths: s.PrerollPaths, keyPrerollMode: s.PrerollMode,
 		keyTheIntroDB: s.TheIntroDBKey, keyDetectIntros: boolString(s.DetectIntros),
+		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

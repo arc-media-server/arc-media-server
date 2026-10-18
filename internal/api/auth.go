@@ -685,6 +685,8 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"preroll_found":          len(prerollFiles(st.PrerollPaths)),
 		"theintrodb_api_key":     maskKey(st.TheIntroDBKey),
 		"detect_intros":          st.DetectIntros,
+		"remote_kbps":            st.RemoteKbps,
+		"upload_kbps":            st.UploadKbps,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -731,6 +733,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		PrerollMode   *string `json:"preroll_mode"`
 		TheIntroDBKey *string `json:"theintrodb_api_key"`
 		DetectIntros  *bool   `json:"detect_intros"`
+		RemoteKbps    *int    `json:"remote_kbps"`
+		UploadKbps    *int    `json:"upload_kbps"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -804,6 +808,18 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.DetectIntros != nil {
 		next.DetectIntros = *body.DetectIntros
+	}
+	for _, v := range []*int{body.RemoteKbps, body.UploadKbps} {
+		if v != nil && (*v < 0 || *v > 1_000_000) {
+			writeError(w, http.StatusBadRequest, "speeds are in kbps, 0 for no limit")
+			return
+		}
+	}
+	if body.RemoteKbps != nil {
+		next.RemoteKbps = *body.RemoteKbps
+	}
+	if body.UploadKbps != nil {
+		next.UploadKbps = *body.UploadKbps
 	}
 	if body.PrerollPaths != nil {
 		next.PrerollPaths = strings.TrimSpace(*body.PrerollPaths)

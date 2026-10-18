@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"net"
 	"net/http"
 	"slices"
 	"strconv"
@@ -423,4 +424,24 @@ func (s *Server) serverLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.logs.Lines(level, after))
+}
+
+// remoteOthers counts the other playbacks going to people away from home (not this request's).
+func (n *nowPlaying) remoteOthers(r *http.Request, itemID string) int {
+	key := playbackKey(r, itemID, "")
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	count := 0
+	for k, p := range n.byKey {
+		if k != key && !isHomeAddress(p.address) && time.Since(p.updated) < playingTimeout {
+			count++
+		}
+	}
+	return count
+}
+
+// isHomeAddress reports whether an IP address is this computer or the home network.
+func isHomeAddress(addr string) bool {
+	ip := net.ParseIP(addr)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast())
 }
