@@ -3,6 +3,7 @@ package api
 import (
 	"ams/internal/auth"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -380,6 +381,10 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
 	}
 	sess, err := s.startConversion(r, opts)
+	if errors.Is(err, transcode.ErrBusy) {
+		writeError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
 	if err != nil && opts.HWEncoder != "" {
 		// The graphics card couldn't do this one (an unusual format, a busy or old driver): use the CPU.
 		s.log.Warn("hardware conversion failed; using the CPU", "encoder", opts.HWEncoder, "err", err)

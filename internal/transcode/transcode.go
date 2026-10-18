@@ -71,14 +71,36 @@ type Session struct {
 
 // Manager runs sessions.
 type Manager struct {
-	dir    string
 	ffmpeg func() string
 	probe  func() string
 	log    *slog.Logger
 
 	mu       sync.Mutex
+	dir      string // where sessions write, chosen in Settings
+	maxVideo int    // video conversions at once, 0 for no limit
 	sessions map[string]*Session
 	caps     Capabilities
+}
+
+// ErrBusy means as many videos are being converted as Settings allows.
+var ErrBusy = errors.New("Arc is already converting as many videos as it's allowed to at once; try again when one finishes, or play a version that doesn't need converting")
+
+// Configure sets where new sessions write (a folder of their own inside dir) and how many videos
+// may be converted at once (0 for no limit). Running sessions carry on where they are.
+func (m *Manager) Configure(dir string, maxVideo int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if dir != m.dir {
+		// A folder of Arc's own: clear what a crash may have left, unless sessions are running there.
+		inUse := false
+		for _, s := range m.sessions {
+			inUse = inUse || filepath.Dir(s.dir) == dir
+		}
+		if !inUse {
+			os.RemoveAll(dir)
+		}
+	}
+	m.dir, m.maxVideo = dir, maxVideo
 }
 
 // New makes a manager keeping sessions under dir (cleared now: nothing in it outlives a restart).
@@ -123,11 +145,26 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	if bin == "" {
 		return nil, errors.New("FFmpeg wasn't found, so this file can't be converted")
 	}
+	m.mu.Lock()
+	dir, max := m.dir, m.maxVideo
+	if max > 0 && !opts.CopyVideo {
+		n := 0
+		for _, o := range m.sessions {
+			if !o.Options.CopyVideo {
+				n++
+			}
+		}
+		if n >= max {
+			m.mu.Unlock()
+			return nil, ErrBusy
+		}
+	}
+	m.mu.Unlock()
 	var b [8]byte
 	rand.Read(b[:])
 	s := &Session{ID: hex.EncodeToString(b[:]), Options: opts, OffsetMS: opts.StartMS, lastSeen: time.Now(),
 		done: make(chan struct{})}
-	s.dir = filepath.Join(m.dir, s.ID)
+	s.dir = filepath.Join(dir, s.ID)
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return nil, err
 	}
