@@ -33,7 +33,7 @@ type seriesGroup struct {
 
 func (s *Scanner) collectEpisodeFile(ctx context.Context, lib *store.Library, root, path string, d fs.DirEntry,
 	scanStart int64, groups map[string]*seriesGroup) error {
-	fileID, err := s.recordFile(ctx, lib, path, d, scanStart)
+	fileID, err := s.recordFile(ctx, lib, path, d, scanStart, false)
 	if err != nil {
 		return err
 	}
@@ -64,16 +64,17 @@ func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, grou
 	}
 	sort.Strings(keys)
 	s.phase(lib.ID, "Getting show details", len(keys))
-	for _, k := range keys {
-		s.step(lib.ID)
-		if err := s.syncSeriesGroup(ctx, lib, groups[k], log); err != nil {
+	// A few shows at a time; each is its own items, episodes and orderings.
+	return each(ctx, len(keys), matchWorkers, func(i int) error {
+		defer s.step(lib.ID)
+		if err := s.syncSeriesGroup(ctx, lib, groups[keys[i]], log); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			log.Warn("series failed", "series", groups[k].name.Title, "err", err)
+			log.Warn("series failed", "series", groups[keys[i]].name.Title, "err", err)
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Configured() }
@@ -88,6 +89,18 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	}
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })
+		// The library's preview may have identified it already: no need to search again.
+		if c := s.remembered.get("shows", g.name); c != nil && g.name.TVDBID == 0 && g.name.TMDBID == 0 {
+			tmdb, tvdb := int64(0), int64(0)
+			if c.Provider == "tvdb" {
+				tvdb = c.ID
+			} else {
+				tmdb = c.ID
+			}
+			if err := s.store.AdoptIDs(ctx, id, tmdb, tvdb, ""); err != nil {
+				return err
+			}
+		}
 	}
 	// Local artwork and tvshow.nfo ids from the show's folder (before looking it up, so the ids are used).
 	if g.folder != "" {

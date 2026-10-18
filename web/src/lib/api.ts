@@ -159,6 +159,10 @@ export interface ScanStatus {
   unmatched: number;
   not_recognised: number;
   error?: string;
+  /** The stage after looking through the folders (e.g. "Matching movies"), and how far through it is. */
+  phase?: string;
+  done?: number;
+  total?: number;
 }
 
 /** "videos" is Other videos: home videos and the like, with no online details. */

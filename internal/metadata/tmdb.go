@@ -2,12 +2,14 @@
 package metadata
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,7 +17,8 @@ import (
 	"unicode"
 )
 
-const tmdbBase = "https://api.themoviedb.org/3"
+// tmdbBase is TMDB's API; AMS_TMDB_URL points it at a stand-in (for timing scans in tests).
+var tmdbBase = cmp.Or(os.Getenv("AMS_TMDB_URL"), "https://api.themoviedb.org/3")
 
 // ErrNotFound means the provider has nothing with the requested id.
 var ErrNotFound = errors.New("not found")
@@ -49,7 +52,7 @@ func (c *TMDB) Region() string {
 }
 
 func NewTMDB(key string) *TMDB {
-	return &TMDB{key: key, http: &http.Client{Timeout: 20 * time.Second}}
+	return &TMDB{key: key, http: &http.Client{Timeout: 20 * time.Second, Transport: pooled()}}
 }
 
 // SetKey changes the API key (e.g. after it's edited in Settings). "" turns TMDB off.

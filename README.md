@@ -24,7 +24,11 @@ Early development. Working today:
   multi-part `cd1`/`part2` files; samples are skipped)
 - Extras: trailers, featurettes, behind the scenes, deleted scenes, interviews and shorts (in
   `Extras/`, `Trailers/`… folders or named `<movie>-trailer.mkv`) shown with their movie or show
-- Media info via ffprobe (container, duration, codecs, resolution, audio and subtitle tracks)
+- Fast first scans (as Plex does): titles are identified from their folder and file names and shown
+  with posters straight away, several at a time, then each file is read with ffprobe (container,
+  duration, codecs, resolution, audio and subtitle tracks) a few at a time in the background. A title
+  played before its file is read is read on the spot. Titles the library preview identified are
+  reused, not searched for again; the scan's progress shows in Activity and on the library
 - TMDB and TheTVDB metadata matching, with genres, cast and crew (with photos), studio or network,
   tagline, score, age ratings for your region, original language, and for shows whether they are
   continuing, ended or cancelled and when the next episode airs

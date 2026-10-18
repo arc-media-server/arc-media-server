@@ -69,8 +69,9 @@ type Status struct {
 	Error        string `json:"error,omitempty"`
 	// What the scan is doing after looking through the folders (e.g. "Matching movies"), and how
 	// far through it is.
-	Phase       string `json:"phase,omitempty"`
-	Done, Total int    `json:"-"`
+	Phase string `json:"phase,omitempty"`
+	Done  int    `json:"done,omitempty"`
+	Total int    `json:"total,omitempty"`
 }
 
 // summary says what a finished scan found, e.g. "40 files · 2 new · 1 not matched".
@@ -90,14 +91,27 @@ func (st Status) summary() string {
 
 // describe says what a running scan is doing, for the Activity menu.
 func (st Status) describe() string {
-	if st.Phase == "" {
-		return fmt.Sprintf("Looking through folders · %d files", st.FilesSeen)
+	var parts []string
+	switch {
+	case st.Phase == "":
+		parts = append(parts, fmt.Sprintf("Looking through folders · %d files", st.FilesSeen))
+	case st.Total > 0:
+		parts = append(parts, fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 1), st.Total))
+	default:
+		parts = append(parts, st.Phase)
 	}
-	if st.Total > 0 {
-		return fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 1), st.Total)
+	if st.Matched > 0 {
+		parts = append(parts, fmt.Sprintf("%d identified", st.Matched))
 	}
-	return st.Phase
+	return strings.Join(parts, " · ")
 }
+
+// How many titles are looked up at once, and how many files read at once. The provider clients
+// still pace their requests; reading a few files at a time keeps spinning disks from thrashing.
+const (
+	matchWorkers = 6
+	probeWorkers = 3
+)
 
 type Scanner struct {
 	ctx    context.Context
@@ -123,6 +137,8 @@ type Scanner struct {
 	tasks  map[int64]*activity.Handle
 	// Libraries that changed during their scan and need scanning again when it ends.
 	again map[int64]bool
+	// Titles a library preview identified, so adding the library doesn't search for them again.
+	remembered remembered
 }
 
 // New creates a scanner. Background scans stop when ctx is cancelled.
@@ -289,7 +305,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 				}
 				return
 			}
-			id, err := s.recordFile(ctx, lib, path, d, scanStart)
+			id, err := s.recordFile(ctx, lib, path, d, scanStart, false)
 			if err != nil {
 				log.Warn("failed to add file", "path", path, "err", err)
 				return
@@ -334,6 +350,11 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	// Extras last, once their movies and shows are linked to files.
 	s.phase(lib.ID, "Adding extras", 0)
 	if err := s.linkExtras(ctx, lib, extras); err != nil {
+		return err
+	}
+	// Then what's inside the new files (length, video, audio and subtitle tracks), now that the
+	// titles are showing.
+	if err := s.probePending(ctx, lib, scanStart); err != nil {
 		return err
 	}
 
@@ -465,8 +486,9 @@ func (s *Scanner) linkExtras(ctx context.Context, lib *store.Library, extras []e
 	return nil
 }
 
-// recordFile stores a file (probing it if it is new or changed) and marks it seen in this scan.
-func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64) (int64, error) {
+// recordFile stores a file and marks it seen in this scan. A new or changed file is read with
+// ffprobe now if probeNow, otherwise later by probePending, so titles can be matched first.
+func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64, probeNow bool) (int64, error) {
 	info, err := d.Info()
 	if err != nil {
 		return 0, err
@@ -477,18 +499,15 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	if err != nil {
 		return 0, err
 	}
-	if existing != nil && existing.Probed && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix() {
+	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
+	if unchanged && (existing.Probed || !probeNow) {
 		return existing.ID, s.store.TouchFile(ctx, existing.ID, scanStart)
 	}
 	f := &store.MediaFile{LibraryID: lib.ID, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix()}
-	var probedAt int64
-	if res, err := s.prober.Probe(ctx, path); err != nil {
-		f.ProbeError = err.Error()
-	} else {
-		probedAt = time.Now().Unix()
-		applyProbe(f, res)
+	if !probeNow {
+		return s.store.SaveFile(ctx, f, 0, scanStart)
 	}
-	fileID, err := s.store.SaveFile(ctx, f, probedAt, scanStart)
+	fileID, err := s.saveProbed(ctx, f, scanStart)
 	if err != nil {
 		return 0, err
 	}
@@ -496,8 +515,101 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	return fileID, nil
 }
 
+// saveProbed reads a file with ffprobe and stores what's in it (or why it couldn't be read).
+func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int64) (int64, error) {
+	var probedAt int64
+	if res, err := s.prober.Probe(ctx, f.Path); err != nil {
+		if ctx.Err() != nil {
+			return 0, ctx.Err()
+		}
+		f.ProbeError = err.Error()
+	} else {
+		probedAt = time.Now().Unix()
+		applyProbe(f, res)
+	}
+	return s.store.SaveFile(ctx, f, probedAt, seenAt)
+}
+
+// probePending reads a library's files that haven't been read yet (new or changed since), a few
+// at a time, in path order so each worker stays in one folder (and disk) at a time.
+func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStart int64) error {
+	files, err := s.store.UnprobedFiles(ctx, lib.ID)
+	if err != nil || len(files) == 0 {
+		return err
+	}
+	s.phase(lib.ID, "Reading file details", len(files))
+	return each(ctx, len(files), probeWorkers, func(i int) error {
+		f := files[i]
+		probe := store.MediaFile{LibraryID: lib.ID, Path: f.Path, Size: f.Size, ModTime: f.ModTime}
+		if _, err := s.saveProbed(ctx, &probe, max(f.LastSeen, scanStart)); err != nil {
+			return err
+		}
+		s.update(lib.ID, func(st *Status) { st.FilesProbed++; st.Done++ })
+		return nil
+	})
+}
+
+// EnsureProbed reads any of these files that haven't been read yet (e.g. a title played before
+// its scan got to it), reporting whether it read any.
+func (s *Scanner) EnsureProbed(ctx context.Context, files []store.MediaFile) (bool, error) {
+	read := false
+	for i := range files {
+		f := files[i]
+		if f.Probed || f.Missing || f.ProbeError != "" {
+			continue
+		}
+		probe := store.MediaFile{LibraryID: f.LibraryID, Path: f.Path, Size: f.Size, ModTime: f.ModTime}
+		if _, err := s.saveProbed(ctx, &probe, time.Now().UnixMilli()); err != nil {
+			return read, err
+		}
+		read = true
+	}
+	return read, nil
+}
+
+// each runs fn for 0..n-1 on up to workers goroutines, stopping at the first error. fn must be
+// safe to run concurrently (the store is; SQLite takes one write at a time).
+func each(ctx context.Context, n, workers int, fn func(i int) error) error {
+	next := make(chan int)
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for range min(workers, n) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				if err := fn(i); err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	var err error
+feed:
+	for i := range n {
+		select {
+		case next <- i:
+		case err = <-errs:
+			break feed
+		case <-ctx.Done():
+			err = ctx.Err()
+			break feed
+		}
+	}
+	close(next)
+	wg.Wait()
+	if err == nil {
+		select {
+		case err = <-errs:
+		default:
+		}
+	}
+	return err
+}
+
 func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64) error {
-	fileID, err := s.recordFile(ctx, lib, path, d, scanStart)
+	fileID, err := s.recordFile(ctx, lib, path, d, scanStart, false)
 	if err != nil {
 		return err
 	}
@@ -527,6 +639,12 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	}
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })
+		// The library's preview may have identified it already: no need to search again.
+		if c := s.remembered.get("movies", name); c != nil && name.TMDBID == 0 && name.IMDBID == "" {
+			if err := s.store.AdoptIDs(ctx, itemID, c.ID, 0, ""); err != nil {
+				return err
+			}
+		}
 	}
 	if err := s.store.SetFileItems(ctx, fileID, []string{itemID}, name.Part); err != nil {
 		return err
@@ -559,8 +677,9 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 		return err
 	}
 	s.phase(libraryID, "Matching movies", len(items))
-	for _, it := range items {
-		s.step(libraryID)
+	return each(ctx, len(items), matchWorkers, func(i int) error {
+		it := items[i]
+		defer s.step(libraryID)
 		tctx, save := s.traced(ctx, it.ID)
 		m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
 		save()
@@ -570,21 +689,18 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 			}
 			// Leave the item pending so the next scan retries it.
 			s.log.Warn("tmdb lookup failed", "title", it.Title, "year", it.Year, "err", err)
-			continue
+			return nil
 		}
 		if m == nil {
 			s.update(libraryID, func(st *Status) { st.Unmatched++ })
-			if err := s.store.SetMetadataState(ctx, it.ID, "unmatched"); err != nil {
-				return err
-			}
-			continue
+			return s.store.SetMetadataState(ctx, it.ID, "unmatched")
 		}
 		if err := s.saveMovie(ctx, it, m); err != nil {
 			return err
 		}
 		s.update(libraryID, func(st *Status) { st.Matched++ })
-	}
-	return nil
+		return nil
+	})
 }
 
 func movieMetadata(it store.Item, m *metadata.Movie) *store.Item {
@@ -655,16 +771,16 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 		items = append(items, stale...)
 	}
 	s.phase(libraryID, "Updating movie details", len(items))
-	for _, it := range items {
-		s.step(libraryID)
-		if _, err := s.RefreshMovie(ctx, it.ID); err != nil {
+	return each(ctx, len(items), matchWorkers, func(i int) error {
+		defer s.step(libraryID)
+		if _, err := s.RefreshMovie(ctx, items[i].ID); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			s.log.Warn("refreshing movie failed", "title", it.Title, "err", err)
+			s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 // inLanguage is ctx asking for a library's metadata language.

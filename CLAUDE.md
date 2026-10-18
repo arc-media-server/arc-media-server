@@ -92,8 +92,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   folder + conversions at once, Shuffle, subtitle mode/style per profile, collection mode, smart
   playlists, Dashboard resource graphs. The owner is thinking about: release packaging, native apps,
   downloads, and translating the UI (recommended react-i18next + Weblate, #122).
-- NEXT, priority: milestone 20, Faster scanning (#124-#128): identify from names before ffprobe, parallel
-  lookups and probing, clearer progress. Prompted by a slow first scan of ~1,800 films on the owner's Unraid.
+- Milestone 20 done (Oct 2026), Faster scanning: titles matched from names first (6 at a time), files read
+  afterwards (3 at a time; Play reads an unread file on the spot), preview matches reused, progress shown.
+  600 films: all matched in 43 s instead of 449 s (tools/scanbench). Prompted by the owner's Unraid.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
@@ -160,6 +161,7 @@ internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
 tools/testmedia/     generates a fake test library
 tools/apidoc/        regenerates docs/API.md from internal/api (internal/apidoc; a test fails when it's stale)
+tools/scanbench/     times first scans against a stand-in TMDB with slow disks simulated (AMS_TMDB_URL, AMS_PROBE_DELAY_MS)
 ```
 
 ## Build, run, test

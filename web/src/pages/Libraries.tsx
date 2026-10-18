@@ -109,7 +109,7 @@ function LibraryRow({ lib, onEdit, onRemove }: { lib: Library; onEdit: () => voi
         ))}
         {lib.scan.running && (
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-accent">
-            <Loader2 className="size-3 animate-spin" /> Scanning · {fmt.plural(lib.scan.files_seen, 'file')}
+            <Loader2 className="size-3 animate-spin" /> {fmt.scanProgress(lib.scan)}
           </p>
         )}
       </div>
