@@ -107,6 +107,7 @@ func (m *Manager) pass(ctx context.Context) error {
 		number int
 	}
 	missing := map[season]bool{}
+	var movies []store.MarkerJob // movies still without credits
 	for i, j := range jobs {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -116,7 +117,10 @@ func (m *Manager) pass(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if !slices.Contains(have, "intro") && j.Season >= 0 {
+		if j.Movie && !slices.Contains(have, "credits") {
+			movies = append(movies, j)
+		}
+		if !j.Movie && !slices.Contains(have, "intro") && j.Season >= 0 {
 			missing[season{j.SeriesID, j.Season}] = true
 		}
 		if err := m.store.MarkersChecked(ctx, j.FileID); err != nil {
@@ -154,6 +158,23 @@ func (m *Manager) pass(ctx context.Context) error {
 			}
 		}
 	}
+	for i, j := range movies {
+		if ctx.Err() != nil || !m.Window.Open() {
+			return ctx.Err()
+		}
+		task.Progress(i+1, len(movies))
+		task.Detail(fmt.Sprintf("Finding movie credits (%d of %d)", i+1, len(movies)))
+		found, err := detectCredits(ctx, ffmpeg, j.Path, j.DurationMS)
+		if err != nil {
+			m.log.Warn("detecting credits failed", "file", j.Path, "err", err)
+			continue
+		}
+		if found != nil {
+			if err := m.store.SaveMarkers(ctx, j.FileID, []store.Marker{*found}); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -164,7 +185,11 @@ func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, onlin
 	if err != nil {
 		return nil, err
 	}
-	if found := fits(fromChapters(chapters), j.DurationMS, 0); len(found) > 0 {
+	fromFile := fromChapters(chapters)
+	if j.Movie {
+		fromFile = movieCredits(fromFile, chapters)
+	}
+	if found := fits(fromFile, j.DurationMS, 0); len(found) > 0 {
 		if err := m.store.SaveMarkers(ctx, j.FileID, found); err != nil {
 			return nil, err
 		}
@@ -178,12 +203,23 @@ func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, onlin
 		return kinds, err
 	}
 	kinds, err := have()
-	if err != nil || slices.Contains(kinds, "intro") || !*online {
+	wanted := "intro"
+	if j.Movie {
+		wanted = "credits"
+	}
+	if err != nil || slices.Contains(kinds, wanted) || !*online {
 		return kinds, err
 	}
 	var found []store.Marker
 	if key != "" {
-		ms, dur, err := theIntroDB(ctx, m.http, key, j.SeriesTVDB, j.SeriesTMDB, j.SeriesIMDB, j.Season, j.Episode)
+		var ms []store.Marker
+		var dur int64
+		var err error
+		if j.Movie {
+			ms, dur, err = theIntroDBMovie(ctx, m.http, key, j.SeriesTMDB, j.SeriesIMDB)
+		} else {
+			ms, dur, err = theIntroDB(ctx, m.http, key, j.SeriesTVDB, j.SeriesTMDB, j.SeriesIMDB, j.Season, j.Episode)
+		}
 		if errors.Is(err, errLimited) {
 			*online = false
 		} else if err != nil {
@@ -191,7 +227,7 @@ func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, onlin
 		}
 		found = fits(ms, j.DurationMS, dur)
 	}
-	if len(found) == 0 && *online {
+	if len(found) == 0 && *online && !j.Movie {
 		ms, err := introDB(ctx, m.http, j.SeriesIMDB, j.Season, j.Episode)
 		if errors.Is(err, errLimited) {
 			*online = false

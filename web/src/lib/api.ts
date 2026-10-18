@@ -177,6 +177,9 @@ export interface Library {
   collection_min: number;
   /** The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English. */
   metadata_language: string;
+  /** Offer Skip Intro (TV) and Skip Credits (TV and movies). */
+  skip_intros: boolean;
+  skip_credits: boolean;
   /** How many movies or shows it lists. */
   count: number;
   scan: ScanStatus;
@@ -190,6 +193,8 @@ export interface LibraryInput {
   trickplay?: boolean;
   collection_min?: number;
   metadata_language?: string;
+  skip_intros?: boolean;
+  skip_credits?: boolean;
 }
 
 export interface PreviewItem {

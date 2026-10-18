@@ -12,6 +12,9 @@ type Library struct {
 	CollectionMin int `json:"collection_min"`
 	// The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English.
 	MetadataLanguage string `json:"metadata_language"`
+	// Offer Skip Intro (and Skip Recap) and Skip Credits, finding where they are.
+	SkipIntros  bool `json:"skip_intros"`
+	SkipCredits bool `json:"skip_credits"`
 }
 
 type Item struct {

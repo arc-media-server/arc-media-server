@@ -32,6 +32,9 @@ type libraryBody struct {
 	CollectionMin *int `json:"collection_min"`
 	// The language titles and descriptions are fetched in; "" for English.
 	MetadataLanguage string `json:"metadata_language"`
+	// Offer Skip Intro and Skip Credits (on by default where they apply).
+	SkipIntros  *bool `json:"skip_intros"`
+	SkipCredits *bool `json:"skip_credits"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -153,6 +156,18 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Plex's defaults: intros and credits for TV, credits for movies, neither for other videos.
+	intros, credits := b.Kind == "shows", b.Kind != "videos"
+	if b.SkipIntros != nil {
+		intros = *b.SkipIntros && b.Kind == "shows"
+	}
+	if b.SkipCredits != nil {
+		credits = *b.SkipCredits && b.Kind != "videos"
+	}
+	if err := s.store.SetLibrarySkips(r.Context(), id, intros, credits); err != nil {
+		s.fail(w, err)
+		return
+	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
@@ -203,6 +218,8 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		Trickplay      *bool    `json:"trickplay"`
 		CollectionMin  *int     `json:"collection_min"`
 		Language       *string  `json:"metadata_language"`
+		SkipIntros     *bool    `json:"skip_intros"`
+		SkipCredits    *bool    `json:"skip_credits"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -212,6 +229,22 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
 			s.fail(w, err)
 			return
+		}
+	}
+	if patch.SkipIntros != nil || patch.SkipCredits != nil {
+		intros, credits := lib.SkipIntros, lib.SkipCredits
+		if patch.SkipIntros != nil {
+			intros = *patch.SkipIntros && lib.Kind == "shows"
+		}
+		if patch.SkipCredits != nil {
+			credits = *patch.SkipCredits && lib.Kind != "videos"
+		}
+		if err := s.store.SetLibrarySkips(r.Context(), lib.ID, intros, credits); err != nil {
+			s.fail(w, err)
+			return
+		}
+		if s.markers != nil && (intros && !lib.SkipIntros || credits && !lib.SkipCredits) {
+			s.markers.Wake() // look for the newly wanted ones
 		}
 	}
 	if patch.CollectionMin != nil {

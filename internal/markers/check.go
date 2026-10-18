@@ -65,6 +65,24 @@ var (
 	creditsChapter = regexp.MustCompile(`(?i)^(credits|end credits|closing credits|ending|ending (credits|theme)|ed|outro)\b`)
 )
 
+// movieCredits keeps only a movie's credits from its chapter markers, and only from a chapter
+// that says "credits": a movie's chapter called "Ending" or "Opening" is usually part of the story.
+func movieCredits(ms []store.Marker, chapters []store.Chapter) []store.Marker {
+	var out []store.Marker
+	for _, m := range ms {
+		if m.Kind != "credits" {
+			continue
+		}
+		for _, c := range chapters {
+			if c.StartMS == m.StartMS && strings.Contains(strings.ToLower(c.Title), "credit") {
+				out = append(out, m)
+				break
+			}
+		}
+	}
+	return out
+}
+
 // fromChapters reads intro, recap and credits markers from a file's chapter names ("Opening",
 // "Ending", "Recap"), as many releases (anime especially) name them.
 func fromChapters(chapters []store.Chapter) []store.Marker {

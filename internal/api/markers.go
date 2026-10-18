@@ -10,13 +10,21 @@ import (
 
 // playableMarkers are a file's skip markers for the player: the ones that skip something (a
 // marker of length zero is the user saying there's nothing to skip).
-func (s *Server) playableMarkers(r *http.Request, fileID int64) ([]store.Marker, error) {
+func (s *Server) playableMarkers(r *http.Request, libraryID, fileID int64) ([]store.Marker, error) {
 	all, err := s.store.FileMarkers(r.Context(), fileID)
 	if err != nil {
 		return nil, err
 	}
+	lib, err := s.store.GetLibrary(r.Context(), libraryID)
+	if err != nil || lib == nil {
+		return []store.Marker{}, err
+	}
 	out := []store.Marker{}
 	for _, m := range all {
+		// Each library chooses whether to offer Skip Intro (and Skip Recap) and Skip Credits.
+		if m.Kind == "credits" && !lib.SkipCredits || m.Kind != "credits" && !lib.SkipIntros {
+			continue
+		}
 		if m.EndMS > m.StartMS {
 			out = append(out, m)
 		}

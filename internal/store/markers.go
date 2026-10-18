@@ -117,21 +117,33 @@ type MarkerJob struct {
 	Season     int
 	Episode    int
 	LibraryID  int64
+	// A movie (only its credits are looked for); EpisodeID and SeriesID are then the movie's.
+	Movie bool
 }
 
-// MarkerJobs lists present episode files whose markers haven't been looked for since a time
-// (unix seconds), never-checked first.
+// MarkerJobs lists present files whose markers haven't been looked for since a time (unix
+// seconds), never-checked first: episodes in libraries that skip intros or credits, and movies in
+// libraries that skip credits.
 func (s *Store) MarkerJobs(ctx context.Context, before int64, limit int) ([]MarkerJob, error) {
 	rows, err := s.db.QueryContext(ctx, `
+		SELECT * FROM (
 		SELECT m.id, m.path, m.duration_ms, e.id, sr.id, sr.imdb_id, sr.tvdb_id, sr.tmdb_id, e.library_id,
 			COALESCE((SELECT oe.season_number FROM ordering_entries oe JOIN orderings o ON o.id = oe.ordering_id
 				WHERE oe.episode_id = e.id AND o.source IN ('tvdb_aired', 'tmdb_aired') ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1), -1),
 			COALESCE((SELECT oe.episode_number FROM ordering_entries oe JOIN orderings o ON o.id = oe.ordering_id
-				WHERE oe.episode_id = e.id AND o.source IN ('tvdb_aired', 'tmdb_aired') ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1), -1)
+				WHERE oe.episode_id = e.id AND o.source IN ('tvdb_aired', 'tmdb_aired') ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1), -1),
+			0, m.markers_checked_at AS checked, sr.id AS grp, m.path AS p
 		FROM media_files m JOIN item_files f ON f.file_id = m.id JOIN items e ON e.id = f.item_id AND e.kind = 'episode'
 		JOIN items sr ON sr.id = e.parent_id
+		JOIN libraries l ON l.id = e.library_id AND (l.skip_intros = 1 OR l.skip_credits = 1)
 		WHERE m.missing_since IS NULL AND m.duration_ms > 0 AND m.markers_checked_at < ?
-		ORDER BY m.markers_checked_at, sr.id, m.path LIMIT ?`, before, limit)
+		UNION ALL
+		SELECT m.id, m.path, m.duration_ms, mv.id, mv.id, mv.imdb_id, mv.tvdb_id, mv.tmdb_id, mv.library_id, -1, -1,
+			1, m.markers_checked_at, mv.id, m.path
+		FROM media_files m JOIN item_files f ON f.file_id = m.id JOIN items mv ON mv.id = f.item_id AND mv.kind = 'movie'
+		JOIN libraries l ON l.id = mv.library_id AND l.skip_credits = 1 AND l.videos = 0
+		WHERE m.missing_since IS NULL AND m.duration_ms > 0 AND m.markers_checked_at < ?
+		) ORDER BY checked, grp, p LIMIT ?`, before, before, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +151,10 @@ func (s *Store) MarkerJobs(ctx context.Context, before int64, limit int) ([]Mark
 	var out []MarkerJob
 	for rows.Next() {
 		var j MarkerJob
+		var checked int64
+		var grp, p string
 		if err := rows.Scan(&j.FileID, &j.Path, &j.DurationMS, &j.EpisodeID, &j.SeriesID, &j.SeriesIMDB, &j.SeriesTVDB,
-			&j.SeriesTMDB, &j.LibraryID, &j.Season, &j.Episode); err != nil {
+			&j.SeriesTMDB, &j.LibraryID, &j.Season, &j.Episode, &j.Movie, &checked, &grp, &p); err != nil {
 			return nil, err
 		}
 		out = append(out, j)

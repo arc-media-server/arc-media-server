@@ -156,14 +156,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -185,8 +185,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage)
+		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -247,5 +247,11 @@ func (s *Store) SetLibraryLanguage(ctx context.Context, id int64, lang string) e
 		return err
 	}
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE library_id = ? AND kind IN ('movie', 'series')`, id)
+	return err
+}
+
+// SetLibrarySkips sets whether a library offers Skip Intro and Skip Credits.
+func (s *Store) SetLibrarySkips(ctx context.Context, id int64, intros, credits bool) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE libraries SET skip_intros = ?, skip_credits = ? WHERE id = ?`, boolInt(intros), boolInt(credits), id)
 	return err
 }

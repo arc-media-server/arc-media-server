@@ -209,7 +209,7 @@ function ServerSettings() {
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
-          <Section title="Skip Intro" hint="Where intros, recaps and credits are, for Skip Intro and Skip Credits in the player.">
+          <Section title="Skip Intro" hint="How Arc finds intros, recaps and credits. Each library chooses whether to offer Skip Intro and Skip Credits (Libraries › Edit).">
             <Row
               label="Chapters and IntroDB"
               description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
@@ -223,8 +223,8 @@ function ServerSettings() {
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
             <ToggleRow
-              label="Find intros on this computer"
-              description="When an episode isn't in either database, compare it with the rest of its season to find the intro and credits they share. Runs in the maintenance time."
+              label="Find intros and credits on this computer"
+              description="When a title isn't in the databases: an episode is compared with the rest of its season to find the intro and credits they share, and a movie's closing credits are spotted from the picture. Runs in the maintenance time."
               checked={s.detect_intros}
               busy={update.isPending}
               onChange={(v) => update.mutate({ detect_intros: v })}
