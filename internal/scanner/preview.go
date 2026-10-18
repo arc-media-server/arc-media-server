@@ -57,7 +57,13 @@ func (ps *PreviewState) Snapshot() Preview {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	p := ps.p
-	p.Items = append([]PreviewItem(nil), ps.p.Items...)
+	// Empty lists go out as [], not null: the web app reads them straight away.
+	p.Items = append([]PreviewItem{}, ps.p.Items...)
+	for i := range p.Items {
+		if p.Items[i].Steps == nil {
+			p.Items[i].Steps = []metadata.Step{}
+		}
+	}
 	p.Unrecognised = append([]string{}, ps.p.Unrecognised...)
 	p.Unavailable = append([]string{}, ps.p.Unavailable...)
 	return p
