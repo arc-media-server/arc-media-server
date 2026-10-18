@@ -6,6 +6,7 @@ import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
+import { Webhooks } from '@/components/Webhooks';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -103,6 +104,10 @@ export function SettingsPage() {
             </Row>
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
+
+          <Section title="Notifications" hint="Send messages to Discord, Slack or anywhere else when things happen.">
+            <Webhooks />
+          </Section>
 
           <Section title="Ratings" hint="Other sites' scores on title pages, and to sort by.">
             <Row

@@ -58,6 +58,8 @@ type Manager struct {
 	Activity *activity.Tracker
 	// Window, if set, is when the daily backup is taken.
 	Window *schedule.Window
+	// OnFail, if set, is told when an automatic backup fails.
+	OnFail func(error)
 }
 
 func New(dir string, st *store.Store, log *slog.Logger) *Manager {
@@ -248,6 +250,9 @@ func (m *Manager) Run(ctx context.Context) {
 		lastAttempt = time.Now()
 		if _, err := m.Create(ctx, ReasonAuto); err != nil && ctx.Err() == nil {
 			m.log.Warn("automatic backup failed", "err", err)
+			if m.OnFail != nil {
+				m.OnFail(err)
+			}
 		}
 	}
 	timer := time.NewTimer(time.Minute) // let the startup scan get going first

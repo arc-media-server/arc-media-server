@@ -71,7 +71,9 @@ type playUpdate struct {
 	started                           time.Time
 	watchedMS, positionMS, durationMS int64
 	completed                         bool
-	device, method                    string
+	// It reached the end with this report (for the playback.watched event).
+	justCompleted  bool
+	device, method string
 }
 
 type stopped struct {
@@ -162,14 +164,16 @@ func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durati
 	}
 	p.counted = now
 	p.positionMS, p.durationMS, p.paused = positionMS, durationMS, state == "paused"
-	if durationMS > 0 && float64(positionMS) >= 0.9*float64(durationMS) {
-		p.completed = true
+	justCompleted := false
+	if durationMS > 0 && float64(positionMS) >= 0.9*float64(durationMS) && !p.completed {
+		p.completed, justCompleted = true, true
 	}
 	if state == "stopped" {
 		delete(n.byKey, key)
 	}
 	u := &playUpdate{key: key, historyID: p.historyID, userID: p.userID, started: p.started, watchedMS: p.watchedMS,
-		positionMS: positionMS, durationMS: durationMS, completed: p.completed, device: p.device, method: cmp.Or(p.method, "direct")}
+		positionMS: positionMS, durationMS: durationMS, completed: p.completed, justCompleted: justCompleted, device: p.device,
+		method: cmp.Or(p.method, "direct")}
 	switch {
 	case p.historyID != 0:
 	case p.addingPlay || p.watchedMS < minPlayMS:

@@ -124,6 +124,7 @@ internal/watcher/    fsnotify on library folders -> scanner.Request after 10s qu
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
 internal/schedule/   the maintenance window (hours of the night heavy work waits for)
+internal/notify/     webhook events (library.new, playback.start/watched, server.problem); Discord/Slack formats
 internal/importer/   imports watch state from Plex (plex.tv PIN sign-in) and Jellyfin; AMS_PLEX_TV_URL for a stand-in
 internal/ratings/    IMDb ratings file (weekly) and OMDb critics' scores; AMS_OMDB_URL / AMS_IMDB_RATINGS_URL for stand-ins
 internal/activity/   running and recent background tasks (scans, refreshes, previews, backups) for the Activity menu

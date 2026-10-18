@@ -28,6 +28,7 @@ import (
 	"ams/internal/config"
 	"ams/internal/logbuf"
 	"ams/internal/metadata"
+	"ams/internal/notify"
 	"ams/internal/opensubtitles"
 	"ams/internal/probe"
 	"ams/internal/ratings"
@@ -113,12 +114,14 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	defer st.Close()
 	tasks := activity.New()
+	notifier := notify.New(st, log)
 	// The maintenance window; its hours come from the settings below.
 	window := schedule.New(2, 5)
 	var previewsAtNight atomic.Bool
 	backups := backup.New(backupDir, st, log)
 	backups.Activity = tasks
 	backups.Window = window
+	backups.OnFail = func(err error) { notifier.Problem("The automatic backup failed: " + err.Error()) }
 	go backups.Run(ctx)
 
 	if legacy != nil {
@@ -206,9 +209,20 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}
 	// After each scan, download new artwork so it's there offline.
-	sc.OnFinish = func(int64) {
+	sc.OnFinish = func(libraryID int64) {
 		artKeeper.Trigger()
 		extRatings.Changed()
+		// Tell webhooks what's new, or that the scan failed.
+		status := sc.Status(libraryID)
+		lib, err := st.GetLibrary(ctx, libraryID)
+		if err != nil || lib == nil {
+			return
+		}
+		if status.Error != "" {
+			notifier.Problem(fmt.Sprintf("Scanning %s failed: %s", lib.Name, status.Error))
+			return
+		}
+		notifier.LibraryScanned(ctx, *lib, status.StartedAt.Unix())
 	}
 	artKeeper.Trigger()
 
@@ -284,6 +298,14 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// The web server can move to a new address when the port or network setting changes.
 	var mu sync.Mutex
 	current := cfg
+	// Links in webhook messages point at this server: its network address when other devices can
+	// reach it.
+	notifier.BaseURL = func() string {
+		mu.Lock()
+		c := current
+		mu.Unlock()
+		return publicURL(c)
+	}
 	listeners := make(chan net.Listener, 1)
 	applySettings := func(ctx context.Context, next settings.Settings) error {
 		mu.Lock()
@@ -356,7 +378,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },
@@ -507,4 +529,24 @@ func importLegacyConfig(ctx context.Context, cfg *config.Config, path string, st
 	}
 	log.Info("imported settings from the old config file; everything is set in the web app from now on, and the file can be deleted", "file", path)
 	return st.SetSetting(ctx, key, "1")
+}
+
+// publicURL is the address other devices can open this server at ("" if it can't be worked out).
+func publicURL(c settings.Settings) string {
+	host, port, err := net.SplitHostPort(c.ListenAddress())
+	if err != nil {
+		return ""
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+		if addrs, err := net.InterfaceAddrs(); err == nil {
+			for _, a := range addrs {
+				if ip, ok := a.(*net.IPNet); ok && ip.IP.To4() != nil && !ip.IP.IsLoopback() && ip.IP.IsPrivate() {
+					host = ip.IP.String()
+					break
+				}
+			}
+		}
+	}
+	return "http://" + net.JoinHostPort(host, port)
 }

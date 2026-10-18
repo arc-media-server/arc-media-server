@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ActivityButton } from '@/components/Activity';
+import { NewsButton } from '@/components/News';
 
 export function useLibraries() {
   return useQuery({
@@ -210,7 +211,10 @@ export function Sidebar() {
       <div className="flex h-16 items-center gap-2.5 px-5">
         <ArcLogo className="size-7" />
         <span className="text-[19px] font-bold tracking-tight">Arc</span>
-        <ActivityButton className="ml-auto -mr-1.5" />
+        <div className="-mr-1.5 ml-auto flex items-center">
+          <NewsButton />
+          <ActivityButton />
+        </div>
       </div>
       <div className="px-3 pb-3">
         <SearchBox />
@@ -285,6 +289,7 @@ export function MobileBar() {
       <div className="flex items-center gap-3 px-4 pt-3">
         <ArcLogo className="size-6" />
         <SearchBox className="flex-1" />
+        <NewsButton />
         <ActivityButton />
         <ProfileMenu compact />
       </div>

@@ -364,6 +364,25 @@ export interface ActivityTask {
   error?: string;
 }
 
+/** An address Arc posts events to. */
+export interface Webhook {
+  id: string;
+  name: string;
+  url: string;
+  /** The events it gets; empty for all. */
+  events: string[];
+  format: 'discord' | 'slack' | 'json';
+  last?: { at: string; event: string; status: string; ok: boolean };
+}
+
+/** Something new for the profile: a movie, or a show with new episodes. */
+export interface NewsEntry {
+  item: Item;
+  count: number;
+  added_at: number;
+  unread: boolean;
+}
+
 /** Importing watch history from Plex or Jellyfin. */
 export interface ImportSession {
   id: string;
@@ -841,6 +860,13 @@ export const api = {
       { keepalive: true },
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
+  webhooks: () => request<{ webhooks: Webhook[]; events: string[] }>('GET', '/api/webhooks'),
+  saveWebhook: (h: { id?: string; name: string; url: string; events: string[] }) =>
+    h.id ? request<Webhook>('PUT', `/api/webhooks/${h.id}`, h) : request<Webhook>('POST', '/api/webhooks', h),
+  deleteWebhook: (id: string) => request<void>('DELETE', `/api/webhooks/${id}`),
+  testWebhook: (id: string) => request<{ ok: boolean; status: string }>('POST', `/api/webhooks/${id}/test`),
+  news: () => request<{ entries: NewsEntry[]; unread: number }>('GET', '/api/news'),
+  newsSeen: () => request<void>('POST', '/api/news/seen'),
   startImport: (b: { source: 'plex' } | { source: 'jellyfin'; url: string; username: string; password: string }) =>
     request<ImportSession>('POST', '/api/imports', b),
   importSession: (id: string) => request<ImportSession>('GET', `/api/imports/${id}`),

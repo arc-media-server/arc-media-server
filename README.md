@@ -107,6 +107,11 @@ Early development. Working today:
 - Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
   refreshing week-old show details and month-old movie details, the daily backup and a check of
   every library; scrubbing previews can wait for it too
+- New for You: a bell for every profile with new episodes of shows it watches and new movies from
+  the last month, with an unread count
+- Webhooks (Settings > Notifications): new movies and episodes, playback starting and finishing,
+  and problems (failed scans or backups) sent to Discord or Slack as tidy messages, or anywhere as
+  JSON; each shows how its last delivery went, with a Test button
 - Moving in (Settings): import from Plex (Sign in with Plex; watched titles, resume points, ratings
   and Plex's watch history for everyone on the server) or Jellyfin (every user's watched titles and
   resume points). Each person goes to an Arc profile, titles are matched by their online ids, and
@@ -314,6 +319,11 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
 | GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
+| GET / POST | `/api/webhooks` | Webhooks with their last delivery and the event names (admin) / add one: `{"name", "url", "events": []}` (empty for all) |
+| PUT / DELETE | `/api/webhooks/{id}` | Change or remove a webhook (admin) |
+| POST | `/api/webhooks/{id}/test` | Send a test message now |
+| GET | `/api/news` | New for You: `{entries: [{item, count, added_at, unread}], unread}` |
+| POST | `/api/news/seen` | Mark New for You as seen |
 | POST | `/api/imports` | Start importing (admin): `{"source": "plex"}` (returns the plex.tv sign-in link) or `{"source": "jellyfin", "url", "username", "password"}` |
 | GET | `/api/imports/{id}` | The import so far: stage (signing_in, choose_server, choose_accounts, running, done, failed), servers, accounts, results |
 | POST | `/api/imports/{id}/server` | Choose the Plex server: `{"server_id"}` |
