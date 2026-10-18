@@ -32,6 +32,11 @@ type Settings struct {
 	// OpenSubtitles.com, for finding subtitles online: an API key, and optionally an account
 	// (which allows more downloads a day).
 	OpenSubtitlesKey, OpenSubtitlesUser, OpenSubtitlesPassword string
+	// The maintenance window, in hours (02:00–05:00 unless changed): metadata refreshes and
+	// backups wait for it.
+	MaintenanceStart, MaintenanceEnd int
+	// Make scrubbing previews only in the maintenance window (otherwise as soon as files arrive).
+	PreviewsAtNight bool
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -41,18 +46,21 @@ const DefaultPort = 8099
 
 // Database keys.
 const (
-	keyTMDB         = "tmdb_api_key"
-	keyTVDB         = "tvdb_api_key"
-	keyFFprobe      = "ffprobe_path"
-	keyLocalBypass  = "local_bypass"
-	keyPort         = "port"
-	keyAllowNetwork = "allow_network"
-	keyRegion       = "region"
-	keyHWAccel      = "hw_accel"
-	keyToneMap      = "tone_mapping"
-	keyOSKey        = "opensubtitles_api_key"
-	keyOSUser       = "opensubtitles_username"
-	keyOSPassword   = "opensubtitles_password"
+	keyTMDB          = "tmdb_api_key"
+	keyTVDB          = "tvdb_api_key"
+	keyFFprobe       = "ffprobe_path"
+	keyLocalBypass   = "local_bypass"
+	keyPort          = "port"
+	keyAllowNetwork  = "allow_network"
+	keyRegion        = "region"
+	keyHWAccel       = "hw_accel"
+	keyToneMap       = "tone_mapping"
+	keyOSKey         = "opensubtitles_api_key"
+	keyOSUser        = "opensubtitles_username"
+	keyOSPassword    = "opensubtitles_password"
+	keyMaintStart    = "maintenance_start"
+	keyMaintEnd      = "maintenance_end"
+	keyPreviewsNight = "previews_at_night"
 )
 
 // Environment variables that override settings.
@@ -130,6 +138,23 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.OpenSubtitlesPassword, err = get(keyOSPassword); err != nil {
 		return s, err
 	}
+	s.MaintenanceStart, s.MaintenanceEnd = 2, 5
+	if v, err = get(keyMaintStart); err != nil {
+		return s, err
+	}
+	if h, err := strconv.Atoi(v); err == nil && h >= 0 && h < 24 {
+		s.MaintenanceStart = h
+	}
+	if v, err = get(keyMaintEnd); err != nil {
+		return s, err
+	}
+	if h, err := strconv.Atoi(v); err == nil && h >= 0 && h < 24 {
+		s.MaintenanceEnd = h
+	}
+	if v, err = get(keyPreviewsNight); err != nil {
+		return s, err
+	}
+	s.PreviewsAtNight = v == "1"
 	return s, nil
 }
 
@@ -141,6 +166,8 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,
 		keyHWAccel: boolString(s.HWAccel), keyToneMap: boolString(s.ToneMap),
 		keyOSKey: s.OpenSubtitlesKey, keyOSUser: s.OpenSubtitlesUser, keyOSPassword: s.OpenSubtitlesPassword,
+		keyMaintStart: strconv.Itoa(s.MaintenanceStart), keyMaintEnd: strconv.Itoa(s.MaintenanceEnd),
+		keyPreviewsNight: boolString(s.PreviewsAtNight),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment

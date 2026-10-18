@@ -144,6 +144,13 @@ func (s *Store) GetItem(ctx context.Context, id string) (*Item, error) {
 	return &it, nil
 }
 
+// StaleItems lists matched items of a kind in a library whose metadata was last fetched before
+// a time (unix seconds), oldest first.
+func (s *Store) StaleItems(ctx context.Context, libraryID int64, kind string, before int64, limit int) ([]Item, error) {
+	return s.queryItems(ctx, `SELECT `+itemCols+` FROM items WHERE library_id = ? AND kind = ? AND metadata_state = 'matched'
+		AND synced_at > 0 AND synced_at < ? ORDER BY synced_at LIMIT ?`, libraryID, kind, before, limit)
+}
+
 // ItemsWithMetadataState lists items of a kind in a library with the given metadata state.
 func (s *Store) ItemsWithMetadataState(ctx context.Context, libraryID int64, kind, state string) ([]Item, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items

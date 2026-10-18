@@ -129,6 +129,29 @@ export function SettingsPage() {
             />
           </Section>
 
+          <Section
+            title="Scheduled tasks"
+            hint="Heavy background work waits for a quiet time of night, so it doesn't slow anyone watching."
+          >
+            <Row
+              label="Maintenance time"
+              description="Every night in this window Arc refreshes details that are a week (shows) or a month (movies) old, takes the daily backup, and checks every library for changes."
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <HourSelect value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
+                <span className="text-muted">to</span>
+                <HourSelect value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
+              </div>
+            </Row>
+            <ToggleRow
+              label="Make scrubbing previews only at this time"
+              description="Otherwise they're made as soon as new files arrive, which keeps the processor busy for a while after adding a lot. Files someone starts watching always get theirs straight away."
+              checked={s.previews_at_night}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ previews_at_night: v })}
+            />
+          </Section>
+
           {update.error && <p className="text-sm text-warning">{update.error.message}</p>}
         </div>
       )}
@@ -144,6 +167,19 @@ const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 export function regionOptions(current?: string): [string, string][] {
   const codes = current && !regionCodes.includes(current) ? [...regionCodes, current] : regionCodes;
   return codes.map((c) => [c, regionNames.of(c) ?? c] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+/** An hour of the day, as 24-hour time. */
+function HourSelect({ value, disabled, onChange }: { value: number; disabled: boolean; onChange: (h: number) => void }) {
+  return (
+    <select value={value} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className={inputClass} aria-label="Hour">
+      {Array.from({ length: 24 }, (_, h) => (
+        <option key={h} value={h}>
+          {String(h).padStart(2, '0')}:00
+        </option>
+      ))}
+    </select>
+  );
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {

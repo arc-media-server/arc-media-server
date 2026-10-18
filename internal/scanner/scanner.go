@@ -4,6 +4,7 @@ package scanner
 
 import (
 	"ams/internal/activity"
+	"ams/internal/schedule"
 	"context"
 	"errors"
 	"fmt"
@@ -110,6 +111,8 @@ type Scanner struct {
 	OnFinish func(libraryID int64)
 	// Activity, if set, is told about each scan.
 	Activity *activity.Tracker
+	// Window, if set, is when regular metadata refreshes happen (always, if nil).
+	Window *schedule.Window
 
 	wg     sync.WaitGroup
 	mu     sync.Mutex
@@ -621,6 +624,14 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 	if err != nil {
 		return err
 	}
+	// In the maintenance window, movies whose details are a month old are refreshed too.
+	if s.Window.Open() {
+		stale, err := s.store.StaleItems(ctx, libraryID, "movie", time.Now().Add(-movieResyncAfter).Unix(), 100)
+		if err != nil {
+			return err
+		}
+		items = append(items, stale...)
+	}
 	s.phase(libraryID, "Updating movie details", len(items))
 	for _, it := range items {
 		s.step(libraryID)
@@ -641,6 +652,9 @@ func (s *Scanner) inLanguage(ctx context.Context, libraryID int64) context.Conte
 	}
 	return ctx
 }
+
+// A movie's details are fetched again this often (in the maintenance window).
+const movieResyncAfter = 30 * 24 * time.Hour
 
 // ErrNoProvider means the metadata provider needed isn't configured (no API key).
 var ErrNoProvider = errors.New("no metadata provider is configured")

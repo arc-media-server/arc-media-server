@@ -5,6 +5,7 @@ package backup
 
 import (
 	"ams/internal/activity"
+	"ams/internal/schedule"
 	"context"
 	"errors"
 	"fmt"
@@ -55,6 +56,8 @@ type Manager struct {
 
 	// Activity, if set, is told about each backup.
 	Activity *activity.Tracker
+	// Window, if set, is when the daily backup is taken.
+	Window *schedule.Window
 }
 
 func New(dir string, st *store.Store, log *slog.Logger) *Manager {
@@ -236,6 +239,10 @@ func (m *Manager) Run(ctx context.Context) {
 		}
 		if time.Since(latest) < interval {
 			lastAttempt = latest
+			return
+		}
+		// Wait for the maintenance window, unless backups have fallen behind.
+		if !m.Window.Open() && time.Since(latest) < 2*interval && !latest.IsZero() {
 			return
 		}
 		lastAttempt = time.Now()

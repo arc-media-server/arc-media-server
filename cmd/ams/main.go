@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"ams/internal/opensubtitles"
 	"ams/internal/probe"
 	"ams/internal/scanner"
+	"ams/internal/schedule"
 	"ams/internal/settings"
 	"ams/internal/store"
 	"ams/internal/subtitles"
@@ -110,8 +112,12 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	defer st.Close()
 	tasks := activity.New()
+	// The maintenance window; its hours come from the settings below.
+	window := schedule.New(2, 5)
+	var previewsAtNight atomic.Bool
 	backups := backup.New(backupDir, st, log)
 	backups.Activity = tasks
+	backups.Window = window
 	go backups.Run(ctx)
 
 	if legacy != nil {
@@ -123,6 +129,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	window.Set(cfg.MaintenanceStart, cfg.MaintenanceEnd)
+	previewsAtNight.Store(cfg.PreviewsAtNight)
 
 	prober := probe.New("ffprobe")
 	var ffMu sync.Mutex
@@ -184,6 +192,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
 	sc.Activity = tasks
+	sc.Window = window
 	// After each scan, download new artwork so it's there offline.
 	sc.OnFinish = func(int64) { artKeeper.Trigger() }
 	artKeeper.Trigger()
@@ -199,6 +208,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}, log)
 	thumbs.Activity = tasks
+	thumbs.Allowed = func() bool { return !previewsAtNight.Load() || window.Open() }
 	go thumbs.Run(ctx)
 	librariesChanged := func(scan bool) {
 		thumbs.Wake()
@@ -217,6 +227,32 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		watch.SetLibraries(folders)
 	}
 	librariesChanged(true)
+
+	// Once a night, in the maintenance window: scan every library (which refreshes old details)
+	// and catch up on scrubbing previews. Backups check the window themselves.
+	go func() {
+		last := ""
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(5 * time.Minute):
+			}
+			night := window.Night(time.Now())
+			if !window.Open() || night == last {
+				continue
+			}
+			last = night
+			task := tasks.Start("maintenance", "Nightly maintenance")
+			libs, err := st.ListLibraries(ctx)
+			for _, l := range libs {
+				sc.Request(l.ID)
+			}
+			thumbs.Wake()
+			task.Detail(fmt.Sprintf("Checked %d libraries for changes and old details", len(libs)))
+			task.Finish(err)
+		}
+	}()
 
 	// Sessions unused for 90 days are forgotten.
 	go func() {
@@ -279,6 +315,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		tmdb.SetKey(next.TMDBKey)
 		tvdb.SetKey(next.TVDBKey)
 		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
+		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
+		if next.PreviewsAtNight != current.PreviewsAtNight {
+			previewsAtNight.Store(next.PreviewsAtNight)
+			thumbs.Wake()
+		}
 		if next.Region != current.Region {
 			tmdb.SetRegion(next.Region)
 			// Age ratings are per region: fetch everything again, a batch per scan.

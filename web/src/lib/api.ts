@@ -344,7 +344,7 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup';
+  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
@@ -689,6 +689,11 @@ export interface ServerSettings {
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
   region: string;
+  /** The maintenance window, in hours (0–23): refreshing details and backups wait for it. */
+  maintenance_start: number;
+  maintenance_end: number;
+  /** Make scrubbing previews only in the maintenance window. */
+  previews_at_night: boolean;
   listen: string;
   from_env: Record<string, boolean>;
 }
@@ -760,7 +765,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

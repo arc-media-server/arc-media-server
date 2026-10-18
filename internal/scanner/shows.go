@@ -118,8 +118,10 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	}
 	aired := nextAired != "" && nextAired <= time.Now().Format("2006-01-02") && age > 24*time.Hour
 
+	// The weekly refresh waits for the maintenance window (unless the server is never on then).
+	due := age > resyncAfter && s.Window.Open() || age > 4*resyncAfter
 	synced := false
-	if s.hasProviders() && (syncedAt == 0 || age > resyncAfter || aired) {
+	if s.hasProviders() && (syncedAt == 0 || due || aired) {
 		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
 			if ctx.Err() != nil {
 				return err
