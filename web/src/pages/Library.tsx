@@ -1,13 +1,14 @@
 import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
+import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { language, plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { MediaRow } from '@/components/MediaRow';
+import { SelectionBar } from '@/components/BulkEdit';
 import { useLibraries } from '@/components/Sidebar';
 import { useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
@@ -54,6 +55,23 @@ export function LibraryPage() {
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
   const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
+  // Choosing titles to change together (admins).
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const lastClicked = useRef<number | null>(null);
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+    lastClicked.current = null;
+  };
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('[role=dialog]')) stopSelecting();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selecting]);
   const unit = lib?.kind === 'shows' ? 'show' : 'movie';
   const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500, ...filters };
   const items = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query), enabled: !!lib });
@@ -106,6 +124,11 @@ export function LibraryPage() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {admin && !selecting && (
+                <Button variant="ghost" size="sm" onClick={() => setSelecting(true)}>
+                  <ListChecks /> Select
+                </Button>
+              )}
               {admin && <ScanButton lib={lib} />}
             </>
           ))
@@ -238,9 +261,43 @@ export function LibraryPage() {
             {lib?.scan.running ? 'Scanning your folders…' : `Arc didn't find anything in ${lib?.paths.join(', ')}.`}
           </EmptyState>
         ) : (
-          <PosterGrid items={items.data.items} />
+          <PosterGrid
+            items={items.data.items}
+            select={
+              selecting
+                ? {
+                    selected,
+                    onToggle: (item, index, e) => {
+                      const list = items.data!.items;
+                      const last = lastClicked.current;
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        // Shift-click chooses everything between this and the last one clicked.
+                        if (e.shiftKey && last !== null) {
+                          const [from, to] = [Math.min(last, index), Math.max(last, index)];
+                          for (const it of list.slice(from, to + 1)) next.add(it.id);
+                        } else if (next.has(item.id)) next.delete(item.id);
+                        else next.add(item.id);
+                        return next;
+                      });
+                      lastClicked.current = index;
+                    },
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
+      {selecting && lib && view === 'titles' && items.data && (
+        <SelectionBar
+          library={lib}
+          items={items.data.items}
+          selected={selected}
+          onSelectAll={() => setSelected(new Set(items.data!.items.map((i) => i.id)))}
+          onClear={() => setSelected(new Set())}
+          onDone={stopSelecting}
+        />
+      )}
     </Page>
   );
 }

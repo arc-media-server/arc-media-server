@@ -19,6 +19,22 @@ export type LockableField =
   | 'studio';
 
 /** A manual metadata edit: fields sent are set and locked; locked_fields replaces the locked set. */
+/** A change to many movies and shows at once; anything left out stays as it is. */
+export interface BulkEdit {
+  item_ids: string[];
+  add_genres?: string[];
+  remove_genres?: string[];
+  add_labels?: string[];
+  remove_labels?: string[];
+  content_rating?: string;
+  /** Lock every field against refreshes, or unlock them all. */
+  locks?: 'all' | 'none';
+  /** Watched or not, for the current profile. */
+  played?: boolean;
+  /** Fetch their metadata again in the background. */
+  refresh?: boolean;
+}
+
 export interface ItemEdit {
   title?: string;
   sort_title?: string;
@@ -780,6 +796,7 @@ export const api = {
 
   items: (q: ItemQuery) => request<{ total: number; items: Item[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
+  editItems: (edit: BulkEdit) => request<void>('POST', '/api/items/bulk', edit),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
   reportProgress: (id: string, positionMS: number, durationMS: number, state: 'playing' | 'paused' | 'stopped' = 'playing') =>
