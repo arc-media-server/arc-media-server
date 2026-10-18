@@ -121,6 +121,10 @@ Early development. Working today:
   opened with UPnP (or forwarded by hand), the outside address is shown with a Check button, and
   HTTPS runs on the same port with your own certificate files or a free Let's Encrypt certificate
   for your domain, renewed automatically; people away from home are sent to HTTPS
+- Apps and devices: apps sign in with a token (with the password, a friend's name and password,
+  or on a TV with a short code entered at Link a Device, like plex.tv/link); Settings > Devices
+  lists every signed-in browser and app and signs any out. The web app can be added to a phone's
+  home screen, where it opens full screen like an app
 - Casting from the web player: a Cast button for Chromecasts (Chrome and Edge, over HTTPS or on
   the server's own computer) with a remote-control panel that saves progress, and AirPlay in
   Safari. The device plays a cast link (a token in the address) since it has no sign-in cookie
@@ -243,9 +247,13 @@ Motion for animation and TanStack Query for data loading.
 | GET | `/api/health` | Server name and version |
 | GET | `/api/auth/status` | Setup needed? Signed in? Current profile and the profiles to pick from |
 | POST | `/api/auth/setup` | First run: create the admin profile (`name`, `password`, `local_bypass`, API keys) |
-| POST | `/api/auth/login` | Sign in with the password |
+| POST | `/api/auth/login` | Sign in with the password; an app also sends `device` (its name) and gets `{"token"}` for `Authorization: Bearer` |
 | POST / DELETE | `/api/auth/profile` | Switch to a profile (`id`, `pin` or `password`) / back to the picker |
 | POST | `/api/auth/logout` | Sign out |
+| POST | `/api/auth/link` | A TV asks for a sign-in code: `{"device"}` → `{"code", "poll", "expires_in"}` |
+| GET | `/api/auth/link/{poll}` | The TV asks whether its code was entered: 202 while waiting, then `{"token"}` once |
+| POST | `/api/auth/link/approve` | Enter a TV's code to sign it in: `{"code"}` |
+| GET / DELETE | `/api/devices` | Signed-in browsers and apps (admin) / `/api/devices/{id}` signs one out |
 | POST | `/api/auth/friend` | A friend signs in: `{"name", "password"}` |
 | GET / POST | `/api/invites/{token}` | Who an invite link is for / accept it: `{"password"}` (signs the friend in) |
 | POST | `/api/auth/password` | Change the password (admin) |
@@ -257,6 +265,8 @@ Motion for animation and TanStack Query for data loading.
 | GET | `/api/cast/{token}/...` | A stream (file, or HLS playlist and segments) for a cast device, with CORS headers |
 | GET | `/api/remote` | Remote access: the outside address, the router's port forwarding and the HTTPS certificate (admin) |
 | POST | `/api/remote/check` | Try to reach Arc at its outside address (admin) |
+
+The full reference, generated from the code, is [docs/API.md](docs/API.md): signing in apps with tokens, the stable `/api/v1/...` paths, and every endpoint.
 
 Everything except `/api/health` and `/api/auth/*` needs a signed-in profile (a session cookie);
 managing libraries, settings, profiles, backups and metadata needs the admin profile.

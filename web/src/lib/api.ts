@@ -725,6 +725,19 @@ export interface AuthStatus {
   friend: boolean;
 }
 
+/** A signed-in browser or app (Settings > Devices). */
+export interface Device {
+  id: string;
+  /** An app's name for itself; empty for a browser. */
+  device: string;
+  user_agent: string;
+  via: 'password' | 'local' | 'friend';
+  profile: string;
+  created_at: number;
+  last_seen_at: number;
+  this_device: boolean;
+}
+
 /** How remote access stands. */
 export interface RemoteStatus {
   enabled: boolean;
@@ -960,6 +973,9 @@ export const api = {
   subtitleCues: (itemId: string, track: string, fileId: number) =>
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
   /** A link to a stream that a Chromecast or Apple TV can open itself. */
+  approveLink: (code: string) => request<{ device: string }>('POST', '/api/auth/link/approve', { code }),
+  devices: () => request<Device[]>('GET', '/api/devices'),
+  signOutDevice: (id: string) => request<void>('DELETE', `/api/devices/${id}`),
   castLink: (url: string) => request<{ url: string; local_only: boolean }>('POST', '/api/cast', { url }),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
   stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),

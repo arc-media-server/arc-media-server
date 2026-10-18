@@ -21,6 +21,7 @@ import { PersonPage } from './pages/Person';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
 import { ProfilesPage } from './pages/Profiles';
+import { LinkDevicePage } from './components/Devices';
 import { AuthGate } from './components/auth/AuthGate';
 import { useProfileTheme } from './lib/theme';
 
@@ -58,6 +59,7 @@ export function App() {
             <Route path="/libraries" element={<LibrariesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profiles" element={<ProfilesPage />} />
+            <Route path="/link" element={<LinkDevicePage />} />
             <Route
               path="*"
               element={

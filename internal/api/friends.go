@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"ams/internal/auth"
@@ -112,6 +113,8 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name     string `json:"name"`
 		Password string `json:"password"`
+		// An app signing in (see login).
+		Device string `json:"device"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -133,12 +136,8 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.Succeed(key)
-	if old := s.session(r); old != nil {
+	if old := s.session(r); old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
-	if _, err := s.startSession(w, r, u.ID, "friend"); err != nil {
-		s.fail(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	s.signIn(w, r, u.ID, "friend", strings.TrimSpace(body.Device))
 }

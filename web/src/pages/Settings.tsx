@@ -9,6 +9,7 @@ import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
 import { OptimizedList } from '@/components/Optimize';
+import { DevicesList } from '@/components/Devices';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -107,6 +108,10 @@ export function SettingsPage() {
               </select>
             </Row>
             <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
+          </Section>
+
+          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise; changing the password signs out everything that used it.">
+            <DevicesList />
           </Section>
 
           <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, played instead of converting live when a player needs them.">

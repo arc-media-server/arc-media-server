@@ -277,7 +277,7 @@ func (s *Server) playlistAdd(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"added": len(ids)})
 }
 
-// playlistRemove: DELETE /api/playlists/{id}/entries/{entry}.
+// playlistRemove: DELETE /api/playlists/{id}/entries/{entry} takes an entry out of a playlist.
 func (s *Server) playlistRemove(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.playlistFromPath(w, r)
 	if !ok {
