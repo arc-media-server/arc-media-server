@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"ams/internal/auth"
+	"ams/internal/remote"
 	"ams/internal/settings"
 	"ams/internal/store"
 )
@@ -716,6 +717,13 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"detect_intros":          st.DetectIntros,
 		"remote_kbps":            st.RemoteKbps,
 		"upload_kbps":            st.UploadKbps,
+		"remote_access":          st.RemoteAccess,
+		"remote_port":            st.OutsidePort(),
+		"upnp":                   st.UPnP,
+		"https_mode":             st.HTTPSMode,
+		"https_cert":             st.HTTPSCert,
+		"https_key":              st.HTTPSKey,
+		"https_domain":           st.HTTPSDomain,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -764,6 +772,13 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		DetectIntros  *bool   `json:"detect_intros"`
 		RemoteKbps    *int    `json:"remote_kbps"`
 		UploadKbps    *int    `json:"upload_kbps"`
+		RemoteAccess  *bool   `json:"remote_access"`
+		RemotePort    *int    `json:"remote_port"`
+		UPnP          *bool   `json:"upnp"`
+		HTTPSMode     *string `json:"https_mode"`
+		HTTPSCert     *string `json:"https_cert"`
+		HTTPSKey      *string `json:"https_key"`
+		HTTPSDomain   *string `json:"https_domain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -849,6 +864,38 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.UploadKbps != nil {
 		next.UploadKbps = *body.UploadKbps
+	}
+	if body.RemoteAccess != nil {
+		next.RemoteAccess = *body.RemoteAccess
+	}
+	if body.RemotePort != nil {
+		if *body.RemotePort < 1 || *body.RemotePort > 65535 {
+			writeError(w, http.StatusBadRequest, "choose an outside port between 1 and 65535")
+			return
+		}
+		next.RemotePort = *body.RemotePort
+		if next.RemotePort == next.Port {
+			next.RemotePort = 0 // the same as Arc's port, following it if that changes
+		}
+	}
+	if body.UPnP != nil {
+		next.UPnP = *body.UPnP
+	}
+	if body.HTTPSMode != nil {
+		next.HTTPSMode = *body.HTTPSMode
+	}
+	if body.HTTPSCert != nil {
+		next.HTTPSCert = strings.TrimSpace(*body.HTTPSCert)
+	}
+	if body.HTTPSKey != nil {
+		next.HTTPSKey = strings.TrimSpace(*body.HTTPSKey)
+	}
+	if body.HTTPSDomain != nil {
+		next.HTTPSDomain = strings.ToLower(strings.TrimSpace(*body.HTTPSDomain))
+	}
+	if err := remote.Check(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 	if body.PrerollPaths != nil {
 		next.PrerollPaths = strings.TrimSpace(*body.PrerollPaths)

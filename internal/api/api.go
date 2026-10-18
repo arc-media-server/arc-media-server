@@ -5,6 +5,7 @@ import (
 	"ams/internal/activity"
 	"ams/internal/notify"
 	"ams/internal/optimize"
+	"ams/internal/remote"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -46,6 +47,8 @@ type Deps struct {
 	Markers interface{ Wake() }
 	// Optimize makes optimized versions.
 	Optimize *optimize.Manager
+	// Remote is remote access (HTTPS, the router, the outside address).
+	Remote *remote.Service
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -93,6 +96,7 @@ type Server struct {
 	notify           *notify.Notifier
 	markers          interface{ Wake() }
 	optimizer        *optimize.Manager
+	remote           *remote.Service
 	imports          importSessions
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -104,7 +108,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -135,6 +139,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
 	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
 	mux.HandleFunc("POST /api/optimize", admin(s.optimizeItems))
+	mux.HandleFunc("GET /api/remote", admin(s.remoteStatus))
+	mux.HandleFunc("POST /api/remote/check", admin(s.remoteCheck))
 	mux.HandleFunc("GET /api/optimized", admin(s.listOptimized))
 	mux.HandleFunc("DELETE /api/optimized/{file}/{quality}", admin(s.deleteOptimized))
 	mux.HandleFunc("GET /api/items/{id}/markers", admin(s.itemMarkers))

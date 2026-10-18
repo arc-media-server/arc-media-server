@@ -34,6 +34,7 @@ import (
 	"ams/internal/optimize"
 	"ams/internal/probe"
 	"ams/internal/ratings"
+	"ams/internal/remote"
 	"ams/internal/scanner"
 	"ams/internal/schedule"
 	"ams/internal/settings"
@@ -329,6 +330,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return publicURL(c)
 	}
 	listeners := make(chan net.Listener, 1)
+	// Remote access: HTTPS on the same port, the router's port forwarding, the outside address.
+	remoteAccess := remote.New(remote.NewCerts(filepath.Join(dataDir, "certs")), remote.NewMapper(log))
+	remoteAccess.Certs.Configure(cfg.HTTPSMode, cfg.HTTPSCert, cfg.HTTPSKey, cfg.HTTPSDomain)
+	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
+	go remoteAccess.Mapper.Run(ctx)
 	applySettings := func(ctx context.Context, next settings.Settings) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -394,6 +400,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 		}
 		current = next
+		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
+		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
 		if ln != nil {
 			listeners <- ln
 		}
@@ -401,7 +409,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },
@@ -433,9 +441,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return fmt.Errorf("can't listen on %s (is Arc already running?): %w", cfg.ListenAddress(), err)
 	}
 	for {
-		srv := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second}
 		served := make(chan error, 1)
-		go func(ln net.Listener) { served <- srv.Serve(ln) }(ln)
+		go func(ln net.Listener) { served <- srv.Serve(remote.Listener(ln, remoteAccess.Certs.Config)) }(ln)
 		log.Info("Arc Media Server started", "version", version, "address", displayAddress(ln.Addr()), "data", dataDir)
 
 		var next net.Listener
@@ -554,6 +562,18 @@ func importLegacyConfig(ctx context.Context, cfg *config.Config, path string, st
 	return st.SetSetting(ctx, key, "1")
 }
 
+// secureRemote sends people away from home to HTTPS while it's on (as Plex's "Secure connections:
+// Preferred" does); the home network can still use plain HTTP.
+func secureRemote(h http.Handler, certs *remote.Certs) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS == nil && !auth.IsLocal(r) && certs.Enabled() {
+			http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusTemporaryRedirect)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // publicURL is the address other devices can open this server at ("" if it can't be worked out).
 func publicURL(c settings.Settings) string {
 	host, port, err := net.SplitHostPort(c.ListenAddress())
@@ -572,4 +592,14 @@ func publicURL(c settings.Settings) string {
 		}
 	}
 	return "http://" + net.JoinHostPort(host, port)
+}
+
+// listenPort is the port Arc listens on (AMS_LISTEN can differ from the setting).
+func listenPort(c settings.Settings) int {
+	if _, port, err := net.SplitHostPort(c.ListenAddress()); err == nil {
+		if p, err := strconv.Atoi(port); err == nil {
+			return p
+		}
+	}
+	return c.Port
 }
