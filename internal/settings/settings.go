@@ -49,6 +49,13 @@ type Settings struct {
 	// Streams to people away from home: the most each may use (kbps, 0 for no limit), and the
 	// home's internet upload speed (kbps, 0 if not set), shared between them.
 	RemoteKbps, UploadKbps int
+	// Remote access: reachable from the internet (listening on the network), at an outside port
+	// (0 for the same as Port), opened on the router with UPnP (on unless turned off).
+	RemoteAccess bool
+	RemotePort   int
+	UPnP         bool
+	// HTTPS on the same port: "" off, "files" (HTTPSCert and HTTPSKey) or "letsencrypt" (HTTPSDomain).
+	HTTPSMode, HTTPSCert, HTTPSKey, HTTPSDomain string
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -80,6 +87,13 @@ const (
 	keyDetectIntros  = "detect_intros"
 	keyRemoteKbps    = "remote_kbps"
 	keyUploadKbps    = "upload_kbps"
+	keyRemoteAccess  = "remote_access"
+	keyRemotePort    = "remote_port"
+	keyUPnP          = "upnp"
+	keyHTTPSMode     = "https_mode"
+	keyHTTPSCert     = "https_cert"
+	keyHTTPSKey      = "https_key"
+	keyHTTPSDomain   = "https_domain"
 )
 
 // Environment variables that override settings.
@@ -201,6 +215,32 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.UploadKbps, _ = strconv.Atoi(v)
+	if v, err = get(keyRemoteAccess); err != nil {
+		return s, err
+	}
+	s.RemoteAccess = v == "1"
+	if v, err = get(keyRemotePort); err != nil {
+		return s, err
+	}
+	if p, err := strconv.Atoi(v); err == nil && p > 0 && p < 65536 {
+		s.RemotePort = p
+	}
+	if v, err = get(keyUPnP); err != nil {
+		return s, err
+	}
+	s.UPnP = v != "0"
+	if s.HTTPSMode, err = get(keyHTTPSMode); err != nil {
+		return s, err
+	}
+	if s.HTTPSCert, err = get(keyHTTPSCert); err != nil {
+		return s, err
+	}
+	if s.HTTPSKey, err = get(keyHTTPSKey); err != nil {
+		return s, err
+	}
+	if s.HTTPSDomain, err = get(keyHTTPSDomain); err != nil {
+		return s, err
+	}
 	return s, nil
 }
 
@@ -217,6 +257,8 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyPrerollPaths: s.PrerollPaths, keyPrerollMode: s.PrerollMode,
 		keyTheIntroDB: s.TheIntroDBKey, keyDetectIntros: boolString(s.DetectIntros),
 		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
+		keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
+		keyHTTPSMode: s.HTTPSMode, keyHTTPSCert: s.HTTPSCert, keyHTTPSKey: s.HTTPSKey, keyHTTPSDomain: s.HTTPSDomain,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment
@@ -234,10 +276,18 @@ func (s Settings) ListenAddress() string {
 		return v
 	}
 	host := "127.0.0.1"
-	if s.AllowNetwork {
+	if s.AllowNetwork || s.RemoteAccess {
 		host = ""
 	}
 	return fmt.Sprintf("%s:%d", host, s.Port)
+}
+
+// OutsidePort is the port people away from home connect to.
+func (s Settings) OutsidePort() int {
+	if s.RemotePort > 0 {
+		return s.RemotePort
+	}
+	return s.Port
 }
 
 func boolString(b bool) string {

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, Loader2, XCircle } from 'lucide-react';
-import { api, type ServerSettings } from '@/lib/api';
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
+import { api, type RemoteStatus, type ServerSettings } from '@/lib/api';
 import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -90,6 +90,7 @@ export function SettingsPage() {
           </Section>
 
           <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
+            <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
             <Row label="Limit each remote stream" description="Videos are converted down to this when they're bigger, so they play smoothly on slower connections.">
               <select
                 value={s.remote_kbps}
@@ -276,6 +277,207 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
         )}
       </div>
     </Row>
+  );
+}
+
+/** Remote access: on or off, the outside address and a check, the router, and HTTPS. */
+function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown>; busy: boolean }) {
+  const status = useQuery({
+    queryKey: ['remote', s.remote_access, s.upnp, s.remote_port, s.https_mode, s.https_domain, s.https_cert],
+    queryFn: api.remote,
+    refetchInterval: (q) => (q.state.data?.upnp.state === 'working' || q.state.data?.https.fetching ? 2000 : 30000),
+  });
+  const check = useMutation({ mutationFn: api.checkRemote });
+  const [error, setError] = useState('');
+  const save = async (p: Patch) => {
+    setError('');
+    try {
+      await onSave(p);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const r = status.data;
+  return (
+    <>
+      <Row
+        label="Remote access"
+        description={
+          <>
+            Let people sign in from outside your home, like Plex&apos;s remote access. Your household signs in with the password, friends with their own.
+            {error && <span className="mt-1 block text-warning">{error}</span>}
+          </>
+        }
+      >
+        <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label="Remote access" />
+      </Row>
+      {s.remote_access && (
+        <>
+          <Row
+            label="Outside address"
+            description={
+              !r ? (
+                'Finding it…'
+              ) : r.url ? (
+                <>
+                  <span className="font-mono text-foreground/80">{r.url}</span>
+                  {r.double_nat && (
+                    <span className="mt-1 flex items-start gap-1.5 text-warning">
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                      Your router is behind another router or your provider shares addresses, so people outside may not reach Arc even with the port forwarded.
+                    </span>
+                  )}
+                  {check.data && (
+                    <span className={`mt-1 flex items-start gap-1.5 ${check.data.reachable ? 'text-foreground' : 'text-warning'}`}>
+                      {check.data.reachable ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-accent" /> : <XCircle className="mt-0.5 size-3.5 shrink-0" />}
+                      {check.data.reachable
+                        ? 'Arc answered at its outside address.'
+                        : `${check.data.error}. Many routers can't reach their own outside address from inside the home, so try it on a phone with Wi-Fi off.`}
+                    </span>
+                  )}
+                </>
+              ) : (
+                "Your home's outside address couldn't be found."
+              )
+            }
+          >
+            {r?.url && (
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(r.url!)} aria-label="Copy address">
+                  <Copy />
+                </Button>
+                <Button size="sm" variant="secondary" disabled={check.isPending} onClick={() => check.mutate()}>
+                  {check.isPending && <Loader2 className="animate-spin" />} Check
+                </Button>
+              </div>
+            )}
+          </Row>
+          <Row
+            label="Open the port on the router"
+            description={
+              !s.upnp ? (
+                <>
+                  Forward port {s.remote_port} on your router to port {s.port} on this computer, in the router&apos;s settings.
+                </>
+              ) : r?.upnp.state === 'mapped' ? (
+                <span className="inline-flex items-center gap-1 text-foreground/80">
+                  <CheckCircle2 className="size-3.5 text-accent" /> Port {r.port} is forwarded{r.upnp.router ? ` by ${r.upnp.router}` : ''}
+                </span>
+              ) : r?.upnp.state === 'failed' ? (
+                <span className="text-warning">{r.upnp.error}</span>
+              ) : (
+                'Asking the router (UPnP)…'
+              )
+            }
+          >
+            <Switch checked={s.upnp} disabled={busy} onCheckedChange={(v) => save({ upnp: v })} aria-label="Open the port with UPnP" />
+          </Row>
+          <OutsidePortRow settings={s} onSave={save} />
+          <HTTPSRows settings={s} status={r?.https} onSave={save} />
+        </>
+      )}
+    </>
+  );
+}
+
+function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const [port, setPort] = useState(String(s.remote_port));
+  const n = Number(port);
+  return (
+    <Row
+      label="Outside port"
+      description={`The port people away from home connect to. Usually the same as Arc's port (${s.port}); Let's Encrypt needs 443.`}
+    >
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave({ remote_port: n });
+        }}
+      >
+        <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" className={`${inputClass} w-24`} />
+        {n !== s.remote_port && n > 0 && n < 65536 && (
+          <Button size="sm" variant="primary" type="submit">
+            Change
+          </Button>
+        )}
+      </form>
+    </Row>
+  );
+}
+
+/** HTTPS: off, your own certificate, or Let's Encrypt; and how the certificate stands. */
+function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; status?: RemoteStatus['https']; onSave: (p: Patch) => Promise<unknown> }) {
+  const [mode, setMode] = useState(s.https_mode);
+  const [cert, setCert] = useState(s.https_cert);
+  const [key, setKey] = useState(s.https_key);
+  const [domain, setDomain] = useState(s.https_domain);
+  const [busy, setBusy] = useState(false);
+  const changed = mode !== s.https_mode || (mode === 'files' && (cert !== s.https_cert || key !== s.https_key)) || (mode === 'letsencrypt' && domain !== s.https_domain);
+  const apply = async () => {
+    setBusy(true);
+    try {
+      await onSave(mode === 'files' ? { https_mode: mode, https_cert: cert, https_key: key } : mode === 'letsencrypt' ? { https_mode: mode, https_domain: domain } : { https_mode: '' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const expires = status?.expires ? new Date(status.expires * 1000) : null;
+  return (
+    <div className="space-y-3 px-4 py-3.5">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="text-sm font-medium">HTTPS</p>
+          <div className="mt-0.5 text-xs leading-relaxed text-muted">
+            {s.https_mode === '' ? (
+              <span className="flex items-start gap-1.5 text-warning">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                Off: away from home, passwords and what you watch travel unencrypted. Turn it on before sharing your address.
+              </span>
+            ) : status?.error ? (
+              <span className="text-warning">{status.error}</span>
+            ) : status?.fetching ? (
+              "Asking Let's Encrypt for a certificate…"
+            ) : expires ? (
+              <span className="inline-flex items-center gap-1 text-foreground/80">
+                <CheckCircle2 className="size-3.5 text-accent" /> Certificate for {status?.names?.join(', ')}, until {expires.toLocaleDateString()}
+                {s.https_mode === 'letsencrypt' && ' (renewed automatically)'}
+              </span>
+            ) : s.https_mode === 'letsencrypt' ? (
+              'The certificate is fetched on the first visit to the domain.'
+            ) : null}
+            <span className="mt-1 block">On the same port as plain HTTP. At home both work; people away from home are sent to HTTPS.</span>
+          </div>
+        </div>
+        <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
+          <option value="">Off</option>
+          <option value="letsencrypt">Let&apos;s Encrypt (free)</option>
+          <option value="files">My own certificate</option>
+        </select>
+      </div>
+      {mode === 'letsencrypt' && (
+        <div>
+          <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="arc.example.com" spellCheck={false} className={`${inputClass} w-full`} />
+          <p className="mt-1.5 text-xs text-subtle">
+            A domain name pointing at your home&apos;s address (a free dynamic DNS name works). Let&apos;s Encrypt checks it on port 443, so set the outside port to 443.
+          </p>
+        </div>
+      )}
+      {mode === 'files' && (
+        <div className="grid gap-2">
+          <input value={cert} onChange={(e) => setCert(e.target.value)} placeholder="Certificate file (.pem or .crt), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Private key file (.pem or .key), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <p className="text-xs text-subtle">PEM files, read again whenever they change, so another tool can renew them.</p>
+        </div>
+      )}
+      {changed && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="primary" disabled={busy} onClick={apply}>
+            {busy && <Loader2 className="animate-spin" />} Save
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

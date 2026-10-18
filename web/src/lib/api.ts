@@ -725,6 +725,19 @@ export interface AuthStatus {
   friend: boolean;
 }
 
+/** How remote access stands. */
+export interface RemoteStatus {
+  enabled: boolean;
+  /** The address to use away from home, once it's known. */
+  url?: string;
+  public_ip?: string;
+  port: number;
+  upnp: { state: 'off' | 'working' | 'mapped' | 'failed'; router?: string; external_ip?: string; error?: string };
+  https: { mode: ServerSettings['https_mode']; names?: string[]; expires?: number; fetching?: boolean; error?: string };
+  /** The router's own outside address isn't on the internet: forwarding a port won't be enough. */
+  double_nat?: boolean;
+}
+
 export interface ServerSettings {
   tmdb_api_key: string;
   tvdb_api_key: string;
@@ -755,6 +768,15 @@ export interface ServerSettings {
   /** Streams to people away from home: the most each may use, and the home's upload speed (kbps, 0 for none). */
   remote_kbps: number;
   upload_kbps: number;
+  /** Reachable from the internet, at an outside port, opened on the router with UPnP. */
+  remote_access: boolean;
+  remote_port: number;
+  upnp: boolean;
+  /** HTTPS on Arc's port: off (""), your own certificate files, or Let's Encrypt for a domain. */
+  https_mode: '' | 'files' | 'letsencrypt';
+  https_cert: string;
+  https_key: string;
+  https_domain: string;
   /** OMDb, for Rotten Tomatoes' and Metacritic's scores (masked). */
   omdb_api_key: string;
   /** Pre-roll videos before movies: files or folders, one per line; and whether one plays at random or all. */
@@ -837,7 +859,9 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps'>> & { opensubtitles_password?: string }) =>
+  remote: () => request<RemoteStatus>('GET', '/api/remote'),
+  checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
