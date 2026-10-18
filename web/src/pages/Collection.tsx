@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
-import { ArrowUpDown, Check, GripVertical, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowUpDown, Check, GripVertical, Loader2, Pencil, Play, Shuffle, Trash2, X } from 'lucide-react';
+import { usePlayer } from '@/components/Player';
+import { collectionQueue, shuffled } from '@/lib/shuffle';
 import { api, type Item } from '@/lib/api';
 import { kindUnit } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
@@ -28,6 +30,20 @@ export function CollectionPage() {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [arranging, setArranging] = useState(false);
+  const play = usePlayer();
+  const [starting, setStarting] = useState(false);
+  // Play the collection in its order, or shuffled (its shows' episodes too).
+  const start = async (shuffle: boolean) => {
+    if (!data) return;
+    setStarting(true);
+    try {
+      const q = await collectionQueue(data.items);
+      const list = shuffle ? shuffled(q) : q;
+      if (list.length) play(list[0], list);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const remove = useMutation({
     mutationFn: () => api.deleteCollection(id!),
@@ -53,8 +69,23 @@ export function CollectionPage() {
             <h1 className="text-4xl font-bold leading-[1.05] md:text-5xl">{c.title}</h1>
             <p className="mt-3 text-sm text-foreground/70">{fmt.plural(c.count, unit)}</p>
             {c.overview && <p className="mt-4 text-[15px] leading-relaxed text-foreground/85">{c.overview}</p>}
-            {admin && (
+            {data.items.length > 0 && (
               <div className="mt-6 flex flex-wrap gap-3">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  disabled={starting}
+                  onClick={() => void start(false)}
+                >
+                  <Play className="fill-current" /> Play
+                </Button>
+                <Button variant="secondary" size="lg" disabled={starting} onClick={() => void start(true)}>
+                  {starting ? <Loader2 className="animate-spin" /> : <Shuffle />} Shuffle
+                </Button>
+              </div>
+            )}
+            {admin && (
+              <div className="mt-3 flex flex-wrap gap-3">
                 <Button variant="secondary" onClick={() => setEditing(true)}>
                   <Pencil /> Edit
                 </Button>

@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, RefreshCw, Shuffle } from 'lucide-react';
 import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { EditSeasonDialog } from '@/components/EditSeason';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { episodeQueue, shuffled } from '@/lib/shuffle';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
@@ -74,6 +75,7 @@ export function SeriesPage() {
   const series = data?.series;
   const { open: openDialog, dialogs } = useItemDialogs(series);
   const admin = useIsAdmin();
+  const play = usePlayer();
   const tabs = useMemo(() => {
     if (!data) return [];
     const t = data.seasons.map((s) => ({ number: s.season_number, name: s.name, count: s.episodes.length }));
@@ -142,6 +144,18 @@ export function SeriesPage() {
             )}
             <div className="mt-7 flex flex-wrap gap-3">
               {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
+              {available > 1 && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => {
+                    const q = shuffled(episodeQueue(data.seasons.filter((s) => s.season_number !== 0).flatMap((s) => s.episodes), series.title));
+                    if (q.length) play(q[0], q);
+                  }}
+                >
+                  <Shuffle /> Shuffle
+                </Button>
+              )}
               <TrailerButton extras={series.extras} title={series.title} />
               {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
               <WatchlistButton item={series} />
@@ -185,6 +199,18 @@ export function SeriesPage() {
               </button>
             ))}
           </div>
+          {seasonEpisodes.length > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const q = shuffled(episodeQueue(seasonEpisodes, series.title));
+                if (q.length) play(q[0], q);
+              }}
+            >
+              <Shuffle /> Shuffle Season
+            </Button>
+          )}
           {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
             <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
           )}

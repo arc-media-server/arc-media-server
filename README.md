@@ -67,6 +67,8 @@ Early development. Working today:
 - More Like This on movie and show pages (TMDB's recommendations that are in your library, then
   titles sharing a collection, genres or lead actors), and a Recommended tab per library: Because
   you watched…, top rated you haven't seen, and more of your favourite genres
+- Shuffle (as in Plex): on a show (every episode but specials), a season, a collection (its movies and
+  its shows' episodes, which also get Play) and a playlist, through the player's queue
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
   order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
 import { GripVertical, ListVideo, Pencil, Play, Plus, Shuffle, Trash2, X } from 'lucide-react';
+import { shuffled } from '@/lib/shuffle';
 import { api, type PlaylistEntry } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
@@ -78,14 +79,7 @@ export function PlaylistPage() {
   const p = data.playlist;
   const queue = data.entries.map((e) => nowPlayingFor(e.item));
   const playFrom = (i: number, list = queue) => list.length && play(list[i], list);
-  const shuffle = () => {
-    const list = [...queue];
-    for (let i = list.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [list[i], list[j]] = [list[j], list[i]];
-    }
-    playFrom(0, list);
-  };
+  const shuffle = () => playFrom(0, shuffled(queue));
 
   return (
     <Page className="pb-16">
