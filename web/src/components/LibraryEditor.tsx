@@ -314,9 +314,11 @@ function PreviewView({ id, kind }: { id: string; kind: LibraryKind }) {
     refetchIntervalInBackground: true,
   });
   const [tab, setTab] = useState<'all' | 'unidentified' | 'unrecognised'>('all');
-  const p = preview.data;
+  const raw = preview.data;
   if (preview.error) return <p className="text-sm text-warning">{preview.error.message}</p>;
-  if (!p) return <div className="h-40 animate-pulse rounded-2xl bg-surface-2" />;
+  if (!raw) return <div className="h-40 animate-pulse rounded-2xl bg-surface-2" />;
+  // Defensive: an older server sent null for an empty list.
+  const p = { ...raw, items: raw.items ?? [], unrecognised: raw.unrecognised ?? [], unavailable: raw.unavailable ?? [] };
 
   const what = kindUnit(kind)[0];
   const unidentified = p.items.filter((i) => i.status === 'unidentified');
@@ -351,6 +353,15 @@ function PreviewView({ id, kind }: { id: string; kind: LibraryKind }) {
         {unidentified.length > 0 && ' Anything not identified can be fixed after adding, with Identify.'}
       </p>
 
+      {p.stage === 'done' && p.files === 0 && p.unavailable.length === 0 && (
+        <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-3 py-2 text-sm text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            No video files in these folders. Check it's the folder with your videos in it. If Arc runs in Docker, the folder must be mounted
+            into the container (e.g. /media/movies) and chosen by that name here.
+          </span>
+        </p>
+      )}
       {p.items.length + p.unrecognised.length > 0 && (
         <div className="flex gap-1">
           <Tab active={tab === 'all'} onClick={() => setTab('all')}>
