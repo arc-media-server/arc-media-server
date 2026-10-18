@@ -134,6 +134,7 @@ internal/logbuf/     the last log lines in memory for the Dashboard
 internal/schedule/   the maintenance window (hours of the night heavy work waits for)
 internal/markers/    intro/recap/credits markers: chapters, IntroDB, TheIntroDB, Chromaprint detection (ffmpeg)
 internal/optimize/   optimized versions (H.264/AAC MP4 copies in data/optimized), used by playback when needed
+internal/sysstats/   CPU, memory and network samples for the Dashboard (Windows and Linux; Arc's own elsewhere)
 internal/remote/     remote access: HTTP and HTTPS on one port, certificates (files or Let's Encrypt, data/certs), UPnP port forwarding; AMS_UPNP_URL / AMS_PUBLIC_IP_URL / AMS_ACME_URL for stand-ins
 internal/notify/     webhook events (library.new, playback.start/watched, server.problem); Discord/Slack formats
 internal/importer/   imports watch state from Plex (plex.tv PIN sign-in) and Jellyfin; AMS_PLEX_TV_URL for a stand-in

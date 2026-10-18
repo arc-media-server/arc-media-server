@@ -158,7 +158,7 @@ _Arc has its own clients; the API is open for anyone to build more._
 - [x] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
 - [ ] Native apps (tvOS, iOS, Android TV) (#63)
 
-### 19. Quick wins and server resources
+### 19. Quick wins and server resources ✅
 _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource graphs._
 - [x] Home networks setting (#115)
 - [x] Transcoder: temporary folder and conversions at once (#116)
@@ -166,7 +166,7 @@ _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource grap
 - [x] Subtitle styling and subtitle mode (#118)
 - [x] Collection display mode (#119)
 - [x] Smart playlists (#120)
-- [ ] Dashboard: server resource graphs (#121)
+- [x] Dashboard: server resource graphs (#121)
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._

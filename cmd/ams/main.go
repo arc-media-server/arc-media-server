@@ -40,6 +40,7 @@ import (
 	"ams/internal/settings"
 	"ams/internal/store"
 	"ams/internal/subtitles"
+	"ams/internal/sysstats"
 	"ams/internal/transcode"
 	"ams/internal/trickplay"
 	"ams/internal/watcher"
@@ -345,6 +346,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
 	go remoteAccess.Mapper.Run(ctx)
+	// CPU, memory and network use for the Dashboard's graphs.
+	stats := sysstats.New()
+	go stats.Run(ctx)
 	applySettings := func(ctx context.Context, next settings.Settings) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -421,7 +425,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },
