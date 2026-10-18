@@ -1,9 +1,11 @@
 package api
 
 import (
+	"net/http/httptest"
 	"slices"
 	"testing"
 
+	"ams/internal/settings"
 	"ams/internal/store"
 )
 
@@ -123,5 +125,34 @@ func TestQualitySteps(t *testing.T) {
 		if got := qualityName(kbps); got != want {
 			t.Errorf("%d: got %q, want %q", kbps, got, want)
 		}
+	}
+}
+
+func TestRemoteLimit(t *testing.T) {
+	s := &Server{playing: newNowPlaying(), settings: func() settings.Settings {
+		return settings.Settings{RemoteKbps: 8000, UploadKbps: 10000}
+	}}
+	home := httptest.NewRequest("POST", "/", nil)
+	home.RemoteAddr = "192.168.1.20:5000"
+	if got := s.remoteLimit(home, "x"); got != 0 {
+		t.Errorf("at home = %d, want no limit", got)
+	}
+	away := httptest.NewRequest("POST", "/", nil)
+	away.RemoteAddr = "203.0.113.5:5000"
+	// One stream: the smaller of the 8 Mbps limit and 80% of the 10 Mbps upload.
+	if got := s.remoteLimit(away, "x"); got != 8000 {
+		t.Errorf("one remote stream = %d, want 8000", got)
+	}
+	// Another remote stream playing: the upload is shared.
+	other := httptest.NewRequest("POST", "/", nil)
+	other.RemoteAddr = "198.51.100.7:5000"
+	s.playing.touch(other, "y", "")
+	s.playing.mu.Lock()
+	for _, p := range s.playing.byKey {
+		p.address = "198.51.100.7"
+	}
+	s.playing.mu.Unlock()
+	if got := s.remoteLimit(away, "x"); got != 4000 {
+		t.Errorf("two remote streams = %d, want 4000", got)
 	}
 }

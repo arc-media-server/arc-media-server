@@ -1,6 +1,7 @@
 package api
 
 import (
+	"ams/internal/auth"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -288,6 +289,10 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		burn = t.StreamIndex
 		d.Method = "transcode"
 		d.Reasons = append(d.Reasons, "picture subtitles shown")
+	}
+	// Away from home, streams keep within the remote limits (Settings > Remote Access).
+	if limit := s.remoteLimit(r, it.ID); limit > 0 && (body.MaxKbps == 0 || body.MaxKbps > limit) {
+		body.MaxKbps = limit
 	}
 	limitHeight := 0
 	if body.MaxKbps > 0 && video != nil {
@@ -754,4 +759,21 @@ func (s *Server) compatibility(w http.ResponseWriter, r *http.Request) {
 		return strings.Compare(a.Item.SeriesTitle+"\x00"+a.Item.SortTitle, b.Item.SeriesTitle+"\x00"+b.Item.SortTitle)
 	})
 	writeJSON(w, http.StatusOK, out)
+}
+
+// remoteLimit is the most a stream away from home may use (kbps), or 0 for no limit: the per-stream
+// limit, and a share of 80% of the home's upload speed between the remote streams playing.
+func (s *Server) remoteLimit(r *http.Request, itemID string) int {
+	if auth.IsLocal(r) {
+		return 0
+	}
+	st := s.settings()
+	limit := st.RemoteKbps
+	if st.UploadKbps > 0 {
+		share := st.UploadKbps * 8 / 10 / (s.playing.remoteOthers(r, itemID) + 1)
+		if limit == 0 || share < limit {
+			limit = max(share, 500)
+		}
+	}
+	return limit
 }
