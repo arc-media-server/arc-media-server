@@ -51,6 +51,7 @@ export interface ItemEdit {
   labels?: string[];
   /** A show's episode numbering; "" follows its library. */
   source_ordering?: SourceOrdering | '';
+  details_provider?: '' | 'tvdb';
   locked_fields?: LockableField[];
 }
 
@@ -135,6 +136,8 @@ export interface Item {
   theme_url?: string;
   /** A show's own episode numbering, when it overrides its library's. */
   source_ordering?: SourceOrdering;
+  /** Where a show's details and artwork come from: TMDB (absent) or TheTVDB. */
+  details_provider?: 'tvdb';
   credits?: Credit[];
   extras?: Extra[];
   /** On a movie or show's own page: the collections it's in. */

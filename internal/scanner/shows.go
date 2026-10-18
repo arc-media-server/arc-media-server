@@ -13,7 +13,6 @@ import (
 
 	"ams/internal/metadata"
 	"ams/internal/store"
-	"ams/internal/subtitles"
 )
 
 // Series metadata (and their orderings) are refreshed at most this often during scans.
@@ -261,27 +260,17 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		log.Warn("series not found on TVDB; reading its file names using TMDB numbering")
 	}
 
-	// Series metadata: TMDB's is usually richer and has better artwork, so prefer it.
-	primary, secondary := tmdbSeries, tvdbSeries
-	if primary == nil {
-		primary, secondary = tvdbSeries, nil
+	// Series details come from one provider: TMDB, unless the show is set to TheTVDB (or isn't on
+	// TMDB at all). Gaps are left as they are rather than filled from the other provider.
+	primary := tmdbSeries
+	if (series.DetailsProvider == "tvdb" && tvdbSeries != nil) || primary == nil {
+		primary = tvdbSeries
 	}
 	it := *series
 	it.Title, it.OriginalTitle, it.Overview = primary.Title, primary.OriginalTitle, primary.Overview
 	it.ReleaseDate, it.Year = primary.FirstAired, primary.Year
 	it.PosterPath, it.BackdropPath = primary.PosterPath, primary.BackdropPath
 	it.IMDBID = primary.IMDBID
-	if secondary != nil {
-		if it.PosterPath == "" {
-			it.PosterPath = secondary.PosterPath
-		}
-		if it.Overview == "" {
-			it.Overview = secondary.Overview
-		}
-		if it.IMDBID == "" {
-			it.IMDBID = secondary.IMDBID
-		}
-	}
 	it.TVDBID, it.TMDBID = tvdbID, tmdbID
 	if tvdbSeries == nil {
 		it.TVDBID = 0
@@ -290,14 +279,6 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		it.TMDBID = 0
 	}
 	applyDetails(&it, primary.Details)
-	if secondary != nil {
-		if it.OriginalLanguage == "" {
-			it.OriginalLanguage = subtitles.LanguageCode2(secondary.OriginalLanguage)
-		}
-		if it.ShowStatus == "" {
-			it.ShowStatus, it.LastAired, it.NextAired = secondary.Status, secondary.LastAired, secondary.NextAired
-		}
-	}
 	it.MetadataState = "matched"
 	if err := s.store.UpdateMetadata(ctx, &it); err != nil {
 		return err
@@ -305,7 +286,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if err := s.saveDetails(ctx, it.ID, primary.Details); err != nil {
 		return err
 	}
-	if tmdbSeries != nil {
+	if primary == tmdbSeries {
 		if err := s.store.SetSeasonPosters(ctx, it.ID, tmdbSeries.SeasonPosters); err != nil {
 			return err
 		}

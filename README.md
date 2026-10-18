@@ -37,6 +37,8 @@ Early development. Working today:
 - Episode numbering: TV libraries read file names in TMDB's numbering by default (as Plex does), or
   TheTVDB's aired, DVD or absolute order; any show can override its library in Edit Details.
   Switching keeps episodes and their watch history
+- One metadata provider per show: details and artwork come from TMDB, or TheTVDB if a show is set
+  to it (Edit Details › Details From); gaps are left blank, never filled from the other provider
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
 - Folder watching: new, changed and removed files are picked up within seconds, plus an hourly
   rescan for folders (like network shares) that don't report changes
@@ -289,7 +291,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | POST | `/api/items/merge` | Merge movies into one (admin): `{"target_id", "item_ids"}`; the others become versions of the target |
 | POST | `/api/items/{id}/split` | Split Apart (admin): each version of a movie but the first gets its own title |
 | GET | `/api/labels` | Every label in use (admin) |
-| PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
+| PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`) |
 | POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |
 | GET | `/api/items/{id}/match` | How the item was identified: what was read from its names and every search made |
 | GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |

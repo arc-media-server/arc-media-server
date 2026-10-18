@@ -36,6 +36,13 @@ func (s *Store) SetSourceOrdering(ctx context.Context, seriesID, source string) 
 	return err
 }
 
+// SetDetailsProvider sets where a show's details come from ("" for TMDB, or "tvdb").
+func (s *Store) SetDetailsProvider(ctx context.Context, seriesID, provider string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET details_provider = ?, updated_at = ? WHERE id = ? AND kind = 'series'`,
+		provider, time.Now().Unix(), seriesID)
+	return err
+}
+
 // MarkSynced records that an item's provider metadata is up to date.
 func (s *Store) MarkSynced(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = ? WHERE id = ?`, time.Now().Unix(), id)

@@ -48,6 +48,8 @@ type Item struct {
 	LocalLogo string `json:"-"`
 	// A show's own episode numbering, overriding its library's; "" follows the library.
 	SourceOrdering string `json:"source_ordering,omitempty"`
+	// Where a show's details and artwork come from: "" for TMDB, or "tvdb".
+	DetailsProvider string `json:"details_provider,omitempty"`
 	// The language it was made in (2-letter code, e.g. "ja").
 	OriginalLanguage string `json:"original_language,omitempty"`
 	// Shows: continuing, ended, cancelled or upcoming, and the last and next air dates.
