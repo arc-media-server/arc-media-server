@@ -129,6 +129,7 @@ internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux
 internal/logbuf/     the last log lines in memory for the Dashboard
 internal/schedule/   the maintenance window (hours of the night heavy work waits for)
 internal/markers/    intro/recap/credits markers: chapters, IntroDB, TheIntroDB, Chromaprint detection (ffmpeg)
+internal/optimize/   optimized versions (H.264/AAC MP4 copies in data/optimized), used by playback when needed
 internal/notify/     webhook events (library.new, playback.start/watched, server.problem); Discord/Slack formats
 internal/importer/   imports watch state from Plex (plex.tv PIN sign-in) and Jellyfin; AMS_PLEX_TV_URL for a stand-in
 internal/ratings/    IMDb ratings file (weekly) and OMDb critics' scores; AMS_OMDB_URL / AMS_IMDB_RATINGS_URL for stand-ins

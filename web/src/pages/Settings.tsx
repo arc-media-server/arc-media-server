@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
+import { OptimizedList } from '@/components/Optimize';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -105,6 +106,10 @@ export function SettingsPage() {
               </select>
             </Row>
             <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
+          </Section>
+
+          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, played instead of converting live when a player needs them.">
+            <OptimizedList />
           </Section>
 
           <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">

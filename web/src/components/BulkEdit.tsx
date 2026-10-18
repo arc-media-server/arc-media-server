@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Check, Merge, CircleCheck, Circle, Layers, Loader2, Pencil, RefreshCw, X } from 'lucide-react';
+import { Gauge, Check, Merge, CircleCheck, Circle, Layers, Loader2, Pencil, RefreshCw, X } from 'lucide-react';
 import { api, posterUrl, type BulkEdit, type Item, type Library } from '@/lib/api';
 import { Artwork } from '@/components/Artwork';
 import * as fmt from '@/lib/format';
@@ -11,6 +11,7 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 import { ChipInput } from '@/components/ChipInput';
 import { AddToCollectionDialog } from '@/components/Collections';
+import { OptimizeDialog } from '@/components/Optimize';
 
 /** The bar along the bottom while choosing titles in a library, with what can be done to them. */
 export function SelectionBar({
@@ -30,7 +31,7 @@ export function SelectionBar({
 }) {
   const qc = useQueryClient();
   const chosen = items.filter((i) => selected.has(i.id));
-  const [dialog, setDialog] = useState<'edit' | 'collection' | 'merge' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'collection' | 'merge' | 'optimize' | null>(null);
   const [note, setNote] = useState('');
   const run = useMutation({
     mutationFn: (edit: Omit<BulkEdit, 'item_ids'>) => api.editItems({ item_ids: chosen.map((i) => i.id), ...edit }),
@@ -70,6 +71,9 @@ export function SelectionBar({
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ played: false })}>
             <Circle /> Unwatched
           </Button>
+          <Button variant="ghost" size="sm" disabled={!n} onClick={() => setDialog('optimize')}>
+            <Gauge /> Optimize
+          </Button>
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ refresh: true })}>
             <RefreshCw /> Refresh
           </Button>
@@ -96,6 +100,7 @@ export function SelectionBar({
           />
         )}
       </Dialog>
+      <OptimizeDialog items={chosen} open={dialog === 'optimize'} onOpenChange={(o) => setDialog(o ? 'optimize' : null)} />
       <AddToCollectionDialog items={chosen} library={library} open={dialog === 'collection'} onOpenChange={(o) => setDialog(o ? 'collection' : null)} />
     </>
   );

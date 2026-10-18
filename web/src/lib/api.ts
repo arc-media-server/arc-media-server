@@ -355,7 +355,7 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers';
+  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers' | 'optimize';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
@@ -887,6 +887,13 @@ export const api = {
   setItemMarkers: (id: string, markers: { kind: string; start_ms: number; end_ms: number }[]) =>
     request<{ file_id: number; duration_ms: number; markers: Marker[] }>('PUT', `/api/items/${id}/markers`, { markers }),
   resetItemMarkers: (id: string) => request<void>('DELETE', `/api/items/${id}/markers`),
+  optimize: (itemIds: string[], quality: number) => request<{ queued: number }>('POST', '/api/optimize', { item_ids: itemIds, quality }),
+  optimized: () =>
+    request<{
+      total_size: number;
+      versions: { file_id: number; quality: number; size: number; status: 'queued' | 'converting' | 'done' | 'failed'; error?: string; item_id: string; title: string; series_title?: string }[];
+    }>('GET', '/api/optimized'),
+  deleteOptimized: (fileId: number, quality: number) => request<void>('DELETE', `/api/optimized/${fileId}/${quality}`),
   preroll: (itemId: string) => request<{ title: string; url: string }[]>('GET', `/api/items/${itemId}/preroll`),
   news: () => request<{ entries: NewsEntry[]; unread: number }>('GET', '/api/news'),
   newsSeen: () => request<void>('POST', '/api/news/seen'),
