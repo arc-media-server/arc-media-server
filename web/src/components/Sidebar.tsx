@@ -1,10 +1,11 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
+import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { kindIcon } from '@/lib/kinds';
 import { Avatar } from '@/components/Avatar';
 import {
   DropdownMenu,
@@ -234,7 +235,7 @@ export function Sidebar() {
                 <NavItem
                   key={lib.id}
                   to={`/library/${lib.id}`}
-                  icon={lib.kind === 'shows' ? <Tv /> : <Film />}
+                  icon={createElement(kindIcon(lib.kind))}
                   busy={lib.scan.running}
                 >
                   {lib.name}

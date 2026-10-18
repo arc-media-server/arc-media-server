@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layers, MoreHorizontal, Pencil, SearchCheck, Split } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
+import { isLocalVideo } from '@/lib/kinds';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { FixMatchDialog } from '@/components/FixMatch';
@@ -49,9 +50,11 @@ export function MoreMenu({ item, onOpen }: { item?: Item; onOpen: (d: Exclude<Di
         <DropdownMenuItem onSelect={() => onOpen('collection')}>
           <Layers className="size-4 text-muted" /> Add to Collection…
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpen('match')}>
-          <SearchCheck className="size-4 text-muted" /> Fix Match…
-        </DropdownMenuItem>
+        {!isLocalVideo(item) && (
+          <DropdownMenuItem onSelect={() => onOpen('match')}>
+            <SearchCheck className="size-4 text-muted" /> Fix Match…
+          </DropdownMenuItem>
+        )}
         {item && splitVersions(item) > 1 && (
           <DropdownMenuItem onSelect={() => onOpen('split')}>
             <Split className="size-4 text-muted" /> Split Apart…

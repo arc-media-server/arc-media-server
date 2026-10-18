@@ -76,8 +76,8 @@ export type ResolvedRow = RowLook &
   );
 
 /** Carrying on watching uses landscape thumbnails, everything else posters, as in Plex. */
-export function defaultStyle(type: ResolvedRow['type']): RowLook['style'] {
-  return type === 'continue' || type === 'next-up' ? 'thumb' : 'poster';
+export function defaultStyle(type: ResolvedRow['type'], library?: Library): RowLook['style'] {
+  return type === 'continue' || type === 'next-up' || library?.kind === 'videos' ? 'thumb' : 'poster';
 }
 
 /** Recently Added shows a new season with its own poster; carrying on watching shows the show's. */
@@ -90,8 +90,13 @@ export function hasEpisodes(r: ResolvedRow) {
   return r.type === 'continue' || r.type === 'next-up' || r.type === 'playlist' || (r.type === 'recent' && r.library.kind === 'shows');
 }
 
-function look(type: ResolvedRow['type'], saved?: HomeRow): RowLook {
-  return { style: saved?.style ?? defaultStyle(type), showsOnly: !!saved?.shows_only, posters: saved?.posters ?? defaultPosters(type) };
+/** The library a Recently Added row is for. */
+function rowLibrary(r: ResolvedRow) {
+  return r.type === 'recent' ? r.library : undefined;
+}
+
+function look(type: ResolvedRow['type'], saved?: HomeRow, library?: Library): RowLook {
+  return { style: saved?.style ?? defaultStyle(type, library), showsOnly: !!saved?.shows_only, posters: saved?.posters ?? defaultPosters(type) };
 }
 
 function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
@@ -104,7 +109,7 @@ function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow
   }
   if (id.startsWith('recent:')) {
     const library = libraries.find((l) => `recent:${l.id}` === id);
-    return library ? { id, hidden: false, type: 'recent', title: `Recently Added in ${library.name}`, library, ...look('recent', saved) } : null;
+    return library ? { id, hidden: false, type: 'recent', title: `Recently Added in ${library.name}`, library, ...look('recent', saved, library) } : null;
   }
   return null;
 }
@@ -155,7 +160,7 @@ export function visibleRows(rows: ResolvedRow[], splitUpNext: boolean) {
 
 /** Whether a row looks the way it does by default. */
 export function isDefaultLook(r: ResolvedRow) {
-  return r.style === defaultStyle(r.type) && !r.showsOnly && r.posters === defaultPosters(r.type);
+  return r.style === defaultStyle(r.type, rowLibrary(r)) && !r.showsOnly && r.posters === defaultPosters(r.type);
 }
 
 /** What gets saved for a layout. */
@@ -165,7 +170,7 @@ export function toSaved(rows: ResolvedRow[]): HomeRow[] {
     hidden: r.hidden || undefined,
     ...(r.type === 'custom' && { title: r.title, filter: r.filter }),
     ...((r.type === 'collection' || r.type === 'playlist') && { title: r.title }),
-    style: r.style === defaultStyle(r.type) ? undefined : r.style,
+    style: r.style === defaultStyle(r.type, rowLibrary(r)) ? undefined : r.style,
     shows_only: r.showsOnly || undefined,
     posters: r.posters === defaultPosters(r.type) ? undefined : r.posters,
   }));

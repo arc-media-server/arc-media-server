@@ -8,6 +8,7 @@ import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
+import { isLocalVideo } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
 import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { ErrorState, Page } from '@/components/Page';
@@ -54,6 +55,8 @@ export function MoviePage() {
   const playable = !!item.stream_url && item.files?.some((f) => !f.missing);
   const resumeAt = item.user_data?.position_ms ?? 0;
   const details = detailParts(item);
+  // A home video: a frame of it rather than a poster, and the day it was made.
+  const local = isLocalVideo(item);
   const playFrom = (startMS: number) =>
     play({
       title: item.title,
@@ -73,12 +76,13 @@ export function MoviePage() {
             alt={item.title}
             fallbackTitle={item.title}
             eager
-            className="hidden w-52 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block"
+            kind={local ? 'still' : undefined}
+            className={cn('hidden shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block', local ? 'w-96' : 'w-52')}
           />
           <div className="max-w-2xl">
             <TitleHeading item={item} />
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <MetaLine parts={[item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
+              <MetaLine parts={[local && item.release_date ? fmt.date(item.release_date) : item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
               {details.contentRating && <Badge>{details.contentRating}</Badge>}
               {resolutions.length > 1
                 ? resolutions.map((res) => <Badge key={res}>{res}</Badge>)
@@ -144,9 +148,11 @@ export function MoviePage() {
               {playable && <AddToPlaylistButton item={item} />}
               {admin && (
                 <>
+                  {!isLocalVideo(item) && (
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
                     {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
                   </Button>
+                  )}
                   <MoreMenu item={item} onOpen={openDialog} />
                 </>
               )}

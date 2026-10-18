@@ -183,6 +183,9 @@ cd web && npx tsc -b                                # type-check the UI
 - TVDB returns relative image paths (`/banners/...`); `tvdbImage()` prefixes artworks.thetvdb.com.
 - TVDB and TMDB both require visible attribution in the UI (tracked in "Before public release").
 - SQLite runs with WAL and `_txlock=immediate`; keep write transactions short.
+- Other videos libraries are stored as kind 'movies' with `libraries.videos = 1` (the original
+  CHECK constraint only allows movies/shows) and read back as kind "videos". Their videos are movie
+  items with metadata_state 'locked' (never looked up online); folders are collections of kind 'folder'.
 - Items are hidden from listings while none of their files are present (`missing_since`), but never
   deleted, so history survives drives going offline.
 - Match explanations: provider clients `record()` each search/lookup into a `metadata.Trace` carried

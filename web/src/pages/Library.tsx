@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { kindUnit } from '@/lib/kinds';
 import { language, plural } from '@/lib/format';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
@@ -72,7 +73,7 @@ export function LibraryPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selecting]);
-  const unit = lib?.kind === 'shows' ? 'show' : 'movie';
+  const unit = kindUnit(lib?.kind)[0];
   const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500, ...filters };
   const items = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query), enabled: !!lib });
   const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
@@ -138,12 +139,14 @@ export function LibraryPage() {
         <div className="-mt-3 mb-5 flex gap-1 px-6 md:px-10" role="tablist">
           {(
             [
-              ['titles', lib.kind === 'shows' ? 'Shows' : 'Movies'],
+              ['titles', lib.kind === 'shows' ? 'Shows' : lib.kind === 'videos' ? 'Videos' : 'Movies'],
               ['recommended', 'Recommended'],
               ['collections', 'Collections'],
             ] as const
           )
             .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
+            // Home videos have nothing to recommend from.
+            .filter(([v]) => v !== 'recommended' || lib.kind !== 'videos')
             .map(([v, label]) => (
             <button
               key={v}
@@ -241,7 +244,9 @@ export function LibraryPage() {
             <PosterGridSkeleton />
           ) : collections.data.length === 0 ? (
             <EmptyState icon={<Layers />} title="No collections yet">
-              {lib?.kind === 'shows'
+              {lib?.kind === 'videos'
+                ? 'Each folder of videos appears here as a collection. You can also make your own with New Collection.'
+                : lib?.kind === 'shows'
                 ? 'Make one with New Collection: pick shows yourself, or let a smart collection gather everything that matches a filter.'
                 : 'Films TMDB groups together (like a trilogy) appear here by themselves. You can also make your own with New Collection.'}
             </EmptyState>
@@ -263,6 +268,7 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
+            landscape={lib?.kind === 'videos'}
             select={
               selecting
                 ? {

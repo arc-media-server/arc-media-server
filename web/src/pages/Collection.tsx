@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
 import { ArrowUpDown, Check, GripVertical, Pencil, Trash2, X } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
+import { kindUnit } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
@@ -15,7 +16,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
-const kindLabels = { auto: 'Collection', manual: 'Collection', smart: 'Smart Collection' };
+const kindLabels = { auto: 'Collection', manual: 'Collection', smart: 'Smart Collection', folder: 'Folder' };
 
 export function CollectionPage() {
   const { id } = useParams();
@@ -40,7 +41,7 @@ export function CollectionPage() {
   if (!data) return <div className="h-[60vh] animate-pulse bg-surface" />;
   const c = data.collection;
   const library = libraries?.find((l) => l.id === c.library_id);
-  const unit = library?.kind === 'shows' ? 'show' : 'movie';
+  const unit = kindUnit(library?.kind)[0];
 
   return (
     <Page className="pb-20">
@@ -63,7 +64,7 @@ export function CollectionPage() {
                   </Button>
                 )}
                 <Button variant="ghost" onClick={() => setDeleting(true)}>
-                  <Trash2 /> {c.kind === 'auto' ? 'Remove' : 'Delete'}
+                  <Trash2 /> {c.kind === 'auto' || c.kind === 'folder' ? 'Remove' : 'Delete'}
                 </Button>
               </div>
             )}
@@ -72,7 +73,7 @@ export function CollectionPage() {
       </Hero>
 
       <div className="px-6 pt-8 md:px-10">
-        {arranging ? <Arrange collectionId={c.id} items={data.items} /> : data.items.length > 0 && <PosterGrid items={data.items} />}
+        {arranging ? <Arrange collectionId={c.id} items={data.items} /> : data.items.length > 0 && <PosterGrid items={data.items} landscape={c.kind === 'folder'} />}
         {!arranging && data.items.length === 0 && (
           <p className="text-sm text-muted">{c.kind === 'manual' ? `Nothing in it yet. Add ${unit}s from their pages (⋯ > Add to Collection).` : 'Nothing matches right now.'}</p>
         )}

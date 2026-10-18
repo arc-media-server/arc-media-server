@@ -1,6 +1,7 @@
 // Typed client for the AMS REST API. Field names match the Go JSON exactly.
 
 export type ItemKind = 'movie' | 'series' | 'episode';
+/** "locked": never looked up online (home videos in an Other videos library). */
 export type MetadataState = 'pending' | 'matched' | 'unmatched' | 'locked';
 export type LockableField =
   | 'title'
@@ -150,7 +151,8 @@ export interface ScanStatus {
   error?: string;
 }
 
-export type LibraryKind = 'movies' | 'shows';
+/** "videos" is Other videos: home videos and the like, with no online details. */
+export type LibraryKind = 'movies' | 'shows' | 'videos';
 export type SourceOrdering = 'tvdb_aired' | 'tvdb_dvd' | 'tvdb_absolute' | 'tmdb_aired';
 
 export interface Library {
@@ -187,13 +189,15 @@ export interface PreviewItem {
   files: number;
   episodes?: number;
   example: ParsedName;
-  status: 'pending' | 'identified' | 'unidentified';
+  status: 'pending' | 'identified' | 'unidentified' | 'local';
   match?: MatchCandidate;
   steps: MatchStep[];
 }
 
 export interface LibraryPreview {
   stage: 'scanning' | 'identifying' | 'done';
+  /** Other videos: how many folders (collections) were found. */
+  folders?: number;
   error?: string;
   unavailable: string[];
   files: number;
@@ -948,7 +952,8 @@ export interface Compatibility {
 export interface Collection {
   id: string;
   library_id: number;
-  kind: 'auto' | 'manual' | 'smart';
+  /** folder: a folder of an Other videos library. */
+  kind: 'auto' | 'manual' | 'smart' | 'folder';
   tmdb_id?: number;
   title: string;
   sort_title: string;

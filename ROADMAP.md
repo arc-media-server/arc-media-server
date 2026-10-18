@@ -126,7 +126,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Metadata language per library (#96)
 - [x] Scheduled maintenance window for heavy background jobs (#97)
 - [x] TMDB numbering by default, per-show episode numbering, editable genres (#103)
-- [ ] "Other videos" (home videos) library type (#77)
+- [x] "Other videos" (home videos) library type (#77)
 - [x] Show status and next air date (#107)
 - [x] Original language of movies and shows (#108)
 - [x] Search by alternative titles and keywords (#110)

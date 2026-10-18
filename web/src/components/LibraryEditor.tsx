@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, ChevronDown, Film, FolderPlus, HelpCircle, Loader2, Tv, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Film, FolderPlus, HelpCircle, Loader2, Tv, X, Clapperboard } from 'lucide-react';
 import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SourceOrdering } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { kindUnit } from '@/lib/kinds';
 import { FolderPicker } from '@/components/FolderPicker';
 import { ParsedStep, StepRow } from '@/components/FixMatch';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
 
   // Name the library after its kind until the user names it themselves.
   useEffect(() => {
-    if (!nameTouched) setName(kind === 'shows' ? 'TV Shows' : 'Movies');
+    if (!nameTouched) setName(kind === 'shows' ? 'TV Shows' : kind === 'videos' ? 'Home Videos' : 'Movies');
   }, [kind, nameTouched]);
 
   const start = useMutation({
@@ -113,10 +114,17 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
         <div className="space-y-6 pb-2">
           {!editing && (
             <Field label="Type">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <KindCard icon={<Film />} label="Movies" selected={kind === 'movies'} onSelect={() => setKind('movies')} />
                 <KindCard icon={<Tv />} label="TV Shows" selected={kind === 'shows'} onSelect={() => setKind('shows')} />
+                <KindCard icon={<Clapperboard />} label="Other Videos" selected={kind === 'videos'} onSelect={() => setKind('videos')} />
               </div>
+              {kind === 'videos' && (
+                <p className="mt-1.5 text-xs text-subtle">
+                  Home videos and anything else that isn't a film or show: named from their files, dated by them, nothing looked up online.
+                  Each folder becomes a collection.
+                </p>
+              )}
             </Field>
           )}
           <Field label="Name">
@@ -188,6 +196,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
             </Field>
           )}
+          {kind !== 'videos' && (
           <Field label="Metadata language">
             <div className="relative">
               <select value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
@@ -206,6 +215,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
             </p>
           </Field>
+          )}
           <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
             <span>
               <span className="block text-sm font-medium">Scrubbing previews</span>
@@ -267,7 +277,7 @@ function PreviewView({ id, kind }: { id: string; kind: LibraryKind }) {
   if (preview.error) return <p className="text-sm text-warning">{preview.error.message}</p>;
   if (!p) return <div className="h-40 animate-pulse rounded-2xl bg-surface-2" />;
 
-  const what = kind === 'shows' ? 'show' : 'movie';
+  const what = kindUnit(kind)[0];
   const unidentified = p.items.filter((i) => i.status === 'unidentified');
   const identified = p.items.filter((i) => i.status === 'identified').length;
   const shown = tab === 'unidentified' ? unidentified : tab === 'all' ? p.items : [];
@@ -282,12 +292,19 @@ function PreviewView({ id, kind }: { id: string; kind: LibraryKind }) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-4">
-        <Stat value={p.items.length} label={p.items.length === 1 ? what : `${what}s`} />
-        <Stat value={identified} label="identified" tone="accent" />
-        <Stat value={unidentified.length} label="not identified" tone={unidentified.length ? 'warning' : undefined} />
-        <Stat value={p.unrecognised.length} label="files not recognised" tone={p.unrecognised.length ? 'warning' : undefined} />
-      </div>
+      {kind === 'videos' ? (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border">
+          <Stat value={p.items.length} label={p.items.length === 1 ? what : `${what}s`} />
+          <Stat value={p.folders ?? 0} label={p.folders === 1 ? 'folder' : 'folders'} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-4">
+          <Stat value={p.items.length} label={p.items.length === 1 ? what : `${what}s`} />
+          <Stat value={identified} label="identified" tone="accent" />
+          <Stat value={unidentified.length} label="not identified" tone={unidentified.length ? 'warning' : undefined} />
+          <Stat value={p.unrecognised.length} label="files not recognised" tone={p.unrecognised.length ? 'warning' : undefined} />
+        </div>
+      )}
       <p className="text-xs text-subtle">
         {fmt.plural(p.files, 'video file')} found{p.extras > 0 ? `, plus ${fmt.plural(p.extras, 'extra')} (trailers, featurettes, samples) that are skipped` : ''}.
         {unidentified.length > 0 && ' Anything not identified can be fixed after adding, with Identify.'}

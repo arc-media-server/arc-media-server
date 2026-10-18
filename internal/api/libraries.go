@@ -38,8 +38,8 @@ type libraryBody struct {
 // (its own folders don't conflict with themselves).
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
-	if b.Kind != "movies" && b.Kind != "shows" {
-		return errors.New("kind must be movies or shows")
+	if b.Kind != "movies" && b.Kind != "shows" && b.Kind != "videos" {
+		return errors.New("kind must be movies, shows or videos")
 	}
 	if b.SourceOrdering == "" {
 		b.SourceOrdering = "tmdb_aired" // TMDB by default, as Plex does

@@ -17,7 +17,7 @@ import (
 type Collection struct {
 	ID           string `json:"id"`
 	LibraryID    int64  `json:"library_id"`
-	Kind         string `json:"kind"` // auto, manual, smart
+	Kind         string `json:"kind"` // auto, manual, smart, folder (an Other videos library's folder)
 	TMDBID       int64  `json:"tmdb_id,omitempty"`
 	Title        string `json:"title"`
 	SortTitle    string `json:"sort_title"`
@@ -258,7 +258,7 @@ func (s *Store) SetCollectionInfo(ctx context.Context, id, overview, poster, bac
 // DeleteCollection removes a manual or smart collection. An automatic one is hidden instead, so
 // it doesn't come back with the next refresh.
 func (s *Store) DeleteCollection(ctx context.Context, c *Collection) error {
-	if c.Kind == "auto" {
+	if c.Kind == "auto" || c.Kind == "folder" {
 		_, err := s.db.ExecContext(ctx, `UPDATE collections SET hidden = 1 WHERE id = ?`, c.ID)
 		return err
 	}

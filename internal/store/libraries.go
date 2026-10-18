@@ -16,11 +16,16 @@ func (s *Store) SyncLibrary(ctx context.Context, name, kind, sourceOrdering stri
 	}
 	defer tx.Rollback()
 
+	// Other videos libraries are stored as movies with a flag (see migration 0034).
+	videos := kind == "videos"
+	if videos {
+		kind = "movies"
+	}
 	var id int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO libraries (name, kind, source_ordering, created_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT (name) DO UPDATE SET kind = excluded.kind, source_ordering = excluded.source_ordering
-		RETURNING id`, name, kind, sourceOrdering, time.Now().Unix()).Scan(&id)
+		INSERT INTO libraries (name, kind, source_ordering, videos, created_at) VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (name) DO UPDATE SET kind = excluded.kind, source_ordering = excluded.source_ordering, videos = excluded.videos
+		RETURNING id`, name, kind, sourceOrdering, videos, time.Now().Unix()).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -151,7 +156,7 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, kind, source_ordering, trickplay, collection_min, metadata_language FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +185,7 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, kind, source_ordering, trickplay, collection_min, metadata_language FROM libraries WHERE id = ?`, id).
+		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language FROM libraries WHERE id = ?`, id).
 		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
