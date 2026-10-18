@@ -959,6 +959,8 @@ export const api = {
     }),
   subtitleCues: (itemId: string, track: string, fileId: number) =>
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
+  /** A link to a stream that a Chromecast or Apple TV can open itself. */
+  castLink: (url: string) => request<{ url: string; local_only: boolean }>('POST', '/api/cast', { url }),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
   stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),

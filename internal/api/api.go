@@ -87,6 +87,7 @@ type Server struct {
 	uploadsDir       string
 	previews         *previews
 	playing          *nowPlaying
+	cast             castTokens
 	transcoder       *transcode.Manager
 	subtitles        *subtitles.Cache
 	trickplay        *trickplay.Manager
@@ -139,6 +140,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
 	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
 	mux.HandleFunc("POST /api/optimize", admin(s.optimizeItems))
+	mux.HandleFunc("POST /api/cast", user(s.castLink))
+	mux.HandleFunc("GET /api/cast/{token}/{rest...}", s.castStream)
+	mux.HandleFunc("OPTIONS /api/cast/{token}/{rest...}", s.castStream)
 	mux.HandleFunc("GET /api/remote", admin(s.remoteStatus))
 	mux.HandleFunc("POST /api/remote/check", admin(s.remoteCheck))
 	mux.HandleFunc("GET /api/optimized", admin(s.listOptimized))

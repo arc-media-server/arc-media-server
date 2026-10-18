@@ -146,11 +146,11 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Skip Intro / Skip Credits in the player (#46)
 - [x] Manual editing of markers (#47)
 
-### 17. Remote access and devices
+### 17. Remote access and devices ✅
 - [x] HTTPS, secure remote access setup (#57)
 - [x] Sharing with friends, library access per user (#58)
 - [x] Bandwidth limits for remote streams (#59)
-- [ ] Casting: Chromecast and AirPlay (#100)
+- [x] Casting: Chromecast and AirPlay (#100)
 - [x] Pre-converted versions for difficult devices (#101)
 
 ### 18. Arc apps and client API
