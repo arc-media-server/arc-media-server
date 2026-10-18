@@ -74,7 +74,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Milestone 14 done (Oct 2026): show status and original language, search by other names and keywords,
   labels, Activity menu, edit many titles at once, merge and Split Apart, metadata language per library,
   nightly maintenance window, Other videos libraries, IMDb/Rotten Tomatoes/Metacritic scores. The owner
-  put cross-provider metadata details on the back burner (#104-#106, #109 in Later). Next: 15 (Moving in and extras).
+  put cross-provider metadata details on the back burner (#104-#106, #109 in Later). 
+- Milestone 15 done (Oct 2026): import from Plex/Jellyfin, webhooks + New for You, theme music, pre-roll.
+  Next: 16 (intro and credits skipping), then 17, 18; the owner asked for 15-18 in one go.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

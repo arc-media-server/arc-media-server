@@ -123,6 +123,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/webhooks/{id}/test", admin(s.testWebhook))
 	mux.HandleFunc("GET /api/news", user(s.news))
 	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
+	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
+	mux.HandleFunc("GET /api/preroll/{n}", user(s.prerollVideo))
 	mux.HandleFunc("POST /api/news/seen", user(s.newsSeen))
 	mux.HandleFunc("GET /api/imports/{id}", admin(s.getImport))
 	mux.HandleFunc("POST /api/imports/{id}/server", admin(s.chooseImportServer))
