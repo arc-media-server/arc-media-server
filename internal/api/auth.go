@@ -676,6 +676,9 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"port":                   st.Port,
 		"allow_network":          st.AllowNetwork,
 		"region":                 st.Region,
+		"maintenance_start":      st.MaintenanceStart,
+		"maintenance_end":        st.MaintenanceEnd,
+		"previews_at_night":      st.PreviewsAtNight,
 		"listen":                 st.ListenAddress(),
 		"from_env":               settings.FromEnv(),
 		"transcoder":             s.transcoderCaps(),
@@ -702,18 +705,21 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // before being saved; a new port or network setting takes effect straight away.
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		TMDBKey      *string `json:"tmdb_api_key"`
-		TVDBKey      *string `json:"tvdb_api_key"`
-		FFprobePath  *string `json:"ffprobe_path"`
-		LocalBypass  *bool   `json:"local_bypass"`
-		HWAccel      *bool   `json:"hw_accel"`
-		ToneMap      *bool   `json:"tone_mapping"`
-		OSKey        *string `json:"opensubtitles_api_key"`
-		OSUser       *string `json:"opensubtitles_username"`
-		OSPassword   *string `json:"opensubtitles_password"`
-		Port         *int    `json:"port"`
-		AllowNetwork *bool   `json:"allow_network"`
-		Region       *string `json:"region"`
+		TMDBKey       *string `json:"tmdb_api_key"`
+		TVDBKey       *string `json:"tvdb_api_key"`
+		FFprobePath   *string `json:"ffprobe_path"`
+		LocalBypass   *bool   `json:"local_bypass"`
+		HWAccel       *bool   `json:"hw_accel"`
+		ToneMap       *bool   `json:"tone_mapping"`
+		OSKey         *string `json:"opensubtitles_api_key"`
+		OSUser        *string `json:"opensubtitles_username"`
+		OSPassword    *string `json:"opensubtitles_password"`
+		Port          *int    `json:"port"`
+		AllowNetwork  *bool   `json:"allow_network"`
+		Region        *string `json:"region"`
+		MaintStart    *int    `json:"maintenance_start"`
+		MaintEnd      *int    `json:"maintenance_end"`
+		PreviewsNight *bool   `json:"previews_at_night"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -766,6 +772,21 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		next.Region = *body.Region
+	}
+	for _, h := range []*int{body.MaintStart, body.MaintEnd} {
+		if h != nil && (*h < 0 || *h > 23) {
+			writeError(w, http.StatusBadRequest, "maintenance hours are 0 to 23")
+			return
+		}
+	}
+	if body.MaintStart != nil {
+		next.MaintenanceStart = *body.MaintStart
+	}
+	if body.MaintEnd != nil {
+		next.MaintenanceEnd = *body.MaintEnd
+	}
+	if body.PreviewsNight != nil {
+		next.PreviewsAtNight = *body.PreviewsNight
 	}
 	if err := s.applySettings(r.Context(), next); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

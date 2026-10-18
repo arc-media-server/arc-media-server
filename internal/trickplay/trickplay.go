@@ -64,6 +64,8 @@ type Manager struct {
 
 	// Activity, if set, is told while previews are being made.
 	Activity *activity.Tracker
+	// Allowed, if set, says whether previews may be made now for files nobody asked for yet.
+	Allowed func() bool
 }
 
 func New(dir string, st *store.Store, ffmpeg func() string, log *slog.Logger) *Manager {
@@ -165,6 +167,9 @@ func (m *Manager) pass(ctx context.Context) {
 			if f, ok := byID[id]; ok && !m.failed[id] && m.Info(id) == nil {
 				return f, true
 			}
+		}
+		if m.Allowed != nil && !m.Allowed() {
+			return store.VideoFile{}, false
 		}
 		for _, f := range files {
 			if !m.failed[f.ID] && m.Info(f.ID) == nil {

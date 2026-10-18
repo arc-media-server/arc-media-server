@@ -102,6 +102,9 @@ Early development. Working today:
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
+- Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
+  refreshing week-old show details and month-old movie details, the daily backup and a check of
+  every library; scrubbing previews can wait for it too
 - Activity (admin): a button by the Arc logo spins while the server is busy and lists what it is
   doing, with progress (library scans, refreshes, scrubbing previews, backups) and what finished
   recently, with any errors; also on the Dashboard
@@ -208,7 +211,7 @@ Motion for animation and TanStack Query for data loading.
 | POST | `/api/auth/password` | Change the password (admin) |
 | GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels"}` |
 | PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
-| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network (admin) |
+| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin) |
 
 Everything except `/api/health` and `/api/auth/*` needs a signed-in profile (a session cookie);
 managing libraries, settings, profiles, backups and metadata needs the admin profile.
