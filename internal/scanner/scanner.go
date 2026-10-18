@@ -487,12 +487,20 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	} else if name.IMDBID != "" {
 		matchKey = "imdb:" + name.IMDBID
 	}
-	itemID, created, err := s.store.EnsureItem(ctx, &store.Item{
-		LibraryID: lib.ID, Kind: "movie", Title: name.Title, Year: name.Year,
-		TMDBID: name.TMDBID, IMDBID: name.IMDBID,
-	}, matchKey)
+	// A file merged or split by hand stays with the title it was put under.
+	itemID, err := s.store.FileItemOverride(ctx, fileID)
 	if err != nil {
 		return err
+	}
+	created := false
+	if itemID == "" {
+		itemID, created, err = s.store.EnsureItem(ctx, &store.Item{
+			LibraryID: lib.ID, Kind: "movie", Title: name.Title, Year: name.Year,
+			TMDBID: name.TMDBID, IMDBID: name.IMDBID,
+		}, matchKey)
+		if err != nil {
+			return err
+		}
 	}
 	if created {
 		s.update(lib.ID, func(st *Status) { st.NewItems++ })

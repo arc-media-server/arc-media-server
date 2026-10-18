@@ -796,6 +796,8 @@ export const api = {
 
   items: (q: ItemQuery) => request<{ total: number; items: Item[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
+  mergeItems: (targetId: string, itemIds: string[]) => request<void>('POST', '/api/items/merge', { target_id: targetId, item_ids: itemIds }),
+  splitItem: (id: string) => request<{ item_ids: string[] }>('POST', `/api/items/${id}/split`),
   editItems: (edit: BulkEdit) => request<void>('POST', '/api/items/bulk', edit),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),

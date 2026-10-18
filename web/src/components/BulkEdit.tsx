@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { Check, CircleCheck, Circle, Layers, Loader2, Pencil, RefreshCw, X } from 'lucide-react';
-import { api, type BulkEdit, type Item, type Library } from '@/lib/api';
+import { Check, Merge, CircleCheck, Circle, Layers, Loader2, Pencil, RefreshCw, X } from 'lucide-react';
+import { api, posterUrl, type BulkEdit, type Item, type Library } from '@/lib/api';
+import { Artwork } from '@/components/Artwork';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ export function SelectionBar({
 }) {
   const qc = useQueryClient();
   const chosen = items.filter((i) => selected.has(i.id));
-  const [dialog, setDialog] = useState<'edit' | 'collection' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'collection' | 'merge' | null>(null);
   const [note, setNote] = useState('');
   const run = useMutation({
     mutationFn: (edit: Omit<BulkEdit, 'item_ids'>) => api.editItems({ item_ids: chosen.map((i) => i.id), ...edit }),
@@ -58,6 +59,11 @@ export function SelectionBar({
           <Button variant="ghost" size="sm" disabled={!n} onClick={() => setDialog('collection')}>
             <Layers /> Add to Collection
           </Button>
+          {library.kind === 'movies' && (
+            <Button variant="ghost" size="sm" disabled={n < 2} onClick={() => setDialog('merge')} title="Make these one movie, as versions">
+              <Merge /> Merge
+            </Button>
+          )}
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ played: true })}>
             <CircleCheck /> Watched
           </Button>
@@ -78,6 +84,17 @@ export function SelectionBar({
       </motion.div>
       <Dialog open={dialog === 'edit'} onOpenChange={(o) => setDialog(o ? 'edit' : null)}>
         {dialog === 'edit' && <BulkEditForm items={chosen} onDone={() => setDialog(null)} />}
+      </Dialog>
+      <Dialog open={dialog === 'merge'} onOpenChange={(o) => setDialog(o ? 'merge' : null)}>
+        {dialog === 'merge' && (
+          <MergeForm
+            items={chosen}
+            onDone={() => {
+              setDialog(null);
+              onDone();
+            }}
+          />
+        )}
       </Dialog>
       <AddToCollectionDialog items={chosen} library={library} open={dialog === 'collection'} onOpenChange={(o) => setDialog(o ? 'collection' : null)} />
     </>
@@ -179,6 +196,73 @@ function BulkEditForm({ items, onDone }: { items: Item[]; onDone: () => void }) 
           {locks === 'none' && <p className="mt-2 text-xs text-subtle">Unlocked fields go back to the online details at the next refresh. Use Refresh to do it now.</p>}
         </div>
       </div>
+    </DialogContent>
+  );
+}
+
+/** Merge several movies into one (also offered for duplicates in Library Health). */
+export function MergeDialog({ items, open, onOpenChange }: { items: Item[]; open: boolean; onOpenChange: (o: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && <MergeForm items={items} onDone={() => onOpenChange(false)} />}
+    </Dialog>
+  );
+}
+
+/** Merge: choose which movie to keep; the others become its versions. */
+function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
+  const qc = useQueryClient();
+  // Keep a matched one by default, since its details are the ones that stay.
+  const [keep, setKeep] = useState(() => (items.find((i) => i.metadata_state === 'matched') ?? items[0]).id);
+  const merge = useMutation({
+    mutationFn: () => api.mergeItems(keep, items.map((i) => i.id)),
+    onSuccess: () => {
+      for (const key of ['items', 'item', 'featured', 'continue', 'collections', 'health']) qc.invalidateQueries({ queryKey: [key] });
+      onDone();
+    },
+  });
+  return (
+    <DialogContent
+      title={`Merge ${items.length} movies`}
+      description="They become one movie, with each file as a version you can choose when playing. Watch history, ratings, playlists and collections come along."
+      className="w-[min(520px,calc(100vw-32px))]"
+      footer={
+        <>
+          {merge.error && <p className="mr-auto text-sm text-warning">{merge.error.message}</p>}
+          <DialogClose asChild>
+            <Button variant="ghost">Cancel</Button>
+          </DialogClose>
+          <Button variant="primary" disabled={merge.isPending} onClick={() => merge.mutate()}>
+            {merge.isPending && <Loader2 className="animate-spin" />} Merge
+          </Button>
+        </>
+      }
+    >
+      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Keep the details of</span>
+      <div className="max-h-[50vh] space-y-1.5 overflow-y-auto pb-2">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            type="button"
+            aria-pressed={keep === it.id}
+            onClick={() => setKeep(it.id)}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl p-2 pr-3 text-left ring-1 transition-colors',
+              keep === it.id ? 'bg-accent/10 ring-2 ring-accent' : 'ring-border hover:bg-surface-2',
+            )}
+          >
+            <div className="w-10 shrink-0 overflow-hidden rounded-md">
+              <Artwork src={posterUrl(it)} alt="" fallbackTitle={it.title} icon="film" />
+            </div>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{it.title}</span>
+              <span className="block text-xs text-subtle">{[it.year, it.metadata_state !== 'matched' && 'not matched'].filter(Boolean).join(' · ')}</span>
+            </span>
+            {keep === it.id && <Check className="size-4 text-accent" />}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-subtle">Split a movie apart again from its ⋯ menu if you change your mind.</p>
     </DialogContent>
   );
 }
