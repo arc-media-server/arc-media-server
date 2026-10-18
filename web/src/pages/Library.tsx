@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef,
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
-import { api, type ItemQuery, type ItemSort, type Library, type Resolution } from '@/lib/api';
+import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { kindUnit } from '@/lib/kinds';
 import { language, plural } from '@/lib/format';
@@ -270,6 +270,8 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
+            collections={!selecting && !filtered && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
+            collectionUnit={unit}
             landscape={lib?.kind === 'videos'}
             select={
               selecting
@@ -397,4 +399,12 @@ function ScanButton({ lib }: { lib: Library }) {
       <RefreshCw /> Scan Library
     </Button>
   );
+}
+
+/** The collections that show in the grid (Plex's collection mode), with whether they hide their titles. */
+function gridCollections(collections: Collection[], libraryDefault: Library['collection_grid']) {
+  return collections
+    .map((c) => ({ collection: c, mode: (c.grid_mode || libraryDefault || 'items') as CollectionMode }))
+    .filter((g) => g.mode !== 'items' && g.collection.item_ids?.length)
+    .map((g) => ({ collection: g.collection, hideItems: g.mode === 'collection' }));
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,8 @@ type collectionDTO struct {
 	Images map[string]string `json:"images"`
 	// Smart collections: the filter, decoded.
 	SmartFilter *rowFilter `json:"smart_filter,omitempty"`
+	// When listing a library: the titles in it, if it shows in the grid in their place or beside them.
+	ItemIDs []string `json:"item_ids,omitempty"`
 }
 
 // collectionRef names a collection a title is in.
@@ -107,7 +110,12 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []collectionDTO{}
 	for _, c := range cols {
-		first, total, err := s.collectionItems(r, &c, 1)
+		mode := cmp.Or(c.GridMode, lib.CollectionGrid, "items")
+		limit := 1
+		if mode != "items" {
+			limit = 0 // all of them, to place the collection among them
+		}
+		first, total, err := s.collectionItems(r, &c, limit)
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -120,7 +128,14 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
 		if len(first) > 0 {
 			f = &first[0]
 		}
-		out = append(out, s.collectionDTO(c, f))
+		d := s.collectionDTO(c, f)
+		if mode != "items" && c.Kind != "folder" {
+			d.ItemIDs = make([]string, 0, len(first))
+			for _, it := range first {
+				d.ItemIDs = append(d.ItemIDs, it.ID)
+			}
+		}
+		out = append(out, d)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -218,6 +233,8 @@ type collectionBody struct {
 	LockedFields *[]string  `json:"locked_fields"`
 	Filter       *rowFilter `json:"filter"`
 	ItemIDs      []string   `json:"item_ids"`
+	// How it shows in the library: "" (the library's choice), "items", "collection" or "both".
+	GridMode *string `json:"grid_mode"`
 }
 
 // createCollection: POST /api/collections {"library_id", "kind": "manual"|"smart", "title",
@@ -275,6 +292,12 @@ func applyCollectionBody(c *store.Collection, b *collectionBody) string {
 		for _, f := range c.LockedFields {
 			locked[f] = true
 		}
+	}
+	if b.GridMode != nil {
+		if !slices.Contains([]string{"", "items", "collection", "both"}, *b.GridMode) {
+			return `grid_mode is "", "items", "collection" or "both"`
+		}
+		c.GridMode = *b.GridMode
 	}
 	if b.Title != nil && strings.TrimSpace(*b.Title) != c.Title {
 		c.Title, locked["title"] = strings.TrimSpace(*b.Title), true

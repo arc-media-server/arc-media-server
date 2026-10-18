@@ -6,6 +6,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { kindUnit } from '@/lib/kinds';
 import { FolderPicker } from '@/components/FolderPicker';
+import { gridLabels } from '@/components/Collections';
 import { ParsedStep, StepRow } from '@/components/FixMatch';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -41,6 +42,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [skipIntros, setSkipIntros] = useState(library?.skip_intros ?? true);
   const [skipCredits, setSkipCredits] = useState(library?.skip_credits ?? true);
   const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
+  const [collectionGrid, setCollectionGrid] = useState<Library['collection_grid']>(library?.collection_grid ?? '');
   const [language, setLanguage] = useState(library?.metadata_language ?? '');
   const [picking, setPicking] = useState(!editing);
   const [step, setStep] = useState<'details' | 'preview'>('details');
@@ -61,8 +63,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits })
-        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits }),
+        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
+        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -197,6 +199,18 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                 ))}
               </select>
               <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
+            </Field>
+          )}
+          {kind !== 'videos' && (
+            <Field label="Collections in the library">
+              <select value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
+                {(['items', 'collection', 'both'] as const).map((m) => (
+                  <option key={m} value={m}>
+                    {gridLabels[m]}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
             </Field>
           )}
           {kind !== 'videos' && (

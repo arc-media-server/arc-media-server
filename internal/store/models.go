@@ -15,6 +15,9 @@ type Library struct {
 	// Offer Skip Intro (and Skip Recap) and Skip Credits, finding where they are.
 	SkipIntros  bool `json:"skip_intros"`
 	SkipCredits bool `json:"skip_credits"`
+	// How collections show in the grid unless they say: "" their titles, "collection" the
+	// collection instead, "both".
+	CollectionGrid string `json:"collection_grid"`
 }
 
 type Item struct {
