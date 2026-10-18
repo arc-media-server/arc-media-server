@@ -210,12 +210,12 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           <Sparkles className="size-4 text-muted" /> Your Year in Review
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {(status.profiles.length > 1 || !status.password_session) && (
+        {!status.friend && (status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
             <Users className="size-4 text-muted" /> Switch Profile
           </DropdownMenuItem>
         )}
-        {status.password_session && (
+        {(status.password_session || status.friend) && (
           <DropdownMenuItem onSelect={signOut}>
             <LogOut className="size-4 text-muted" /> Sign Out
           </DropdownMenuItem>

@@ -115,6 +115,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/auth/profile", s.chooseProfile)
 	mux.HandleFunc("DELETE /api/auth/profile", s.leaveProfile)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
+	mux.HandleFunc("POST /api/auth/friend", s.friendLogin)
+	mux.HandleFunc("GET /api/invites/{token}", s.getInvite)
+	mux.HandleFunc("POST /api/invites/{token}", s.acceptInvite)
 
 	// Every profile: watching.
 	user, admin := s.signedIn, s.adminOnly
@@ -197,6 +200,7 @@ func New(d Deps) http.Handler {
 
 	// The admin profile: running the server.
 	mux.HandleFunc("POST /api/auth/password", admin(s.changePassword))
+	mux.HandleFunc("POST /api/profiles/{id}/invite", admin(s.reinviteFriend))
 	mux.HandleFunc("GET /api/profiles", admin(s.listProfiles))
 	mux.HandleFunc("POST /api/profiles", admin(s.createProfile))
 	mux.HandleFunc("PATCH /api/profiles/{id}", admin(s.updateProfile))

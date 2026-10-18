@@ -99,6 +99,9 @@ Early development. Working today:
   saves the current state first
 - Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
   everything, and optional sign-in without the password on your home network
+- Sharing with friends (as in Plex): Profiles > Add Friend makes an invite link; the friend chooses a
+  password with it and signs in from anywhere with their name and password. They see only the
+  libraries (and age ratings) you allow, and never see your household's profiles
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
@@ -236,8 +239,11 @@ Motion for animation and TanStack Query for data loading.
 | POST | `/api/auth/login` | Sign in with the password |
 | POST / DELETE | `/api/auth/profile` | Switch to a profile (`id`, `pin` or `password`) / back to the picker |
 | POST | `/api/auth/logout` | Sign out |
+| POST | `/api/auth/friend` | A friend signs in: `{"name", "password"}` |
+| GET / POST | `/api/invites/{token}` | Who an invite link is for / accept it: `{"password"}` (signs the friend in) |
 | POST | `/api/auth/password` | Change the password (admin) |
-| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels"}` |
+| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels", "friend"}`; a friend comes back with an `invite_token` |
+| POST | `/api/profiles/{id}/invite` | A new invite link for a friend, e.g. to reset their password (admin) |
 | PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
 | GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin) |
 

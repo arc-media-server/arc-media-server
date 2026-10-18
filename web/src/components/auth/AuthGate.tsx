@@ -4,6 +4,7 @@ import { ErrorState } from '@/components/Page';
 import { ProfilePicker } from './ProfilePicker';
 import { Setup } from './Setup';
 import { SignIn } from './SignIn';
+import { AcceptInvite } from './AcceptInvite';
 
 /** Shows first-run setup, sign-in or the profile picker until a profile is in use, then the app. */
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -11,6 +12,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (error) return <ErrorState error={error} />;
   if (!status) return null;
   if (status.setup_needed) return <Setup />;
+  // An invite link from the admin, for a friend to choose their password.
+  const invite = window.location.pathname.match(/^\/invite\/([^/]+)$/);
+  if (invite) return <AcceptInvite token={decodeURIComponent(invite[1])} />;
   if (status.profile) return <>{children}</>;
   if (status.signed_in || status.bypass) return <ProfilePicker status={status} />;
   return <SignIn />;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, Lock, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Check, Copy, Link2, Loader2, Lock, Pencil, Plus, SlidersHorizontal, Trash2, UserPlus } from 'lucide-react';
 import { api, type Profile, type ProfileColor } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Avatar, profileColors } from '@/components/Avatar';
@@ -17,7 +17,13 @@ import { EditOtherHomeDialog, type HomeTarget } from '@/components/EditHome';
 export function ProfilesPage() {
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: api.profiles });
-  const [editing, setEditing] = useState<Profile | 'new' | null>(null);
+  const [editing, setEditing] = useState<Profile | 'new' | 'friend' | null>(null);
+  // A friend's invite link to show.
+  const [link, setLink] = useState<{ name: string; token: string } | null>(null);
+  const reinvite = useMutation({
+    mutationFn: (p: Profile) => api.reinvite(p.id),
+    onSuccess: (r, p) => setLink({ name: p.name, token: r.invite_token }),
+  });
   const [removing, setRemoving] = useState<Profile | null>(null);
   const [home, setHome] = useState<HomeTarget | null>(null);
   const remove = useMutation({
@@ -41,6 +47,9 @@ export function ProfilesPage() {
             <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'default' })} title="The home page for profiles that haven't arranged their own">
               <SlidersHorizontal /> Default Home
             </Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditing('friend')} title="Share libraries with someone outside your household">
+              <UserPlus /> Add Friend
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
               <Plus /> Add Profile
             </Button>
@@ -50,7 +59,7 @@ export function ProfilesPage() {
       <div className="px-6 md:px-10">
         <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
           {!profiles.data && <div className="h-32 animate-pulse" />}
-          {profiles.data?.map((p) => (
+          {profiles.data?.filter((p) => !p.is_friend).map((p) => (
             <div key={p.id} className="flex items-center gap-4 px-4 py-3">
               <Avatar name={p.name} color={p.color} className="size-10 text-base" />
               <div className="min-w-0 flex-1">
@@ -85,11 +94,58 @@ export function ProfilesPage() {
             </div>
           ))}
         </div>
+        <h2 className="mb-1 mt-10 text-lg font-semibold">Friends</h2>
+        <p className="mb-4 text-sm text-muted">
+          People outside your household. They sign in from anywhere with their own name and password, only see the libraries you share, and never see your profiles.
+        </p>
+        <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
+          {profiles.data && !profiles.data.some((p) => p.is_friend) && (
+            <p className="px-4 py-3.5 text-sm text-muted">No friends yet. Add Friend makes an invite link to send them.</p>
+          )}
+          {profiles.data?.filter((p) => p.is_friend).map((p) => (
+            <div key={p.id} className="flex items-center gap-4 px-4 py-3">
+              <Avatar name={p.name} color={p.color} className="size-10 text-base" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{p.name}</p>
+                <p className="truncate text-xs text-subtle">
+                  {[p.joined ? 'Joined' : "Invited, hasn't joined yet", p.library_ids ? libraryCount(p.library_ids.length) : 'All libraries', p.max_age > 0 && limitLabel(p.max_age)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={reinvite.isPending}
+                onClick={() => reinvite.mutate(p)}
+                title={p.joined ? 'A new link lets them choose a new password' : 'A new invite link (the old one stops working)'}
+              >
+                <Link2 /> {p.joined ? 'Reset Password' : 'Invite Link'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>
+                <Pencil /> Edit
+              </Button>
+              <Button variant="ghost" size="icon" aria-label={`Remove ${p.name}`} title="Remove friend" onClick={() => setRemoving(p)}>
+                <Trash2 />
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
 
+      <InviteLinkDialog link={link} onOpenChange={(o) => !o && setLink(null)} />
       <EditOtherHomeDialog target={home} open={!!home} onOpenChange={(o) => !o && setHome(null)} />
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        {editing && <ProfileForm profile={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}
+        {editing && (
+          <ProfileForm
+            profile={typeof editing === 'string' ? undefined : editing}
+            friend={editing === 'friend' || (typeof editing === 'object' && !!editing.is_friend)}
+            onDone={(p) => {
+              setEditing(null);
+              if (p?.invite_token) setLink({ name: p.name, token: p.invite_token });
+            }}
+          />
+        )}
       </Dialog>
       <ConfirmDialog
         open={!!removing}
@@ -107,7 +163,43 @@ export function ProfilesPage() {
   );
 }
 
-function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => void }) {
+/** A friend's invite link, to copy and send them. */
+function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token: string } | null; onOpenChange: (o: boolean) => void }) {
+  const [copied, setCopied] = useState(false);
+  const url = link ? `${window.location.origin}/invite/${link.token}` : '';
+  return (
+    <Dialog open={!!link} onOpenChange={(o) => (setCopied(false), onOpenChange(o))}>
+      {link && (
+        <DialogContent
+          title={`Invite ${link.name}`}
+          description="Send them this link. With it they choose a password, then sign in with their name and password. It works once, for 7 days."
+          footer={
+            <DialogClose asChild>
+              <Button variant="primary">Done</Button>
+            </DialogClose>
+          }
+        >
+          <div className="flex items-center gap-2 pb-2">
+            <input readOnly value={url} onFocus={(e) => e.target.select()} className={cn(inputClass, 'flex-1 font-mono text-xs')} />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {});
+              }}
+            >
+              {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+          {/^https?:\/\/(localhost|127\.|192\.168\.|10\.)/.test(url) && (
+            <p className="pb-2 text-xs text-subtle">This link uses your home address. For a friend elsewhere, open Arc at its outside address (see Remote Access in Settings) and make the link there.</p>
+          )}
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: boolean; onDone: (p?: Profile) => void }) {
   const qc = useQueryClient();
   const [name, setName] = useState(profile?.name ?? '');
   const [color, setColor] = useState<ProfileColor>(profile?.color ?? 'blue');
@@ -132,11 +224,11 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
             library_ids: profile.is_admin ? undefined : libraryIds,
             exclude_labels: profile.is_admin ? undefined : hiddenLabels,
           })
-        : api.createProfile({ name, color, pin: pin || undefined, max_age: maxAge, library_ids: libraryIds, exclude_labels: hiddenLabels }),
-    onSuccess: () => {
+        : api.createProfile({ name, color, friend, pin: pin || undefined, max_age: maxAge, library_ids: libraryIds, exclude_labels: hiddenLabels }),
+    onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['profiles'] });
       qc.invalidateQueries({ queryKey: ['auth'] });
-      onDone();
+      onDone(p);
     },
   });
   const hasPin = pin === undefined ? !!profile?.has_pin : pin !== '';
@@ -144,7 +236,8 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
 
   return (
     <DialogContent
-      title={profile ? `Edit ${profile.name}` : 'Add a Profile'}
+      title={profile ? `Edit ${profile.name}` : friend ? 'Add a Friend' : 'Add a Profile'}
+      description={!profile && friend ? "Choose what they can watch. Next you'll get an invite link to send them." : undefined}
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
@@ -188,39 +281,41 @@ function ProfileForm({ profile, onDone }: { profile?: Profile; onDone: () => voi
             ))}
           </div>
         </div>
-        <div>
-          <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">PIN</span>
-          {settingPin ? (
-            <div className="flex items-center gap-2">
-              <input
-                autoFocus
-                value={pin ?? ''}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                inputMode="numeric"
-                placeholder="4 digits"
-                className={cn(inputClass, 'w-32 text-center tracking-[0.4em]')}
-              />
-              <Button type="button" variant="ghost" size="sm" onClick={() => (setSettingPin(false), setPin(undefined))}>
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="flex-1 text-sm text-muted">
-                {hasPin ? 'A PIN is needed to use this profile.' : 'Anyone can use this profile.'}
-                {profile?.is_admin && !hasPin && ' At home, the admin profile asks for the password instead.'}
-              </p>
-              {hasPin && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPin('')}>
-                  Remove PIN
+        {!friend && (
+          <div>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">PIN</span>
+            {settingPin ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={pin ?? ''}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  inputMode="numeric"
+                  placeholder="4 digits"
+                  className={cn(inputClass, 'w-32 text-center tracking-[0.4em]')}
+                />
+                <Button type="button" variant="ghost" size="sm" onClick={() => (setSettingPin(false), setPin(undefined))}>
+                  Cancel
                 </Button>
-              )}
-              <Button type="button" variant="secondary" size="sm" onClick={() => (setSettingPin(true), setPin(''))}>
-                {hasPin ? 'Change PIN' : 'Add PIN'}
-              </Button>
-            </div>
-          )}
-        </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <p className="flex-1 text-sm text-muted">
+                  {hasPin ? 'A PIN is needed to use this profile.' : 'Anyone can use this profile.'}
+                  {profile?.is_admin && !hasPin && ' At home, the admin profile asks for the password instead.'}
+                </p>
+                {hasPin && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPin('')}>
+                    Remove PIN
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" size="sm" onClick={() => (setSettingPin(true), setPin(''))}>
+                  {hasPin ? 'Change PIN' : 'Add PIN'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
         {!profile?.is_admin && (
           <div>
             <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Can watch</span>

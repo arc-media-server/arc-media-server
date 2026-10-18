@@ -134,10 +134,16 @@ type profileDTO struct {
 	LibraryIDs []int64 `json:"library_ids"`
 	// Titles with these labels are hidden from the profile.
 	ExcludeLabels []string `json:"exclude_labels"`
+	// A friend, and whether they've accepted their invite (set a password) yet.
+	IsFriend bool `json:"is_friend,omitempty"`
+	Joined   bool `json:"joined,omitempty"`
+	// A new friend's invite link token (only when it's just been made).
+	InviteToken string `json:"invite_token,omitempty"`
 }
 
 func toProfile(u store.User) profileDTO {
-	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge, LibraryIDs: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels}
+	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge,
+		LibraryIDs: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels, IsFriend: u.IsFriend, Joined: u.IsFriend && u.PasswordHash != ""}
 }
 
 // authStatus: GET /api/auth/status tells the web app what to show: first-run setup, the sign-in
@@ -161,7 +167,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if se != nil || s.bypassApplies(r) {
+	if (se != nil || s.bypassApplies(r)) && (se == nil || se.Via != "friend") {
 		users, err := s.store.ListUsers(ctx)
 		if err != nil {
 			s.fail(w, err)
@@ -169,10 +175,13 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		profiles := make([]profileDTO, 0, len(users))
 		for _, u := range users {
-			profiles = append(profiles, toProfile(u))
+			if !u.IsFriend { // friends sign in with their own name and password
+				profiles = append(profiles, toProfile(u))
+			}
 		}
 		out["profiles"] = profiles
 	}
+	out["friend"] = se != nil && se.Via == "friend"
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -307,6 +316,10 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such profile")
 		return
 	}
+	if u.IsFriend || (se != nil && se.Via == "friend") {
+		writeError(w, http.StatusForbidden, "friends sign in with their own name and password")
+		return
+	}
 	key := "profile:" + clientIP(r) + ":" + u.ID
 	if !s.limiter.Allow(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
@@ -358,6 +371,11 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 // leaveProfile: DELETE /api/auth/profile goes back to the profile picker.
 func (s *Server) leaveProfile(w http.ResponseWriter, r *http.Request) {
 	if se := s.session(r); se != nil {
+		// A friend has only their own profile: leaving it signs them out.
+		if se.Via == "friend" {
+			s.logout(w, r)
+			return
+		}
 		if err := s.store.SetSessionUser(r.Context(), se.TokenHash, ""); err != nil {
 			s.fail(w, err)
 			return
@@ -437,8 +455,10 @@ func (s *Server) listProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 type profileBody struct {
-	Name  *string `json:"name"`
-	Color *string `json:"color"`
+	Name *string `json:"name"`
+	// Make a friend (with an invite link) rather than a household profile.
+	Friend bool    `json:"friend"`
+	Color  *string `json:"color"`
 	// A four-digit PIN; "" removes it.
 	PIN *string `json:"pin"`
 	// Age limit: 0 (none), or the oldest age rating allowed.
@@ -557,7 +577,16 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, http.StatusCreated, toProfile(*u))
+	out := toProfile(*u)
+	if b.Friend {
+		token, err := s.newInvite(r, u.ID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		out.IsFriend, out.InviteToken = true, token
+	}
+	writeJSON(w, http.StatusCreated, out)
 }
 
 // updateProfile: PATCH /api/profiles/{id} {"name", "color", "pin"} (admin)
