@@ -178,6 +178,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
+- Translate the web app into other languages (react-i18next + Weblate) (#122)
 - Fill blank episode details from the other provider (#104)
 - Keep every country's age rating (#105)
 - Per-episode cast and crew, and actor episode counts (#106)
