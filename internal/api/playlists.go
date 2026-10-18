@@ -16,6 +16,104 @@ type playlistDTO struct {
 	store.Playlist
 	// The first few titles' posters, for the playlist's picture.
 	Images []string `json:"images"`
+	// A smart playlist's filter.
+	SmartFilter *rowFilter `json:"smart_filter,omitempty"`
+}
+
+func toPlaylistDTO(p store.Playlist) playlistDTO {
+	d := playlistDTO{Playlist: p, Images: []string{}}
+	if p.Filter != "" {
+		var f rowFilter
+		if json.Unmarshal([]byte(p.Filter), &f) == nil {
+			d.SmartFilter = &f
+		}
+	}
+	return d
+}
+
+// smartLimit is the most titles a smart playlist holds.
+const smartLimit = 500
+
+// playlistContents is a playlist's entries and titles in order: stored ones, or a smart playlist's
+// (entry ids 0), worked out now for the profile.
+func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.PlaylistEntry, []store.Item, error) {
+	if p.Filter == "" {
+		return s.store.PlaylistEntries(r.Context(), p.ID, access(r))
+	}
+	ctx := r.Context()
+	var f rowFilter
+	if err := json.Unmarshal([]byte(p.Filter), &f); err != nil {
+		return nil, nil, nil
+	}
+	lib, err := s.store.GetLibrary(ctx, f.LibraryID)
+	if err != nil || lib == nil || !access(r).LibraryAllowed(lib.ID) {
+		return nil, nil, err
+	}
+	q := store.ItemQuery{LibraryID: lib.ID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
+		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
+		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: smartLimit}
+	if lib.Kind == "shows" {
+		q.Kind = "series"
+	}
+	found, _, err := s.store.ListItems(ctx, q)
+	if err != nil || lib.Kind != "shows" {
+		return make([]store.PlaylistEntry, len(found)), found, err
+	}
+	// Shows play as their episodes, in the profile's order (only unwatched ones when asked).
+	var ids []string
+	for i := range found {
+		eps, err := s.orderedEpisodeIDs(r, &found[i])
+		if err != nil {
+			return nil, nil, err
+		}
+		ids = append(ids, eps...)
+		if len(ids) >= smartLimit*4 {
+			break
+		}
+	}
+	if f.Unwatched {
+		data, err := s.store.UserDataFor(ctx, currentUserID(r), ids)
+		if err != nil {
+			return nil, nil, err
+		}
+		ids = slices.DeleteFunc(ids, func(id string) bool { return data[id].Played })
+	}
+	if len(ids) > smartLimit {
+		ids = ids[:smartLimit]
+	}
+	byID, err := s.store.ItemsByID(ctx, ids)
+	if err != nil {
+		return nil, nil, err
+	}
+	items := make([]store.Item, 0, len(ids))
+	for _, id := range ids {
+		if it, ok := byID[id]; ok {
+			items = append(items, it)
+		}
+	}
+	return make([]store.PlaylistEntry, len(items)), items, nil
+}
+
+// smartFilter checks a smart playlist's filter: a library the profile can see.
+func (s *Server) smartFilter(r *http.Request, f *rowFilter) (string, error) {
+	lib, err := s.store.GetLibrary(r.Context(), f.LibraryID)
+	if err != nil {
+		return "", err
+	}
+	if lib == nil || !access(r).LibraryAllowed(lib.ID) || lib.Kind == "videos" {
+		return "", errMsg("choose a movie or TV library for the playlist's rules")
+	}
+	raw, _ := json.Marshal(f)
+	return string(raw), nil
+}
+
+// notSmart refuses changing a smart playlist's titles by hand.
+func notSmart(w http.ResponseWriter, p *store.Playlist) bool {
+	if p.Filter != "" {
+		writeError(w, http.StatusConflict, "this is a smart playlist: change its rules instead")
+		return false
+	}
+	return true
 }
 
 type playlistEntryDTO struct {
@@ -38,9 +136,9 @@ func (s *Server) playlistFromPath(w http.ResponseWriter, r *http.Request) (*stor
 }
 
 // playlistItems describes a playlist's titles: episodes with their show and place in it.
-func (s *Server) playlistItems(r *http.Request, id string) ([]playlistEntryDTO, error) {
+func (s *Server) playlistItems(r *http.Request, p *store.Playlist) ([]playlistEntryDTO, error) {
 	ctx := r.Context()
-	entries, items, err := s.store.PlaylistEntries(ctx, id, access(r))
+	entries, items, err := s.playlistContents(r, p)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +179,14 @@ func (s *Server) listPlaylists(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]playlistDTO, 0, len(lists))
 	for _, p := range lists {
-		d := playlistDTO{Playlist: p, Images: []string{}}
-		if _, items, err := s.store.PlaylistEntries(r.Context(), p.ID, access(r)); err == nil {
+		d := toPlaylistDTO(p)
+		if _, items, err := s.playlistContents(r, &p); err == nil {
+			if p.Filter != "" {
+				d.Count, d.DurationMS = len(items), 0
+				for _, it := range items {
+					d.DurationMS += int64(it.RuntimeMin) * 60000
+				}
+			}
 			for _, it := range items {
 				img := toDTO(it).Images["primary"]
 				if it.Kind == "episode" {
@@ -108,7 +212,7 @@ func (s *Server) getPlaylist(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	entries, err := s.playlistItems(r, p.ID)
+	entries, err := s.playlistItems(r, p)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -117,7 +221,7 @@ func (s *Server) getPlaylist(w http.ResponseWriter, r *http.Request) {
 	for _, e := range entries {
 		p.DurationMS += int64(e.Item.RuntimeMin) * 60000
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"playlist": p, "entries": entries})
+	writeJSON(w, http.StatusOK, map[string]any{"playlist": toPlaylistDTO(*p), "entries": entries})
 }
 
 // playlistItemIDs turns movies, episodes and shows (all their episodes, in the profile's episode
@@ -184,11 +288,13 @@ func (s *Server) orderedEpisodeIDs(r *http.Request, series *store.Item) ([]strin
 	return append(out, rest...), nil
 }
 
-// createPlaylist: POST /api/playlists {"title", "item_ids"} makes a playlist for the profile.
+// createPlaylist: POST /api/playlists {"title", "item_ids"} makes a playlist for the profile; with
+// "filter" (a library filter, as for a smart collection) it's a smart playlist kept up to date.
 func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 	var b struct {
-		Title   string   `json:"title"`
-		ItemIDs []string `json:"item_ids"`
+		Title   string     `json:"title"`
+		ItemIDs []string   `json:"item_ids"`
+		Filter  *rowFilter `json:"filter"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -204,9 +310,28 @@ func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	filter := ""
+	if b.Filter != nil {
+		if filter, err = s.smartFilter(r, b.Filter); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		ids = nil
+	}
 	p, err := s.store.CreatePlaylist(r.Context(), currentUserID(r), b.Title)
 	if err != nil {
 		s.fail(w, err)
+		return
+	}
+	if filter != "" {
+		if err := s.store.SetPlaylistFilter(r.Context(), p.ID, filter); err != nil {
+			s.fail(w, err)
+			return
+		}
+		p.Filter = filter
+		_, items, _ := s.playlistContents(r, p)
+		p.Count = len(items)
+		writeJSON(w, http.StatusCreated, toPlaylistDTO(*p))
 		return
 	}
 	if len(ids) > 0 {
@@ -216,25 +341,44 @@ func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p.Count = len(ids)
-	writeJSON(w, http.StatusCreated, p)
+	writeJSON(w, http.StatusCreated, toPlaylistDTO(*p))
 }
 
-// updatePlaylist: PATCH /api/playlists/{id} {"title"} renames a playlist.
+// updatePlaylist: PATCH /api/playlists/{id} {"title", "filter"} renames a playlist, or changes a
+// smart playlist's rules.
 func (s *Server) updatePlaylist(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.playlistFromPath(w, r)
 	if !ok {
 		return
 	}
 	var b struct {
-		Title string `json:"title"`
+		Title  *string    `json:"title"`
+		Filter *rowFilter `json:"filter"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || strings.TrimSpace(b.Title) == "" {
-		writeError(w, http.StatusBadRequest, `send {"title": "..."}`)
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil || (b.Title != nil && strings.TrimSpace(*b.Title) == "") {
+		writeError(w, http.StatusBadRequest, `send {"title": "..."} or a smart playlist's {"filter": {...}}`)
 		return
 	}
-	if err := s.store.RenamePlaylist(r.Context(), p.ID, strings.TrimSpace(b.Title)); err != nil {
-		s.fail(w, err)
-		return
+	if b.Title != nil {
+		if err := s.store.RenamePlaylist(r.Context(), p.ID, strings.TrimSpace(*b.Title)); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if b.Filter != nil {
+		if p.Filter == "" {
+			writeError(w, http.StatusConflict, "only a smart playlist has rules")
+			return
+		}
+		filter, err := s.smartFilter(r, b.Filter)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := s.store.SetPlaylistFilter(r.Context(), p.ID, filter); err != nil {
+			s.fail(w, err)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -256,6 +400,9 @@ func (s *Server) deletePlaylist(w http.ResponseWriter, r *http.Request) {
 func (s *Server) playlistAdd(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.playlistFromPath(w, r)
 	if !ok {
+		return
+	}
+	if !notSmart(w, p) {
 		return
 	}
 	var b struct {
@@ -283,6 +430,9 @@ func (s *Server) playlistRemove(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !notSmart(w, p) {
+		return
+	}
 	entry, err := strconv.ParseInt(r.PathValue("entry"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "bad entry")
@@ -299,6 +449,9 @@ func (s *Server) playlistRemove(w http.ResponseWriter, r *http.Request) {
 func (s *Server) playlistOrder(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.playlistFromPath(w, r)
 	if !ok {
+		return
+	}
+	if !notSmart(w, p) {
 		return
 	}
 	var b struct {

@@ -1016,6 +1016,8 @@ export const api = {
   playlist: (id: string) => request<{ playlist: Playlist; entries: PlaylistEntry[] }>('GET', `/api/playlists/${id}`),
   createPlaylist: (title: string, itemIds: string[] = []) => request<Playlist>('POST', '/api/playlists', { title, item_ids: itemIds }),
   renamePlaylist: (id: string, title: string) => request<void>('PATCH', `/api/playlists/${id}`, { title }),
+  createSmartPlaylist: (title: string, filter: RowFilter) => request<Playlist>('POST', '/api/playlists', { title, filter }),
+  updateSmartPlaylist: (id: string, title: string, filter: RowFilter) => request<void>('PATCH', `/api/playlists/${id}`, { title, filter }),
   deletePlaylist: (id: string) => request<void>('DELETE', `/api/playlists/${id}`),
   addToPlaylist: (id: string, itemIds: string[]) => request<{ added: number }>('POST', `/api/playlists/${id}/items`, { item_ids: itemIds }),
   removeFromPlaylist: (id: string, entryId: number) => request<void>('DELETE', `/api/playlists/${id}/entries/${entryId}`),
@@ -1142,6 +1144,8 @@ export interface Playlist {
   updated_at: number;
   /** The first few titles' posters. */
   images?: string[];
+  /** A smart playlist's rules: it's kept up to date from them. */
+  smart_filter?: RowFilter;
 }
 
 export interface PlaylistEntry {

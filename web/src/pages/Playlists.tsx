@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
-import { GripVertical, ListVideo, Pencil, Play, Plus, Shuffle, Trash2, X } from 'lucide-react';
+import { GripVertical, ListVideo, Loader2, Pencil, Play, Plus, Shuffle, Trash2, Wand2, X } from 'lucide-react';
 import { shuffled } from '@/lib/shuffle';
-import { api, type PlaylistEntry } from '@/lib/api';
+import { api, type Playlist, type PlaylistEntry, type RowFilter } from '@/lib/api';
+import { FilterFields, FilterPreview } from '@/components/FilterFields';
+import { useLibraries } from '@/components/Sidebar';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
@@ -12,7 +14,7 @@ import { nowPlayingFor, usePlayer } from '@/components/Player';
 import { PlaylistCover } from '@/components/Playlists';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 
 /** The profile's playlists. */
@@ -20,6 +22,7 @@ export function PlaylistsPage() {
   const navigate = useNavigate();
   const { data, error } = useQuery({ queryKey: ['playlists'], queryFn: api.playlists });
   const [naming, setNaming] = useState(false);
+  const [smart, setSmart] = useState(false);
   if (error) return <ErrorState error={error} />;
   return (
     <Page className="pb-16">
@@ -27,9 +30,14 @@ export function PlaylistsPage() {
         title="Playlists"
         subtitle="Movies and episodes to watch in order. Just for your profile."
         actions={
-          <Button variant="secondary" size="sm" onClick={() => setNaming(true)}>
-            <Plus /> New Playlist
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setSmart(true)} title="A playlist that fills itself from rules, like unwatched comedies">
+              <Wand2 /> New Smart Playlist
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setNaming(true)}>
+              <Plus /> New Playlist
+            </Button>
+          </>
         }
       />
       <div className="px-6 md:px-10">
@@ -43,7 +51,10 @@ export function PlaylistsPage() {
           {data?.map((p) => (
             <Link key={p.id} to={`/playlist/${p.id}`} className="group block outline-none">
               <PlaylistCover playlist={p} className="shadow-lg shadow-black/25 transition-transform duration-300 group-hover:-translate-y-1" />
-              <p className="mt-2.5 truncate text-[13px] font-medium">{p.title}</p>
+              <p className="mt-2.5 flex items-center gap-1 truncate text-[13px] font-medium">
+                {p.smart_filter && <Wand2 className="size-3 shrink-0 text-accent" />}
+                <span className="truncate">{p.title}</span>
+              </p>
               <p className="text-xs text-subtle">
                 {fmt.plural(p.count, 'title')}
                 {p.duration_ms > 0 && ` · ${fmt.runtime(Math.round(p.duration_ms / 60000))}`}
@@ -53,6 +64,7 @@ export function PlaylistsPage() {
         </div>
       </div>
       <NameDialog open={naming} onOpenChange={setNaming} title="New Playlist" onSave={async (name) => navigate(`/playlist/${(await api.createPlaylist(name)).id}`)} />
+      <SmartPlaylistDialog open={smart} onOpenChange={setSmart} onSaved={(id) => navigate(`/playlist/${id}`)} />
     </Page>
   );
 }
@@ -65,6 +77,7 @@ export function PlaylistPage() {
   const play = usePlayer();
   const { data, error } = useQuery({ queryKey: ['playlist', id], queryFn: () => api.playlist(id!) });
   const [renaming, setRenaming] = useState(false);
+  const [editingRules, setEditingRules] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const remove = useMutation({
     mutationFn: () => api.deletePlaylist(id!),
@@ -86,7 +99,7 @@ export function PlaylistPage() {
       <div className="flex flex-wrap items-end gap-6 px-6 pb-8 pt-14 md:px-10">
         <PlaylistCover playlist={{ ...p, images: data.entries.map((e) => (e.item.kind === 'episode' ? e.item.images?.series_primary : e.item.images?.primary)).filter((x): x is string => !!x).filter((x, i, a) => a.indexOf(x) === i) }} className="w-40 shadow-2xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Playlist</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{p.smart_filter ? 'Smart Playlist' : 'Playlist'}</p>
           <h1 className="mt-1 text-4xl font-bold leading-tight">{p.title}</h1>
           <p className="mt-1 text-sm text-muted">
             {fmt.plural(p.count, 'title')}
@@ -99,9 +112,15 @@ export function PlaylistPage() {
             <Button variant="secondary" size="lg" disabled={queue.length < 2} onClick={shuffle}>
               <Shuffle /> Shuffle
             </Button>
-            <Button variant="ghost" size="lg" onClick={() => setRenaming(true)}>
-              <Pencil /> Rename
-            </Button>
+            {p.smart_filter ? (
+              <Button variant="ghost" size="lg" onClick={() => setEditingRules(true)}>
+                <Wand2 /> Edit Rules
+              </Button>
+            ) : (
+              <Button variant="ghost" size="lg" onClick={() => setRenaming(true)}>
+                <Pencil /> Rename
+              </Button>
+            )}
             <Button variant="ghost" size="lg" onClick={() => setDeleting(true)}>
               <Trash2 /> Delete
             </Button>
@@ -111,8 +130,14 @@ export function PlaylistPage() {
       <div className="px-6 md:px-10">
         {data.entries.length === 0 ? (
           <EmptyState icon={<ListVideo />} title="Nothing in it yet">
-            Add movies, episodes or whole shows from their pages.
+            {p.smart_filter ? 'Nothing matches its rules yet. It fills up as titles are added or watched.' : 'Add movies, episodes or whole shows from their pages.'}
           </EmptyState>
+        ) : p.smart_filter ? (
+          <div className="max-w-4xl space-y-1.5">
+            {data.entries.map((e, i) => (
+              <EntryRow key={e.item.id} entry={e} index={i} onPlay={() => playFrom(i)} />
+            ))}
+          </div>
         ) : (
           <Entries playlistId={p.id} entries={data.entries} onPlay={(i) => playFrom(i)} />
         )}
@@ -128,6 +153,17 @@ export function PlaylistPage() {
           qc.invalidateQueries({ queryKey: ['playlists'] });
         }}
       />
+      {p.smart_filter && (
+        <SmartPlaylistDialog
+          open={editingRules}
+          onOpenChange={setEditingRules}
+          playlist={p}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ['playlist', id] });
+            qc.invalidateQueries({ queryKey: ['playlists'] });
+          }}
+        />
+      )}
       <ConfirmDialog open={deleting} onOpenChange={setDeleting} title={`Delete ${p.title}?`} confirmLabel="Delete" destructive busy={remove.isPending} error={remove.error?.message} onConfirm={() => remove.mutate()}>
         <p>The playlist goes; its movies and episodes stay in your libraries.</p>
       </ConfirmDialog>
@@ -154,22 +190,19 @@ function Entries({ playlistId, entries: initial, onPlay }: { playlistId: string;
   );
 }
 
-function EntryRow({ entry, index, onPlay, onDrop, onRemove }: { entry: PlaylistEntry; index: number; onPlay: () => void; onDrop: () => void; onRemove: () => void }) {
+/** A playlist's title row; a smart playlist's can't be dragged or removed (its rules decide). */
+function EntryRow({ entry, index, onPlay, onDrop, onRemove }: { entry: PlaylistEntry; index: number; onPlay: () => void; onDrop?: () => void; onRemove?: () => void }) {
   const drag = useDragControls();
   const it = entry.item;
   const episode = it.kind === 'episode';
-  return (
-    <Reorder.Item
-      value={entry}
-      dragListener={false}
-      dragControls={drag}
-      onDragEnd={onDrop}
-      className="group flex items-center gap-3 rounded-2xl bg-surface p-2 pr-3 ring-1 ring-border"
-      whileDrag={{ scale: 1.01, boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}
-    >
-      <button type="button" aria-label={`Drag ${it.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
-        <GripVertical className="size-4" />
-      </button>
+  const fixed = !onDrop;
+  const content = (
+    <>
+      {!fixed && (
+        <button type="button" aria-label={`Drag ${it.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
+          <GripVertical className="size-4" />
+        </button>
+      )}
       <span className="w-6 text-right text-sm tabular-nums text-subtle">{index + 1}</span>
       <button type="button" onClick={onPlay} className="relative w-28 shrink-0 overflow-hidden rounded-lg" aria-label={`Play ${it.title}`}>
         <Artwork src={episode ? (it.images?.primary ?? it.images?.series_backdrop) : (it.images?.backdrop ?? it.images?.primary)} alt="" kind="still" icon={episode ? 'tv' : 'film'} fallbackTitle={it.title} />
@@ -184,10 +217,64 @@ function EntryRow({ entry, index, onPlay, onDrop, onRemove }: { entry: PlaylistE
           {it.runtime_min ? ` · ${fmt.runtime(it.runtime_min)}` : ''}
         </p>
       </Link>
-      <Button variant="ghost" size="icon" aria-label={`Remove ${it.title}`} onClick={onRemove}>
-        <X />
-      </Button>
+      {onRemove && (
+        <Button variant="ghost" size="icon" aria-label={`Remove ${it.title}`} onClick={onRemove}>
+          <X />
+        </Button>
+      )}
+    </>
+  );
+  const className = 'group flex items-center gap-3 rounded-2xl bg-surface p-2 pr-3 ring-1 ring-border';
+  if (fixed) return <div className={className}>{content}</div>;
+  return (
+    <Reorder.Item value={entry} dragListener={false} dragControls={drag} onDragEnd={onDrop} className={className} whileDrag={{ scale: 1.01, boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
+      {content}
     </Reorder.Item>
+  );
+}
+
+/** Make a smart playlist, or change one's name and rules. */
+function SmartPlaylistDialog({ open, onOpenChange, playlist, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; playlist?: Playlist; onSaved: (id: string) => void }) {
+  return <Dialog open={open} onOpenChange={onOpenChange}>{open && <SmartPlaylistForm playlist={playlist} onDone={(id) => (onOpenChange(false), onSaved(id))} />}</Dialog>;
+}
+
+function SmartPlaylistForm({ playlist, onDone }: { playlist?: Playlist; onDone: (id: string) => void }) {
+  const libraries = (useLibraries().data ?? []).filter((l) => l.kind !== 'videos');
+  const [title, setTitle] = useState(playlist?.title ?? '');
+  const [filter, setFilter] = useState<RowFilter>(playlist?.smart_filter ?? { library_id: libraries[0]?.id ?? 0, unwatched: true, sort: 'shuffle' });
+  useEffect(() => {
+    if (!filter.library_id && libraries[0]) setFilter((f) => ({ ...f, library_id: libraries[0].id }));
+  }, [filter.library_id, libraries]);
+  const save = useMutation({
+    mutationFn: async () => (playlist ? (await api.updateSmartPlaylist(playlist.id, title, filter), playlist.id) : (await api.createSmartPlaylist(title, filter)).id),
+    onSuccess: onDone,
+  });
+  const library = libraries.find((l) => l.id === filter.library_id);
+  return (
+    <DialogContent
+      title={playlist ? 'Edit Smart Playlist' : 'New Smart Playlist'}
+      description="It fills itself from these rules and keeps up to date: titles come and go as they're added or watched. From a TV library, it plays the matching shows' episodes in order."
+      footer={
+        <>
+          {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
+          <DialogClose asChild>
+            <Button variant="ghost">Cancel</Button>
+          </DialogClose>
+          <Button variant="primary" disabled={!title.trim() || !filter.library_id || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending && <Loader2 className="animate-spin" />} Save
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4 pb-2">
+        <label className="block">
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</span>
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="e.g. Unwatched comedies" className={inputClass} />
+        </label>
+        <FilterFields filter={filter} onChange={setFilter} libraries={libraries} />
+        <FilterPreview filter={filter} library={library} emptyText="Nothing matches yet. It'll fill up as titles are added." />
+      </div>
+    </DialogContent>
   );
 }
 

@@ -70,6 +70,9 @@ Early development. Working today:
 - More Like This on movie and show pages (TMDB's recommendations that are in your library, then
   titles sharing a collection, genres or lead actors), and a Recommended tab per library: Because
   you watched…, top rated you haven't seen, and more of your favourite genres
+- Smart playlists (as in Plex): New Smart Playlist fills itself from a library's filters (genre,
+  label, decade, length, rating, unwatched and more) and keeps up to date; from a TV library it plays
+  the matching shows' episodes in order (up to 500 titles)
 - Shuffle (as in Plex): on a show (every episode but specials), a season, a collection (its movies and
   its shows' episodes, which also get Play) and a playlist, through the player's queue
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
@@ -323,7 +326,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/transcode/{session}` | End a conversion |
 | PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms", "state": "playing\|paused\|stopped"}`; past 90% counts as watched. 409 means the admin stopped playback |
 | PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
-| GET / POST | `/api/playlists` | The profile's playlists; make one `{"title", "item_ids"}` |
+| GET / POST | `/api/playlists` | The profile's playlists; make one `{"title", "item_ids"}`, or a smart one `{"title", "filter"}` (a library filter; its titles are worked out when read) |
 | GET / PATCH / DELETE | `/api/playlists/{id}` | A playlist and its entries; rename `{"title"}`; delete |
 | POST | `/api/playlists/{id}/items` | Add `{"item_ids"}` (movies, episodes, or shows for all their episodes) |
 | DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |

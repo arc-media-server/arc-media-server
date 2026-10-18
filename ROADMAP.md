@@ -165,7 +165,7 @@ _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource grap
 - [x] Shuffle play (#117)
 - [x] Subtitle styling and subtitle mode (#118)
 - [x] Collection display mode (#119)
-- [ ] Smart playlists (#120)
+- [x] Smart playlists (#120)
 - [ ] Dashboard: server resource graphs (#121)
 
 ### Before public release
