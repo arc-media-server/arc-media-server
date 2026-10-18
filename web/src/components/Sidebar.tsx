@@ -1,24 +1,19 @@
 import { createElement, useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, FolderCog, Tv, HeartPulse, Home, ListVideo, Loader2, LogOut, FastForward, Monitor, Moon, Music, Search, Settings, SlidersHorizontal, Sun, Users } from 'lucide-react';
-import { api, type Theme } from '@/lib/api';
+import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, Sparkles, FolderCog, Tv, HeartPulse, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { api } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
 import { Avatar } from '@/components/Avatar';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ActivityButton } from '@/components/Activity';
 import { NewsButton } from '@/components/News';
 
@@ -114,8 +109,6 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: status } = useAuth();
-  const prefs = usePrefs();
-  const updatePrefs = useUpdatePrefs();
   const profile = status?.profile;
   if (!profile) return null;
   const leave = async () => {
@@ -145,64 +138,6 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? 'end' : 'start'} side={compact ? 'bottom' : 'top'} className="w-60">
-        <DropdownMenuCheckboxItem
-          checked={!!prefs.data?.hide_spoilers}
-          disabled={!prefs.data}
-          onSelect={(e) => e.preventDefault()}
-          onCheckedChange={(on) => updatePrefs.mutate({ hide_spoilers: on })}
-        >
-          <EyeOff className="size-4 shrink-0 self-start text-muted mt-0.5" />
-          <span className="min-w-0">
-            <span className="block">Hide Spoilers</span>
-            <span className="block text-xs text-subtle">Blur stills and hide descriptions of episodes you haven't seen</span>
-          </span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={prefs.data?.auto_play !== false}
-          disabled={!prefs.data}
-          onSelect={(e) => e.preventDefault()}
-          onCheckedChange={(on) => updatePrefs.mutate({ auto_play: on })}
-        >
-          <ListVideo className="size-4 shrink-0 self-start text-muted mt-0.5" />
-          <span className="min-w-0">
-            <span className="block">Auto-Play</span>
-            <span className="block text-xs text-subtle">Play the next episode after a short countdown</span>
-          </span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={prefs.data?.theme_music !== false}
-          disabled={!prefs.data}
-          onSelect={(e) => e.preventDefault()}
-          onCheckedChange={(on) => updatePrefs.mutate({ theme_music: on })}
-        >
-          <Music className="size-4 shrink-0 self-start text-muted mt-0.5" />
-          <span className="min-w-0">
-            <span className="block">Theme Music</span>
-            <span className="block text-xs text-subtle">Play a show's theme quietly on its page, when there's one</span>
-          </span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={!!prefs.data?.auto_skip}
-          disabled={!prefs.data}
-          onSelect={(e) => e.preventDefault()}
-          onCheckedChange={(on) => updatePrefs.mutate({ auto_skip: on })}
-        >
-          <FastForward className="size-4 shrink-0 self-start text-muted mt-0.5" />
-          <span className="min-w-0">
-            <span className="block">Skip Intros Automatically</span>
-            <span className="block text-xs text-subtle">Skip intros and recaps without pressing Skip</span>
-          </span>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={prefs.data?.theme ?? ''} onValueChange={(v) => updatePrefs.mutate({ theme: v as Theme })}>
-          {themes.map((t) => (
-            <DropdownMenuRadioItem key={t.value} value={t.value} disabled={!prefs.data} onSelect={(e) => e.preventDefault()}>
-              {t.icon} {t.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate('/?edit=1')}>
           <SlidersHorizontal className="size-4 text-muted" /> Edit Home…
         </DropdownMenuItem>
@@ -211,6 +146,9 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/link')}>
           <Tv className="size-4 text-muted" /> Link a Device…
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/settings')}>
+          <Settings className="size-4 text-muted" /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {!status.friend && (status.profiles.length > 1 || !status.password_session) && (
@@ -346,8 +284,3 @@ export function MobileBar() {
   );
 }
 
-const themes: { value: Theme; label: string; icon: ReactNode }[] = [
-  { value: '', label: 'Automatic', icon: <Monitor className="size-4 text-muted" /> },
-  { value: 'dark', label: 'Dark', icon: <Moon className="size-4 text-muted" /> },
-  { value: 'light', label: 'Light', icon: <Sun className="size-4 text-muted" /> },
-];

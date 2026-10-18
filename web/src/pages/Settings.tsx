@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
-import { api, type RemoteStatus, type ServerSettings } from '@/lib/api';
+import { api, type RemoteStatus, type ServerSettings, type Theme } from '@/lib/api';
+import { useIsAdmin } from '@/lib/auth';
+import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -14,6 +16,77 @@ import { DevicesList } from '@/components/Devices';
 type Patch = Parameters<typeof api.updateSettings>[0];
 
 export function SettingsPage() {
+  const admin = useIsAdmin();
+  return (
+    <Page className="pb-16">
+      <PageHeader title="Settings" subtitle={admin ? 'Your profile, and everything about how this Arc server runs.' : 'How Arc works for your profile.'} />
+      <div className="max-w-3xl space-y-10 px-6 md:px-10">
+        <ProfileSettings />
+        {admin && <ServerSettings />}
+      </div>
+    </Page>
+  );
+}
+
+/** The current profile's own settings (each profile has its own, as in Plex). */
+function ProfileSettings() {
+  const prefs = usePrefs();
+  const update = useUpdatePrefs();
+  const p = prefs.data;
+  if (!p) return <div className="h-48 animate-pulse rounded-2xl bg-surface" />;
+  const busy = update.isPending;
+  return (
+    <>
+      <Section title="Playback" hint="For your profile only.">
+        <ToggleRow
+          label="Auto-Play"
+          description="Play the next episode after a short countdown."
+          checked={p.auto_play !== false}
+          busy={busy}
+          onChange={(v) => update.mutate({ auto_play: v })}
+        />
+        <ToggleRow
+          label="Skip intros automatically"
+          description="Skip intros and recaps without pressing Skip."
+          checked={!!p.auto_skip}
+          busy={busy}
+          onChange={(v) => update.mutate({ auto_skip: v })}
+        />
+        <ToggleRow
+          label="Theme music"
+          description="Play a show's or movie's theme quietly on its page, when there's one."
+          checked={p.theme_music !== false}
+          busy={busy}
+          onChange={(v) => update.mutate({ theme_music: v })}
+        />
+      </Section>
+      <Section title="Display">
+        <ToggleRow
+          label="Hide spoilers"
+          description="Blur stills and hide descriptions of episodes you haven't seen."
+          checked={!!p.hide_spoilers}
+          busy={busy}
+          onChange={(v) => update.mutate({ hide_spoilers: v })}
+        />
+        <Row label="Appearance" description="Automatic follows this device's light or dark setting.">
+          <select
+            value={p.theme ?? ''}
+            disabled={busy}
+            onChange={(e) => update.mutate({ theme: e.target.value as Theme })}
+            className={`${inputClass} w-40 [&>option]:bg-surface`}
+          >
+            <option value="">Automatic</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </Row>
+      </Section>
+    </>
+  );
+}
+
+/** The server's settings (admin). */
+function ServerSettings() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
@@ -29,12 +102,12 @@ export function SettingsPage() {
   const s = settings.data;
 
   return (
-    <Page className="pb-16">
-      <PageHeader title="Settings" subtitle="Everything about how this Arc server runs." />
+    <>
+      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">Server</h2>
       {!s ? (
-        <div className="mx-6 h-96 animate-pulse rounded-2xl bg-surface md:mx-10" />
+        <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
-        <div className="max-w-3xl space-y-10 px-6 md:px-10">
+        <>
           <Section title="Online metadata" hint="Arc identifies movies and shows and fetches their details and artwork from these services.">
             <KeyRow
               label="TMDB"
@@ -246,9 +319,9 @@ export function SettingsPage() {
           </Section>
 
           {update.error && <p className="text-sm text-warning">{update.error.message}</p>}
-        </div>
+        </>
       )}
-    </Page>
+    </>
   );
 }
 

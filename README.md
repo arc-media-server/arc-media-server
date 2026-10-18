@@ -113,7 +113,7 @@ Early development. Working today:
 - Skip Intro, Skip Recap and Skip Credits: timings from the file's chapters (Opening, Ending),
   IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
   overnight by comparing a season's episodes' audio. At the credits Up Next counts down; Skip
-  Intros Automatically is in the profile menu; times can be set by hand under Edit > Skip Markers
+  intros automatically is in Settings > Playback; times can be set by hand under Edit > Skip Markers
 - Optimize (a title's ⋯ menu, or Select in a library): easy-to-play 1080p or 720p H.264 copies made
   in the background in Arc's data folder, played instead of converting live when a player can't play
   the original; listed with their size in Settings
@@ -133,7 +133,7 @@ Early development. Working today:
 - Pre-roll videos (Settings): files or folders of clips played before a movie started from the
   beginning, one at random or all in order, with Skip; ones that won't play are skipped
 - Theme music: a theme.mp3 (or .flac, .m4a, .ogg) in a show's or movie's folder, or a theme-music
-  folder, plays quietly once on its page, fading in and out; Theme Music in the profile menu turns it off
+  folder, plays quietly once on its page, fading in and out; Theme music in Settings > Playback turns it off
 - New for You: a bell for every profile with new episodes of shows it watches and new movies from
   the last month, with an unread count
 - Webhooks (Settings > Notifications): new movies and episodes, playback starting and finishing,
@@ -194,11 +194,11 @@ Early development. Working today:
   (only ones below the file's own bitrate) for slow connections; remembered per device
 - Preferred audio language (per profile, as in Plex): the audio language you pick in the player is
   remembered and played by default in every file that has it, e.g. Japanese audio for anime
-- Auto-Play (per profile, in the profile menu, on by default as in Plex): when an episode ends, the
+- Auto-Play (per profile, in Settings > Playback, on by default as in Plex): when an episode ends, the
   next one in your episode order plays after a 10-second countdown, wherever you started it
-- Hide Spoilers (per profile, in the profile menu): stills are blurred and descriptions hidden for
+- Hide Spoilers (per profile, in Settings > Display): stills are blurred and descriptions hidden for
   episodes you haven't started
-- Appearance per profile (profile menu): Automatic (follows the device), Dark or Light
+- Appearance per profile (Settings > Display): Automatic (follows the device), Dark or Light
 - Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
   automatically, network access and port)
 - Other videos libraries, for home videos and anything else that isn't a film or show: each file is
