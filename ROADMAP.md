@@ -121,7 +121,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 
 ### 14. Library management
 - [ ] Merge and split titles by hand (#93)
-- [ ] Edit several titles at once (#94)
+- [x] Edit several titles at once (#94)
 - [x] Labels, for filters, smart collections and profile restrictions (#95)
 - [ ] Metadata language per library (#96)
 - [ ] Scheduled maintenance window for heavy background jobs (#97)

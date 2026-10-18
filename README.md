@@ -116,6 +116,9 @@ Early development. Working today:
   your region); anything else is hidden from it everywhere
 - Library access per profile (as in Plex Home): choose which libraries a profile sees; the others
   are hidden from it everywhere (sidebar, home, search, collections, playlists)
+- Change many titles at once: Select in a library (shift-click picks a range), then Edit (add or
+  remove genres and labels, set an age rating, lock or unlock every field), Add to Collection,
+  mark watched or unwatched, or Refresh (runs in the background, shown in Activity)
 - Labels: your own tags on movies and shows (Edit → Labels), used as a library filter, in custom
   Home rows and smart collections, and to hide titles from a profile (e.g. "Not for kids")
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
@@ -217,6 +220,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
+| POST | `/api/items/bulk` | Change many movies and shows (admin): `{"item_ids", "add_genres", "remove_genres", "add_labels", "remove_labels", "content_rating", "locks": "all"|"none", "played", "refresh"}` |
 | GET | `/api/labels` | Every label in use (admin) |
 | PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
 | POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |

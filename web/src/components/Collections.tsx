@@ -204,33 +204,50 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
 }
 
 /** Put a title in one of its library's manual collections, or a new one. */
-export function AddToCollectionDialog({ item, library, open, onOpenChange }: { item: Item; library?: Library; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function AddToCollectionDialog({
+  item,
+  items,
+  library,
+  open,
+  onOpenChange,
+}: {
+  item?: Item;
+  /** Several titles at once (when choosing in a library). */
+  items?: Item[];
+  library?: Library;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const list = items ?? (item ? [item] : []);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && library && <AddToCollection item={item} library={library} onDone={() => onOpenChange(false)} />}
+      {open && library && list.length > 0 && <AddToCollection items={list} library={library} onDone={() => onOpenChange(false)} />}
     </Dialog>
   );
 }
 
-function AddToCollection({ item, library, onDone }: { item: Item; library: Library; onDone: () => void }) {
+function AddToCollection({ items, library, onDone }: { items: Item[]; library: Library; onDone: () => void }) {
+  const item = items[0];
+  const ids = items.map((i) => i.id);
   const qc = useQueryClient();
   const collections = useQuery({ queryKey: ['collections', library.id], queryFn: () => api.collections(library.id) });
   const [name, setName] = useState('');
-  const inIt = new Set(item.collections?.map((c) => c.id));
+  // A collection counts as chosen when every title is already in it.
+  const inIt = new Set(items.length === 1 ? item.collections?.map((c) => c.id) : []);
   const done = () => {
-    for (const key of ['collections', 'collection', 'item']) qc.invalidateQueries({ queryKey: [key] });
+    for (const key of ['collections', 'collection', 'item', 'facets']) qc.invalidateQueries({ queryKey: [key] });
     onDone();
   };
-  const add = useMutation({ mutationFn: (id: string) => api.addToCollection(id, [item.id]), onSuccess: done });
+  const add = useMutation({ mutationFn: (id: string) => api.addToCollection(id, ids), onSuccess: done });
   const create = useMutation({
-    mutationFn: () => api.createCollection({ library_id: library.id, kind: 'manual', title: name.trim(), item_ids: [item.id] }),
+    mutationFn: () => api.createCollection({ library_id: library.id, kind: 'manual', title: name.trim(), item_ids: ids }),
     onSuccess: done,
   });
   const manual = collections.data?.filter((c) => c.kind === 'manual') ?? [];
   const error = add.error ?? create.error;
 
   return (
-    <DialogContent title="Add to Collection" description={`Put ${item.title} in a collection.`} className="w-[min(480px,calc(100vw-32px))]">
+    <DialogContent title="Add to Collection" description={items.length === 1 ? `Put ${item.title} in a collection.` : `Put ${fmt.plural(items.length, 'title')} in a collection.`} className="w-[min(480px,calc(100vw-32px))]">
       <div className="space-y-4">
         {error && <p className="text-sm text-warning">{error.message}</p>}
         {manual.length > 0 && (

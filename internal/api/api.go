@@ -110,6 +110,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
 	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
+	mux.HandleFunc("POST /api/items/bulk", admin(s.editItems))
 	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
