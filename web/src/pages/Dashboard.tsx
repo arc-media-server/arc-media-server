@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { Avatar } from '@/components/Avatar';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
+import { ActivityList } from '@/components/Activity';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { inputClass } from '@/components/ui/field';
@@ -20,7 +21,7 @@ export function DashboardPage() {
 
   return (
     <Page className="pb-16">
-      <PageHeader title="Dashboard" subtitle="What's being watched right now, and what the server has been doing." />
+      <PageHeader title="Dashboard" subtitle="What's being watched right now, and what the server is doing." />
       <div className="space-y-10 px-6 md:px-10">
         <section>
           <h2 className="mb-3 text-lg font-semibold">
@@ -35,6 +36,12 @@ export function DashboardPage() {
           )}
           <div className="grid gap-3 lg:grid-cols-2">
             {playing.data?.map((p) => <PlaybackCard key={p.id} playback={p} onStop={() => setStopping(p)} />)}
+          </div>
+        </section>
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">Activity</h2>
+          <div className="rounded-2xl bg-surface p-5 ring-1 ring-border">
+            <ActivityList recent={10} />
           </div>
         </section>
         <ServerLog />

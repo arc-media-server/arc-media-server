@@ -6,6 +6,7 @@
 package trickplay
 
 import (
+	"ams/internal/activity"
 	"bufio"
 	"bytes"
 	"cmp"
@@ -60,6 +61,9 @@ type Manager struct {
 	mu     sync.Mutex
 	urgent []int64
 	failed map[int64]bool
+
+	// Activity, if set, is told while previews are being made.
+	Activity *activity.Tracker
 }
 
 func New(dir string, st *store.Store, ffmpeg func() string, log *slog.Logger) *Manager {
@@ -169,11 +173,25 @@ func (m *Manager) pass(ctx context.Context) {
 		}
 		return store.VideoFile{}, false
 	}
+	var task *activity.Handle
+	done, todo := 0, 0
+	defer func() { task.Finish(nil) }()
 	for ctx.Err() == nil {
 		f, ok := next()
 		if !ok {
 			return
 		}
+		if task == nil {
+			for _, f := range files {
+				if !m.failed[f.ID] && m.Info(f.ID) == nil {
+					todo++
+				}
+			}
+			task = m.Activity.Start("previews", "Making scrubbing previews")
+		}
+		done++
+		task.Progress(done, max(todo, done))
+		task.Detail(filepath.Base(f.Path))
 		start := time.Now()
 		if err := m.make(ctx, f); err != nil {
 			if ctx.Err() != nil {

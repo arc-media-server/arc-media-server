@@ -131,7 +131,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Original language of movies and shows (#108)
 - [x] Search by alternative titles and keywords (#110)
 - [ ] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
-- [ ] Activity: see what the server is doing, like a library scan's progress (#114)
+- [x] Activity: see what the server is doing, like a library scan's progress (#114)
 
 ### 15. Moving in and extras
 - [ ] Import from Plex and Jellyfin: users, watch history, resume points (#22)

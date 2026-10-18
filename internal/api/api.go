@@ -2,6 +2,7 @@
 package api
 
 import (
+	"ams/internal/activity"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -35,6 +36,8 @@ type Deps struct {
 	Scanner *scanner.Scanner
 	Artwork *artwork.Cache
 	Backups *backup.Manager
+	// Activity tracks background work for the Activity menu.
+	Activity *activity.Tracker
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -78,6 +81,7 @@ type Server struct {
 	trickplay        *trickplay.Manager
 	subsOnline       *opensubtitles.Client
 	logs             *logbuf.Buffer
+	activity         *activity.Tracker
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
 	log              *slog.Logger
@@ -88,7 +92,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -105,6 +109,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
+	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
 	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))

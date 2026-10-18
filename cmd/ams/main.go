@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"ams/internal/activity"
 	"ams/internal/api"
 	"ams/internal/artwork"
 	"ams/internal/auth"
@@ -108,7 +109,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer st.Close()
+	tasks := activity.New()
 	backups := backup.New(backupDir, st, log)
+	backups.Activity = tasks
 	go backups.Run(ctx)
 
 	if legacy != nil {
@@ -180,6 +183,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	})
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
+	sc.Activity = tasks
 	// After each scan, download new artwork so it's there offline.
 	sc.OnFinish = func(int64) { artKeeper.Trigger() }
 	artKeeper.Trigger()
@@ -194,6 +198,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		defer ffMu.Unlock()
 		return ffmpegBin
 	}, log)
+	thumbs.Activity = tasks
 	go thumbs.Run(ctx)
 	librariesChanged := func(scan bool) {
 		thumbs.Wake()
@@ -289,7 +294,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },

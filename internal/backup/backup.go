@@ -4,6 +4,7 @@
 package backup
 
 import (
+	"ams/internal/activity"
 	"context"
 	"errors"
 	"fmt"
@@ -51,6 +52,9 @@ type Manager struct {
 	log   *slog.Logger
 
 	mu sync.Mutex // one backup or restore at a time
+
+	// Activity, if set, is told about each backup.
+	Activity *activity.Tracker
 }
 
 func New(dir string, st *store.Store, log *slog.Logger) *Manager {
@@ -103,7 +107,9 @@ func (m *Manager) Create(ctx context.Context, reason string) (Backup, error) {
 	return m.create(ctx, reason)
 }
 
-func (m *Manager) create(ctx context.Context, reason string) (Backup, error) {
+func (m *Manager) create(ctx context.Context, reason string) (b Backup, err error) {
+	task := m.Activity.Start("backup", "Backing up the database")
+	defer func() { task.Finish(err) }()
 	if err := os.MkdirAll(m.dir, 0o755); err != nil {
 		return Backup{}, err
 	}
@@ -126,7 +132,7 @@ func (m *Manager) create(ctx context.Context, reason string) (Backup, error) {
 		os.Remove(tmp)
 		return Backup{}, err
 	}
-	b, _ := parseName(name)
+	b, _ = parseName(name)
 	if info, err := os.Stat(path); err == nil {
 		b.Size = info.Size()
 	}

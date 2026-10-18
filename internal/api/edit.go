@@ -155,6 +155,8 @@ func (s *Server) refreshItem(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	var err error
+	task := s.activity.Start("refresh", "Refreshing "+it.Title)
+	defer func() { task.Finish(err) }()
 	switch it.Kind {
 	case "movie":
 		_, err = s.scanner.RefreshMovie(ctx, it.ID)
@@ -172,7 +174,7 @@ func (s *Server) refreshItem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if errors.Is(err, scanner.ErrNoProvider) {
-		writeError(w, http.StatusConflict, "add a TMDB API key to ams.yaml to fetch metadata")
+		writeError(w, http.StatusConflict, "add a TMDB API key in Settings to fetch metadata")
 		return
 	}
 	if err != nil {

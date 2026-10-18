@@ -322,6 +322,20 @@ export interface Backup {
 export type PlaybackState = 'playing' | 'paused' | 'buffering';
 
 /** Something being watched right now (Dashboard). */
+/** A piece of background work on the server (a scan, scrubbing previews, a backup). */
+export interface ActivityTask {
+  id: number;
+  kind: 'scan' | 'refresh' | 'previews' | 'backup';
+  title: string;
+  /** What it's doing now, e.g. "Matching movies · 3 of 40". */
+  detail?: string;
+  done?: number;
+  total?: number;
+  started_at: string;
+  finished_at?: string;
+  error?: string;
+}
+
 export interface Playback {
   id: string;
   profile: Profile;
@@ -776,6 +790,7 @@ export const api = {
       { keepalive: true },
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
+  activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[] }>('GET', '/api/activity'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
   startPlayback: (
     itemId: string,
