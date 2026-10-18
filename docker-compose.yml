@@ -1,0 +1,33 @@
+# Run Arc with Docker:  docker compose up -d   then open http://<this computer>:8099
+# The image is built by GitHub on every push to main (.github/workflows/docker.yml). The repository
+# is private, so sign in once first:  docker login ghcr.io  (user: your GitHub name, password: a
+# personal access token with read:packages).
+services:
+  arc:
+    image: ghcr.io/jonzauk/arc-media-server:latest
+    container_name: arc
+    restart: unless-stopped
+    # Host networking lets Arc see devices' real addresses (for "at home" sign-in and remote limits)
+    # and open the router port with UPnP. On Docker Desktop (Windows/Mac) use the ports below instead.
+    network_mode: host
+    # ports:
+    #   - "8099:8099"
+    environment:
+      - TZ=Europe/London
+    volumes:
+      - ./arc-config:/config
+      # Your media, read-only: Arc never changes it. Add these folders as libraries in the app.
+      - /path/to/movies:/media/movies:ro
+      - /path/to/tv:/media/tv:ro
+    # Graphics card for converting (optional):
+    # Intel/AMD:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # NVIDIA (needs the NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu, video]
