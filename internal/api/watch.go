@@ -1,6 +1,7 @@
 package api
 
 import (
+	"ams/internal/notify"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -105,6 +106,18 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 // recordPlay adds a viewing to watch history, or updates it. Failures are only logged: they
 // mustn't interrupt playback.
 func (s *Server) recordPlay(ctx context.Context, it *store.Item, u *playUpdate) {
+	if u.justCompleted || u.add {
+		profile := "Someone"
+		if user, err := s.store.GetUser(ctx, u.userID); err == nil && user != nil {
+			profile = user.Name
+		}
+		if u.add {
+			s.notify.Playback(ctx, notify.PlaybackStart, profile, it)
+		}
+		if u.justCompleted {
+			s.notify.Playback(ctx, notify.PlaybackDone, profile, it)
+		}
+	}
 	p := store.Play{ID: u.historyID, UserID: u.userID, ItemID: it.ID, Kind: it.Kind, LibraryID: it.LibraryID, Title: it.Title,
 		StartedAt: u.started.Unix(), EndedAt: time.Now().Unix(), WatchedMS: u.watchedMS, PositionMS: u.positionMS,
 		DurationMS: u.durationMS, Completed: u.completed, Device: u.device, Method: u.method}

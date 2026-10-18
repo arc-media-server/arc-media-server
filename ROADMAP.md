@@ -135,7 +135,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 
 ### 15. Moving in and extras
 - [x] Import from Plex and Jellyfin: users, watch history, resume points (#22)
-- [ ] Notifications and webhooks (#78)
+- [x] Notifications and webhooks (#78)
 - [ ] Theme music on show pages (#98)
 - [ ] Pre-roll videos before movies (#99)
 

@@ -3,6 +3,7 @@ package api
 
 import (
 	"ams/internal/activity"
+	"ams/internal/notify"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -38,6 +39,8 @@ type Deps struct {
 	Backups *backup.Manager
 	// Activity tracks background work for the Activity menu.
 	Activity *activity.Tracker
+	// Notify sends events to webhooks.
+	Notify *notify.Notifier
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -82,6 +85,7 @@ type Server struct {
 	subsOnline       *opensubtitles.Client
 	logs             *logbuf.Buffer
 	activity         *activity.Tracker
+	notify           *notify.Notifier
 	imports          importSessions
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -93,7 +97,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -112,6 +116,13 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
 	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
 	mux.HandleFunc("POST /api/imports", admin(s.startImport))
+	mux.HandleFunc("GET /api/webhooks", admin(s.listWebhooks))
+	mux.HandleFunc("POST /api/webhooks", admin(s.saveWebhook))
+	mux.HandleFunc("PUT /api/webhooks/{id}", admin(s.saveWebhook))
+	mux.HandleFunc("DELETE /api/webhooks/{id}", admin(s.deleteWebhook))
+	mux.HandleFunc("POST /api/webhooks/{id}/test", admin(s.testWebhook))
+	mux.HandleFunc("GET /api/news", user(s.news))
+	mux.HandleFunc("POST /api/news/seen", user(s.newsSeen))
 	mux.HandleFunc("GET /api/imports/{id}", admin(s.getImport))
 	mux.HandleFunc("POST /api/imports/{id}/server", admin(s.chooseImportServer))
 	mux.HandleFunc("POST /api/imports/{id}/run", admin(s.runImport))
