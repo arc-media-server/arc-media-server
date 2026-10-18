@@ -5,12 +5,14 @@ import { api, type ServerSettings } from '@/lib/api';
 import { ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { ImportDialog } from '@/components/ImportDialog';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
 export function SettingsPage() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
   const update = useMutation({
     mutationFn: (patch: Patch) => api.updateSettings(patch),
     onSuccess: (s) => {
@@ -87,6 +89,20 @@ export function SettingsPage() {
           <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
+
+          <Section title="Moving in" hint="Coming from another media server? Bring everyone's watch history with you.">
+            <Row label="Plex" description="Watched titles, resume points, ratings and Plex's watch history, for everyone on the server.">
+              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
+                Import…
+              </Button>
+            </Row>
+            <Row label="Jellyfin" description="Watched titles and resume points, for every user (sign in as an administrator).">
+              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
+                Import…
+              </Button>
+            </Row>
+          </Section>
+          {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
           <Section title="Ratings" hint="Other sites' scores on title pages, and to sort by.">
             <Row

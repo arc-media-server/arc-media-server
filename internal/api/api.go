@@ -82,6 +82,7 @@ type Server struct {
 	subsOnline       *opensubtitles.Client
 	logs             *logbuf.Buffer
 	activity         *activity.Tracker
+	imports          importSessions
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
 	log              *slog.Logger
@@ -110,6 +111,10 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
 	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
+	mux.HandleFunc("POST /api/imports", admin(s.startImport))
+	mux.HandleFunc("GET /api/imports/{id}", admin(s.getImport))
+	mux.HandleFunc("POST /api/imports/{id}/server", admin(s.chooseImportServer))
+	mux.HandleFunc("POST /api/imports/{id}/run", admin(s.runImport))
 	mux.HandleFunc("POST /api/items/bulk", admin(s.editItems))
 	mux.HandleFunc("POST /api/items/merge", admin(s.mergeItems))
 	mux.HandleFunc("POST /api/items/{id}/split", admin(s.splitItem))
