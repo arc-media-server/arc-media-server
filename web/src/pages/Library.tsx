@@ -29,6 +29,8 @@ export const sorts: Record<ItemSort, string> = {
   release: 'Release Date',
   year: 'Year',
   rating: 'Rating',
+  imdb: 'IMDb Rating',
+  critics: 'Rotten Tomatoes',
   runtime: 'Length',
   shuffle: 'Shuffle',
 };

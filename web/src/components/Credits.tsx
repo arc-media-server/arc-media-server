@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Credit, Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import * as fmt from '@/lib/format';
+import { Scores } from '@/components/Scores';
 
 /** "Directed by …", "Written by …", "Created by …" and the studio or network. */
 export function CrewLine({ item }: { item: Item }) {
@@ -107,7 +108,7 @@ export function CastRow({ credits }: { credits?: Credit[] }) {
 /** The rating, age rating and genres for the meta line under a title. */
 export function detailParts(item: Item) {
   return {
-    rating: item.rating ? `★ ${item.rating.toFixed(1)}` : undefined,
+    rating: item.imdb_rating || item.rotten_tomatoes != null || item.metacritic != null || item.rating ? <Scores item={item} /> : undefined,
     contentRating: item.content_rating,
     genres: (item.genres ?? []).slice(0, 3).join(', '),
   };

@@ -119,7 +119,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Edit collections: artwork and details (#111)
 - [x] Season posters on the show page (#112)
 
-### 14. Library management
+### ✅ 14. Library management
 - [x] Merge and split titles by hand (#93)
 - [x] Edit several titles at once (#94)
 - [x] Labels, for filters, smart collections and profile restrictions (#95)
@@ -130,7 +130,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Show status and next air date (#107)
 - [x] Original language of movies and shows (#108)
 - [x] Search by alternative titles and keywords (#110)
-- [ ] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
+- [x] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
 - [x] Activity: see what the server is doing, like a library scan's progress (#114)
 
 ### 15. Moving in and extras

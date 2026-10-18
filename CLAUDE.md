@@ -71,10 +71,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Continue Watching, chapters, Picture-in-Picture.
 - Milestone 13 done (Oct 2026): library access per profile, collection/playlist home rows, admin-set
   and default Home, ratings and watchlist, More Like This and Recommended.
-- Milestone 14 in progress (Oct 2026): done so far: show status and original language (#107, #108),
-  search by other names and keywords (#110), labels (#95), Activity menu (#114). The owner put
-  cross-provider metadata details on the back burner (#104-#106, #109 in Later). Left: #94, #93,
-  #96, #97, #77, #113.
+- Milestone 14 done (Oct 2026): show status and original language, search by other names and keywords,
+  labels, Activity menu, edit many titles at once, merge and Split Apart, metadata language per library,
+  nightly maintenance window, Other videos libraries, IMDb/Rotten Tomatoes/Metacritic scores. The owner
+  put cross-provider metadata details on the back burner (#104-#106, #109 in Later). Next: 15 (Moving in and extras).
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
@@ -124,6 +124,7 @@ internal/watcher/    fsnotify on library folders -> scanner.Request after 10s qu
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
 internal/schedule/   the maintenance window (hours of the night heavy work waits for)
+internal/ratings/    IMDb ratings file (weekly) and OMDb critics' scores; AMS_OMDB_URL / AMS_IMDB_RATINGS_URL for stand-ins
 internal/activity/   running and recent background tasks (scans, refreshes, previews, backups) for the Activity menu
 internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
 internal/opensubtitles/ OpenSubtitles.com client (search, download, file hash); AMS_OPENSUBTITLES_URL for a stand-in

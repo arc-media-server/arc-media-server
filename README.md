@@ -102,6 +102,8 @@ Early development. Working today:
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
+- Other sites' scores on title pages, and to sort by: IMDb (from IMDb's free ratings file, updated
+  weekly, no key), and Rotten Tomatoes' critics and Metacritic with a free OMDb key in Settings
 - Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
   refreshing week-old show details and month-old movie details, the daily backup and a check of
   every library; scrubbing previews can wait for it too
@@ -231,7 +233,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
+| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | POST | `/api/items/bulk` | Change many movies and shows (admin): `{"item_ids", "add_genres", "remove_genres", "add_labels", "remove_labels", "content_rating", "locks": "all"|"none", "played", "refresh"}` |

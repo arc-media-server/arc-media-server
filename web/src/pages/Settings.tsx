@@ -88,6 +88,21 @@ export function SettingsPage() {
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
+          <Section title="Ratings" hint="Other sites' scores on title pages, and to sort by.">
+            <Row
+              label="IMDb"
+              description="Downloaded from IMDb's free ratings file once a week, in the maintenance time. No key needed."
+            />
+            <KeyRow
+              label="Rotten Tomatoes and Metacritic"
+              description="Critics' scores, through OMDb (a free key allows 1,000 titles a day; Arc fetches a few each hour)."
+              current={s.omdb_api_key}
+              fixed={s.from_env.omdb_api_key}
+              link="https://www.omdbapi.com/apikey.aspx"
+              onSave={(v) => update.mutateAsync({ omdb_api_key: v })}
+            />
+          </Section>
+
           <Section title="Subtitles" hint="Find subtitles online from the player when a film or episode doesn't have the ones you want.">
             <KeyRow
               label="OpenSubtitles"

@@ -37,6 +37,8 @@ type Settings struct {
 	MaintenanceStart, MaintenanceEnd int
 	// Make scrubbing previews only in the maintenance window (otherwise as soon as files arrive).
 	PreviewsAtNight bool
+	// OMDb, for Rotten Tomatoes' and Metacritic's scores ("" for none).
+	OMDbKey string
 }
 
 // DefaultRegion is used until a region is chosen.
@@ -61,11 +63,12 @@ const (
 	keyMaintStart    = "maintenance_start"
 	keyMaintEnd      = "maintenance_end"
 	keyPreviewsNight = "previews_at_night"
+	keyOMDb          = "omdb_api_key"
 )
 
 // Environment variables that override settings.
 var envOverrides = map[string]string{keyTMDB: "AMS_TMDB_API_KEY", keyTVDB: "AMS_TVDB_API_KEY", keyFFprobe: "AMS_FFPROBE",
-	keyOSKey: "AMS_OPENSUBTITLES_API_KEY"}
+	keyOSKey: "AMS_OPENSUBTITLES_API_KEY", keyOMDb: "AMS_OMDB_API_KEY"}
 
 // FromEnv reports which settings (by JSON name) are fixed by environment variables.
 func FromEnv() map[string]bool {
@@ -155,6 +158,9 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.PreviewsAtNight = v == "1"
+	if s.OMDbKey, err = get(keyOMDb); err != nil {
+		return s, err
+	}
 	return s, nil
 }
 
@@ -167,7 +173,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyHWAccel: boolString(s.HWAccel), keyToneMap: boolString(s.ToneMap),
 		keyOSKey: s.OpenSubtitlesKey, keyOSUser: s.OpenSubtitlesUser, keyOSPassword: s.OpenSubtitlesPassword,
 		keyMaintStart: strconv.Itoa(s.MaintenanceStart), keyMaintEnd: strconv.Itoa(s.MaintenanceEnd),
-		keyPreviewsNight: boolString(s.PreviewsAtNight),
+		keyPreviewsNight: boolString(s.PreviewsAtNight), keyOMDb: s.OMDbKey,
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment
