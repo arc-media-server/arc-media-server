@@ -69,6 +69,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [locked, setLocked] = useState(() => new Set<LockableField>(item.locked_fields));
   const [genres, setGenres] = useState<string[]>(() => item.genres ?? []);
   const [source, setSource] = useState<SourceOrdering | ''>(() => item.source_ordering ?? '');
+  const [detailsFrom, setDetailsFrom] = useState<'' | 'tvdb'>(() => item.details_provider ?? '');
   const library = useLibraries().data?.find((l) => l.id === item.library_id);
   const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
   const [labels, setLabels] = useState<string[]>(() => item.labels ?? []);
@@ -100,6 +101,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       if (genresChanged) edit.genres = genres;
       if (labelsChanged) edit.labels = labels;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
+      if (item.kind === 'series' && detailsFrom !== (item.details_provider ?? '')) edit.details_provider = detailsFrom;
       let updated = await api.editItem(item.id, edit);
       if (markerEdit.edit) {
         await api.setItemMarkers(item.id, markerEdit.edit);
@@ -254,6 +256,18 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
             <ChipInput value={labels} onChange={setLabels} placeholder="Your own tags, e.g. Not for kids" morePlaceholder="Add a label" suggestions={allLabels.data} />
             <p className="mt-1.5 text-xs text-subtle">Only you see these. Use them to filter, build smart collections, or hide titles from a profile.</p>
           </div>
+        )}
+        {item.kind === 'series' && (
+          <label className="col-span-2 block">
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Details From</span>
+            <select value={detailsFrom} onChange={(e) => setDetailsFrom(e.target.value as '' | 'tvdb')} className={inputClass}>
+              <option value="">TMDB</option>
+              <option value="tvdb">TheTVDB</option>
+            </select>
+            <span className="mt-1.5 block text-xs text-subtle">
+              Where the show&apos;s title, description, artwork and details come from. Only one is used: anything it doesn&apos;t have stays blank.
+            </span>
+          </label>
         )}
         {item.kind === 'series' && (
           <label className="col-span-2 block">

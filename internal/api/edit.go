@@ -61,8 +61,10 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		Genres        *[]string `json:"genres"`
 		Labels        *[]string `json:"labels"`
 		// A show's episode numbering; "" follows its library.
-		SourceOrdering *string   `json:"source_ordering"`
-		LockedFields   *[]string `json:"locked_fields"`
+		SourceOrdering *string `json:"source_ordering"`
+		// Where a show's details come from: "" for TMDB, or "tvdb".
+		DetailsProvider *string   `json:"details_provider"`
+		LockedFields    *[]string `json:"locked_fields"`
 	}
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -94,6 +96,9 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		return
 	case e.RuntimeMin != nil && (*e.RuntimeMin < 0 || *e.RuntimeMin > 100000):
 		writeError(w, http.StatusBadRequest, "runtime_min must be 0 or more")
+		return
+	case body.DetailsProvider != nil && (it.Kind != "series" || (*body.DetailsProvider != "" && *body.DetailsProvider != "tvdb")):
+		writeError(w, http.StatusBadRequest, `details_provider is for shows: "" (TMDB) or "tvdb"`)
 		return
 	case body.SourceOrdering != nil && (it.Kind != "series" || *body.SourceOrdering != "" && !config.ValidSourceOrdering(*body.SourceOrdering)):
 		writeError(w, http.StatusBadRequest, "source_ordering is for shows: tmdb_aired, tvdb_aired, tvdb_dvd, tvdb_absolute, or \"\" for the library's")
@@ -130,11 +135,22 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	resync := false
+	if body.DetailsProvider != nil && *body.DetailsProvider != it.DetailsProvider {
+		if err := s.store.SetDetailsProvider(r.Context(), it.ID, *body.DetailsProvider); err != nil {
+			s.fail(w, err)
+			return
+		}
+		resync = true
+	}
 	if body.SourceOrdering != nil && *body.SourceOrdering != it.SourceOrdering {
 		if err := s.store.SetSourceOrdering(r.Context(), it.ID, *body.SourceOrdering); err != nil {
 			s.fail(w, err)
 			return
 		}
+		resync = true
+	}
+	if resync {
 		// Match the files to episodes again with the new numbering.
 		if lib, err := s.store.GetLibrary(r.Context(), it.LibraryID); err == nil && lib != nil {
 			if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, it.ID, false); err != nil {

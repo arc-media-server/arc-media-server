@@ -183,7 +183,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | PUT | `/api/items/{id}/rating` | profile | {"rating": 1-10, or 0 to clear} is the profile's own rating of a movie, show or episode (half stars out of five). |
 | PUT | `/api/items/{id}/watchlist` | profile | {"on": true} puts a movie or show on the profile's watchlist, or takes it off. |
 | DELETE | `/api/items/{id}` | admin | Forgets a movie, episode or show whose files are all gone (after backing up the database). Refused if any of its files is still there. |
-| PATCH | `/api/items/{id}` | admin | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
+| PATCH | `/api/items/{id}` | admin | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`) |
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
 | PUT | `/api/items/{id}/artwork` | admin | {"type": "poster", "path": "/abc.jpg"} uses a TMDB image and locks it. A null path goes back to automatic artwork. |
