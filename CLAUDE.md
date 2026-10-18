@@ -119,6 +119,7 @@ internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, 
 internal/watcher/    fsnotify on library folders -> scanner.Request after 10s quiet; hourly rescan
 internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
 internal/logbuf/     the last log lines in memory for the Dashboard
+internal/activity/   running and recent background tasks (scans, refreshes, previews, backups) for the Activity menu
 internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
 internal/opensubtitles/ OpenSubtitles.com client (search, download, file hash); AMS_OPENSUBTITLES_URL for a stand-in
 internal/subtitles/  subtitle tracks (in the file and beside it), extracted to cues with FFmpeg, cached in data/subtitles

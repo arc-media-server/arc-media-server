@@ -64,7 +64,9 @@ func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, grou
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	s.phase(lib.ID, "Getting show details", len(keys))
 	for _, k := range keys {
+		s.step(lib.ID)
 		if err := s.syncSeriesGroup(ctx, lib, groups[k], log); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()

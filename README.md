@@ -102,6 +102,9 @@ Early development. Working today:
 - Dashboard (admin): who is watching what, on which device, how far in and how it is being
   played; stop a stream with an optional message for the viewer; the recent server log, filtered
   by level and easy to copy
+- Activity (admin): a button by the Arc logo spins while the server is busy and lists what it is
+  doing, with progress (library scans, refreshes, scrubbing previews, backups) and what finished
+  recently, with any errors; also on the Dashboard
 - Insights (admin): watch time over time, the most watched movies, shows and genres, the busiest
   days and hours, and watching by profile, library, device and how it played; full watch history
   per profile and library; and storage: the space each library takes, the biggest titles, and the
@@ -285,6 +288,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
 | GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
+| GET | `/api/activity` | What the server is doing (admin): `{running: [...], recent: [...]}`, each with `title`, `detail`, `done`/`total`, start and finish times and any `error` |
 | POST | `/api/playing/{id}/stop` | Stop a playback, with an optional `{"message": "..."}` for the viewer |
 | GET | `/api/logs?level=info\|warn\|error\|debug&after=<seq>` | Recent server log lines, oldest first |
 | GET | `/api/stats?days=30&profile=&library=` | Watch activity (`days=0` for all time): totals, timeline, top movies, shows and genres, by profile, library, device and method, and watch time by weekday and hour |

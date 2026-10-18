@@ -3,6 +3,7 @@
 package scanner
 
 import (
+	"ams/internal/activity"
 	"context"
 	"errors"
 	"fmt"
@@ -65,6 +66,36 @@ type Status struct {
 	// Video files in a TV library that couldn't be read as an episode.
 	Unrecognised int    `json:"not_recognised"`
 	Error        string `json:"error,omitempty"`
+	// What the scan is doing after looking through the folders (e.g. "Matching movies"), and how
+	// far through it is.
+	Phase       string `json:"phase,omitempty"`
+	Done, Total int    `json:"-"`
+}
+
+// summary says what a finished scan found, e.g. "40 files · 2 new · 1 not matched".
+func (st Status) summary() string {
+	parts := []string{fmt.Sprintf("%d files", st.FilesSeen)}
+	if st.NewItems > 0 {
+		parts = append(parts, fmt.Sprintf("%d new", st.NewItems))
+	}
+	if st.Missing > 0 {
+		parts = append(parts, fmt.Sprintf("%d missing", st.Missing))
+	}
+	if st.Unmatched > 0 {
+		parts = append(parts, fmt.Sprintf("%d not matched", st.Unmatched))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// describe says what a running scan is doing, for the Activity menu.
+func (st Status) describe() string {
+	if st.Phase == "" {
+		return fmt.Sprintf("Looking through folders · %d files", st.FilesSeen)
+	}
+	if st.Total > 0 {
+		return fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 1), st.Total)
+	}
+	return st.Phase
 }
 
 type Scanner struct {
@@ -77,10 +108,13 @@ type Scanner struct {
 
 	// OnFinish, if set, is called after each scan (successful or not). Set it before starting scans.
 	OnFinish func(libraryID int64)
+	// Activity, if set, is told about each scan.
+	Activity *activity.Tracker
 
 	wg     sync.WaitGroup
 	mu     sync.Mutex
 	status map[int64]*Status
+	tasks  map[int64]*activity.Handle
 	// Libraries that changed during their scan and need scanning again when it ends.
 	again map[int64]bool
 }
@@ -88,7 +122,7 @@ type Scanner struct {
 // New creates a scanner. Background scans stop when ctx is cancelled.
 func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, tvdb *metadata.TVDB, log *slog.Logger) *Scanner {
 	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log,
-		status: map[int64]*Status{}, again: map[int64]bool{}}
+		status: map[int64]*Status{}, again: map[int64]bool{}, tasks: map[int64]*activity.Handle{}}
 }
 
 // Start begins a background scan of a library. It returns false if one is already running.
@@ -170,11 +204,26 @@ func (s *Scanner) Status(libraryID int64) Status {
 
 func (s *Scanner) update(libraryID int64, fn func(*Status)) {
 	s.mu.Lock()
-	fn(s.status[libraryID])
+	st := s.status[libraryID]
+	fn(st)
+	if h := s.tasks[libraryID]; h != nil {
+		h.Detail(st.describe())
+		h.Progress(st.Done, st.Total)
+	}
 	s.mu.Unlock()
 }
 
-func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
+// phase starts a stage of a scan that goes through total things.
+func (s *Scanner) phase(libraryID int64, name string, total int) {
+	s.update(libraryID, func(st *Status) { st.Phase, st.Done, st.Total = name, 0, total })
+}
+
+// step marks one more thing done in the current stage.
+func (s *Scanner) step(libraryID int64) {
+	s.update(libraryID, func(st *Status) { st.Done++ })
+}
+
+func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	lib, err := s.store.GetLibrary(ctx, libraryID)
 	if err != nil {
 		return err
@@ -184,6 +233,18 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 	}
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
+	task := s.Activity.Start("scan", "Scanning "+lib.Name)
+	s.mu.Lock()
+	s.tasks[lib.ID] = task
+	s.mu.Unlock()
+	task.Detail(s.Status(lib.ID).describe())
+	defer func() {
+		s.mu.Lock()
+		delete(s.tasks, lib.ID)
+		s.mu.Unlock()
+		task.Detail(s.Status(lib.ID).summary())
+		task.Finish(err)
+	}()
 	scanStart := time.Now().UnixMilli()
 	allRootsOK := true
 
@@ -248,6 +309,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) error {
 		}
 	}
 	// Extras last, once their movies and shows are linked to files.
+	s.phase(lib.ID, "Adding extras", 0)
 	if err := s.linkExtras(ctx, lib, extras); err != nil {
 		return err
 	}
@@ -462,7 +524,9 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 	if err != nil {
 		return err
 	}
+	s.phase(libraryID, "Matching movies", len(items))
 	for _, it := range items {
+		s.step(libraryID)
 		tctx, save := s.traced(ctx, it.ID)
 		m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
 		save()
@@ -548,7 +612,9 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 	if err != nil {
 		return err
 	}
+	s.phase(libraryID, "Updating movie details", len(items))
 	for _, it := range items {
+		s.step(libraryID)
 		if _, err := s.RefreshMovie(ctx, it.ID); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()

@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
+import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, EyeOff, Sparkles, Film, FolderCog, HeartPulse, Home, ListVideo, Loader2, LogOut, Monitor, Moon, Search, Settings, SlidersHorizontal, Sun, Tv, Users } from 'lucide-react';
 import { api, type Theme } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
+import { ActivityButton } from '@/components/Activity';
 
 export function useLibraries() {
   return useQuery({
@@ -208,6 +209,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center gap-2.5 px-5">
         <ArcLogo className="size-7" />
         <span className="text-[19px] font-bold tracking-tight">Arc</span>
+        <ActivityButton className="ml-auto -mr-1.5" />
       </div>
       <div className="px-3 pb-3">
         <SearchBox />
@@ -262,7 +264,7 @@ export function Sidebar() {
 }
 
 const manageLinks = [
-  { to: '/dashboard', label: 'Dashboard', icon: <Activity /> },
+  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard /> },
   { to: '/insights', label: 'Insights', icon: <ChartColumn /> },
   { to: '/health', label: 'Library Health', icon: <HeartPulse /> },
   { to: '/libraries', label: 'Libraries', icon: <FolderCog /> },
@@ -282,6 +284,7 @@ export function MobileBar() {
       <div className="flex items-center gap-3 px-4 pt-3">
         <ArcLogo className="size-6" />
         <SearchBox className="flex-1" />
+        <ActivityButton />
         <ProfileMenu compact />
       </div>
       <nav className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-3">

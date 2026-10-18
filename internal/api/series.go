@@ -432,7 +432,10 @@ func (s *Server) refreshSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	deep := r.URL.Query().Get("deep") == "1"
-	if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, deep); err != nil {
+	task := s.activity.Start("refresh", "Refreshing "+series.Title)
+	err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, deep)
+	task.Finish(err)
+	if err != nil {
 		s.log.Warn("series refresh failed", "series", series.Title, "err", err)
 		writeError(w, http.StatusBadGateway, "refresh failed: "+err.Error())
 		return
