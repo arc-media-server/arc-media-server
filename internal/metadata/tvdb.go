@@ -211,22 +211,28 @@ func (c *TVDB) Series(ctx context.Context, id int64) (*Series, []string, error) 
 		}
 	}
 
-	// Prefer English title and overview when available.
-	var tr struct {
-		Data struct {
-			Name     string `json:"name"`
-			Overview string `json:"overview"`
-		} `json:"data"`
+	// The title and overview in the library's language, then English, when TheTVDB has them.
+	langs := []string{"eng"}
+	if l := tvdbLanguage(ctx); l != "eng" {
+		langs = []string{l, "eng"}
 	}
-	if err := c.get(ctx, "/series/"+strconv.FormatInt(id, 10)+"/translations/eng", nil, &tr); err == nil {
+	for i := len(langs) - 1; i >= 0; i-- { // English first, so the library's language wins
+		var tr struct {
+			Data struct {
+				Name     string `json:"name"`
+				Overview string `json:"overview"`
+			} `json:"data"`
+		}
+		err := c.get(ctx, "/series/"+strconv.FormatInt(id, 10)+"/translations/"+langs[i], nil, &tr)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, nil, err
+		}
 		if tr.Data.Name != "" {
 			s.Title = tr.Data.Name
 		}
 		if tr.Data.Overview != "" {
 			s.Overview = tr.Data.Overview
 		}
-	} else if !errors.Is(err, ErrNotFound) {
-		return nil, nil, err
 	}
 
 	var types []string
@@ -263,7 +269,48 @@ func (c *TVDB) Orderings(ctx context.Context, id int64, seasonTypes []string) ([
 	return out, nil
 }
 
+// episodes fetches a season type's episodes in the library's language, with English for any
+// episode that isn't translated.
 func (c *TVDB) episodes(ctx context.Context, id int64, seasonType string) ([]Entry, error) {
+	lang := tvdbLanguage(ctx)
+	entries, err := c.episodesIn(ctx, id, seasonType, lang)
+	if err != nil || lang == "eng" {
+		return entries, err
+	}
+	missing := false
+	for _, e := range entries {
+		missing = missing || e.Episode.Title == "" || e.Episode.Overview == ""
+	}
+	if !missing {
+		return entries, nil
+	}
+	en, err := c.episodesIn(ctx, id, seasonType, "eng")
+	if err != nil {
+		return nil, err
+	}
+	byID := map[int64]*Episode{}
+	for _, e := range en {
+		byID[e.Episode.ID] = e.Episode
+	}
+	for _, e := range entries {
+		if eng := byID[e.Episode.ID]; eng != nil {
+			if e.Episode.Title == "" {
+				e.Episode.Title = eng.Title
+			}
+			if e.Episode.Overview == "" {
+				e.Episode.Overview = eng.Overview
+			}
+		}
+	}
+	for _, e := range entries {
+		if e.Episode.Title == "" {
+			e.Episode.Title = "Episode " + strconv.Itoa(e.Number)
+		}
+	}
+	return entries, nil
+}
+
+func (c *TVDB) episodesIn(ctx context.Context, id int64, seasonType, lang string) ([]Entry, error) {
 	var entries []Entry
 	for page := 0; ; page++ {
 		var resp struct {
@@ -283,13 +330,13 @@ func (c *TVDB) episodes(ctx context.Context, id int64, seasonType string) ([]Ent
 				Next *string `json:"next"`
 			} `json:"links"`
 		}
-		path := fmt.Sprintf("/series/%d/episodes/%s/eng", id, seasonType)
+		path := fmt.Sprintf("/series/%d/episodes/%s/%s", id, seasonType, lang)
 		if err := c.get(ctx, path, url.Values{"page": {strconv.Itoa(page)}}, &resp); err != nil {
 			return nil, err
 		}
 		for _, e := range resp.Data.Episodes {
 			title := e.Name
-			if title == "" {
+			if title == "" && lang == "eng" {
 				title = "Episode " + strconv.Itoa(e.Number)
 			}
 			entries = append(entries, Entry{Season: e.SeasonNumber, Number: e.Number, Episode: &Episode{

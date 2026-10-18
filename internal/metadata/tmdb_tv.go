@@ -207,6 +207,26 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	if err := c.get(ctx, base, q, &d); err != nil {
 		return nil, nil, err
 	}
+	// Untranslated titles and descriptions come from English instead.
+	if needsEnglish(ctx) && (d.Overview == "" || untranslatedTitle(ctx, d.Name, d.OriginalName, d.OriginalLanguage)) {
+		var en struct {
+			Name     string `json:"name"`
+			Overview string `json:"overview"`
+			Tagline  string `json:"tagline"`
+		}
+		if err := c.get(english(ctx), "/tv/"+strconv.FormatInt(id, 10), nil, &en); err != nil {
+			return nil, nil, err
+		}
+		if untranslatedTitle(ctx, d.Name, d.OriginalName, d.OriginalLanguage) && en.Name != "" {
+			d.Name = en.Name
+		}
+		if d.Overview == "" {
+			d.Overview = en.Overview
+		}
+		if d.Tagline == "" {
+			d.Tagline = en.Tagline
+		}
+	}
 	ratings := map[string]string{}
 	for _, r := range d.ContentRatings.Results {
 		ratings[r.Country] = r.Rating
@@ -243,21 +263,22 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		for _, n := range batch {
 			parts = append(parts, "season/"+strconv.Itoa(n))
 		}
-		var raw map[string]json.RawMessage
-		if err := c.get(ctx, base, url.Values{"append_to_response": {strings.Join(parts, ",")}}, &raw); err != nil {
+		seasons, err := c.seasons(ctx, base, parts)
+		if err != nil {
 			return nil, nil, err
 		}
+		// Episodes not translated yet get their English title and description.
+		if needsEnglish(ctx) && untranslatedEpisodes(seasons) {
+			en, err := c.seasons(english(ctx), base, parts)
+			if err != nil {
+				return nil, nil, err
+			}
+			fillFromEnglish(seasons, en)
+		}
 		for _, n := range batch {
-			data, ok := raw["season/"+strconv.Itoa(n)]
+			season, ok := seasons["season/"+strconv.Itoa(n)]
 			if !ok {
 				continue
-			}
-			var season struct {
-				Overview string        `json:"overview"`
-				Episodes []tmdbEpisode `json:"episodes"`
-			}
-			if err := json.Unmarshal(data, &season); err != nil {
-				return nil, nil, fmt.Errorf("tmdb season %d: %w", n, err)
 			}
 			if season.Overview != "" {
 				aired.SeasonOverviews[n] = season.Overview
@@ -279,6 +300,75 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		orderings = append(orderings, *o)
 	}
 	return s, orderings, nil
+}
+
+type tmdbSeason struct {
+	Overview string        `json:"overview"`
+	Episodes []tmdbEpisode `json:"episodes"`
+}
+
+// seasons fetches several seasons of a show at once (parts like "season/1"), keyed by part.
+func (c *TMDB) seasons(ctx context.Context, base string, parts []string) (map[string]*tmdbSeason, error) {
+	var raw map[string]json.RawMessage
+	if err := c.get(ctx, base, url.Values{"append_to_response": {strings.Join(parts, ",")}}, &raw); err != nil {
+		return nil, err
+	}
+	out := map[string]*tmdbSeason{}
+	for _, p := range parts {
+		data, ok := raw[p]
+		if !ok || string(data) == "null" {
+			continue
+		}
+		var s tmdbSeason
+		if err := json.Unmarshal(data, &s); err != nil {
+			return nil, fmt.Errorf("tmdb %s: %w", p, err)
+		}
+		out[p] = &s
+	}
+	return out, nil
+}
+
+// untranslatedEpisodes reports whether any season or episode is missing a description or has
+// only a stand-in name.
+func untranslatedEpisodes(seasons map[string]*tmdbSeason) bool {
+	for _, s := range seasons {
+		for _, e := range s.Episodes {
+			if e.Overview == "" || genericEpisodeName.MatchString(e.Name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// fillFromEnglish gives untranslated seasons and episodes their English titles and descriptions.
+func fillFromEnglish(seasons, en map[string]*tmdbSeason) {
+	for p, s := range seasons {
+		e, ok := en[p]
+		if !ok {
+			continue
+		}
+		if s.Overview == "" {
+			s.Overview = e.Overview
+		}
+		byID := map[int64]tmdbEpisode{}
+		for _, ep := range e.Episodes {
+			byID[ep.ID] = ep
+		}
+		for i := range s.Episodes {
+			ep := &s.Episodes[i]
+			eng, ok := byID[ep.ID]
+			if !ok {
+				continue
+			}
+			if genericEpisodeName.MatchString(ep.Name) && !genericEpisodeName.MatchString(eng.Name) {
+				ep.Name = eng.Name
+			}
+			if ep.Overview == "" {
+				ep.Overview = eng.Overview
+			}
+		}
+	}
 }
 
 var specialsRe = regexp.MustCompile(`(?i)^\s*(specials?|extras?)\s*$`)

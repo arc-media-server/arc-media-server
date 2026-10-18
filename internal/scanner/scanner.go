@@ -233,6 +233,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	}
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
+	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	task := s.Activity.Start("scan", "Scanning "+lib.Name)
 	s.mu.Lock()
 	s.tasks[lib.ID] = task
@@ -633,6 +634,14 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 	return nil
 }
 
+// inLanguage is ctx asking for a library's metadata language.
+func (s *Scanner) inLanguage(ctx context.Context, libraryID int64) context.Context {
+	if lib, err := s.store.GetLibrary(ctx, libraryID); err == nil && lib != nil {
+		return metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	}
+	return ctx
+}
+
 // ErrNoProvider means the metadata provider needed isn't configured (no API key).
 var ErrNoProvider = errors.New("no metadata provider is configured")
 
@@ -646,6 +655,7 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	if err != nil || it == nil {
 		return false, err
 	}
+	ctx = s.inLanguage(ctx, it.LibraryID)
 	tctx, save := s.traced(ctx, it.ID)
 	m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
 	save()

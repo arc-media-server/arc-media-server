@@ -338,6 +338,26 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 	if err := c.get(ctx, "/movie/"+strconv.FormatInt(id, 10), q, &d); err != nil {
 		return nil, err
 	}
+	// Untranslated titles and descriptions come from English instead.
+	if needsEnglish(ctx) && (d.Overview == "" || untranslatedTitle(ctx, d.Title, d.OriginalTitle, d.OriginalLanguage)) {
+		var en struct {
+			Title    string `json:"title"`
+			Overview string `json:"overview"`
+			Tagline  string `json:"tagline"`
+		}
+		if err := c.get(english(ctx), "/movie/"+strconv.FormatInt(id, 10), nil, &en); err != nil {
+			return nil, err
+		}
+		if untranslatedTitle(ctx, d.Title, d.OriginalTitle, d.OriginalLanguage) && en.Title != "" {
+			d.Title = en.Title
+		}
+		if d.Overview == "" {
+			d.Overview = en.Overview
+		}
+		if d.Tagline == "" {
+			d.Tagline = en.Tagline
+		}
+	}
 	ratings := map[string]string{}
 	for _, r := range d.ReleaseDates.Results {
 		for _, rd := range r.Dates {
@@ -382,6 +402,14 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) error {
 	if q == nil {
 		q = url.Values{}
+	}
+	// Searches stay in English: they're matched against file names, which usually are.
+	if lang := languageOf(ctx); lang != "" && !q.Has("language") && !q.Has("query") {
+		q.Set("language", lang)
+		// Artwork with text (logos) in that language first, then English, then none.
+		if q.Has("include_image_language") {
+			q.Set("include_image_language", strings.SplitN(lang, "-", 2)[0]+",en,null")
+		}
 	}
 	key := c.apiKey()
 	bearer := strings.HasPrefix(key, "eyJ") // v4 tokens are JWTs

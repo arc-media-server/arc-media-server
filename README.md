@@ -119,6 +119,9 @@ Early development. Working today:
 - Change many titles at once: Select in a library (shift-click picks a range), then Edit (add or
   remove genres and labels, set an age rating, lock or unlock every field), Add to Collection,
   mark watched or unwatched, or Refresh (runs in the background, shown in Activity)
+- Metadata language per library (English US or UK, French, German, Japanese and 30 more): titles,
+  descriptions and episode names come in that language from TMDB and TheTVDB, with English for
+  anything not translated yet. Searches stay in English, since file names usually are
 - Merge and Split Apart: pick movies in Select and Merge them into one (or Merge a duplicate in
   Library Health); each file becomes a version, and watch history, ratings, playlists and
   collections come along. Split Apart (a movie's ⋯ menu) gives each version its own title again.
@@ -214,7 +217,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 |---|---|---|
 | GET | `/api/libraries` | Libraries with their size and scan status |
 | POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows", "paths": [...], "source_ordering", "trickplay"}` |
-| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering |
+| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, or `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again) |
 | DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
 | POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |
 | GET | `/api/library-previews/{id}` | The preview's progress and results |

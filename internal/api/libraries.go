@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -29,6 +30,8 @@ type libraryBody struct {
 	Trickplay bool `json:"trickplay"`
 	// The fewest films a TMDB collection needs to be shown (default 2; 0 for none).
 	CollectionMin *int `json:"collection_min"`
+	// The language titles and descriptions are fetched in; "" for English.
+	MetadataLanguage string `json:"metadata_language"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -144,6 +147,12 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if b.MetadataLanguage != "" && languageRe.MatchString(b.MetadataLanguage) {
+		if err := s.store.SetLibraryLanguage(r.Context(), id, b.MetadataLanguage); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
@@ -193,6 +202,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		Paths          []string `json:"paths"`
 		Trickplay      *bool    `json:"trickplay"`
 		CollectionMin  *int     `json:"collection_min"`
+		Language       *string  `json:"metadata_language"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -213,6 +223,18 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, err)
 			return
 		}
+	}
+	if patch.Language != nil && *patch.Language != lib.MetadataLanguage {
+		if !languageRe.MatchString(*patch.Language) {
+			writeError(w, http.StatusBadRequest, `metadata_language is a language like "fr-FR" or "ja", or "" for English`)
+			return
+		}
+		if err := s.store.SetLibraryLanguage(r.Context(), lib.ID, *patch.Language); err != nil {
+			s.fail(w, err)
+			return
+		}
+		// Fetch everything again in the new language.
+		s.scanner.Request(lib.ID)
 	}
 	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
 		// Nothing that needs a rescan.
@@ -416,3 +438,6 @@ func (s *Server) listFolders(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"path": abs, "parent": parent, "folders": out})
 }
+
+// languageRe is a TMDB language: "fr", "fr-FR" or "pt-BR", or "" for English.
+var languageRe = regexp.MustCompile(`^([a-z]{2}(-[A-Z]{2})?)?$`)
