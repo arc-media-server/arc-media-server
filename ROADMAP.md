@@ -120,7 +120,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Season posters on the show page (#112)
 
 ### 14. Library management
-- [ ] Merge and split titles by hand (#93)
+- [x] Merge and split titles by hand (#93)
 - [x] Edit several titles at once (#94)
 - [x] Labels, for filters, smart collections and profile restrictions (#95)
 - [ ] Metadata language per library (#96)

@@ -12,6 +12,7 @@ import {
   HelpCircle,
   ListOrdered,
   ListX,
+  Merge,
   Trash2,
   Tv,
   type LucideIcon,
@@ -26,6 +27,7 @@ import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { MergeDialog } from '@/components/BulkEdit';
 
 export function HealthPage() {
   const { data: libraries } = useLibraries();
@@ -133,7 +135,7 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
             d.kind === 'copies' ? (
               <DuplicateRow key={i} item={d.items[0]} lines={(d.files ?? []).map((f) => `${f.path} · ${fmt.fileSize(f.size)}`)} label={fmt.plural(d.files?.length ?? 0, 'copy', 'copies')} />
             ) : (
-              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}`)} label={`${d.items.length} separate ${d.items[0].kind === 'series' ? 'shows' : 'movies'} matched to the same title`} />
+              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}`)} label={`${d.items.length} separate ${d.items[0].kind === 'series' ? 'shows' : 'movies'} matched to the same title`} merge={d.items[0].kind === 'movie' ? d.items : undefined} />
             )
           }
         />
@@ -305,22 +307,33 @@ function FileRow({ file, detail }: { file: FileProblem; detail?: string }) {
   );
 }
 
-function DuplicateRow({ item, label, lines }: { item: Item; label: string; lines: string[] }) {
+function DuplicateRow({ item, label, lines, merge }: { item: Item; label: string; lines: string[]; merge?: Item[] }) {
   const href = item.kind === 'series' ? `/series/${item.id}` : item.kind === 'episode' ? `/series/${item.parent_id}` : `/movie/${item.id}`;
+  const [merging, setMerging] = useState(false);
   return (
-    <Link to={href} className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-2">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {item.title} <span className="font-normal text-muted">· {label}</span>
-        </p>
-        {lines.map((l) => (
-          <p key={l} className="truncate font-mono text-[11px] text-subtle" title={l}>
-            {l}
+    <div className="flex items-center transition-colors hover:bg-surface-2">
+      <Link to={href} className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {item.title} <span className="font-normal text-muted">· {label}</span>
           </p>
-        ))}
-      </div>
-      <ChevronRight className="size-4 shrink-0 text-subtle" />
-    </Link>
+          {lines.map((l) => (
+            <p key={l} className="truncate font-mono text-[11px] text-subtle" title={l}>
+              {l}
+            </p>
+          ))}
+        </div>
+        <ChevronRight className="size-4 shrink-0 text-subtle" />
+      </Link>
+      {merge && (
+        <>
+          <Button variant="secondary" size="sm" className="mr-4 shrink-0" onClick={() => setMerging(true)}>
+            <Merge /> Merge
+          </Button>
+          <MergeDialog items={merge} open={merging} onOpenChange={setMerging} />
+        </>
+      )}
+    </div>
   );
 }
 

@@ -119,6 +119,10 @@ Early development. Working today:
 - Change many titles at once: Select in a library (shift-click picks a range), then Edit (add or
   remove genres and labels, set an age rating, lock or unlock every field), Add to Collection,
   mark watched or unwatched, or Refresh (runs in the background, shown in Activity)
+- Merge and Split Apart: pick movies in Select and Merge them into one (or Merge a duplicate in
+  Library Health); each file becomes a version, and watch history, ratings, playlists and
+  collections come along. Split Apart (a movie's ⋯ menu) gives each version its own title again.
+  Later scans keep these choices
 - Labels: your own tags on movies and shows (Edit → Labels), used as a library filter, in custom
   Home rows and smart collections, and to hide titles from a profile (e.g. "Not for kids")
 - Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
@@ -221,6 +225,8 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | POST | `/api/items/bulk` | Change many movies and shows (admin): `{"item_ids", "add_genres", "remove_genres", "add_labels", "remove_labels", "content_rating", "locks": "all"|"none", "played", "refresh"}` |
+| POST | `/api/items/merge` | Merge movies into one (admin): `{"target_id", "item_ids"}`; the others become versions of the target |
+| POST | `/api/items/{id}/split` | Split Apart (admin): each version of a movie but the first gets its own title |
 | GET | `/api/labels` | Every label in use (admin) |
 | PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) |
 | POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |
