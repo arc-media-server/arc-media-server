@@ -107,6 +107,10 @@ Early development. Working today:
 - Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
   refreshing week-old show details and month-old movie details, the daily backup and a check of
   every library; scrubbing previews can wait for it too
+- Moving in (Settings): import from Plex (Sign in with Plex; watched titles, resume points, ratings
+  and Plex's watch history for everyone on the server) or Jellyfin (every user's watched titles and
+  resume points). Each person goes to an Arc profile, titles are matched by their online ids, and
+  newer progress in Arc is never replaced
 - Activity (admin): a button by the Arc logo spins while the server is busy and lists what it is
   doing, with progress (library scans, refreshes, scrubbing previews, backups) and what finished
   recently, with any errors; also on the Dashboard
@@ -310,6 +314,10 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
 | POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
 | GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
+| POST | `/api/imports` | Start importing (admin): `{"source": "plex"}` (returns the plex.tv sign-in link) or `{"source": "jellyfin", "url", "username", "password"}` |
+| GET | `/api/imports/{id}` | The import so far: stage (signing_in, choose_server, choose_accounts, running, done, failed), servers, accounts, results |
+| POST | `/api/imports/{id}/server` | Choose the Plex server: `{"server_id"}` |
+| POST | `/api/imports/{id}/run` | Import: `{"profiles": {"<account id>": "<profile id>" | "new"}}` |
 | GET | `/api/activity` | What the server is doing (admin): `{running: [...], recent: [...]}`, each with `title`, `detail`, `done`/`total`, start and finish times and any `error` |
 | POST | `/api/playing/{id}/stop` | Stop a playback, with an optional `{"message": "..."}` for the viewer |
 | GET | `/api/logs?level=info\|warn\|error\|debug&after=<seq>` | Recent server log lines, oldest first |

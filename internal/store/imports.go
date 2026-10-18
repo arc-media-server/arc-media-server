@@ -1,0 +1,155 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strconv"
+)
+
+// Importing watch state from Plex and Jellyfin: titles are found by their TMDB, TheTVDB and IMDb
+// ids (episodes by their own ids, or by their show and number), and what's imported is merged
+// with what Arc already has, never overwriting newer progress.
+
+// ImportRef identifies a movie or episode in another server by its online ids.
+type ImportRef struct {
+	Kind       string // movie or episode
+	TMDB, TVDB int64
+	IMDB       string
+	// Episodes: their show's ids, and the episode's season and number (aired order).
+	SeriesTMDB, SeriesTVDB int64
+	SeriesIMDB             string
+	Season, Episode        int
+}
+
+// FindImported returns the Arc movie or episode an imported one is, or "" if Arc doesn't have it.
+func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
+	one := func(q string, args ...any) (string, error) {
+		var id string
+		err := s.db.QueryRowContext(ctx, q, args...).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return id, err
+	}
+	if r.Kind == "movie" {
+		if r.TMDB != 0 {
+			if id, err := one(`SELECT id FROM items WHERE kind = 'movie' AND tmdb_id = ? ORDER BY added_at LIMIT 1`, r.TMDB); id != "" || err != nil {
+				return id, err
+			}
+		}
+		if r.IMDB != "" {
+			return one(`SELECT id FROM items WHERE kind = 'movie' AND imdb_id = ? ORDER BY added_at LIMIT 1`, r.IMDB)
+		}
+		return "", nil
+	}
+
+	// An episode by its own id, as Arc keys episodes ("ep:<show>:<provider>:<id>").
+	for _, p := range []struct {
+		provider string
+		id       int64
+	}{{"tvdb", r.TVDB}, {"tmdb", r.TMDB}} {
+		if p.id == 0 {
+			continue
+		}
+		if id, err := one(`SELECT id FROM items WHERE kind = 'episode' AND match_key LIKE ? LIMIT 1`,
+			"ep:%:"+p.provider+":"+strconv.FormatInt(p.id, 10)); id != "" || err != nil {
+			return id, err
+		}
+	}
+	// Otherwise by its show and its number in an aired order.
+	if r.Season < 0 || r.Episode <= 0 {
+		return "", nil
+	}
+	var series []string
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM items WHERE kind = 'series'
+		AND ((tvdb_id = ? AND ? <> 0) OR (tmdb_id = ? AND ? <> 0) OR (imdb_id = ? AND ? <> ''))`,
+		r.SeriesTVDB, r.SeriesTVDB, r.SeriesTMDB, r.SeriesTMDB, r.SeriesIMDB, r.SeriesIMDB)
+	if err != nil {
+		return "", err
+	}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return "", err
+		}
+		series = append(series, id)
+	}
+	rows.Close()
+	for _, sid := range series {
+		// TheTVDB's aired order first (Plex and Jellyfin number that way by default), then TMDB's.
+		if id, err := one(`SELECT e.episode_id FROM ordering_entries e JOIN orderings o ON o.id = e.ordering_id
+			WHERE o.series_id = ? AND o.source IN ('tvdb_aired', 'tmdb_aired') AND e.season_number = ? AND e.episode_number = ?
+			ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1`, sid, r.Season, r.Episode); id != "" || err != nil {
+			return id, err
+		}
+	}
+	return "", nil
+}
+
+// ImportedWatch is a profile's state for one title on another server.
+type ImportedWatch struct {
+	Played     bool
+	PlayCount  int
+	LastPlayed int64 // unix seconds; 0 if unknown
+	PositionMS int64
+	// The profile's rating, 1–10 (0 for none).
+	Rating int
+}
+
+// MergeImportedWatch adds imported state to a profile's own: watched if either says so, the
+// higher play count and the later last play, a resume point only if Arc has none, and a rating
+// only if the profile hasn't rated it.
+func (s *Store) MergeImportedWatch(ctx context.Context, userID, itemID string, w ImportedWatch) error {
+	played := 0
+	if w.Played {
+		played = 1
+		w.PositionMS = 0
+		w.PlayCount = max(w.PlayCount, 1)
+	}
+	var last any
+	if w.LastPlayed > 0 {
+		last = w.LastPlayed
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at, user_rating)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT (user_id, item_id) DO UPDATE SET
+			played = MAX(played, excluded.played),
+			play_count = MAX(play_count, excluded.play_count),
+			last_played_at = CASE WHEN excluded.last_played_at IS NOT NULL AND (last_played_at IS NULL OR excluded.last_played_at > last_played_at)
+				THEN excluded.last_played_at ELSE last_played_at END,
+			position_ms = CASE WHEN played = 0 AND excluded.played = 0 AND position_ms = 0 THEN excluded.position_ms
+				WHEN excluded.played = 1 AND played = 0 THEN 0 ELSE position_ms END,
+			user_rating = CASE WHEN user_rating = 0 THEN excluded.user_rating ELSE user_rating END`,
+		userID, itemID, w.PositionMS, played, w.PlayCount, last, w.Rating)
+	return err
+}
+
+// AddImportedPlay records a past viewing from another server in a profile's watch history, once:
+// a viewing of the same title starting at the same second is already there.
+func (s *Store) AddImportedPlay(ctx context.Context, userID, itemID string, at int64) (bool, error) {
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM play_history WHERE user_id = ? AND item_id = ? AND started_at = ?`,
+		userID, itemID, at).Scan(&n); err != nil || n > 0 {
+		return false, err
+	}
+	it, err := s.GetItem(ctx, itemID)
+	if err != nil || it == nil {
+		return false, err
+	}
+	p := Play{UserID: userID, ItemID: it.ID, Kind: it.Kind, LibraryID: it.LibraryID, Title: it.Title,
+		StartedAt: at, EndedAt: at, Completed: true, Device: "Imported"}
+	if it.Kind == "episode" {
+		p.SeriesID = it.ParentID
+		if sr, err := s.GetItem(ctx, it.ParentID); err == nil && sr != nil {
+			p.SeriesTitle = sr.Title
+		}
+	}
+	if f, err := s.ItemFiles(ctx, it.ID); err == nil && len(f) > 0 {
+		p.DurationMS, p.WatchedMS, p.PositionMS = f[0].DurationMS, f[0].DurationMS, f[0].DurationMS
+		p.EndedAt = at + f[0].DurationMS/1000
+	}
+	_, err = s.AddPlay(ctx, p)
+	return err == nil, err
+}

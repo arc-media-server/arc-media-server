@@ -353,7 +353,7 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings';
+  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
@@ -361,6 +361,19 @@ export interface ActivityTask {
   total?: number;
   started_at: string;
   finished_at?: string;
+  error?: string;
+}
+
+/** Importing watch history from Plex or Jellyfin. */
+export interface ImportSession {
+  id: string;
+  source: 'plex' | 'jellyfin';
+  stage: 'signing_in' | 'choose_server' | 'choose_accounts' | 'running' | 'done' | 'failed';
+  auth_url?: string;
+  servers?: { id: string; name: string; owned: boolean }[];
+  server?: string;
+  accounts?: { id: string; name: string; owner?: boolean; suggested_profile?: string }[];
+  results?: { account: string; profile: string; matched: number; not_found: number; history: number; missing?: string[] }[];
   error?: string;
 }
 
@@ -828,6 +841,11 @@ export const api = {
       { keepalive: true },
     ),
   playing: () => request<Playback[]>('GET', '/api/playing'),
+  startImport: (b: { source: 'plex' } | { source: 'jellyfin'; url: string; username: string; password: string }) =>
+    request<ImportSession>('POST', '/api/imports', b),
+  importSession: (id: string) => request<ImportSession>('GET', `/api/imports/${id}`),
+  chooseImportServer: (id: string, serverId: string) => request<ImportSession>('POST', `/api/imports/${id}/server`, { server_id: serverId }),
+  runImport: (id: string, profiles: Record<string, string>) => request<ImportSession>('POST', `/api/imports/${id}/run`, { profiles }),
   activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[] }>('GET', '/api/activity'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
   startPlayback: (
