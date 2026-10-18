@@ -151,7 +151,7 @@ export function SeriesPage() {
                   <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
                     {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
                   </Button>
-                  <MoreMenu onOpen={openDialog} />
+                  <MoreMenu item={series} onOpen={openDialog} />
                 </>
               )}
             </div>

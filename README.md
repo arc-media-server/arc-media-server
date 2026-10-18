@@ -111,6 +111,9 @@ Early development. Working today:
   IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
   overnight by comparing a season's episodes' audio. At the credits Up Next counts down; Skip
   Intros Automatically is in the profile menu; times can be set by hand under Edit > Skip Markers
+- Optimize (a title's ⋯ menu, or Select in a library): easy-to-play 1080p or 720p H.264 copies made
+  in the background in Arc's data folder, played instead of converting live when a player can't play
+  the original; listed with their size in Settings
 - Remote streams (Settings > Remote Access): a quality limit for each stream away from home, and
   the home's upload speed shared between remote streams; streams at home are never limited
 - Pre-roll videos (Settings): files or folders of clips played before a movie started from the
@@ -333,6 +336,9 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | PUT / DELETE | `/api/webhooks/{id}` | Change or remove a webhook (admin) |
 | POST | `/api/webhooks/{id}/test` | Send a test message now |
 | GET / PUT / DELETE | `/api/items/{id}/markers` | A movie's or episode's skip markers with their sources (admin) / set them by hand: `{"markers": [{"kind": "intro", "start_ms", "end_ms"}]}` / forget them so they're found again |
+| POST | `/api/optimize` | Make optimized copies (admin): `{"item_ids", "quality": 1080|720}` (a show means all its episodes) |
+| GET | `/api/optimized` | Optimized copies with their status and size (admin) |
+| DELETE | `/api/optimized/{file}/{quality}` | Remove one (admin) |
 | GET | `/api/items/{id}/preroll` | The pre-roll videos to play before a movie: `[{title, url}]` (empty for episodes, home videos, or none set) |
 | GET | `/api/items/{id}/theme` | A show's or movie's theme tune (the item's `theme_url` when it has one) |
 | GET | `/api/news` | New for You: `{entries: [{item, count, added_at, unread}], unread}` |

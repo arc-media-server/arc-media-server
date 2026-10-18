@@ -332,6 +332,21 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A file this player can't play as it is may have an optimized copy it can (with the file's
+	// usual audio and no subtitles burned in).
+	if d.Method != "direct" && body.BurnSubtitle == "" && body.AudioStream == nil {
+		maxHeight := limitHeight
+		if body.Caps.MaxHeight > 0 && (maxHeight == 0 || body.Caps.MaxHeight < maxHeight) {
+			maxHeight = body.Caps.MaxHeight
+		}
+		if o := s.optimizedFor(r, f, body.Caps, maxHeight); o != nil {
+			out.Method, out.Reasons = "direct", []string{fmt.Sprintf("the optimized %dp version", o.Quality)}
+			out.URL, out.OffsetMS = optimizedURL(it.ID, o), 0
+			s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
+			writeJSON(w, http.StatusOK, out)
+			return
+		}
+	}
 	if d.Method == "direct" {
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0

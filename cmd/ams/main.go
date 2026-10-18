@@ -31,6 +31,7 @@ import (
 	"ams/internal/metadata"
 	"ams/internal/notify"
 	"ams/internal/opensubtitles"
+	"ams/internal/optimize"
 	"ams/internal/probe"
 	"ams/internal/ratings"
 	"ams/internal/scanner"
@@ -254,6 +255,12 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	skips.Configure(cfg.TheIntroDBKey, cfg.DetectIntros)
 	go skips.Run(ctx)
+	// Optimized versions, made one at a time in the background.
+	optimizer := optimize.New(filepath.Join(dataDir, "optimized"), st, log)
+	optimizer.Activity = tasks
+	optimizer.FFmpeg = skips.FFmpeg
+	optimizer.ToneMap = func() bool { return transcoder.Caps().ToneMapping }
+	go optimizer.Run(ctx)
 	librariesChanged := func(scan bool) {
 		thumbs.Wake()
 		libs, err := st.ListLibraries(ctx)
@@ -394,7 +401,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Log: log, Version: version,
+		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		// Files may have been added or removed since the backup was made: rescan everything.
 		AfterRestore: func() { librariesChanged(true) },

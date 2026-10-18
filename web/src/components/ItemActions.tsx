@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Layers, MoreHorizontal, Pencil, SearchCheck, Split } from 'lucide-react';
+import { Gauge, Layers, MoreHorizontal, Pencil, SearchCheck, Split } from 'lucide-react';
+import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -11,7 +12,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-type Dialog = 'edit' | 'match' | 'collection' | 'split' | null;
+type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | null;
 
 /** Versions of a movie that could be split into titles of their own (parts of one version count once). */
 export function splitVersions(item: Item) {
@@ -29,6 +30,7 @@ export function useItemDialogs(item: Item | undefined) {
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
       <AddToCollectionDialog item={item} library={library} open={open === 'collection'} onOpenChange={(o) => setOpen(o ? 'collection' : null)} />
       <SplitDialog item={item} open={open === 'split'} onOpenChange={(o) => setOpen(o ? 'split' : null)} />
+      <OptimizeDialog items={[item]} open={open === 'optimize'} onOpenChange={(o) => setOpen(o ? 'optimize' : null)} />
     </>
   );
   return { open: setOpen, dialogs };
@@ -53,6 +55,11 @@ export function MoreMenu({ item, onOpen }: { item?: Item; onOpen: (d: Exclude<Di
         {!isLocalVideo(item) && (
           <DropdownMenuItem onSelect={() => onOpen('match')}>
             <SearchCheck className="size-4 text-muted" /> Fix Match…
+          </DropdownMenuItem>
+        )}
+        {item && !isLocalVideo(item) && (
+          <DropdownMenuItem onSelect={() => onOpen('optimize')}>
+            <Gauge className="size-4 text-muted" /> Optimize…
           </DropdownMenuItem>
         )}
         {item && splitVersions(item) > 1 && (

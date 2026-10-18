@@ -151,7 +151,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [ ] Sharing with friends, library access per user (#58)
 - [x] Bandwidth limits for remote streams (#59)
 - [ ] Casting: Chromecast and AirPlay (#100)
-- [ ] Pre-converted versions for difficult devices (#101)
+- [x] Pre-converted versions for difficult devices (#101)
 
 ### 18. Arc apps and client API
 _Arc has its own clients; the API is open for anyone to build more._

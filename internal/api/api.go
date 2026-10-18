@@ -4,6 +4,7 @@ package api
 import (
 	"ams/internal/activity"
 	"ams/internal/notify"
+	"ams/internal/optimize"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -43,6 +44,8 @@ type Deps struct {
 	Notify *notify.Notifier
 	// Markers finds intros and credits; told when markers are reset.
 	Markers interface{ Wake() }
+	// Optimize makes optimized versions.
+	Optimize *optimize.Manager
 	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
 	AfterRestore func()
 	// LibrariesChanged runs after a library is added, changed or removed.
@@ -89,6 +92,7 @@ type Server struct {
 	activity         *activity.Tracker
 	notify           *notify.Notifier
 	markers          interface{ Wake() }
+	optimizer        *optimize.Manager
 	imports          importSessions
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
@@ -100,7 +104,7 @@ func New(d Deps) http.Handler {
 	s := &Server{store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
-		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
 
 	// Anyone: signing in.
@@ -127,6 +131,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/news", user(s.news))
 	mux.HandleFunc("GET /api/items/{id}/theme", user(s.theme))
 	mux.HandleFunc("GET /api/items/{id}/preroll", user(s.preroll))
+	mux.HandleFunc("POST /api/optimize", admin(s.optimizeItems))
+	mux.HandleFunc("GET /api/optimized", admin(s.listOptimized))
+	mux.HandleFunc("DELETE /api/optimized/{file}/{quality}", admin(s.deleteOptimized))
 	mux.HandleFunc("GET /api/items/{id}/markers", admin(s.itemMarkers))
 	mux.HandleFunc("PUT /api/items/{id}/markers", admin(s.setItemMarkers))
 	mux.HandleFunc("DELETE /api/items/{id}/markers", admin(s.resetItemMarkers))
@@ -527,7 +534,23 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer done()
-	s.serveFile(w, r, chosen.Path, stop)
+	path := chosen.Path
+	// An optimized copy of the file (made in Arc's data folder).
+	if q, _ := strconv.Atoi(r.URL.Query().Get("optimized")); q > 0 {
+		path = ""
+		if list, err := s.store.FileOptimized(r.Context(), chosen.ID); err == nil {
+			for _, o := range list {
+				if o.Quality == q {
+					path = o.Path
+				}
+			}
+		}
+		if path == "" {
+			writeError(w, http.StatusNotFound, "that optimized version isn't there")
+			return
+		}
+	}
+	s.serveFile(w, r, path, stop)
 }
 
 // serveFile sends a media file as it is, with range requests for seeking. Closing stop cuts the
