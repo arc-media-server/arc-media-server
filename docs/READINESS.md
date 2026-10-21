@@ -166,5 +166,23 @@ resume progress survive three further scans. A movie fixture checks two editions
 one title, same-name films from 1977/2018 stay separate, and local poster/NFO identity is read.
 Every fixture's original bytes are checked afterwards to detect writes to source media/assets.
 Previously read files are seeded, so these tests validate scanner/database integration rather
-than media decoding. Both tests pass on Windows. Real-library and large-library measurements,
-anime/date naming and provider-switch preservation still need broader validation; #134 stays open.
+than media decoding. Both tests pass on Windows; #134 stays open for representative real-library
+and broader provider validation.
+
+Additional checks cover anime absolute numbering (`012v2`) and date-based files: three scans
+attach them to the existing cached episode with no duplicate identity. An adoption regression
+exercises the helper used by metadata sync to re-key a file-only episode to TVDB, then TMDB and
+back. The same item/file IDs, locked title, resume point, recorded play-history row and locked
+custom placement survive. Cached provider IDs still map when provider titles/air dates differ.
+This is component-level provider-key preservation, not a full two-provider HTTP refresh/switch
+or proof against the live providers. Local `go vet ./...` and `go test ./...` pass.
+
+### Synthetic 1,800-file measurement
+
+Run: `go test ./internal/scanner -run '^$' -bench BenchmarkLibrary1800 -benchtime=1x -benchmem`.
+Windows amd64, AMD Ryzen 7 7700X, Go 1.27.0, 21 October 2026: **2.791 s**, **109,955,864 bytes
+allocated (104.9 MiB total)** and **1,119,104 allocations** for one first grouping scan of 1,800
+synthetic movies. Fixture/database creation is outside the measured section. Files are seeded as
+already probed and online providers are disabled. This measures scanner grouping/database work,
+not disk decoding, provider latency, peak resident memory, or end-to-end Unraid throughput; it
+does not replace the representative-library timing/memory acceptance criterion.
