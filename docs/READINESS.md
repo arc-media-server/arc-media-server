@@ -209,9 +209,37 @@ and containers, with no host-directory mounts or network access. It checks fresh
 FFmpeg/ffprobe, read-only root filesystem and media, root/non-root execution with pre-provisioned
 volume ownership, database ownership, backup/restore, health, restart and replacement-container
 persistence. GitHub builds a local linux/amd64 image for this test and image publication depends
-on its success as well as the existing Linux/Windows checks. Initial CI verification is pending.
+on its success as well as the existing Linux/Windows checks. Initial linux/amd64 acceptance passed
+for `2387a56` in [run 39654467547](https://github.com/JonzaUK/arc-media-server/actions/runs/39654467547),
+including both root/non-root scenarios; Linux/Windows check jobs also passed.
 Docker is not installed on this Windows PC; no local container result is claimed.
 
 This gate does not yet prove upgrades between different release images, ARM runtime behavior,
 PUID/PGID convenience support, actual NAS permissions, GPU passthrough, hardware playback,
 external networking, attribution or provider distribution terms. #123/#138 remain open.
+
+The gate now also accepts a previous immutable image tag. On main pushes it seeds that image,
+stops it, copies its complete data volume (including a sentinel in uploads), upgrades the
+original volume to the new image, then runs the previous image against the separate snapshot.
+The pinned baseline is `2a7029a1a0871a459424336146a9fdb73c107001`; initial cross-image CI verification
+is pending. Pull requests run the fresh-install gate without requiring private-registry access.
+
+## Additional process/storage/provider checks
+
+- A separate scanner/store process is forcibly killed after reaching its file-probing phase
+  (the probe is delayed so no child FFprobe remains). Reopening the on-disk temporary database
+  and scanning again preserves file identity, edited title and resume, and passes integrity
+  validation. This verifies a real process kill of the scanner/store subsystem, not every
+  background task in a deployed server or physical power-loss durability.
+- SQLite `max_page_count` limits a disposable database to simulate `SQLITE_FULL`. A failed large
+  setting write retains its previous value, `integrity_check` passes, and the write succeeds
+  after removing the limit. No real filesystem is filled; FFmpeg/full-filesystem behavior
+  still needs its own validation.
+- A full metadata-sync integration test routes every provider connection into a local TLS
+  fixture, using real TMDB/TVDB clients. It refreshes a file-only episode, switches source
+  numbering TVDB -> TMDB -> TVDB, rescans, and checks the original episode/file IDs, field lock,
+  resume, custom display order and manual placement. This exercises HTTP parsing and sync as
+  well as rekeying; live-provider variations and representative real libraries remain pending.
+
+Local Windows full `go vet ./...` and `go test ./...` pass. The previous `2a7029a` and `b0bb836` GitHub runs completed
+successfully, including Linux race/browser checks, Windows checks and image publication.

@@ -79,6 +79,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,6 +98,20 @@ jobs:
           cache-to: type=gha,scope=readiness,mode=max
       - name: Verify installation, read-only media, restore and persistence
         run: node tools/docker-smoke.mjs arc-readiness:local
+      - name: Sign in to read the previous tested image
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify upgrade and full-directory rollback from previous image
+        if: github.event_name != 'pull_request'
+        env:
+          PREVIOUS_IMAGE: ghcr.io/jonzauk/arc-media-server:2a7029a1a0871a459424336146a9fdb73c107001
+        run: |
+          docker pull "$PREVIOUS_IMAGE"
+          node tools/docker-smoke.mjs arc-readiness:local "$PREVIOUS_IMAGE"
   build:
     needs: [checks, container-smoke]
     if: github.event_name != 'pull_request'
