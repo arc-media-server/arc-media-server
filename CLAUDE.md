@@ -178,7 +178,19 @@ The owner works from more than one PC (Windows). On a fresh clone:
   under Advanced, collapsed when adding; editing still opens existing settings. A lightweight
   directory-read check complements existence/overlap validation before saving. Browser tests cover
   movie/TV addition with delayed metadata (dialog closes while scanning), invalid-folder retry and
-  optional-preview errors. Other #145 optimizations remain pending; no throughput gain claimed here.
+  optional-preview errors. That UI change alone did not establish a throughput gain.
+  The owner subsequently approved the full #145 recommendations, now implemented: successful
+  preview response reuse, independently settled folder-scoped scans, batched presence updates
+  and unchanged file-link avoidance, progressive bounded matching, essential TV data before
+  secondary orders, conservative ambiguous matching and automatic provider/background retries.
+  Explicit refresh bypasses preview data; language/key identities remain separate. Periodic full
+  reconciliation and missing-drive safeguards remain. Only new shows use the essential fast path;
+  existing episodes take complete provider mapping to retain identity/history/custom placements.
+  Synthetic unchanged movie scans fell from 2.85–2.89s to 0.835–0.853s; scoped movie addition
+  1.69–2.42ms; after sharing thumbnail folder reads, TV unchanged 0.135–0.265s and scoped
+  61-file TV show 8.47–10.00ms. Full generated-video import remains probe-bound:
+  120 movies direct 21.66s (first match 0.50s); completed-preview flow 26.08s, now 240 total
+  requests instead of 360. See scanbench/READINESS for boundaries; no Plex/Unraid speed claim.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,17 +19,31 @@ var imageExts = []string{".jpg", ".jpeg", ".png", ".webp"}
 
 var imdbRe = regexp.MustCompile(`tt\d{7,9}`)
 
-// findImage returns the first existing image named base + one of the image extensions in dir.
-func findImage(dir string, bases ...string) string {
-	for _, b := range bases {
-		for _, ext := range imageExts {
-			p := filepath.Join(dir, b+ext)
-			if info, err := os.Stat(p); err == nil && !info.IsDir() && info.Size() > 0 {
-				return p
+// Enumerate once rather than issuing dozens of failed Stat calls for absent assets.
+func imageFinder(dir string) func(...string) string {
+	entries, _ := os.ReadDir(dir)
+	names := map[string]os.DirEntry{}
+	key := func(name string) string {
+		if runtime.GOOS == "windows" {
+			return strings.ToLower(name)
+		}
+		return name
+	}
+	for _, e := range entries {
+		names[key(e.Name())] = e
+	}
+	return func(bases ...string) string {
+		for _, b := range bases {
+			for _, ext := range imageExts {
+				if e := names[key(b+ext)]; e != nil {
+					if info, err := e.Info(); err == nil && !info.IsDir() && info.Size() > 0 {
+						return filepath.Join(dir, e.Name())
+					}
+				}
 			}
 		}
+		return ""
 	}
-	return ""
 }
 
 // themeExts are the audio files a theme tune can be.
@@ -68,22 +83,23 @@ type LocalArt struct {
 // and friends in its folder when the movie has a folder of its own.
 func movieArt(path string, ownFolder bool) LocalArt {
 	dir := filepath.Dir(path)
+	image := imageFinder(dir)
 	stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	art := LocalArt{
-		Poster:   findImage(dir, stem+"-poster", stem+".poster"),
-		Backdrop: findImage(dir, stem+"-fanart", stem+"-backdrop", stem+".fanart"),
-		Logo:     findImage(dir, stem+"-clearlogo", stem+"-logo"),
+		Poster:   image(stem+"-poster", stem+".poster"),
+		Backdrop: image(stem+"-fanart", stem+"-backdrop", stem+".fanart"),
+		Logo:     image(stem+"-clearlogo", stem+"-logo"),
 	}
 	if ownFolder {
 		art.Theme = findTheme(dir)
 		if art.Poster == "" {
-			art.Poster = findImage(dir, "poster", "folder", "cover", "movie")
+			art.Poster = image("poster", "folder", "cover", "movie")
 		}
 		if art.Backdrop == "" {
-			art.Backdrop = findImage(dir, "fanart", "backdrop", "background", "art")
+			art.Backdrop = image("fanart", "backdrop", "background", "art")
 		}
 		if art.Logo == "" {
-			art.Logo = findImage(dir, "clearlogo", "logo")
+			art.Logo = image("clearlogo", "logo")
 		}
 	}
 	return art
@@ -91,10 +107,11 @@ func movieArt(path string, ownFolder bool) LocalArt {
 
 // seriesArt finds a show's local artwork in its folder.
 func seriesArt(dir string) LocalArt {
+	image := imageFinder(dir)
 	return LocalArt{
-		Poster:   findImage(dir, "poster", "folder", "cover", "show"),
-		Backdrop: findImage(dir, "fanart", "backdrop", "background", "art"),
-		Logo:     findImage(dir, "clearlogo", "logo"),
+		Poster:   image("poster", "folder", "cover", "show"),
+		Backdrop: image("fanart", "backdrop", "background", "art"),
+		Logo:     image("clearlogo", "logo"),
 		Seasons:  seasonPosters(dir),
 		Theme:    findTheme(dir),
 	}
@@ -125,12 +142,6 @@ func seasonPosters(dir string) map[int]string {
 		}
 	}
 	return out
-}
-
-// episodeThumb finds an episode's local still: "<file name>-thumb.jpg" beside the file.
-func episodeThumb(path string) string {
-	stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	return findImage(filepath.Dir(path), stem+"-thumb", stem)
 }
 
 // NFO is what AMS uses from a Kodi-style .nfo file: the ids that identify the title exactly.

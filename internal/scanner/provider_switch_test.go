@@ -105,12 +105,18 @@ func TestFullProviderRefreshAndSourceSwitchPreservesEpisode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, source := range []string{"tvdb_aired", "tmdb_aired", "tvdb_aired"} {
+	for index, source := range []string{"tvdb_aired", "tmdb_aired", "tvdb_aired"} {
 		if err := st.SetSourceOrdering(ctx, show, source); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.SyncSeriesMetadata(ctx, library, show, false); err != nil {
-			t.Fatal(err)
+		if index == 1 {
+			if err := st.SetLibraryLanguage(ctx, lib, ""); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := s.SyncSeriesMetadata(ctx, library, show, false); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if err := s.scan(ctx, lib); err != nil {
 			t.Fatal(err)

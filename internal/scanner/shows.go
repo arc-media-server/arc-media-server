@@ -136,15 +136,30 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	// The weekly refresh waits for the maintenance window (unless the server is never on then).
 	due := age > resyncAfter && s.Window.Open() || age > 4*resyncAfter
 	synced := false
+	secondary, _ := ctx.Value(secondaryKey{}).(*secondaryShows)
+	essential := syncedAt == 0 && secondary != nil && s.hasProviders()
+	if essential {
+		children, err := s.store.Children(ctx, id)
+		if err != nil {
+			return err
+		}
+		// Existing episodes may be moving between providers. Use the complete mapping
+		// path so identity/history are never sacrificed for a faster refresh.
+		essential = len(children) == 0
+	}
 	if s.hasProviders() && (syncedAt == 0 || due || aired) {
-		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
+		if err := s.syncSeriesMetadata(ctx, lib, id, false, essential); err != nil {
 			if ctx.Err() != nil {
 				return err
 			}
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
+			s.retryLater(lib.ID)
 		} else {
 			synced = true
 		}
+	}
+	if essential && synced {
+		secondary.add(id, g.files)
 	}
 
 	// Files naming episodes the cached metadata doesn't know yet are usually new episodes:
@@ -158,6 +173,7 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		log.Info("unknown episodes found, refreshing metadata", "series", g.name.Title, "files", unknown)
 		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
+			s.retryLater(lib.ID)
 		}
 		if _, err = s.linkEpisodeFiles(ctx, lib, id, g.files, true); err != nil {
 			return err
@@ -180,6 +196,10 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 // (a TMDB lookup per remaining episode, then looser matches) only runs when deep is set or the
 // series is displayed in the other provider's ordering, since that's the only time it matters.
 func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, seriesID string, deep bool) error {
+	return s.syncSeriesMetadata(ctx, lib, seriesID, deep, false)
+}
+
+func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, seriesID string, deep, essential bool) error {
 	series, err := s.store.GetItem(ctx, seriesID)
 	if err != nil {
 		return err
@@ -189,6 +209,10 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 	lib = forSeries(lib, series)
 	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	ctx = metadata.WithEssentialTV(ctx, "")
+	if essential {
+		ctx = metadata.WithEssentialTV(metadata.WithPreviewCache(ctx), lib.SourceOrdering)
+	}
 	log := s.log.With("series", series.Title)
 	ctx, save := s.traced(ctx, series.ID)
 	defer save()
@@ -214,7 +238,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return nil
 	}
 
-	if s.tvdb.Configured() {
+	if s.tvdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tvdb") || series.DetailsProvider == "tvdb") {
 		if tvdbID == 0 {
 			if tvdbID, err = s.tvdb.SearchSeries(ctx, series.Title, series.Year); err != nil {
 				return fmt.Errorf("tvdb search: %w", err)
@@ -226,7 +250,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 		}
 	}
-	if s.tmdb.Configured() {
+	if s.tmdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tmdb") || series.DetailsProvider != "tvdb") {
 		if tmdbID == 0 && tvdbID != 0 {
 			if tmdbID, err = s.tmdb.FindTV(ctx, strconv.FormatInt(tvdbID, 10), "tvdb_id"); err != nil {
 				return fmt.Errorf("tmdb find: %w", err)
@@ -249,7 +273,7 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 			tmdbSeries = ser
 			orderings = append(orderings, ords...)
-			if tvdbSeries == nil && ser.TVDBID != 0 && s.tvdb.Configured() {
+			if tvdbSeries == nil && ser.TVDBID != 0 && s.tvdb.Configured() && !essential {
 				tvdbID = ser.TVDBID
 				if err := fetchTVDB(); err != nil {
 					return err
@@ -285,10 +309,10 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	it.PosterPath, it.BackdropPath = primary.PosterPath, primary.BackdropPath
 	it.IMDBID = primary.IMDBID
 	it.TVDBID, it.TMDBID = tvdbID, tmdbID
-	if tvdbSeries == nil {
+	if tvdbSeries == nil && !essential {
 		it.TVDBID = 0
 	}
-	if tmdbSeries == nil {
+	if tmdbSeries == nil && !essential {
 		it.TMDBID = 0
 	}
 	applyDetails(&it, primary.Details)
@@ -441,9 +465,8 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		if keep[o.ID] || o.Source == "custom" {
 			continue
 		}
-		stale := o.Source == "file" ||
-			(strings.HasPrefix(o.Source, "tvdb") && tvdbSeries != nil) ||
-			(strings.HasPrefix(o.Source, "tmdb") && tmdbSeries != nil)
+		stale := o.Source == "file" || !essential && ((strings.HasPrefix(o.Source, "tvdb") && tvdbSeries != nil) ||
+			(strings.HasPrefix(o.Source, "tmdb") && tmdbSeries != nil))
 		if stale {
 			if err := s.store.DeleteOrdering(ctx, o.ID); err != nil {
 				return err
@@ -451,8 +474,13 @@ func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		}
 	}
 
-	s.update(lib.ID, func(st *Status) { st.Matched++ })
+	if series.MetadataState != "matched" {
+		s.update(lib.ID, func(st *Status) { st.Matched++ })
+	}
 	log.Info("series synced", "episodes", len(canonEps), "orderings", len(orderings))
+	if essential {
+		return nil
+	} // Remain unsynced until the alternate-order pass succeeds.
 	return s.store.MarkSynced(ctx, series.ID)
 }
 
@@ -675,6 +703,7 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 	}
 
 	var byDate map[string][]string
+	images := map[string]func(...string) string{}
 	for _, f := range files {
 		var ids []string
 		missing := false
@@ -726,7 +755,14 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 			return 0, err
 		}
 		// A "<file>-thumb.jpg" beside the episode is its still.
-		thumb := episodeThumb(f.path)
+		dir := filepath.Dir(f.path)
+		image := images[dir]
+		if image == nil {
+			image = imageFinder(dir)
+			images[dir] = image
+		}
+		stem := strings.TrimSuffix(filepath.Base(f.path), filepath.Ext(f.path))
+		thumb := image(stem+"-thumb", stem)
 		for _, id := range dedupe(ids) {
 			if err := s.store.SetLocalArt(ctx, id, thumb, "", ""); err != nil {
 				return 0, err

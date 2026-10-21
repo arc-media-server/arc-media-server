@@ -85,15 +85,8 @@ func TestProviderOutageRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	it, err := st.GetItem(ctx, id)
-	if err != nil || it == nil || it.MetadataState != "pending" || it.Title != title {
-		t.Fatalf("outage changed item: %+v %v", it, err)
-	}
-	if err := s.matchMovies(ctx, lib); err != nil {
-		t.Fatal(err)
-	}
-	it, err = st.GetItem(ctx, id)
 	if err != nil || it == nil || it.MetadataState != "matched" || it.Title != title || it.Overview != "Recovered description" {
-		t.Fatalf("retry failed: %+v %v", it, err)
+		t.Fatalf("automatic retry failed: %+v %v", it, err)
 	}
 	data, err := st.UserDataFor(ctx, u.ID, []string{id})
 	if err != nil || data[id].PositionMS != 120000 {

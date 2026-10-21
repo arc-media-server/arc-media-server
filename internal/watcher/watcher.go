@@ -30,9 +30,11 @@ var ignoredDirs = map[string]bool{"@eadir": true, "$recycle.bin": true, "system 
 // Watcher watches library folders and asks for scans. Create one with New, start it with Run and
 // tell it about the libraries (and later changes to them) with SetLibraries.
 type Watcher struct {
-	scan    func(libraryID int64)
-	log     *slog.Logger
-	updates chan map[int64][]string
+	scan func(libraryID int64)
+	// ScanPaths handles settled paths; hourly/error recovery still uses the full scan callback.
+	ScanPaths func(libraryID int64, paths []string)
+	log       *slog.Logger
+	updates   chan map[int64][]string
 
 	// Owned by the Run goroutine.
 	fs      *fsnotify.Watcher
@@ -41,14 +43,14 @@ type Watcher struct {
 	watched int
 
 	mu    sync.Mutex
-	dirty map[int64]time.Time // library id -> last change
+	dirty map[int64]map[string]time.Time // settle each changed path independently
 }
 
 // New creates a watcher that calls scan(libraryID) when a library has changed and settled, and
 // for every library once per periodic interval.
 func New(scan func(libraryID int64), log *slog.Logger) *Watcher {
 	return &Watcher{scan: scan, log: log, updates: make(chan map[int64][]string, 1),
-		roots: map[string]int64{}, dirty: map[int64]time.Time{}}
+		roots: map[string]int64{}, dirty: map[int64]map[string]time.Time{}}
 }
 
 // SetLibraries replaces the set of watched libraries (library id -> folders).
@@ -93,10 +95,17 @@ func (w *Watcher) Run(ctx context.Context) {
 			w.handle(ev)
 		case err := <-errs:
 			w.log.Warn("folder watching error", "err", err)
-		case <-tick.C:
-			for _, id := range w.settled(time.Now()) {
-				w.log.Info("library folders changed; scanning", "library", id)
+			for id := range w.libs {
 				w.scan(id)
+			}
+		case <-tick.C:
+			for id, paths := range w.settled(time.Now()) {
+				w.log.Info("library folders changed; scanning", "library", id, "paths", len(paths))
+				if w.ScanPaths != nil {
+					w.ScanPaths(id, paths)
+				} else {
+					w.scan(id)
+				}
 			}
 		case <-hourly.C:
 			// Folders that were unavailable before (a drive that's back) get watched from now on.
@@ -187,7 +196,10 @@ func (w *Watcher) handle(ev fsnotify.Event) {
 		}
 	}
 	w.mu.Lock()
-	w.dirty[lib] = time.Now()
+	if w.dirty[lib] == nil {
+		w.dirty[lib] = map[string]time.Time{}
+	}
+	w.dirty[lib][ev.Name] = time.Now()
 	w.mu.Unlock()
 }
 
@@ -204,13 +216,18 @@ func (w *Watcher) library(path string) (int64, bool) {
 
 // settled returns the libraries that changed and have been quiet for the settle time, and
 // forgets them.
-func (w *Watcher) settled(now time.Time) []int64 {
+func (w *Watcher) settled(now time.Time) map[int64][]string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	var out []int64
-	for id, last := range w.dirty {
-		if now.Sub(last) >= settle {
-			out = append(out, id)
+	out := map[int64][]string{}
+	for id, paths := range w.dirty {
+		for path, last := range paths {
+			if now.Sub(last) >= settle {
+				out[id] = append(out[id], path)
+				delete(paths, path)
+			}
+		}
+		if len(paths) == 0 {
 			delete(w.dirty, id)
 		}
 	}

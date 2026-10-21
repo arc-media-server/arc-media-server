@@ -45,9 +45,8 @@ product baseline: `c22b671`, Windows amd64, Ryzen 7 7700X. All times start befor
 | Complete Preview, then Add | 12.38s | 12.87s | 16.96s | 30.06s | 120 searches + 240 details |
 
 The UI permits Add before Preview finishes; this measurement tests the completed-preview
-path, not a mandatory wait. Movie Preview already fetches full details but only retains the
-match candidate; the scan fetches details again. Reusing that metadata and simplifying the
-ordinary add flow are proposals on #145, not implemented optimizations.
+path, not a mandatory wait. At that baseline Movie Preview fetched full details but retained
+only the match candidate; the scan fetched details again. The implementation below addresses it.
 
 For store/grouping work separately, run:
 
@@ -70,3 +69,47 @@ Three fresh repeated movie trials gave 2.848–2.875s unchanged and 2.872–2.88
 This confirms that one addition still pays almost the whole-library scan cost. Allocation
 figures are cumulative allocations per scan, not peak RAM. These runs do not measure physical
 HDD/SMB behavior, live providers, Plex performance, real-device playback or the owner's Unraid.
+
+## Implemented improvements (#145, 21 October 2026)
+
+The same Windows machine, fixtures and commands were used after the changes. Timed runs
+below were sequential, without another build/browser suite running alongside them.
+
+| Flow (120 movies) | Preview | First matched | All matched | Scan finished | Provider requests |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Direct API add | none | 0.50s | 8.54s | 21.66s | 120 searches + 120 details |
+| Complete Preview, then Add | 12.51s | 12.53s | 12.89s | 26.08s | 120 searches + 120 details |
+
+All times include Preview when used. Reuse removes the 120 repeated detail requests:
+the completed-preview workflow is 3.98s faster here, but direct addition is still faster.
+First-match time improves; total direct-import completion is essentially unchanged because
+probing follows matching and dominates this fixture. Matching visibly sooner is distinct from
+finishing or proving playable media sooner; this tool measures matched items and scan completion.
+
+Three fresh synthetic rescan trials (`-count=3`):
+
+| Library | Unchanged full rescan | Scoped addition |
+| --- | ---: | ---: |
+| 1,800 movies | 0.835–0.853s | 0.00169–0.00242s |
+| 30 x 60 TV episodes | 0.135–0.265s | 0.00847–0.01000s |
+
+A separate single cold-grouping trial measured 1.27s for movies (baseline 3.38s) and 1.36s
+for TV (baseline 1.61s). The TV numbers include the follow-up fix that shares one season-folder
+artwork enumeration across its episodes; enumerating it for every episode was slower and was
+corrected before shipping. Cold figures are single trials; repeat ranges above show variance.
+
+The scoped movie addition visits one movie folder; the TV addition visits 61 files of its
+existing show, preserving the original library root for episode parsing. The full hourly/manual
+reconciliation remains necessary. These numbers exclude the ten-second watcher settling wait,
+provider calls, actual new-file probing and fixture setup. They are not end-to-end addition times.
+
+```sh
+go test ./internal/scanner -run '^$' -bench 'BenchmarkScanWork/(movies|shows)/(unchanged|targeted-add)$' -benchtime=1x -count=3 -benchmem
+```
+
+Correctness fixtures exercise discovery/matching overlap, scoped Unicode missing-file sweeps,
+split show folders, large change batches, changes queued during scan completion, and TV source
+switching with stable episode/file IDs, edits, resume and custom locked placements. A delayed
+alternate-order endpoint proves essential episodes are linked first; four temporary failures
+then recover automatically without re-downloading cached show/season details. This establishes
+fixture behavior, not a live provider success rate or sustained Unraid playback responsiveness.

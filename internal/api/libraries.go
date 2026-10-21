@@ -18,6 +18,7 @@ import (
 
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/metadata"
 	"ams/internal/scanner"
 	"ams/internal/store"
 )
@@ -403,6 +404,7 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx = metadata.WithLanguage(ctx, b.MetadataLanguage)
 	ps := &scanner.PreviewState{}
 	p := s.previews
 	p.mu.Lock()
