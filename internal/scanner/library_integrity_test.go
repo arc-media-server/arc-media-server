@@ -12,7 +12,7 @@ import (
 	"ams/internal/store"
 )
 
-func libraryFixture(t *testing.T, kind string, files map[string]string) (*store.Store, *Scanner, int64, string) {
+func libraryFixture(t testing.TB, kind string, files map[string]string) (*store.Store, *Scanner, int64, string) {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()

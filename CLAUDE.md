@@ -121,6 +121,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   episodes, repeated scans, custom display/manual placements and resume, movie editions/remakes,
   local poster/NFO and unchanged source bytes. Representative real-library/large-library and
   broader anime/provider-switch validation remain open; do not close #134 from these fixtures.
+  #134 follow-up: cached anime absolute/date file linking and file-only -> TVDB -> TMDB -> TVDB
+  rekey component regressions preserve IDs, field locks, resume, play history and custom placement.
+  Synthetic 1,800-film grouping benchmark: 2.791 s / 104.9 MiB total allocations (Windows Ryzen
+  7700X; probing pre-seeded, providers off). Full provider-switch HTTP and real-library/Unraid
+  throughput/peak-memory validation are still pending; see docs/READINESS.md for exact limits.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
