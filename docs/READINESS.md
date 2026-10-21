@@ -13,8 +13,8 @@ Use isolated databases and copies of data for recovery tests. Never modify the o
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |
 | Conversion admission (#131) | Simultaneous starts respect limits; remux allowed; stopped/failed starts release capacity | Implemented; local regression tests pass |
 | Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for b5d8e39; see verification below |
-| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally; Linux CI pending |
-| Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally |
+| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for 49ac1f5 |
+| Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally and in Linux CI |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Pending |
 | Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Pending |
 | Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Pending |
@@ -98,6 +98,12 @@ the saved point. The local run passed all six journeys and captured the saved 1:
 
 Linux CI runs the suite with no retries and uploads the HTML report and failure traces/screenshots/
 video for seven days. These tests do not replace the device matrix or sustained server trial.
+
+Verified code commit: `49ac1f5fdd079ebe7131cc7b8a98ccf2c9fc89db`.
+[GitHub run 39635142227](https://github.com/JonzaUK/arc-media-server/actions/runs/39635142227)
+passed both Windows and Linux check jobs, including the Linux browser suite and race checks.
+The Docker publish job started after both check jobs succeeded. Local verification also passed
+all six journeys with no retries; a screenshot records the saved 1:10 resume point after reload.
 
 ## API documentation follow-up
 
