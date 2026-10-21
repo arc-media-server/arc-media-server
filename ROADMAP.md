@@ -184,6 +184,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Enforce conversion limits under simultaneous playback (#131)
 - [x] Gate Docker publication on Linux/Windows checks and Linux race/media tests (#132)
 - [ ] Automate core browser journeys (#133)
+- [ ] Save the final resume point when the player closes (#140; fix and local browser regression pass, CI pending)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)
