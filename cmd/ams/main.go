@@ -236,6 +236,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	// Scan libraries when their folders change.
 	watch := watcher.New(sc.Request, log)
+	watch.ScanPaths = sc.RequestPaths
 	go watch.Run(ctx)
 	// librariesChanged brings the watcher in step with the libraries, optionally scanning them all.
 	// Timeline thumbnails, made in the background for libraries that have them turned on.

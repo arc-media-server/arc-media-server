@@ -57,6 +57,9 @@ func TraceFrom(ctx context.Context) *Trace {
 
 // record adds a step to the context's trace, if it has one.
 func record(ctx context.Context, s Step) {
+	if s.Kind == "search" && s.Picked == 0 && len(s.Results) > 0 && s.Note == "" && s.Error == "" {
+		s.Note = "No confident, unique title match. Choose the right title with Fix Match."
+	}
 	t := TraceFrom(ctx)
 	if t == nil {
 		return

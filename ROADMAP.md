@@ -189,7 +189,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Filter Continue Watching before limiting its results (#142)
 - [x] Label removal safety backups correctly (#143)
 - [x] Review everyday UI flows, log candidates, reproduce and fix confirmed defects (#144)
-- [ ] Reduce repeated scanning/matching work and time until new media is usable (#145; investigation recorded, implementation pending)
+- [x] Reduce repeated scanning/matching work and time until new media is usable (#145; isolated correctness and timing evidence in READINESS; live-library validation remains #134)
 - [x] Add libraries directly with background matching and optional Advanced preview (#146)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)

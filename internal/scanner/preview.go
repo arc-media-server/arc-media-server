@@ -82,6 +82,7 @@ const previewUnrecognisedLimit = 200
 // would contain. It only reads names and asks the metadata providers; nothing is stored and media
 // files aren't opened.
 func (s *Scanner) Preview(ctx context.Context, kind, sourceOrdering string, paths []string, ps *PreviewState) {
+	ctx = metadata.WithPreviewCache(ctx)
 	ps.update(func(p *Preview) {
 		*p = Preview{Stage: "scanning", Unavailable: []string{}, Unrecognised: []string{}, Items: []PreviewItem{}}
 	})
@@ -239,7 +240,7 @@ func (s *Scanner) identify(ctx context.Context, kind string, n MovieName) (*meta
 	}
 	noKey := func(what string) []metadata.Step {
 		return []metadata.Step{{Provider: "tmdb", Kind: "search", Query: n.Title, Results: []metadata.Candidate{},
-			Note: "Add a " + what + " API key to the config file so Arc can look this up."}}
+			Note: "Add a " + what + " API key in Settings so Arc can look this up."}}
 	}
 
 	if kind == "movies" {

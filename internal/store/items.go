@@ -172,6 +172,13 @@ func (s *Store) ItemsWithMetadataState(ctx context.Context, libraryID int64, kin
 	return items, rows.Err()
 }
 
+// RetryUnmatched revisits old uncertain/no-result titles during reconciliation, not every
+// watcher event. Locked metadata and user edits are preserved by the normal match writer.
+func (s *Store) RetryUnmatched(ctx context.Context, libraryID int64, before int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET metadata_state = 'pending' WHERE library_id = ? AND kind = 'movie' AND metadata_state = 'unmatched' AND updated_at < ?`, libraryID, before)
+	return err
+}
+
 // UnsyncedItems lists matched items of a kind whose metadata has never been fully fetched.
 func (s *Store) UnsyncedItems(ctx context.Context, libraryID int64, kind string, limit int) ([]Item, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items

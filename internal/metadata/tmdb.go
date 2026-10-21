@@ -4,7 +4,6 @@ package metadata
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,7 +25,8 @@ var ErrNotFound = errors.New("not found")
 // TMDB is a small client for The Movie Database API. It accepts either a v3 API key or a
 // v4 read access token.
 type TMDB struct {
-	http *http.Client
+	http  *http.Client
+	cache responseCache
 
 	mu     sync.Mutex
 	key    string
@@ -265,15 +265,9 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 	return id, nil
 }
 
-// bestMatch prefers an exact (normalised) title match, otherwise TMDB's top relevance result.
+// bestMatch requires a confident, unique title rather than trusting result order.
 func bestMatch(title string, results []movieResult) int64 {
-	want := Normalize(title)
-	for _, r := range results {
-		if Normalize(r.Title) == want || Normalize(r.OriginalTitle) == want {
-			return r.ID
-		}
-	}
-	return results[0].ID
+	return confidentMatch(title, movieCandidates(results))
 }
 
 func (c *TMDB) findByIMDB(ctx context.Context, imdbID string) (int64, error) {
@@ -420,6 +414,10 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		q.Set("api_key", key)
 	}
 	u := tmdbBase + path + "?" + q.Encode()
+	cacheKey := key + "\x00" + u
+	if c.cache.load(ctx, cacheKey, out) {
+		return nil
+	}
 
 	for attempt := 0; ; attempt++ {
 		if err := c.throttle(ctx); err != nil {
@@ -435,13 +433,18 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		}
 		resp, err := c.http.Do(req)
 		if err != nil {
+			if attempt < 2 && ctx.Err() == nil {
+				if e := sleep(ctx, time.Duration(1<<attempt)*250*time.Millisecond); e != nil {
+					return e
+				}
+				continue
+			}
 			return err
 		}
 		switch {
-		case resp.StatusCode == http.StatusTooManyRequests && attempt < 3:
+		case retryStatus(resp.StatusCode) && attempt < 3:
 			resp.Body.Close()
-			wait, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
-			if err := sleep(ctx, time.Duration(max(wait, 1))*time.Second); err != nil {
+			if err := sleep(ctx, retryDelay(resp, attempt)); err != nil {
 				return err
 			}
 			continue
@@ -452,7 +455,7 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			resp.Body.Close()
 			return fmt.Errorf("tmdb %s: %s", path, resp.Status)
 		}
-		err = json.NewDecoder(resp.Body).Decode(out)
+		err = c.cache.decode(ctx, cacheKey, resp.Body, out)
 		resp.Body.Close()
 		return err
 	}

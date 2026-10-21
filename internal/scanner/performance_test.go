@@ -15,7 +15,7 @@ import (
 // This is a local filesystem/SQLite benchmark, not a NAS or end-to-end import result.
 func BenchmarkScanWork(b *testing.B) {
 	for _, kind := range []string{"movies", "shows"} {
-		for _, mode := range []string{"first", "unchanged", "add-one"} {
+		for _, mode := range []string{"first", "unchanged", "add-one", "targeted-add"} {
 			b.Run(kind+"/"+mode, func(b *testing.B) {
 				files := make(map[string]string, 1800)
 				for i := range 1800 {
@@ -35,16 +35,18 @@ func BenchmarkScanWork(b *testing.B) {
 				}
 				b.ResetTimer()
 				for i := range b.N {
+					var target string
 					// A fresh store is needed for each first-grouping iteration.
 					if mode == "first" && i > 0 {
 						st, s, lib, root = libraryFixture(b, kind, files)
 					}
-					if mode == "add-one" {
+					if mode == "add-one" || mode == "targeted-add" {
 						name := fmt.Sprintf("New Movie %04d (2000)/New Movie %04d (2000).mkv", i, i)
 						if kind == "shows" {
 							name = fmt.Sprintf("Show 00 (2000)/Season 02/Show 00 - S02E%02d.mkv", i+1)
 						}
 						path := filepath.Join(root, filepath.FromSlash(name))
+						target = path
 						if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 							b.Fatal(err)
 						}
@@ -61,8 +63,14 @@ func BenchmarkScanWork(b *testing.B) {
 					}
 					s.status[lib] = &Status{}
 					b.StartTimer()
-					if err := s.scan(ctx, lib); err != nil {
-						b.Fatal(err)
+					var scanErr error
+					if mode == "targeted-add" {
+						scanErr = s.scanPaths(ctx, lib, []string{target})
+					} else {
+						scanErr = s.scan(ctx, lib)
+					}
+					if scanErr != nil {
+						b.Fatal(scanErr)
 					}
 					b.StopTimer()
 				}

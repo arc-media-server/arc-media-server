@@ -63,13 +63,7 @@ func (c *TMDB) SearchTVShows(ctx context.Context, title string, year int) ([]Can
 // SearchTV finds a TMDB series id by title and optional first-aired year, or 0.
 func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, error) {
 	pick := func(results []tmdbTVResult) int64 {
-		want := Normalize(title)
-		for _, r := range results {
-			if Normalize(r.Name) == want || Normalize(r.OriginalName) == want {
-				return r.ID
-			}
-		}
-		return results[0].ID
+		return confidentMatch(title, tvCandidates(results))
 	}
 
 	results, err := c.searchTV(ctx, title, year)
@@ -289,6 +283,9 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		}
 	}
 	orderings := []Ordering{aired}
+	if essentialSource(ctx) != "" {
+		return s, orderings, nil
+	}
 
 	for _, g := range d.EpisodeGroups.Results {
 		o, err := c.episodeGroup(ctx, g.ID)

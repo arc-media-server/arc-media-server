@@ -136,7 +136,11 @@ type Scanner struct {
 	status map[int64]*Status
 	tasks  map[int64]*activity.Handle
 	// Libraries that changed during their scan and need scanning again when it ends.
-	again map[int64]bool
+	again         map[int64]bool
+	pendingPaths  map[int64][]string
+	retryPending  map[int64]bool
+	retryAttempts map[int64]int
+	retryBase     time.Duration // zero uses the automatic one-minute base
 	// Titles a library preview identified, so adding the library doesn't search for them again.
 	remembered remembered
 }
@@ -144,7 +148,7 @@ type Scanner struct {
 // New creates a scanner. Background scans stop when ctx is cancelled.
 func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, tvdb *metadata.TVDB, log *slog.Logger) *Scanner {
 	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log,
-		status: map[int64]*Status{}, again: map[int64]bool{}, tasks: map[int64]*activity.Handle{}}
+		status: map[int64]*Status{}, again: map[int64]bool{}, pendingPaths: map[int64][]string{}, retryPending: map[int64]bool{}, retryAttempts: map[int64]int{}, tasks: map[int64]*activity.Handle{}}
 }
 
 // Start begins a background scan of a library. It returns false if one is already running.
@@ -161,10 +165,28 @@ func (s *Scanner) Request(libraryID int64) {
 	defer s.mu.Unlock()
 	if !s.startLocked(libraryID) {
 		s.again[libraryID] = true
+		delete(s.pendingPaths, libraryID)
 	}
 }
 
-func (s *Scanner) startLocked(libraryID int64) bool {
+// RequestPaths scans affected top-level movie/show folders, retaining queued changes.
+func (s *Scanner) RequestPaths(libraryID int64, paths []string) {
+	if len(paths) == 0 {
+		s.Request(libraryID)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.startLocked(libraryID, paths...) && !s.again[libraryID] {
+		s.pendingPaths[libraryID] = append(s.pendingPaths[libraryID], paths...)
+		if len(s.pendingPaths[libraryID]) > 4096 {
+			s.again[libraryID] = true
+			delete(s.pendingPaths, libraryID)
+		}
+	}
+}
+
+func (s *Scanner) startLocked(libraryID int64, paths ...string) bool {
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
 	}
@@ -172,13 +194,13 @@ func (s *Scanner) startLocked(libraryID int64) bool {
 		return false
 	}
 	s.status[libraryID] = &Status{Running: true, StartedAt: time.Now()}
+	paths = append([]string(nil), paths...)
 
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		err := s.scan(s.ctx, libraryID)
+		err := s.scanPaths(s.ctx, libraryID, paths)
 		s.update(libraryID, func(st *Status) {
-			st.Running = false
 			st.FinishedAt = time.Now()
 			if err != nil {
 				st.Error = err.Error()
@@ -191,9 +213,14 @@ func (s *Scanner) startLocked(libraryID int64) bool {
 			s.OnFinish(libraryID)
 		}
 		s.mu.Lock()
+		s.status[libraryID].Running = false
 		if s.again[libraryID] {
 			delete(s.again, libraryID)
+			delete(s.pendingPaths, libraryID)
 			s.startLocked(libraryID)
+		} else if next := s.pendingPaths[libraryID]; len(next) > 0 {
+			delete(s.pendingPaths, libraryID)
+			s.startLocked(libraryID, next...)
 		}
 		s.mu.Unlock()
 	}()
@@ -246,6 +273,10 @@ func (s *Scanner) step(libraryID int64) {
 }
 
 func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
+	return s.scanPaths(ctx, libraryID, nil)
+}
+
+func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string) (err error) {
 	lib, err := s.store.GetLibrary(ctx, libraryID)
 	if err != nil {
 		return err
@@ -255,7 +286,11 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	}
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
-	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	ctx = metadata.WithPreviewReuse(metadata.WithLanguage(ctx, lib.MetadataLanguage))
+	visited, err := scanFolders(lib, paths)
+	if err != nil {
+		return err
+	}
 	task := s.Activity.Start("scan", "Scanning "+lib.Name)
 	s.mu.Lock()
 	s.tasks[lib.ID] = task
@@ -269,10 +304,64 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 		task.Finish(err)
 	}()
 	scanStart := time.Now().UnixMilli()
+	if len(paths) == 0 && lib.Kind == "movies" && s.tmdb.Configured() {
+		if err := s.store.RetryUnmatched(ctx, lib.ID, time.Now().Add(-24*time.Hour).Unix()); err != nil {
+			return err
+		}
+	}
+	seen := &seenFiles{st: s.store, at: scanStart}
+	ctx = context.WithValue(ctx, seenKey{}, seen)
+	secondary := &secondaryShows{files: map[string][]episodeFile{}}
+	ctx = context.WithValue(ctx, secondaryKey{}, secondary)
+	series := map[string]*seriesGroup{}
+	pipeline := newMatchPipeline(ctx)
+	defer pipeline.finish()
+	queuedMovies := map[string]bool{}
+	enqueueMovie := func(id string) error {
+		if !s.tmdb.Configured() || queuedMovies[id] {
+			return nil
+		}
+		it, err := s.store.GetItem(ctx, id)
+		if err != nil {
+			return err
+		}
+		if it == nil || it.MetadataState != "pending" {
+			return nil
+		}
+		queuedMovies[id] = true
+		s.update(lib.ID, func(st *Status) { st.Total++ })
+		return pipeline.offer(func() error { defer s.step(lib.ID); return s.matchMovie(ctx, lib.ID, id) })
+	}
+	ctx = context.WithValue(ctx, movieQueueKey{}, enqueueMovie)
+	s.phase(lib.ID, "Finding and matching titles", 0)
+	showLocks := map[string]*sync.Mutex{}
+	enqueueShows := func(all bool) error {
+		for key, group := range series {
+			if !all && group.folder == "" {
+				continue
+			}
+			delete(series, key)
+			lock := showLocks[key]
+			if lock == nil {
+				lock = &sync.Mutex{}
+				showLocks[key] = lock
+			}
+			s.update(lib.ID, func(st *Status) { st.Total++ })
+			if err := pipeline.offer(func() error {
+				defer s.step(lib.ID)
+				// The same show can have files in several library roots.
+				lock.Lock()
+				defer lock.Unlock()
+				return s.syncSeriesGroup(ctx, lib, group, log)
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	allRootsOK := true
 
 	var addFile func(root, path string, d fs.DirEntry) error
-	series := map[string]*seriesGroup{}
 	folders := map[string]*videoFolder{}
 	switch lib.Kind {
 	case "videos":
@@ -292,36 +381,110 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	}
 
 	var extras []extraFile
-	for _, root := range lib.Paths {
-		complete, err := walkVideos(ctx, root, log, func(path string, d fs.DirEntry) {
-			if err := addFile(root, path, d); err != nil {
-				log.Warn("failed to add file", "path", path, "err", err)
+	for _, folder := range visited {
+		root := folder.root
+		chunks := []string{folder.path}
+		if lib.Kind == "shows" && folder.path == root {
+			entries, readErr := os.ReadDir(root)
+			if readErr != nil {
+				allRootsOK = false
+				continue
 			}
-		}, func(path string, d fs.DirEntry, ex extraFile) {
-			// Home videos have no extras: a "Behind the scenes" folder is just more videos.
-			if lib.Kind == "videos" {
+			chunks = nil
+			for _, entry := range entries {
+				chunks = append(chunks, filepath.Join(root, entry.Name()))
+			}
+		}
+		for _, chunk := range chunks {
+			complete, err := walkVideos(ctx, root, log, func(path string, d fs.DirEntry) {
 				if err := addFile(root, path, d); err != nil {
+					allRootsOK = false
 					log.Warn("failed to add file", "path", path, "err", err)
 				}
-				return
-			}
-			id, err := s.recordFile(ctx, lib, path, d, scanStart, false)
+			}, func(path string, d fs.DirEntry, ex extraFile) {
+				// Home videos have no extras: a "Behind the scenes" folder is just more videos.
+				if lib.Kind == "videos" {
+					if err := addFile(root, path, d); err != nil {
+						allRootsOK = false
+						log.Warn("failed to add file", "path", path, "err", err)
+					}
+					return
+				}
+				id, err := s.recordFile(ctx, lib, path, d, scanStart, false)
+				if err != nil {
+					allRootsOK = false
+					log.Warn("failed to add file", "path", path, "err", err)
+					return
+				}
+				ex.fileID = id
+				extras = append(extras, ex)
+			}, chunk)
 			if err != nil {
-				log.Warn("failed to add file", "path", path, "err", err)
-				return
+				return err
 			}
-			ex.fileID = id
-			extras = append(extras, ex)
-		})
+			// Don't mark anything missing if a drive is offline; that would hide the whole library.
+			allRootsOK = allRootsOK && complete
+			if lib.Kind == "shows" {
+				if err := enqueueShows(false); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if err := seen.flush(ctx); err != nil {
+		return err
+	}
+	if lib.Kind == "shows" {
+		if err := enqueueShows(true); err != nil {
+			return err
+		}
+	}
+	if lib.Kind == "movies" && s.tmdb.Configured() {
+		pending, err := s.store.ItemsWithMetadataState(ctx, lib.ID, "movie", "pending")
 		if err != nil {
 			return err
 		}
-		// Don't mark anything missing if a drive is offline; that would hide the whole library.
-		allRootsOK = allRootsOK && complete
+		for _, it := range pending {
+			if len(paths) > 0 {
+				files, err := s.store.ItemFiles(ctx, it.ID)
+				if err != nil {
+					return err
+				}
+				inside := false
+				for _, f := range files {
+					if inScanFolders(f.Path, visited) {
+						inside = true
+						break
+					}
+				}
+				if !inside {
+					continue
+				}
+			}
+			if err := enqueueMovie(it.ID); err != nil {
+				return err
+			}
+		}
 	}
-
+	if err := pipeline.finish(); err != nil {
+		return err
+	}
 	if allRootsOK {
-		n, err := s.store.MarkMissing(ctx, lib.ID, scanStart, time.Now().Unix())
+		var folders []string
+		completeLibrary := len(visited) == len(lib.Paths)
+		for _, f := range visited {
+			folders = append(folders, f.path)
+			completeLibrary = completeLibrary && f.path == f.root
+		}
+		var n int64
+		var err error
+		if completeLibrary {
+			// Also reconcile files whose old root was removed from the library.
+			n, err = s.store.MarkMissing(ctx, lib.ID, scanStart, time.Now().Unix())
+		} else {
+			n, err = s.store.MarkMissingFolders(ctx, lib.ID, scanStart, time.Now().Unix(), folders)
+		}
 		if err != nil {
 			return err
 		}
@@ -331,19 +494,15 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	switch lib.Kind {
 	case "movies":
 		if s.tmdb.Configured() {
-			if err := s.matchMovies(ctx, lib.ID); err != nil {
-				return fmt.Errorf("metadata: %w", err)
-			}
-			if err := s.refreshUnsyncedMovies(ctx, lib.ID); err != nil {
-				return fmt.Errorf("metadata: %w", err)
+			if len(paths) == 0 {
+				if err := s.refreshUnsyncedMovies(ctx, lib.ID); err != nil {
+					return fmt.Errorf("metadata: %w", err)
+				}
 			}
 		}
-	case "shows":
-		if err := s.syncSeriesGroups(ctx, lib, series, log); err != nil {
-			return err
-		}
+	case "shows": // Already linked progressively as each show folder finished discovery.
 	case "videos":
-		if err := s.syncVideoFolders(ctx, lib, folders, allRootsOK); err != nil {
+		if err := s.syncVideoFolders(ctx, lib, folders, allRootsOK && len(paths) == 0); err != nil {
 			return err
 		}
 	}
@@ -354,7 +513,10 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 	}
 	// Then what's inside the new files (length, video, audio and subtitle tracks), now that the
 	// titles are showing.
-	if err := s.probePending(ctx, lib, scanStart); err != nil {
+	if err := s.probePending(ctx, lib, scanStart, visited...); err != nil {
+		return err
+	}
+	if err := s.finishSecondary(ctx, lib, secondary); err != nil {
 		return err
 	}
 
@@ -368,7 +530,7 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 // trailer, featurette and other extra, skipping hidden folders and samples. complete is false when
 // root or part of it couldn't be read, e.g. a drive is offline.
 func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(path string, d fs.DirEntry),
-	extra func(path string, d fs.DirEntry, ex extraFile)) (complete bool, err error) {
+	extra func(path string, d fs.DirEntry, ex extraFile), from ...string) (complete bool, err error) {
 	info, err := os.Stat(root)
 	if err != nil {
 		log.Warn("library folder unavailable", "path", root, "err", err)
@@ -379,7 +541,11 @@ func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(p
 		return false, nil
 	}
 	complete = true
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	start := root
+	if len(from) > 0 {
+		start = from[0]
+	}
+	err = filepath.WalkDir(start, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			complete = false
 			log.Warn("cannot read", "path", path, "err", err)
@@ -390,6 +556,12 @@ func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(p
 		}
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if d.Type()&fs.ModeSymlink != 0 {
+			if info, statErr := os.Stat(path); statErr != nil || info.IsDir() {
+				complete = false // A directory not traversed cannot establish missing files.
+				return nil
+			}
 		}
 		name := d.Name()
 		if d.IsDir() {
@@ -506,6 +678,13 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	}
 	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
 	if unchanged && (existing.Probed || !probeNow) {
+		if seen, _ := ctx.Value(seenKey{}).(*seenFiles); seen != nil {
+			seen.ids = append(seen.ids, existing.ID)
+			if len(seen.ids) >= 256 {
+				return existing.ID, seen.flush(ctx)
+			}
+			return existing.ID, nil
+		}
 		return existing.ID, s.store.TouchFile(ctx, existing.ID, scanStart)
 	}
 	f := &store.MediaFile{LibraryID: lib.ID, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix()}
@@ -537,8 +716,17 @@ func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int
 
 // probePending reads a library's files that haven't been read yet (new or changed since), a few
 // at a time, in path order so each worker stays in one folder (and disk) at a time.
-func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStart int64) error {
+func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStart int64, folders ...scanFolder) error {
 	files, err := s.store.UnprobedFiles(ctx, lib.ID)
+	if len(folders) > 0 {
+		filtered := files[:0]
+		for _, f := range files {
+			if inScanFolders(f.Path, folders) {
+				filtered = append(filtered, f)
+			}
+		}
+		files = filtered
+	}
 	if err != nil || len(files) == 0 {
 		return err
 	}
@@ -671,7 +859,12 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 		return err
 	}
 	if nfo := movieNFO(path, ownFolder); !nfo.empty() {
-		return s.store.AdoptIDs(ctx, itemID, nfo.TMDBID, 0, nfo.IMDBID)
+		if err := s.store.AdoptIDs(ctx, itemID, nfo.TMDBID, 0, nfo.IMDBID); err != nil {
+			return err
+		}
+	}
+	if queue, _ := ctx.Value(movieQueueKey{}).(func(string) error); queue != nil {
+		return queue(itemID)
 	}
 	return nil
 }
@@ -683,29 +876,40 @@ func (s *Scanner) matchMovies(ctx context.Context, libraryID int64) error {
 	}
 	s.phase(libraryID, "Matching movies", len(items))
 	return each(ctx, len(items), matchWorkers, func(i int) error {
-		it := items[i]
 		defer s.step(libraryID)
-		tctx, save := s.traced(ctx, it.ID)
-		m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
-		save()
-		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			// Leave the item pending so the next scan retries it.
-			s.log.Warn("tmdb lookup failed", "title", it.Title, "year", it.Year, "err", err)
-			return nil
-		}
-		if m == nil {
-			s.update(libraryID, func(st *Status) { st.Unmatched++ })
-			return s.store.SetMetadataState(ctx, it.ID, "unmatched")
-		}
-		if err := s.saveMovie(ctx, it, m); err != nil {
-			return err
-		}
-		s.update(libraryID, func(st *Status) { st.Matched++ })
-		return nil
+		return s.matchMovie(ctx, libraryID, items[i].ID)
 	})
+}
+
+func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) error {
+	it, err := s.store.GetItem(ctx, id)
+	if err != nil {
+		return err
+	}
+	if it == nil || it.MetadataState != "pending" {
+		return nil
+	}
+	tctx, save := s.traced(ctx, it.ID)
+	m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
+	save()
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// Leave the item pending so the next scan retries it.
+		s.log.Warn("tmdb lookup failed", "title", it.Title, "year", it.Year, "err", err)
+		s.retryLater(libraryID)
+		return nil
+	}
+	if m == nil {
+		s.update(libraryID, func(st *Status) { st.Unmatched++ })
+		return s.store.SetMetadataState(ctx, it.ID, "unmatched")
+	}
+	if err := s.saveMovie(ctx, *it, m); err != nil {
+		return err
+	}
+	s.update(libraryID, func(st *Status) { st.Matched++ })
+	return nil
 }
 
 func movieMetadata(it store.Item, m *metadata.Movie) *store.Item {
@@ -783,6 +987,7 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 				return ctx.Err()
 			}
 			s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
+			s.retryLater(libraryID)
 		}
 		return nil
 	})

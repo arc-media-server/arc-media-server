@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -19,6 +19,7 @@ import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
+import { useLibraries } from '@/components/Sidebar';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { ErrorState, Page } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
@@ -48,11 +49,22 @@ export function SeriesPage() {
   const [comparing, setComparing] = useState(false);
   const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
   const [editingSeason, setEditingSeason] = useState(false);
+  const scanning = useLibraries().data?.some((library) => library.scan.running) ?? false;
+  const wasScanning = useRef(scanning);
 
-  const orderings = useQuery({ queryKey: ['orderings', id], queryFn: () => api.orderings(id!) });
+  useEffect(() => {
+    if (wasScanning.current && !scanning) {
+      void qc.invalidateQueries({ queryKey: ['orderings', id] });
+      void qc.invalidateQueries({ queryKey: ['seasons', id] });
+    }
+    wasScanning.current = scanning;
+  }, [scanning, id, qc]);
+
+  const orderings = useQuery({ queryKey: ['orderings', id], queryFn: () => api.orderings(id!), refetchInterval: scanning ? 3000 : false });
   const seasons = useQuery({
     queryKey: ['seasons', id, showMissing],
     queryFn: () => api.seasons(id!, { missing: showMissing }),
+    refetchInterval: scanning ? 3000 : false,
   });
 
   const setOrdering = useMutation({

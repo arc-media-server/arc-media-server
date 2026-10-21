@@ -18,7 +18,8 @@ const tvdbBase = "https://api4.thetvdb.com/v4"
 
 // TVDB is a client for TheTVDB v4 API.
 type TVDB struct {
-	http *http.Client
+	http  *http.Client
+	cache responseCache
 
 	mu      sync.Mutex
 	key     string
@@ -119,15 +120,7 @@ func (c *TVDB) SearchShows(ctx context.Context, title string, year int) ([]Candi
 // nothing plausible is found.
 func (c *TVDB) SearchSeries(ctx context.Context, title string, year int) (int64, error) {
 	pick := func(results []tvdbSearchResult) int64 {
-		want := Normalize(title)
-		for _, r := range results {
-			if Normalize(r.Name) == want || Normalize(r.Translations["eng"]) == want {
-				id, _ := strconv.ParseInt(r.TVDBID, 10, 64)
-				return id
-			}
-		}
-		id, _ := strconv.ParseInt(results[0].TVDBID, 10, 64)
-		return id
+		return confidentMatch(title, tvdbCandidates(results))
 	}
 
 	results, err := c.searchSeries(ctx, title, year)
@@ -250,6 +243,9 @@ func (c *TVDB) Orderings(ctx context.Context, id int64, seasonTypes []string) ([
 	}
 	var out []Ordering
 	for _, st := range tvdbSeasonTypes {
+		if source := essentialSource(ctx); source != "" && source != st.source {
+			continue
+		}
 		if !has[st.typ] {
 			continue
 		}
@@ -363,8 +359,16 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 	if len(q) > 0 {
 		u += "?" + q.Encode()
 	}
+	c.mu.Lock()
+	cacheKey := c.key + "\x00" + u
+	c.mu.Unlock()
+	if c.cache.load(ctx, cacheKey, out) {
+		return nil
+	}
+	refreshToken, authRetried := false, false
 	for attempt := 0; ; attempt++ {
-		token, err := c.ensureToken(ctx, attempt > 0)
+		token, err := c.ensureToken(ctx, refreshToken)
+		refreshToken = false
 		if err != nil {
 			return err
 		}
@@ -379,15 +383,23 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := c.http.Do(req)
 		if err != nil {
+			if attempt < 2 && ctx.Err() == nil {
+				if e := sleep(ctx, time.Duration(1<<attempt)*250*time.Millisecond); e != nil {
+					return e
+				}
+				continue
+			}
 			return err
 		}
 		switch {
-		case resp.StatusCode == http.StatusUnauthorized && attempt == 0:
+		case resp.StatusCode == http.StatusUnauthorized && !authRetried:
 			resp.Body.Close()
+			authRetried = true
+			refreshToken = true
 			continue // token expired; log in again
-		case resp.StatusCode == http.StatusTooManyRequests && attempt < 3:
+		case retryStatus(resp.StatusCode) && attempt < 3:
 			resp.Body.Close()
-			if err := sleep(ctx, 2*time.Second); err != nil {
+			if err := sleep(ctx, retryDelay(resp, attempt)); err != nil {
 				return err
 			}
 			continue
@@ -398,7 +410,7 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			resp.Body.Close()
 			return fmt.Errorf("tvdb %s: %s", path, resp.Status)
 		}
-		err = json.NewDecoder(resp.Body).Decode(out)
+		err = c.cache.decode(ctx, cacheKey, resp.Body, out)
 		resp.Body.Close()
 		return err
 	}

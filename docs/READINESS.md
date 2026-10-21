@@ -394,3 +394,58 @@ Final local validation passed the production UI build and app/e2e TypeScript che
 22 Chromium journeys without retries (2.1 minutes), `go vet ./...`, `go test ./...`, the
 embedded-server build, fixture-server syntax and diff checks. Desktop movie and 390px TV
 addition screenshots were inspected. GitHub CI for the new commit is separate evidence.
+
+### Scanning implementation (#145)
+
+The owner clarified that approval covers all five scanning recommendations. Implemented:
+
+- Preview keeps successful raw provider responses for up to two hours, bounded to 64MiB/4096
+  entries per provider client. Keys include request/language/API-key identity; region-specific
+  rating selection is recalculated from the raw data. Errors are not cached. Explicit refresh
+  fetches fresh data and invalidates its old response. Add still works without Preview.
+- Watch notifications retain paths and settle independently. Scans normalize changes to their
+  movie/show folders, keep original library roots, queue changes arriving during a scan, and
+  fall back to full reconciliation for root events/large batches. Hourly/manual full scans
+  remain. Missing-file sweeps are confined to completely read scopes; unavailable roots,
+  walk/record failures and untraversed directory symlinks suppress destructive absence claims.
+- Unchanged file presence updates use short batches; unchanged file associations avoid rewrite
+  transactions. Artwork checks enumerate each directory rather than issuing dozens of absent
+  path stats; episode linking shares season-folder enumerations. Sidecar detection and Windows
+  filename case behavior are retained.
+- Discovery feeds six matching workers through a bounded twelve-job queue. Movies match as
+  files arrive; TV matches as show folders finish. Split folders for a show serialize their
+  updates. Workers join before missing-file reconciliation or scan completion, including errors.
+- New TV shows load selected numbering/details and link files before secondary orders. Existing
+  episodes always take the complete mapping path, including after invalidation/provider changes.
+  Secondary failures leave essential data usable and unsynced state durable for restart/retry.
+  The series UI refreshes orders/seasons during scanning and once more when it completes.
+- Ambiguous searches require a strong title score and separation from the next distinct ID;
+  conflicting sequel numbers are rejected. Explicit IDs remain authoritative. Uncertain titles
+  stay visible in Fix Match with an explanation. Transient HTTP/transport failures retry with
+  backoff/Retry-After and cancellation; exhausted scans schedule one retry per library, starting
+  at one minute and capped at fifteen. Old unmatched movies retry during daily reconciliation.
+
+Isolated regression coverage includes both providers, ten ambiguity cases, preview language/key
+separation, fresh explicit refresh, failed-response exclusion, safe Unicode scoped sweeps,
+targeted TV identity, progressive discovery, split show folders, large change-batch fallback and
+changes queued during completion. A blocked TMDB alternate-order fixture checks essential files
+are linked before secondary completion; four 503 responses then a successful delayed retry keep
+episode/file IDs, resume and a custom placement. TVDB→TMDB→TVDB transitions (including invalidated
+metadata during a background rescan) retain locked edits, episode identity, files and watch state.
+
+Sequential local measurements on Windows amd64/Ryzen 7 7700X: synthetic 1,800-movie unchanged
+rescans 0.835–0.853s versus 2.848–2.875s baseline; scoped addition 1.69–2.42ms. TV unchanged
+0.135–0.265s; a scoped 61-file show addition 8.47–10.00ms. A single cold grouping trial took
+1.27s for movies/1.36s for TV (baseline 3.38s/1.61s). The generated 120-movie import with
+200ms local-provider delay/300ms probe delay: direct first match 0.50s, complete 21.66s; including
+Preview first match 12.53s, complete 26.08s. Both now use 240 requests (previous Preview 360).
+Full direct-import completion is essentially unchanged; no universal first-scan speedup claimed.
+See [scanbench](../tools/scanbench/README.md) for commands and detailed measurement limits.
+
+`go vet ./...` and `go test ./...` pass locally against isolated stores and localhost providers.
+The production UI/app/e2e TypeScript build and all 22 Chromium journeys pass (2.1 minutes);
+later thumbnail and reconciliation safeguards are covered by the complete Go regressions.
+Local Go has CGO disabled, so Linux race detection is a separate CI gate. Generated/synthetic
+fixtures do not establish real-library acceptance (#134), real-device playback, physical NAS I/O,
+live-provider match accuracy, peak RAM or sustained-use readiness. No owner data or deployment
+was used or modified.

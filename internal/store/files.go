@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"path/filepath"
+	"strings"
+	"unicode/utf8"
 )
 
 const fileCols = `id, library_id, path, size, mtime, container, duration_ms, bitrate, probe_error,
@@ -105,6 +108,19 @@ func (s *Store) TouchFile(ctx context.Context, id, seenAt int64) error {
 	return err
 }
 
+// TouchFiles marks a small batch of unchanged files present in one short write.
+func (s *Store) TouchFiles(ctx context.Context, ids []int64, seenAt int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	args := []any{seenAt}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE media_files SET last_seen_at = ?, missing_since = NULL WHERE id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
+	return err
+}
+
 // MarkMissing flags files in a library that were not seen since scanStart.
 func (s *Store) MarkMissing(ctx context.Context, libraryID, scanStart, now int64) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `
@@ -116,9 +132,57 @@ func (s *Store) MarkMissing(ctx context.Context, libraryID, scanStart, now int64
 	return res.RowsAffected()
 }
 
+// MarkMissingFolders reconciles only completely visited folders, never their neighbours.
+func (s *Store) MarkMissingFolders(ctx context.Context, libraryID, scanStart, now int64, folders []string) (int64, error) {
+	if len(folders) == 0 {
+		return 0, nil
+	}
+	var conditions []string
+	args := []any{now, libraryID, scanStart}
+	for _, folder := range folders {
+		prefix := filepath.Clean(folder) + string(filepath.Separator)
+		conditions = append(conditions, "(path = ? OR substr(path,1,?) = ?)")
+		args = append(args, folder, utf8.RuneCountInString(prefix), prefix)
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE media_files SET missing_since = ? WHERE library_id = ? AND last_seen_at < ? AND missing_since IS NULL AND (`+strings.Join(conditions, " OR ")+`)`, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // SetFileItems sets exactly which items a file belongs to, detaching it from any others (e.g.
 // after a rename changed what the file parses as). A multi-episode file belongs to several items.
 func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string, part int) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT item_id, part FROM item_files WHERE file_id = ?`, fileID)
+	if err != nil {
+		return err
+	}
+	want := map[string]bool{}
+	for _, id := range itemIDs {
+		want[id] = true
+	}
+	same, count := true, 0
+	for rows.Next() {
+		var id string
+		var existingPart int
+		if err := rows.Scan(&id, &existingPart); err != nil {
+			rows.Close()
+			return err
+		}
+		count++
+		if !want[id] || existingPart != part {
+			same = false
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	if same && count == len(want) {
+		return nil
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err

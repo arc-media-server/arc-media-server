@@ -54,7 +54,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   }, [kind, nameTouched]);
 
   const start = useMutation({
-    mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths }, library?.id),
+    mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths, metadata_language: language }, library?.id),
     onSuccess: (res) => {
       setPreviewId(res.id);
       setStep('preview');

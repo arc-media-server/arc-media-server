@@ -78,3 +78,13 @@ func TestScansAfterChangesSettle(t *testing.T) {
 		t.Fatalf("scans = %v, want one scan of library 7", scans)
 	}
 }
+
+func TestIndependentPathsSettle(t *testing.T) {
+	w := New(func(int64) {}, slog.New(slog.DiscardHandler))
+	now := time.Now()
+	w.dirty[1] = map[string]time.Time{"finished/movie.mkv": now.Add(-settle), "copying/episode.mkv": now}
+	got := w.settled(now)
+	if len(got[1]) != 1 || got[1][0] != "finished/movie.mkv" || len(w.dirty[1]) != 1 {
+		t.Fatalf("settled=%v pending=%v", got, w.dirty)
+	}
+}
