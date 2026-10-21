@@ -182,7 +182,7 @@ _Feature breadth is in place. Prove the existing features work together before a
 _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINESS.md)._
 - [x] Harden forwarded sign-in, HTTPS session cookies and cast-session revocation (#130)
 - [x] Enforce conversion limits under simultaneous playback (#131)
-- [ ] Gate Docker publication on Linux/Windows checks and Linux race/media tests (#132; workflow implemented, verification pending)
+- [x] Gate Docker publication on Linux/Windows checks and Linux race/media tests (#132)
 - [ ] Automate core browser journeys (#133)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
@@ -202,7 +202,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
 - Translate the web app into other languages (react-i18next + Weblate) (#122)
-- Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples
+- Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
 - Fill blank episode details from the other provider (#104)
 - Keep every country's age rating (#105)
 - Per-episode cast and crew, and actor episode counts (#106)

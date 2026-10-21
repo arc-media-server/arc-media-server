@@ -12,7 +12,7 @@ Use isolated databases and copies of data for recovery tests. Never modify the o
 | --- | --- | --- |
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |
 | Conversion admission (#131) | Simultaneous starts respect limits; remux allowed; stopped/failed starts release capacity | Implemented; local regression tests pass |
-| Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Workflow added; GitHub run pending |
+| Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for b5d8e39; see verification below |
 | Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Pending |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Pending |
 | Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Pending |
@@ -55,6 +55,21 @@ ends. File reproducible defects rather than treating a quiet log as proof of cor
 The local checks use temporary stores; the owner's database is not opened or migrated by this work.
 Real-device playback, proxy deployments and sustained use remain pending.
 
+## Verification on 21 October 2026
+
+Code commit: `b5d8e3915614b8f2c854164d9b43cf30099340cb`.
+[GitHub run 39630770097](https://github.com/JonzaUK/arc-media-server/actions/runs/39630770097):
+
+- Windows and Linux: production web build (including TypeScript), `go vet ./...`,
+  `go test ./...`, and the server build with embedded UI passed.
+- Linux: installed FFmpeg, ran media integration tests and `go test -race ./...`; passed.
+- Local Windows checks also passed. With FFmpeg available, fresh tests exercised H.264/HEVC
+  remuxing, generated HDR conversion (detected QSV encoder), subtitles, intro/credits detection
+  and timeline thumbnails. This does not establish real-client compatibility.
+
+The Docker publish job is gated on both check jobs. Image installation/upgrade testing remains
+in #138; successful code checks do not close the Docker packaging issue #123.
+
 ## Alpha exit criteria
 
 - No known critical authentication/access or data-loss defects.
@@ -66,7 +81,7 @@ Real-device playback, proxy deployments and sustained use remain pending.
 
 ## API documentation follow-up
 
-The owner wants an eventual `/docs` page: a maintained OpenAPI contract, searchable reference,
+Issue #139 tracks an eventual `/docs` page: a maintained OpenAPI contract, searchable reference,
 authentication/device-linking/playback/orderings guides and realistic examples. Establish the
 contract while validating API behavior; an interactive documentation UI is separate follow-up
 work, not a reason to postpone authentication or data-integrity fixes. `docs/API.md` remains the

@@ -97,8 +97,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   600 films: all matched in 43 s instead of 449 s (tools/scanbench). Prompted by the owner's Unraid.
 - Milestone 21 started (21 Oct 2026): stability and alpha release readiness (#130–#138).
   First changes fix forwarded home-network bypass, HTTPS cookie protection, revoked cast sessions
-  and concurrent conversion admission, with regression tests. Linux/Windows check jobs now gate
-  Docker publishing; GitHub verification is pending. See docs/READINESS.md for acceptance criteria.
+  and concurrent conversion admission, with regression tests. Linux/Windows checks, Linux race
+  detection and media tests passed for b5d8e39 and now gate Docker publishing. See docs/READINESS.md.
   Next: automated browser journeys, library/recovery tests and real-device/server validation.
   The owner wants an eventual /docs page backed by an OpenAPI contract; docs/API.md is the current reference.
   Never mark hardware, deployment or sustained-use checks complete without actual evidence.
