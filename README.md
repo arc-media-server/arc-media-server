@@ -321,6 +321,23 @@ and can open the router port. Docker Desktop on Windows or Mac uses `ports: ["80
 Graphics cards: pass `/dev/dri` (Intel/AMD), or use the NVIDIA Container Toolkit; both are in the
 example. To build locally: `docker build -t arc .`.
 
+For a non-root container, set Docker's `--user UID:GID` (or Compose `user: "UID:GID"`) and
+prepare `/config` so that user can write to it. The image does not currently interpret
+`PUID`/`PGID`. Keep media mounts read-only. Converted streams can use a separate writable mount;
+choose its path in Settings > Converting.
+
+Before upgrading, stop Arc and preserve the complete `/config` directory on separate storage.
+Built-in backups contain the database only; uploaded artwork and certificates are separate files.
+Keep the previous image's immutable commit tag as well. For rollback, stop Arc and restore the
+saved data directory into a separate location, then run the matching previous image against it.
+An older Arc refuses a database with newer schema versions. Do not run two servers against the
+same data directory. Keep external certificate files, custom conversion locations and media
+mounts available at their original container paths.
+
+The isolated container acceptance check is `node tools/docker-smoke.mjs <local-image>`; it uses
+disposable Docker volumes, no host folders, and no external network. Real-device and NAS trial
+results are tracked separately in [docs/READINESS.md](docs/READINESS.md).
+
 ## API
 
 | Method | Path | |

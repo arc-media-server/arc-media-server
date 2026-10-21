@@ -130,7 +130,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
   safety backups abort upgrades. Online restore now reloads runtime settings (including access
   controls) without online key validation; a real-app browser regression covers the previous
   stale-settings bug. Container acceptance gate added for isolated root/non-root, read-only media,
-  restore/restart/recreation persistence; Docker unavailable locally, initial Linux CI pending.
+  restore/restart/recreation persistence; Docker unavailable locally. First Linux container smoke
+  and Linux/Windows checks passed for 2387a56 (run 39654467547). Cross-image upgrade/snapshot
+  rollback gate now added, pinned to previous 2a7029a image; its first run is pending.
+  More isolated readiness coverage: a killed scanner/store subprocess recovers stable IDs/edits/
+  resume; SQLite capacity-limited writes are atomic and recover; full HTTP metadata sync against
+  local TLS TMDB/TVDB fixtures preserves identity/locks/resume/custom order through provider
+  source switches. Physical full-disk/power-loss and live-provider/real-library checks remain open.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

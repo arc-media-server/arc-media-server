@@ -6,7 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const image = process.argv[2];
-if (!image) throw new Error('Usage: node tools/docker-smoke.mjs <local-image>');
+const previousImage = process.argv[3];
+if (!image) throw new Error('Usage: node tools/docker-smoke.mjs <local-image> [previous-image]');
 const prefix = `arc-smoke-${randomUUID()}`;
 const volumes = [];
 const containers = new Set();
@@ -53,13 +54,13 @@ async function healthy(name) {
   throw new Error('Container did not become healthy');
 }
 
-function start(name, config, media, uid) {
+function start(name, config, media, uid, version = image) {
   containers.add(name);
   docker(['run', '-d', '--name', name, '--network', 'none', '--read-only',
     '--user', `${uid}:${uid}`, '--tmpfs', '/tmp:rw,nosuid,noexec,size=64m',
     '--health-interval', '1s', '--health-start-period', '1s', '--health-timeout', '3s',
     '--mount', `type=volume,source=${config},target=/config`,
-    '--mount', `type=volume,source=${media},target=/media,readonly`, image]);
+    '--mount', `type=volume,source=${media},target=/media,readonly`, version]);
 }
 
 function remove(name) {
@@ -78,7 +79,7 @@ try {
     docker(['run', '--rm', '--network', 'none', '--entrypoint', 'chown',
       '--mount', `type=volume,source=${config},target=/config`, image, `${uid}:${uid}`, '/config']);
     const name = `${prefix}-${uid}`;
-    start(name, config, media, uid);
+    start(name, config, media, uid, previousImage ?? image);
     await healthy(name);
     assert.equal(api(name, '/api/auth/status').setup_needed, true);
     docker(['exec', name, 'ffprobe', '-version']);
@@ -92,6 +93,23 @@ try {
       await delay(250);
     }
     api(name, '/api/settings', 'PATCH', { region: 'GB', max_transcodes: 1 }, 200);
+    let rollback;
+    if (previousImage) {
+      // Preserve a stopped full directory, including files a DB-only backup omits.
+      docker(['exec', name, 'sh', '-c', 'mkdir -p /config/uploads; printf "uploaded fixture" > /config/uploads/smoke.txt']);
+      remove(name);
+      rollback = volume(`rollback-${uid}`);
+      docker(['run', '--rm', '--network', 'none', '--entrypoint', 'sh',
+        '--mount', `type=volume,source=${config},target=/source,readonly`,
+        '--mount', `type=volume,source=${rollback},target=/snapshot`, image,
+        '-c', 'cp -a /source/. /snapshot/']);
+      start(name, config, media, uid);
+      await healthy(name);
+      api(name, '/api/auth/login', 'POST', { password }, 204);
+      api(name, '/api/auth/profile', 'POST', { id: profile }, 200);
+      assert.equal(api(name, '/api/settings').region, 'GB');
+      assert.equal(docker(['exec', name, 'cat', '/config/uploads/smoke.txt']).stdout, 'uploaded fixture');
+    }
     const backup = api(name, '/api/backups', 'POST', undefined, 201);
     api(name, '/api/settings', 'PATCH', { region: 'US', max_transcodes: 3 }, 200);
     api(name, `/api/backups/${backup.name}/restore`, 'POST', undefined, 204);
@@ -113,6 +131,17 @@ try {
     assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
     remove(name);
     console.log(`PASS: uid ${uid}, setup, read-only media, backup/restore, restart and volume persistence`);
+    if (rollback) {
+      start(name, rollback, media, uid, previousImage);
+      await healthy(name);
+      api(name, '/api/auth/login', 'POST', { password }, 204);
+      api(name, '/api/auth/profile', 'POST', { id: profile }, 200);
+      assert.equal(api(name, '/api/settings').region, 'GB');
+      assert.equal(docker(['exec', name, 'cat', '/config/uploads/smoke.txt']).stdout, 'uploaded fixture');
+      assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
+      remove(name);
+      console.log(`PASS: uid ${uid}, earlier-image upgrade and rollback from full stopped-directory snapshot`);
+    }
   }
 } catch (error) {
   for (const name of containers) {
