@@ -108,6 +108,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   ignored. Next: library/recovery tests and real-device/server validation.
   The owner wants an eventual /docs page backed by an OpenAPI contract; docs/API.md is the current reference.
   Never mark hardware, deployment or sustained-use checks complete without actual evidence.
+  Recovery follow-up: backup validation now rejects empty/gapped migration histories; regression
+  coverage restores a genuine schema-3 database and checks edited title/field-lock preservation.
+  Built-in backups contain SQLite only; uploads/certificates need separate preservation (see
+  docs/READINESS.md). #136 remains open for the remaining failure/deployment scenarios.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

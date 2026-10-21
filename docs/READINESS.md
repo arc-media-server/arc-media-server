@@ -112,3 +112,22 @@ authentication/device-linking/playback/orderings guides and realistic examples. 
 contract while validating API behavior; an interactive documentation UI is separate follow-up
 work, not a reason to postpone authentication or data-integrity fixes. `docs/API.md` remains the
 current generated route reference.
+
+## Recovery validation follow-up (21 October 2026)
+
+Store regression tests construct a genuine schema-3 database from the embedded historical SQL,
+restore it online into a current store, and check that its edited title and field lock survive,
+all current migrations apply, and later session columns are usable. Invalid empty, gapped and
+future migration histories must be rejected before the backup manager replaces live data.
+This covers synthetic upgrade/restore behavior, not a real deployment or all of #136.
+Local Windows validation passed: production web build (including TypeScript), `go vet ./...`
+and `go test ./...` with Go 1.27.0 and FFmpeg/ffprobe 9.0.2. The restricted sandbox blocked an
+existing backup test's temporary rename; the suite passed when rerun outside that sandbox.
+
+Built-in `.db` backups contain database state only. They do **not** include uploaded artwork
+in `data/uploads`, TLS material in `data/certs`, or optimized video copies in `data/optimized`.
+For a complete server recovery, stop Arc and copy the entire data directory to separate storage;
+retain media separately at its existing paths. Preserve certificates/private keys securely.
+Provider artwork, subtitle caches, trickplay images and conversion output can be regenerated;
+uploaded artwork cannot be recovered from SQLite alone. Restoring a built-in database backup
+does not roll these separate files back. Packaging/full-directory recovery remains unverified.
