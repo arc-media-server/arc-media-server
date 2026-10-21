@@ -326,3 +326,45 @@ The previous `f3de41d` passed all GitHub jobs in run 39672301946. This pass comp
 production web build, TypeScript/e2e checks, all nineteen Chromium journeys without retries,
 `go vet ./...`, `go test ./...`, the embedded-server build and `git diff --check` locally.
 The current commit's CI outcome must be checked separately; local checks do not establish it.
+
+## Scanning investigation (#145)
+
+The owner reaffirmed Plex-like feature coverage and simple automatic defaults, with a scanning
+investigation before the broader UI/feature gap review. No production scanner/UI behavior was
+changed in this investigation. [Issue #145](https://github.com/JonzaUK/arc-media-server/issues/145)
+tracks proposed work and [the scanbench notes](../tools/scanbench/README.md) record commands,
+measurement boundaries and results.
+
+Against product baseline `c22b671`, a fresh real-server import of 120 generated MP4s with a
+local provider delayed by 200ms and real ffprobe delayed by 300ms finished in 21.97s for direct
+API addition, or 30.06s including a completed Preview. Requests were 240 vs 360: movie Preview
+fetches full details but only its match candidate is reused. The UI allows adding before the
+preview completes, so this is not an enforced minimum wait. The old milestone-20 preview
+timings started after Preview, which excluded that work from the comparison.
+
+Synthetic provider-free/probe-seeded 1,800-movie measurements repeated three times gave
+2.848–2.875s unchanged and 2.872–2.889s with one added file. The watcher discards changed paths,
+debounces the entire library for ten seconds, and requests a full walk. The walk finishes
+before matching begins; unchanged films still check local assets and replace file links.
+For a usual own-folder film without local assets, the current search loops perform 68 artwork
+existence checks plus theme/NFO checks. This is a source-level count, not measured NAS I/O.
+
+TV sync fetches available TVDB metadata/orderings first when configured, then TMDB and its
+orders, before linking files. Fetching essential source numbering/details first and deferring
+secondary orderings could shorten readiness, but requires explicit tests preserving episode
+identity, custom/manual ordering and watch history. Never change canonical numbering silently
+because another provider is faster. Matchers' fallback to the first non-exact provider result
+also needs an ambiguity corpus; no live-library false-match rate was measured.
+
+Recommended work is full preview-metadata reuse, targeted folder scanning with independent
+settling and safe full reconciliation, less unchanged filesystem/DB work, incremental matching,
+prioritized essential TV data and confidence/retry improvements. Existing worker pooling,
+provider pacing, season batching and on-demand probing should remain. Library grids already
+refresh during scans; absent progress updates were not established as a defect.
+
+Plex documents [partial scans and OS/network notification limits](https://support.plex.tv/articles/200289526-library/)
+and [separate maintenance work](https://support.plex.tv/articles/201553286-scheduled-tasks/).
+TMDB documents [changing rate limits and respecting 429s](https://developer.themoviedb.org/docs/rate-limiting).
+These describe reference behavior, not a measured Plex benchmark. All local checks use generated
+or synthetic files and temporary stores; none establish Unraid throughput, physical-disk
+performance, provider accuracy, peak RAM, hardware/device support or sustained-use readiness.

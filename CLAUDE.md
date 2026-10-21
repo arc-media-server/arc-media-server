@@ -164,11 +164,22 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Play handling and selection reset on route/filter changes. Added seven browser checks,
   including fourteen main pages at desktop/narrow widths (page smoke, not every dialog/action).
   See docs/READINESS.md for evidence and limits; no real-device or sustained-use claim.
+  Scanning investigation #145: owner reiterates Plex-like features with simple automatic
+  defaults, few choices and no tuning needed. Broader UI/feature gap review follows scanning.
+  No production scanner behavior changed: added reproducible isolated measurement tools.
+  A 120-film local delayed-provider/probe run took 21.97s direct vs 30.06s including completed
+  Preview; 240 vs 360 provider requests (Preview's full details are fetched again on Add).
+  Synthetic 1,800-movie unchanged and one-add scans both take about 2.85–2.89s in repeated runs.
+  Priorities proposed on #145: retain full preview metadata, targeted/debounced folder scans,
+  skip unchanged work, incremental matching, essential TV data before secondary orders and
+  match-confidence checks. These are proposals, not implemented improvements or Unraid results.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
   irreversible things.
-- Everything must be configurable in the web UI; no config files (issue #66).
+- Necessary user configuration belongs in the web UI; no config files (issue #66). The owner's
+  priority is Plex-like simplicity: choose good automatic defaults, keep advanced choices out
+  of ordinary flows, and don't expose implementation details such as scanner worker/cache knobs.
 - Keep this section current at the end of each working session.
 
 ## Principles (non-negotiable)
