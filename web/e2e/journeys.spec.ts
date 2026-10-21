@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-type Fixtures = { movies: string; shows: string; empty: string };
+type Fixtures = { movies: string; shows: string; empty: string; playback: string };
 const password = 'Arc-browser-test-123';
 
 const test = base.extend<{ media: Fixtures }>({
@@ -53,6 +53,36 @@ async function setup(page: Page) {
   await expect(page.getByRole('dialog', { name: 'Add a Library', exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).last().click();
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
+}
+
+for (const method of ['remux', 'transcode'] as const) {
+  test(`real ${method} stream plays, seeks and resumes`, async ({ page, media }) => {
+    await setup(page);
+    expect((await page.request.patch('/api/settings', { data: { hw_accel: false, max_transcodes: 1 } })).ok()).toBeTruthy();
+    await addLibrary(page, 'Playback fixtures', media.playback);
+    await page.locator('aside').getByRole('link', { name: 'Playback fixtures', exact: true }).click();
+    await page.getByRole('link', { name: method === 'remux' ? /Remux Movie/ : /Transcode Movie/ }).first().click();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    const plan = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    expect((await (await plan).json()).method).toBe(method);
+    const video = page.locator('video');
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
+    for (let i = 0; i < 7; i++) await page.keyboard.press('l');
+    // Converted streams have a relative video clock; the player's position includes offset_ms.
+    await expect.poll(async () => Number(await page.getByRole('slider', { name: 'Position' }).getAttribute('aria-valuenow'))).toBeGreaterThan(65);
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThanOrEqual(2);
+    const saved = page.waitForResponse(r => r.url().endsWith('/progress') && r.request().method() === 'PUT'
+      && r.request().postDataJSON()?.state === 'stopped' && r.ok());
+    await page.getByRole('button', { name: 'Close player', exact: true }).click();
+    expect((await (await saved).json()).position_ms).toBeGreaterThan(65_000);
+    await page.reload();
+    await page.getByRole('button', { name: /^Resume/ }).click();
+    await expect.poll(async () => Number(await page.getByRole('slider', { name: 'Position' }).getAttribute('aria-valuenow'))).toBeGreaterThan(65);
+    await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
+    await page.getByRole('button', { name: 'Close player', exact: true }).click();
+  });
 }
 
 async function preview(page: Page, name: string, path: string, shows = false) {

@@ -108,5 +108,10 @@ func (s *Store) RestoreFrom(ctx context.Context, path string) error {
 	if err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
-	return s.migrate(ctx)
+	if err := s.migrate(ctx); err != nil {
+		return err
+	}
+	// Match normal startup: older backups may predate the derived parental ages,
+	// and rating interpretation may have changed since the backup was written.
+	return s.syncMinAges(ctx)
 }

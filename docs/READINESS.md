@@ -16,10 +16,10 @@ Use isolated databases and copies of data for recovery tests. Never modify the o
 | Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for 49ac1f5 |
 | Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally and in Linux CI |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Synthetic rescan/order/edition/local-asset regressions pass; broader and real-library validation pending |
-| Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Pending |
+| Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Automated Chromium direct/remux/software conversion coverage; actual device matrix pending |
 | Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Isolated upgrade/restore/outage/storage/shutdown checks pass; full-disk, abrupt-exit and deployment recovery pending |
 | Sustained use (#137) | 7–14 days on Unraid; start/end resource measurements, problems recorded | Pending |
-| Packaging (#138) | Fresh Docker install, persistence/permissions, upgrade/rollback, attribution and distribution decisions | Pending |
+| Packaging (#138) | Fresh Docker install, persistence/permissions, upgrade/rollback, attribution and distribution decisions | linux/amd64 install/persistence and pinned-image upgrade/snapshot rollback pass; hardware/ARM/terms pending |
 
 ## Recording results
 
@@ -214,15 +214,19 @@ for `2387a56` in [run 39654467547](https://github.com/JonzaUK/arc-media-server/a
 including both root/non-root scenarios; Linux/Windows check jobs also passed.
 Docker is not installed on this Windows PC; no local container result is claimed.
 
-This gate does not yet prove upgrades between different release images, ARM runtime behavior,
+This gate does not yet prove ARM runtime behavior,
 PUID/PGID convenience support, actual NAS permissions, GPU passthrough, hardware playback,
 external networking, attribution or provider distribution terms. #123/#138 remain open.
+Published provider requirements and the unresolved project-key/subscriber-PIN decision are
+recorded with official sources in [DISTRIBUTION.md](DISTRIBUTION.md); #64/#65 remain release blockers.
 
 The gate now also accepts a previous immutable image tag. On main pushes it seeds that image,
 stops it, copies its complete data volume (including a sentinel in uploads), upgrades the
 original volume to the new image, then runs the previous image against the separate snapshot.
-The pinned baseline is `2a7029a1a0871a459424336146a9fdb73c107001`; initial cross-image CI verification
-is pending. Pull requests run the fresh-install gate without requiring private-registry access.
+The pinned baseline is `2a7029a1a0871a459424336146a9fdb73c107001`; cross-image CI acceptance passed
+for `31597fa` in [run 39655440173](https://github.com/JonzaUK/arc-media-server/actions/runs/39655440173).
+Both root/non-root scenarios passed, including the separately preserved uploads sentinel.
+Pull requests run the fresh-install gate without requiring private-registry access.
 
 ## Additional process/storage/provider checks
 
@@ -243,3 +247,26 @@ is pending. Pull requests run the fresh-install gate without requiring private-r
 
 Local Windows full `go vet ./...` and `go test ./...` pass. The previous `2a7029a` and `b0bb836` GitHub runs completed
 successfully, including Linux race/browser checks, Windows checks and image publication.
+
+## Converted playback regression follow-up (#135)
+
+Generated fixtures extend the Chromium journeys with H.264/AC-3 MKV (remux plus audio conversion)
+and MPEG-2/AC-3 MKV (software H.264 conversion). They verify actual video progression, rapid
+forward skips past one minute, final saved progress and resumed playback. Hardware encoding is
+disabled and the conversion limit is one; these checks do not establish hardware or TV support.
+
+The journeys exposed two player defects: overlapping restart responses could install an older
+stream and lose accumulated skip presses; remux starts at an earlier measured keyframe were
+not advanced to the requested point. Restarts now serialize admission, discard superseded plans,
+release prior sessions, retain the latest requested position and ignore obsolete stream errors.
+HLS playback seeks within its measured output offset. The production web build and all nine
+local Windows Chromium journeys pass without retries, including remux and software conversion
+with a one-conversion limit. Real TV/mobile/HDR/hardware/casting results are still pending.
+
+An additional old-schema restore regression exposed stale derived parental ages. Restore now
+recomputes those ages after migration, as startup already does; the historical rating label
+retains its correct age without requiring a server restart. Local full Go checks pass.
+
+The actual-server trial remains unstarted. [SERVER-TRIAL.md](SERVER-TRIAL.md) supplies a blank
+baseline/daily record and read-only measurement commands for #137; no trial results are inferred
+from these automated tests.

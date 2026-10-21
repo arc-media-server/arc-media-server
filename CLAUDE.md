@@ -132,11 +132,20 @@ The owner works from more than one PC (Windows). On a fresh clone:
   stale-settings bug. Container acceptance gate added for isolated root/non-root, read-only media,
   restore/restart/recreation persistence; Docker unavailable locally. First Linux container smoke
   and Linux/Windows checks passed for 2387a56 (run 39654467547). Cross-image upgrade/snapshot
-  rollback gate now added, pinned to previous 2a7029a image; its first run is pending.
+  rollback gate passed for 31597fa (run 39655440173), pinned to previous 2a7029a image.
   More isolated readiness coverage: a killed scanner/store subprocess recovers stable IDs/edits/
   resume; SQLite capacity-limited writes are atomic and recover; full HTTP metadata sync against
   local TLS TMDB/TVDB fixtures preserves identity/locks/resume/custom order through provider
   source switches. Physical full-disk/power-loss and live-provider/real-library checks remain open.
+  Provider distribution review: docs/DISTRIBUTION.md records official attribution and TVDB project
+  key/PIN guidance. #64/#65 still block public release; the existing private key is not assumed
+  approved for distribution. No provider agreement/registration/contact was made.
+  Further restore/playback checks: old-backup restore now rebuilds derived parental ages. New
+  real Chromium remux/transcode journeys exposed overlapping HLS restart/seek accumulation and
+  remux keyframe-position bugs; fixed with serialized/superseded request handling and relative
+  start positioning. Production web build and all nine local Chromium journeys pass without
+  retries, including converted seeks with a one-conversion limit; full Go checks also pass.
+  docs/SERVER-TRIAL.md is a blank operator record, not evidence that #137 has begun.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

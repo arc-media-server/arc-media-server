@@ -163,6 +163,10 @@ function PlayerOverlay({
   // Where the video element's clock starts in the file (converted streams begin at the seek point).
   const offset = useRef(0);
   const pendingSeek = useRef<number | null>(null);
+  const loadGeneration = useRef(0);
+  const installedGeneration = useRef(0);
+  const loadQueue = useRef(Promise.resolve());
+  const requestedPosition = useRef<number | null>(null);
   // How many times this playback has fallen back to a heavier method after failing.
   const fallbacks = useRef(0);
   const watchdog = useRef<number>(undefined);
@@ -218,7 +222,7 @@ function PlayerOverlay({
   const airplay = useRef(false);
   const [airplayAvailable, setAirplayAvailable] = useState(false);
 
-  const absMS = useCallback(() => offset.current + (video.current?.currentTime ?? 0) * 1000, []);
+  const absMS = useCallback(() => requestedPosition.current ?? offset.current + (video.current?.currentTime ?? 0) * 1000, []);
 
   const report = useCallback(
     (state: 'playing' | 'paused' | 'stopped' = 'playing') => {
@@ -242,70 +246,102 @@ function PlayerOverlay({
   // Start (or restart) playback at a point in the file, optionally with another audio track.
   const load = useCallback(
     async (startMS: number, audioStream?: number, withCaps: PlayerCaps = caps.current) => {
-      caps.current = withCaps;
-      const v = video.current;
-      if (!v) return;
+      const generation = ++loadGeneration.current;
+      requestedPosition.current = startMS;
+      installedGeneration.current = 0;
+      setPositionMS(startMS);
       setLoading(true);
-      setError(null);
-      detach();
-      if (!item.itemId) {
-        // An extra: play the file directly.
-        offset.current = 0;
-        plan.current = null;
-        pendingSeek.current = startMS / 1000;
-        v.src = item.src ?? '';
-        v.play().catch(() => {});
-        return;
-      }
-      let p: PlaybackPlan;
+      window.clearTimeout(watchdog.current);
+      // Serialize admission so superseded conversions release their slot before
+      // the newest seek starts. Queued intermediate seeks need no server request.
+      const previous = loadQueue.current;
+      let release!: () => void;
+      loadQueue.current = new Promise<void>(resolve => { release = resolve; });
+      await previous;
       try {
-        p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
-      } catch (e) {
-        setLoading(false);
-        if (e instanceof ApiError && e.status === 403) setStopped(e.message);
-        else setError(e instanceof Error ? e.message : String(e));
-        return;
-      }
-      plan.current = p;
-      setPlanState(p);
-      setDurationMS(p.duration_ms);
-      offset.current = p.hls ? p.offset_ms : 0;
-      pendingSeek.current = p.hls ? null : startMS / 1000;
-      setReadyMS(offset.current);
-      if (airplay.current) {
-        // The Apple TV fetches the stream itself (HLS natively), without the sign-in cookie.
-        try {
-          v.src = (await api.castLink(p.url)).url;
-        } catch {
-          v.src = p.url;
-        }
-        v.play().catch(() => {});
-        return;
-      }
-      if (!p.hls) {
-        v.src = p.url;
-      } else {
-        const { default: Hls } = await import('hls.js');
-        if (!Hls.isSupported()) {
-          // No Media Source Extensions (iPhone): the browser plays HLS itself.
-          v.src = p.url;
+        if (generation !== loadGeneration.current || !video.current) return;
+        caps.current = withCaps;
+        const v = video.current;
+        if (!v) return;
+        setError(null);
+        detach();
+        const oldSession = plan.current?.session_id;
+        if (oldSession) await api.stopTranscode(oldSession).catch(() => {});
+        if (generation !== loadGeneration.current) return;
+        if (!item.itemId) {
+          // An extra: play the file directly.
+          offset.current = 0;
+          plan.current = null;
+          installedGeneration.current = generation;
+          pendingSeek.current = startMS / 1000;
+          v.src = item.src ?? '';
           v.play().catch(() => {});
           return;
         }
-        const h = new Hls({ startPosition: 0, maxBufferLength: 60, backBufferLength: 120 });
-        h.on(Hls.Events.ERROR, (_e, data) => {
-          if (data.fatal) void onStreamError();
-        });
-        h.loadSource(p.url);
-        h.attachMedia(v);
-        hls.current = h;
+        let p: PlaybackPlan;
+        try {
+          p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
+        } catch (e) {
+          if (generation !== loadGeneration.current) return;
+          setLoading(false);
+          if (e instanceof ApiError && e.status === 403) setStopped(e.message);
+          else setError(e instanceof Error ? e.message : String(e));
+          return;
+        }
+        if (generation !== loadGeneration.current) {
+          if (p.session_id) await api.stopTranscode(p.session_id).catch(() => {});
+          return;
+        }
+        plan.current = p;
+        setPlanState(p);
+        setDurationMS(p.duration_ms);
+        offset.current = p.hls ? p.offset_ms : 0;
+        // A remux can start at an earlier keyframe. Begin at the requested point
+        // within that output, rather than replaying from the measured keyframe.
+        pendingSeek.current = p.hls ? Math.max(0, (startMS - p.offset_ms) / 1000) : startMS / 1000;
+        setReadyMS(offset.current);
+        if (airplay.current) {
+          // The Apple TV fetches the stream itself (HLS natively), without the sign-in cookie.
+          let source = p.url;
+          try {
+            source = (await api.castLink(p.url)).url;
+          } catch { /* Fall back to the authenticated stream. */ }
+          if (generation !== loadGeneration.current) return;
+          installedGeneration.current = generation;
+          v.src = source;
+          v.play().catch(() => {});
+          return;
+        }
+        if (!p.hls) {
+          installedGeneration.current = generation;
+          v.src = p.url;
+        } else {
+          const { default: Hls } = await import('hls.js');
+          if (generation !== loadGeneration.current) return;
+          installedGeneration.current = generation;
+          if (!Hls.isSupported()) {
+            // No Media Source Extensions (iPhone): the browser plays HLS itself.
+            v.src = p.url;
+            v.play().catch(() => {});
+            return;
+          }
+          const h = new Hls({ startPosition: Math.max(0, (startMS - p.offset_ms) / 1000), maxBufferLength: 60, backBufferLength: 120 });
+          h.on(Hls.Events.ERROR, (_e, data) => {
+            if (data.fatal) void onStreamError(generation);
+          });
+          h.loadSource(p.url);
+          h.attachMedia(v);
+          hls.current = h;
+        }
+        v.play().catch(() => {});
+        // Some browsers accept a format and then never show a frame: give up on it after a while.
+        window.clearTimeout(watchdog.current);
+        watchdog.current = window.setTimeout(() => {
+          if (video.current && video.current.readyState < 2) void onStreamError(generation);
+        }, 15_000);
+      } finally {
+        release();
       }
-      v.play().catch(() => {});
-      // Some browsers accept a format and then never show a frame: give up on it after a while.
-      window.clearTimeout(watchdog.current);
-      watchdog.current = window.setTimeout(() => {
-        if (video.current && video.current.readyState < 2) void onStreamError();
-      }, 15_000);
     },
     // onStreamError is stable through refs; listing it would recreate load on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -314,13 +350,15 @@ function PlayerOverlay({
 
   // Something went wrong mid-stream: the admin stopped it, the session expired, or the browser
   // couldn't decode what it said it could.
-  const onStreamError = useCallback(async () => {
+  const onStreamError = useCallback(async (generation = loadGeneration.current) => {
+    if (generation !== loadGeneration.current) return;
     const p = plan.current;
     const at = absMS();
     const url = p?.url ?? item.src;
     if (url) {
       try {
         const res = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+        if (generation !== loadGeneration.current) return;
         if (res.status === 403) {
           const body = await res.json().catch(() => ({}));
           detach();
@@ -331,6 +369,7 @@ function PlayerOverlay({
         // fall through
       }
     }
+    if (generation !== loadGeneration.current) return;
     if (p && p.method !== 'transcode' && fallbacks.current < 2) {
       // The browser couldn't play what it said it could: try the next heavier method.
       fallbacks.current++;
@@ -452,6 +491,7 @@ function PlayerOverlay({
     const onHide = () => report('stopped');
     window.addEventListener('pagehide', onHide);
     return () => {
+      loadGeneration.current++;
       window.removeEventListener('pagehide', onHide);
       detach();
       window.clearTimeout(watchdog.current);
@@ -513,6 +553,10 @@ function PlayerOverlay({
       setPositionMS(t);
       if (!p?.hls) {
         v.currentTime = t / 1000;
+        return;
+      }
+      if (requestedPosition.current !== null) {
+        void load(t, p.audio_stream);
         return;
       }
       const rel = (t - offset.current) / 1000;
@@ -709,7 +753,7 @@ function PlayerOverlay({
 
   const onTimeUpdate = () => {
     const v = video.current;
-    if (!v) return;
+    if (!v || installedGeneration.current !== loadGeneration.current) return;
     setPositionMS(absMS());
     if (v.buffered.length) setBufferedMS(offset.current + v.buffered.end(v.buffered.length - 1) * 1000);
     if (plan.current?.hls && v.seekable.length) setReadyMS(offset.current + v.seekable.end(v.seekable.length - 1) * 1000);
@@ -782,26 +826,35 @@ function PlayerOverlay({
             onClick={togglePlay}
             onDoubleClick={toggleFullscreen}
             onLoadedMetadata={(e) => {
+              if (installedGeneration.current !== loadGeneration.current) return;
               const v = e.currentTarget;
               if (!plan.current) setDurationMS((v.duration || 0) * 1000);
               if (pendingSeek.current) v.currentTime = pendingSeek.current;
               pendingSeek.current = null;
             }}
-            onError={() => void onStreamError()}
+            onError={() => {
+              if (installedGeneration.current === loadGeneration.current) void onStreamError();
+            }}
             onTimeUpdate={onTimeUpdate}
             onWaiting={() => setLoading(true)}
             onPlaying={() => {
+              if (installedGeneration.current !== loadGeneration.current) return;
+              requestedPosition.current = null;
               setLoading(false);
               setPaused(false);
               report('playing');
             }}
-            onCanPlay={() => setLoading(false)}
+            onCanPlay={() => {
+              if (installedGeneration.current === loadGeneration.current) setLoading(false);
+            }}
             onPlay={() => setPaused(false)}
             onPause={() => {
+              if (installedGeneration.current !== loadGeneration.current) return;
               setPaused(true);
               report('paused');
             }}
             onEnded={() => {
+              if (installedGeneration.current !== loadGeneration.current) return;
               setPaused(true);
               report('paused');
               // A pre-roll goes straight on to the movie; anything else counts down first.

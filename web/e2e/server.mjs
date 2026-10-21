@@ -91,6 +91,8 @@ function metadata(url) {
   const query = (url.searchParams.get('query') ?? '').toLowerCase();
   if (p === '/configuration') return { images: {} };
   if (p === '/search/movie') return { results: query === 'arc movie' ? [movie(101, 'Arc Movie')] : query === 'resolved movie' ? [movie(202, 'Resolved Movie')] : [] };
+  if (p === '/movie/404') return movie(404, 'Remux Movie');
+  if (p === '/movie/505') return movie(505, 'Transcode Movie');
   if (p === '/movie/101') return movie(101, 'Arc Movie');
   if (p === '/movie/202') return movie(202, 'Resolved Movie');
   if (p === '/search/tv') return { results: query === 'arc show' ? [show] : [] };
@@ -133,13 +135,17 @@ try {
   if (ffmpeg !== 'ffmpeg') env.PATH = dirname(ffmpeg) + ';' + (env.PATH ?? env.Path ?? '');
   run('go', ['build', '-o', binary, './cmd/ams']);
   const media = join(root, 'media');
-  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), empty: join(media, 'Empty') };
+  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), empty: join(media, 'Empty'), playback: join(media, 'Playback') };
   for (const p of Object.values(fixtures)) await mkdir(p, { recursive: true });
   const sample = join(root, 'sample.mp4');
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=120:size=160x90:rate=10',
     '-f', 'lavfi', '-i', 'sine=duration=120', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-movflags', '+faststart', '-shortest', sample]);
   for (const name of ['Arc Movie (2020).mp4', 'Unmatched Mystery (2020).mp4']) await copyFile(sample, join(fixtures.movies, name));
+  run(ffmpeg, ['-v', 'error', '-y', '-i', sample, '-c:v', 'copy', '-c:a', 'ac3',
+    join(fixtures.playback, 'Remux Movie (2020) {tmdb-404}.mkv')]);
+  run(ffmpeg, ['-v', 'error', '-y', '-i', sample, '-c:v', 'mpeg2video', '-q:v', '4', '-c:a', 'ac3',
+    join(fixtures.playback, 'Transcode Movie (2020) {tmdb-505}.mkv')]);
   const season = join(fixtures.shows, 'Arc Show (2020)', 'Season 01');
   await mkdir(season, { recursive: true });
   for (const n of ['01', '02', '99']) await copyFile(sample, join(season, `Arc Show - S01E${n}.mp4`));
