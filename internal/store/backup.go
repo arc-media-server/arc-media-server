@@ -48,6 +48,7 @@ func CheckBackup(ctx context.Context, path string) error {
 		return errors.New("not an Arc Media Server database")
 	}
 	defer rows.Close()
+	applied := map[string]bool{}
 	for rows.Next() {
 		var v string
 		if err := rows.Scan(&v); err != nil {
@@ -56,8 +57,26 @@ func CheckBackup(ctx context.Context, path string) error {
 		if !known[v] {
 			return fmt.Errorf("backup is from a newer version of Arc Media Server (%s)", v)
 		}
+		applied[v] = true
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(applied) == 0 {
+		return errors.New("not an Arc Media Server database: no applied migrations")
+	}
+	names, err := migrationNames()
+	if err != nil {
+		return err
+	}
+	// A supported older database has a continuous prefix of our migrations. Missing
+	// entries would otherwise be replayed against an incompatible schema after restore.
+	for _, name := range names[:len(applied)] {
+		if !applied[migrationVersion(name)] {
+			return errors.New("backup has an incomplete migration history")
+		}
+	}
+	return nil
 }
 
 // RestoreFrom replaces the whole database with the backup at path, while AMS keeps running,
