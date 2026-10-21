@@ -59,7 +59,8 @@ func (c *castTokens) get(token string) *castGrant {
 		return nil
 	}
 	g.used = time.Now()
-	return g
+	copy := *g
+	return &copy
 }
 
 // Stream links a cast link may stand in for.
@@ -157,6 +158,13 @@ func (s *Server) castStream(w http.ResponseWriter, r *http.Request) {
 	g := s.cast.get(r.PathValue("token"))
 	if g == nil {
 		writeError(w, http.StatusNotFound, "this cast link has run out; cast again")
+		return
+	}
+	// Cast tokens inherit the sender's session; signing the device out, changing its profile or
+	// disabling a home-only session must also prevent its next stream/segment request.
+	se, err := s.store.GetSession(r.Context(), g.session)
+	if err != nil || se == nil || se.UserID != g.userID || (se.Via == "local" && !s.bypassApplies(r)) {
+		writeError(w, http.StatusUnauthorized, "this cast session has ended; sign in and cast again")
 		return
 	}
 	u, err := s.store.GetUser(r.Context(), g.userID)

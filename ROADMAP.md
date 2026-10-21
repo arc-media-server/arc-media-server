@@ -177,6 +177,19 @@ _First scans of big libraries (about 1,800 films on Unraid) are much slower than
 - [x] Measure scan speed on a large, slow library (#128)
 - [x] Reuse the preview's matches when the library is added (#129)
 
+### 21. Stability and release readiness
+_Feature breadth is in place. Prove the existing features work together before an alpha release._
+_Acceptance criteria and verification records: [docs/READINESS.md](docs/READINESS.md)._
+- [x] Harden forwarded sign-in, HTTPS session cookies and cast-session revocation (#130)
+- [x] Enforce conversion limits under simultaneous playback (#131)
+- [ ] Gate Docker publication on Linux/Windows checks and Linux race/media tests (#132; workflow implemented, verification pending)
+- [ ] Automate core browser journeys (#133)
+- [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
+- [ ] Verify playback, hardware conversion and casting on real devices (#135)
+- [ ] Prove failure recovery, upgrades and backup completeness (#136)
+- [ ] Complete a 7–14 day real-server trial with resource measurements (#137)
+- [ ] Verify clean installations and alpha release packaging (#138)
+
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
 - [ ] TheTVDB and TMDB attribution (required by their API terms)
@@ -189,6 +202,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
 - Translate the web app into other languages (react-i18next + Weblate) (#122)
+- Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples
 - Fill blank episode details from the other provider (#104)
 - Keep every country's age rating (#105)
 - Per-episode cast and crew, and actor episode counts (#106)

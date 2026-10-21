@@ -146,6 +146,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		return nil, errors.New("FFmpeg wasn't found, so this file can't be converted")
 	}
 	m.mu.Lock()
+	// Reserve capacity through registration. Releasing the lock before starting the process
+	// lets simultaneous requests all observe the same free slot.
+	defer m.mu.Unlock()
 	dir, max := m.dir, m.maxVideo
 	if max > 0 && !opts.CopyVideo {
 		n := 0
@@ -155,11 +158,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 			}
 		}
 		if n >= max {
-			m.mu.Unlock()
 			return nil, ErrBusy
 		}
 	}
-	m.mu.Unlock()
 	var b [8]byte
 	rand.Read(b[:])
 	s := &Session{ID: hex.EncodeToString(b[:]), Options: opts, OffsetMS: opts.StartMS, lastSeen: time.Now(),
@@ -194,9 +195,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		close(s.done)
 	}()
 
-	m.mu.Lock()
 	m.sessions[s.ID] = s
-	m.mu.Unlock()
 	return s, nil
 }
 

@@ -2,8 +2,25 @@ package auth
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
+
+func TestForwardedRequestsAreNotLocal(t *testing.T) {
+	for _, peer := range []string{"127.0.0.1:45000", "192.168.1.2:45000", "[::1]:45000"} {
+		for header, value := range map[string]string{
+			"Forwarded": "for=203.0.113.5;proto=https", "X-Forwarded-For": "203.0.113.5",
+			"X-Real-IP": "127.0.0.1", "X-Forwarded-Host": "arc.example", "X-Forwarded-Proto": "https",
+		} {
+			r := httptest.NewRequest("GET", "http://arc/", nil)
+			r.RemoteAddr = peer
+			r.Header.Set(header, value)
+			if IsLocal(r) {
+				t.Errorf("forwarded request with %s via %s counted as local", header, peer)
+			}
+		}
+	}
+}
 
 func TestIsLocal(t *testing.T) {
 	tests := []struct {

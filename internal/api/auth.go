@@ -123,9 +123,15 @@ func (s *Server) adminOnly(h http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
-func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
+func (s *Server) setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, MaxAge: 365 * 24 * 3600})
+		Secure: secureCookie(r), SameSite: http.SameSiteLaxMode, MaxAge: 365 * 24 * 3600})
+}
+
+// A proxy's HTTPS hint may only strengthen cookie protection. It never grants local access,
+// and a forged "http" header cannot weaken a connection that Arc serves over TLS itself.
+func secureCookie(r *http.Request) bool {
+	return r.TLS != nil || strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
 }
 
 // signIn starts a session: for an app (device named), it answers with the token for its
@@ -165,7 +171,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID, vi
 	if err := s.store.CreateSession(r.Context(), hash, userID, via, r.UserAgent()); err != nil {
 		return "", err
 	}
-	s.setSessionCookie(w, token)
+	s.setSessionCookie(w, r, token)
 	return hash, nil
 }
 
@@ -434,7 +440,8 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if token := requestToken(r); token != "" {
 		s.store.DeleteSession(r.Context(), auth.HashToken(token))
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
+		Secure: secureCookie(r), SameSite: http.SameSiteLaxMode})
 	w.WriteHeader(http.StatusNoContent)
 }
 
