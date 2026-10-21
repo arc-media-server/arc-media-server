@@ -19,6 +19,54 @@ const test = base.extend<{ media: Fixtures }>({
   },
 });
 
+for (const shows of [false, true]) {
+  test(`adding ${shows ? 'TV' : 'movies'} starts background import without Preview`, async ({ page, media }, info) => {
+    await setup(page);
+    let previews = 0;
+    page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith('/api/library-previews')) previews++; });
+    const dialog = await libraryForm(page, shows ? 'Background TV' : 'Background movies', shows ? media.shows : media.movies, shows);
+    await expect(dialog.getByRole('button', { name: 'Preview folders', exact: true })).not.toBeVisible();
+    if (shows) await page.setViewportSize({ width: 390, height: 900 });
+    await page.screenshot({ path: info.outputPath('add-library.png') });
+    if (shows) await page.setViewportSize({ width: 1280, height: 720 });
+    expect((await fetch('http://127.0.0.1:18200/metadata-delay?ms=1500', { method: 'POST' })).ok).toBe(true);
+    try {
+      const created = page.waitForResponse(r => r.url().endsWith('/api/libraries') && r.request().method() === 'POST' && r.ok());
+      await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
+      const lib = await (await created).json();
+      await expect(dialog).not.toBeVisible();
+      const status = await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json();
+      expect(status.running).toBe(true);
+      await expect(page.locator('aside').getByRole('link', { name: shows ? 'Background TV' : 'Background movies', exact: true })).toBeVisible();
+      expect(previews).toBe(0);
+      await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running, { timeout: 30_000 }).toBe(false);
+      const result = await (await page.request.get(`/api/items?library_id=${lib.id}`)).json();
+      expect(result.items.some((i: { title: string; metadata_state: string }) => i.title === (shows ? 'Arc Show' : 'Arc Movie') && i.metadata_state === 'matched')).toBe(true);
+      expect(previews).toBe(0);
+    } finally {
+      await fetch('http://127.0.0.1:18200/metadata-delay?ms=0', { method: 'POST' });
+    }
+  });
+}
+
+test('direct library addition reports invalid folders and can be retried', async ({ page, media }) => {
+  await setup(page);
+  const dialog = await libraryForm(page, 'Validated library', media.empty);
+  await page.route('**/api/libraries', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const body = route.request().postDataJSON();
+    await route.continue({ postData: JSON.stringify({ ...body, paths: [media.empty + '/missing-fixture-folder'] }) });
+  });
+  await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
+  await expect(dialog.getByText(/can't open/)).toBeVisible();
+  expect((await (await page.request.get('/api/libraries')).json()).length).toBe(0);
+  await page.unroute('**/api/libraries');
+  const created = page.waitForResponse(r => r.url().endsWith('/api/libraries') && r.request().method() === 'POST' && r.ok());
+  await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
+  await created;
+  await expect(dialog).not.toBeVisible();
+});
+
 test('review: desktop and narrow layouts open the main everyday pages', async ({ page, media }, info) => {
   await setup(page);
   const lib = await addLibrary(page, 'Review movies', media.movies);
@@ -264,7 +312,7 @@ for (const method of ['remux', 'transcode'] as const) {
   });
 }
 
-async function preview(page: Page, name: string, path: string, shows = false) {
+async function libraryForm(page: Page, name: string, path: string, shows = false) {
   await page.goto('/libraries');
   await page.getByRole('button', { name: 'Add Library', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -276,8 +324,14 @@ async function preview(page: Page, name: string, path: string, shows = false) {
   await folder.press('Enter');
   await listed;
   await dialog.getByRole('button', { name: 'Use This Folder', exact: true }).click();
+  return dialog;
+}
+
+async function preview(page: Page, name: string, path: string, shows = false) {
+  const dialog = await libraryForm(page, name, path, shows);
+  await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
   const started = page.waitForResponse(r => r.url().endsWith('/api/library-previews') && r.request().method() === 'POST' && r.ok());
-  await dialog.getByRole('button', { name: 'Preview', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Preview folders', exact: true }).click();
   const { id } = await (await started).json();
   await expect(page.getByRole('dialog', { name: `Preview: ${name}`, exact: true })).toBeVisible();
   await expect.poll(async () => (await (await page.request.get(`/api/library-previews/${id}`)).json()).stage).toBe('done');
@@ -285,7 +339,7 @@ async function preview(page: Page, name: string, path: string, shows = false) {
 }
 
 async function addLibrary(page: Page, name: string, path: string, shows = false) {
-  const dialog = await preview(page, name, path, shows);
+  const dialog = await libraryForm(page, name, path, shows);
   const created = page.waitForResponse(r => r.url().endsWith('/api/libraries') && r.request().method() === 'POST' && r.ok());
   await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
   const library = await (await created).json();
@@ -320,7 +374,7 @@ test('setup validation, wrong password, sign-out and fresh sign-in', async ({ pa
   await expect(page.locator('aside')).toBeVisible();
 });
 
-test('movie preview, import and manually fixing an unmatched title persist', async ({ page, media }) => {
+test('background movie import and manually fixing an unmatched title persist', async ({ page, media }) => {
   await setup(page);
   const lib = await addLibrary(page, 'Test Movies', media.movies);
   await page.locator('aside').getByRole('link', { name: 'Test Movies', exact: true }).click();
@@ -347,10 +401,16 @@ test('empty previews and failed preview requests leave the app usable', async ({
   await expect(dialog.getByText('0', { exact: true }).first()).toBeVisible();
   await expect(page.locator('body')).not.toBeEmpty();
   await dialog.getByRole('button', { name: 'Back', exact: true }).click();
+  await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
   await page.route('**/api/library-previews', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Fixture preview unavailable' }) }));
-  await dialog.getByRole('button', { name: 'Preview', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Preview folders', exact: true }).click();
   await expect(dialog.getByText('Fixture preview unavailable', { exact: true })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'Preview', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Preview folders', exact: true })).toBeEnabled();
+  // A failed optional preview must not prevent adding the valid folder directly.
+  const created = page.waitForResponse(r => r.url().endsWith('/api/libraries') && r.request().method() === 'POST' && r.ok());
+  await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
+  await created;
+  await expect(dialog).not.toBeVisible();
 });
 
 test('alternate episode order persists and unplaced files remain visible', async ({ page, media }) => {

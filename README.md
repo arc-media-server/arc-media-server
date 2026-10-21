@@ -22,6 +22,8 @@ Early development. Working today:
   "Compare Orders" shows where each of your episodes lands in another order before you switch
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
   multi-part `cd1`/`part2` files; samples are skipped)
+- Add movie, TV or other-video libraries directly: choose a type and folders, then Add Library.
+  Scanning and matching run in the background. Advanced options include an optional folder preview.
 - Extras: trailers, featurettes, behind the scenes, deleted scenes, interviews and shorts (in
   `Extras/`, `Trailers/`… folders or named `<movie>-trailer.mkv`) shown with their movie or show
 - Fast first scans (as Plex does): titles are identified from their folder and file names and shown

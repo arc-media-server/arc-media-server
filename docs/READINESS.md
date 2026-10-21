@@ -368,3 +368,29 @@ TMDB documents [changing rate limits and respecting 429s](https://developer.them
 These describe reference behavior, not a measured Plex benchmark. All local checks use generated
 or synthetic files and temporary stores; none establish Unraid throughput, physical-disk
 performance, provider accuracy, peak RAM, hardware/device support or sustained-use readiness.
+
+### Direct background library addition (#146)
+
+The owner approved removing Preview from the ordinary add flow. Movie, TV and other-video
+libraries now use Add Library directly; the existing background scan starts on creation.
+Advanced options are collapsed for additions, with Preview folders available there when wanted.
+Existing-library editing opens its settings. Folder existence, overlap and a lightweight read
+check run before saving, without enumerating the entire library or querying metadata providers.
+
+Isolated browser regressions delay the real fixture provider and verify movie/TV creation closes
+the dialog while scanning is still running, registers the library immediately, makes no Preview
+request, and eventually matches the generated title. Invalid-folder creation fails without saving
+a library and succeeds on retry. Optional Preview still handles empty folders and service errors;
+a failed optional preview does not prevent direct addition of the valid folder. Shared helpers
+now use direct addition, exercising it throughout the existing movie/TV/playback/profile journeys.
+Go regression coverage checks readable, missing, non-directory and absent folders; Unix access
+denial is checked only on non-root Unix runs (not claimed from Windows permission bits).
+
+This removes a step and preview work from the default path. Targeted scanning, unchanged-file
+optimizations, complete preview-metadata caching and deferred TV order fetching remain open on
+#145. This change does not establish new Unraid throughput or real-device readiness results.
+
+Final local validation passed the production UI build and app/e2e TypeScript checks, all
+22 Chromium journeys without retries (2.1 minutes), `go vet ./...`, `go test ./...`, the
+embedded-server build, fixture-server syntax and diff checks. Desktop movie and 390px TV
+addition screenshots were inspected. GitHub CI for the new commit is separate evidence.
