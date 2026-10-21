@@ -173,6 +173,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Priorities proposed on #145: retain full preview metadata, targeted/debounced folder scans,
   skip unchanged work, incremental matching, essential TV data before secondary orders and
   match-confidence checks. These are proposals, not implemented improvements or Unraid results.
+  Owner approved direct background library addition (#146): choose a type/folders and Add Library;
+  the existing background scanner handles discovery/matching/probing. Preview folders is optional
+  under Advanced, collapsed when adding; editing still opens existing settings. A lightweight
+  directory-read check complements existence/overlap validation before saving. Browser tests cover
+  movie/TV addition with delayed metadata (dialog closes while scanning), invalid-folder retry and
+  optional-preview errors. Other #145 optimizations remain pending; no throughput gain claimed here.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

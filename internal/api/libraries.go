@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -72,6 +73,16 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		}
 		if !info.IsDir() {
 			return fmt.Errorf("%s isn't a folder", abs)
+		}
+		// Check directory access without walking the media or doing metadata work.
+		folder, err := os.Open(abs)
+		if err != nil {
+			return fmt.Errorf("can't read %s", abs)
+		}
+		_, readErr := folder.Readdirnames(1)
+		folder.Close()
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return fmt.Errorf("can't read %s", abs)
 		}
 		if key := strings.ToLower(abs); !seen[key] {
 			seen[key] = true

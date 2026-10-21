@@ -20,7 +20,7 @@ export const orderings: { value: SourceOrdering; label: string; hint: string }[]
   { value: 'tvdb_absolute', label: 'TheTVDB absolute order', hint: 'Episodes numbered 1, 2, 3… across seasons (common for anime)' },
 ];
 
-/** Adds a library (choose folders, preview what Arc finds, add), or edits one when `library` is set. */
+/** Adds a library for background scanning; a folder preview is optional. */
 export function LibraryEditorDialog({ library, open, onOpenChange }: { library?: Library; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,15 +78,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
         <DialogClose asChild>
           <Button variant="ghost">Cancel</Button>
         </DialogClose>
-        {editing ? (
-          <Button variant="primary" disabled={!paths.length || !name.trim() || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
-        ) : (
-          <Button variant="primary" disabled={!paths.length || !name.trim() || start.isPending} onClick={() => start.mutate()}>
-            {start.isPending && <Loader2 className="animate-spin" />} Preview
-          </Button>
-        )}
+        <Button variant="primary" disabled={!paths.length || !name.trim() || save.isPending || start.isPending} onClick={() => save.mutate()}>
+          {save.isPending && <Loader2 className="animate-spin" />} {editing ? 'Save' : 'Add Library'}
+        </Button>
       </>
     ) : (
       <>
@@ -108,7 +102,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
           ? 'This is what Arc found, before adding anything. Your files are never changed.'
           : editing
             ? 'Change the name or folders. Arc scans the library again when you save.'
-            : 'Choose what kind of library this is and where its files are.'
+            : 'Choose a type and folders. Arc finds titles, matches them and loads artwork in the background.'
       }
       footer={footer}
       className="w-[min(680px,calc(100vw-32px))]"
@@ -119,7 +113,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
         <div className="space-y-6 pb-2">
           {!editing && (
             <Field label="Type">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <KindCard icon={<Film />} label="Movies" selected={kind === 'movies'} onSelect={() => setKind('movies')} />
                 <KindCard icon={<Tv />} label="TV Shows" selected={kind === 'shows'} onSelect={() => setKind('shows')} />
                 <KindCard icon={<Clapperboard />} label="Other Videos" selected={kind === 'videos'} onSelect={() => setKind('videos')} />
@@ -170,103 +164,116 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               )}
             </div>
           </Field>
-          {kind === 'shows' && (
-            <Field label="Episode numbering in your file names">
-              <div className="relative">
-                <select value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
-                  {orderings.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
-              </div>
-              <p className="mt-1.5 text-xs text-subtle">
-                {orderings.find((o) => o.value === ordering)?.hint}. This is only how files are named; you can show each series in any
-                order later.
-              </p>
-            </Field>
-          )}
-          {kind === 'movies' && (
-            <Field label="Automatic collections">
-              <select value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
-                <option value={0}>Off</option>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    When I have {n === 1 ? 'any film' : `${n} or more films`} from one
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
-            </Field>
-          )}
-          {kind !== 'videos' && (
-            <Field label="Collections in the library">
-              <select value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
-                {(['items', 'collection', 'both'] as const).map((m) => (
-                  <option key={m} value={m}>
-                    {gridLabels[m]}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
-            </Field>
-          )}
-          {kind !== 'videos' && (
-          <Field label="Metadata language">
-            <div className="relative">
-              <select value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
-                {metadataLanguages.map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
+          <details open={editing || undefined} className="rounded-2xl border border-border p-4">
+            <summary className="cursor-pointer text-sm font-medium">Advanced</summary>
+            <div className="mt-4 space-y-6">
+              {kind === 'shows' && (
+                <Field label="Episode numbering in your file names">
+                  <div className="relative">
+                    <select value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
+                      {orderings.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
+                  </div>
+                  <p className="mt-1.5 text-xs text-subtle">
+                    {orderings.find((o) => o.value === ordering)?.hint}. This is only how files are named; you can show each series in any
+                    order later.
+                  </p>
+                </Field>
+              )}
+              {kind === 'movies' && (
+                <Field label="Automatic collections">
+                  <select value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
+                    <option value={0}>Off</option>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        When I have {n === 1 ? 'any film' : `${n} or more films`} from one
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
+                </Field>
+              )}
+              {kind !== 'videos' && (
+                <Field label="Collections in the library">
+                  <select value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
+                    {(['items', 'collection', 'both'] as const).map((m) => (
+                      <option key={m} value={m}>
+                        {gridLabels[m]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
+                </Field>
+              )}
+              {kind !== 'videos' && (
+              <Field label="Metadata language">
+                <div className="relative">
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
+                    {metadataLanguages.map(([code, name]) => (
+                      <option key={code} value={code}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
+                </div>
+                <p className="mt-1.5 text-xs text-subtle">
+                  {language && !language.startsWith('en')
+                    ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
+                    : 'The language titles and descriptions are shown in.'}
+                  {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
+                </p>
+              </Field>
+              )}
+              <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+                <span>
+                  <span className="block text-sm font-medium">Scrubbing previews</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                    Show a picture while dragging along the timeline. Arc makes them in the background, which takes a little time and about
+                    5 MB per film. Turning this off deletes them.
+                  </span>
+                </span>
+                <Switch checked={trickplay} onCheckedChange={setTrickplay} aria-label="Scrubbing previews" />
+              </label>
+              {kind === 'shows' && (
+                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+                  <span>
+                    <span className="block text-sm font-medium">Skip intros</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                      Offer Skip Intro and Skip Recap. Arc finds them from chapters, online databases, or by comparing a season&apos;s episodes.
+                    </span>
+                  </span>
+                  <Switch checked={skipIntros} onCheckedChange={setSkipIntros} aria-label="Skip intros" />
+                </label>
+              )}
+              {kind !== 'videos' && (
+                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
+                  <span>
+                    <span className="block text-sm font-medium">Skip credits</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
+                      {kind === 'shows'
+                        ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.'
+                        : 'Offer Skip Credits. Arc finds them from chapters, TheIntroDB, or by spotting the closing credits at night.'}
+                    </span>
+                  </span>
+                  <Switch checked={skipCredits} onCheckedChange={setSkipCredits} aria-label="Skip credits" />
+                </label>
+              )}
+              {!editing && (
+                <div>
+                  <Button variant="secondary" size="sm" disabled={!paths.length || !name.trim() || start.isPending || save.isPending} onClick={() => start.mutate()}>
+                    {start.isPending && <Loader2 className="animate-spin" />} Preview folders
+                  </Button>
+                  <p className="mt-1.5 text-xs text-subtle">Optional: check what Arc would find before adding the library.</p>
+                </div>
+              )}
             </div>
-            <p className="mt-1.5 text-xs text-subtle">
-              {language && !language.startsWith('en')
-                ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
-                : 'The language titles and descriptions are shown in.'}
-              {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
-            </p>
-          </Field>
-          )}
-          <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-            <span>
-              <span className="block text-sm font-medium">Scrubbing previews</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                Show a picture while dragging along the timeline. Arc makes them in the background, which takes a little time and about
-                5 MB per film. Turning this off deletes them.
-              </span>
-            </span>
-            <Switch checked={trickplay} onCheckedChange={setTrickplay} aria-label="Scrubbing previews" />
-          </label>
-          {kind === 'shows' && (
-            <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-              <span>
-                <span className="block text-sm font-medium">Skip intros</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                  Offer Skip Intro and Skip Recap. Arc finds them from chapters, online databases, or by comparing a season&apos;s episodes.
-                </span>
-              </span>
-              <Switch checked={skipIntros} onCheckedChange={setSkipIntros} aria-label="Skip intros" />
-            </label>
-          )}
-          {kind !== 'videos' && (
-            <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-              <span>
-                <span className="block text-sm font-medium">Skip credits</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                  {kind === 'shows'
-                    ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.'
-                    : 'Offer Skip Credits. Arc finds them from chapters, TheIntroDB, or by spotting the closing credits at night.'}
-                </span>
-              </span>
-              <Switch checked={skipCredits} onCheckedChange={setSkipCredits} aria-label="Skip credits" />
-            </label>
-          )}
+          </details>
         </div>
       )}
     </DialogContent>
