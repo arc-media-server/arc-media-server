@@ -10,6 +10,10 @@ import (
 // Construct an actual earlier schema, rather than deleting migration records
 // from a current database (which does not simulate an upgrade).
 func oldBackup(t *testing.T) string {
+	return oldBackupThrough(t, 3)
+}
+
+func oldBackupThrough(t *testing.T, count int) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "old.db")
 	db, err := sql.Open("sqlite", p)
@@ -24,7 +28,7 @@ func oldBackup(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range names[:3] {
+	for _, name := range names[:count] {
 		body, err := migrationsFS.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
@@ -42,6 +46,30 @@ func oldBackup(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+func TestRestoreEarlierSchemaRebuildsRatingAges(t *testing.T) {
+	ctx := context.Background()
+	p := oldBackupThrough(t, 8) // Rating labels existed before derived parental ages.
+	db, err := sql.Open("sqlite", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE items SET content_rating='15' WHERE id='movie'`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := openTest(t)
+	if err := s.RestoreFrom(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	var age int
+	if err := s.db.QueryRow(`SELECT min_age FROM items WHERE id='movie'`).Scan(&age); err != nil {
+		t.Fatal(err)
+	}
+	if age != 15 {
+		t.Fatalf("restored rating has age %d, want 15 without restarting Arc", age)
+	}
 }
 
 func TestRestoreEarlierSchema(t *testing.T) {
