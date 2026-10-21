@@ -369,16 +369,21 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 // root or part of it couldn't be read, e.g. a drive is offline.
 func walkVideos(ctx context.Context, root string, log *slog.Logger, visit func(path string, d fs.DirEntry),
 	extra func(path string, d fs.DirEntry, ex extraFile)) (complete bool, err error) {
-	if _, err := os.Stat(root); err != nil {
+	info, err := os.Stat(root)
+	if err != nil {
 		log.Warn("library folder unavailable", "path", root, "err", err)
+		return false, nil
+	}
+	if !info.IsDir() {
+		log.Warn("library folder unavailable", "path", root, "err", "path is not a directory")
 		return false, nil
 	}
 	complete = true
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			complete = false
 			log.Warn("cannot read", "path", path, "err", err)
 			if d != nil && d.IsDir() {
-				complete = false
 				return fs.SkipDir
 			}
 			return nil

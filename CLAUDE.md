@@ -112,6 +112,15 @@ The owner works from more than one PC (Windows). On a fresh clone:
   coverage restores a genuine schema-3 database and checks edited title/field-lock preservation.
   Built-in backups contain SQLite only; uploads/certificates need separate preservation (see
   docs/READINESS.md). #136 remains open for the remaining failure/deployment scenarios.
+  More #136 regressions now cover missing/restored synthetic media roots/files, scan cancellation,
+  provider 503/retry, blocked backup/conversion storage, corrupt restore rejection, restore undo,
+  FFmpeg shutdown and stale conversion output cleanup. A root replaced by a regular file is now
+  treated as unavailable, and every walk error disables missing-file sweeping. Local Windows
+  checks pass; physical/full-disk, abrupt-server-exit and complete deployment recovery remain open.
+  #134 synthetic scanner integration checks pass for multi-episode files, specials, unknown
+  episodes, repeated scans, custom display/manual placements and resume, movie editions/remakes,
+  local poster/NFO and unchanged source bytes. Representative real-library/large-library and
+  broader anime/provider-switch validation remain open; do not close #134 from these fixtures.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
