@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import type HlsType from 'hls.js';
@@ -442,14 +442,17 @@ function PlayerOverlay({
     return () => cancelAnimationFrame(raf);
   }, [cues, absMS]);
 
-  // Start playing when the player opens; end the conversion and save progress when it closes.
+  // Save while the video ref still exists. Passive effect cleanup runs after React detaches
+  // the element, losing the final position if no periodic report has been sent yet.
+  useLayoutEffect(() => () => report('stopped'), [report]);
+
+  // Start playing when the player opens; end the conversion when it closes.
   useEffect(() => {
     void load(item.startMS ?? 0);
     const onHide = () => report('stopped');
     window.addEventListener('pagehide', onHide);
     return () => {
       window.removeEventListener('pagehide', onHide);
-      onHide();
       detach();
       window.clearTimeout(watchdog.current);
       const sid = plan.current?.session_id;

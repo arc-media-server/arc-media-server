@@ -99,7 +99,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
   First changes fix forwarded home-network bypass, HTTPS cookie protection, revoked cast sessions
   and concurrent conversion admission, with regression tests. Linux/Windows checks, Linux race
   detection and media tests passed for b5d8e39 and now gate Docker publishing. See docs/READINESS.md.
-  Next: automated browser journeys, library/recovery tests and real-device/server validation.
+  Browser journeys (#133) implemented: six Playwright Chromium tests pass locally against the real
+  embedded app, fresh temporary databases, generated clips and local metadata. Linux CI verification
+  is pending. They found #140, final resume progress lost on player close; fixed with layout cleanup.
+  Run from web: `npx playwright install chromium`, then `npm run test:e2e` (Go/FFmpeg required).
+  Ports 18199/18200 must be free; never point the harness at owner data. Failure reports/traces stay
+  ignored. Next: library/recovery tests and real-device/server validation.
   The owner wants an eventual /docs page backed by an OpenAPI contract; docs/API.md is the current reference.
   Never mark hardware, deployment or sustained-use checks complete without actual evidence.
 - The owner has said to keep working through milestones without check-ins. For product decisions,

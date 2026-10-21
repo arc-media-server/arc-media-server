@@ -51,6 +51,28 @@ jobs:
         run: go test -race ./... -timeout 15m
       - name: Build server with embedded web app
         run: go build ./cmd/ams
+      - name: Install browser for regression tests
+        if: runner.os == 'Linux'
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Check browser tests
+        if: runner.os == 'Linux'
+        working-directory: web
+        run: npx tsc -p e2e/tsconfig.json
+      - name: Run browser journeys against isolated Arc server
+        if: runner.os == 'Linux'
+        working-directory: web
+        run: npm run test:e2e:only
+      - name: Save browser report and failure evidence
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
   build:
     needs: checks
     if: github.event_name != 'pull_request'

@@ -272,6 +272,23 @@ The current readiness checklist and required evidence are in [docs/READINESS.md]
 GitHub runs the web build and Go checks on Linux and Windows before publishing a Docker image.
 Linux also runs media tests with FFmpeg and checks for data races.
 
+Browser regressions run against the real server using generated clips, local metadata fixtures
+and a new temporary database for every test. No personal API keys, settings or media are used.
+
+```sh
+cd web
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+
+FFmpeg and Go must be available (the harness also finds Windows winget FFmpeg). Ports 18199 and
+18200 must be free. The harness builds the server, starts it with an explicit temporary data
+folder and `-config none`, and stops it and removes its own temporary directory at the end.
+The report is in `web/playwright-report`; failed tests retain screenshots, video and traces.
+CI runs these journeys on Linux before Docker publication. Real-device playback is a separate
+readiness task; Chromium fixture tests do not establish TV, casting or GPU compatibility.
+
 ### Reverse proxies and sign-in
 
 A reverse proxy must overwrite/set `Forwarded` or `X-Forwarded-For` on every forwarded request.

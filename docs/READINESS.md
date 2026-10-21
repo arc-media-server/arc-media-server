@@ -13,7 +13,8 @@ Use isolated databases and copies of data for recovery tests. Never modify the o
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |
 | Conversion admission (#131) | Simultaneous starts respect limits; remux allowed; stopped/failed starts release capacity | Implemented; local regression tests pass |
 | Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for b5d8e39; see verification below |
-| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Pending |
+| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally; Linux CI pending |
+| Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Pending |
 | Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Pending |
 | Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Pending |
@@ -78,6 +79,25 @@ in #138; successful code checks do not close the Docker packaging issue #123.
 - Fresh installation, supported upgrade, backup recovery and rollback are demonstrated.
 - Sustained server trial has no unexplained resource growth or unresolved critical failures.
 - Required attribution, distribution terms and installation/support documentation are ready.
+
+## Browser regression suite (#133)
+
+`web/e2e` uses Playwright Chromium against the production embedded app, a local TMDB stand-in,
+generated H.264/AAC clips and a fresh temporary store for each test. Inherited `AMS_*` environment
+variables are removed; the owner's settings, keys and media are not read. Browser internet requests
+are blocked. Metadata, marker and ratings services point to local stand-ins.
+
+Six journeys cover setup/password validation and sign-out/in; movie preview/import and fixing an
+unmatched title; empty previews and service errors; alternate episode orders and unplaced files;
+wrong/correct profile PINs and library/admin restrictions; real playback and persisted resume.
+
+The player journey exposed #140: passive unmount cleanup ran after the video ref was cleared,
+so the last position was not saved. Saving in layout cleanup fixes it. The test seeks beyond Arc's
+intentional one-minute resume threshold, verifies a final `stopped` save, reloads, then plays from
+the saved point. The local run passed all six journeys and captured the saved 1:10 resume point.
+
+Linux CI runs the suite with no retries and uploads the HTML report and failure traces/screenshots/
+video for seven days. These tests do not replace the device matrix or sustained server trial.
 
 ## API documentation follow-up
 
