@@ -355,7 +355,7 @@ export interface LibraryHealth {
   missing_episodes: { series: Item; ordering: string; have: number; unplaced: number; missing: MissingEpisode[] }[];
 }
 
-export type BackupReason = 'auto' | 'manual' | 'before-restore' | 'before-upgrade';
+export type BackupReason = 'auto' | 'manual' | 'before-restore' | 'before-upgrade' | 'before-delete';
 
 export interface Backup {
   name: string;

@@ -1,7 +1,7 @@
 // Test-only supervisor. Runs the real embedded app against fresh temporary stores and a local
 // metadata service. It never opens the owner's data, config, keys or media.
 import { createServer } from 'node:http';
-import { mkdtemp, mkdir, copyFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, mkdir, copyFile, rm, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -142,6 +142,9 @@ try {
     '-f', 'lavfi', '-i', 'sine=duration=120', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-movflags', '+faststart', '-shortest', sample]);
   for (const name of ['Arc Movie (2020).mp4', 'Unmatched Mystery (2020).mp4']) await copyFile(sample, join(fixtures.movies, name));
+  for (const [language, text] of [['eng', 'English fixture subtitle'], ['fre', 'French fixture subtitle']]) {
+    await writeFile(join(fixtures.movies, `Arc Movie (2020).${language}.srt`), `1\n00:00:00,000 --> 00:02:00,000\n${text}\n`);
+  }
   run(ffmpeg, ['-v', 'error', '-y', '-i', sample, '-c:v', 'copy', '-c:a', 'ac3',
     join(fixtures.playback, 'Remux Movie (2020) {tmdb-404}.mkv')]);
   run(ffmpeg, ['-v', 'error', '-y', '-i', sample, '-c:v', 'mpeg2video', '-q:v', '4', '-c:a', 'ac3',

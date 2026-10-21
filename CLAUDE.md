@@ -96,6 +96,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   afterwards (3 at a time; Play reads an unread file on the spot), preview matches reused, progress shown.
   600 films: all matched in 43 s instead of 449 s (tools/scanbench). Prompted by the owner's Unraid.
 - Milestone 21 started (21 Oct 2026): stability and alpha release readiness (#130–#138).
+  Owner clarification: Arc already runs successfully in their Unraid Docker container; installation
+  is not the problem. Prioritize reproducible bugs in Arc's everyday behavior over additional
+  packaging/installation work. Features remain paused while stability is the focus. This report
+  is real deployment evidence, not a claim of completed timed resource/device measurements.
   First changes fix forwarded home-network bypass, HTTPS cookie protection, revoked cast sessions
   and concurrent conversion admission, with regression tests. Linux/Windows checks, Linux race
   detection and media tests passed for b5d8e39 and now gate Docker publishing. See docs/READINESS.md.
@@ -146,6 +150,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   start positioning. Production web build and all nine local Chromium journeys pass without
   retries, including converted seeks with a one-conversion limit; full Go checks also pass.
   docs/SERVER-TRIAL.md is a blank operator record, not evidence that #137 has begun.
+  Everyday bug fixes (#141–#143): late subtitle responses no longer override a new language/Off;
+  Continue Watching filters dismissals and profile restrictions before limiting results (older
+  visible resumes previously disappeared); removal safety backups are labelled correctly.
+  Regressions use delayed real subtitle responses, movie/episode API fixtures and actual isolated
+  library removal. Twelve browser journeys and Go regression checks cover the changes.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

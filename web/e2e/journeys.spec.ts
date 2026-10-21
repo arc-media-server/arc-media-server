@@ -55,6 +55,59 @@ async function setup(page: Page) {
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
 }
 
+for (const next of ['French', 'Off'] as const) {
+  test(`late subtitle response cannot replace ${next}`, async ({ page, media }, testInfo) => {
+    await setup(page);
+    await addLibrary(page, 'Subtitle fixtures', media.movies);
+    await page.locator('aside').getByRole('link', { name: 'Subtitle fixtures', exact: true }).click();
+    await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    let first = true;
+    await page.route('**/api/items/*/subtitles/*', async route => {
+      if (!first) return route.continue();
+      first = false;
+      const response = await route.fetch();
+      await held;
+      await route.fulfill({ response });
+    });
+    try {
+      await page.getByRole('button', { name: 'Subtitles (C)', exact: true }).click();
+      await page.getByRole('menuitem', { name: /^English/ }).click();
+      await expect.poll(() => first).toBe(false);
+      await page.getByRole('button', { name: 'Subtitles (C)', exact: true }).click();
+      await page.getByRole('menuitem', { name: next === 'Off' ? 'Off' : /^French/ }).click();
+      if (next === 'French') await expect(page.locator('[data-subtitles]')).toHaveText('French fixture subtitle');
+      const late = page.waitForResponse(r => r.url().includes('/subtitles/') && r.ok());
+      release();
+      await late;
+      // Wait until the browser has processed the delivered response and a cue animation frame.
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      if (next === 'French') await expect(page.locator('[data-subtitles]')).toHaveText('French fixture subtitle');
+      else await expect(page.locator('[data-subtitles]')).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath('subtitle-selection.png') });
+    } finally {
+      release();
+    }
+    await page.getByRole('button', { name: 'Close player', exact: true }).click();
+  });
+}
+
+test('removing a library labels its safety backup correctly', async ({ page, media }) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Temporary library', media.movies);
+  expect((await page.request.delete(`/api/libraries/${lib.id}`)).ok()).toBeTruthy();
+  const backups = await (await page.request.get('/api/backups')).json();
+  expect(backups.backups.some((b: { reason: string }) => b.reason === 'before-delete')).toBe(true);
+  await page.goto('/backups');
+  await expect(page.getByText(/Saved before a removal/)).toBeVisible();
+  await expect(page.getByText(/Backed up by you/)).toHaveCount(0);
+});
+
 for (const method of ['remux', 'transcode'] as const) {
   test(`real ${method} stream plays, seeks and resumes`, async ({ page, media }) => {
     await setup(page);

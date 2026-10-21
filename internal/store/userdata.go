@@ -164,13 +164,19 @@ func (s *Store) UnwatchedCounts(ctx context.Context, userID string, seriesIDs []
 
 // InProgress lists the movies and episodes a profile is part-way through (with a file on disk),
 // most recently watched first.
-func (s *Store) InProgress(ctx context.Context, userID string, limit int) ([]Item, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+prefixCols("i.", itemCols)+` FROM user_item_data u
+func (s *Store) InProgress(ctx context.Context, userID string, limit int, acc Access) ([]Item, error) {
+	q := `SELECT ` + prefixCols("i.", itemCols) + ` FROM user_item_data u
 		JOIN items i ON i.id = u.item_id
 		WHERE u.user_id = ? AND u.position_ms > 0 AND i.kind IN ('movie', 'episode')
 			AND EXISTS (SELECT 1 FROM item_files f JOIN media_files m ON m.id = f.file_id
 				WHERE f.item_id = i.id AND m.missing_since IS NULL)
-		ORDER BY u.last_played_at DESC LIMIT ?`, userID, limit)
+			AND NOT EXISTS (SELECT 1 FROM continue_dismissed d
+				WHERE d.user_id = u.user_id AND (d.item_id = i.id OR d.item_id = i.parent_id)
+				AND d.at >= COALESCE(u.last_played_at, 0))`
+	// Filter before LIMIT: hidden or inaccessible recent titles must not crowd out
+	// an older resume point the profile can still see.
+	q, args := acc.Where("i", q, []any{userID})
+	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC, i.id LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
