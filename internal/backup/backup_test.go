@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -10,6 +11,156 @@ import (
 
 	"ams/internal/store"
 )
+
+func TestBackupStorageFailureRecovers(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	st, err := store.Open(ctx, filepath.Join(dir, "ams.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, err := st.SyncLibrary(ctx, "Keep me", "movies", "tmdb_aired", []string{"/fixture"}); err != nil {
+		t.Fatal(err)
+	}
+	blocked := filepath.Join(dir, "backups")
+	// A file obstructing the directory reliably simulates unavailable storage on Windows
+	// and Linux without changing permissions on any real disk.
+	if err := os.WriteFile(blocked, []byte("obstruction"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m := New(blocked, st, slog.New(slog.DiscardHandler))
+	if _, err := m.Create(ctx, ReasonManual); err == nil {
+		t.Fatal("backup unexpectedly succeeded")
+	}
+	libs, err := st.ListLibraries(ctx)
+	if err != nil || len(libs) != 1 || libs[0].Name != "Keep me" {
+		t.Fatalf("live data changed: %v %v", libs, err)
+	}
+	if err := os.Remove(blocked); err != nil {
+		t.Fatal(err)
+	}
+	b, err := m.Create(ctx, ReasonManual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CheckBackup(ctx, filepath.Join(blocked, b.Name)); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(blocked)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("incomplete backup files remain: %v %v", entries, err)
+	}
+}
+
+func TestInvalidRestoreLeavesLiveData(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	st, err := store.Open(ctx, filepath.Join(dir, "ams.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, err := st.SyncLibrary(ctx, "Keep me", "movies", "tmdb_aired", []string{"/fixture"}); err != nil {
+		t.Fatal(err)
+	}
+	m := New(filepath.Join(dir, "backups"), st, slog.New(slog.DiscardHandler))
+	if err := os.MkdirAll(m.Dir(), 0755); err != nil {
+		t.Fatal(err)
+	}
+	name := "ams-20260101-000000-manual.db"
+	if err := os.WriteFile(filepath.Join(m.Dir(), name), []byte("not SQLite"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Restore(ctx, name); err == nil {
+		t.Fatal("corrupt backup accepted")
+	}
+	libs, err := st.ListLibraries(ctx)
+	if err != nil || len(libs) != 1 || libs[0].Name != "Keep me" {
+		t.Fatalf("live data changed: %v %v", libs, err)
+	}
+	entries, err := os.ReadDir(m.Dir())
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("rejected restore created files: %v %v", entries, err)
+	}
+}
+
+func TestRestoreAndUndoPreserveSettingsEditsAndResume(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	st, err := store.Open(ctx, filepath.Join(dir, "ams.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lib, err := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{"/fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _, err := st.EnsureItem(ctx, &store.Item{LibraryID: lib, Kind: "movie", Title: "Original"}, "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := st.CreateUser(ctx, "Viewer", false, "blue", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := func(title string, position int64) {
+		t.Helper()
+		if err := st.EditItem(ctx, id, store.ItemEdit{Title: &title}); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SetSetting(ctx, "server_name", title); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := st.ReportProgress(ctx, u.ID, id, position, 7200000); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check := func(title string, position int64) {
+		t.Helper()
+		it, err := st.GetItem(ctx, id)
+		if err != nil || it == nil || it.Title != title || len(it.LockedFields) != 1 || it.LockedFields[0] != "title" {
+			t.Fatalf("item=%+v err=%v", it, err)
+		}
+		name, err := st.Setting(ctx, "server_name")
+		if err != nil || name != title {
+			t.Fatalf("setting=%q err=%v", name, err)
+		}
+		data, err := st.UserDataFor(ctx, u.ID, []string{id})
+		if err != nil || data[id].PositionMS != position {
+			t.Fatalf("resume=%+v err=%v", data, err)
+		}
+	}
+	set("Backed up", 120000)
+	m := New(filepath.Join(dir, "backups"), st, slog.New(slog.DiscardHandler))
+	b, err := m.Create(ctx, ReasonManual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set("Before restore", 240000)
+	if err := m.Restore(ctx, b.Name); err != nil {
+		t.Fatal(err)
+	}
+	check("Backed up", 120000)
+	list, err := m.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var safety string
+	for _, b := range list {
+		if b.Reason == ReasonBeforeRestore {
+			safety = b.Name
+		}
+	}
+	if safety == "" {
+		t.Fatal("missing undo backup")
+	}
+	if err := m.Restore(ctx, safety); err != nil {
+		t.Fatal(err)
+	}
+	check("Before restore", 240000)
+}
 
 func TestBackupAndRestore(t *testing.T) {
 	ctx := context.Background()

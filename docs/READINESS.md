@@ -15,9 +15,9 @@ Use isolated databases and copies of data for recovery tests. Never modify the o
 | Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for b5d8e39; see verification below |
 | Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for 49ac1f5 |
 | Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally and in Linux CI |
-| Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Pending |
+| Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Synthetic rescan/order/edition/local-asset regressions pass; broader and real-library validation pending |
 | Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Pending |
-| Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Pending |
+| Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Isolated upgrade/restore/outage/storage/shutdown checks pass; full-disk, abrupt-exit and deployment recovery pending |
 | Sustained use (#137) | 7–14 days on Unraid; start/end resource measurements, problems recorded | Pending |
 | Packaging (#138) | Fresh Docker install, persistence/permissions, upgrade/rollback, attribution and distribution decisions | Pending |
 
@@ -131,3 +131,40 @@ retain media separately at its existing paths. Preserve certificates/private key
 Provider artwork, subtitle caches, trickplay images and conversion output can be regenerated;
 uploaded artwork cannot be recovered from SQLite alone. Restoring a built-in database backup
 does not roll these separate files back. Packaging/full-directory recovery remains unverified.
+
+### Isolated failure scenarios
+
+Additional Windows regression checks (Go 1.27.0, FFmpeg 9.0.2) use temporary stores/files and a
+local HTTP provider stand-in; they do not open the owner's database or media:
+
+| Scenario | Verified result |
+| --- | --- |
+| Library root unavailable, then reattached | Existing file stays present; identity, edited title and resume point survive |
+| Library root replaced by a regular file | Treated as unavailable, not an empty library; fixed missing-file sweep safety |
+| Individual file removed from accessible root, then returned | Missing flag set and cleared; original file/item IDs, edit and resume point retained |
+| Walk interrupted after first file; cancelled scan followed by fresh scan | Cancellation returned; fresh scan succeeds without losing existing state |
+| TMDB returns HTTP 503, then recovers | Item stays pending; retry matches it while retaining locked title and resume point |
+| Backup directory obstructed by a file | Backup fails without changing live data; succeeds once storage is repaired |
+| Corrupt backup selected | Restore rejected before creating a safety copy or changing live data |
+| Restore followed by undo using the safety copy | Settings, locked title and resume point return to each corresponding snapshot |
+| Conversion directory obstructed by a file | Start fails without retaining encoder capacity; next start succeeds after repair |
+| Server conversion-manager shutdown | Real FFmpeg process exits and session is removed |
+| Stale conversion output after restart | New manager clears synthetic orphan output and a new real conversion succeeds |
+
+The new tests pass along with the full Go test suite and `go vet ./...`. Filesystem rename and
+local-provider tests run outside the restricted agent sandbox. These checks establish application
+recovery behavior, not physical drive failure, an actual full filesystem, abrupt whole-server
+termination during scanning, a complete data-directory restore, or a real Unraid deployment.
+Those remaining cases keep #136 open. The broader library/provider/order matrix remains in #134.
+
+### Synthetic library integrity (#134)
+
+Scanner integration tests now exercise repeated scans of a synthetic TV library with a shared
+S01E01E02 file, an S00 special and an unknown S01E20. Four episode identities are retained;
+the two episodes keep their shared file; custom display order, locked manual placement and
+resume progress survive three further scans. A movie fixture checks two editions group into
+one title, same-name films from 1977/2018 stay separate, and local poster/NFO identity is read.
+Every fixture's original bytes are checked afterwards to detect writes to source media/assets.
+Previously read files are seeded, so these tests validate scanner/database integration rather
+than media decoding. Both tests pass on Windows. Real-library and large-library measurements,
+anime/date naming and provider-switch preservation still need broader validation; #134 stays open.
