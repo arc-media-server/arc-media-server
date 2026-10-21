@@ -100,8 +100,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   and concurrent conversion admission, with regression tests. Linux/Windows checks, Linux race
   detection and media tests passed for b5d8e39 and now gate Docker publishing. See docs/READINESS.md.
   Browser journeys (#133) implemented: six Playwright Chromium tests pass locally against the real
-  embedded app, fresh temporary databases, generated clips and local metadata. Linux CI verification
-  is pending. They found #140, final resume progress lost on player close; fixed with layout cleanup.
+  embedded app, fresh temporary databases, generated clips and local metadata. Linux CI passed for
+  49ac1f5 (run 39635142227), including the browser suite and race checks; Windows checks also passed.
+  They found #140, final resume progress lost on player close; fixed with layout cleanup.
   Run from web: `npx playwright install chromium`, then `npm run test:e2e` (Go/FFmpeg required).
   Ports 18199/18200 must be free; never point the harness at owner data. Failure reports/traces stay
   ignored. Next: library/recovery tests and real-device/server validation.
