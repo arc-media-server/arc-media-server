@@ -155,6 +155,15 @@ The owner works from more than one PC (Windows). On a fresh clone:
   visible resumes previously disappeared); removal safety backups are labelled correctly.
   Regressions use delayed real subtitle responses, movie/episode API fixtures and actual isolated
   library removal. Twelve browser journeys and Go regression checks cover the changes.
+  UI review #144 follows the owner's requested sequence: source/flow review, GitHub candidates,
+  then isolated reproduction before fixes. Six candidates reproduced: library browse stopped
+  at 500 with no paging; clearing Search/history left its input/results out of sync; search
+  failures kept loading; manual additions offered smart playlists; a late pre-roll lookup
+  replaced the latest Play choice; bulk selection survived library navigation. Fixed with
+  paged browsing, URL-aware search/error display, editable-only playlist choices, superseded
+  Play handling and selection reset on route/filter changes. Added seven browser checks,
+  including fourteen main pages at desktop/narrow widths (page smoke, not every dialog/action).
+  See docs/READINESS.md for evidence and limits; no real-device or sustained-use claim.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

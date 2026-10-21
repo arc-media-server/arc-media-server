@@ -71,7 +71,9 @@ const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const [queue, setQueue] = useState<{ items: NowPlaying[]; index: number } | null>(null);
+  const playGeneration = useRef(0);
   const play = useCallback((item: NowPlaying, list?: NowPlaying[]) => {
+    const generation = ++playGeneration.current;
     const start = list?.length ? { items: list, index: Math.max(0, list.indexOf(item)) } : { items: [item], index: 0 };
     // A movie played from the start gets the pre-roll videos set in Settings first.
     if (!item.itemId || item.preroll || (item.startMS ?? 0) > 0) {
@@ -82,6 +84,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .preroll(item.itemId)
       .catch(() => [])
       .then((clips) => {
+        if (generation !== playGeneration.current) return;
         if (!clips.length) return setQueue(start);
         const prerolls: NowPlaying[] = clips.map((c) => ({ title: c.title, subtitle: `Before ${item.title}`, src: c.url, preroll: true }));
         setQueue({ items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index });
@@ -108,6 +111,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [current, hasNext, autoPlay]);
   const close = useCallback(() => {
+    playGeneration.current++;
     setQueue(null);
     // Watched state and Continue Watching have changed.
     window.setTimeout(() => {

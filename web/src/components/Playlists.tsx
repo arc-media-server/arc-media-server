@@ -67,6 +67,7 @@ export function AddToPlaylistDialog({ item, open, onOpenChange }: { item: Item; 
 function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
   const qc = useQueryClient();
   const playlists = useQuery({ queryKey: ['playlists'], queryFn: api.playlists });
+  const editable = playlists.data?.filter((p) => !p.smart_filter) ?? [];
   const [name, setName] = useState('');
   const [added, setAdded] = useState<string | null>(null);
   const done = (id: string) => {
@@ -84,9 +85,9 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
     <DialogContent title="Add to Playlist" description={`Add ${what} to one of your playlists.`} className="w-[min(480px,calc(100vw-32px))]">
       <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
         {error && <p className="text-sm text-warning">{error.message}</p>}
-        {(playlists.data?.length ?? 0) > 0 && (
+        {editable.length > 0 && (
           <div className="max-h-72 divide-y divide-border overflow-y-auto rounded-2xl ring-1 ring-border">
-            {playlists.data!.map((p) => (
+            {editable.map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -111,7 +112,7 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
             if (name.trim()) create.mutate();
           }}
         >
-          <input autoFocus={!playlists.data?.length} value={name} onChange={(e) => setName(e.target.value)} placeholder="New playlist" maxLength={100} className={inputClass} />
+          <input autoFocus={!editable.length} value={name} onChange={(e) => setName(e.target.value)} placeholder="New playlist" maxLength={100} className={inputClass} />
           <Button type="submit" variant="secondary" disabled={!name.trim() || create.isPending || added !== null}>
             {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Create
           </Button>

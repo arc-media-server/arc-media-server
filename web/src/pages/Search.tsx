@@ -6,7 +6,7 @@ import { api, type Person } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { CollectionCard } from '@/components/Collections';
 import { ResumeCard } from '@/components/EpisodeCard';
-import { EmptyState, Page, PageHeader } from '@/components/Page';
+import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 
 const knownFor: Record<string, string> = { actor: 'Acting', director: 'Directing', writer: 'Writing', creator: 'Creator' };
@@ -28,7 +28,9 @@ export function SearchPage() {
     <Page className="pb-16">
       <PageHeader title={q ? `Results for “${q}”` : 'Search'} subtitle={q ? undefined : 'Find movies, shows, episodes, people and collections.'} />
       <div className="space-y-12 px-6 md:px-10">
-        {!q ? null : !d ? (
+        {!q ? null : results.error ? (
+          <ErrorState error={results.error} />
+        ) : !d ? (
           <PosterGridSkeleton count={6} />
         ) : none ? (
           <EmptyState icon={<SearchX />} title="No results">
