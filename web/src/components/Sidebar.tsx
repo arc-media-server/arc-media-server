@@ -1,4 +1,4 @@
-import { createElement, useEffect, useId, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, Sparkles, FolderCog, Tv, HeartPulse, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
@@ -58,23 +58,30 @@ function SearchBox({ className }: { className?: string }) {
   const location = useLocation();
   const [params] = useSearchParams();
   const [value, setValue] = useState(location.pathname === '/search' ? (params.get('q') ?? '') : '');
+  const timer = useRef<number | undefined>(undefined);
 
-  // Search as you type, replacing history entries so Back leaves search in one step.
+  // Navigation (including Back/Forward) owns the query; discard pending typing on navigation.
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      const q = value.trim();
-      if (q) navigate(`/search?q=${encodeURIComponent(q)}`, { replace: location.pathname === '/search' });
-    }, 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+    setValue(location.pathname === '/search' ? new URLSearchParams(location.search).get('q') ?? '' : '');
+    window.clearTimeout(timer.current);
+    return () => window.clearTimeout(timer.current);
+  }, [location.pathname, location.search]);
 
   return (
     <label className={cn('flex h-9 items-center gap-2 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border transition-shadow focus-within:ring-accent', className)}>
       <Search className="size-4 shrink-0 text-subtle" />
       <input
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setValue(next);
+          window.clearTimeout(timer.current);
+          // Replace while typing so Back leaves search in one step; clearing clears results too.
+          timer.current = window.setTimeout(() => {
+            const q = next.trim();
+            if (q || location.pathname === '/search') navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { replace: location.pathname === '/search' });
+          }, 250);
+        }}
         placeholder="Search"
         className="w-full bg-transparent outline-none placeholder:text-subtle"
       />

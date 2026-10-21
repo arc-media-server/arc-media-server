@@ -19,6 +19,132 @@ const test = base.extend<{ media: Fixtures }>({
   },
 });
 
+test('review: desktop and narrow layouts open the main everyday pages', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Review movies', media.movies);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ['/', `/library/${lib.id}`, '/search?q=Arc', '/watchlist', '/playlists', '/libraries', '/health', '/dashboard', '/insights', '/year', '/settings', '/profiles', '/backups', '/link']) {
+      await page.goto(path);
+      await expect(page.locator('main').getByRole('heading').first()).toBeVisible();
+      await expect(page.getByText('Something went wrong', { exact: true })).toHaveCount(0);
+    }
+    await page.screenshot({ path: info.outputPath(`review-${width}.png`), fullPage: true });
+  }
+});
+
+test('review: library browse can reach title 501', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Large library', media.movies);
+  const original = await (await page.request.get(`/api/items?library_id=${lib.id}`)).json();
+  const firstPage = await (await page.request.get(`/api/items?library_id=${lib.id}&limit=1&offset=0`)).json();
+  const secondPage = await (await page.request.get(`/api/items?library_id=${lib.id}&limit=1&offset=1`)).json();
+  expect(firstPage.total).toBe(2);
+  expect(secondPage.items[0].id).not.toBe(firstPage.items[0].id);
+  // Synthetic listing isolates pagination from disk/probe throughput, covered separately.
+  const items = Array.from({ length: 501 }, (_, i) => ({ ...original.items[0], id: `review-${i}`, title: `Review title ${String(i).padStart(3, '0')}` }));
+  await page.route('**/api/items?*', route => {
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? 0);
+    const limit = Number(url.searchParams.get('limit') ?? 100);
+    return route.fulfill({ json: { total: items.length, items: items.slice(offset, offset + limit) } });
+  });
+  await page.goto(`/library/${lib.id}`);
+  await expect(page.getByText('501 movies', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Load more', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('library-pagination.png') });
+  await page.getByRole('button', { name: 'Load more', exact: true }).click();
+  await expect(page.getByRole('link', { name: /Review title 500/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Load more', exact: true })).toHaveCount(0);
+});
+
+test('review: clearing Search clears the query and history restores the input', async ({ page, media }) => {
+  void media;
+  await setup(page);
+  const search = page.locator('aside input[placeholder="Search"]');
+  await search.fill('Arc');
+  await expect(page).toHaveURL(/search\?q=Arc$/);
+  await search.fill('');
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
+  await page.locator('aside').getByRole('link', { name: 'Watchlist', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Watchlist', exact: true })).toBeVisible();
+  await search.fill('Movie');
+  await expect(page).toHaveURL(/search\?q=Movie$/);
+  await page.goBack();
+  await expect(search).toHaveValue('');
+  await page.goForward();
+  await expect(search).toHaveValue('Movie');
+});
+
+test('review: Search displays a failed request instead of loading forever', async ({ page, media }, info) => {
+  void media;
+  await setup(page);
+  await page.route('**/api/search?*', route => route.fulfill({ status: 503, json: { error: 'Review search unavailable' } }));
+  await page.goto('/search?q=Arc');
+  await expect(page.getByText('Review search unavailable', { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('search-error.png') });
+});
+
+test('review: manual additions only offer editable playlists', async ({ page, media }) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Playlist movies', media.movies);
+  expect((await page.request.post('/api/playlists', { data: { title: 'Rule based list', filter: { library_id: lib.id, unwatched: true } } })).ok()).toBeTruthy();
+  expect((await page.request.post('/api/playlists', { data: { title: 'Manual list' } })).ok()).toBeTruthy();
+  await page.goto(`/library/${lib.id}`);
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  await page.getByRole('button', { name: 'Add to Playlist', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add to Playlist', exact: true });
+  await expect(dialog.getByRole('button', { name: /Manual list/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /Rule based list/ })).toHaveCount(0);
+  await dialog.getByRole('button', { name: /Manual list/ }).click();
+  await expect(dialog).not.toBeVisible();
+});
+
+test('review: late pre-roll lookup cannot replace the latest Play choice', async ({ page, media }) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Play choices', media.movies);
+  await page.goto(`/library/${lib.id}`);
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let first = true;
+  await page.route('**/api/items/*/preroll', async route => {
+    if (!first) return route.continue();
+    first = false;
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect.poll(() => first).toBe(false);
+    await page.locator('aside').getByRole('link', { name: 'Play choices', exact: true }).click();
+    await page.getByRole('link', { name: /Unmatched Mystery/ }).first().click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.locator('video')).toBeVisible();
+    const late = page.waitForResponse(r => r.url().endsWith('/preroll') && r.ok());
+    release();
+    await late;
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(page.locator('video').locator('..').getByText('Unmatched Mystery', { exact: true })).toBeVisible();
+  } finally { release(); }
+  await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
+
+test('review: changing libraries exits bulk selection', async ({ page, media }) => {
+  await setup(page);
+  const first = await addLibrary(page, 'First library', media.movies);
+  await addLibrary(page, 'Second library', media.empty);
+  await page.goto(`/library/${first.id}`);
+  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'Select All', exact: true }).click();
+  await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
+  await page.locator('aside').getByRole('link', { name: 'Second library', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Select', exact: true })).toBeVisible();
+});
+
 test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
   void media;
   await setup(page);

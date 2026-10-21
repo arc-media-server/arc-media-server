@@ -291,3 +291,38 @@ The previous `ba031d4` passed all GitHub jobs in run 39657158172, including Linu
 Windows and container upgrade/rollback checks. Current fixes pass the production web build,
 TypeScript/e2e type checks, all twelve local Chromium journeys without retries, `go vet ./...`
 and `go test ./...`. Continue Watching tests cover movies and episodes with show-level controls.
+
+## UI flow review (#144)
+
+The owner requested a review pass first, suspected defects logged in GitHub next, and then
+reproduction before fixes. [Issue #144](https://github.com/JonzaUK/arc-media-server/issues/144)
+records the initial six unconfirmed candidates and the before-fix reproduction results.
+Source review covered navigation/authentication, home/library/title/series pages, search,
+watch state, collections/playlists, player entry, settings/profiles/devices and administrative
+pages. A separate Chromium walkthrough opened fourteen main pages at 1440px and 390px widths;
+it checks page rendering, not every control or successful external-service operation.
+
+All six candidates reproduced before product code changed:
+
+| Candidate | Observed behavior | Change |
+| --- | --- | --- |
+| Large-library browse | Reports 501 titles but renders 500 with no way to reach the last | Load more uses the existing offset API and retains loaded titles |
+| Search navigation | Clearing the textbox leaves the previous URL/results | Clearing updates the URL; Back/Forward updates the input |
+| Search failure | Local HTTP 503 leaves loading UI instead of the error | Display query errors explicitly |
+| Playlist picker | Offers a smart playlist whose API forbids manual additions | Only offer editable playlists |
+| Player entry | Delivering an earlier real pre-roll response replaces the latest Play choice | Ignore superseded lookups, including after player close |
+| Bulk selection | Changing libraries retains selection mode | Reset selection and shift-click anchor when the library/filter/view changes |
+
+SelectionBar already limits edited IDs to the displayed items; cross-library edits were not
+reproduced or claimed. Pagination uses a synthetic 501-title browser API listing to isolate UI
+behavior; a separate check exercises actual API offsets against the two real generated titles.
+This is not a 501-file scanner benchmark. Search failure is deliberately injected locally.
+Playlist and player checks use real isolated server state/responses. No owner data is accessed.
+Seven new browser checks bring the suite to nineteen journeys; screenshot evidence includes
+the paging control, search failure and desktop/narrow layouts. This bounded review does not
+establish that every UI action, real device, provider or sustained Unraid run is defect-free.
+
+The previous `f3de41d` passed all GitHub jobs in run 39672301946. This pass completed the
+production web build, TypeScript/e2e checks, all nineteen Chromium journeys without retries,
+`go vet ./...`, `go test ./...`, the embedded-server build and `git diff --check` locally.
+The current commit's CI outcome must be checked separately; local checks do not establish it.

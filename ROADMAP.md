@@ -188,6 +188,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Keep late subtitle responses from replacing the latest selection (#141)
 - [x] Filter Continue Watching before limiting its results (#142)
 - [x] Label removal safety backups correctly (#143)
+- [x] Review everyday UI flows, log candidates, reproduce and fix confirmed defects (#144)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

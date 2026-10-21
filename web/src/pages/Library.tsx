@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,12 @@ export function LibraryPage() {
     setSelected(new Set());
     lastClicked.current = null;
   };
+  const selectionScope = `${id}?${params.toString()}`;
+  useEffect(() => {
+    setSelecting(false);
+    setSelected(new Set());
+    lastClicked.current = null;
+  }, [selectionScope]);
   useEffect(() => {
     if (!selecting) return;
     const onKey = (e: KeyboardEvent) => {
@@ -78,7 +84,17 @@ export function LibraryPage() {
   }, [selecting]);
   const unit = kindUnit(lib?.kind)[0];
   const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500, ...filters };
-  const items = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query), enabled: !!lib });
+  const items = useInfiniteQuery({
+    queryKey: ['items', 'browse', query],
+    queryFn: ({ pageParam }) => api.items({ ...query, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (last, _pages, offset) => {
+      const next = offset + last.items.length;
+      return last.items.length && next < last.total ? next : undefined;
+    },
+    select: (data) => ({ total: data.pages[0].total, items: data.pages.flatMap((p) => p.items) }),
+    enabled: !!lib,
+  });
   const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
 
   // Change one URL parameter, keeping the rest.
@@ -256,7 +272,7 @@ export function LibraryPage() {
           ) : (
             <CollectionGrid collections={collections.data} unit={unit} />
           )
-        ) : items.error ? (
+        ) : items.error && !items.data ? (
           <ErrorState error={items.error} />
         ) : !items.data ? (
           <PosterGridSkeleton />
@@ -297,6 +313,16 @@ export function LibraryPage() {
                 : undefined
             }
           />
+        )}
+        {view === 'titles' && items.data && (
+          <div className="mt-8 flex flex-col items-center gap-3">
+            {items.error && <p role="alert" className="text-sm text-warning">{items.error.message}</p>}
+            {items.hasNextPage && (
+              <Button variant="secondary" disabled={items.isFetchingNextPage} onClick={() => void items.fetchNextPage()}>
+                {items.isFetchingNextPage && <Loader2 className="animate-spin" />} Load more
+              </Button>
+            )}
+          </div>
         )}
       </div>
       {selecting && lib && view === 'titles' && items.data && (
