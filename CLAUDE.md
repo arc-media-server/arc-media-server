@@ -126,6 +126,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Synthetic 1,800-film grouping benchmark: 2.791 s / 104.9 MiB total allocations (Windows Ryzen
   7700X; probing pre-seeded, providers off). Full provider-switch HTTP and real-library/Unraid
   throughput/peak-memory validation are still pending; see docs/READINESS.md for exact limits.
+  Further #136/#138 work: startup refuses newer/unknown database schemas; failed pre-upgrade
+  safety backups abort upgrades. Online restore now reloads runtime settings (including access
+  controls) without online key validation; a real-app browser regression covers the previous
+  stale-settings bug. Container acceptance gate added for isolated root/non-root, read-only media,
+  restore/restart/recreation persistence; Docker unavailable locally, initial Linux CI pending.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

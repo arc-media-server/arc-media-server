@@ -186,3 +186,32 @@ synthetic movies. Fixture/database creation is outside the measured section. Fil
 already probed and online providers are disabled. This measures scanner grouping/database work,
 not disk decoding, provider latency, peak resident memory, or end-to-end Unraid throughput; it
 does not replace the representative-library timing/memory acceptance criterion.
+
+## Upgrade and runtime restore safety
+
+Startup now rejects unknown/newer schema versions before migration hooks or derived-data updates.
+An older executable must be paired with a compatible pre-upgrade backup to roll back; simply
+reusing a newer database is refused. Temporary historical-schema tests verify that a failed
+safety backup aborts the upgrade and that a successful retry creates a restorable safety copy.
+
+Online database restore now reloads runtime settings as well as libraries: access controls,
+provider clients, region, maintenance, conversion limits/location, home networks and remote/TLS
+settings. Provider keys are not validated online during recovery. The restored ffprobe path is
+rediscovered, with automatic discovery as a fallback. If the restored port cannot be opened,
+restored access controls still apply and the response explicitly says the database was restored
+but Arc needs restarting. A real-app browser regression verifies region, conversion limit and
+local sign-in bypass immediately reflect the backup, without restarting the server.
+
+## Container acceptance gate (#138)
+
+`node tools/docker-smoke.mjs <local-image>` creates only uniquely named disposable Docker volumes
+and containers, with no host-directory mounts or network access. It checks fresh setup, packaged
+FFmpeg/ffprobe, read-only root filesystem and media, root/non-root execution with pre-provisioned
+volume ownership, database ownership, backup/restore, health, restart and replacement-container
+persistence. GitHub builds a local linux/amd64 image for this test and image publication depends
+on its success as well as the existing Linux/Windows checks. Initial CI verification is pending.
+Docker is not installed on this Windows PC; no local container result is claimed.
+
+This gate does not yet prove upgrades between different release images, ARM runtime behavior,
+PUID/PGID convenience support, actual NAS permissions, GPU passthrough, hardware playback,
+external networking, attribution or provider distribution terms. #123/#138 remain open.

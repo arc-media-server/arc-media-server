@@ -1,0 +1,127 @@
+// Isolated container acceptance checks. Requires a locally built image and Docker.
+// Only named volumes/containers created by this process are removed; no host paths are mounted.
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
+
+const image = process.argv[2];
+if (!image) throw new Error('Usage: node tools/docker-smoke.mjs <local-image>');
+const prefix = `arc-smoke-${randomUUID()}`;
+const volumes = [];
+const containers = new Set();
+const password = randomUUID(); // Synthetic admin, never an owner credential.
+
+function docker(args, allowFailure = false) {
+  const r = spawnSync('docker', args, { encoding: 'utf8', timeout: 120_000, windowsHide: true });
+  if (!allowFailure && (r.error || r.status !== 0)) {
+    // Do not echo arguments: API bodies may include credentials/cookies.
+    throw new Error(`Docker ${args[0]} failed: ${r.error?.message ?? r.stderr}`);
+  }
+  return r;
+}
+
+function volume(suffix) {
+  const name = `${prefix}-${suffix}`;
+  docker(['volume', 'create', '--label', 'ams.readiness=true', name]);
+  volumes.push(name);
+  return name;
+}
+
+function api(name, path, method = 'GET', data, expected = 200) {
+  const args = ['exec', name, 'curl', '-sS', '--max-time', '10',
+    '-b', '/tmp/smoke.cookies', '-c', '/tmp/smoke.cookies', '-w', '\n%{http_code}',
+    '-X', method, '-H', 'Content-Type: application/json'];
+  if (data !== undefined) args.push('--data-binary', JSON.stringify(data));
+  args.push(`http://127.0.0.1:8099${path}`);
+  const output = docker(args).stdout.trimEnd();
+  const split = output.lastIndexOf('\n');
+  const status = Number(output.slice(split + 1));
+  assert.equal(status, expected, `${method} ${path}: ${output.slice(0, split)}`);
+  const body = output.slice(0, split);
+  return body ? JSON.parse(body) : undefined;
+}
+
+async function healthy(name) {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    const state = JSON.parse(docker(['inspect', name]).stdout)[0].State;
+    if (!state.Running) throw new Error('Container exited before becoming healthy');
+    if (state.Health?.Status === 'healthy') return;
+    await delay(1000);
+  }
+  throw new Error('Container did not become healthy');
+}
+
+function start(name, config, media, uid) {
+  containers.add(name);
+  docker(['run', '-d', '--name', name, '--network', 'none', '--read-only',
+    '--user', `${uid}:${uid}`, '--tmpfs', '/tmp:rw,nosuid,noexec,size=64m',
+    '--health-interval', '1s', '--health-start-period', '1s', '--health-timeout', '3s',
+    '--mount', `type=volume,source=${config},target=/config`,
+    '--mount', `type=volume,source=${media},target=/media,readonly`, image]);
+}
+
+function remove(name) {
+  docker(['rm', '-f', name]);
+  containers.delete(name);
+}
+
+try {
+  const media = volume('media');
+  docker(['run', '--rm', '--network', 'none', '--entrypoint', 'sh',
+    '--mount', `type=volume,source=${media},target=/media`, image,
+    '-c', 'printf "read-only fixture\\n" > /media/keep.txt']);
+  for (const uid of [0, 12345]) {
+    const config = volume(`config-${uid}`);
+    // Pre-provision ownership exactly as required when running with Docker --user.
+    docker(['run', '--rm', '--network', 'none', '--entrypoint', 'chown',
+      '--mount', `type=volume,source=${config},target=/config`, image, `${uid}:${uid}`, '/config']);
+    const name = `${prefix}-${uid}`;
+    start(name, config, media, uid);
+    await healthy(name);
+    assert.equal(api(name, '/api/auth/status').setup_needed, true);
+    docker(['exec', name, 'ffprobe', '-version']);
+    docker(['exec', name, 'ffmpeg', '-version']);
+    api(name, '/api/auth/setup', 'POST', { name: 'Smoke Admin', password, local_bypass: false }, 201);
+    const profile = api(name, '/api/auth/status').profile.id;
+    const library = api(name, '/api/libraries', 'POST', { name: 'Read-only media', kind: 'movies', paths: ['/media'] }, 201);
+    const scanDeadline = Date.now() + 30_000;
+    while (api(name, `/api/libraries/${library.id}/scan`).running) {
+      if (Date.now() >= scanDeadline) throw new Error('Empty library scan did not finish');
+      await delay(250);
+    }
+    api(name, '/api/settings', 'PATCH', { region: 'GB', max_transcodes: 1 }, 200);
+    const backup = api(name, '/api/backups', 'POST', undefined, 201);
+    api(name, '/api/settings', 'PATCH', { region: 'US', max_transcodes: 3 }, 200);
+    api(name, `/api/backups/${backup.name}/restore`, 'POST', undefined, 204);
+    assert.equal(api(name, '/api/settings').region, 'GB');
+    assert.notEqual(docker(['exec', name, 'touch', '/media/should-not-exist'], true).status, 0);
+    assert.equal(docker(['exec', name, 'cat', '/media/keep.txt']).stdout, 'read-only fixture\n');
+    assert.equal(docker(['exec', name, 'stat', '-c', '%u', '/config/ams.db']).stdout.trim(), String(uid));
+    docker(['restart', name]);
+    await healthy(name);
+    assert.equal(api(name, '/api/auth/status').setup_needed, false);
+    remove(name);
+    start(name, config, media, uid);
+    await healthy(name);
+    assert.equal(api(name, '/api/auth/status').setup_needed, false);
+    api(name, '/api/auth/login', 'POST', { password }, 204);
+    api(name, '/api/auth/profile', 'POST', { id: profile }, 200);
+    assert.equal(api(name, '/api/settings').region, 'GB');
+    assert.ok(api(name, '/api/backups').backups.some(b => b.name === backup.name));
+    assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
+    remove(name);
+    console.log(`PASS: uid ${uid}, setup, read-only media, backup/restore, restart and volume persistence`);
+  }
+} catch (error) {
+  for (const name of containers) {
+    const logs = docker(['logs', '--tail', '80', name], true);
+    process.stderr.write(logs.stdout ?? '');
+    process.stderr.write(logs.stderr ?? '');
+  }
+  throw error;
+} finally {
+  for (const name of containers) docker(['rm', '-f', name], true);
+  for (const name of volumes) docker(['volume', 'rm', name], true);
+}

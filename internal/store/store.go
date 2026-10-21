@@ -42,6 +42,10 @@ func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{db: db}
+	if err := s.checkVersion(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if opts.BeforeMigrate != nil {
 		upgrading, err := s.upgrading(ctx)
 		if err != nil {
@@ -68,6 +72,37 @@ func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// Refuse downgrades before applying migrations or derived-data updates. Rollback
+// requires the earlier binary and a backup from a schema that binary understands.
+func (s *Store) checkVersion(ctx context.Context) error {
+	var exists int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='schema_migrations'`).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return nil
+	}
+	known, err := migrationVersions()
+	if err != nil {
+		return err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT version FROM schema_migrations`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var version string
+		if err := rows.Scan(&version); err != nil {
+			return err
+		}
+		if !known[version] {
+			return fmt.Errorf("database uses a newer or unsupported Arc schema (%s); use the matching Arc version, or restore a compatible backup to roll back", version)
+		}
+	}
+	return rows.Err()
+}
 
 func migrationNames() ([]string, error) {
 	names, err := fs.Glob(migrationsFS, "migrations/*.sql")
