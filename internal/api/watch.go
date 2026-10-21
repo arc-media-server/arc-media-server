@@ -364,7 +364,7 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 // inProgress lists the movies and episodes the profile is part-way through, most recent first.
 func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
 	ctx := r.Context()
-	items, err := s.store.InProgress(ctx, currentUserID(r), 30)
+	items, err := s.store.InProgress(ctx, currentUserID(r), 30, access(r))
 	if err != nil {
 		return nil, err
 	}
@@ -376,22 +376,10 @@ func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	dismissed, err := s.store.ContinueDismissed(ctx, currentUserID(r))
-	if err != nil {
-		return nil, err
-	}
 	out := []homeEntry{}
 	for _, it := range items {
 		at := data[it.ID].LastPlayedAt
-		// Removed from Continue Watching (it, or its show) since it was last played.
-		if max(dismissed[it.ID], dismissed[it.ParentID]) >= at {
-			continue
-		}
-		if ok, err := s.store.CanSee(ctx, &it, access(r)); err != nil {
-			return nil, err
-		} else if ok {
-			out = append(out, homeEntry{it, at})
-		}
+		out = append(out, homeEntry{it, at})
 	}
 	return out, nil
 }

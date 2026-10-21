@@ -198,6 +198,7 @@ function PlayerOverlay({
   const [menuOpen, setMenuOpen] = useState(false);
   const [subtitle, setSubtitle] = useState<SubtitleTrack | null>(null);
   const [cues, setCues] = useState<SubtitleCue[]>([]);
+  const subtitleGeneration = useRef(0);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
   const subStyle = prefs.data?.subtitle_style ?? {};
   const subtitleSize: SubtitleSize = subStyle.size ?? readSubtitleSize();
@@ -393,6 +394,7 @@ function PlayerOverlay({
   // the video, which restarts it converted. remember saves the language for next time.
   const selectSubtitle = useCallback(
     async (t: SubtitleTrack | null, remember: boolean) => {
+      const generation = ++subtitleGeneration.current;
       const p = plan.current;
       if (!p || !item.itemId) return;
       // Turning them off forgets the language only where the language is what turns them on.
@@ -407,12 +409,12 @@ function PlayerOverlay({
         burn.current = wantBurn;
         await load(absMS(), p.audio_stream);
       }
-      if (!t || t.image) return;
+      if (!t || t.image || generation !== subtitleGeneration.current) return;
       try {
         const res = await api.subtitleCues(item.itemId, t.id, p.file_id);
-        setCues(res.cues);
+        if (generation === subtitleGeneration.current) setCues(res.cues);
       } catch (e) {
-        setSubtitleError(e instanceof Error ? e.message : String(e));
+        if (generation === subtitleGeneration.current) setSubtitleError(e instanceof Error ? e.message : String(e));
       }
     },
     // updatePrefs.mutate is stable.
@@ -427,6 +429,7 @@ function PlayerOverlay({
       const p = plan.current;
       if (!p || p.file_id === fileId) return;
       const at = absMS();
+      subtitleGeneration.current++;
       plan.current = { ...p, file_id: fileId };
       burn.current = undefined;
       setSubtitle(null);
@@ -492,6 +495,7 @@ function PlayerOverlay({
     window.addEventListener('pagehide', onHide);
     return () => {
       loadGeneration.current++;
+      subtitleGeneration.current++;
       window.removeEventListener('pagehide', onHide);
       detach();
       window.clearTimeout(watchdog.current);

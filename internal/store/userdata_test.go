@@ -59,7 +59,7 @@ func TestWatchState(t *testing.T) {
 
 	// Part-way through: listed in Continue Watching (once it has a file on disk).
 	report(hour)
-	if _, err := st.InProgress(ctx, u.ID, 10); err != nil {
+	if _, err := st.InProgress(ctx, u.ID, 10, Access{}); err != nil {
 		t.Fatalf("InProgress: %v", err)
 	}
 

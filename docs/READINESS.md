@@ -267,6 +267,27 @@ An additional old-schema restore regression exposed stale derived parental ages.
 recomputes those ages after migration, as startup already does; the historical rating label
 retains its correct age without requiring a server restart. Local full Go checks pass.
 
-The actual-server trial remains unstarted. [SERVER-TRIAL.md](SERVER-TRIAL.md) supplies a blank
-baseline/daily record and read-only measurement commands for #137; no trial results are inferred
-from these automated tests.
+The owner reports Arc is already running successfully in an Unraid Docker container, with no
+installation problems. The current priority is bugs inside Arc; further packaging is not the
+focus. A timed/resource-measured trial has not been documented. [SERVER-TRIAL.md](SERVER-TRIAL.md)
+remains an optional blank record for #137, not a request to reinstall or start a separate server.
+
+## Everyday bug investigation
+
+Reproduced with isolated fixtures:
+
+- A delayed English subtitle response overwrote French subtitles after switching language, and
+  made subtitles reappear after choosing Off. Subtitle selections now invalidate older cue/error
+  responses, including after a file/version change or player close. Browser regressions deliver
+  the earlier real subtitle response after the new selection.
+- Continue Watching returned nothing when its thirty most recent resumes were dismissed or
+  inaccessible, even with an older visible resume available. Dismissal and profile library/age/
+  label filtering now happen before the result limit. API regressions cover all four cases.
+- Safety backups made before removing library data were incorrectly labelled as manually created
+  backups. The UI now recognizes `before-delete` and shows “Saved before a removal”. A real-app
+  journey removes an isolated library and verifies the backup's label.
+
+The previous `ba031d4` passed all GitHub jobs in run 39657158172, including Linux race/browser,
+Windows and container upgrade/rollback checks. Current fixes pass the production web build,
+TypeScript/e2e type checks, all twelve local Chromium journeys without retries, `go vet ./...`
+and `go test ./...`. Continue Watching tests cover movies and episodes with show-level controls.

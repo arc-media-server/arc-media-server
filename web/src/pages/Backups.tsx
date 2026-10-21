@@ -12,6 +12,7 @@ const reasons: Record<BackupReason, { label: string; icon: typeof History }> = {
   manual: { label: 'Backed up by you', icon: Hand },
   'before-restore': { label: 'Saved before a restore', icon: ArchiveRestore },
   'before-upgrade': { label: 'Saved before an update', icon: ShieldCheck },
+  'before-delete': { label: 'Saved before a removal', icon: ShieldCheck },
 };
 
 export function BackupsPage() {
