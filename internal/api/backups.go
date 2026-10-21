@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -45,7 +46,11 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.afterRestore != nil {
-		s.afterRestore()
+		if err := s.afterRestore(context.WithoutCancel(r.Context())); err != nil {
+			s.log.Error("database restored but runtime reload failed", "err", err)
+			writeError(w, http.StatusInternalServerError, "The database was restored, but Arc couldn't apply all restored settings. Restart Arc. "+err.Error())
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

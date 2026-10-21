@@ -349,6 +349,26 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// CPU, memory and network use for the Dashboard's graphs.
 	stats := sysstats.New()
 	go stats.Run(ctx)
+	// Caller holds mu. Restores use this without validating provider keys online or
+	// rewriting restored settings; recovery must also work while providers are down.
+	useSettings := func(next settings.Settings) {
+		tmdb.SetKey(next.TMDBKey)
+		tmdb.SetRegion(next.Region)
+		tvdb.SetKey(next.TVDBKey)
+		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
+		extRatings.SetOMDbKey(next.OMDbKey)
+		skips.Configure(next.TheIntroDBKey, next.DetectIntros)
+		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
+		if next.PreviewsAtNight != current.PreviewsAtNight {
+			previewsAtNight.Store(next.PreviewsAtNight)
+			thumbs.Wake()
+		}
+		current = next
+		applyHomeNetworks(next.HomeNetworks)
+		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
+		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
+		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
+	}
 	applySettings := func(ctx context.Context, next settings.Settings) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -396,28 +416,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 			return err
 		}
-		tmdb.SetKey(next.TMDBKey)
-		tvdb.SetKey(next.TVDBKey)
-		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
-		extRatings.SetOMDbKey(next.OMDbKey)
-		skips.Configure(next.TheIntroDBKey, next.DetectIntros)
-		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
-		if next.PreviewsAtNight != current.PreviewsAtNight {
-			previewsAtNight.Store(next.PreviewsAtNight)
-			thumbs.Wake()
-		}
 		if next.Region != current.Region {
-			tmdb.SetRegion(next.Region)
 			// Age ratings are per region: fetch everything again, a batch per scan.
 			if err := st.MarkAllUnsynced(ctx); err != nil {
 				return err
 			}
 		}
-		current = next
-		applyHomeNetworks(next.HomeNetworks)
-		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
-		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
-		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
+		useSettings(next)
 		if ln != nil {
 			listeners <- ln
 		}
@@ -427,8 +432,35 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	handler := api.New(api.Deps{
 		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
-		// Files may have been added or removed since the backup was made: rescan everything.
-		AfterRestore: func() { librariesChanged(true) },
+		AfterRestore: func(ctx context.Context) error {
+			next, err := settings.Load(ctx, st)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			var ln net.Listener
+			var listenErr error
+			if next.ListenAddress() != current.ListenAddress() {
+				ln, listenErr = net.Listen("tcp", next.ListenAddress())
+			}
+			// Apply restored access controls even if its old port cannot be opened.
+			useSettings(next)
+			mu.Unlock()
+			if err := findFFprobe(next.FFprobePath); err != nil {
+				log.Warn("restored ffprobe unavailable; trying automatic discovery", "err", err)
+				findFFprobe("")
+			}
+			go transcoder.Detect(context.WithoutCancel(ctx))
+			if ln != nil {
+				listeners <- ln
+			}
+			// Files may have changed since the backup was made: rescan everything.
+			librariesChanged(true)
+			if listenErr != nil {
+				return fmt.Errorf("couldn't open restored port %d; restart Arc after freeing the port: %w", next.Port, listenErr)
+			}
+			return nil
+		},
 		Settings: func() settings.Settings {
 			mu.Lock()
 			defer mu.Unlock()

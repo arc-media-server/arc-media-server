@@ -52,8 +52,8 @@ type Deps struct {
 	Remote *remote.Service
 	// Stats samples CPU, memory and network use for the Dashboard.
 	Stats *sysstats.Collector
-	// AfterRestore runs once a backup has been restored, to bring libraries back in step.
-	AfterRestore func()
+	// AfterRestore reloads runtime settings and brings libraries back in step.
+	AfterRestore func(context.Context) error
 	// LibrariesChanged runs after a library is added, changed or removed.
 	LibrariesChanged func()
 	// Settings returns the current settings; ApplySettings checks, saves and applies new ones.
@@ -82,7 +82,7 @@ type Server struct {
 	scanner          *scanner.Scanner
 	artwork          *artwork.Cache
 	backups          *backup.Manager
-	afterRestore     func()
+	afterRestore     func(context.Context) error
 	librariesChanged func()
 	settings         func() settings.Settings
 	applySettings    func(ctx context.Context, s settings.Settings) error

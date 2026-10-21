@@ -19,6 +19,27 @@ const test = base.extend<{ media: Fixtures }>({
   },
 });
 
+test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
+  void media;
+  await setup(page);
+  const before = { region: 'GB', local_bypass: false, max_transcodes: 1 };
+  expect((await page.request.patch('/api/settings', { data: before })).ok()).toBeTruthy();
+  const backup = await page.request.post('/api/backups');
+  expect(backup.ok()).toBeTruthy();
+  const { name } = await backup.json();
+  expect((await page.request.patch('/api/settings', {
+    data: { region: 'US', local_bypass: true, max_transcodes: 3 },
+  })).ok()).toBeTruthy();
+  const changed = await (await page.request.get('/api/settings')).json();
+  expect(changed).toMatchObject({ region: 'US', local_bypass: true, max_transcodes: 3 });
+  const restored = await page.request.post(`/api/backups/${name}/restore`);
+  expect(restored.ok(), await restored.text()).toBeTruthy();
+  const settings = await (await page.request.get('/api/settings')).json();
+  expect(settings).toMatchObject(before);
+  await page.reload();
+  expect((await (await page.request.get('/api/auth/status')).json()).bypass).toBe(false);
+});
+
 async function setup(page: Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to Arc' })).toBeVisible();

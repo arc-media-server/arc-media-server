@@ -73,8 +73,32 @@ jobs:
             web/test-results/
           retention-days: 7
           if-no-files-found: ignore
+  container-smoke:
+    name: Container installation and persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: docker/setup-buildx-action@v3
+      - name: Build local test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: arc-readiness:local
+          cache-from: type=gha,scope=readiness
+          cache-to: type=gha,scope=readiness,mode=max
+      - name: Verify installation, read-only media, restore and persistence
+        run: node tools/docker-smoke.mjs arc-readiness:local
   build:
-    needs: checks
+    needs: [checks, container-smoke]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
