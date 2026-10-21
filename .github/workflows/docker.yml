@@ -6,6 +6,7 @@ name: Docker image
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,46 @@ permissions:
   packages: write
 
 jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build web app (includes TypeScript check)
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Install FFmpeg for media integration tests
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Analyse Go code
+        run: go vet ./...
+      - name: Run tests
+        run: go test ./... -timeout 10m
+      - name: Check concurrent code
+        if: runner.os == 'Linux'
+        run: go test -race ./... -timeout 15m
+      - name: Build server with embedded web app
+        run: go build ./cmd/ams
   build:
+    needs: checks
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

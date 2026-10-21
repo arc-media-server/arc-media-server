@@ -266,6 +266,25 @@ Changes appear instantly; API calls are forwarded to the running server.
 The web app is React + TypeScript, styled with Tailwind CSS, using Radix UI primitives,
 Motion for animation and TanStack Query for data loading.
 
+### Stability and release readiness
+
+The current readiness checklist and required evidence are in [docs/READINESS.md](docs/READINESS.md).
+GitHub runs the web build and Go checks on Linux and Windows before publishing a Docker image.
+Linux also runs media tests with FFmpeg and checks for data races.
+
+### Reverse proxies and sign-in
+
+A reverse proxy must overwrite/set `Forwarded` or `X-Forwarded-For` on every forwarded request.
+Requests with forwarding headers require normal sign-in, even if the proxy runs on the same PC;
+their reported client addresses never grant password-free home-network access. They also use
+remote bandwidth limits. A proxy that forwards no identifying header is indistinguishable from
+a direct local connection: disable "Skip the password at home" in that deployment.
+
+If the proxy terminates HTTPS, set `X-Forwarded-Proto: https` so session cookies are marked Secure.
+Use either the proxy's HTTPS management or Arc's built-in HTTPS; a TLS-terminating proxy forwarding
+plain HTTP to Arc while Arc's own HTTPS redirect is enabled can cause redirect loops. This first
+hardening pass does not provide a trusted-proxy setting for password-free access through a proxy.
+
 ## Running with Docker
 
 GitHub builds an image on every push to `main` (`.github/workflows/docker.yml`), for normal PCs

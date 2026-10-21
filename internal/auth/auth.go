@@ -57,8 +57,14 @@ func HashToken(token string) string {
 }
 
 // IsLocal reports whether a request comes from this computer or the home network (a private
-// address, or one in the extra home networks). Forwarding headers are ignored: they can be forged.
+// address, or one in the extra home networks). Forwarded requests never qualify: a local proxy
+// may be relaying someone on the internet. Header values cannot grant home-network privileges.
 func IsLocal(r *http.Request) bool {
+	for _, header := range []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Proto"} {
+		if len(r.Header.Values(header)) > 0 {
+			return false
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr

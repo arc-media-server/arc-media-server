@@ -2,15 +2,102 @@ package transcode
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestConcurrentConversionLimit(t *testing.T) {
+	// The test executable is a harmless process stand-in: it exits on FFmpeg's unknown flags.
+	// Admission happens at Start, before any media output is required.
+	bin, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const requests = 12
+	gate := make(chan struct{})
+	var arrived atomic.Int32
+	m := New(filepath.Join(t.TempDir(), "sessions"), func() string {
+		if arrived.Add(1) == requests {
+			close(gate)
+		}
+		<-gate
+		return bin
+	}, func() string { return "" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.Configure(m.dir, 1)
+	var wg sync.WaitGroup
+	errs := make(chan error, requests)
+	started := make(chan *Session, requests)
+	for range requests {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s, err := m.Start(Options{Path: "unused", AudioStream: -1, BurnSubtitle: -1})
+			if err != nil {
+				errs <- err
+			} else {
+				started <- s
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	close(started)
+	var sessions []*Session
+	for s := range started {
+		sessions = append(sessions, s)
+	}
+	t.Cleanup(func() {
+		for _, s := range sessions {
+			m.Stop(s.ID)
+			<-s.done
+		}
+	})
+	for err := range errs {
+		if !errors.Is(err, ErrBusy) {
+			t.Errorf("unexpected startup error: %v", err)
+		}
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("accepted %d conversions with limit 1", len(sessions))
+	}
+	// Repackaging doesn't spend a video-encoding slot.
+	remux, err := m.Start(Options{Path: "unused", CopyVideo: true, AudioStream: -1, BurnSubtitle: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions = append(sessions, remux)
+	m.Stop(sessions[0].ID)
+	next, err := m.Start(Options{Path: "unused", AudioStream: -1, BurnSubtitle: -1})
+	if err != nil {
+		t.Fatalf("slot wasn't released: %v", err)
+	}
+	sessions = append(sessions, next)
+}
+
+func TestFailedConversionStartReleasesCapacity(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "missing-ffmpeg")
+	m := New(filepath.Join(t.TempDir(), "sessions"), func() string { return bin }, func() string { return "" },
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.Configure(m.dir, 1)
+	for range 2 {
+		_, err := m.Start(Options{Path: "unused", AudioStream: -1, BurnSubtitle: -1})
+		if err == nil || errors.Is(err, ErrBusy) {
+			t.Fatalf("expected process-start error, got %v", err)
+		}
+		if m.Count() != 0 {
+			t.Fatal("failed conversion retained a slot")
+		}
+	}
+}
 
 func TestBuildArgs(t *testing.T) {
 	copyArgs := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 2, CopyVideo: true, VideoCodec: "hevc", BurnSubtitle: -1}, 20, "out"), " ")
