@@ -191,6 +191,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
   61-file TV show 8.47–10.00ms. Full generated-video import remains probe-bound:
   120 movies direct 21.66s (first match 0.50s); completed-preview flow 26.08s, now 240 total
   requests instead of 360. See scanbench/READINESS for boundaries; no Plex/Unraid speed claim.
+  Handoff after dd2291e (21 October): all Linux/Windows checks, Linux race detection, 22 Linux
+  browser journeys, container installation/persistence/restore/upgrade/rollback and Docker
+  publication passed (Actions run 39682197648). #145 is closed; the local checkout was clean
+  and matched origin/main before this notes update. Owner's Unraid/data/media were untouched.
+  Latest discussion: the owner means user-facing per-library scanning controls, rather than
+  just fixed internal timing. These controls are NOT implemented or a finalized approved design.
+  Proposed UI: automatic change scanning on/off; changed-folder-only scanning enabled by
+  default; scheduled full scan Off/hourly/6-hourly/12-hourly/daily. Current code uses independently
+  settled changes after 10 seconds, affected-folder scans, hourly full reconciliation, startup
+  scans and nightly maintenance. Keep Plex-like simple defaults. Resolve/preserve the missed-event
+  fallback when implementing scheduling, especially for network mounts. Broader Plex-style web
+  UI/feature-gap review follows the scanning work and remains pending.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
