@@ -37,6 +37,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Release scheduling (22 October): Docker image preparation now runs alongside verification.
+  Only the final gated job tags the prepared digest as latest/commit; all existing checks remain.
+  FFmpeg/browser installation and jobs have time limits to prevent indefinite runner stalls.
+  Local workflow structure/shell checks pass; hosted validation/timing is separate evidence in
+  docs/READINESS.md. Container acceptance still builds its own isolated image.
+
 - Done: milestone 1 (movie core), milestone 2 (TV shows + display orderings), and the first version
   of the web app (pulled forward from milestone 5). The owner loves the design and the orderings feature.
 - Milestone 3 done (Oct 2026): artwork cache, backups + restore, field locks + Edit Details, Fix
