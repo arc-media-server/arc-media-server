@@ -8,3 +8,7 @@ The project is now in milestone 21, stability and release readiness. Earlier mil
 from an older checkout is obsolete. Preserve the owner's database, settings and media; use
 isolated test data for checks. Never mark real-device or sustained-use validation complete from
 simulations. Track completed work in GitHub and keep the shared notes current.
+
+For Codex Cloud development, also read `docs/CODEX-CLOUD.md` for environment setup,
+isolated verification, cross-device handoff and the branch/PR workflow. Cloud task
+state does not replace GitHub commits or establish actual deployment validation.

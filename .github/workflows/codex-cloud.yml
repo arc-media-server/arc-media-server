@@ -1,0 +1,48 @@
+name: Codex Cloud preflight
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/codex-cloud/**'
+      - '.github/workflows/codex-cloud.yml'
+  pull_request:
+    paths:
+      - 'tools/codex-cloud/**'
+      - '.github/workflows/codex-cloud.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install media and race-detector prerequisites
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg build-essential
+      - name: Prepare using the cloud install command
+        run: bash tools/codex-cloud/setup.sh
+      - name: Verify using the cloud verification command
+        run: bash tools/codex-cloud/verify.sh
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-cloud-browser-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
