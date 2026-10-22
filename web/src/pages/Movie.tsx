@@ -4,13 +4,12 @@ import { CollectionRows } from '@/components/Collections';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
-import { api, backdropUrl, posterUrl, type MediaFile } from '@/lib/api';
+import { api, type MediaFile } from '@/lib/api';
 import * as fmt from '@/lib/format';
-import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { isLocalVideo } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
-import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
+import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components/Hero';
 import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { QueueActions } from '@/components/QueueActions';
 import { usePlayer } from '@/components/Player';
@@ -73,99 +72,88 @@ export function MoviePage() {
 
   return (
     <Page className="pb-20">
-      <Hero backdrop={backdropUrl(item)} className="min-h-[70vh]">
-        <div className="flex min-h-[70vh] items-end gap-8 px-6 pb-12 pt-24 md:px-10">
-          <Artwork
-            src={posterUrl(item)}
-            alt={item.title}
-            fallbackTitle={item.title}
-            eager
-            kind={local ? 'still' : undefined}
-            className={cn('hidden shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block', local ? 'w-96' : 'w-52')}
-          />
-          <div className="max-w-2xl">
-            <TitleHeading item={item} />
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <MetaLine parts={[local && item.release_date ? fmt.date(item.release_date) : item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
-              {details.contentRating && <Badge>{details.contentRating}</Badge>}
-              {resolutions.length > 1
-                ? resolutions.map((res) => <Badge key={res}>{res}</Badge>)
-                : video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
-              {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
-            </div>
-            {item.tagline && <p className="mt-5 text-[15px] italic text-foreground/70">{item.tagline}</p>}
-            {item.overview && <p className={cn('text-[15px] leading-relaxed text-foreground/85', item.tagline ? 'mt-2' : 'mt-5')}>{item.overview}</p>}
-            <CrewLine item={item} />
-            <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
-            <div className="mt-4">
-              <StarRating key={item.id} item={item} />
-            </div>
-            {item.metadata_state === 'unmatched' && admin && (
-              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
-                <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
-                <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
-                  Identify it…
-                </button>
-              </p>
-            )}
-            {editions.length > 1 && (
-              <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Edition">
-                {editions.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    role="radio"
-                    aria-checked={e === currentEdition}
-                    onClick={() => setEdition(e)}
-                    className={cn(
-                      'rounded-full px-3.5 py-1.5 text-[13px] font-medium ring-1 transition-colors',
-                      e === currentEdition ? 'bg-foreground text-background ring-foreground' : 'bg-black/20 text-foreground/80 ring-white/15 hover:bg-black/30',
-                    )}
-                  >
-                    {e || 'Standard Edition'}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className={cn('flex flex-wrap gap-3', editions.length > 1 ? 'mt-4' : 'mt-7')}>
-              <Button
-                variant="primary"
-                size="lg"
-                disabled={!playable}
-                onClick={() => playFrom(resumeAt)}
-                className="relative overflow-hidden"
-              >
-                <Play className="fill-current" /> {!playable ? 'File missing' : resumeAt ? `Resume · ${fmt.clock(resumeAt)}` : 'Play'}
-                {resumeAt > 0 && (
-                  <span className="absolute inset-x-0 bottom-0 h-1 bg-background/15">
-                    <span className="block h-full bg-accent-strong" style={{ width: `${progressOf(item) * 100}%` }} />
-                  </span>
-                )}
-              </Button>
-              {resumeAt > 0 && playable && (
-                <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => playFrom(0)} title="Play from the beginning" aria-label="Play from the beginning">
-                  <RotateCcw />
-                </Button>
-              )}
-              <TrailerButton extras={item.extras} title={item.title} />
-              <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
-              <WatchlistButton item={item} />
-              {playable && <QueueActions item={item} edition={currentEdition} />}
-              {playable && <AddToPlaylistButton item={item} />}
-              {admin && (
-                <>
-                  {!isLocalVideo(item) && (
-                  <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                    {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-                  </Button>
-                  )}
-                  <MoreMenu item={item} onOpen={openDialog} />
-                </>
-              )}
-            </div>
-          </div>
+      <TitleHero item={item} landscape={local}>
+        <TitleHeading item={item} detail />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <MetaLine parts={[local && item.release_date ? fmt.date(item.release_date) : item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
+          {details.contentRating && <Badge>{details.contentRating}</Badge>}
+          {resolutions.length > 1
+            ? resolutions.map((res) => <Badge key={res}>{res}</Badge>)
+            : video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
+          {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
         </div>
-      </Hero>
+        <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
+        {item.metadata_state === 'unmatched' && admin && (
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
+            <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
+            <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
+              Identify it…
+            </button>
+          </p>
+        )}
+        {editions.length > 1 && (
+          <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Edition">
+            {editions.map((e) => (
+              <button
+                key={e}
+                type="button"
+                role="radio"
+                aria-checked={e === currentEdition}
+                onClick={() => setEdition(e)}
+                className={cn(
+                  'rounded-full px-3.5 py-1.5 text-[13px] font-medium ring-1 transition-colors',
+                  e === currentEdition ? 'bg-foreground text-background ring-foreground' : 'bg-black/20 text-foreground/80 ring-white/15 hover:bg-black/30',
+                )}
+              >
+                {e || 'Standard Edition'}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={cn('flex flex-wrap gap-3', editions.length > 1 ? 'mt-4' : 'mt-7')}>
+          <Button
+            variant="primary"
+            size="lg"
+            disabled={!playable}
+            onClick={() => playFrom(resumeAt)}
+            className="relative overflow-hidden"
+          >
+            <Play className="fill-current" /> {!playable ? 'File missing' : resumeAt ? `Resume · ${fmt.clock(resumeAt)}` : 'Play'}
+            {resumeAt > 0 && (
+              <span className="absolute inset-x-0 bottom-0 h-1 bg-background/15">
+                <span className="block h-full bg-accent-strong" style={{ width: `${progressOf(item) * 100}%` }} />
+              </span>
+            )}
+          </Button>
+          {resumeAt > 0 && playable && (
+            <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => playFrom(0)} title="Play from the beginning" aria-label="Play from the beginning">
+              <RotateCcw />
+            </Button>
+          )}
+          <TrailerButton extras={item.extras} title={item.title} />
+          <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
+          <WatchlistButton item={item} />
+          {playable && <QueueActions item={item} edition={currentEdition} />}
+          {playable && <AddToPlaylistButton item={item} />}
+          {admin && (
+            <>
+              {!isLocalVideo(item) && (
+              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
+              </Button>
+              )}
+              <MoreMenu item={item} onOpen={openDialog} />
+            </>
+          )}
+        </div>
+        <div className="mt-6 grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(200px,0.6fr)]">
+          {(item.tagline || item.overview) && <div className="min-w-0">
+            {item.tagline && <p className="mb-2 text-[15px] italic text-foreground/70">{item.tagline}</p>}
+            {item.overview && <Synopsis key={item.id} text={item.overview} />}
+          </div>}
+          <div className="min-w-0 [&>dl]:mt-0"><CrewLine item={item} /><div className="mt-4"><StarRating key={item.id} item={item} /></div></div>
+        </div>
+      </TitleHero>
 
       <CastRow credits={item.credits} />
       <CollectionRows item={item} />

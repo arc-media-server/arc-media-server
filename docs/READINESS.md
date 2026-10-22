@@ -730,3 +730,34 @@ The private diagnostic export is not committed or attached to GitHub.
 
 Actual deployment responsiveness and real-library/device/sustained-use acceptance (#134–#138)
 remain open. Rollback across the new schema needs its compatible pre-upgrade backup, as usual.
+
+
+## Title-page proportions and long descriptions (#160, 22 October 2026)
+
+The owner approved rebalancing movie and series headers after an isolated desktop review.
+Previously, 208px movie and 176px series posters aligned with the bottom of tall information
+blocks. Long movie descriptions could push Play below the first screen; series descriptions
+were permanently clamped. Both detail pages now use a shared top-aligned poster/info grid:
+240px posters at the smaller desktop breakpoint, 256px on wider desktops, smaller detail-title
+typography, and a wider information column. At wide desktop sizes, synopsis and credits use
+separate columns while the synopsis retains a comfortable maximum line length. Landscape
+home-video artwork retains its aspect; Home hero presentation is independent.
+
+Play/Resume and existing edition/action controls precede optional text. Movie and series
+synopses share a four-line preview and keyboard-operable Show more/Show less, linked to their
+controlled paragraph with aria-controls/aria-expanded. The expansion control appears only
+when the content overflows; width/font changes are observed. Profiles, playback behavior,
+episode-order controls and the owner's chosen cast-before-episodes layout are retained.
+
+Focused real-app regressions import generated clips through local metadata fixtures, persist
+long titles/descriptions into temporary stores, and verify viewport-visible Play, consistent
+top-aligned poster frames, no horizontal document overflow and keyboard expansion/collapse at
+1366x768, 1920x900 and 390x900. Both pass (15.8 seconds). Additional visual review uses explicitly
+synthetic artwork/cast/metadata at 1366, 1440 and 1920 widths; desktop and phone screenshots were
+inspected. These are isolated layout/interaction checks, not owner-library, physical-device,
+provider-artwork-quality or sustained-use acceptance. No owner settings, database or media used.
+
+The unchanged cloud verifier exited zero: production/app/e2e TypeScript, full Go vet/tests/race,
+embedded-server build and all 41 Chromium journeys passed (4.3 minutes, zero browser failures,
+skips or retries). The other Settings-review recommendations (near-control errors, accessible labels and navigation polish) remain proposals;
+this change is scoped to the title-header adjustment the owner approved.

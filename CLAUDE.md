@@ -281,8 +281,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Cloud handoff (#157, 22 October): owner approved moving cross-PC development to Codex Cloud while
   retaining GitHub. Read docs/CODEX-CLOUD.md for setup, verification and task handoff. Linux setup
   and verification scripts are in tools/codex-cloud; they require the project Go toolchain,
-  Node 24, FFmpeg, a C compiler and package access. Cloud work uses codex/ branches and PRs;
-  do not merge without authorization or overlap local/cloud agents on the same branch. Account
+  Node 24, FFmpeg, a C compiler and package access. The original cloud workflow used codex/ branches and PRs;
+  the owner later authorized direct verified main pushes (see current policy below). Do not
+  overlap local/cloud agents on the same branch. Account
   sign-in/publication/fresh-task verification are separate from this repository preparation;
   never claim Cloud is active merely because these files were pushed.
   Owner completed sign-in and GitHub authorization; the private arc-media-server draft contains
@@ -300,7 +301,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Full evidence lives in /workspace/arc-cloud-evidence/FRESH-TASK.md in that chat and GitHub #157.
   e8e315d also passed cloud preflight (39847970913) and all release/publication gates (39847970870).
   Actual reopening from the owner's other PC has not been physically exercised. GitHub stays
-  authoritative; use codex/ branches/PRs for cloud code, keep handoffs current, and never infer
+  authoritative; keep handoffs current, follow the current push policy below, and never infer
   deployment/device readiness from this developer-environment acceptance.
 - Scan responsiveness follow-up (#158): the owner saw matching/reading phases on an existing
   Series library. Investigation showed a repeat scan reused every file's probe details, while
@@ -312,8 +313,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Isolated cleanup/upgrade/restore and busy-writer authentication regressions pass. The cloud
   verifier passes production/app/e2e TypeScript, Go vet/tests/race, embedded build and all 39
   browser journeys without retries; final queue/cancellation race checks pass separately.
-  Results and limits are recorded in READINESS. This is an implementation awaiting PR/CI review,
-  not confirmation that the owner's deployment latency is resolved. Owner data/media untouched.
+  Results and limits are recorded in READINESS. PR #159 was merged as 2440fbe; actual
+  owner-deployment latency confirmation remains separate. Owner data/media untouched.
+- Current push policy (owner, 22 October): commit and push authorized work directly to main
+  after relevant checks pass; PRs are no longer required by default. This supersedes the earlier
+  PR-only cloud guidance. Preserve unrelated work, never force push, and keep GitHub handoffs current.
+- Title-header balance (#160): movie and series pages now share top-aligned 240–256px desktop
+  posters, wider metadata/control space, smaller detail headings and expandable synopses with
+  Play/Resume above the description. Wide desktops split synopsis and credits into columns;
+  phones retain the compact layout. Home hero presentation and landscape home-video artwork
+  are retained. Production/app/e2e TypeScript, Go vet/tests/race, embedded build and all 41
+  browser journeys pass without retries; isolated desktop/phone/keyboard evidence is in READINESS.
+  Settings-review recommendations remain proposals, outside this authorized header adjustment.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
