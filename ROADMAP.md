@@ -199,6 +199,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Queue SQLite writes independently of reads to prevent in-process SQLITE_BUSY under contention (#154; deployment confirmation remains separate)
 - [x] Add temporary detailed logging, retained history and redacted diagnostic downloads (#155)
 - [x] Remove redundant poster-only save work and show save-stage progress (#156; remaining real-server latency needs timed evidence)
+- [x] Clarify scan Activity and keep browsing independent of session bookkeeping; index cached-episode cleanup (#158; isolated evidence in READINESS, deployment confirmation pending)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

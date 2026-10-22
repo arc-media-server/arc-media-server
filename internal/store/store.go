@@ -27,7 +27,8 @@ type Options struct {
 var migrationsFS embed.FS
 
 type Store struct {
-	db *database
+	db          *database
+	sessionUses *sessionUseQueue
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.
@@ -68,10 +69,16 @@ func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	s.sessionUses = newSessionUseQueue(s)
 	return s, nil
 }
 
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error {
+	if s.sessionUses != nil {
+		s.sessionUses.stop()
+	}
+	return s.db.Close()
+}
 
 // DatabaseStats exposes queue pressure without querying SQL or revealing stored values.
 func (s *Store) DatabaseStats() map[string]any {

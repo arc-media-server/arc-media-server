@@ -68,7 +68,7 @@ func (s *Server) session(r *http.Request) *store.Session {
 		return nil
 	}
 	if time.Since(time.Unix(se.LastSeen, 0)) > 5*time.Minute {
-		s.store.TouchSession(r.Context(), se.TokenHash)
+		s.store.RecordSessionUse(se.TokenHash)
 	}
 	return se
 }
