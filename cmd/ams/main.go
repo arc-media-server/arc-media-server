@@ -236,6 +236,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	// Scan libraries when their folders change.
 	watch := watcher.New(sc.Request, log)
+	scanConfig := func(c settings.Settings) watcher.Config {
+		return watcher.Config{Automatic: c.ScanAutomatic, Partial: c.ScanPartial, Interval: time.Duration(c.ScanIntervalHours) * time.Hour}
+	}
+	watch.Configure(scanConfig(cfg))
 	watch.ScanPaths = sc.RequestPaths
 	go watch.Run(ctx)
 	// librariesChanged brings the watcher in step with the libraries, optionally scanning them all.
@@ -280,9 +284,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		watch.SetLibraries(folders)
 	}
-	librariesChanged(true)
+	librariesChanged(cfg.ScanOnStart)
 
-	// Once a night, in the maintenance window: scan every library (which refreshes old details)
+	// Once a night, refresh known titles without discovering media folders,
 	// and catch up on scrubbing previews. Backups check the window themselves.
 	go func() {
 		last := ""
@@ -300,10 +304,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			task := tasks.Start("maintenance", "Nightly maintenance")
 			libs, err := st.ListLibraries(ctx)
 			for _, l := range libs {
-				sc.Request(l.ID)
+				sc.Maintain(l.ID)
 			}
 			thumbs.Wake()
-			task.Detail(fmt.Sprintf("Checked %d libraries for changes and old details", len(libs)))
+			task.Detail(fmt.Sprintf("Requested known-title maintenance for %d libraries", len(libs)))
 			task.Finish(err)
 		}
 	}()
@@ -365,6 +369,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			thumbs.Wake()
 		}
 		current = next
+		watch.Configure(scanConfig(next))
 		applyHomeNetworks(next.HomeNetworks)
 		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
@@ -431,7 +436,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
+		Store: st, Scanner: sc, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
 			next, err := settings.Load(ctx, st)

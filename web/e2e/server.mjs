@@ -56,10 +56,10 @@ async function stopApp() {
   }
 }
 
-async function reset() {
+async function reset(restart = false) {
   metadataDelayMS = 0;
   await stopApp();
-  const data = join(root, `data-${++generation}`);
+  const data = join(root, `data-${restart ? generation : ++generation}`);
   child = spawn(binary, ['-data', data, '-config', 'none'], {
     cwd: root, env: { ...env, AMS_LISTEN: '127.0.0.1:18199', AMS_TMDB_URL: 'http://127.0.0.1:18200/tmdb',
       AMS_IMDB_RATINGS_URL: 'http://127.0.0.1:18200/no-ratings', AMS_OMDB_URL: 'http://127.0.0.1:18200/no-scores',
@@ -118,6 +118,18 @@ const server = createServer(async (req, res) => {
       return json(200, { ms });
     }
     if (url.pathname === '/shutdown' && req.method === 'POST') { await cleanup(); return json(200, { stopped: true }); }
+    if (url.pathname === '/restart' && req.method === 'POST') {
+      if (resetting) return json(409, { error: 'reset already running' });
+      resetting = true;
+      try { await reset(true); return json(200, fixtures); } finally { resetting = false; }
+    }
+    if (url.pathname === '/add-unwatched-file' && req.method === 'POST') {
+      const files = await readdir(fixtures.movies, { recursive: true });
+      const source = files.find(f => f.endsWith('.mp4'));
+      if (!source) throw new Error('No generated clip');
+      await copyFile(join(fixtures.movies, source), join(fixtures.empty, 'Unwatched fixture (2020).mp4'));
+      return json(200, { added: true });
+    }
     if (url.pathname === '/reset' && req.method === 'POST') {
       if (resetting) return json(409, { error: 'reset already running' });
       resetting = true;

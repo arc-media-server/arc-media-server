@@ -10,6 +10,7 @@ import (
 
 // libraryHealth: GET /api/libraries/{id}/health reports everything in a library worth a look:
 // unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes.
+// watch_problem describes failed folder notifications and the configured scheduled fallback.
 func (s *Server) libraryHealth(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
@@ -82,7 +83,12 @@ func (s *Server) libraryHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	watchProblem := ""
+	if s.watchProblem != nil {
+		watchProblem = s.watchProblem(lib.ID)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"watch_problem":    watchProblem,
 		"library":          lib,
 		"unidentified":     unidentifiedOut,
 		"unreadable":       unreadable,
@@ -104,6 +110,18 @@ func (s *Server) healthSummary(w http.ResponseWriter, r *http.Request) {
 	out := map[string]int{}
 	for lib, n := range counts {
 		out[strconv.FormatInt(lib, 10)] = n
+	}
+	if s.watchProblem != nil {
+		libs, err := s.store.ListLibraries(r.Context())
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		for _, lib := range libs {
+			if s.watchProblem(lib.ID) != "" {
+				out[strconv.FormatInt(lib.ID, 10)]++
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }

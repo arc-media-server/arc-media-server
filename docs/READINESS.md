@@ -6,6 +6,55 @@ are separate: a closed feature milestone does not establish that every device wo
 Track this work in milestone **21. Stability and release readiness**, issues #130–#138.
 Use isolated databases and copies of data for recovery tests. Never modify the owner's media.
 
+Global scanning controls are implemented: see [SCANNING-CONTROLS.md](SCANNING-CONTROLS.md) and
+[#147](https://github.com/JonzaUK/arc-media-server/issues/147). The owner superseded the earlier
+per-library proposal with server-wide controls. Isolated verification is recorded below; real
+network-share notification behaviour and sustained-use readiness remain separate acceptance work.
+
+## Global scanning controls (#147, 22 October)
+
+The admin settings now expose server-wide automatic change scanning and a full-discovery interval
+(Off/hourly/6-hourly/12-hourly/24-hourly). Advanced contains partial scans and startup scans.
+Defaults retain automatic/partial/startup On and an hourly fallback. Explicit false and Off survive
+database reload. Runtime updates and restored settings use the same watcher configuration hook.
+Manual scans, first-library imports and explicit restore reconciliation remain independent.
+
+The watcher replaces its timer when the interval changes, removes it for Off, clears pending
+notifications when disabled and requests one catch-up scan when re-enabled. Changes arriving
+during existing scans retain the scanner's bounded/coalesced follow-up behaviour. Known-root
+availability checks register returning folders independently of periodic discovery; they do not
+repeatedly walk healthy roots. Library Health reports actual notification/registration errors
+with the configured fallback, rather than promising an hourly scan when scheduling is Off.
+
+Nightly maintenance now refreshes known database titles instead of requesting full discovery.
+It shares each library's scan admission slot and has its own Activity entry. Movie refresh
+failures in this maintenance path do not schedule a discovery retry. Backups and other maintenance
+managers retain their own scheduling. Existing scan-driven provider retries are unchanged.
+
+Isolated evidence:
+
+- Settings/API regressions verify defaults, persisted Off, supported intervals, explicit false,
+  partial patches, and rejection of incorrect types/null/unsupported intervals.
+- Controlled-clock watcher tests cover timer replacement/removal, keeping a timer for unrelated
+  setting changes, re-enabling without replaying missed ticks and a single change-scan catch-up.
+  Direct event tests cover partial/full dispatch, disabled pending changes and error guidance.
+  An actual temporary missing/returning local directory verifies reattachment with scheduling Off.
+- Movie and TV local TLS fixtures verify known metadata updates, locked-title preservation,
+  serial admission and absence of newly discovered titles during maintenance. Existing offline-root,
+  episode identity and history-preservation regressions remain in the full Go suite.
+- The real-app Chromium journey verifies the controls, reload persistence, disabled Advanced
+  dependency, failed-save recovery, first-library/manual scans with triggers off, startup Off/On
+  across real process restarts, no discovery after waiting beyond settling with changes disabled,
+  and ordinary-profile UI/API protection. The restore journey checks all four restored values.
+  Screenshots at 1440px and 390px were inspected.
+
+Final local Windows verification passed: production UI and app/e2e TypeScript builds, all
+23 Chromium journeys without retries (4.3 minutes), `go vet ./...`, `go test ./...`, regenerated
+API reference and `git diff --check`. Subsequent watcher-only safeguards passed that package's
+regressions. Local CGO is disabled, so Linux race checks and container acceptance/publication
+are separate CI evidence. Nothing here establishes real NAS notifications, real-device playback,
+hardware performance or sustained Unraid acceptance; owner data/settings/media were not used.
+
 ## Acceptance checklist
 
 | Area | Evidence required | Status |

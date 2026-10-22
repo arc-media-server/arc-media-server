@@ -46,8 +46,10 @@ Early development. Working today:
 - One metadata provider per show: details and artwork come from TMDB, or TheTVDB if a show is set
   to it (Edit Details › Details From); gaps are left blank, never filled from the other provider
 - Missing-file detection that keeps items and their history (e.g. when a drive is offline)
-- Folder watching: new, changed and removed files are picked up within seconds, plus an hourly
-  rescan for folders (like network shares) that don't report changes
+- Global Library scanning settings: automatic change detection, optional full scans (Off, hourly,
+  6-hourly, 12-hourly or daily), and Advanced controls for partial and startup scans. Defaults keep
+  automatic, partial and startup scanning on, with an hourly fallback for network shares. Changes
+  apply without restarting; manual scans and first library imports remain available.
 - Playback that adapts to the browser: files it can play are sent as they are (direct play, with
   range requests for seeking); otherwise FFmpeg repackages them (video untouched, e.g. MKV or AC-3
   audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
@@ -131,8 +133,8 @@ Early development. Working today:
 - Other sites' scores on title pages, and to sort by: IMDb (from IMDb's free ratings file, updated
   weekly, no key), and Rotten Tomatoes' critics and Metacritic with a free OMDb key in Settings
 - Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
-  refreshing week-old show details and month-old movie details, the daily backup and a check of
-  every library; scrubbing previews can wait for it too
+  refreshing known week-old show details and month-old movie details, and the daily backup;
+  scrubbing previews can wait for it too. File discovery follows Library scanning settings.
 - Skip Intro, Skip Recap and Skip Credits: timings from the file's chapters (Opening, Ending),
   IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
   overnight by comparing a season's episodes' audio. Movies get Skip Credits too (chapters,

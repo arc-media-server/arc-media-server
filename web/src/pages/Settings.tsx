@@ -401,13 +401,70 @@ function ServerSettings() {
             <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
           </Section>
 
+          <Section title="Library scanning" hint="Keep all your libraries up to date. Applies to every library.">
+            <ToggleRow
+              label="Scan automatically when files change"
+              description="Find new or changed media when your folders report a change."
+              checked={s.scan_automatic}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ scan_automatic: v })}
+            />
+            <Row
+              label="Full library scan"
+              description="Check all library folders for changes, including changes your drives may not report. Intervals run from server start or when this setting changes."
+            >
+              <select
+                aria-label="Full library scan"
+                value={s.scan_interval_hours}
+                disabled={update.isPending}
+                onChange={(e) => update.mutate({ scan_interval_hours: Number(e.target.value) })}
+                className={inputClass + ' w-44 [&>option]:bg-surface'}
+              >
+                <option value={0}>Off</option>
+                <option value={1}>Every hour</option>
+                <option value={6}>Every 6 hours</option>
+                <option value={12}>Every 12 hours</option>
+                <option value={24}>Every 24 hours</option>
+              </select>
+            </Row>
+            <p className="px-5 py-3 text-sm text-muted">Some network drives do not report changes. Keep a scheduled scan enabled to catch them.</p>
+            {s.scan_interval_hours === 0 && (
+              <p className="px-5 pb-3 text-sm text-muted" role="status">
+                {!s.scan_automatic && !s.scan_on_start
+                  ? 'Libraries update when you scan them or change their folders.'
+                  : s.scan_automatic && s.scan_on_start
+                    ? 'Full scans are off. Arc still scans detected changes and checks libraries at startup.'
+                    : s.scan_automatic
+                      ? 'Full scans are off. Arc still scans detected changes.'
+                      : 'Full scans are off. Arc still checks libraries at startup.'} Running scans finish normally.
+              </p>
+            )}
+            <details className="px-5 py-3">
+              <summary className="cursor-pointer text-sm font-medium">Advanced scanning options</summary>
+              <ToggleRow
+                label="Scan only changed folders"
+                description="For detected changes, check the affected folders instead of the whole library."
+                checked={s.scan_partial}
+                busy={update.isPending || !s.scan_automatic}
+                onChange={(v) => update.mutate({ scan_partial: v })}
+              />
+              <ToggleRow
+                label="Scan when Arc starts"
+                description="Check all libraries for changes when the server starts."
+                checked={s.scan_on_start}
+                busy={update.isPending}
+                onChange={(v) => update.mutate({ scan_on_start: v })}
+              />
+            </details>
+          </Section>
+
           <Section
             title="Scheduled tasks"
             hint="Heavy background work waits for a quiet time of night, so it doesn't slow anyone watching."
           >
             <Row
               label="Maintenance time"
-              description="Every night in this window Arc refreshes details that are a week (shows) or a month (movies) old, takes the daily backup, and checks every library for changes."
+              description="Every night in this window Arc refreshes details that are a week (shows) or a month (movies) old, and takes the daily backup. New-file discovery follows your Library scanning settings."
             >
               <div className="flex items-center gap-2 text-sm">
                 <HourSelect value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />

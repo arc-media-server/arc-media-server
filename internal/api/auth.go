@@ -757,6 +757,10 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"port":                   st.Port,
 		"allow_network":          st.AllowNetwork,
 		"region":                 st.Region,
+		"scan_automatic":         st.ScanAutomatic,
+		"scan_partial":           st.ScanPartial,
+		"scan_on_start":          st.ScanOnStart,
+		"scan_interval_hours":    st.ScanIntervalHours,
 		"maintenance_start":      st.MaintenanceStart,
 		"maintenance_end":        st.MaintenanceEnd,
 		"previews_at_night":      st.PreviewsAtNight,
@@ -819,6 +823,8 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // updateSettings: PATCH /api/settings (admin) with any of "tmdb_api_key", "tvdb_api_key",
 // "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider
 // before being saved; a new port or network setting takes effect straight away.
+// Global scanning: "scan_automatic", "scan_partial", "scan_on_start" (booleans), and
+// "scan_interval_hours" (0, 1, 6, 12 or 24). Changes apply without restarting.
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		TMDBKey       *string `json:"tmdb_api_key"`
@@ -833,6 +839,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		Port          *int    `json:"port"`
 		AllowNetwork  *bool   `json:"allow_network"`
 		Region        *string `json:"region"`
+		ScanAutomatic *bool   `json:"scan_automatic"`
+		ScanPartial   *bool   `json:"scan_partial"`
+		ScanOnStart   *bool   `json:"scan_on_start"`
+		ScanInterval  *int    `json:"scan_interval_hours"`
 		MaintStart    *int    `json:"maintenance_start"`
 		MaintEnd      *int    `json:"maintenance_end"`
 		PreviewsNight *bool   `json:"previews_at_night"`
@@ -854,11 +864,43 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		TranscodeDir  *string `json:"transcode_dir"`
 		MaxTranscodes *int    `json:"max_transcodes"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	var raw json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours"} {
+		if v, ok := fields[key]; ok && string(v) == "null" {
+			writeError(w, http.StatusBadRequest, key+" cannot be null")
+			return
+		}
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	next := s.settings()
+	if body.ScanAutomatic != nil {
+		next.ScanAutomatic = *body.ScanAutomatic
+	}
+	if body.ScanPartial != nil {
+		next.ScanPartial = *body.ScanPartial
+	}
+	if body.ScanOnStart != nil {
+		next.ScanOnStart = *body.ScanOnStart
+	}
+	if body.ScanInterval != nil {
+		if !settings.ValidScanInterval(*body.ScanInterval) {
+			writeError(w, http.StatusBadRequest, "scan interval must be 0, 1, 6, 12 or 24 hours")
+			return
+		}
+		next.ScanIntervalHours = *body.ScanInterval
+	}
 	if body.TMDBKey != nil {
 		next.TMDBKey = strings.TrimSpace(*body.TMDBKey)
 	}

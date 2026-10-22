@@ -195,14 +195,26 @@ The owner works from more than one PC (Windows). On a fresh clone:
   browser journeys, container installation/persistence/restore/upgrade/rollback and Docker
   publication passed (Actions run 39682197648). #145 is closed; the local checkout was clean
   and matched origin/main before this notes update. Owner's Unraid/data/media were untouched.
-  Latest discussion: the owner means user-facing per-library scanning controls, rather than
-  just fixed internal timing. These controls are NOT implemented or a finalized approved design.
-  Proposed UI: automatic change scanning on/off; changed-folder-only scanning enabled by
-  default; scheduled full scan Off/hourly/6-hourly/12-hourly/daily. Current code uses independently
-  settled changes after 10 seconds, affected-folder scans, hourly full reconciliation, startup
-  scans and nightly maintenance. Keep Plex-like simple defaults. Resolve/preserve the missed-event
-  fallback when implementing scheduling, especially for network mounts. Broader Plex-style web
-  UI/feature-gap review follows the scanning work and remains pending.
+  Global scanning controls (#147, 22 October) implemented with the owner's go-ahead: server-wide
+  Settings > Library scanning, automatic changes On, full scans hourly (Off/hourly/6h/12h/24h),
+  Advanced partial scans On and startup scans On. This supersedes the per-library proposal.
+  Values persist in existing DB settings and apply live, including restore. Manual/first-library
+  scans remain independent; turning triggers off leaves current scans running. Off removes the
+  periodic timer; enabling automatic changes requests one catch-up scan. No tuning knobs.
+  Nightly work now refreshes known movie/show metadata through the scanner's library admission
+  slot, without a media discovery walk or failure-triggered discovery retries. Activity tracks it.
+  Library Health reports actual watcher failures with configured fallback advice; known roots
+  are checked for return independently of the full-scan schedule. Offline-root protections remain.
+  docs/SCANNING-CONTROLS.md records the contract; #80 records the Plex simplifications. Isolated
+  Go checks, controlled-clock watcher regressions and a real-app browser journey cover settings,
+  save errors, restart/startup Off, manual/add scans, profile protection and restore values.
+  Desktop/narrow screenshots were inspected. No owner data/media or Unraid deployment was used;
+  real network notification behaviour and sustained-use readiness remain unverified.
+  Final local Windows checks: production UI/app/e2e TypeScript build, all 23 Chromium journeys
+  without retries (4.3 minutes), go vet ./..., go test ./..., generated API and diff checks pass.
+  Final watcher-only safeguards were rechecked separately. Local CGO is off; Linux race and
+  container/publication checks remain separate CI evidence for this commit.
+  Broader Plex-style web UI/feature-gap review follows scanning and remains pending.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
