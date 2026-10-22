@@ -131,4 +131,3 @@ async function setup(page: Page) {
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).last().click();
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
 }
-
