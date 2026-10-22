@@ -237,6 +237,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Prior scanner CI exposed a race in the fake-clock test's shared callback counter; replaced
   asynchronous counters with atomics. This was a test race, not evidence of a production race.
   Latest UI follow-up checks: production build/app and e2e TypeScript pass; 23 existing journeys passed in the full run and all 12 final UI regressions pass together (35 total). Full Go vet/tests pass; affected package/API reference checks pass after final changes. Linux/Windows CI remains separate evidence recorded on #148.
+  Compact playback also keeps the next-episode countdown mounted; its own generated-video
+  regression verifies automatic advancement after minimizing. The normal suite now has 36
+  journeys (23 existing + 13 UI). See #148 for the final CI result.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

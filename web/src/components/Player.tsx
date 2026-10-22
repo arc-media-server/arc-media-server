@@ -1023,8 +1023,8 @@ function PlayerOverlay({
           Skip <SkipForward />
         </Button>
       )}
-      {!minimized && upNextIn !== null && next && (
-        <UpNext item={next} seconds={upNextIn} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
+      {upNextIn !== null && next && (
+        <UpNext item={next} seconds={upNextIn} compact={minimized} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
       )}
       {searching && planState && item.itemId && (
         <SubtitleSearch
@@ -1349,7 +1349,7 @@ function Thumb({ ms, thumbs }: { ms: number; thumbs: { info: TrickplayInfo; shee
 }
 
 /** The next item in a queue, counting down to it. */
-function UpNext({ item, seconds, onTick, onPlay, onCancel }: { item: NowPlaying; seconds: number; onTick: () => void; onPlay: () => void; onCancel: () => void }) {
+function UpNext({ item, seconds, compact = false, onTick, onPlay, onCancel }: { item: NowPlaying; seconds: number; compact?: boolean; onTick: () => void; onPlay: () => void; onCancel: () => void }) {
   // The callbacks change with every render of the player; the countdown only follows the seconds.
   const callbacks = useRef({ onTick, onPlay });
   callbacks.current = { onTick, onPlay };
@@ -1361,6 +1361,12 @@ function UpNext({ item, seconds, onTick, onPlay, onCancel }: { item: NowPlaying;
     const t = window.setTimeout(() => callbacks.current.onTick(), 1000);
     return () => window.clearTimeout(t);
   }, [seconds]);
+  if (compact) return (
+    <div className="absolute inset-x-2 bottom-16 flex items-center justify-between rounded-xl bg-black/80 px-3 py-1 text-white">
+      <p className="text-xs">Up next in {seconds}</p>
+      <Button variant="glass" size="sm" onClick={onCancel}>Cancel</Button>
+    </div>
+  );
   return (
     <div className="absolute bottom-72 right-6 sm:bottom-28 z-10 w-80 rounded-2xl bg-black/80 p-4 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
       <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Up next in {seconds}</p>

@@ -170,7 +170,7 @@ queue scope. All eight areas were reviewed; the identified work is implemented:
   visible, with appropriate retries. Playlist keyboard reordering persists and rolls back a
   failed request without losing the list. Shared query errors expose Retry.
 
-The obsolete four observed-gap checks and separate review configuration were retired. Twelve
+The obsolete four observed-gap checks and separate review configuration were retired. Thirteen
 normal regressions in `web/e2e/ux.spec.ts` now assert corrected behaviour against disposable
 databases, generated video and local provider fixtures. The synthetic 60-result row checks
 navigation/filter preservation, not scanner throughput. Mobile geometry and real generated
