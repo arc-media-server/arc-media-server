@@ -259,6 +259,25 @@ The owner works from more than one PC (Windows). On a fresh clone:
   now log the cached library name/ID, phase and files seen without a new database read. An
   isolated failed-background-scan regression verifies the diagnostic fields. Deployment confirmation
   still requires the updated build on the owner's server.
+  Follow-up #155/#156 (22 October): owner approved logging controls after a slow series-poster
+  save. Admin Settings > Maintenance & recovery > Diagnostics now has one live Detailed logging
+  switch (auto-off after 30 minutes) and a redacted ZIP download. Logs persist under data/logs
+  (/config/logs), three files of at most 2MiB each, with a recent in-memory fallback on storage
+  failure. Startup -debug is now temporary too. The archive contains logs and a build/system/
+  aggregate DB-queue manifest, never a database/settings dump/media. Names and paths can remain.
+  Known keys, credential attributes, bearer/query tokens, URL user-info and common webhook/link
+  secrets are masked before normal sinks and again on export. Register secrets before jobs start.
+  Slow mutations (>=2s) and HTTP 5xx responses log route/status/duration at normal level; raw URLs
+  and query tokens are excluded. Container CI injects its SHA into startup/export build identity.
+  Poster-only Save skips the unchanged metadata PATCH and derived-age recalculation when the
+  content rating is unchanged. Save shows its current step and disables inputs while pending.
+  This reduces duplicate work; the owner's exact deployed latency is not yet measured/proven.
+  Full local Go vet/tests and production/app/e2e TypeScript pass. The 38-journey Chromium suite
+  passes together without retries (7.4m); diagnostics retry/download/restart/admin/390px and
+  poster-only request/progress/lock regressions are included. Screenshots inspected. Linux race,
+  container/image and actual deployment acceptance remain separate evidence on #155/#156.
+  Earlier database-lock fix 1348aed and logging 48cb242 passed all release gates and publication
+  (run 39801816884); #154 closed. No owner data/settings/media or Unraid deployment was changed.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

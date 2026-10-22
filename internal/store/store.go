@@ -73,6 +73,13 @@ func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
+// DatabaseStats exposes queue pressure without querying SQL or revealing stored values.
+func (s *Store) DatabaseStats() map[string]any {
+	w, r := s.db.writer.Stats(), s.db.DB.Stats()
+	return map[string]any{"writer_in_use": w.InUse, "write_wait_count": w.WaitCount,
+		"write_wait_ms": w.WaitDuration.Milliseconds(), "read_connections": r.OpenConnections, "reads_in_use": r.InUse}
+}
+
 // Refuse downgrades before applying migrations or derived-data updates. Rollback
 // requires the earlier binary and a backup from a schema that binary understands.
 func (s *Store) checkVersion(ctx context.Context) error {

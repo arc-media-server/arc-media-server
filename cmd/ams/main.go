@@ -48,6 +48,7 @@ import (
 
 // The most recent log lines, which the admin can read on the Dashboard.
 var logs = logbuf.New(2000)
+var revision = "unknown" // injected for container builds
 
 const version = "0.1.0-dev"
 
@@ -58,11 +59,9 @@ func main() {
 	resetPassword := flag.Bool("reset-password", false, "forgot the password? set a new random one, print it and exit")
 	flag.Parse()
 
-	level := slog.LevelInfo
-	if *debug {
-		level = slog.LevelDebug
-	}
-	log := slog.New(logs.Wrap(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	logs.SetDetailed(*debug)
+	log := slog.New(logs.Wrap(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logs.Level()})))
+	defer logs.Close()
 
 	if *resetPassword {
 		if err := resetAdminPassword(*dataDir); err != nil {
@@ -73,6 +72,7 @@ func main() {
 	}
 	if err := run(*dataDir, *legacyConfig, log); err != nil {
 		log.Error("fatal", "err", err)
+		logs.Close()
 		os.Exit(1)
 	}
 }
@@ -104,6 +104,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return err
+	}
+	if err := logs.EnableArchive(filepath.Join(dataDir, "logs")); err != nil {
+		log.Warn("persistent logging unavailable", "err", err)
 	}
 	backupDir := filepath.Join(dataDir, "backups")
 	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{
@@ -137,6 +140,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	redactSettings := func(s settings.Settings) {
+		logs.SetSecrets(s.TMDBKey, s.TVDBKey, s.OMDbKey, s.OpenSubtitlesKey, s.OpenSubtitlesPassword, s.TheIntroDBKey)
+	}
+	redactSettings(cfg)
 	window.Set(cfg.MaintenanceStart, cfg.MaintenanceEnd)
 	previewsAtNight.Store(cfg.PreviewsAtNight)
 	// Other sites' ratings (IMDb, and Rotten Tomatoes and Metacritic with an OMDb key).
@@ -357,6 +364,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// Caller holds mu. Restores use this without validating provider keys online or
 	// rewriting restored settings; recovery must also work while providers are down.
 	useSettings := func(next settings.Settings) {
+		redactSettings(next)
 		tmdb.SetKey(next.TMDBKey)
 		tmdb.SetRegion(next.Region)
 		tvdb.SetKey(next.TVDBKey)
@@ -475,6 +483,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		ApplySettings: applySettings,
 		UploadsDir:    filepath.Join(dataDir, "uploads"),
 		Logs:          logs,
+		Revision:      revision,
 		Transcoder:    transcoder,
 		Trickplay:     thumbs,
 		OpenSubtitles: subsOnline,
@@ -498,7 +507,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second}
 		served := make(chan error, 1)
 		go func(ln net.Listener) { served <- srv.Serve(remote.Listener(ln, remoteAccess.Certs.Config)) }(ln)
-		log.Info("Arc Media Server started", "version", version, "address", displayAddress(ln.Addr()), "data", dataDir)
+		log.Info("Arc Media Server started", "version", version, "revision", revision, "address", displayAddress(ln.Addr()), "data", dataDir)
 
 		var next net.Listener
 		select {

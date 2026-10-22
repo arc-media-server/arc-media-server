@@ -278,6 +278,65 @@ test('compact playback carries on to the next episode after its countdown', asyn
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
+test('diagnostics can be enabled, downloaded and retained across restart with admin protection', async ({ page }, info) => {
+  await page.goto('/settings?section=maintenance');
+  const toggle = page.getByRole('switch', { name: 'Detailed logging', exact: true });
+  await expect(toggle).not.toBeChecked();
+  await page.route('**/api/diagnostics', r => r.request().method() === 'PATCH' ? r.fulfill({ status: 503, json: { error: 'Diagnostics unavailable' } }) : r.continue());
+  await toggle.click();
+  await expect(page.getByText('Diagnostics unavailable', { exact: true })).toBeVisible();
+  await page.unroute('**/api/diagnostics');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(toggle).toBeChecked();
+  await page.reload(); await expect(toggle).toBeChecked();
+  await page.route('**/api/diagnostics/download', r => r.fulfill({ status: 503 }));
+  await page.getByRole('button', { name: 'Download diagnostics', exact: true }).click();
+  await expect(page.getByText('Could not download diagnostics. Please try again.', { exact: true })).toBeVisible();
+  await page.unroute('**/api/diagnostics/download');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  expect((await download).suggestedFilename()).toBe('arc-diagnostics.zip');
+  expect(await (await download).failure()).toBeNull();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: info.outputPath('diagnostics-390.png'), fullPage: true });
+  await page.request.post('http://127.0.0.1:18200/restart');
+  await page.reload(); await expect(toggle).not.toBeChecked();
+  expect((await (await page.request.get('/api/logs')).json()).some((l: { message: string }) => l.message === 'detailed logging changed')).toBe(true);
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Diagnostics viewer', color: 'blue' } })).json();
+  await page.request.post('/api/auth/profile', { data: { id: viewer.id } });
+  for (const method of ['GET', 'PATCH']) expect((await page.request.fetch('/api/diagnostics', { method, ...(method === 'PATCH' ? { data: { detailed: true } } : {}) })).status()).toBe(403);
+  expect((await page.request.get('/api/diagnostics/download')).status()).toBe(403);
+});
+
+test('poster-only saves skip unchanged metadata and show artwork progress', async ({ page }, info) => {
+  const { item } = await seed(page, true);
+  let edits = 0, refreshes = 0;
+  page.on('request', r => { if (r.method() === 'PATCH' && r.url().endsWith('/api/items/' + item.id)) edits++; if (r.url().endsWith('/refresh')) refreshes++; });
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=', 'base64');
+  await page.route('**/api/items/*/images/*', r => r.fulfill({ contentType: 'image/png', body: image }));
+  let release!: () => void;
+  const saving = new Promise<void>(r => { release = r; });
+  await page.route('**/api/items/' + item.id + '/artwork', async r => {
+    if (r.request().method() === 'PUT') { await saving; return r.continue(); }
+    return r.fulfill({ json: { posters: [{ path: '/fixture-poster.jpg', thumb: 'data:image/png;base64,' + image.toString('base64'), width: 600, height: 900 }], backdrops: [], logos: [], current: {}, chosen: {}, local: {} } });
+  });
+  await page.goto('/series/' + item.id);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit', exact: true });
+  await dialog.getByRole('tab', { name: 'Poster', exact: true }).click();
+  await dialog.getByRole('button', { name: '600×900', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog.getByRole('status')).toHaveText('Saving poster…');
+  await page.screenshot({ path: info.outputPath('poster-saving.png') });
+  expect(edits).toBe(0); release();
+  await expect(dialog).not.toBeVisible();
+  expect(refreshes).toBe(0);
+  const saved = await (await page.request.get('/api/items/' + item.id)).json();
+  expect(saved.locked_fields).toContain('poster');
+});
+
 test.beforeEach(async ({ page }) => {
   const r = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
   if (!r.ok) throw new Error(await r.text());

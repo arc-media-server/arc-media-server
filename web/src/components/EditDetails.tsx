@@ -88,10 +88,12 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>('details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
+  const [saving, setSaving] = useState('Saving details…');
 
   const save = useMutation({
     mutationFn: async () => {
-      const edit: ItemEdit = { locked_fields: [...locked] };
+      const locksChanged = locked.size !== item.locked_fields.length || item.locked_fields.some(f => !locked.has(f));
+      const edit: ItemEdit = locksChanged ? { locked_fields: [...locked] } : {};
       for (const s of specs) {
         const v = values[s.field].trim();
         if (v === initialValue(item, s.field).trim()) continue;
@@ -102,19 +104,25 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       if (labelsChanged) edit.labels = labels;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       if (item.kind === 'series' && detailsFrom !== (item.details_provider ?? '')) edit.details_provider = detailsFrom;
-      let updated = await api.editItem(item.id, edit);
+      let updated = item;
+      if (Object.keys(edit).length) { setSaving('Saving details…'); updated = await api.editItem(item.id, edit); }
       if (markerEdit.edit) {
+        setSaving('Saving skip markers…');
         await api.setItemMarkers(item.id, markerEdit.edit);
         qc.invalidateQueries({ queryKey: ['markers', item.id] });
       }
-      for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange][]) {
+      for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange | undefined][]) {
+        if (!change) continue;
+        setSaving('Saving ' + artworkNames[type].toLowerCase() + '…');
         updated = await applyArtwork(item.id, type, change);
       }
       for (const [season, change] of Object.entries(seasonArt)) {
+        setSaving('Saving season ' + season + ' poster…');
         await applySeasonArtwork(item.id, Number(season), change);
       }
       // Fields just unlocked should go back to the online value straight away.
       if (item.locked_fields.some((f) => !locked.has(f))) {
+        setSaving('Refreshing unlocked fields…');
         try {
           updated = await api.refreshItem(item.id);
         } catch {
@@ -157,6 +165,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       }
       footer={
         <>
+          {save.isPending && <span role="status" className="mr-auto text-sm text-muted">{saving}</span>}
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
             <Button variant="ghost" disabled={save.isPending}>
@@ -169,6 +178,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         </>
       }
     >
+      <fieldset disabled={save.isPending} className="min-w-0">
       {tabs.length > 1 && (
         <div className="mb-5 flex gap-1" role="tablist">
           {tabs.map((t) => (
@@ -288,6 +298,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         )}
         <button type="submit" hidden />
       </form>
+      </fieldset>
     </DialogContent>
   );
 }

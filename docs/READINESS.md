@@ -603,3 +603,52 @@ but does not reveal the exact SQL operation. Scan failure logs now include the c
 name, ID, scan phase and files seen, without querying the database again on the error path.
 A real failed-background-scan regression and the full scanner package/vet checks pass. The owner
 has not yet confirmed the fix on their deployment; the updated image must finish CI first.
+## Diagnostics and poster-save responsiveness (#155/#156)
+
+The owner approved diagnostic controls after reporting a series poster save that eventually
+completed but took a long time. Admin Settings > Maintenance & recovery now exposes a single
+Detailed logging switch (live, automatically off after 30 minutes) and Download diagnostics.
+`-debug` also starts this temporary mode. No stored setting or restart is needed to toggle it.
+Normal-mode logs retain >=2-second mutation timings and 5xx request context, using route templates
+instead of raw URLs/query strings. Versioned API routes retain the same safe request context.
+
+Recent records persist under the data directory's logs folder, bounded to three 2MiB JSONL files.
+Normal restart reloads recent history and sequence IDs. Storage failures are visible, while the
+recent in-memory records remain exportable. A ZIP contains redacted retained logs plus a manifest
+of build revision/version, OS/architecture/Go version and aggregate writer queue/read-connection
+statistics. CI container builds inject their actual commit SHA. No database, settings dump or
+media is attached; logs can include profile/media names and paths. Known configured credentials,
+sensitive attributes, bearer/query tokens, URL user-info and common webhook/link secrets are
+masked in console/buffer/files and again during export. This is not a promise to anonymize all
+user-entered text. API access, toggle and download are admin-only.
+
+The Edit form previously PATCHed unchanged details before an artwork save. It now skips unchanged
+metadata/locks, shows the current save step, and disables form input while saving. EditItem only
+recomputes derived ages if the age-rating value changes. An explicit poster choice performs its
+artwork save without needing metadata refresh or synchronous image download; automatic artwork
+reset and intentional field unlock retain their existing refresh behavior. These remove duplicate
+work, but the exact cause/duration on the owner's running server is not yet captured. New normal
+request timing and database queue metrics provide evidence for any remaining deployment delay.
+
+Validation: full local Go vet/tests pass. Controlled-clock tests cover expiry/renewal; filesystem
+fixtures verify rotation, bounded size, restart IDs, unavailable retention and failed-write export;
+redaction tests cover console/file/export, configured/short credentials and common token formats.
+API regressions check validation/ZIP contents/build identity and normal-mode slow request logging
+without raw query tokens. Production/app and e2e TypeScript checks pass. All 38 Chromium journeys
+pass together without retries (7.4m), including live toggle/save retry/download failure+retry,
+restart retention/default detail-off, ordinary-profile denial and 390px layout. A delayed real
+artwork PUT verifies visible save progress, no unchanged details PATCH/refresh and a persisted
+poster lock. Mobile diagnostics and desktop save screenshots were inspected. The poster/listing
+image choices are local/synthetic; tests never use owner data or live provider credentials.
+
+Plex provides debug logging and downloadable server logs in its
+[troubleshooting workflow](https://support.plex.tv/articles/200250417-plex-media-server-log-files/).
+Arc deliberately uses one temporary switch, bounded default retention and a small export without
+extra verbosity/retention knobs. This choice is recorded on #80. Linux race/container publication
+and actual server/device/sustained-use results remain separate acceptance evidence.
+
+Final production build and both focused UI regressions pass again (28.1s) after the last save/
+privacy safeguards. Container smoke now asserts persistent logging for root/non-root users,
+reset of temporary detail mode plus retained history across recreation, and the CI-injected
+revision. Its script syntax check passes locally; Docker is unavailable here, so those new
+container assertions require CI and are not recorded as local acceptance.

@@ -250,7 +250,7 @@ function ServerLog() {
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[12px] text-subtle">Shows the latest {maxLines.toLocaleString()} lines. The log starts afresh when Arc restarts.</p>
+      <p className="mt-2 text-[12px] text-subtle">Shows the latest {maxLines.toLocaleString()} lines. Enable detailed logging or download retained logs in Settings → Maintenance & recovery.</p>
     </section>
   );
 }
