@@ -302,6 +302,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Actual reopening from the owner's other PC has not been physically exercised. GitHub stays
   authoritative; use codex/ branches/PRs for cloud code, keep handoffs current, and never infer
   deployment/device readiness from this developer-environment acceptance.
+- Scan responsiveness follow-up (#158): the owner saw matching/reading phases on an existing
+  Series library. Investigation showed a repeat scan reused every file's probe details, while
+  authenticated UI requests stalled. Activity now says Checking files and titles, with finished
+  summaries separating files checked, details read and titles identified. Session last-used
+  bookkeeping uses one bounded/coalescing store worker instead of blocking authentication on
+  the SQLite writer; session/profile/revocation checks remain immediate reads. Migration 0046
+  adds reverse lookup indexes for cached episode cleanup (orders and per-profile state).
+  Isolated cleanup/upgrade/restore and busy-writer authentication regressions pass. The cloud
+  verifier passes production/app/e2e TypeScript, Go vet/tests/race, embedded build and all 39
+  browser journeys without retries; final queue/cancellation race checks pass separately.
+  Results and limits are recorded in READINESS. This is an implementation awaiting PR/CI review,
+  not confirmation that the owner's deployment latency is resolved. Owner data/media untouched.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
