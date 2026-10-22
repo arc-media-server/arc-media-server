@@ -596,3 +596,10 @@ is recorded on #154.
 Final local browser verification: all 36 Chromium journeys passed without retries (5.8 minutes),
 including settings/restore, scanning, ordering, direct/remux/transcode playback and saved progress.
 CI for the fix is separate evidence tracked on #154; no deployment confirmation is claimed.
+
+The owner then supplied container logs showing four libraries starting together; three finish,
+and library ID 3 subsequently fails with SQLITE_BUSY. This supports the concurrency diagnosis
+but does not reveal the exact SQL operation. Scan failure logs now include the cached library
+name, ID, scan phase and files seen, without querying the database again on the error path.
+A real failed-background-scan regression and the full scanner package/vet checks pass. The owner
+has not yet confirmed the fix on their deployment; the updated image must finish CI first.

@@ -72,6 +72,8 @@ type Status struct {
 	Phase string `json:"phase,omitempty"`
 	Done  int    `json:"done,omitempty"`
 	Total int    `json:"total,omitempty"`
+	// Retain error-log context without another database read after a failure.
+	libraryName string
 }
 
 // summary says what a finished scan found, e.g. "40 files · 2 new · 1 not matched".
@@ -204,7 +206,7 @@ func (s *Scanner) startWorkLocked(libraryID int64, maintenance bool, paths ...st
 	if s.ctx.Err() != nil {
 		return false
 	}
-	s.status[libraryID] = &Status{Running: true, StartedAt: time.Now()}
+	s.status[libraryID] = &Status{Running: true, StartedAt: time.Now(), Phase: "Opening library"}
 	paths = append([]string(nil), paths...)
 
 	s.wg.Add(1)
@@ -223,7 +225,13 @@ func (s *Scanner) startWorkLocked(libraryID int64, maintenance bool, paths ...st
 			}
 		})
 		if err != nil {
-			s.log.Error("scan failed", "library", libraryID, "err", err)
+			st := s.Status(libraryID)
+			name := st.libraryName
+			if name == "" {
+				name = strconv.FormatInt(libraryID, 10)
+			}
+			s.log.Error("scan failed", "library", name, "library_id", libraryID,
+				"phase", st.Phase, "files_seen", st.FilesSeen, "err", err)
 		}
 		if s.OnFinish != nil {
 			s.OnFinish(libraryID)
@@ -300,6 +308,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	if lib == nil {
 		return fmt.Errorf("library %d not found", libraryID)
 	}
+	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Checking library folders" })
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
 	ctx = metadata.WithPreviewReuse(metadata.WithLanguage(ctx, lib.MetadataLanguage))
