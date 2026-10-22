@@ -197,6 +197,8 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Complete approved UI follow-up: shared filters/full results, display-order inheritance, grouped Settings, mobile controls, audio preference and editable playback queue (#148; isolated evidence in UI-REVIEW and READINESS)
 - [x] Serialize differently named folders for the same series during progressive scanning (#153; CI-discovered failure and repeated regression in READINESS)
 - [x] Queue SQLite writes independently of reads to prevent in-process SQLITE_BUSY under contention (#154; deployment confirmation remains separate)
+- [x] Add temporary detailed logging, retained history and redacted diagnostic downloads (#155)
+- [x] Remove redundant poster-only save work and show save-stage progress (#156; remaining real-server latency needs timed evidence)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

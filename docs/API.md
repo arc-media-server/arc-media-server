@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-159 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+162 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -113,6 +113,14 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/devices` | admin | Lists the signed-in browsers and apps. |
 | DELETE | `/api/devices/{id}` | admin | Signs a browser or app out. |
+
+### diagnostics
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/diagnostics` | admin | Reports temporary detailed logging and bounded retention . |
+| PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for thirty minutes; false stops them . |
+| GET | `/api/diagnostics/download` | admin | Exports redacted retained logs and build information as a ZIP . No database, settings dump or media files are included. |
 
 ### extras
 

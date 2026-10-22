@@ -899,6 +899,9 @@ function query(params: object): string {
 }
 
 export const api = {
+  diagnostics: () => request<{ detailed: boolean; until?: string; persistent: boolean; storage_error?: string }>('GET', '/api/diagnostics'),
+  downloadDiagnostics: async () => { const r = await fetch('/api/diagnostics/download'); if (!r.ok) throw new Error('Could not download diagnostics. Please try again.'); return r.blob(); },
+  setDiagnostics: (detailed: boolean) => request<{ detailed: boolean; until?: string; persistent: boolean; storage_error?: string }>('PATCH', '/api/diagnostics', { detailed }),
   authStatus: () => request<AuthStatus>('GET', '/api/auth/status'),
   setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string; region?: string }) =>
     request<Profile>('POST', '/api/auth/setup', body),

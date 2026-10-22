@@ -17,6 +17,7 @@ import { Webhooks } from '@/components/Webhooks';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
 import { FolderPicker } from '@/components/FolderPicker';
+import { Diagnostics } from '@/components/Diagnostics';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -33,6 +34,7 @@ const sectionGroups: Record<string, SettingsGroup> = {
   'Optimized Versions': 'playback', 'Media tools': 'playback', 'Skip Intro': 'playback',
   'Pre-roll': 'playback', 'Subtitles': 'playback', 'Converting': 'playback',
   'Moving in': 'maintenance', 'Notifications': 'maintenance', 'Scheduled tasks': 'maintenance',
+  'Diagnostics': 'maintenance',
 };
 
 export function SettingsPage() {
@@ -228,6 +230,7 @@ function ServerSettings() {
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
+          <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
           <Section title="Online metadata" hint="Arc identifies movies and shows and fetches their details and artwork from these services.">
             <KeyRow
               label="TMDB"

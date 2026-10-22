@@ -269,6 +269,15 @@ what Arc finds, then add it). There are no config files; everything is set in th
 - `-data <folder>` (or `AMS_DATA`) chooses where Arc keeps its database, artwork cache, uploaded artwork and backups
   (default: `data` in the current folder).
 - Forgot the password? Run `ams -reset-password` on the server for a new one.
+- Troubleshooting: admin Settings > Maintenance & recovery > Diagnostics enables detailed
+  logging for 30 minutes without restarting, or downloads redacted retained logs and build/
+  system information. Logs survive normal restarts in `data/logs` (`/config/logs` in Docker),
+  with at most three 2 MiB files. The download contains no database, settings dump or media;
+  profile/media names and paths can remain. Storage problems are shown and recent in-memory
+  logs remain available. `-debug` also enables the temporary 30-minute mode at startup.
+- Slow updates (two seconds or longer) and failed requests are logged in normal mode, with
+  route, status and duration. Container builds include their commit revision in startup logs
+  and diagnostics. The Dashboard's log-level filter changes visibility, not recording level.
 - `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
   settings, for containers.
 

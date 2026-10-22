@@ -12,12 +12,13 @@ RUN mkdir -p ../internal/webui && npm run build
 
 FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS server
 ARG TARGETOS TARGETARCH
+ARG GIT_REVISION=unknown
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/ams ./cmd/ams
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X main.revision=$GIT_REVISION" -o /out/ams ./cmd/ams
 
 FROM debian:bookworm-slim
 # FFmpeg (with Chromaprint for intro detection, zimg for HDR tone mapping, VAAPI/NVENC for graphics

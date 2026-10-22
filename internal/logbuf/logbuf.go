@@ -23,11 +23,17 @@ type Line struct {
 
 // Buffer holds the last N lines.
 type Buffer struct {
-	mu    sync.Mutex
-	lines []Line
-	next  int // where the next line goes once the buffer is full
-	seq   int64
-	size  int
+	mu           sync.Mutex
+	lines        []Line
+	next         int // where the next line goes once the buffer is full
+	seq          int64
+	size         int
+	level        slog.LevelVar
+	until        time.Time
+	timer        *time.Timer
+	archive      *archive
+	archiveError string
+	secrets      []string
 }
 
 func New(size int) *Buffer {
@@ -35,10 +41,26 @@ func New(size int) *Buffer {
 }
 
 func (b *Buffer) add(l Line) {
+	if len(l.Message) > recordLimit {
+		l.Message = l.Message[:recordLimit] + " [truncated]"
+	}
+	if len(l.Attrs) > recordLimit {
+		l.Attrs = l.Attrs[:recordLimit] + " [truncated]"
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.seq++
 	l.Seq = b.seq
+	if b.archive != nil {
+		if err := b.archive.append(l); err != nil {
+			b.archiveError = err.Error()
+		}
+	}
+	b.keep(l)
+}
+
+// keep appends an already numbered record; the caller holds mu.
+func (b *Buffer) keep(l Line) {
 	if len(b.lines) < b.size {
 		b.lines = append(b.lines, l)
 		return
@@ -62,6 +84,7 @@ func (b *Buffer) Lines(minLevel slog.Level, after int64) []Line {
 		if lv.UnmarshalText([]byte(l.Level)) == nil && lv < minLevel {
 			continue
 		}
+		l.Message, l.Attrs = b.redact(l.Message), b.redact(l.Attrs)
 		out = append(out, l)
 	}
 	return out
@@ -82,17 +105,24 @@ type handler struct {
 func (h *handler) Enabled(ctx context.Context, l slog.Level) bool { return h.inner.Enabled(ctx, l) }
 
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
+	clean := slog.NewRecord(r.Time, r.Level, h.buf.Redact(r.Message), r.PC)
 	var sb strings.Builder
 	sb.WriteString(h.prefix)
 	r.Attrs(func(a slog.Attr) bool {
+		a = h.buf.cleanAttr(a)
+		clean.AddAttrs(a)
 		writeAttr(&sb, h.group, a)
 		return true
 	})
-	h.buf.add(Line{Time: r.Time, Level: r.Level.String(), Message: r.Message, Attrs: strings.TrimSpace(sb.String())})
-	return h.inner.Handle(ctx, r)
+	h.buf.add(Line{Time: r.Time, Level: r.Level.String(), Message: clean.Message, Attrs: h.buf.Redact(strings.TrimSpace(sb.String()))})
+	return h.inner.Handle(ctx, clean)
 }
 
 func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	attrs = append([]slog.Attr(nil), attrs...)
+	for i := range attrs {
+		attrs[i] = h.buf.cleanAttr(attrs[i])
+	}
 	var sb strings.Builder
 	sb.WriteString(h.prefix)
 	for _, a := range attrs {

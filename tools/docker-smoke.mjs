@@ -110,6 +110,10 @@ try {
       assert.equal(api(name, '/api/settings').region, 'GB');
       assert.equal(docker(['exec', name, 'cat', '/config/uploads/smoke.txt']).stdout, 'uploaded fixture');
     }
+    assert.equal(api(name, '/api/diagnostics').persistent, true, 'Logs must be retained with this container user');
+    const boot = api(name, '/api/logs').findLast(l => l.message === 'Arc Media Server started');
+    if (process.env.EXPECTED_REVISION) assert.ok(boot?.attrs.includes(`revision=${process.env.EXPECTED_REVISION}`), 'Image must identify the tested revision');
+    api(name, '/api/diagnostics', 'PATCH', { detailed: true });
     const backup = api(name, '/api/backups', 'POST', undefined, 201);
     api(name, '/api/settings', 'PATCH', { region: 'US', max_transcodes: 3 }, 200);
     api(name, `/api/backups/${backup.name}/restore`, 'POST', undefined, 204);
@@ -128,6 +132,8 @@ try {
     api(name, '/api/auth/profile', 'POST', { id: profile }, 200);
     assert.equal(api(name, '/api/settings').region, 'GB');
     assert.ok(api(name, '/api/backups').backups.some(b => b.name === backup.name));
+    assert.equal(api(name, '/api/diagnostics').detailed, false, 'Detailed mode must reset after restarting');
+    assert.ok(api(name, '/api/logs').some(l => l.message === 'detailed logging changed'), 'Logs must survive container recreation');
     assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
     remove(name);
     console.log(`PASS: uid ${uid}, setup, read-only media, backup/restore, restart and volume persistence`);

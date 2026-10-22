@@ -74,9 +74,10 @@ type Deps struct {
 	// Reads subtitles; nil if unavailable.
 	Subtitles *subtitles.Cache
 	// Recent log lines, for the dashboard.
-	Logs    *logbuf.Buffer
-	Log     *slog.Logger
-	Version string
+	Logs     *logbuf.Buffer
+	Log      *slog.Logger
+	Version  string
+	Revision string
 }
 
 type Server struct {
@@ -112,6 +113,7 @@ type Server struct {
 	setupMu          sync.Mutex
 	log              *slog.Logger
 	version          string
+	revision         string
 }
 
 func New(d Deps) http.Handler {
@@ -120,6 +122,7 @@ func New(d Deps) http.Handler {
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
 	mux := http.NewServeMux()
+	s.revision = d.Revision
 
 	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
@@ -137,6 +140,9 @@ func New(d Deps) http.Handler {
 
 	// Every profile: watching.
 	user, admin := s.signedIn, s.adminOnly
+	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
+	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
+	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
@@ -290,7 +296,7 @@ func New(d Deps) http.Handler {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	mux.Handle("/", webui.Handler())
-	return s.logRequests(versioned(mux))
+	return versioned(s.logRequests(mux))
 }
 
 // itemDTO adds links and files to a stored item.
@@ -733,7 +739,17 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK, home: auth.IsLocal(r)}
 		next.ServeHTTP(rec, r)
-		s.log.Debug("http", "method", r.Method, "path", r.URL.Path, "status", rec.status,
-			"took", time.Since(start).Round(time.Millisecond))
+		took := time.Since(start)
+		route := r.Pattern
+		if route == "" {
+			route = "unmatched route"
+		}
+		level, message := slog.LevelDebug, "http"
+		if rec.status >= 500 {
+			level, message = slog.LevelWarn, "request failed"
+		} else if took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			level, message = slog.LevelWarn, "slow request"
+		}
+		s.log.Log(r.Context(), level, message, "method", r.Method, "route", route, "status", rec.status, "took", took.Round(time.Millisecond))
 	})
 }

@@ -488,7 +488,10 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	return s.syncMinAges(ctx, id)
+	if e.ContentRating != nil {
+		return s.syncMinAges(ctx, id)
+	}
+	return nil
 }
 
 // SetMatchInfo records how an item was identified (JSON written by the scanner).
