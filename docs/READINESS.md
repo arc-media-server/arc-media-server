@@ -534,3 +534,9 @@ and switching profiles while minimized. Tests use isolated generated media/local
 requests to outside services are blocked. Queue state is in memory, ending on refresh/close;
 sort memory is device-local. No owner data, settings, media or Unraid deployment was changed.
 This completes the approved review follow-up, not actual device, hardware, NAS or soak acceptance.
+
+Compact-player follow-up: keep the next-episode countdown active while minimized and show its
+count/Cancel control. An additional generated-video regression seeks to the end and verifies
+the second episode actually starts while still compact (passed locally, 22.1s including setup).
+The final ordinary suite has 36 journeys (23 existing + 13 UI); production/app and e2e
+TypeScript checks pass after this change. The final combined CI result is recorded on #148.

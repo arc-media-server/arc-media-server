@@ -262,6 +262,22 @@ test('switching profiles stops compact playback after saving the original profil
   expect((await (await page.request.get('/api/home/continue')).json()).some((i: Item) => i.id === item.id && (i.user_data?.position_ms || 0) > 65_000)).toBe(true);
 });
 
+test('compact playback carries on to the next episode after its countdown', async ({ page }) => {
+  const { item } = await seed(page, true);
+  await page.goto('/series/' + item.id);
+  await page.getByRole('button', { name: /^Play S/ }).click();
+  const video = page.locator('video');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Next: Second Chapter/ })).toBeVisible();
+  await video.evaluate((v: HTMLVideoElement) => { v.currentTime = v.duration - 0.3; });
+  await expect(page.getByText('Up next in 10', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Media player' }).getByText('Second Chapter', { exact: true })).toBeVisible({ timeout: 20000 });
+  await expect(video).toHaveCount(1); // Wait for the previous player's exit animation.
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
+
 test.beforeEach(async ({ page }) => {
   const r = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
   if (!r.ok) throw new Error(await r.text());
