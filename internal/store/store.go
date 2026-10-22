@@ -4,7 +4,6 @@ package store
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"embed"
 	"encoding/hex"
 	"fmt"
@@ -28,16 +27,17 @@ type Options struct {
 var migrationsFS embed.FS
 
 type Store struct {
-	db *sql.DB
+	db *database
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.
 func Open(ctx context.Context, dbPath string, opts Options) (*Store, error) {
-	// WAL lets playback reads continue while the scanner writes. _txlock=immediate makes every
-	// transaction take the write lock up front, so concurrent writers wait instead of failing.
+	// WAL lets playback reads continue while the scanner writes. openDatabase queues
+	// in-process writers; immediate transactions reserve their lock before reading.
+	// busy_timeout remains protection against brief contention outside this store.
 	dsn := dbPath + "?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)" +
 		"&_pragma=synchronous(NORMAL)&_txlock=immediate"
-	db, err := sql.Open("sqlite", dsn)
+	db, err := openDatabase(ctx, dsn)
 	if err != nil {
 		return nil, err
 	}

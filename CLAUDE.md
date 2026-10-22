@@ -246,6 +246,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
   concurrent. The expanded 18-folder regression failed 7/10 before the fix and passes 30/30
   after it. See READINESS/#153 for final server/CI evidence. This is a production synchronization
   bug, separate from the watcher test-counter race; owner data/media was untouched.
+  Final CI for 4f09795 passed Linux/Windows, Linux race/browser checks, container acceptance and
+  image publication (run 39785261123); #153 is closed. The owner subsequently reported repeated
+  SQLITE_BUSY errors (#154). A disposable concurrency regression reproduced the exact error
+  after the ten-second writer timeout. Store writes now share one queued connection, with
+  independent query-only readers. Context cancellation prevents abandoned writes applying later;
+  online restore releases its raw writer before migration/age updates. No timeout increase,
+  schema change, database reset, media change or owner deployment was performed. Full local Go
+  vet/tests pass; final browser/CI evidence is recorded in READINESS and #154. The owner's runtime
+  is not yet specified; they confirmed it occurs during library scanning and offered logs.
+  Logs were requested to verify this against their instance; do not claim deployment confirmation.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
@@ -365,7 +375,10 @@ go run ./tools/apidoc                               # after changing API routes 
   the `\\?\` prefix.
 - TVDB returns relative image paths (`/banners/...`); `tvdbImage()` prefixes artworks.thetvdb.com.
 - TVDB and TMDB both require visible attribution in the UI (tracked in "Before public release").
-- SQLite runs with WAL and `_txlock=immediate`; keep write transactions short.
+- SQLite runs with WAL and `_txlock=immediate`; keep write transactions short. The store's
+  database wrapper queues Exec/BeginTx/raw restore through one write connection and keeps
+  independent query-only read connections. INSERT/UPDATE RETURNING must use WriteRowContext,
+  not the read QueryRowContext. Release any raw write connection before calling store methods.
 - Other videos libraries are stored as kind 'movies' with `libraries.videos = 1` (the original
   CHECK constraint only allows movies/shows) and read back as kind "videos". Their videos are movie
   items with metadata_state 'locked' (never looked up online); folders are collections of kind 'folder'.

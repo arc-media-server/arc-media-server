@@ -558,3 +558,41 @@ episodes/file links after both scans, and retains source-byte checks. It reprodu
 failure in 7/10 local repetitions before the fix; 30 consecutive repetitions pass after the fix.
 No real library/data was used. Final full server and CI outcomes are recorded on #153/#148.
 Full local Go vet/tests pass after this correction; Linux race verification remains a CI gate.
+
+Final verification for 4f09795 subsequently passed all Linux/Windows checks, Linux race and
+browser checks, container installation/persistence/restore/upgrade/rollback and image publication
+([run 39785261123](https://github.com/JonzaUK/arc-media-server/actions/runs/39785261123)).
+
+## Queued database writes (#154)
+
+The owner reported repeated `database is locked (5) (SQLITE_BUSY)` errors during library scanning;
+logs were requested, and the runtime has not yet been specified. The former unrestricted pool
+allowed multiple Arc writers to compete
+until the ten-second busy timeout expired. An isolated regression reproduces that exact error
+by holding a write transaction and requesting another setting write. Concurrent reads correctly
+return the last committed value; a second write previously failed after about ten seconds.
+
+The store now has one write connection and independent query-only readers. Exec, transactions,
+INSERT RETURNING and raw online restore share the writer queue. Waiting requests respect
+context cancellation. Restore releases its raw writer before migration/derived-data updates,
+avoiding self-deadlock. WAL, immediate transactions and the existing busy timeout remain; no
+schema change, reset or media modification is required. Read-only enforcement also catches
+future mutations accidentally sent through a read-query path.
+
+The contention regression now waits beyond the actual production timeout (11 seconds), verifies
+reads remain available, releases the active writer and checks the queued value is saved. A
+second regression checks cancellation prevents a queued change from applying later and that
+subsequent writes recover. Full local Go vet/tests pass, including scanning, constrained-storage
+atomicity/integrity, old-schema upgrade, backup and online restore regressions. All checks use
+temporary stores/generated media. No owner database, settings or deployment was opened.
+
+This fixes writer contention inside one Arc store; it does not coordinate two servers sharing
+a database, repair filesystem locking, or establish that the owner's reported deployment is
+fixed. SQLite documents [one concurrent WAL writer and network-filesystem limitations](https://www.sqlite.org/wal.html)
+and [busy timeout behaviour](https://www.sqlite.org/c3ref/busy_timeout.html). Keep configuration
+on suitable local storage even when media lives on network shares. Final browser/CI evidence
+is recorded on #154.
+
+Final local browser verification: all 36 Chromium journeys passed without retries (5.8 minutes),
+including settings/restore, scanning, ordering, direct/remux/transcode playback and saved progress.
+CI for the fix is separate evidence tracked on #154; no deployment confirmation is claimed.
