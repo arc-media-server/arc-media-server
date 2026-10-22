@@ -14,6 +14,9 @@ import (
 
 // Settings are the server-wide settings.
 type Settings struct {
+	ScanAutomatic, ScanPartial, ScanOnStart bool
+	ScanIntervalHours                       int // 0 disables recurring discovery
+
 	TMDBKey string
 	TVDBKey string
 	// Full path to ffprobe; "" means find it automatically.
@@ -71,6 +74,10 @@ const DefaultPort = 8099
 
 // Database keys.
 const (
+	keyScanAutomatic = "scan_automatic"
+	keyScanPartial   = "scan_partial"
+	keyScanOnStart   = "scan_on_start"
+	keyScanInterval  = "scan_interval_hours"
 	keyTMDB          = "tmdb_api_key"
 	keyTVDB          = "tvdb_api_key"
 	keyFFprobe       = "ffprobe_path"
@@ -260,12 +267,29 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.MaxTranscodes, _ = strconv.Atoi(v)
+	for key, dest := range map[string]*bool{keyScanAutomatic: &s.ScanAutomatic, keyScanPartial: &s.ScanPartial, keyScanOnStart: &s.ScanOnStart} {
+		v, err := get(key)
+		if err != nil {
+			return s, err
+		}
+		*dest = v != "0"
+	}
+	s.ScanIntervalHours = 1
+	if v, err := get(keyScanInterval); err != nil {
+		return s, err
+	} else if h, err := strconv.Atoi(v); err == nil && ValidScanInterval(h) {
+		s.ScanIntervalHours = h
+	}
 	return s, nil
 }
+
+// ValidScanInterval reports the supported full-discovery intervals (hours).
+func ValidScanInterval(h int) bool { return h == 0 || h == 1 || h == 6 || h == 12 || h == 24 }
 
 // Save stores the settings.
 func Save(ctx context.Context, st *store.Store, s Settings) error {
 	for key, v := range map[string]string{
+		keyScanAutomatic: boolString(s.ScanAutomatic), keyScanPartial: boolString(s.ScanPartial), keyScanOnStart: boolString(s.ScanOnStart), keyScanInterval: strconv.Itoa(s.ScanIntervalHours),
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,

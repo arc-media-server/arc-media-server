@@ -64,7 +64,7 @@ export function HealthPage() {
 }
 
 function problemCount(r: LibraryHealth) {
-  return r.unidentified.length + r.unreadable.length + r.unrecognised.length + r.missing_files.length + r.duplicates.length + r.missing_episodes.length;
+  return (r.watch_problem ? 1 : 0) + r.unidentified.length + r.unreadable.length + r.unrecognised.length + r.missing_files.length + r.duplicates.length + r.missing_episodes.length;
 }
 
 function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIdentify: (item: Item) => void }) {
@@ -83,6 +83,7 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
         <LibIcon className="size-5 text-muted" /> {r.library.name}
       </h2>
       <div className="space-y-8">
+        {r.watch_problem && <p role="status" className="rounded-xl bg-surface p-4 text-sm text-warning">{r.watch_problem}</p>}
         <Category
           icon={HelpCircle}
           tone="warning"

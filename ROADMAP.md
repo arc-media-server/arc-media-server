@@ -191,6 +191,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Review everyday UI flows, log candidates, reproduce and fix confirmed defects (#144)
 - [x] Reduce repeated scanning/matching work and time until new media is usable (#145; isolated correctness and timing evidence in READINESS; live-library validation remains #134)
 - [x] Add libraries directly with background matching and optional Advanced preview (#146)
+- [x] Add global scanning controls; separate recurring discovery from maintenance refresh (#147; contract in [SCANNING-CONTROLS](docs/SCANNING-CONTROLS.md), isolated evidence in READINESS)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

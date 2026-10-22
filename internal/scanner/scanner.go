@@ -186,7 +186,18 @@ func (s *Scanner) RequestPaths(libraryID int64, paths []string) {
 	}
 }
 
+// Maintain refreshes known metadata without discovering files, serialized with scans.
+func (s *Scanner) Maintain(libraryID int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startWorkLocked(libraryID, true)
+}
+
 func (s *Scanner) startLocked(libraryID int64, paths ...string) bool {
+	return s.startWorkLocked(libraryID, false, paths...)
+}
+
+func (s *Scanner) startWorkLocked(libraryID int64, maintenance bool, paths ...string) bool {
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
 	}
@@ -199,7 +210,12 @@ func (s *Scanner) startLocked(libraryID int64, paths ...string) bool {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		err := s.scanPaths(s.ctx, libraryID, paths)
+		var err error
+		if maintenance {
+			err = s.maintain(s.ctx, libraryID)
+		} else {
+			err = s.scanPaths(s.ctx, libraryID, paths)
+		}
 		s.update(libraryID, func(st *Status) {
 			st.FinishedAt = time.Now()
 			if err != nil {
@@ -967,6 +983,10 @@ func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Det
 // refreshUnsyncedMovies fetches matched movies that have never been fully fetched (e.g. matched
 // before AMS stored genres and cast), a batch per scan.
 func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) error {
+	return s.refreshMovies(ctx, libraryID, true)
+}
+
+func (s *Scanner) refreshMovies(ctx context.Context, libraryID int64, retryDiscovery bool) error {
 	items, err := s.store.UnsyncedItems(ctx, libraryID, "movie", 200)
 	if err != nil {
 		return err
@@ -987,7 +1007,9 @@ func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) er
 				return ctx.Err()
 			}
 			s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
-			s.retryLater(libraryID)
+			if retryDiscovery {
+				s.retryLater(libraryID)
+			}
 		}
 		return nil
 	})

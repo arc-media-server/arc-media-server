@@ -196,13 +196,13 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
 test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
   void media;
   await setup(page);
-  const before = { region: 'GB', local_bypass: false, max_transcodes: 1 };
+  const before = { region: 'GB', local_bypass: false, max_transcodes: 1, scan_automatic: false, scan_partial: false, scan_on_start: false, scan_interval_hours: 0 };
   expect((await page.request.patch('/api/settings', { data: before })).ok()).toBeTruthy();
   const backup = await page.request.post('/api/backups');
   expect(backup.ok()).toBeTruthy();
   const { name } = await backup.json();
   expect((await page.request.patch('/api/settings', {
-    data: { region: 'US', local_bypass: true, max_transcodes: 3 },
+    data: { region: 'US', local_bypass: true, max_transcodes: 3, scan_automatic: true, scan_partial: true, scan_on_start: true, scan_interval_hours: 6 },
   })).ok()).toBeTruthy();
   const changed = await (await page.request.get('/api/settings')).json();
   expect(changed).toMatchObject({ region: 'US', local_bypass: true, max_transcodes: 3 });
@@ -497,4 +497,73 @@ test('real video plays, saves progress on close and resumes after reload', async
   await resume.click();
   await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(65);
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
+
+
+test('global scanning controls persist, apply live and respect startup Off', async ({ page, media }, info) => {
+  await setup(page);
+  await page.goto('/settings');
+  const automatic = page.getByRole('switch', { name: 'Scan automatically when files change', exact: true });
+  await expect(automatic).toBeChecked();
+  const schedule = page.getByRole('combobox', { name: 'Full library scan', exact: true });
+  await expect(schedule).toHaveValue('1');
+  await page.getByText('Advanced scanning options', { exact: true }).click();
+  const partial = page.getByRole('switch', { name: 'Scan only changed folders', exact: true });
+  const startup = page.getByRole('switch', { name: 'Scan when Arc starts', exact: true });
+  await automatic.click();
+  await expect(automatic).not.toBeChecked();
+  await expect(partial).toBeDisabled();
+  await expect(partial).toBeChecked();
+  await expect(schedule).toBeEnabled();
+  await schedule.selectOption('0');
+  await expect(startup).toBeEnabled();
+  await startup.click();
+  await expect(startup).not.toBeChecked();
+  await expect(page.getByText(/Libraries update when you scan them or change their folders/)).toBeVisible();
+  await page.reload();
+  await expect(automatic).not.toBeChecked();
+  await expect(schedule).toHaveValue('0');
+  await expect(page.getByRole('switch', { name: 'Scan when Arc starts', exact: true })).not.toBeVisible();
+  await page.getByText('Advanced scanning options', { exact: true }).click();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await schedule.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath('scanning-' + width + '.png') });
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // A failed save leaves the saved value intact and supports retry.
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH' ? route.fulfill({ status: 503, json: { error: 'Fixture settings unavailable' } }) : route.continue());
+  await schedule.selectOption('6');
+  await expect(page.getByText('Fixture settings unavailable', { exact: true })).toBeVisible();
+  await expect(schedule).toHaveValue('0');
+  await page.unroute('**/api/settings');
+  await schedule.selectOption('6');
+  await expect(schedule).toBeEnabled();
+  await schedule.selectOption('0');
+  await expect(schedule).toBeEnabled();
+  const created = await page.request.post('/api/libraries', { data: { name: 'Manual scanning', kind: 'movies', paths: [media.empty] } });
+  expect(created.ok(), await created.text()).toBe(true);
+  const lib = await created.json();
+  await expect.poll(async () => (await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json()).running).toBe(false);
+  expect((await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json()).started_at).toBeTruthy();
+  expect((await fetch('http://127.0.0.1:18200/restart', { method: 'POST' })).ok).toBe(true);
+  const scan = await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json();
+  expect(scan.running).toBe(false);
+  expect(scan.started_at).toBeUndefined();
+  expect((await fetch('http://127.0.0.1:18200/add-unwatched-file', { method: 'POST' })).ok).toBe(true);
+  // Wait longer than change settling to catch accidentally active notifications.
+  await page.waitForTimeout(12_000);
+  expect((await (await page.request.get('/api/items?library_id=' + lib.id)).json()).total).toBe(0);
+  expect((await page.request.post('/api/libraries/' + lib.id + '/scan')).ok()).toBe(true);
+  await expect.poll(async () => (await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json()).running).toBe(false);
+  expect((await (await page.request.get('/api/items?library_id=' + lib.id)).json()).total).toBe(1);
+  expect((await page.request.patch('/api/settings', { data: { scan_on_start: true } })).ok()).toBe(true);
+  expect((await fetch('http://127.0.0.1:18200/restart', { method: 'POST' })).ok).toBe(true);
+  expect((await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json()).started_at).toBeTruthy();
+  // A household profile cannot see or change server discovery settings.
+  const profile = await (await page.request.post('/api/profiles', { data: { name: 'Scan viewer', color: 'blue' } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: profile.id } })).ok()).toBe(true);
+  expect((await page.request.patch('/api/settings', { data: { scan_automatic: true } })).status()).toBe(403);
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'Library scanning', exact: true })).toHaveCount(0);
 });

@@ -346,6 +346,7 @@ export interface MissingEpisode {
 }
 
 export interface LibraryHealth {
+  watch_problem?: string;
   library: Library;
   unidentified: Item[];
   unreadable: FileProblem[];
@@ -809,6 +810,10 @@ export interface ServerSettings {
   /** Country whose age ratings are used, e.g. "GB". */
   region: string;
   /** The maintenance window, in hours (0–23): refreshing details and backups wait for it. */
+  scan_automatic: boolean;
+  scan_partial: boolean;
+  scan_on_start: boolean;
+  scan_interval_hours: number;
   maintenance_start: number;
   maintenance_end: number;
   /** Make scrubbing previews only in the maintenance window. */
@@ -918,7 +923,7 @@ export const api = {
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

@@ -219,7 +219,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | DELETE | `/api/libraries/{id}` | admin | Removes a library and everything AMS knows about it, after backing up the database. Media files aren't touched. |
 | POST | `/api/libraries/{id}/scan` | admin | Start a scan |
 | GET | `/api/libraries/{id}/unmatched` | admin | Lists items that need attention. |
-| GET | `/api/libraries/{id}/health` | admin | Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. |
+| GET | `/api/libraries/{id}/health` | admin | Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. watch_problem describes failed folder notifications and the configured scheduled fallback. |
 | POST | `/api/libraries/{id}/compatibility` | admin | {"caps": {...}} says how a library's titles would play on a player that can play those things: how many directly, repackaged or converted, why, and which titles need converting. |
 | POST | `/api/libraries/{id}/empty-trash` | admin | Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. |
 
@@ -346,7 +346,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/settings` | admin | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit) |
-| PATCH | `/api/settings` | admin | With any of "tmdb_api_key", "tvdb_api_key", "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider before being saved; a new port or network setting takes effect straight away. |
+| PATCH | `/api/settings` | admin | With any of "tmdb_api_key", "tvdb_api_key", "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider before being saved; a new port or network setting takes effect straight away. Global scanning: "scan_automatic", "scan_partial", "scan_on_start" (booleans), and "scan_interval_hours" (0, 1, 6, 12 or 24). Changes apply without restarting. |
 
 ### stats
 
