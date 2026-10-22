@@ -682,3 +682,51 @@ exact Linux setup/verification recipe for e8e315d in run 39847970913 and its ful
 gates in run 39847970870. See [CODEX-CLOUD](CODEX-CLOUD.md) for the private chat and rebuild steps.
 Physical confirmation from the owner's second PC remains unperformed. These are developer-
 environment results, not real-library, device, GPU, casting, Unraid or sustained-use acceptance.
+
+
+## Rescan feedback and request responsiveness (#158, 22 October 2026)
+
+An owner-supplied diagnostic export from e8e315d showed a repeated Series scan checking 14,627
+files with zero probe attempts and zero new matches. Its general matching phase did not mean
+all files were probed again. An earlier scan did probe 1,320 files, but the export does not
+explain why those needed reading. The repeated scan also coincided with authenticated Activity,
+library and item requests taking about 31 seconds. The export does not identify the exact SQL
+operation/session age causing that stall; no production database or media was opened.
+
+The discovery phase now says "Checking files and titles". Finished Activity summaries separate
+files checked, file details actually read and titles identified. Real probing retains its own
+phase and is still restricted to pending/new/changed files by the scanner. A generated-series
+browser regression imports three files, rescans, verifies zero probing/new matching, and reads
+the zero-read summary from the actual Activity popover.
+
+Authentication previously waited synchronously to update last_seen_at after five minutes. A
+held temporary writer reproduced the resulting Activity stall. Authorization still reads and
+checks the current session/profile on every request; only last-used bookkeeping is asynchronous.
+One store-owned worker coalesces duplicate sessions, caps pending work at 128, and bounds each
+write wait to two seconds. Captured request time cannot overwrite a newer timestamp. Updates
+are best-effort: full/failed queues retry on a later request while stored activity is old;
+shutdown cancels pending work rather than delaying browsing or accumulating request goroutines.
+Deleted sessions cannot be recreated by activity updates. This adds no user-facing setting.
+
+TV scans run cached-episode orphan cleanup for each series. Its ordering_entries.episode_id and
+user_item_data.item_id lookups lacked indexes beginning with those columns. Migration 0046 adds
+both, without changing cleanup's rules. Before implementation, a temporary actual-Arc-schema/
+modernc-driver fixture of 300 series, 15,000 cached episodes without files and 60,000 ordering
+entries took 38.024 seconds to clean up; candidate indexes reduced that query workload to
+99.066 milliseconds, retaining all episodes. Setup time is excluded. This is a synthetic query
+measurement, not an end-to-end scan, real-library or Unraid speed claim.
+
+Targeted regressions pass for old-session Activity during a held writer, persisted bookkeeping,
+invalid/revoked session denial, queue coalescing/capacity/shutdown, queued-update revocation,
+indexed query plans, reference-safe cleanup and genuine schema-45 upgrade/safety-backup/online
+restore with preserved edited title. Older-schema and restoration checks apply migration 0046
+through the normal migration path. The unchanged cloud verifier exited zero: production/app
+TypeScript, e2e TypeScript, Go vet/tests/race, embedded-server build and all 39 Chromium journeys
+passed without browser failures/skips/retries (4.2 minutes). Final queue hardening and request-
+cancellation regressions passed race checks separately. Final Go vet/e2e TypeScript and both
+focused rescan/profile-access browser journeys pass (20.1 seconds) after the last safeguards.
+Desktop and 390px Activity screenshots were inspected.
+The private diagnostic export is not committed or attached to GitHub.
+
+Actual deployment responsiveness and real-library/device/sustained-use acceptance (#134–#138)
+remain open. Rollback across the new schema needs its compatible pre-upgrade backup, as usual.
