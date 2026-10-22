@@ -23,9 +23,27 @@ go mod download
 (
   cd web
   npm ci
-  # This installs Chromium and its Linux system dependencies. Setup needs package access
-  # and the normal cloud-environment package-install privileges.
-  npx playwright install --with-deps chromium
+  if [[ "${EUID}" -eq 0 ]] || { command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; }; then
+    npx playwright install --with-deps chromium
+  else
+    # Some cloud bases already supply the OS libraries but do not expose sudo.
+    # Download the exact pinned binaries; the launch checks below must still pass.
+    npx playwright install chromium
+  fi
+  node --input-type=module <<'JS'
+import { chromium } from '@playwright/test';
+for (const options of [{}, { channel: 'chromium' }]) {
+  const browser = await chromium.launch(options);
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<title>Arc cloud browser check</title>');
+    if (await page.title() !== 'Arc cloud browser check') throw new Error('Browser content check failed');
+    console.log(`Pinned ${options.channel ?? 'headless shell'} launch passed: ${browser.version()}`);
+  } finally {
+    await browser.close();
+  }
+}
+JS
   npm run build
   npx tsc -p e2e/tsconfig.json
 )

@@ -285,6 +285,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   do not merge without authorization or overlap local/cloud agents on the same branch. Account
   sign-in/publication/fresh-task verification are separate from this repository preparation;
   never claim Cloud is active merely because these files were pushed.
+  Owner completed sign-in and GitHub authorization; the private arc-media-server draft contains
+  only Arc. The owner explicitly approved and saved the three public Go/Playwright download
+  hosts listed in CODEX-CLOUD. The cloud base lacks sudo but both pinned Chromium binaries
+  launch with existing libraries; setup now supports this path with mandatory launch checks.
+  Full cloud verification, publication and fresh-task acceptance still require actual evidence.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
