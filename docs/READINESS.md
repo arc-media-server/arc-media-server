@@ -761,3 +761,27 @@ The unchanged cloud verifier exited zero: production/app/e2e TypeScript, full Go
 embedded-server build and all 41 Chromium journeys passed (4.3 minutes, zero browser failures,
 skips or retries). The other Settings-review recommendations (near-control errors, accessible labels and navigation polish) remain proposals;
 this change is scoped to the title-header adjustment the owner approved.
+
+
+## Release pipeline scheduling (22 October 2026)
+
+The owner reported approximately 12 minutes before an updated private image was available
+for server testing. Completed run 39859383042 took 12m34s: Linux checks took 7m41s,
+container acceptance ran alongside them (4m19s), then release preparation/publication added
+4m46s. The workflow now prepares the amd64/arm64 image concurrently with verification,
+uploading it by digest without moving release tags. A final job promotes that exact digest
+to `latest` and the commit tag only after Linux/Windows checks, Linux race/browser checks,
+and container installation/persistence/upgrade/rollback checks all succeed. Failed checks
+leave the existing release tags untouched. The separate container acceptance image and all
+checks remain in place; this change does not claim artifact identity between that smoke-test
+image and the separately prepared multi-platform image.
+
+The older PR run 39859035196 stalled in FFmpeg installation for over 30 minutes, before
+Go/browser verification; it was not a Docker build or a publishing run. New runs bound
+FFmpeg and browser installation to five minutes, add apt network timeouts/retries, and bound
+the check job to 30 minutes. Installation failures remain failures, not skipped acceptance.
+Local validation passed YAML parsing, dependency/PR gating assertions, unchanged verification
+coverage comparison, shell syntax checks and `git diff --check`. Hosted Buildx/GHCR behavior,
+full CI results and actual timing improvement require the new GitHub run; no local registry
+publication or owner-server access was performed. Digest-only uploads from failed runs may
+remain untagged in the private registry; they are never selected by `latest`.

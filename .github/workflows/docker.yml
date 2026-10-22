@@ -17,6 +17,7 @@ jobs:
   checks:
     name: Checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -40,8 +41,11 @@ jobs:
           npm ci
           npm run build
       - name: Install FFmpeg for media integration tests
+        timeout-minutes: 5
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y ffmpeg
       - name: Analyse Go code
         run: go vet ./...
       - name: Run tests
@@ -52,6 +56,7 @@ jobs:
       - name: Build server with embedded web app
         run: go build ./cmd/ams
       - name: Install browser for regression tests
+        timeout-minutes: 5
         if: runner.os == 'Linux'
         working-directory: web
         run: npx playwright install --with-deps chromium
@@ -115,10 +120,16 @@ jobs:
         run: |
           docker pull "$PREVIOUS_IMAGE"
           node tools/docker-smoke.mjs arc-readiness:local "$PREVIOUS_IMAGE"
+  # Prepare both architectures while verification runs. Push by digest only: no usable
+  # release tag moves until the publish job has seen every verification gate pass.
   build:
-    needs: [checks, container-smoke]
+    name: Prepare release images
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -130,14 +141,38 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: name
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      - id: build
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           build-args: GIT_REVISION=${{ github.sha }}
-          push: true
-          tags: |
-            ${{ steps.name.outputs.image }}:latest
-            ${{ steps.name.outputs.image }}:${{ github.sha }}
+          outputs: type=image,name=${{ steps.name.outputs.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  publish:
+    name: Publish verified images
+    needs: [checks, container-smoke, build]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag the prepared image without rebuilding
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          DIGEST: ${{ needs.build.outputs.digest }}
+          REVISION: ${{ github.sha }}
+        run: |
+          test -n "$IMAGE"
+          test -n "$DIGEST"
+          docker buildx imagetools create \
+            --tag "$IMAGE:latest" \
+            --tag "$IMAGE:$REVISION" \
+            "$IMAGE@$DIGEST"
