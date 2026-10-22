@@ -14,6 +14,7 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 	if err != nil || lib == nil {
 		return err
 	}
+	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Updating known metadata" })
 	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	if lib.Kind == "videos" {
 		return nil

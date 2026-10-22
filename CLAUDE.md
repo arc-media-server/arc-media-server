@@ -254,8 +254,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   online restore releases its raw writer before migration/age updates. No timeout increase,
   schema change, database reset, media change or owner deployment was performed. Full local Go
   vet/tests pass; final browser/CI evidence is recorded in READINESS and #154. The owner's runtime
-  is not yet specified; they confirmed it occurs during library scanning and offered logs.
-  Logs were requested to verify this against their instance; do not claim deployment confirmation.
+  logs show four library scans starting together in the container, followed by SQLITE_BUSY for
+  library ID 3. This fits contention but does not identify the failed SQL operation. Failed scans
+  now log the cached library name/ID, phase and files seen without a new database read. An
+  isolated failed-background-scan regression verifies the diagnostic fields. Deployment confirmation
+  still requires the updated build on the owner's server.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
