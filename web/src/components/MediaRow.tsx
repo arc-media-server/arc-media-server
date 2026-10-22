@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { ResumeCard } from './EpisodeCard';
 import { PosterCard, ThumbCard } from './PosterCard';
+import { ErrorNotice } from './Page';
 
 export type CardStyle = 'poster' | 'thumb';
 
@@ -25,6 +26,9 @@ export function MediaRow({
   play,
   seasonPosters,
   onRemove,
+  loading,
+  error,
+  onRetry,
 }: {
   title: string;
   items: Item[];
@@ -35,9 +39,12 @@ export function MediaRow({
   seasonPosters?: boolean;
   /** Cards offer "Remove from Continue Watching". */
   onRemove?: (item: Item) => void;
+  loading?: boolean;
+  error?: unknown;
+  onRetry?: () => void;
 }) {
   return (
-    <RowShell title={title} href={href} empty={items.length === 0}>
+    <RowShell title={title} href={href} empty={items.length === 0} loading={loading} error={error} onRetry={onRetry}>
       {items.map((item) =>
         style === 'poster' ? (
           <PosterCard
@@ -58,9 +65,9 @@ export function MediaRow({
 }
 
 /** A titled row that scrolls sideways; its cards are the children. */
-export function RowShell({ title, href, empty, children }: { title: string; href?: string; empty?: boolean; children: ReactNode }) {
+export function RowShell({ title, href, empty, children, loading, error, onRetry }: { title: string; href?: string; empty?: boolean; children: ReactNode; loading?: boolean; error?: unknown; onRetry?: () => void }) {
   const scroller = useRef<HTMLDivElement>(null);
-  if (empty) return null;
+  if (empty && !loading && !error) return null;
 
   const scroll = (dir: 1 | -1) => {
     const el = scroller.current;
@@ -81,12 +88,13 @@ export function RowShell({ title, href, empty, children }: { title: string; href
           )}
         </h2>
       </div>
+      {!!error && <div className="mb-3 px-6 md:px-10"><ErrorNotice error={error} onRetry={onRetry} /></div>}
       <div className="relative">
         <div
           ref={scroller}
           className="scrollbar-none flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-2 pt-1 md:scroll-px-10 md:px-10"
         >
-          {children}
+          {loading && empty ? Array.from({ length: 4 }, (_, i) => <div key={i} className="h-48 w-32 shrink-0 animate-pulse rounded-xl bg-surface" />) : children}
         </div>
         <RowArrow side="left" onClick={() => scroll(-1)} />
         <RowArrow side="right" onClick={() => scroll(1)} />

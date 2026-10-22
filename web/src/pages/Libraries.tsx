@@ -6,14 +6,15 @@ import { kindIcon, kindUnit } from '@/lib/kinds';
 import { api, type Library } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { LibraryEditorDialog } from '@/components/LibraryEditor';
-import { EmptyState, Page, PageHeader } from '@/components/Page';
+import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function LibrariesPage() {
   const qc = useQueryClient();
-  const { data: libraries } = useLibraries();
+  const query = useLibraries();
+  const { data: libraries } = query;
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Library | 'new' | null>(null);
   const [removing, setRemoving] = useState<Library | null>(null);
@@ -34,6 +35,7 @@ export function LibrariesPage() {
     },
   });
 
+  if (query.error && !libraries) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
   return (
     <Page className="pb-16">
       <PageHeader

@@ -11,7 +11,8 @@ import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { isLocalVideo } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
 import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
-import { ErrorState, Page } from '@/components/Page';
+import { ErrorState, ErrorNotice, Page } from '@/components/Page';
+import { QueueActions } from '@/components/QueueActions';
 import { usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
@@ -95,6 +96,7 @@ export function MoviePage() {
             {item.tagline && <p className="mt-5 text-[15px] italic text-foreground/70">{item.tagline}</p>}
             {item.overview && <p className={cn('text-[15px] leading-relaxed text-foreground/85', item.tagline ? 'mt-2' : 'mt-5')}>{item.overview}</p>}
             <CrewLine item={item} />
+            <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
             <div className="mt-4">
               <StarRating key={item.id} item={item} />
             </div>
@@ -148,6 +150,7 @@ export function MoviePage() {
               <TrailerButton extras={item.extras} title={item.title} />
               <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
               <WatchlistButton item={item} />
+              {playable && <QueueActions item={item} edition={currentEdition} />}
               {playable && <AddToPlaylistButton item={item} />}
               {admin && (
                 <>
@@ -160,7 +163,6 @@ export function MoviePage() {
                 </>
               )}
             </div>
-            {refresh.error && <p className="mt-3 text-sm text-warning">{refresh.error.message}</p>}
           </div>
         </div>
       </Hero>

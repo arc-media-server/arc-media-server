@@ -3,16 +3,17 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
+import { AdvancedFilterFields } from '@/components/FilterFields';
 import { cn } from '@/lib/utils';
 import * as fmt from '@/lib/format';
 import { kindUnit } from '@/lib/kinds';
 import { language, plural } from '@/lib/format';
-import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
+import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { MediaRow } from '@/components/MediaRow';
 import { SelectionBar } from '@/components/BulkEdit';
 import { useLibraries } from '@/components/Sidebar';
-import { useIsAdmin } from '@/lib/auth';
+import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +42,13 @@ export function LibraryPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const profileId = useAuth().data?.profile?.id;
+  useEffect(() => {
+    if (!profileId || params.toString()) return;
+    try { const saved = localStorage.getItem(`arc-browse:${profileId}:${id}`); if (saved) setParams(new URLSearchParams(saved), { replace: true }); } catch { /* private browsing may disable storage */ }
+    // Restore only when opening a library, not when clearing its filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, profileId]);
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
   const filters = {
     genre: params.get('genre') ?? undefined,
@@ -49,9 +57,15 @@ export function LibraryPage() {
     decade: Number(params.get('decade')) || undefined,
     resolution: (params.get('resolution') as Resolution) || undefined,
     unwatched: params.get('unwatched') === '1' || undefined,
+    added_within: Number(params.get('added_within')) || undefined,
+    min_runtime: Number(params.get('min_runtime')) || undefined,
+    max_runtime: Number(params.get('max_runtime')) || undefined,
+    min_rating: Number(params.get('min_rating')) || undefined,
   };
   const filtered = Object.values(filters).some(Boolean);
-  const { data: libraries } = useLibraries();
+  const reverse = params.get('reverse') === '1';
+  const libraryQuery = useLibraries();
+  const { data: libraries } = libraryQuery;
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
 
@@ -83,7 +97,7 @@ export function LibraryPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selecting]);
   const unit = kindUnit(lib?.kind)[0];
-  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, limit: 500, ...filters };
+  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, reverse, limit: 500, ...filters };
   const items = useInfiniteQuery({
     queryKey: ['items', 'browse', query],
     queryFn: ({ pageParam }) => api.items({ ...query, offset: pageParam }),
@@ -102,9 +116,14 @@ export function LibraryPage() {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
+    if (profileId && (key === 'sort' || key === 'reverse')) {
+      const saved = new URLSearchParams(); saved.set('sort', next.get('sort') || 'title'); if (next.has('reverse')) saved.set('reverse', '1');
+      try { localStorage.setItem(`arc-browse:${profileId}:${id}`, saved.toString()); } catch { /* storage is optional */ }
+    }
     setParams(next, { replace: true });
   };
 
+  if (libraryQuery.error && !libraries) return <ErrorState error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />;
   if (libraries && !lib) return <ErrorState error="Library not found" />;
 
   return (
@@ -144,6 +163,7 @@ export function LibraryPage() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {sort !== 'shuffle' && <Button variant="ghost" size="sm" aria-label="Reverse sort direction" aria-pressed={reverse} onClick={() => setParam('reverse', reverse ? undefined : '1')}>↕ <span className="hidden sm:inline">Reverse</span></Button>}
               {admin && !selecting && (
                 <Button variant="ghost" size="sm" onClick={() => setSelecting(true)}>
                   <ListChecks /> Select
@@ -172,7 +192,7 @@ export function LibraryPage() {
               type="button"
               role="tab"
               aria-selected={view === v}
-              onClick={() => setParams(v === 'titles' ? {} : { view: v }, { replace: true })}
+              onClick={() => { const next = new URLSearchParams(params); if (v === 'titles') next.delete('view'); else next.set('view', v); setParams(next, { replace: true }); }}
               className={cn(
                 'rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors',
                 view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
@@ -184,6 +204,7 @@ export function LibraryPage() {
         </div>
       )}
       {lib && <CollectionDialog library={lib} open={newCollection} onOpenChange={setNewCollection} onSaved={(c) => navigate(`/collection/${c.id}`)} />}
+      {!!facets.error && <div className="px-6 md:px-10"><ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} /></div>}
       {lib && view === 'titles' && facets.data && (
         <div className="scrollbar-none -mt-2 mb-6 flex gap-2 overflow-x-auto px-6 md:px-10">
           <FilterChip active={!!filters.unwatched} onClick={() => setParam('unwatched', filters.unwatched ? undefined : '1')}>
@@ -226,11 +247,25 @@ export function LibraryPage() {
             />
           )}
           {filtered && (
-            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setParams(sort === 'title' ? {} : { sort }, { replace: true })}>
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { const next = new URLSearchParams(); if (sort !== 'title') next.set('sort', sort); if (reverse) next.set('reverse', '1'); setParams(next, { replace: true }); }}>
               <X /> Clear
             </Button>
           )}
         </div>
+      )}
+      {lib && view === 'titles' && (
+        <details className="mx-6 mb-5 rounded-xl bg-surface px-4 py-3 md:mx-10" open={filters.added_within || filters.min_runtime || filters.max_runtime || filters.min_rating ? true : undefined}>
+          <summary className="cursor-pointer text-sm font-medium">More filters</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <AdvancedFilterFields filter={{ library_id: lib.id, ...filters }} onChange={(f) => {
+              const next = new URLSearchParams(params);
+              for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating'] as const) {
+                if (f[key]) next.set(key, String(f[key])); else next.delete(key);
+              }
+              setParams(next, { replace: true });
+            }} />
+          </div>
+        </details>
       )}
       {view === 'recommended' && (
         <div className="space-y-10">

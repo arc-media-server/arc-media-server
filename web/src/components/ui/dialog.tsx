@@ -14,16 +14,18 @@ export function DialogContent({
   footer,
   children,
   className,
+  overlayClassName,
 }: {
   title: string;
   description?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
   className?: string;
+  overlayClassName?: string;
 }) {
   return (
     <D.Portal>
-      <D.Overlay className="animate-fade-in fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+      <D.Overlay className={cn("animate-fade-in fixed inset-0 z-50 bg-black/50 backdrop-blur-sm", overlayClassName)} />
       <D.Content
         className={cn(
           'animate-dialog-in glass fixed left-1/2 top-1/2 z-50 flex max-h-[min(860px,calc(100dvh-32px))] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl border border-border shadow-2xl shadow-black/50',

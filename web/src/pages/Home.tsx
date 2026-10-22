@@ -12,9 +12,10 @@ import { cardClass, MediaRow, RowShell, type CardStyle } from '@/components/Medi
 import { PosterCard, ThumbCard, type CardOverrides } from '@/components/PosterCard';
 import { useRemoveFromContinue } from '@/components/CardMenu';
 import { EditHomeDialog } from '@/components/EditHome';
-import { EmptyState, Page } from '@/components/Page';
+import { EmptyState, ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
+import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 
 function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; style: CardStyle; showsOnly: boolean; seasonPosters: boolean }) {
@@ -27,9 +28,9 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   const cards = useQuery({ queryKey: ['items', 'recent-shows', lib.id], queryFn: () => api.recentShows(lib.id), enabled: grouped });
   const title = `Recently Added in ${lib.name}`;
   const href = `/library/${lib.id}`;
-  if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} href={href} style={style} />;
+  if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} loading={titles.isPending} error={titles.error} onRetry={() => void titles.refetch()} href={href} style={style} />;
   return (
-    <RowShell title={title} href={href} empty={!cards.data?.length}>
+    <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
       {cards.data?.map((c) => {
         const Card = style === 'thumb' ? ThumbCard : PosterCard;
         return <Card key={`${c.type}:${c.item.id}:${c.season_number ?? ''}`} item={c.item} overrides={recentOverrides(c, style, seasonPosters)} className={cardClass(style)} />;
@@ -59,23 +60,27 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
 
 /** The profile's watchlist (hidden while it's empty). */
 function WatchlistRow({ style }: { style: CardStyle }) {
-  const { data } = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
-  return <MediaRow title="Watchlist" items={data ?? []} href="/watchlist" style={style} />;
+  const result = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
+  const { data } = result;
+  return <MediaRow title="Watchlist" items={data ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href="/watchlist" style={style} />;
 }
 
 /** A collection on the home page, as it is now. */
 function CollectionRow({ id, fallback, style }: { id: string; fallback: string; style: CardStyle }) {
-  const { data } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), retry: false });
-  return <MediaRow title={data?.collection.title ?? fallback} items={data?.items ?? []} href={`/collection/${id}`} style={style} />;
+  const result = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id), retry: false });
+  const { data } = result;
+  return <MediaRow title={data?.collection.title ?? fallback} items={data?.items ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href={`/collection/${id}`} style={style} />;
 }
 
 /** One of the profile's playlists on the home page, in its order. */
 function PlaylistRow({ id, fallback, style, seasonPosters }: { id: string; fallback: string; style: CardStyle; seasonPosters: boolean }) {
-  const { data } = useQuery({ queryKey: ['playlist', id], queryFn: () => api.playlist(id), retry: false });
+  const result = useQuery({ queryKey: ['playlist', id], queryFn: () => api.playlist(id), retry: false });
+  const { data } = result;
   return (
     <MediaRow
       title={data?.playlist.title ?? fallback}
       items={data?.entries.map((e) => e.item) ?? []}
+      loading={result.isPending} error={result.error} onRetry={() => void result.refetch()}
       href={`/playlist/${id}`}
       style={style}
       seasonPosters={seasonPosters}
@@ -84,8 +89,9 @@ function PlaylistRow({ id, fallback, style, seasonPosters }: { id: string; fallb
 }
 
 function QueryRow({ title, query, href, style }: { title: string; query: ItemQuery; href?: string; style: CardStyle }) {
-  const { data } = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query) });
-  return <MediaRow title={title} items={data?.items ?? []} href={href} style={style} />;
+  const result = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query) });
+  const { data } = result;
+  return <MediaRow title={title} items={data?.items ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href={href} style={style} />;
 }
 
 function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolean }) {
@@ -98,9 +104,9 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
   const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
   switch (row.type) {
     case 'continue':
-      return <MediaRow title={row.title} items={continueWatching.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
+      return <MediaRow title={row.title} items={continueWatching.data ?? []} loading={continueWatching.isPending} error={continueWatching.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void continueWatching.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'next-up':
-      return <MediaRow title={row.title} items={nextUp.data ?? []} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
+      return <MediaRow title={row.title} items={nextUp.data ?? []} loading={nextUp.isPending} error={nextUp.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void nextUp.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'recent':
       return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':
@@ -114,14 +120,15 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
     case 'custom': {
       const f = row.filter;
       // The library page can show the same list unless the row uses filters only rows have.
-      const linkable = !f.added_within && !f.min_runtime && !f.max_runtime && !f.min_rating;
-      return <QueryRow title={row.title} query={rowQuery(f, row.library)} href={linkable ? rowHref(f) : undefined} style={row.style} />;
+      return <QueryRow title={row.title} query={rowQuery(f, row.library)} href={rowHref(f)} style={row.style} />;
     }
   }
 }
 
 export function Home() {
-  const { data: libraries, isLoading } = useLibraries();
+  const libraryQuery = useLibraries();
+  const { data: libraries, isLoading } = libraryQuery;
+  const admin = useIsAdmin();
   const prefs = usePrefs();
   // ?edit=1 opens Edit Home, so the profile menu can link to it from anywhere.
   const [params, setParams] = useSearchParams();
@@ -144,17 +151,19 @@ export function Home() {
     },
   });
 
-  if (isLoading) return null;
+  if (isLoading) return <div className="m-6 h-64 animate-pulse rounded-2xl bg-surface" />;
+  if (libraryQuery.error && !libraries) return <ErrorState error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />;
+  if (prefs.error && !prefs.data) return <ErrorState error={prefs.error} onRetry={() => void prefs.refetch()} />;
   if (!libraries?.length) {
     return (
       <Page>
         <EmptyState icon={<FolderPlus />} title="Welcome to Arc">
-          <p>Add a folder of movies or TV shows to get started. Arc shows you what it finds before adding anything.</p>
-          <Link to="/libraries?add=1" className="mt-5 inline-block">
+          <p>{admin ? "Add a folder of movies or TV shows to get started. Arc scans it in the background." : "No libraries have been shared with this profile. Ask the server owner for access."}</p>
+          {admin && <Link to="/libraries?add=1" className="mt-5 inline-block">
             <Button variant="primary">
               <FolderPlus /> Add a Library
             </Button>
-          </Link>
+          </Link>}
         </EmptyState>
       </Page>
     );
@@ -162,6 +171,8 @@ export function Home() {
 
   return (
     <Page className="relative pb-16">
+      {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
+      {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
       {prefs.data && (
         <Button
           size="sm"
@@ -173,6 +184,8 @@ export function Home() {
       )}
       {featuredQuery.data?.length ? <Featured items={featuredQuery.data} /> : <div className="h-10" />}
       <div className="relative z-10 -mt-6 space-y-10">
+        {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
+        {!!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
         {visibleRows(rows, split)
           .filter((r) => !r.hidden)
           .map((r) => (

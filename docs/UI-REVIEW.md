@@ -1,13 +1,15 @@
 # Everyday UI and feature-gap review
 
-Reviewed 22 October 2026 against `554120b`. This is an assessment, not approval to implement
-every suggestion. No product behaviour or owner data was changed. The previous #144 bug pass
-and #147 scanning work are completed context, not outstanding findings.
+Reviewed 22 October 2026 against `554120b`. The assessment below preserves the original findings.
+The owner subsequently approved implementation of all findings and proposals, including the
+editable queue. The completed follow-up and its verification are recorded at the end.
+The previous #144 bug pass and #147 scanning work are completed context.
 Tracking: [review #148](https://github.com/JonzaUK/arc-media-server/issues/148),
 [R1 #149](https://github.com/JonzaUK/arc-media-server/issues/149),
 [R2 #150](https://github.com/JonzaUK/arc-media-server/issues/150),
 [R3 #151](https://github.com/JonzaUK/arc-media-server/issues/151),
-[R4 #152](https://github.com/JonzaUK/arc-media-server/issues/152). All findings remain open.
+[R4 #152](https://github.com/JonzaUK/arc-media-server/issues/152). These findings are addressed by
+the follow-up; real-library/device/sustained-use acceptance remains separate.
 
 ## Assessment
 
@@ -140,3 +142,38 @@ Plex documents [home/recommendation management](https://support.plex.tv/articles
 and [Play Next/queue actions](https://support.plex.tv/articles/202188298-play-queues/). These inform
 the comparison and proposals above; Plex documentation is not proof of Arc behaviour or a
 complete client-by-client feature-parity audit. Keep Arc's existing simpler flows where they work.
+
+## Approved implementation follow-up (22 October)
+
+The owner's instruction to work through all findings also approved the broader proposals and
+queue scope. All eight areas were reviewed; the identified work is implemented:
+
+- Common tasks: mobile Manage menu and five directly addressable Settings groups. Profile
+  preferences remain available to everyone; server groups remain admin-only.
+- Home: honest loading/error/empty states, row retries, keyboard move buttons and position
+  announcements. Reset retains custom, collection and playlist rows. Opening `/?edit=1` waits
+  for preferences so a slow response cannot initialize an empty editor.
+- Browsing: shared added-date/runtime/minimum-rating controls and full filtered links from
+  every custom row. Sort direction is reversible; only sort/direction are remembered locally
+  per profile/library. Explicit filtered links take precedence; existing paging remains.
+- Ordering: the menu explains admin/server-default versus individual scope and offers reset
+  to inheritance. Comparison retains its selection on failed saves and offers Retry. Media,
+  episode identity and provider mapping are unchanged.
+- Playback: separate wrapping primary/secondary controls with 44px targets, explicit preferred
+  audio language and playback Retry. A visible queue supports remove/reorder/play-now/clear;
+  movie/show/episode actions offer Play next/Add to queue. Minimizing permits browsing while
+  preserving the current video; queue edits do not restart it. Closing or leaving a profile
+  flushes progress. Queue state ends on refresh/close; it is not a server-side persistent queue.
+- Profiles/responsiveness: wrapping household/friend rows and header actions keep long names
+  readable at 390px; episode/card actions are reachable without relying on pointer hover.
+- Recovery: profile/order/rating/watchlist/watched/refresh/Continue Watching failures are
+  visible, with appropriate retries. Playlist keyboard reordering persists and rolls back a
+  failed request without losing the list. Shared query errors expose Retry.
+
+The obsolete four observed-gap checks and separate review configuration were retired. Twelve
+normal regressions in `web/e2e/ux.spec.ts` now assert corrected behaviour against disposable
+databases, generated video and local provider fixtures. The synthetic 60-result row checks
+navigation/filter preservation, not scanner throughput. Mobile geometry and real generated
+video checks use desktop Chromium at 390px; inspected screenshots cover Profiles, Settings,
+player controls and the editable queue. Actual touch/browser/device and sustained Unraid
+acceptance remain #134/#135/#137; no owner data/settings/media was used.

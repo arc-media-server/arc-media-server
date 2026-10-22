@@ -502,7 +502,7 @@ test('real video plays, saves progress on close and resumes after reload', async
 
 test('global scanning controls persist, apply live and respect startup Off', async ({ page, media }, info) => {
   await setup(page);
-  await page.goto('/settings');
+  await page.goto('/settings?section=library');
   const automatic = page.getByRole('switch', { name: 'Scan automatically when files change', exact: true });
   await expect(automatic).toBeChecked();
   const schedule = page.getByRole('combobox', { name: 'Full library scan', exact: true });

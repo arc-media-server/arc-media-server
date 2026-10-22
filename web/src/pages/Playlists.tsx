@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
-import { GripVertical, ListVideo, Loader2, Pencil, Play, Plus, Shuffle, Trash2, Wand2, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, GripVertical, ListVideo, Loader2, Pencil, Play, Plus, Shuffle, Trash2, Wand2, X } from 'lucide-react';
 import { shuffled } from '@/lib/shuffle';
 import { api, type Playlist, type PlaylistEntry, type RowFilter } from '@/lib/api';
 import { FilterFields, FilterPreview } from '@/components/FilterFields';
 import { useLibraries } from '@/components/Sidebar';
 import * as fmt from '@/lib/format';
 import { Artwork } from '@/components/Artwork';
-import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
+import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
 import { PlaylistCover } from '@/components/Playlists';
 import { Button } from '@/components/ui/button';
@@ -179,19 +179,28 @@ function Entries({ playlistId, entries: initial, onPlay }: { playlistId: string;
     qc.invalidateQueries({ queryKey: ['playlist', playlistId] });
     qc.invalidateQueries({ queryKey: ['playlists'] });
   };
-  const order = useMutation({ mutationFn: (ids: number[]) => api.orderPlaylist(playlistId, ids), onSuccess: refresh });
+  const order = useMutation({ mutationFn: (ids: number[]) => api.orderPlaylist(playlistId, ids), onSuccess: refresh, onError: () => setEntries(initial) });
   const remove = useMutation({ mutationFn: (entryId: number) => api.removeFromPlaylist(playlistId, entryId), onSuccess: refresh });
+  const move = (from: number, delta: number) => {
+    const to = from + delta;
+    if (order.isPending || to < 0 || to >= entries.length) return;
+    const next = [...entries]; [next[from], next[to]] = [next[to], next[from]];
+    setEntries(next); order.mutate(next.map(e => e.entry_id));
+  };
   return (
+    <>
+    <ErrorNotice error={order.error || remove.error} onRetry={() => { if (order.error && order.variables) order.mutate(order.variables); else if (remove.variables !== undefined) remove.mutate(remove.variables); }} />
     <Reorder.Group axis="y" values={entries} onReorder={setEntries} className="max-w-4xl space-y-1.5">
       {entries.map((e, i) => (
-        <EntryRow key={e.entry_id} entry={e} index={i} onPlay={() => onPlay(initial.findIndex((x) => x.entry_id === e.entry_id))} onDrop={() => order.mutate(entries.map((x) => x.entry_id))} onRemove={() => remove.mutate(e.entry_id)} />
+        <EntryRow key={e.entry_id} entry={e} index={i} onPlay={() => onPlay(initial.findIndex((x) => x.entry_id === e.entry_id))} onMoveUp={i > 0 ? () => move(i, -1) : undefined} onMoveDown={i < entries.length - 1 ? () => move(i, 1) : undefined} busy={order.isPending} onDrop={() => { if (!order.isPending) order.mutate(entries.map((x) => x.entry_id)); }} onRemove={() => remove.mutate(e.entry_id)} />
       ))}
     </Reorder.Group>
+    </>
   );
 }
 
 /** A playlist's title row; a smart playlist's can't be dragged or removed (its rules decide). */
-function EntryRow({ entry, index, onPlay, onDrop, onRemove }: { entry: PlaylistEntry; index: number; onPlay: () => void; onDrop?: () => void; onRemove?: () => void }) {
+function EntryRow({ entry, index, onPlay, onDrop, onRemove, onMoveUp, onMoveDown, busy }: { entry: PlaylistEntry; index: number; onPlay: () => void; onDrop?: () => void; onRemove?: () => void; onMoveUp?: () => void; onMoveDown?: () => void; busy?: boolean }) {
   const drag = useDragControls();
   const it = entry.item;
   const episode = it.kind === 'episode';
@@ -199,12 +208,13 @@ function EntryRow({ entry, index, onPlay, onDrop, onRemove }: { entry: PlaylistE
   const content = (
     <>
       {!fixed && (
-        <button type="button" aria-label={`Drag ${it.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
+        <button type="button" disabled={busy} aria-label={`Drag ${it.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
           <GripVertical className="size-4" />
         </button>
       )}
+      {!fixed && <div className="flex shrink-0 flex-col"><button type="button" aria-label={'Move ' + it.title + ' up'} disabled={!onMoveUp || busy} onClick={onMoveUp} className="rounded p-1 disabled:opacity-25"><ArrowUp className="size-4" /></button><button type="button" aria-label={'Move ' + it.title + ' down'} disabled={!onMoveDown || busy} onClick={onMoveDown} className="rounded p-1 disabled:opacity-25"><ArrowDown className="size-4" /></button></div>}
       <span className="w-6 text-right text-sm tabular-nums text-subtle">{index + 1}</span>
-      <button type="button" onClick={onPlay} className="relative w-28 shrink-0 overflow-hidden rounded-lg" aria-label={`Play ${it.title}`}>
+      <button type="button" onClick={onPlay} className="relative hidden w-28 shrink-0 overflow-hidden rounded-lg sm:block" aria-label={`Play ${it.title}`}>
         <Artwork src={episode ? (it.images?.primary ?? it.images?.series_backdrop) : (it.images?.backdrop ?? it.images?.primary)} alt="" kind="still" icon={episode ? 'tv' : 'film'} fallbackTitle={it.title} />
         <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/35 group-hover:opacity-100">
           <Play className="size-5 fill-white text-white" />

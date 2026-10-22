@@ -7,7 +7,7 @@ An open source media server written in Go, built from the ground up.
 - **Your files are never touched.** AMS only reads your media. It never renames, moves or writes
   next to your files, so Sonarr, Radarr and anything else relying on your folder layout keep working.
 - **Display order is separate from storage order.** A series can be stored in TVDB aired order and
-  shown in a TMDB episode group order (per series, and eventually per user) without changing anything on disk.
+  shown in a TMDB episode group order per series and profile without changing anything on disk.
 - **Its own apps, and an open API.** Arc has its own web app (native TV and phone apps are planned), and its API is
   documented so anyone can build their own client.
 
@@ -20,6 +20,16 @@ Early development. Working today:
   groups) per series, mapped onto your files whichever way they're named. Pick one per series, make
   custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden.
   "Compare Orders" shows where each of your episodes lands in another order before you switch
+- Display-order menus explain their scope: an admin also sets the server default; other profiles
+  can choose their own order or return to the server default. Failed saves retain a retry path.
+- Home rows support keyboard move buttons and full filtered results. Library browsing includes
+  added-date, runtime and rating filters, reversible sorting and a remembered sort per profile
+  and library on this device. Failed requests show errors and Retry instead of false empty states.
+- Settings groups profile preferences, libraries/metadata, server playback, access/devices and
+  maintenance/recovery. Each profile can explicitly choose its preferred audio language.
+- A visible playback queue supports Play next, Add to queue, reordering, removing and clearing
+  upcoming titles. Minimize the player to browse while it continues; closing it or switching
+  profiles saves progress. The queue ends when you close the player or refresh the page.
 - Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
   multi-part `cd1`/`part2` files; samples are skipped)
 - Add movie, TV or other-video libraries directly: choose a type and folders, then Add Library.
@@ -84,7 +94,7 @@ Early development. Working today:
 - Shuffle (as in Plex): on a show (every episode but specials), a season, a collection (its movies and
   its shows' episodes, which also get Play) and a playlist, through the player's queue
 - Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
-  order, specials last). Play or shuffle, drag to arrange; the player carries on to the next one
+  order, specials last). Play or shuffle, drag or use move buttons to arrange; the player carries on to the next one
   after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
 - Search everything at once: movies, shows, episodes, people, collections and genres. Accents and
   case don't matter, small typos are forgiven ("matirx" finds The Matrix), and other names work too
@@ -384,7 +394,7 @@ managing libraries, settings, profiles, backups and metadata needs the admin pro
 | GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
 | POST | `/api/libraries/{id}/scan` | Start a scan |
 | GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
+| GET | `/api/items?library_id=&kind=&q=&sort=&reverse=1&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=` | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
 | GET | `/api/items/{id}` | Item details with files and streams |
 | POST | `/api/items/bulk` | Change many movies and shows (admin): `{"item_ids", "add_genres", "remove_genres", "add_labels", "remove_labels", "content_rating", "locks": "all"|"none", "played", "refresh"}` |

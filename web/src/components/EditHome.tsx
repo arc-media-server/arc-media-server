@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
 import { useLibraries } from '@/components/Sidebar';
 import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions, sorts } from '@/pages/Library';
+import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -38,7 +39,7 @@ export function EditHomeDialog({
   const update = useUpdatePrefs();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && (
+      {open && prefs.data && (
         <Editor
           initial={rows}
           libraries={libraries}
@@ -104,7 +105,7 @@ function Editor({
   initialSplit,
   showSplit = true,
   title = 'Edit Home',
-  description = "Drag rows to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
+  description = "Drag rows or use the move buttons to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
   onSave,
   onDone,
 }: {
@@ -120,6 +121,7 @@ function Editor({
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
   const [split, setSplit] = useState(initialSplit);
+  const [announcement, announce] = useState('');
   const save = useMutation({ mutationFn: onSave, onSuccess: onDone });
   // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
   const reorder = (shown: ResolvedRow[]) => {
@@ -130,6 +132,14 @@ function Editor({
     setRows(next);
   };
 
+  const moveRow = (id: string, delta: number) => {
+    const shown = visibleRows(rows, split);
+    const from = shown.findIndex(r => r.id === id), to = from + delta;
+    if (from < 0 || to < 0 || to >= shown.length) return;
+    [shown[from], shown[to]] = [shown[to], shown[from]];
+    reorder(shown);
+    announce(shown[to].title + ', position ' + (to + 1) + ' of ' + shown.length);
+  };
   if (editing) {
     const existing = editing === 'new' ? undefined : (editing as Extract<ResolvedRow, { type: 'custom' }>);
     return (
@@ -176,7 +186,7 @@ function Editor({
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
-          <Button variant="ghost" className="mr-auto" onClick={() => setRows(resolveRows([], libraries).concat(rows.filter((r) => r.type === 'custom')))}>
+          <Button variant="ghost" className="mr-auto" onClick={() => setRows(resolveRows([], libraries).map(base => rows.find(r => r.id === base.id) ?? base).concat(rows.filter(r => r.type === 'custom' || r.type === 'collection' || r.type === 'playlist')))}>
             Reset Order
           </Button>
           <Button variant="secondary" onClick={() => setEditing('new')}>
@@ -216,12 +226,15 @@ function Editor({
           }}
         />
       </label>
+      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
       <Reorder.Group axis="y" values={visibleRows(rows, split)} onReorder={reorder} className="space-y-1.5">
-        {visibleRows(rows, split).map((r) => (
+        {visibleRows(rows, split).map((r, index, shown) => (
           <RowItem
             key={r.id}
             row={r}
             merged={!split}
+            onMoveUp={index > 0 ? () => moveRow(r.id, -1) : undefined}
+            onMoveDown={index < shown.length - 1 ? () => moveRow(r.id, 1) : undefined}
             onToggle={() => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, hidden: !x.hidden } : x)))}
             onChange={(patch) => setRows((rs) => rs.map((x) => (x.id === r.id ? ({ ...x, ...patch } as ResolvedRow) : x)))}
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
@@ -318,6 +331,7 @@ function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Parti
 }
 
 function RowItem({
+  onMoveUp, onMoveDown,
   row,
   merged,
   onToggle,
@@ -329,6 +343,8 @@ function RowItem({
   merged: boolean;
   onToggle: () => void;
   onChange: (patch: Partial<RowLook>) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
@@ -359,6 +375,10 @@ function RowItem({
       >
         <GripVertical className="size-4" />
       </button>
+      <div className="flex shrink-0 flex-col">
+        <button type="button" aria-label={'Move ' + row.title + ' up'} disabled={!onMoveUp} onClick={onMoveUp} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowUp className="size-4" /></button>
+        <button type="button" aria-label={'Move ' + row.title + ' down'} disabled={!onMoveDown} onClick={onMoveDown} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowDown className="size-4" /></button>
+      </div>
       <div className={cn('min-w-0 flex-1', row.hidden && 'opacity-45')}>
         <p className="flex items-center gap-1.5 truncate text-sm font-medium">
           {icon && <span className="text-accent">{icon}</span>}
@@ -453,6 +473,7 @@ function RowEditor({
       }
     >
       <div className="space-y-4">
+        <ErrorNotice error={source === 'playlist' ? playlists.error : source === 'collection' ? collections.find(c => c.error)?.error : null} onRetry={() => { if (source === 'playlist') void playlists.refetch(); else for (const c of collections) if (c.error) void c.refetch(); }} />
         {!initial && (
           <Field label="Show">
             <select

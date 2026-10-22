@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
@@ -7,7 +8,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
-import { ErrorState, Page, PageHeader } from '@/components/Page';
+import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
@@ -19,14 +20,36 @@ import { FolderPicker } from '@/components/FolderPicker';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
+type SettingsGroup = 'profile' | 'library' | 'playback' | 'access' | 'maintenance';
+const SettingsSection = createContext<SettingsGroup>('profile');
+const settingsGroups: { id: SettingsGroup; label: string }[] = [
+  { id: 'profile', label: 'Your profile' }, { id: 'library', label: 'Libraries & metadata' },
+  { id: 'playback', label: 'Server playback' }, { id: 'access', label: 'Access & devices' },
+  { id: 'maintenance', label: 'Maintenance & recovery' },
+];
+const sectionGroups: Record<string, SettingsGroup> = {
+  'Online metadata': 'library', 'Ratings': 'library', 'Library scanning': 'library',
+  'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
+  'Optimized Versions': 'playback', 'Media tools': 'playback', 'Skip Intro': 'playback',
+  'Pre-roll': 'playback', 'Subtitles': 'playback', 'Converting': 'playback',
+  'Moving in': 'maintenance', 'Notifications': 'maintenance', 'Scheduled tasks': 'maintenance',
+};
+
 export function SettingsPage() {
   const admin = useIsAdmin();
+  const [params, setParams] = useSearchParams();
+  const selected = admin && settingsGroups.some(g => g.id === params.get('section')) ? params.get('section') as SettingsGroup : 'profile';
   return (
     <Page className="pb-16">
-      <PageHeader title="Settings" subtitle={admin ? 'Your profile, and everything about how this Arc server runs.' : 'How Arc works for your profile.'} />
-      <div className="max-w-3xl space-y-10 px-6 md:px-10">
-        <ProfileSettings />
-        {admin && <ServerSettings />}
+      <PageHeader title="Settings" subtitle={selected === 'profile' ? 'Your preferences follow your profile.' : 'Server settings apply to everyone. Only admins can change these.'} />
+      <div className="max-w-3xl space-y-8 px-6 md:px-10">
+        {admin && <nav aria-label="Settings sections" className="flex flex-wrap gap-2" role="tablist">
+          {settingsGroups.map(g => <button key={g.id} type="button" role="tab" aria-selected={selected === g.id} onClick={() => setParams(g.id === 'profile' ? {} : { section: g.id })} className={cn('rounded-full px-4 py-2 text-sm font-medium', selected === g.id ? 'bg-foreground text-background' : 'bg-surface text-muted hover:text-foreground')}>{g.label}</button>)}
+        </nav>}
+        <SettingsSection.Provider value={selected}>
+          {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings />}
+        </SettingsSection.Provider>
+        {selected === 'maintenance' && <p className="text-sm text-muted">Looking for backups or library problems? <a href="/backups" className="text-accent underline">Backups & restore</a> · <a href="/health" className="text-accent underline">Library Health</a></p>}
       </div>
     </Page>
   );
@@ -37,11 +60,19 @@ function ProfileSettings() {
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const p = prefs.data;
+  if (prefs.error && !p) return <ErrorState error={prefs.error} onRetry={() => void prefs.refetch()} />;
   if (!p) return <div className="h-48 animate-pulse rounded-2xl bg-surface" />;
   const busy = update.isPending;
   return (
     <>
+      <ErrorNotice error={update.error} onRetry={() => { if (update.variables) update.mutate(update.variables); }} />
       <Section title="Playback" hint="For your profile only.">
+        <Row label="Preferred audio language" description="Used when a matching track is available. Choosing a language in the player also updates this preference.">
+          <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            <option value="">Use the file's default</option>
+            {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </Row>
         <ToggleRow
           label="Auto-Play"
           description="Play the next episode after a short countdown."
@@ -788,6 +819,8 @@ function HourSelect({ value, disabled, onChange }: { value: number; disabled: bo
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  const group = useContext(SettingsSection);
+  if (group !== 'profile' && sectionGroups[title] !== group) return null;
   return (
     <section>
       <h2 className="text-lg font-semibold">{title}</h2>

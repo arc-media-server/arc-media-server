@@ -60,11 +60,11 @@ export function ProfilesPage() {
         <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
           {!profiles.data && <div className="h-32 animate-pulse" />}
           {profiles.data?.filter((p) => !p.is_friend).map((p) => (
-            <div key={p.id} className="flex items-center gap-4 px-4 py-3">
-              <Avatar name={p.name} color={p.color} className="size-10 text-base" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{p.name}</p>
-                <p className="flex items-center gap-1.5 text-xs text-subtle">
+            <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <Avatar name={p.name} color={p.color} className="size-10 shrink-0 text-base" />
+              <div className="min-w-0 basis-[calc(100%-4rem)] sm:basis-0 flex-1">
+                <p className="break-words text-sm font-semibold">{p.name}</p>
+                <p className="flex flex-wrap items-center gap-1.5 text-xs text-subtle">
                   {p.is_admin
                     ? 'Admin · manages libraries and settings'
                     : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length), p.exclude_labels?.length && `hides ${p.exclude_labels.join(', ')}`]
@@ -103,11 +103,11 @@ export function ProfilesPage() {
             <p className="px-4 py-3.5 text-sm text-muted">No friends yet. Add Friend makes an invite link to send them.</p>
           )}
           {profiles.data?.filter((p) => p.is_friend).map((p) => (
-            <div key={p.id} className="flex items-center gap-4 px-4 py-3">
-              <Avatar name={p.name} color={p.color} className="size-10 text-base" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{p.name}</p>
-                <p className="truncate text-xs text-subtle">
+            <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <Avatar name={p.name} color={p.color} className="size-10 shrink-0 text-base" />
+              <div className="min-w-0 basis-[calc(100%-4rem)] sm:basis-0 flex-1">
+                <p className="break-words text-sm font-semibold">{p.name}</p>
+                <p className="break-words text-xs text-subtle">
                   {[p.joined ? 'Joined' : "Invited, hasn't joined yet", p.library_ids ? libraryCount(p.library_ids.length) : 'All libraries', p.max_age > 0 && limitLabel(p.max_age)]
                     .filter(Boolean)
                     .join(' · ')}

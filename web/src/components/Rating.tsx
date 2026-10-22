@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, BookmarkCheck, Star, StarHalf } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -22,6 +23,7 @@ export function StarRating({ item }: { item: Item }) {
   });
   const shown = hover ?? value;
   return (
+    <>
     <div
       className="flex items-center gap-0.5"
       role="radiogroup"
@@ -60,6 +62,8 @@ export function StarRating({ item }: { item: Item }) {
         );
       })}
     </div>
+    <ErrorNotice error={rate.error} onRetry={() => { if (rate.variables !== undefined) rate.mutate(rate.variables); }} />
+    </>
   );
 }
 
@@ -77,6 +81,7 @@ export function WatchlistButton({ item }: { item: Item }) {
   });
   const label = on ? 'On your watchlist' : 'Add to Watchlist';
   return (
+    <>
     <Button
       variant="secondary"
       size="lg"
@@ -88,5 +93,7 @@ export function WatchlistButton({ item }: { item: Item }) {
     >
       {on ? <BookmarkCheck className="fill-current" /> : <Bookmark />}
     </Button>
+    <ErrorNotice error={toggle.error} onRetry={() => { if (toggle.variables !== undefined) toggle.mutate(toggle.variables); }} />
+    </>
   );
 }

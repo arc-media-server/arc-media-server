@@ -3,6 +3,7 @@ import { api, type ItemSort, type Library, type Resolution, type RowFilter } fro
 import { rowQuery } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { resolutions, sorts } from '@/pages/Library';
+import { ErrorNotice } from './Page';
 import { Artwork } from '@/components/Artwork';
 import { Field, inputClass } from '@/components/ui/field';
 
@@ -35,10 +36,10 @@ export function FilterFields({
   const library = libraries?.find((l) => l.id === f.library_id);
   const movies = library ? library.kind !== 'shows' : true;
   const set = (patch: Partial<RowFilter>) => onChange({ ...f, ...patch });
-  const length = lengthOptions.findIndex((o) => o.min === f.min_runtime && o.max === f.max_runtime);
 
   return (
     <>
+      <ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} />
       <div className="grid gap-3 sm:grid-cols-2">
         {libraries && (
           <Field label="Library">
@@ -108,40 +109,7 @@ export function FilterFields({
             ))}
           </select>
         </Field>
-        <Field label="Added">
-          <select value={f.added_within ?? 0} onChange={(e) => set({ added_within: Number(e.target.value) || undefined })} className={inputClass}>
-            {addedOptions.map((d) => (
-              <option key={d} value={d}>
-                {d === 0 ? 'Any time' : d === 7 ? 'This week' : d === 365 ? 'This year' : `In the last ${d} days`}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Length">
-          <select
-            value={Math.max(0, length)}
-            onChange={(e) => {
-              const o = lengthOptions[Number(e.target.value)];
-              set({ min_runtime: o.min, max_runtime: o.max });
-            }}
-            className={inputClass}
-          >
-            {lengthOptions.map((o, i) => (
-              <option key={o.label} value={i}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Rating">
-          <select value={f.min_rating ?? 0} onChange={(e) => set({ min_rating: Number(e.target.value) || undefined })} className={inputClass}>
-            {ratingOptions.map((r) => (
-              <option key={r} value={r}>
-                {r === 0 ? 'Any rating' : `★ ${r} or more`}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <AdvancedFilterFields filter={f} onChange={onChange} />
         {movies && (
           <Field label="Quality">
             <select value={f.resolution ?? ''} onChange={(e) => set({ resolution: (e.target.value as Resolution) || undefined })} className={inputClass}>
@@ -179,8 +147,9 @@ export function FilterPreview({ filter: f, library, emptyText }: { filter: RowFi
           ? preview.data.total === 0
             ? emptyText
             : `${fmt.plural(preview.data.total, movies ? 'movie' : 'show')} ${preview.data.total === 1 ? 'matches' : 'match'}`
-          : 'Looking…'}
+          : preview.error ? 'Preview unavailable' : 'Looking…'}
       </p>
+      <ErrorNotice error={preview.error} onRetry={() => void preview.refetch()} />
       <div className="grid grid-cols-8 gap-1.5">
         {preview.data?.items.map((it) => (
           <Artwork key={it.id} src={it.images?.primary} alt={it.title} className="aspect-[2/3] rounded-md" fallbackTitle={it.title} />
@@ -188,4 +157,45 @@ export function FilterPreview({ filter: f, library, emptyText }: { filter: RowFi
       </div>
     </div>
   );
+}
+
+/** Shared date, runtime and rating filters for browsing and saved rules. */
+export function AdvancedFilterFields({ filter: f, onChange }: { filter: RowFilter; onChange: (f: RowFilter) => void }) {
+  const set = (patch: Partial<RowFilter>) => onChange({ ...f, ...patch });
+  const length = lengthOptions.findIndex((o) => o.min === f.min_runtime && o.max === f.max_runtime);
+  return <>        <Field label="Added">
+          <select value={f.added_within ?? 0} onChange={(e) => set({ added_within: Number(e.target.value) || undefined })} className={inputClass}>
+            {addedOptions.map((d) => (
+              <option key={d} value={d}>
+                {d === 0 ? 'Any time' : d === 7 ? 'This week' : d === 365 ? 'This year' : `In the last ${d} days`}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Length">
+          <select
+            value={Math.max(0, length)}
+            onChange={(e) => {
+              const o = lengthOptions[Number(e.target.value)];
+              set({ min_runtime: o.min, max_runtime: o.max });
+            }}
+            className={inputClass}
+          >
+            {lengthOptions.map((o, i) => (
+              <option key={o.label} value={i}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Rating">
+          <select value={f.min_rating ?? 0} onChange={(e) => set({ min_rating: Number(e.target.value) || undefined })} className={inputClass}>
+            {ratingOptions.map((r) => (
+              <option key={r} value={r}>
+                {r === 0 ? 'Any rating' : `★ ${r} or more`}
+              </option>
+            ))}
+          </select>
+        </Field>
+</>;
 }

@@ -57,13 +57,12 @@ hardware performance or sustained Unraid acceptance; owner data/settings/media w
 
 ## Acceptance checklist
 
-The broader UI assessment is recorded in [UI-REVIEW.md](UI-REVIEW.md) and #148. Four focused
-diagnostic journeys reproduce #149–#152 and the custom-row full-results gap; they are separate
-from the normal regression suite. A diagnostic pass establishes the observed defect/gap,
-not a fix. No product code changed in this assessment. Desktop/narrow screenshots and source
-review cover the requested areas with the limits documented there; real devices and sustained
-use remain unverified. Follow `web/review/README.md` to reproduce with isolated data.
-
+The broader UI assessment and approved implementation are recorded in [UI-REVIEW.md](UI-REVIEW.md)
+and #148–#152. Desired-behaviour regressions in `web/e2e/ux.spec.ts` replace the original four
+observed-gap diagnostics and run with the ordinary release suite. They cover error/retry states,
+keyboard ordering, custom-row full results, profile-safe playback/queue edits, mobile geometry,
+settings navigation, audio preference, order inheritance and remembered sorting. Source review
+and generated-video viewport checks do not establish actual device or sustained-use acceptance.
 | Area | Evidence required | Status |
 | --- | --- | --- |
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |
@@ -505,3 +504,33 @@ Local Go has CGO disabled, so Linux race detection is a separate CI gate. Genera
 fixtures do not establish real-library acceptance (#134), real-device playback, physical NAS I/O,
 live-provider match accuracy, peak RAM or sustained-use readiness. No owner data or deployment
 was used or modified.
+
+## Approved UI follow-up (#148–#152, 22 October)
+
+Implementation covers all eight reviewed areas: Home feedback/keyboard arrangement, shared
+browse filters/full results, display-order scope/inheritance, grouped Settings, explicit audio
+preference, mobile controls/profiles, editable queue/compact playback, and visible recovery
+paths. See UI-REVIEW.md for the feature-by-feature record and scope boundaries.
+
+Local Windows verification: production UI build and app/e2e TypeScript checks pass. All 23
+existing Chromium journeys passed in the complete run; its custom-row regression exposed an
+empty editor when preferences arrived late. After fixing initialization and the friend-row
+layout found in screenshot review, all 12 new regressions passed together without retries
+(1.9 minutes). The suite now contains 35 journeys; the final combined Linux run is a separate
+CI gate. Screenshots of long household/friend names, grouped Settings and 44px player controls
+at 390px, plus the desktop editable queue with compact playback, were inspected.
+
+`go vet ./...` and `go test ./...` passed; affected store/API/watcher and generated-reference
+checks were repeated after the final test/doc changes. Browse regression checks reverse order
+with runtime/rating filtering and pagination. Linux CI from the earlier scanner commit exposed
+a data race in the controlled-clock test callback counter; asynchronous counters now use atomics.
+Local CGO is disabled, so this does not substitute for Linux race verification.
+
+Browser scenarios cover failed Home dependencies, failed preference/order writes with Retry,
+audio persistence, keyboard Home/playlist ordering, 60 synthetic filtered results, comparison
+input preservation and inherited order, rating/watchlist/refresh recovery, device-local/profile
+sort separation, playback Retry, queue edits without restarting the current video, saved progress,
+and switching profiles while minimized. Tests use isolated generated media/local providers;
+requests to outside services are blocked. Queue state is in memory, ending on refresh/close;
+sort memory is device-local. No owner data, settings, media or Unraid deployment was changed.
+This completes the approved review follow-up, not actual device, hardware, NAS or soak acceptance.
