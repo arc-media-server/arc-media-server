@@ -4,7 +4,7 @@ import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, RefreshCw, Shuffle } from 'lucide-react';
-import { api, backdropUrl, posterUrl, type Ordering, type SeasonEpisode } from '@/lib/api';
+import { api, type Ordering, type SeasonEpisode } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { EditSeasonDialog } from '@/components/EditSeason';
 import * as fmt from '@/lib/format';
@@ -14,7 +14,7 @@ import { Artwork } from '@/components/Artwork';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
 import { useSpoilerGuard } from '@/lib/home';
-import { Badge, Hero, MetaLine, TitleHeading } from '@/components/Hero';
+import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
@@ -118,74 +118,61 @@ export function SeriesPage() {
 
   return (
     <Page className="pb-20">
-      <Hero backdrop={backdropUrl(series)} className="min-h-[56vh]">
-        <div className="flex min-h-[56vh] items-end gap-8 px-6 pb-10 pt-24 md:px-10">
-          <Artwork
-            src={posterUrl(series)}
-            alt={series.title}
-            fallbackTitle={series.title}
-            icon="tv"
-            eager
-            className="hidden w-44 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block"
+      <TitleHero item={series}>
+        <TitleHeading item={series} detail />
+        <div className="mt-4">
+          <MetaLine
+            parts={[
+              series.year,
+              fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'),
+              fmt.plural(available, 'Episode'),
+              details.genres,
+              details.rating,
+              details.contentRating && <Badge>{details.contentRating}</Badge>,
+            ]}
           />
-          <div className="max-w-2xl">
-            <TitleHeading item={series} />
-            <div className="mt-4">
-              <MetaLine
-                parts={[
-                  series.year,
-                  fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'),
-                  fmt.plural(available, 'Episode'),
-                  details.genres,
-                  details.rating,
-                  details.contentRating && <Badge>{details.contentRating}</Badge>,
-                ]}
-              />
-            </div>
-            {series.overview && <p className="mt-4 line-clamp-4 text-[15px] leading-relaxed text-foreground/85">{series.overview}</p>}
-            <CrewLine item={series} />
-            <div className="mt-4">
-              <StarRating key={series.id} item={series} />
-            </div>
-            {series.metadata_state === 'unmatched' && admin && (
-              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
-                <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
-                <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
-                  Identify it…
-                </button>
-              </p>
-            )}
-            <div className="mt-7 flex flex-wrap gap-3">
-              {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
-              {available > 1 && (
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onClick={() => {
-                    const q = shuffled(episodeQueue(data.seasons.filter((s) => s.season_number !== 0).flatMap((s) => s.episodes), series.title));
-                    if (q.length) play(q[0], q);
-                  }}
-                >
-                  <Shuffle /> Shuffle
-                </Button>
-              )}
-              <TrailerButton extras={series.extras} title={series.title} />
-              {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
-              <WatchlistButton item={series} />
-              {available > 0 && <QueueActions item={series} />}
-              {available > 0 && <AddToPlaylistButton item={series} />}
-              {admin && (
-                <>
-                  <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                    {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-                  </Button>
-                  <MoreMenu item={series} onOpen={openDialog} />
-                </>
-              )}
-            </div>
-          </div>
         </div>
-      </Hero>
+        {series.metadata_state === 'unmatched' && admin && (
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
+            <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
+            <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
+              Identify it…
+            </button>
+          </p>
+        )}
+        <div className="mt-7 flex flex-wrap gap-3">
+          {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
+          {available > 1 && (
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                const q = shuffled(episodeQueue(data.seasons.filter((s) => s.season_number !== 0).flatMap((s) => s.episodes), series.title));
+                if (q.length) play(q[0], q);
+              }}
+            >
+              <Shuffle /> Shuffle
+            </Button>
+          )}
+          <TrailerButton extras={series.extras} title={series.title} />
+          {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
+          <WatchlistButton item={series} />
+          {available > 0 && <QueueActions item={series} />}
+          {available > 0 && <AddToPlaylistButton item={series} />}
+          {admin && (
+            <>
+              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
+              </Button>
+              <MoreMenu item={series} onOpen={openDialog} />
+            </>
+          )}
+        </div>
+        <div className="mt-6 grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(200px,0.6fr)]">
+          {series.overview && <Synopsis key={series.id} text={series.overview} />}
+          <div className="min-w-0 [&>dl]:mt-0"><CrewLine item={series} /><div className="mt-4"><StarRating key={series.id} item={series} /></div></div>
+        </div>
+      </TitleHero>
 
       <div className="space-y-2 px-6 md:px-10">
         <ErrorNotice error={setOrdering.error} onRetry={() => setOrdering.mutate(setOrdering.variables ?? null)} />

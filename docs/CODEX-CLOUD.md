@@ -75,10 +75,11 @@ Start a task with:
 > before choosing more work. Use isolated test data. Commit and push completed work,
 > update shared notes and GitHub, and report checks with their limitations.
 
-Cloud development uses a `codex/` branch and a pull request for review and CI. Attach
-created PRs to the task. Merge to main only when authorized; main publishes Docker
-images after its gates. Do not run a local and a cloud agent on the same branch at
-the same time. Local PCs can pull completed changes with `git pull --ff-only` when
+The owner updated the workflow on 22 October: authorized changes can be committed
+and pushed directly to main after the relevant checks pass; a PR is no longer required.
+Use a separate working branch when useful, then push the verified commit without force.
+Main publishes Docker images after its CI gates. Do not run a local and a cloud
+agent on the same branch at the same time. Local PCs can pull completed changes with `git pull --ff-only` when
 their checkout is clean; never force/reset/stash unknown local work automatically.
 
 ## Saved context and present baseline
@@ -88,8 +89,8 @@ their checkout is clean; never force/reset/stash unknown local work automaticall
 - Before cloud preparation, local and GitHub main matched `a0de3eb`. All release
   gates and image publication passed in Actions run 39816525377. Local production UI,
   Go vet and Go tests also passed after syncing nine laptop commits.
-- Current automated browser coverage has 38 journeys. Run it; do not treat this
-  historical count or prior results as fresh cloud verification.
+- Browser coverage at cloud acceptance had 38 journeys; subsequent fixes add coverage.
+  Read the current test count and run the checks rather than reusing historical results.
 - The owner completed account sign-in and GitHub authorization. The environment draft
   `arc-media-server` contains only this repository and is private (Only me). The owner
   explicitly approved three additional public dependency hosts: storage.googleapis.com,

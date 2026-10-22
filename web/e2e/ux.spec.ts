@@ -4,6 +4,49 @@ type Fixtures = { movies: string; shows: string; empty: string; playback: string
 const password = 'Arc-browser-test-123';
 let media: Fixtures;
 
+for (const shows of [false, true]) {
+  test(`${shows ? 'series' : 'movie'} header keeps playback visible and expands long descriptions`, async ({ page }, info) => {
+    const { item } = await seed(page, shows);
+    const overview = 'A crew follows a signal through a changing landscape, discovering how the past shapes their future. '.repeat(22);
+    expect((await page.request.patch('/api/items/' + item.id, { data: {
+      title: 'The Last Observatory: Beyond the Northern Horizon', overview,
+      locked_fields: ['title', 'overview'],
+    } })).ok()).toBe(true);
+    const route = `/${shows ? 'series' : 'movie'}/${item.id}`;
+    for (const width of [1366, 1920, 390]) {
+      await page.setViewportSize({ width, height: width === 1366 ? 768 : 900 });
+      await page.goto(route);
+      await expect(page.getByRole('heading', { name: 'The Last Observatory: Beyond the Northern Horizon', exact: true })).toBeVisible();
+      const play = page.locator('main').getByRole('button', { name: shows ? /^Play S1/ : 'Play', exact: !shows });
+      await expect(play).toBeInViewport();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // Missing artwork uses a real placeholder; measure its common portrait frame.
+      const frame = page.locator('main [class*="aspect-[2/3]"]').first();
+      if (width >= 1024) {
+        const box = await frame.boundingBox();
+        expect(box!.width).toBeGreaterThanOrEqual(240);
+        expect(box!.width).toBeLessThanOrEqual(260);
+        const heading = await page.locator('main h1').boundingBox();
+        expect(Math.abs(box!.y - heading!.y)).toBeLessThan(2);
+      } else {
+        await expect(frame).toBeHidden();
+      }
+      const more = page.getByRole('button', { name: 'Show more', exact: true });
+      await expect(more).toHaveAttribute('aria-expanded', 'false');
+      const paragraph = page.locator('[id="' + await more.getAttribute('aria-controls') + '"]');
+      const collapsed = await paragraph.evaluate(el => el.clientHeight);
+      await more.focus();
+      await page.keyboard.press('Enter');
+      const less = page.getByRole('button', { name: 'Show less', exact: true });
+      await expect(less).toHaveAttribute('aria-expanded', 'true');
+      expect(await paragraph.evaluate(el => el.clientHeight)).toBeGreaterThan(collapsed);
+      await less.click();
+      await expect(more).toHaveAttribute('aria-expanded', 'false');
+      await page.screenshot({ path: info.outputPath(`title-${width}.png`), fullPage: true });
+    }
+  });
+}
+
 test('Home distinguishes request failures from empty libraries and retries rows', async ({ page }) => {
   await seed(page);
   await page.route('**/api/libraries', r => r.fulfill({ status: 503, json: { error: 'Library service unavailable' } }));
