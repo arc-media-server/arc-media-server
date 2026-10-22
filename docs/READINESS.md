@@ -759,8 +759,8 @@ provider-artwork-quality or sustained-use acceptance. No owner settings, databas
 
 The unchanged cloud verifier exited zero: production/app/e2e TypeScript, full Go vet/tests/race,
 embedded-server build and all 41 Chromium journeys passed (4.3 minutes, zero browser failures,
-skips or retries). The other Settings-review recommendations (near-control errors, accessible labels and navigation polish) remain proposals;
-this change is scoped to the title-header adjustment the owner approved.
+skips or retries). That change was scoped to the title-header adjustment. The later approved Settings work is
+recorded under #161 below.
 
 
 ## Release pipeline scheduling (22 October 2026)
@@ -785,3 +785,46 @@ coverage comparison, shell syntax checks and `git diff --check`. Hosted Buildx/G
 full CI results and actual timing improvement require the new GitHub run; no local registry
 publication or owner-server access was performed. Digest-only uploads from failed runs may
 remain untagged in the private registry; they are never selected by `latest`.
+
+
+## Settings usability and lower title headers (#161, 22 October 2026)
+
+The owner approved the full Settings review and the further local title-spacing revision.
+Five stable query-addressable categories remain. Libraries & metadata now includes imports
+and notifications; Playback & transcoding distinguishes intro/credit detection and subtitle
+download services from personal auto-skip/language/style preferences, with optimized versions
+last. Maintenance & diagnostics contains scheduling, diagnostics and direct recovery links.
+Settings defaults, stored field names and admin/profile access rules are unchanged.
+
+Persistent desktop links include subsection anchors; smaller viewports use a sticky native
+section selector. Links support normal keyboard/history behavior, group changes return to
+the top, and existing section query URLs remain valid. Form content keeps a readable width.
+Dropdowns have descriptive accessible names, maintenance start/end are distinct, and phone
+switches remain beside their labels. Copy explains instant-save controls versus explicit Save.
+
+Automatic profile/server saves show saving/saved/error feedback beside the edited row, with
+local retry using the failed patch. Existing specialized text/key editors retain local error
+handling, now announced as alerts; upload-speed, pre-roll and remote controls have local
+mutation feedback rather than relying on a distant page-wide error. Rejected pre-roll/upload
+promises are handled. No credential values are included in feedback routing (only field names).
+
+Movie/series headers start at 224px on desktop (160px below the previous committed position),
+with a smaller shift at tablet sizes and 96px at phone sizes. The gap before Cast is tightened
+while preserving the large aligned posters, prominent playback and expandable descriptions.
+
+The unchanged cloud verifier exited 0: production/app/e2e TypeScript, Go vet/tests/race,
+embedded build and all 43 Chromium journeys pass (4.5m; zero browser failures/skips/retries).
+Unchanged Go packages used the prepared caches. Two new real-app journeys cover category
+placement, accessible dropdown names, keyboard links/history, subsection/sticky navigation,
+phone switch alignment, persisted selection and recovery links; delayed/failed server saves,
+local feedback/retry/persistence and rejected pre-roll/upload writes without page errors.
+Existing profile-save and mobile-navigation regressions were updated to the approved UI.
+Both movie/series journeys retain desktop/phone visible-Play and description expansion checks.
+
+Final visual captures use fresh temporary stores, generated clips, local provider fixtures and
+explicitly synthetic title artwork/metadata. Desktop and phone Settings, light/dark spot checks,
+and title pages at 1366/1440/1920 were inspected. Reports/logs/screenshots are retained under
+/workspace/arc-cloud-evidence/settings-polish in the cloud task. Historical fresh-task evidence
+is intact. No owner database/settings/media, production keys, Unraid or persistent server used.
+Actual owner deployment, physical devices and sustained-use acceptance remain open on #134–#138;
+GitHub container/publication checks are separate from these local results.

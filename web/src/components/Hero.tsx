@@ -58,7 +58,7 @@ export function TitleHeading({ item, detail = false }: { item: Item; detail?: bo
 export function TitleHero({ item, landscape = false, children }: { item: Item; landscape?: boolean; children: ReactNode }) {
   return (
     <Hero backdrop={backdropUrl(item)}>
-      <div className={cn('grid items-start gap-8 px-6 pb-10 pt-20 md:px-10 md:pt-16 lg:pb-12 xl:gap-10', landscape ? 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[384px_minmax(0,1fr)]' : 'lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[256px_minmax(0,1fr)]')}>
+      <div className={cn('grid items-start gap-8 px-6 pt-24 md:px-10 md:pt-40 lg:pt-56 xl:gap-10', landscape ? 'lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[384px_minmax(0,1fr)]' : 'lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[256px_minmax(0,1fr)]')}>
         <Artwork
           src={posterUrl(item)} alt={item.title} fallbackTitle={item.title}
           icon={item.kind === 'series' ? 'tv' : 'film'} eager kind={landscape ? 'still' : 'poster'}

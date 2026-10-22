@@ -181,3 +181,15 @@ acceptance remain #134/#135/#137; no owner data/settings/media was used.
 Final combined local Windows run: all 36 Chromium journeys passed without retries (6.4 minutes),
 including the compact next-episode countdown. CI then identified a separate split-show scanner
 synchronization defect (#153); that fix and release-gate evidence are recorded in READINESS.md.
+
+
+## Settings follow-up (#161, 22 October)
+
+The owner approved the later Settings desktop/phone review: retain five categories but improve
+placement/naming, persistent section/subsection navigation, local save feedback/retry, accessible
+dropdown labels and phone toggle geometry. Imports/notifications move to Libraries & metadata;
+profile subtitle/auto-skip preferences are distinguished from server downloads/marker detection.
+The same change includes the approved lower movie/series headers and tighter Cast gap.
+All 43 real-app Chromium journeys and the full cloud verifier pass; exact coverage, evidence
+paths and deployment/device limits are recorded in READINESS.md. This is isolated verification,
+not actual-server or exhaustive real-device acceptance.
