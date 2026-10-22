@@ -24,9 +24,13 @@ Give the environment setup conversation this request:
 > No real provider keys, owner database/settings/media, Unraid access or persistent
 > server is needed. Report the configuration and verification before publication.
 
-The setup command installs locked npm/Go dependencies and Chromium plus its system
-dependencies, then builds the embedded UI. Language runtimes, FFmpeg and a compiler
-must already be installed by the environment preparation. The verification command
+The setup command installs locked npm/Go dependencies and pinned Chromium, then builds
+the embedded UI. When root or noninteractive sudo is available it installs Chromium's
+OS dependencies too. A non-root cloud base can instead use its existing libraries;
+both pinned Chromium and its headless shell must pass real launch/content checks.
+Missing libraries remain a setup failure requiring supported environment provisioning;
+never substitute the system browser or skip checks. Language runtimes, FFmpeg and a
+compiler must already be installed by the environment preparation. The verification command
 runs Go vet/tests/race, a disposable server build and all browser journeys. It does
 not start the ordinary `go run ./cmd/ams` server or open the owner's `data` folder.
 
@@ -85,9 +89,17 @@ their checkout is clean; never force/reset/stash unknown local work automaticall
   Go vet and Go tests also passed after syncing nine laptop commits.
 - Current automated browser coverage has 38 journeys. Run it; do not treat this
   historical count or prior results as fresh cloud verification.
-- Account sign-in, repository authorization, environment publication and a successful
-  fresh cloud-task run must each be verified separately. Preparation on Windows or
-  passing GitHub CI is not proof that the cloud environment works.
+- The owner completed account sign-in and GitHub authorization. The environment draft
+  `arc-media-server` contains only this repository and is private (Only me). The owner
+  explicitly approved three additional public dependency hosts: storage.googleapis.com,
+  cdn.playwright.dev and playwright.download.prss.microsoft.com. The package-manager
+  preset stays enabled; there are no production secrets. These changes were saved.
+- In the setup container, Node 24/FFmpeg/GCC were present. Go 1.27.0 was installed from
+  a checksum-verified official archive under /workspace; the saved activation must
+  put that compiler ahead of the unrelated system `go` board-game executable.
+  Both pinned Chromium 156 binaries launched with existing libraries and no sudo.
+- Environment publication and a successful fresh-task run remain separate checks.
+  Preparation on Windows or passing GitHub CI is not proof that the cloud environment works.
 
 Official setup and saved-state behaviour:
 [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments).
