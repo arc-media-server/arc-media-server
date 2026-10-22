@@ -540,3 +540,21 @@ count/Cancel control. An additional generated-video regression seeks to the end 
 the second episode actually starts while still compact (passed locally, 22.1s including setup).
 The final ordinary suite has 36 journeys (23 existing + 13 UI); production/app and e2e
 TypeScript checks pass after this change. The final combined CI result is recorded on #148.
+## CI-discovered split-show scanner synchronization (#153)
+
+Final combined local UI verification passed all 36 Chromium journeys without retries (6.4m).
+CI for 32e819c then failed Windows tests and Linux race tests in the existing split-show scan
+regression; the container installation/persistence/upgrade/rollback job passed. The failure was
+a SQLite FOREIGN KEY error, not a Go race report. Unlike the earlier watcher test-counter race,
+this exposed a production scanner synchronization defect.
+
+Directory grouping used raw directory spellings while EnsureItem identifies series by the
+normalized series match key. Two workers could use different locks for the same series, letting
+orphan cleanup delete an episode created but not yet linked by the other worker. Locks now use
+seriesMatchKey, matching the row identity; unrelated series retain parallel matching.
+
+The isolated regression now combines 18 independently named folders into one show, checks all
+episodes/file links after both scans, and retains source-byte checks. It reproduced the same
+failure in 7/10 local repetitions before the fix; 30 consecutive repetitions pass after the fix.
+No real library/data was used. Final full server and CI outcomes are recorded on #153/#148.
+Full local Go vet/tests pass after this correction; Linux race verification remains a CI gate.

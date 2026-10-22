@@ -357,10 +357,13 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 				continue
 			}
 			delete(series, key)
-			lock := showLocks[key]
+			// Directory spellings differ even when they create the same series row.
+			// Serialize using the same identity as EnsureItem, not the directory key.
+			identity := seriesMatchKey(group.name)
+			lock := showLocks[identity]
 			if lock == nil {
 				lock = &sync.Mutex{}
-				showLocks[key] = lock
+				showLocks[identity] = lock
 			}
 			s.update(lib.ID, func(st *Status) { st.Total++ })
 			if err := pipeline.offer(func() error {

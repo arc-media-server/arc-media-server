@@ -195,6 +195,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Assess broader everyday UI/feature gaps across the eight requested areas (#148; [UI-REVIEW](docs/UI-REVIEW.md); source assessment and focused reproductions, not exhaustive acceptance)
 - [x] Fix reproduced Home/load/save feedback, mobile Profiles and keyboard Home reordering gaps (#149–#152)
 - [x] Complete approved UI follow-up: shared filters/full results, display-order inheritance, grouped Settings, mobile controls, audio preference and editable playback queue (#148; isolated evidence in UI-REVIEW and READINESS)
+- [x] Serialize differently named folders for the same series during progressive scanning (#153; CI-discovered failure and repeated regression in READINESS)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

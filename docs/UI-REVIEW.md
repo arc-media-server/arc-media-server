@@ -177,3 +177,7 @@ navigation/filter preservation, not scanner throughput. Mobile geometry and real
 video checks use desktop Chromium at 390px; inspected screenshots cover Profiles, Settings,
 player controls and the editable queue. Actual touch/browser/device and sustained Unraid
 acceptance remain #134/#135/#137; no owner data/settings/media was used.
+
+Final combined local Windows run: all 36 Chromium journeys passed without retries (6.4 minutes),
+including the compact next-episode countdown. CI then identified a separate split-show scanner
+synchronization defect (#153); that fix and release-gate evidence are recorded in READINESS.md.
