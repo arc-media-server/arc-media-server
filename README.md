@@ -348,6 +348,12 @@ An older Arc refuses a database with newer schema versions. Do not run two serve
 same data directory. Keep external certificate files, custom conversion locations and media
 mounts available at their original container paths.
 
+Keep the database/config directory on storage with reliable local filesystem locking; media
+may be on network shares. SQLite WAL does not support a database shared over a network
+filesystem ([SQLite documentation](https://www.sqlite.org/wal.html)). Arc queues database
+writes internally while keeping reads available; this does not coordinate separate servers
+using the same database.
+
 The isolated container acceptance check is `node tools/docker-smoke.mjs <local-image>`; it uses
 disposable Docker volumes, no host folders, and no external network. Real-device and NAS trial
 results are tracked separately in [docs/READINESS.md](docs/READINESS.md).

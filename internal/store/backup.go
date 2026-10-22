@@ -108,6 +108,10 @@ func (s *Store) RestoreFrom(ctx context.Context, path string) error {
 	if err != nil {
 		return fmt.Errorf("restore: %w", err)
 	}
+	// Release the writer before migrations/derived updates acquire it again.
+	if err := conn.Close(); err != nil {
+		return err
+	}
 	if err := s.migrate(ctx); err != nil {
 		return err
 	}

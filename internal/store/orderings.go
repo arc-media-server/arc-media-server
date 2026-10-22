@@ -29,7 +29,7 @@ type OrderingEntry struct {
 // UpsertOrdering creates or renames the ordering identified by (series, source, ref).
 func (s *Store) UpsertOrdering(ctx context.Context, seriesID, source, ref, name, description string) (int64, error) {
 	var id int64
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.WriteRowContext(ctx, `
 		INSERT INTO orderings (series_id, source, source_ref, name, description, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT (series_id, source, source_ref) DO UPDATE SET
