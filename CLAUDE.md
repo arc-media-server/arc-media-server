@@ -240,6 +240,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Compact playback also keeps the next-episode countdown mounted; its own generated-video
   regression verifies automatic advancement after minimizing. The normal suite now has 36
   journeys (23 existing + 13 UI). See #148 for the final CI result.
+  Final combined local Chromium run passes all 36 journeys without retries (6.4 minutes).
+  CI then exposed #153: directory-key locks did not serialize differently named folders that
+  EnsureItem maps to the same series. Lock by seriesMatchKey instead; unrelated shows remain
+  concurrent. The expanded 18-folder regression failed 7/10 before the fix and passes 30/30
+  after it. See READINESS/#153 for final server/CI evidence. This is a production synchronization
+  bug, separate from the watcher test-counter race; owner data/media was untouched.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

@@ -115,10 +115,16 @@ func TestTargetedTVScanPreservesShowIdentity(t *testing.T) {
 
 func TestProgressiveTVCombinesSplitShowFolders(t *testing.T) {
 	ctx := context.Background()
-	st, s, lib, _ := libraryFixture(t, "shows", map[string]string{
+	files := map[string]string{
 		"Example (2020)/Season 01/Example S01E01.mkv": "one",
 		"Example.2020/Season 02/Example S02E01.mkv":   "two",
-	})
+	}
+	// Distinct directory keys can resolve to the same normalized series identity.
+	// More folders than workers exercise overlap between creation, linking and cleanup.
+	for i := 3; i <= 18; i++ {
+		files[fmt.Sprintf("Example (2020) [source %02d]/Season %02d/Example S%02dE01.mkv", i, i, i)] = "split"
+	}
+	st, s, lib, _ := libraryFixture(t, "shows", files)
 	for range 2 {
 		if err := s.scan(ctx, lib); err != nil {
 			t.Fatal(err)
@@ -128,7 +134,7 @@ func TestProgressiveTVCombinesSplitShowFolders(t *testing.T) {
 			t.Fatalf("split folders duplicated show: %v %v", shows, err)
 		}
 		children, err := st.Children(ctx, shows[0].ID)
-		if err != nil || len(children) != 2 {
+		if err != nil || len(children) != len(files) {
 			t.Fatalf("split folders lost episodes: %v %v", children, err)
 		}
 		for _, episode := range children {
