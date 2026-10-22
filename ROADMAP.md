@@ -201,6 +201,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Remove redundant poster-only save work and show save-stage progress (#156; remaining real-server latency needs timed evidence)
 - [x] Clarify scan Activity and keep browsing independent of session bookkeeping; index cached-episode cleanup (#158; isolated evidence in READINESS, deployment confirmation pending)
 - [x] Balance movie/series headers, enlarge desktop posters and expand long synopses (#160; isolated viewport and keyboard evidence in READINESS)
+- [x] Refine Settings grouping, persistent navigation, local save feedback and accessibility; lower title headers and tighten the Cast gap (#161; isolated evidence in READINESS)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

@@ -47,6 +47,105 @@ for (const shows of [false, true]) {
   });
 }
 
+test('settings groups expose labelled controls and persistent desktop and mobile navigation', async ({ page }, info) => {
+  await seed(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/settings?section=library');
+  const nav = page.getByRole('navigation', { name: 'Settings sections' });
+  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toBeVisible();
+  // Native links work with the keyboard and retain ordinary browser navigation semantics.
+  const playback = nav.getByRole('link', { name: 'Playback & transcoding', exact: true });
+  await playback.focus(); await page.keyboard.press('Enter');
+  await expect(playback).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: 'Subtitle downloads', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'Converting', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
+  await expect(playback).toBeInViewport();
+  await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('settings-desktop.png') });
+  await page.goBack(); // Subsection anchor, then group selection both participate in history.
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
+    await page.goto('/settings?section=' + group);
+    const selects = page.locator('main select:visible');
+    for (const select of await selects.all()) await expect(select).toHaveAccessibleName(/.+/);
+  }
+  await expect(page.getByRole('link', { name: 'Backups & restore', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Library Health', exact: true }).last()).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/settings');
+  const selector = page.getByRole('combobox', { name: 'Settings section', exact: true });
+  const spoiler = page.getByRole('switch', { name: 'Hide spoilers', exact: true });
+  await spoiler.scrollIntoViewIfNeeded();
+  await expect(selector).toBeInViewport();
+  const label = page.getByText('Hide spoilers', { exact: true });
+  const a = await label.boundingBox(), b = await spoiler.boundingBox();
+  expect(b!.x).toBeGreaterThan(a!.x + a!.width);
+  await selector.selectOption('library');
+  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await page.reload(); await expect(selector).toHaveValue('library');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('settings-mobile.png'), fullPage: true });
+});
+
+test('server settings keep saving, failure, retry and saved feedback beside the edited control', async ({ page }, info) => {
+  await seed(page);
+  await page.goto('/settings?section=playback');
+  const control = page.getByRole('combobox', { name: 'Videos converted at once', exact: true });
+  const row = control.locator('..');
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/settings', async route => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    await gate;
+    return route.fulfill({ status: 503, json: { error: 'Settings save failed' } });
+  });
+  await control.scrollIntoViewIfNeeded();
+  await control.selectOption('2');
+  await expect(row.getByRole('status')).toHaveText('Saving…');
+  await expect(control).toBeDisabled();
+  release();
+  const error = row.getByRole('alert');
+  await expect(error).toContainText('Settings save failed');
+  await expect(error).toBeInViewport();
+  await page.screenshot({ path: info.outputPath('settings-local-error.png') });
+  await page.unroute('**/api/settings');
+  await error.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(row.getByRole('status')).toHaveText('Saved');
+  await expect(control).toHaveValue('2');
+  await page.reload(); await expect(control).toHaveValue('2');
+  // An async pre-roll save must also surface rejection rather than create an unhandled error.
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, json: { error: 'Pre-roll save failed' } }) : route.continue());
+  const preroll = page.getByRole('combobox', { name: 'Pre-roll order', exact: true });
+  await preroll.scrollIntoViewIfNeeded();
+  await preroll.selectOption('all');
+  await expect(page.getByRole('alert')).toContainText('Pre-roll save failed');
+  await expect(page.getByRole('alert')).toBeInViewport();
+  await page.unroute('**/api/settings');
+  await page.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Pre-roll order', exact: true })).toHaveValue('all');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.goto('/settings?section=access');
+  const upload = page.getByRole('textbox', { name: 'Internet upload speed', exact: true });
+  await upload.fill('25');
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, json: { error: 'Upload save failed' } }) : route.continue());
+  await upload.locator('..').getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Upload save failed');
+  await expect(page.getByRole('alert')).toBeInViewport();
+  await page.unroute('**/api/settings');
+  await page.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.reload(); await expect(upload).toHaveValue('25');
+  expect(errors).toEqual([]);
+});
+
 test('Home distinguishes request failures from empty libraries and retries rows', async ({ page }) => {
   await seed(page);
   await page.route('**/api/libraries', r => r.fulfill({ status: 503, json: { error: 'Library service unavailable' } }));
@@ -71,7 +170,7 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.goto('/settings');
   const spoiler = page.getByRole('switch', { name: 'Hide spoilers', exact: true });
   await spoiler.click();
-  await expect(page.getByText('Preference save failed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Preference save failed', { exact: true })).toBeInViewport();
   await expect(spoiler).not.toBeChecked();
   await page.unroute('**/api/me/prefs');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
@@ -108,8 +207,8 @@ test('mobile profiles, settings sections and player controls remain usable', asy
   await expect(page.getByRole('combobox', { name: 'Preferred audio language', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Preferred audio language', exact: true }).selectOption('jpn');
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).audio_language).toBe('jpn');
-  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Server playback', 'Converting'], ['Access & devices', 'Devices'], ['Maintenance & recovery', 'Scheduled tasks']]) {
-    await page.getByRole('tab', { name: tab, exact: true }).click();
+  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Playback & transcoding', 'Converting'], ['Access & devices', 'Devices'], ['Maintenance & diagnostics', 'Scheduled tasks']]) {
+    await page.getByRole('combobox', { name: 'Settings section', exact: true }).selectOption({ label: tab });
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }

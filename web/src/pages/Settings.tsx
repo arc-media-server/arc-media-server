@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
@@ -25,33 +25,50 @@ type SettingsGroup = 'profile' | 'library' | 'playback' | 'access' | 'maintenanc
 const SettingsSection = createContext<SettingsGroup>('profile');
 const settingsGroups: { id: SettingsGroup; label: string }[] = [
   { id: 'profile', label: 'Your profile' }, { id: 'library', label: 'Libraries & metadata' },
-  { id: 'playback', label: 'Server playback' }, { id: 'access', label: 'Access & devices' },
-  { id: 'maintenance', label: 'Maintenance & recovery' },
+  { id: 'playback', label: 'Playback & transcoding' }, { id: 'access', label: 'Access & devices' },
+  { id: 'maintenance', label: 'Maintenance & diagnostics' },
 ];
 const sectionGroups: Record<string, SettingsGroup> = {
   'Online metadata': 'library', 'Ratings': 'library', 'Library scanning': 'library',
+  'Moving in': 'library', 'Notifications': 'library',
+  'Media tools': 'playback', 'Intro & credit detection': 'playback', 'Pre-roll': 'playback',
+  'Subtitle downloads': 'playback', 'Converting': 'playback', 'Optimized Versions': 'playback',
   'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
-  'Optimized Versions': 'playback', 'Media tools': 'playback', 'Skip Intro': 'playback',
-  'Pre-roll': 'playback', 'Subtitles': 'playback', 'Converting': 'playback',
-  'Moving in': 'maintenance', 'Notifications': 'maintenance', 'Scheduled tasks': 'maintenance',
-  'Diagnostics': 'maintenance',
+  'Scheduled tasks': 'maintenance', 'Diagnostics': 'maintenance',
 };
 
 export function SettingsPage() {
   const admin = useIsAdmin();
   const [params, setParams] = useSearchParams();
   const selected = admin && settingsGroups.some(g => g.id === params.get('section')) ? params.get('section') as SettingsGroup : 'profile';
+  useEffect(() => { window.scrollTo(0, 0); }, [selected]);
   return (
     <Page className="pb-16">
       <PageHeader title="Settings" subtitle={selected === 'profile' ? 'Your preferences follow your profile.' : 'Server settings apply to everyone. Only admins can change these.'} />
-      <div className="max-w-3xl space-y-8 px-6 md:px-10">
-        {admin && <nav aria-label="Settings sections" className="flex flex-wrap gap-2" role="tablist">
-          {settingsGroups.map(g => <button key={g.id} type="button" role="tab" aria-selected={selected === g.id} onClick={() => setParams(g.id === 'profile' ? {} : { section: g.id })} className={cn('rounded-full px-4 py-2 text-sm font-medium', selected === g.id ? 'bg-foreground text-background' : 'bg-surface text-muted hover:text-foreground')}>{g.label}</button>)}
+      <div className={cn('px-6 md:px-10', admin && 'grid gap-8 lg:grid-cols-[224px_minmax(0,768px)] lg:items-start')}>
+        {admin && <nav aria-label="Settings sections" className="sticky top-0 z-30 -mx-6 bg-background/95 px-6 py-3 backdrop-blur-xl md:-mx-10 md:px-10 lg:top-6 lg:mx-0 lg:rounded-2xl lg:bg-surface lg:p-3">
+          <label className="sr-only" htmlFor="settings-section">Settings section</label>
+          <select id="settings-section" value={selected} onChange={e => setParams(e.target.value === 'profile' ? {} : { section: e.target.value })} className={inputClass + ' w-full lg:hidden'}>
+            {settingsGroups.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+          </select>
+          <div className="hidden space-y-1 lg:block">
+            {settingsGroups.map(g => <Link key={g.id} to={g.id === 'profile' ? '/settings' : '/settings?section=' + g.id} aria-current={selected === g.id ? 'page' : undefined} className={cn('block rounded-xl px-3 py-2.5 text-sm font-medium', selected === g.id ? 'bg-foreground text-background' : 'text-muted hover:bg-surface-2 hover:text-foreground')}>{g.label}</Link>)}
+          </div>
+          <div className="mt-4 hidden border-t border-border pt-3 lg:block">
+            <p className="mb-2 px-3 text-xs text-subtle">On this page</p>
+            {(selected === 'profile' ? ['Playback', 'Subtitles', 'Display'] : Object.keys(sectionGroups).filter(title => sectionGroups[title] === selected)).map(title => <a key={title} href={'#' + sectionId(title)} className="block rounded-lg px-3 py-1.5 text-xs text-muted hover:text-foreground">{title}</a>)}
+          </div>
         </nav>}
-        <SettingsSection.Provider value={selected}>
-          {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings />}
-        </SettingsSection.Provider>
-        {selected === 'maintenance' && <p className="text-sm text-muted">Looking for backups or library problems? <a href="/backups" className="text-accent underline">Backups & restore</a> · <a href="/health" className="text-accent underline">Library Health</a></p>}
+        <div className="min-w-0 max-w-3xl space-y-8">
+          <p className="text-sm text-muted">Switches and menus save immediately. Text fields use Save.</p>
+          <SettingsSection.Provider value={selected}>
+            {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
+          </SettingsSection.Provider>
+          {selected === 'maintenance' && <section aria-label="Recovery tools" className="rounded-2xl bg-surface p-5">
+            <h2 className="mb-3 text-lg font-semibold">Recovery tools</h2>
+            <div className="flex flex-wrap gap-4"><Link to="/backups" className="text-accent underline">Backups & restore</Link><Link to="/health" className="text-accent underline">Library Health</Link></div>
+          </section>}
+        </div>
       </div>
     </Page>
   );
@@ -66,31 +83,30 @@ function ProfileSettings() {
   if (!p) return <div className="h-48 animate-pulse rounded-2xl bg-surface" />;
   const busy = update.isPending;
   return (
-    <>
-      <ErrorNotice error={update.error} onRetry={() => { if (update.variables) update.mutate(update.variables); }} />
+    <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
       <Section title="Playback" hint="For your profile only.">
-        <Row label="Preferred audio language" description="Used when a matching track is available. Choosing a language in the player also updates this preference.">
+        <Row setting="audio_language" label="Preferred audio language" description="Used when a matching track is available. Choosing a language in the player also updates this preference.">
           <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
             <option value="">Use the file's default</option>
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </Row>
         <ToggleRow
-          label="Auto-Play"
+          setting="auto_play" label="Auto-Play"
           description="Play the next episode after a short countdown."
           checked={p.auto_play !== false}
           busy={busy}
           onChange={(v) => update.mutate({ auto_play: v })}
         />
         <ToggleRow
-          label="Skip intros automatically"
-          description="Skip intros and recaps without pressing Skip."
+          setting="auto_skip" label="Skip intros automatically"
+          description="Use existing intro and recap markers to skip without pressing Skip. Marker detection is managed in Playback & transcoding."
           checked={!!p.auto_skip}
           busy={busy}
           onChange={(v) => update.mutate({ auto_skip: v })}
         />
         <ToggleRow
-          label="Theme music"
+          setting="theme_music" label="Theme music"
           description="Play a show's or movie's theme quietly on its page, when there's one."
           checked={p.theme_music !== false}
           busy={busy}
@@ -98,8 +114,9 @@ function ProfileSettings() {
         />
       </Section>
       <Section title="Subtitles" hint="Also in the player's Subtitles menu, where choosing a track sets your language.">
-        <Row label="Turn on by themselves" description={subtitleModeHints[p.subtitle_mode ?? '']}>
+        <Row setting="subtitle_mode" label="Turn on by themselves" description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
+            aria-label="Subtitle mode"
             value={p.subtitle_mode ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_mode: e.target.value as SubtitleMode })}
@@ -111,8 +128,9 @@ function ProfileSettings() {
             <option value="manual">Only when I choose them</option>
           </select>
         </Row>
-        <Row label="Language" description="The subtitles to turn on. Forced subtitles (for foreign lines) show whatever is chosen here.">
+        <Row setting="subtitle_language" label="Language" description="The subtitles to turn on. Forced subtitles (for foreign lines) show whatever is chosen here.">
           <select
+            aria-label="Subtitle language"
             value={p.subtitle_language}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_language: e.target.value })}
@@ -130,14 +148,15 @@ function ProfileSettings() {
       </Section>
       <Section title="Display">
         <ToggleRow
-          label="Hide spoilers"
+          setting="hide_spoilers" label="Hide spoilers"
           description="Blur stills and hide descriptions of episodes you haven't seen."
           checked={!!p.hide_spoilers}
           busy={busy}
           onChange={(v) => update.mutate({ hide_spoilers: v })}
         />
-        <Row label="Appearance" description="Automatic follows this device's light or dark setting.">
+        <Row setting="theme" label="Appearance" description="Automatic follows this device's light or dark setting.">
           <select
+            aria-label="Appearance"
             value={p.theme ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ theme: e.target.value as Theme })}
@@ -149,7 +168,7 @@ function ProfileSettings() {
           </select>
         </Row>
       </Section>
-    </>
+    </SaveFeedbackContext.Provider>
   );
 }
 
@@ -175,7 +194,7 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
       disabled={busy}
       onChange={(e) => onChange({ ...style, [key]: e.target.value })}
       className={`${inputClass} w-32 [&>option]:bg-surface`}
-      aria-label={key}
+      aria-label={`Subtitle ${key}`}
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>
@@ -198,6 +217,7 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
         {pick('background', [['box', 'Shaded box'], ['solid', 'Black box'], ['none', 'Outline only']], 'box')}
         {pick('position', [['bottom', 'Bottom'], ['top', 'Top']], 'bottom')}
       </div>
+      <SaveFeedback settings={['subtitle_style']} />
       <div className="flex h-24 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-500 via-sky-800 to-amber-700 p-3" aria-hidden>
         <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>
           Where are we going?
@@ -224,13 +244,12 @@ function ServerSettings() {
   const s = settings.data;
 
   return (
-    <>
+    <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
       <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">Server</h2>
       {!s ? (
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
-          <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
           <Section title="Online metadata" hint="Arc identifies movies and shows and fetches their details and artwork from these services.">
             <KeyRow
               label="TMDB"
@@ -248,9 +267,10 @@ function ServerSettings() {
               link="https://thetvdb.com/api-information"
               onSave={(v) => update.mutateAsync({ tvdb_api_key: v })}
             />
-            <Row label="Region" description="Age ratings (like 12A or PG-13) are shown for this country and used by parental controls.">
+            <Row setting="region" label="Region" description="Age ratings (like 12A or PG-13) are shown for this country and used by parental controls.">
               <select
-                value={s.region}
+                aria-label="Region"
+            value={s.region}
                 onChange={(e) => update.mutate({ region: e.target.value })}
                 disabled={update.isPending}
                 className={`${inputClass} w-56 [&>option]:bg-surface`}
@@ -263,106 +283,6 @@ function ServerSettings() {
               </select>
             </Row>
           </Section>
-
-          <Section title="Sign-in" hint="Away from home, the password is always needed.">
-            <ToggleRow
-              label="Skip the password at home"
-              description="On this computer and your home network, people just pick a profile. The admin profile still asks for the password or its PIN."
-              checked={s.local_bypass}
-              busy={update.isPending}
-              onChange={(v) => update.mutate({ local_bypass: v })}
-            />
-            <PasswordRow />
-          </Section>
-
-          <Section title="Network">
-            <ToggleRow
-              label="Allow other devices"
-              description="Let phones, TVs and other computers on your network use Arc. When off, only this computer can."
-              checked={s.allow_network}
-              busy={update.isPending}
-              onChange={(v) => update.mutate({ allow_network: v })}
-            />
-            <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
-            <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
-          </Section>
-
-          <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
-            <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
-            <Row label="Limit each remote stream" description="Videos are converted down to this when they're bigger, so they play smoothly on slower connections.">
-              <select
-                value={s.remote_kbps}
-                disabled={update.isPending}
-                onChange={(e) => update.mutate({ remote_kbps: Number(e.target.value) })}
-                className={`${inputClass} w-48 [&>option]:bg-surface`}
-              >
-                <option value={0}>Original (no limit)</option>
-                {qualities.map((q) => (
-                  <option key={q} value={q}>
-                    {qualityName(q)}
-                  </option>
-                ))}
-              </select>
-            </Row>
-            <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
-          </Section>
-
-          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise; changing the password signs out everything that used it.">
-            <DevicesList />
-          </Section>
-
-          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, played instead of converting live when a player needs them.">
-            <OptimizedList />
-          </Section>
-
-          <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
-            <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
-          </Section>
-
-          <Section title="Moving in" hint="Coming from another media server? Bring everyone's watch history with you.">
-            <Row label="Plex" description="Watched titles, resume points, ratings and Plex's watch history, for everyone on the server.">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
-                Import…
-              </Button>
-            </Row>
-            <Row label="Jellyfin" description="Watched titles and resume points, for every user (sign in as an administrator).">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
-                Import…
-              </Button>
-            </Row>
-          </Section>
-          {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
-
-          <Section title="Skip Intro" hint="How Arc finds intros, recaps and credits. Each library chooses whether to offer Skip Intro and Skip Credits (Libraries › Edit).">
-            <Row
-              label="Chapters and IntroDB"
-              description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
-            />
-            <KeyRow
-              label="TheIntroDB"
-              description="A bigger community database, looked up first when you add a free key."
-              current={s.theintrodb_api_key}
-              fixed={s.from_env.theintrodb_api_key}
-              link="https://theintrodb.org"
-              onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
-            />
-            <ToggleRow
-              label="Find intros and credits on this computer"
-              description="When a title isn't in the databases: an episode is compared with the rest of its season to find the intro and credits they share, and a movie's closing credits are spotted from the picture. Runs in the maintenance time."
-              checked={s.detect_intros}
-              busy={update.isPending}
-              onChange={(v) => update.mutate({ detect_intros: v })}
-            />
-          </Section>
-
-          <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
-            <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
-          </Section>
-
-          <Section title="Notifications" hint="Send messages to Discord, Slack or anywhere else when things happen.">
-            <Webhooks />
-          </Section>
-
           <Section title="Ratings" hint="Other sites' scores on title pages, and to sort by.">
             <Row
               label="IMDb"
@@ -378,73 +298,16 @@ function ServerSettings() {
             />
           </Section>
 
-          <Section title="Subtitles" hint="Find subtitles online from the player when a film or episode doesn't have the ones you want.">
-            <KeyRow
-              label="OpenSubtitles"
-              description="Search and download subtitles."
-              current={s.opensubtitles_api_key}
-              fixed={s.from_env.opensubtitles_api_key}
-              link="https://www.opensubtitles.com/en/consumers"
-              onSave={(v) => update.mutateAsync({ opensubtitles_api_key: v })}
-            />
-            {s.opensubtitles_api_key && (
-              <AccountRow username={s.opensubtitles_username} onSave={(username, password) => update.mutateAsync({ opensubtitles_username: username, opensubtitles_password: password })} />
-            )}
-          </Section>
-
-          <Section title="Converting" hint="For players that can't play a file as it is, Arc converts it while it's watched.">
-            <ToggleRow
-              label="Use hardware acceleration"
-              description={
-                !s.transcoder.checked
-                  ? 'Checking this computer…'
-                  : s.transcoder.hw_encoder
-                    ? `Convert with the graphics card (${s.transcoder.hw_label}): faster, and leaves the processor free. Arc falls back to the processor if the card can't handle a file.`
-                    : 'No supported graphics card was found (NVIDIA, Intel, AMD or Apple), so Arc converts with the processor.'
-              }
-              checked={s.hw_accel && !!s.transcoder.hw_encoder}
-              busy={update.isPending || !s.transcoder.hw_encoder}
-              onChange={(v) => update.mutate({ hw_accel: v })}
-            />
-            <ToggleRow
-              label="HDR tone mapping"
-              description={
-                s.transcoder.checked && !s.transcoder.tone_mapping
-                  ? "This FFmpeg can't map HDR to SDR (it needs the zscale filter), so converted HDR video looks washed out."
-                  : 'When converting HDR video, map its colours to SDR so it looks right on ordinary screens and in browsers.'
-              }
-              checked={s.tone_mapping && s.transcoder.tone_mapping}
-              busy={update.isPending || !s.transcoder.tone_mapping}
-              onChange={(v) => update.mutate({ tone_mapping: v })}
-            />
-            <Row label="Videos converted at once" description="More at once needs a faster computer. Anyone over the limit is told to try again shortly; files that play as they are, or only need repackaging, don't count.">
-              <select
-                value={s.max_transcodes}
-                disabled={update.isPending}
-                onChange={(e) => update.mutate({ max_transcodes: Number(e.target.value) })}
-                className={`${inputClass} w-40 [&>option]:bg-surface`}
-              >
-                <option value={0}>No limit</option>
-                {[1, 2, 3, 4, 6, 8, 10].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </Row>
-            <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
-          </Section>
-
           <Section title="Library scanning" hint="Keep all your libraries up to date. Applies to every library.">
             <ToggleRow
-              label="Scan automatically when files change"
+              setting="scan_automatic" label="Scan automatically when files change"
               description="Find new or changed media when your folders report a change."
               checked={s.scan_automatic}
               busy={update.isPending}
               onChange={(v) => update.mutate({ scan_automatic: v })}
             />
             <Row
-              label="Full library scan"
+              setting="scan_interval_hours" label="Full library scan"
               description="Check all library folders for changes, including changes your drives may not report. Intervals run from server start or when this setting changes."
             >
               <select
@@ -476,14 +339,14 @@ function ServerSettings() {
             <details className="px-5 py-3">
               <summary className="cursor-pointer text-sm font-medium">Advanced scanning options</summary>
               <ToggleRow
-                label="Scan only changed folders"
+                setting="scan_partial" label="Scan only changed folders"
                 description="For detected changes, check the affected folders instead of the whole library."
                 checked={s.scan_partial}
                 busy={update.isPending || !s.scan_automatic}
                 onChange={(v) => update.mutate({ scan_partial: v })}
               />
               <ToggleRow
-                label="Scan when Arc starts"
+                setting="scan_on_start" label="Scan when Arc starts"
                 description="Check all libraries for changes when the server starts."
                 checked={s.scan_on_start}
                 busy={update.isPending}
@@ -492,22 +355,180 @@ function ServerSettings() {
             </details>
           </Section>
 
+          <Section title="Moving in" hint="Coming from another media server? Bring everyone's watch history with you.">
+            <Row label="Plex" description="Watched titles, resume points, ratings and Plex's watch history, for everyone on the server.">
+              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
+                Import…
+              </Button>
+            </Row>
+            <Row label="Jellyfin" description="Watched titles and resume points, for every user (sign in as an administrator).">
+              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
+                Import…
+              </Button>
+            </Row>
+          </Section>
+
+          <Section title="Notifications" hint="Send library and playback events to Discord, Slack or another webhook destination.">
+            <Webhooks />
+          </Section>
+
+          <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
+            <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
+          </Section>
+
+          <Section title="Intro & credit detection" hint="Create the markers used by Skip Intro, Recap and Credits. Automatic skipping is a separate preference in Your profile. Each library chooses whether to offer Skip Intro and Skip Credits (Libraries › Edit).">
+            <Row
+              label="Chapters and IntroDB"
+              description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
+            />
+            <KeyRow
+              label="TheIntroDB"
+              description="A bigger community database, looked up first when you add a free key."
+              current={s.theintrodb_api_key}
+              fixed={s.from_env.theintrodb_api_key}
+              link="https://theintrodb.org"
+              onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
+            />
+            <ToggleRow
+              setting="detect_intros" label="Find intros and credits on this computer"
+              description="When a title isn't in the databases: an episode is compared with the rest of its season to find the intro and credits they share, and a movie's closing credits are spotted from the picture. Runs in the maintenance time."
+              checked={s.detect_intros}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ detect_intros: v })}
+            />
+          </Section>
+
+          <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
+            <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
+          </Section>
+          {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
+
+          <Section title="Subtitle downloads" hint="Server download services; subtitle language and appearance are in Your profile. Find subtitles online from the player when a film or episode doesn't have the ones you want.">
+            <KeyRow
+              label="OpenSubtitles"
+              description="Search and download subtitles."
+              current={s.opensubtitles_api_key}
+              fixed={s.from_env.opensubtitles_api_key}
+              link="https://www.opensubtitles.com/en/consumers"
+              onSave={(v) => update.mutateAsync({ opensubtitles_api_key: v })}
+            />
+            {s.opensubtitles_api_key && (
+              <AccountRow username={s.opensubtitles_username} onSave={(username, password) => update.mutateAsync({ opensubtitles_username: username, opensubtitles_password: password })} />
+            )}
+          </Section>
+
+          <Section title="Converting" hint="For players that can't play a file as it is, Arc converts it while it's watched.">
+            <ToggleRow
+              setting="hw_accel" label="Use hardware acceleration"
+              description={
+                !s.transcoder.checked
+                  ? 'Checking this computer…'
+                  : s.transcoder.hw_encoder
+                    ? `Convert with the graphics card (${s.transcoder.hw_label}): faster, and leaves the processor free. Arc falls back to the processor if the card can't handle a file.`
+                    : 'No supported graphics card was found (NVIDIA, Intel, AMD or Apple), so Arc converts with the processor.'
+              }
+              checked={s.hw_accel && !!s.transcoder.hw_encoder}
+              busy={update.isPending || !s.transcoder.hw_encoder}
+              onChange={(v) => update.mutate({ hw_accel: v })}
+            />
+            <ToggleRow
+              setting="tone_mapping" label="HDR tone mapping"
+              description={
+                s.transcoder.checked && !s.transcoder.tone_mapping
+                  ? "This FFmpeg can't map HDR to SDR (it needs the zscale filter), so converted HDR video looks washed out."
+                  : 'When converting HDR video, map its colours to SDR so it looks right on ordinary screens and in browsers.'
+              }
+              checked={s.tone_mapping && s.transcoder.tone_mapping}
+              busy={update.isPending || !s.transcoder.tone_mapping}
+              onChange={(v) => update.mutate({ tone_mapping: v })}
+            />
+            <Row setting="max_transcodes" label="Videos converted at once" description="More at once needs a faster computer. Anyone over the limit is told to try again shortly; files that play as they are, or only need repackaging, don't count.">
+              <select
+                aria-label="Videos converted at once"
+            value={s.max_transcodes}
+                disabled={update.isPending}
+                onChange={(e) => update.mutate({ max_transcodes: Number(e.target.value) })}
+                className={`${inputClass} w-40 [&>option]:bg-surface`}
+              >
+                <option value={0}>No limit</option>
+                {[1, 2, 3, 4, 6, 8, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
+          </Section>
+
+          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, played instead of converting live when a player needs them.">
+            <OptimizedList />
+          </Section>
+
+          <Section title="Sign-in" hint="Away from home, the password is always needed.">
+            <ToggleRow
+              setting="local_bypass" label="Skip the password at home"
+              description="On this computer and your home network, people just pick a profile. The admin profile still asks for the password or its PIN."
+              checked={s.local_bypass}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ local_bypass: v })}
+            />
+            <PasswordRow />
+          </Section>
+
+          <Section title="Network">
+            <ToggleRow
+              setting="allow_network" label="Allow other devices"
+              description="Let phones, TVs and other computers on your network use Arc. When off, only this computer can."
+              checked={s.allow_network}
+              busy={update.isPending}
+              onChange={(v) => update.mutate({ allow_network: v })}
+            />
+            <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
+            <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
+          </Section>
+
+          <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
+            <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
+            <Row setting="remote_kbps" label="Limit each remote stream" description="Videos are converted down to this when they're bigger, so they play smoothly on slower connections.">
+              <select
+                aria-label="Limit each remote stream"
+            value={s.remote_kbps}
+                disabled={update.isPending}
+                onChange={(e) => update.mutate({ remote_kbps: Number(e.target.value) })}
+                className={`${inputClass} w-48 [&>option]:bg-surface`}
+              >
+                <option value={0}>Original (no limit)</option>
+                {qualities.map((q) => (
+                  <option key={q} value={q}>
+                    {qualityName(q)}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
+          </Section>
+
+          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise; changing the password signs out everything that used it.">
+            <DevicesList />
+          </Section>
+
           <Section
             title="Scheduled tasks"
             hint="Heavy background work waits for a quiet time of night, so it doesn't slow anyone watching."
           >
             <Row
-              label="Maintenance time"
+              setting={['maintenance_start', 'maintenance_end']} label="Maintenance time"
               description="Every night in this window Arc refreshes details that are a week (shows) or a month (movies) old, and takes the daily backup. New-file discovery follows your Library scanning settings."
             >
               <div className="flex items-center gap-2 text-sm">
-                <HourSelect value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
+                <HourSelect label="Maintenance start" value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
                 <span className="text-muted">to</span>
-                <HourSelect value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
+                <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
             <ToggleRow
-              label="Make scrubbing previews only at this time"
+              setting="previews_at_night" label="Make scrubbing previews only at this time"
               description="Otherwise they're made as soon as new files arrive, which keeps the processor busy for a while after adding a lot. Files someone starts watching always get theirs straight away."
               checked={s.previews_at_night}
               busy={update.isPending}
@@ -515,10 +536,11 @@ function ServerSettings() {
             />
           </Section>
 
-          {update.error && <p className="text-sm text-warning">{update.error.message}</p>}
+          <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
+
         </>
       )}
-    </>
+    </SaveFeedbackContext.Provider>
   );
 }
 
@@ -534,19 +556,23 @@ export function regionOptions(current?: string): [string, string][] {
 
 /** The home's internet upload speed, shared between remote streams. */
 function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => Promise<unknown> }) {
+  const pending = useContext(SaveFeedbackContext)?.status === 'pending';
+  const save = async () => {
+    try { await onSave(value); } catch { /* Row feedback provides the error and retry. */ }
+  };
   const [mbps, setMbps] = useState(kbps ? String(kbps / 1000) : '');
   const value = mbps.trim() === '' ? 0 : Math.round(Number(mbps) * 1000);
   const valid = mbps.trim() === '' || (Number.isFinite(value) && value >= 0);
   return (
     <Row
-      label="Internet upload speed"
+      setting="upload_kbps" label="Internet upload speed"
       description="Your connection's upload speed (a speed test shows it). Remote streams share 80% of it, so several at once still play."
     >
       <div className="flex items-center gap-2">
-        <input value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
+        <input aria-label="Internet upload speed" disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
         <span className="text-sm text-muted">Mbps</span>
         {valid && value !== kbps && (
-          <Button variant="secondary" size="sm" onClick={() => onSave(value)}>
+          <Button variant="secondary" size="sm" disabled={pending} onClick={() => void save()}>
             Save
           </Button>
         )}
@@ -563,24 +589,21 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
     refetchInterval: (q) => (q.state.data?.upnp.state === 'working' || q.state.data?.https.fetching ? 2000 : 30000),
   });
   const check = useMutation({ mutationFn: api.checkRemote });
-  const [error, setError] = useState('');
   const save = async (p: Patch) => {
-    setError('');
     try {
       await onSave(p);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    } catch {
+      // Each remote-setting row displays the shared mutation error and retry.
     }
   };
   const r = status.data;
   return (
     <>
       <Row
-        label="Remote access"
+        compact setting="remote_access" label="Remote access"
         description={
           <>
             Let people sign in from outside your home, like Plex&apos;s remote access. Your household signs in with the password, friends with their own.
-            {error && <span className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
@@ -628,7 +651,7 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
             )}
           </Row>
           <Row
-            label="Open the port on the router"
+            compact setting="upnp" label="Open the port on the router"
             description={
               !s.upnp ? (
                 <>
@@ -660,7 +683,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
   const n = Number(port);
   return (
     <Row
-      label="Outside port"
+      setting="remote_port" label="Outside port"
       description={`The port people away from home connect to. Usually the same as Arc's port (${s.port}); Let's Encrypt needs 443.`}
     >
       <form
@@ -724,7 +747,7 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
             <span className="mt-1 block">On the same port as plain HTTP. At home both work; people away from home are sent to HTTPS.</span>
           </div>
         </div>
-        <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
+        <select aria-label="HTTPS mode" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
           <option value="">Off</option>
           <option value="letsencrypt">Let&apos;s Encrypt (free)</option>
           <option value="files">My own certificate</option>
@@ -752,6 +775,7 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
           </Button>
         </div>
       )}
+      <SaveFeedback settings={['https_mode', 'https_domain', 'https_cert', 'https_key']} />
     </div>
   );
 }
@@ -765,6 +789,8 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
     setBusy(true);
     try {
       await onSave(patch);
+    } catch {
+      // The mutation feedback below exposes the failure and retry.
     } finally {
       setBusy(false);
     }
@@ -787,7 +813,8 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
       />
       <div className="flex flex-wrap items-center gap-3">
         <select
-          value={s.preroll_mode}
+          aria-label="Pre-roll order"
+            value={s.preroll_mode}
           disabled={busy}
           onChange={(e) => save({ preroll_mode: e.target.value as 'random' | 'all' })}
           className={`${inputClass} [&>option]:bg-surface`}
@@ -804,14 +831,15 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
           </Button>
         )}
       </div>
+      <SaveFeedback settings={['preroll_paths', 'preroll_mode']} />
     </div>
   );
 }
 
 /** An hour of the day, as 24-hour time. */
-function HourSelect({ value, disabled, onChange }: { value: number; disabled: boolean; onChange: (h: number) => void }) {
+function HourSelect({ value, disabled, onChange, label }: { label: string; value: number; disabled: boolean; onChange: (h: number) => void }) {
   return (
-    <select value={value} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className={inputClass} aria-label="Hour">
+    <select value={value} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className={inputClass} aria-label={label}>
       {Array.from({ length: 24 }, (_, h) => (
         <option key={h} value={h}>
           {String(h).padStart(2, '0')}:00
@@ -821,11 +849,13 @@ function HourSelect({ value, disabled, onChange }: { value: number; disabled: bo
   );
 }
 
+function sectionId(title: string) { return 'settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   const group = useContext(SettingsSection);
   if (group !== 'profile' && sectionGroups[title] !== group) return null;
   return (
-    <section>
+    <section id={sectionId(title)} className="scroll-mt-24 lg:scroll-mt-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
       <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">{children}</div>
@@ -833,23 +863,36 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Row({ label, description, children }: { label: string; description?: ReactNode; children?: ReactNode }) {
+type SaveState = { keys: string[]; status: 'idle' | 'pending' | 'error' | 'success'; error: unknown; retry: () => void };
+const SaveFeedbackContext = createContext<SaveState | null>(null);
+
+function SaveFeedback({ settings, className }: { settings: string[]; className?: string }) {
+  const save = useContext(SaveFeedbackContext);
+  if (!save || !settings.some(key => save.keys.includes(key))) return null;
+  if (save.status === 'error') return <div className={className}><ErrorNotice error={save.error} onRetry={save.retry} /></div>;
+  if (save.status === 'idle') return null;
+  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? 'Saving…' : 'Saved'}</p>;
+}
+
+function Row({ label, description, children, setting, compact = false }: { label: string; description?: ReactNode; children?: ReactNode; setting?: string | string[]; compact?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5">
-      <div className="min-w-0 flex-1 basis-64">
+    <div className={cn('flex items-center gap-x-6 gap-y-3 px-4 py-3.5', !compact && 'flex-wrap')}>
+      <div className={cn('min-w-0 flex-1', !compact && 'basis-64')}>
         <p className="text-sm font-medium">{label}</p>
         {description && <div className="mt-0.5 text-xs leading-relaxed text-muted">{description}</div>}
+        {compact && setting && <SaveFeedback className="mt-2" settings={typeof setting === 'string' ? [setting] : setting} />}
       </div>
       {children}
+      {!compact && setting && <SaveFeedback className="w-full" settings={typeof setting === 'string' ? [setting] : setting} />}
     </div>
   );
 }
 
-const inputClass = 'h-9 rounded-lg bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none focus:ring-2 focus:ring-accent';
+const inputClass = 'h-9 max-w-full rounded-lg bg-surface-2/80 px-3 text-sm ring-1 ring-border outline-none focus:ring-2 focus:ring-accent';
 
-function ToggleRow({ label, description, checked, busy, onChange }: { label: string; description: string; checked: boolean; busy: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({ label, description, checked, busy, onChange, setting }: { label: string; description: string; checked: boolean; busy: boolean; onChange: (v: boolean) => void; setting?: string }) {
   return (
-    <Row label={label} description={description}>
+    <Row compact setting={setting} label={label} description={description}>
       <Switch checked={checked} disabled={busy} onCheckedChange={onChange} aria-label={label} />
     </Row>
   );
@@ -891,7 +934,7 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
               Get a free key <ExternalLink className="size-3" />
             </a>
           )}
-          {error && <span className="mt-1 block text-warning">{error}</span>}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
     >
@@ -960,7 +1003,7 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
           ) : (
             'Optional: signing in allows more downloads a day.'
           )}
-          {error && <span className="mt-1 block text-warning">{error}</span>}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
     >
@@ -1018,7 +1061,7 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
           <>
             Where converted video is kept while it&apos;s watched (deleted afterwards). A fast drive with free space is best.{' '}
             <span className="font-mono text-foreground/80">{value || "Arc's data folder"}</span>
-            {error && <span className="mt-1 block text-warning">{error}</span>}
+            {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
@@ -1067,7 +1110,7 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
               Add Tailscale
             </button>
           )}
-          {error && <span className="mt-1 block text-warning">{error}</span>}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
     >
@@ -1110,7 +1153,7 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
               .
             </span>
           )}
-          {error && <span className="mt-1 block text-warning">{error}</span>}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
     >
@@ -1167,7 +1210,7 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
               Download FFmpeg <ExternalLink className="size-3" />
             </a>
           )}
-          {error && <span className="mt-1 block text-warning">{error}</span>}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
     >
@@ -1215,7 +1258,7 @@ function PasswordRow() {
         <>
           Used to sign in away from home, and for the admin profile.
           {done && <span className="mt-1 block text-foreground">Password changed. Other devices signed in with the old one were signed out.</span>}
-          {change.error && <span className="mt-1 block text-warning">{change.error.message}</span>}
+          {change.error && <span role="alert" className="mt-1 block text-warning">{change.error.message}</span>}
         </>
       }
     >

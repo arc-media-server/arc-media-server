@@ -69,7 +69,7 @@ export function CastRow({ credits }: { credits?: Credit[] }) {
   if (!cast.length) return null;
   const scroll = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
-    <section className="group/row relative mt-10">
+    <section className="group/row relative mt-6">
       <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">Cast</h2>
       <div ref={scroller} className="scrollbar-none flex gap-5 overflow-x-auto px-6 pb-2 md:px-10">
         {cast.map((c) => (

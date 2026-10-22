@@ -37,6 +37,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Settings and title spacing (#161, 22 October): Settings retains five groups, with imports/
+  notifications in Libraries & metadata, renamed Playback & transcoding and Maintenance &
+  diagnostics, clearer subtitle/intro scopes and optimized versions last in playback.
+  Sticky desktop section/subsection links and a compact sticky selector replace wrapping tabs.
+  Save feedback/retry is local to changed controls; dropdowns are named and phone toggles stay
+  beside their labels. The approved movie/series headers sit lower with a tighter Cast gap.
+  Isolated verification evidence and deployment limits are recorded in docs/READINESS.md.
+
 - Release scheduling (22 October): Docker image preparation now runs alongside verification.
   Only the final gated job tags the prepared digest as latest/commit; all existing checks remain.
   FFmpeg/browser installation and jobs have time limits to prevent indefinite runner stalls.
