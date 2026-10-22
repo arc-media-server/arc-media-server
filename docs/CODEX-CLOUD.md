@@ -1,9 +1,10 @@
 # Arc development in Codex Cloud
 
 The owner approved using Codex Cloud for cross-PC development on 22 October 2026,
-with GitHub remaining the source of truth. This file prepares the repository; it does
-not establish that an account environment is created, published or verified.
-Setup and outstanding account checks: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
+with GitHub remaining the source of truth. The private `arc-media-server` environment
+is now published, and a separate task restored it and passed verification. The
+instructions below are retained for rebuilding or updating the environment.
+Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
 ## Create the environment
 
@@ -98,8 +99,26 @@ their checkout is clean; never force/reset/stash unknown local work automaticall
   a checksum-verified official archive under /workspace; the saved activation must
   put that compiler ahead of the unrelated system `go` board-game executable.
   Both pinned Chromium 156 binaries launched with existing libraries and no sudo.
-- Environment publication and a successful fresh-task run remain separate checks.
-  Preparation on Windows or passing GitHub CI is not proof that the cloud environment works.
+- Publication completed and a new task restored the prepared Go compiler, npm
+  dependencies, pinned browsers and caches at `e8e315d`, matching live main. The exact
+  verifier passed there, including all 38 browser journeys without failures/skips/retries.
+  Supplemental uncached ordinary Go and race runs both passed; each recorded
+  231 tests/subtests with no failures or skips across 26 test-bearing packages (six
+  packages have no tests). Exact results are in that task's
+  `/workspace/arc-cloud-evidence/FRESH-TASK.md` and the shared GitHub issue.
+- The ongoing chat is **Arc — stability and readiness (Cloud)**:
+  [open the private cloud chat](https://chatgpt.com/local/01a16551-79a5-7234-9524-02d06e165079).
+  Sign into the same account/workspace on either PC and reopen this chat for continuity.
+  A physical check from the owner's other PC remains separate from the fresh-task test.
+- The cloud command sandbox initially prevented the browser and GitHub proxy from
+  running. The platform's normal per-command permission review allowed those operations;
+  no global protection or network restriction was disabled. Use that supported review
+  when needed; do not replace the pinned browser or bypass access controls.
+- Independent GitHub preflight for `e8e315d` passed in
+  [run 39847970913](https://github.com/JonzaUK/arc-media-server/actions/runs/39847970913).
+  Linux/Windows/race/browser/container and image-publication gates also passed in
+  [run 39847970870](https://github.com/JonzaUK/arc-media-server/actions/runs/39847970870).
+  Neither result substitutes for actual Unraid/device/sustained-use acceptance.
 
 Official setup and saved-state behaviour:
 [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments).
