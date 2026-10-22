@@ -76,9 +76,12 @@ type Status struct {
 	libraryName string
 }
 
-// summary says what a finished scan found, e.g. "40 files · 2 new · 1 not matched".
+// summary separates files checked from details actually read and titles identified.
 func (st Status) summary() string {
-	parts := []string{fmt.Sprintf("%d files", st.FilesSeen)}
+	parts := []string{fmt.Sprintf("%d files checked", st.FilesSeen), fmt.Sprintf("%d file details read", st.FilesProbed)}
+	if st.Matched > 0 {
+		parts = append(parts, fmt.Sprintf("%d identified", st.Matched))
+	}
 	if st.NewItems > 0 {
 		parts = append(parts, fmt.Sprintf("%d new", st.NewItems))
 	}
@@ -358,7 +361,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return pipeline.offer(func() error { defer s.step(lib.ID); return s.matchMovie(ctx, lib.ID, id) })
 	}
 	ctx = context.WithValue(ctx, movieQueueKey{}, enqueueMovie)
-	s.phase(lib.ID, "Finding and matching titles", 0)
+	s.phase(lib.ID, "Checking files and titles", 0)
 	showLocks := map[string]*sync.Mutex{}
 	enqueueShows := func(all bool) error {
 		for key, group := range series {

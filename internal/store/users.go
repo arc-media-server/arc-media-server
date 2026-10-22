@@ -244,12 +244,6 @@ func (s *Store) SetSessionUser(ctx context.Context, tokenHash, userID string) er
 	return err
 }
 
-// TouchSession records that a session was used.
-func (s *Store) TouchSession(ctx context.Context, tokenHash string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?`, time.Now().Unix(), tokenHash)
-	return err
-}
-
 func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash)
 	return err

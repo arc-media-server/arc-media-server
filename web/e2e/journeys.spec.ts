@@ -49,6 +49,25 @@ for (const shows of [false, true]) {
   });
 }
 
+test('unchanged series scans report checks without rereading file details', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Rescan series', media.shows, true);
+  const first = await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json();
+  expect(first.files_probed).toBe(3);
+  expect((await page.request.post(`/api/libraries/${lib.id}/scan`)).status()).toBe(202);
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  const second = await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json();
+  expect(second.files_seen).toBe(3);
+  expect(second.files_probed).toBe(0);
+  expect(second.matched).toBe(0);
+  await page.getByRole('button', { name: /^Activity/ }).first().click();
+  await expect(page.getByText('3 files checked · 0 file details read', { exact: false })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('unchanged-series-activity.png') });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(page.getByText('3 files checked · 0 file details read', { exact: false })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('unchanged-series-activity-mobile.png') });
+});
+
 test('direct library addition reports invalid folders and can be retried', async ({ page, media }) => {
   await setup(page);
   const dialog = await libraryForm(page, 'Validated library', media.empty);
