@@ -576,6 +576,7 @@ export interface ItemQuery {
   kind?: ItemKind;
   q?: string;
   sort?: ItemSort;
+  reverse?: boolean;
   genre?: string;
   /** Original language, 2-letter code. */
   language?: string;

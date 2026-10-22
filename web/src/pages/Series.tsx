@@ -1,3 +1,4 @@
+import { QueueActions } from '@/components/QueueActions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,7 +22,7 @@ import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
 import { AddToPlaylistButton } from '@/components/Playlists';
-import { ErrorState, Page } from '@/components/Page';
+import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
@@ -68,7 +69,7 @@ export function SeriesPage() {
   });
 
   const setOrdering = useMutation({
-    mutationFn: (orderingId: number) => api.setDisplayOrdering(id!, orderingId),
+    mutationFn: (orderingId: number | null) => api.setDisplayOrdering(id!, orderingId),
     onSuccess: (data) => {
       qc.setQueryData(['orderings', id], data);
       setSeason(null);
@@ -171,6 +172,7 @@ export function SeriesPage() {
               <TrailerButton extras={series.extras} title={series.title} />
               {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
               <WatchlistButton item={series} />
+              {available > 0 && <QueueActions item={series} />}
               {available > 0 && <AddToPlaylistButton item={series} />}
               {admin && (
                 <>
@@ -185,6 +187,11 @@ export function SeriesPage() {
         </div>
       </Hero>
 
+      <div className="space-y-2 px-6 md:px-10">
+        <ErrorNotice error={setOrdering.error} onRetry={() => setOrdering.mutate(setOrdering.variables ?? null)} />
+        <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
+        <ErrorNotice error={orderings.error} onRetry={() => void orderings.refetch()} />
+      </div>
       <CastRow credits={series.credits} />
 
       <div className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-2xl">
@@ -238,6 +245,8 @@ export function SeriesPage() {
             <OrderingMenu
               orderings={orderings.data.orderings}
               selected={orderings.data.display_ordering_id}
+              admin={admin}
+              onReset={() => setOrdering.mutate(null)}
               pending={setOrdering.isPending}
               onSelect={(o) => setOrdering.mutate(o)}
               onCompare={orderings.data.orderings.length > 1 ? () => setComparing(true) : undefined}
@@ -307,7 +316,7 @@ export function SeriesPage() {
           current={orderings.data.display_ordering_id}
           open={comparing}
           onOpenChange={setComparing}
-          onUse={(o) => setOrdering.mutate(o)}
+          onUse={(o) => setOrdering.mutateAsync(o)}
         />
       )}
     </Page>
@@ -352,12 +361,15 @@ function OrderingMenu({
   pending,
   onSelect,
   onCompare,
+  admin, onReset,
 }: {
   orderings: Ordering[];
   selected: number;
   pending: boolean;
   onSelect: (id: number) => void;
   onCompare?: () => void;
+  admin: boolean;
+  onReset: () => void;
 }) {
   const current = orderings.find((o) => o.id === selected);
   const groups: [string, Ordering[]][] = [
@@ -398,6 +410,8 @@ function OrderingMenu({
             ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>{admin ? 'Your choice also sets the server default' : 'Your profile only'}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={onReset}>{admin ? 'Reset to source order' : 'Use server default'}</DropdownMenuItem>
         {onCompare && (
           <DropdownMenuItem onSelect={onCompare}>
             <GitCompareArrows className="size-4 text-muted" /> Compare Orders…
@@ -436,13 +450,13 @@ function EpisodeRow({
 
   return (
     <div
-      className={cn('group flex gap-5 py-4', playable ? 'cursor-pointer' : 'opacity-45')}
+      className={cn('group grid grid-cols-[96px_minmax(0,1fr)] gap-3 py-4 sm:flex sm:gap-5', playable ? 'cursor-pointer' : 'opacity-45')}
       onClick={onPlay}
       role={playable ? 'button' : undefined}
       tabIndex={playable ? 0 : undefined}
       onKeyDown={(e) => e.key === 'Enter' && onPlay()}
     >
-      <div className="relative w-36 shrink-0 overflow-hidden rounded-xl ring-1 ring-border sm:w-56">
+      <div className="relative w-24 shrink-0 overflow-hidden rounded-xl ring-1 ring-border sm:w-56">
         <Artwork src={ep.images?.primary} alt={ep.title} kind="still" icon="tv" className={cn(hideSpoilers && 'scale-110 blur-xl')} />
         {playable && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-300 group-hover:bg-black/35">
@@ -470,11 +484,13 @@ function EpisodeRow({
           </div>
         </div>
       </div>
+      <div className="col-span-2 flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
       {ep.available && (
         <AddToPlaylistButton
           item={{ ...ep, series_title: seriesTitle }}
           size="icon"
-          className="mt-0.5 size-8 shrink-0 bg-transparent opacity-0 transition-opacity hover:bg-surface-2 focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-4"
+          className="mt-0.5 size-8 shrink-0 bg-transparent opacity-100 md:opacity-0 transition-opacity hover:bg-surface-2 focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-4"
         />
       )}
       {ep.available && (
@@ -483,7 +499,7 @@ function EpisodeRow({
           watched={watched}
           size="sm"
           variant="ghost"
-          className={cn('mt-0.5 shrink-0 transition-opacity', !watched && 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100')}
+          className={cn('mt-0.5 shrink-0 transition-opacity', !watched && 'opacity-100 md:opacity-0 focus-visible:opacity-100 group-hover:opacity-100')}
         />
       )}
       {onEdit && (
@@ -494,7 +510,7 @@ function EpisodeRow({
                 variant="ghost"
                 size="icon"
                 aria-label={`More for ${ep.title}`}
-                className="mt-0.5 size-8 shrink-0 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-4"
+                className="mt-0.5 size-8 shrink-0 opacity-100 md:opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-4"
               >
                 <MoreHorizontal />
               </Button>
@@ -507,6 +523,7 @@ function EpisodeRow({
           </DropdownMenu>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { usePlaybackQueue } from './Player';
 import { ActivityButton } from '@/components/Activity';
 import { NewsButton } from '@/components/News';
 
@@ -113,16 +114,19 @@ function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactN
 
 /** The current profile, with Switch Profile and Sign Out. */
 function ProfileMenu({ compact }: { compact?: boolean }) {
+  const playback = usePlaybackQueue();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: status } = useAuth();
   const profile = status?.profile;
   if (!profile) return null;
   const leave = async () => {
+    await playback.stop();
     await api.leaveProfile();
     qc.resetQueries();
   };
   const signOut = async () => {
+    await playback.stop();
     await api.logout();
     qc.resetQueries();
   };
@@ -254,6 +258,7 @@ const manageLinks = [
 export function MobileBar() {
   const { data: libraries } = useLibraries();
   const admin = useIsAdmin();
+  const navigate = useNavigate();
   const link = ({ isActive }: { isActive: boolean }) =>
     cn('shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors', isActive ? 'bg-foreground text-background' : 'bg-surface-2 text-muted');
   return (
@@ -265,7 +270,8 @@ export function MobileBar() {
         <ActivityButton />
         <ProfileMenu compact />
       </div>
-      <nav className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-3">
+      <div className="flex min-w-0 items-center">
+      <nav className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 py-3">
         <NavLink to="/" end className={link}>
           Home
         </NavLink>
@@ -280,13 +286,9 @@ export function MobileBar() {
             {lib.name}
           </NavLink>
         ))}
-        {admin &&
-          manageLinks.map((l) => (
-            <NavLink key={l.to} to={l.to} className={link}>
-              {l.label}
-            </NavLink>
-          ))}
       </nav>
+      {admin && <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="mr-3 shrink-0 rounded-full bg-surface-2 px-3 py-2 text-sm font-medium">Manage</button></DropdownMenuTrigger><DropdownMenuContent align="end">{manageLinks.map(l => <DropdownMenuItem key={l.to} onSelect={() => navigate(l.to)}>{l.icon}{l.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
+      </div>
     </div>
   );
 }

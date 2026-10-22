@@ -206,6 +206,7 @@ export function rowHref(f: RowFilter) {
   if (f.resolution) p.set('resolution', f.resolution);
   if (f.unwatched) p.set('unwatched', '1');
   if (f.sort) p.set('sort', f.sort);
+  for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating'] as const) if (f[key]) p.set(key, String(f[key]));
   const s = p.toString();
   return `/library/${f.library_id}${s ? `?${s}` : ''}`;
 }

@@ -736,7 +736,7 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		return nil, 0, err
 	}
 
-	order := "sort_title, year"
+	order := "sort_title ASC, year ASC"
 	var orderArgs []any
 	switch q.Sort {
 	case "added":
@@ -763,6 +763,14 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		order = "(items.rowid * 2654435761 + ?) % 4294967291"
 		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
 	}
+	if q.Reverse && q.Sort != "shuffle" {
+		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
+		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
+		order = strings.ReplaceAll(order, " DESC", " __DESC__")
+		order = strings.ReplaceAll(order, " ASC", " DESC")
+		order = strings.ReplaceAll(order, " __DESC__", " ASC")
+	}
+	order += ", id"
 	limit := q.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100

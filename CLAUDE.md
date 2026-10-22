@@ -214,21 +214,29 @@ The owner works from more than one PC (Windows). On a fresh clone:
   without retries (4.3 minutes), go vet ./..., go test ./..., generated API and diff checks pass.
   Final watcher-only safeguards were rechecked separately. Local CGO is off; Linux race and
   container/publication checks remain separate CI evidence for this commit.
-  Broader eight-area UI/feature-gap assessment completed (22 October), tracked in #148 and
-  docs/UI-REVIEW.md. This was a review only: no product fixes or new features implemented.
-  Four isolated diagnostic journeys reproduce: failed Home requests resembling empty content
-  (#149), silent preference/display-order save failures (#150), phone-width Profiles overflow/
-  unreadable names (#151), and pointer-only Home reordering (#152). A synthetic 60-match row
-  also confirms 24 cards with no full-results route for runtime/date/rating custom rows.
-  Proposed UX work: unify filters and full-results links, explain display-order scope and reset
-  inheritance, organise Settings, expose audio language preference, improve narrow player
-  controls. Queue editing/Play Next is a later separate feature decision. Fix load/save feedback
-  and mobile/keyboard usability first. Do not treat every suggestion as approved implementation.
-  Reproduction harness: web/review/README.md and playwright.review.config.ts, separate from the
-  normal 23 e2e regressions. Its passing checks assert observed gaps, not corrected behaviour;
-  convert them to desired-behaviour regressions as fixes land. Four diagnostics and their own
-  TypeScript check pass; screenshots inspected. Source review covers all eight requested areas,
-  not every action/device. Owner data and Unraid were untouched. #134/#135/#137 stay open.
+  Broader eight-area UI review #148 and its approved implementation are complete (22 October).
+  Owner explicitly approved all findings/proposals, including the editable playback queue.
+  #149–#152: Home distinguishes failed requests from emptiness, exposes row retries, and profile/
+  display-order saves explain errors. Profiles wrap household/friend identity and actions on phones.
+  Home and playlists have keyboard move buttons; reset keeps custom/collection/playlist rows.
+  Home custom rows link to complete results with shared added-date/runtime/rating browse filters.
+  Sort direction is reversible and remembered per profile/library on this device, with explicit
+  filter URLs taking precedence. Settings groups profile/library/playback/access/maintenance;
+  preferred audio language is explicit. Display-order menus explain admin/server vs individual
+  scope, expose inheritance reset, and comparison retains input after a failed save.
+  Player controls have 44px targets and wrap at narrow widths. Retry restores a failed video.
+  Play next/Add to queue plus a visible editable queue preserve current playback while arranging
+  upcoming entries. Minimize allows browsing; profile switch/sign-out flushes original-profile
+  progress before leaving. The queue is client-side and ends on refresh/close, not server-persisted.
+  Ratings/watchlist/watched/refresh/Continue Watching and relevant load failures expose feedback.
+  A regression also caught direct ?edit=1 mounting an empty Home editor before prefs loaded;
+  editor initialization now waits for preferences. Retired diagnostic checks were replaced by
+  normal desired-behaviour regressions in web/e2e/ux.spec.ts (web/review/README.md explains).
+  Verification and exact limits are in docs/UI-REVIEW.md and docs/READINESS.md. No owner database,
+  settings/media or Unraid deployment was used. #134/#135/#137 remain open for real acceptance.
+  Prior scanner CI exposed a race in the fake-clock test's shared callback counter; replaced
+  asynchronous counters with atomics. This was a test race, not evidence of a production race.
+  Latest UI follow-up checks: production build/app and e2e TypeScript pass; 23 existing journeys passed in the full run and all 12 final UI regressions pass together (35 total). Full Go vet/tests pass; affected package/API reference checks pass after final changes. Linux/Windows CI remains separate evidence recorded on #148.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or

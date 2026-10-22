@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Circle, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from './Page';
 import { Button, type ButtonProps } from './ui/button';
 
 /** Refetch everything that shows watch state. */
@@ -40,6 +41,7 @@ export function WatchedButton({
   const title = watched ? `Mark ${what ? 'Season ' : ''}as Unwatched` : `Mark ${what ? 'Season ' : ''}as Watched`;
   const Icon = toggle.isPending ? Loader2 : watched ? Check : Circle;
   return (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-2" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
     <Button
       variant={variant}
       size={label ? size : 'icon'}
@@ -56,5 +58,7 @@ export function WatchedButton({
       <Icon className={cn(toggle.isPending && 'animate-spin', watched && !toggle.isPending && 'text-accent')} strokeWidth={watched ? 3 : 2} />
       {label && (watched ? 'Watched' : 'Mark Watched')}
     </Button>
+    <ErrorNotice error={toggle.error} onRetry={() => toggle.mutate()} />
+    </span>
   );
 }

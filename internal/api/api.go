@@ -441,9 +441,10 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	query := store.ItemQuery{
-		Kind:   q.Get("kind"),
-		Search: strings.TrimSpace(q.Get("q")),
-		Sort:   q.Get("sort"),
+		Kind:    q.Get("kind"),
+		Search:  strings.TrimSpace(q.Get("q")),
+		Sort:    q.Get("sort"),
+		Reverse: q.Get("reverse") == "1",
 	}
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
 	query.Limit, _ = strconv.Atoi(q.Get("limit"))

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { api, type Ordering, type SeasonsResponse } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
@@ -22,7 +23,7 @@ export function CompareOrdersDialog({
   current: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUse: (orderingId: number) => void;
+  onUse: (orderingId: number) => void | Promise<unknown>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,11 +68,12 @@ function Comparison({
   orderings: Ordering[];
   current: number;
   onClose: () => void;
-  onUse: (orderingId: number) => void;
+  onUse: (orderingId: number) => void | Promise<unknown>;
 }) {
   const [left, setLeft] = useState(current);
   const [right, setRight] = useState(() => orderings.find((o) => o.id !== current)?.id ?? current);
   const [changedOnly, setChangedOnly] = useState(false);
+  const apply = useMutation({ mutationFn: () => Promise.resolve(onUse(right)), onSuccess: onClose });
   const a = useQuery({ queryKey: ['seasons', seriesId, 'compare', left], queryFn: () => api.seasons(seriesId, { ordering: left }) });
   const b = useQuery({ queryKey: ['seasons', seriesId, 'compare', right], queryFn: () => api.seasons(seriesId, { ordering: right }) });
 
@@ -111,11 +113,8 @@ function Comparison({
           </Button>
           <Button
             variant="primary"
-            disabled={right === current}
-            onClick={() => {
-              onUse(right);
-              onClose();
-            }}
+            disabled={right === current || apply.isPending}
+            onClick={() => apply.mutate()}
           >
             {right === current ? 'Already in use' : `Use ${nameOf(right)}`}
           </Button>
@@ -140,6 +139,7 @@ function Comparison({
           Only differences
         </label>
       </div>
+      <ErrorNotice error={apply.error} onRetry={() => apply.mutate()} />
       {error && <p className="text-sm text-warning">{error.message}</p>}
       {!rows && !error && <div className="h-72 animate-pulse rounded-2xl bg-surface-2" />}
       {shown && (

@@ -23,7 +23,7 @@ export function ContinueCardMenu({ item, onRemove }: { item: Item; onRemove: (it
           <button
             type="button"
             aria-label={`More for ${item.series_title ?? item.title}`}
-            className="flex size-8 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg backdrop-blur transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+            className="flex size-8 items-center justify-center rounded-full bg-black/60 text-white opacity-100 md:opacity-0 shadow-lg backdrop-blur transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
           >
             <MoreHorizontal className="size-4" />
           </button>

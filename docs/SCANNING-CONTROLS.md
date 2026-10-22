@@ -7,7 +7,8 @@ Tracked in [GitHub #147](https://github.com/JonzaUK/arc-media-server/issues/147)
 
 ## Placement and everyday flow
 
-Add a **Library scanning** section to the admin-only server settings, before Scheduled tasks.
+The **Library scanning** section lives under admin Settings > Libraries & metadata
+(`?section=library`). Scheduled tasks live under Maintenance & recovery.
 Its introduction reads: “Keep all your libraries up to date.” Settings apply to movies, TV and
 other-video libraries. Do not add per-library overrides in this first version.
 

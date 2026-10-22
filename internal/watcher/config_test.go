@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -18,8 +19,8 @@ func TestLivePeriodicTimer(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		count := 0
-		w := New(func(int64) { count++ }, slog.New(slog.DiscardHandler))
+		var count atomic.Int32
+		w := New(func(int64) { count.Add(1) }, slog.New(slog.DiscardHandler))
 		w.Configure(Config{Interval: time.Hour}) // no native watcher in a fake-clock bubble
 		w.SetLibraries(map[int64][]string{1: {"unused"}})
 		go w.Run(ctx)
@@ -30,37 +31,37 @@ func TestLivePeriodicTimer(t *testing.T) {
 		synctest.Wait()
 		time.Sleep(30 * time.Minute)
 		synctest.Wait()
-		if count != 1 {
-			t.Fatalf("hourly scans: %d", count)
+		if count.Load() != 1 {
+			t.Fatalf("hourly scans: %d", count.Load())
 		}
 		w.Configure(Config{Interval: 6 * time.Hour})
 		synctest.Wait()
 		time.Sleep(5 * time.Hour)
 		synctest.Wait()
-		if count != 1 {
-			t.Fatalf("old timer survived: %d", count)
+		if count.Load() != 1 {
+			t.Fatalf("old timer survived: %d", count.Load())
 		}
 		time.Sleep(time.Hour)
 		synctest.Wait()
-		if count != 2 {
-			t.Fatalf("new timer: %d", count)
+		if count.Load() != 2 {
+			t.Fatalf("new timer: %d", count.Load())
 		}
 		w.Configure(Config{})
 		synctest.Wait()
 		time.Sleep(25 * time.Hour)
 		synctest.Wait()
-		if count != 2 {
-			t.Fatalf("Off still scans: %d", count)
+		if count.Load() != 2 {
+			t.Fatalf("Off still scans: %d", count.Load())
 		}
 		w.Configure(Config{Interval: time.Hour})
 		synctest.Wait()
-		if count != 2 {
+		if count.Load() != 2 {
 			t.Fatal("saving interval started a scan")
 		}
 		time.Sleep(time.Hour)
 		synctest.Wait()
-		if count != 3 {
-			t.Fatalf("re-enabled timer: %d", count)
+		if count.Load() != 3 {
+			t.Fatalf("re-enabled timer: %d", count.Load())
 		}
 		cancel()
 		synctest.Wait()
@@ -71,8 +72,8 @@ func TestReenableRequestsOneCatchup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		count := 0
-		w := New(func(int64) { count++ }, slog.New(slog.DiscardHandler))
+		var count atomic.Int32
+		w := New(func(int64) { count.Add(1) }, slog.New(slog.DiscardHandler))
 		w.Configure(Config{})
 		// No roots means no native filesystem goroutine in the fake-clock bubble.
 		w.SetLibraries(map[int64][]string{1: nil})
@@ -80,14 +81,14 @@ func TestReenableRequestsOneCatchup(t *testing.T) {
 		synctest.Wait()
 		w.Configure(Config{Automatic: true, Partial: true})
 		synctest.Wait()
-		if count != 1 {
-			t.Fatalf("catch-up count: %d", count)
+		if count.Load() != 1 {
+			t.Fatalf("catch-up count: %d", count.Load())
 		}
 		w.Configure(Config{Automatic: true, Partial: true})
 		synctest.Wait()
 		time.Sleep(20 * time.Second)
 		synctest.Wait()
-		if count != 1 {
+		if count.Load() != 1 {
 			t.Fatal("unchanged settings duplicated catch-up")
 		}
 		cancel()

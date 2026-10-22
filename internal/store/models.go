@@ -137,6 +137,7 @@ type ItemQuery struct {
 	Kind      string
 	Search    string
 	Sort      string // title (default), added, year
+	Reverse   bool   // reverse the selected sort direction
 	Limit     int
 	Offset    int
 	// What the profile may see: its age limit and libraries.

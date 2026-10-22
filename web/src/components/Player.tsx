@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import type HlsType from 'hls.js';
 import {
+  ListVideo, ArrowUp, ArrowDown, Trash2,
   AlertCircle,
   Airplay,
   Cast,
@@ -36,6 +37,8 @@ import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, qualities, qualityName, readQuality, saveQuality, subtitleLabel, versionLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent } from './ui/dialog';
+import { ErrorNotice } from './Page';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
 import { CastSession, chooseChromecast, useCastAvailable } from './Cast';
@@ -56,6 +59,22 @@ export interface NowPlaying {
   preroll?: boolean;
 }
 
+interface QueuedItem extends NowPlaying { queueId: string }
+interface QueueState { items: QueuedItem[]; index: number }
+interface QueueControls {
+  state: QueueState | null;
+  enqueue: (items: NowPlaying[], next: boolean) => void;
+  move: (id: string, delta: number) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+  jump: (id: string) => void;
+  stop: () => Promise<void>;
+}
+const QueueContext = createContext<QueueControls>({ state: null, enqueue: () => {}, move: () => {}, remove: () => {}, clear: () => {}, jump: () => {}, stop: async () => {} });
+export const usePlaybackQueue = () => useContext(QueueContext);
+let queueSequence = 0;
+const queued = (item: NowPlaying): QueuedItem => ({ ...item, queueId: 'queue-' + (++queueSequence) });
+
 const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
 
 /** Opens the full-screen player from anywhere in the app; with a queue, it carries on through it. */
@@ -70,11 +89,16 @@ const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
-  const [queue, setQueue] = useState<{ items: NowPlaying[]; index: number } | null>(null);
+  const [queue, setQueue] = useState<QueueState | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [blockedNextFor, blockNext] = useState('');
   const playGeneration = useRef(0);
+  const flushReport = useRef<(() => void | Promise<unknown>) | null>(null);
+  const registerFlush = useCallback((fn: (() => void | Promise<unknown>) | null) => { flushReport.current = fn; }, []);
   const play = useCallback((item: NowPlaying, list?: NowPlaying[]) => {
     const generation = ++playGeneration.current;
-    const start = list?.length ? { items: list, index: Math.max(0, list.indexOf(item)) } : { items: [item], index: 0 };
+    setMinimized(false); blockNext('');
+    const start = list?.length ? { items: list.map(queued), index: Math.max(0, list.indexOf(item)) } : { items: [queued(item)], index: 0 };
     // A movie played from the start gets the pre-roll videos set in Settings first.
     if (!item.itemId || item.preroll || (item.startMS ?? 0) > 0) {
       setQueue(start);
@@ -86,7 +110,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .then((clips) => {
         if (generation !== playGeneration.current) return;
         if (!clips.length) return setQueue(start);
-        const prerolls: NowPlaying[] = clips.map((c) => ({ title: c.title, subtitle: `Before ${item.title}`, src: c.url, preroll: true }));
+        const prerolls = clips.map((c) => queued({ title: c.title, subtitle: `Before ${item.title}`, src: c.url, preroll: true }));
         setQueue({ items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index });
       });
   }, []);
@@ -97,19 +121,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const current = queue?.items[queue.index];
   const hasNext = !!queue?.items[queue.index + 1];
   useEffect(() => {
-    if (!current?.itemId || hasNext || !autoPlay) return;
+    if (!current?.itemId || hasNext || !autoPlay || current.queueId === blockedNextFor) return;
     let cancelled = false;
     api
       .nextEpisode(current.itemId)
       .then((ep) => {
         if (cancelled || !ep?.stream_url) return;
-        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, nowPlayingFor(ep, true)] } : q));
+        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, queued(nowPlayingFor(ep, true))] } : q));
       })
       .catch(() => undefined); // playing on is a nicety; the episode itself plays regardless
     return () => {
       cancelled = true;
     };
-  }, [current, hasNext, autoPlay]);
+  }, [current, hasNext, autoPlay, blockedNextFor]);
   const close = useCallback(() => {
     playGeneration.current++;
     setQueue(null);
@@ -118,22 +142,59 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       for (const key of ['item', 'items', 'seasons', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
     }, 300);
   }, [qc]);
+  const controls: QueueControls = {
+    state: queue,
+    stop: async () => { await flushReport.current?.(); close(); },
+    enqueue: (items, next) => {
+      if (!items.length) return;
+      if (!queue) { play(items[0], items); return; }
+      setQueue(q => {
+        if (!q) return q;
+        const updated = [...q.items];
+        updated.splice(next ? q.index + 1 : updated.length, 0, ...items.map(queued));
+        return { ...q, items: updated };
+      });
+    },
+    move: (id, delta) => setQueue(q => {
+      if (!q) return q;
+      const from = q.items.findIndex(i => i.queueId === id), to = from + delta;
+      if (from <= q.index || to <= q.index || to >= q.items.length) return q;
+      const items = [...q.items]; [items[from], items[to]] = [items[to], items[from]];
+      return { ...q, items };
+    }),
+    remove: id => {
+      if (current) blockNext(current.queueId);
+      setQueue(q => {
+        if (!q) return q;
+        const at = q.items.findIndex(i => i.queueId === id);
+        if (at <= q.index) return q;
+        return { ...q, items: q.items.filter(i => i.queueId !== id) };
+      });
+    },
+    clear: () => { if (current) blockNext(current.queueId); setQueue(q => q ? { ...q, items: q.items.slice(0, q.index + 1) } : q); },
+    jump: id => setQueue(q => { const index = q?.items.findIndex(i => i.queueId === id) ?? -1; return q && index >= 0 ? { ...q, index } : q; }),
+  };
   return (
+    <QueueContext.Provider value={controls}>
     <PlayerContext.Provider value={play}>
       {children}
       <AnimatePresence>
         {queue && (
           <PlayerOverlay
-            key={queue.index}
+            key={queue.items[queue.index].queueId}
             item={queue.items[queue.index]}
             next={queue.items[queue.index + 1]}
             onNext={() => go(1)}
             onPrevious={queue.index > 0 && !queue.items[queue.index - 1].preroll ? () => go(-1) : undefined}
             onClose={close}
+            registerFlush={registerFlush}
+            minimized={minimized}
+            onMinimize={() => setMinimized(m => !m)}
           />
         )}
       </AnimatePresence>
     </PlayerContext.Provider>
+    </QueueContext.Provider>
   );
 }
 
@@ -152,6 +213,7 @@ function PlayerOverlay({
   onNext,
   onPrevious,
   onClose,
+  minimized, onMinimize, registerFlush,
 }: {
   item: NowPlaying;
   /** What plays after this one, in a queue. */
@@ -159,7 +221,21 @@ function PlayerOverlay({
   onNext: () => void;
   onPrevious?: () => void;
   onClose: () => void;
+  registerFlush: (fn: (() => void | Promise<unknown>) | null) => void;
+  minimized: boolean;
+  onMinimize: () => void;
 }) {
+  const queue = usePlaybackQueue();
+  const overlayRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (minimized) return;
+    const previous = document.activeElement;
+    overlayRoot.current?.focus();
+    return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+  }, [minimized]);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [retryRequest, requestRetry] = useState(0);
+  const skipFinalReport = useRef(false);
   const video = useRef<HTMLVideoElement>(null);
   const hls = useRef<HlsType | null>(null);
   const plan = useRef<PlaybackPlan | null>(null);
@@ -236,7 +312,7 @@ function PlayerOverlay({
       const dur = p.duration_ms || (video.current.duration || 0) * 1000;
       if (!dur) return;
       lastReport.current = Date.now();
-      api.reportProgress(item.itemId, absMS(), dur, state).catch((e) => {
+      return api.reportProgress(item.itemId, absMS(), dur, state).catch((e) => {
         if (e instanceof ApiError && e.needs === 'stopped') setStopped(e.message);
       });
     },
@@ -490,7 +566,12 @@ function PlayerOverlay({
 
   // Save while the video ref still exists. Passive effect cleanup runs after React detaches
   // the element, losing the final position if no periodic report has been sent yet.
-  useLayoutEffect(() => () => report('stopped'), [report]);
+  useLayoutEffect(() => () => { if (!skipFinalReport.current) void report('stopped'); }, [report]);
+  useEffect(() => {
+    registerFlush(async () => { video.current?.pause(); await report('stopped'); skipFinalReport.current = true; });
+    return () => registerFlush(null);
+  }, [registerFlush, report]);
+  useEffect(() => { if (retryRequest) { fallbacks.current = 0; void load(absMS(), plan.current?.audio_stream); } }, [retryRequest, load, absMS]);
 
   // Start playing when the player opens; end the conversion when it closes.
   useEffect(() => {
@@ -671,6 +752,15 @@ function PlayerOverlay({
   // Keyboard shortcuts.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (queueOpen || e.defaultPrevented || (e.target instanceof Element && e.target.closest('[role=dialog], [role=menu]'))) return;
+      if (minimized && !(e.target instanceof Node && overlayRoot.current?.contains(e.target))) return;
+      if (!minimized && !menuOpen && e.key === 'Tab') {
+        const buttons = Array.from(overlayRoot.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),[tabindex="0"]') ?? []).filter(el => el.offsetParent !== null);
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (first && (!overlayRoot.current?.contains(document.activeElement) || (!e.shiftKey && document.activeElement === last) || (e.shiftKey && document.activeElement === first))) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+        return;
+      }
+      if (e.target instanceof Element && e.target.closest('button,a') && (e.key === ' ' || e.key === 'Enter')) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey || e.altKey) return;
       if (castOn.current && e.key !== 'Escape') return; // the cast panel has its own controls
       const v = video.current;
@@ -750,14 +840,14 @@ function PlayerOverlay({
       poke();
     };
     window.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = minimized ? '' : 'hidden';
     poke();
     return () => {
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
       window.clearTimeout(hideTimer.current);
     };
-  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle, searching, next, onNext, onPrevious]);
+  }, [onClose, poke, togglePlay, seekTo, toggleFullscreen, absMS, durationMS, menuOpen, subtitle, selectSubtitle, searching, next, onNext, onPrevious, minimized, queueOpen]);
 
   const onTimeUpdate = () => {
     const v = video.current;
@@ -793,12 +883,14 @@ function PlayerOverlay({
     }
   }, [inCredits, next, upNextIn]);
 
-  const showChrome = chromeVisible || paused || menuOpen || !!error || stopped !== null;
+  const showChrome = minimized || chromeVisible || paused || menuOpen || !!error || stopped !== null;
   const dur = durationMS;
 
   return (
     <motion.div
-      className={cn('fixed inset-0 z-[100] flex items-center justify-center bg-black', !showChrome && 'cursor-none')}
+      ref={overlayRoot}
+      role="region" aria-label="Media player" tabIndex={-1}
+      className={cn(minimized ? 'fixed bottom-4 right-4 z-[100] flex h-48 w-80 max-w-[calc(100vw-32px)] items-center justify-center overflow-hidden rounded-2xl bg-black shadow-2xl' : 'fixed inset-0 z-[100] flex items-center justify-center bg-black', !showChrome && 'cursor-none')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -821,7 +913,7 @@ function PlayerOverlay({
           {stopped}
         </Message>
       ) : error ? (
-        <Message icon={<AlertCircle className="text-warning" />} title="Can't play this" onClose={onClose}>
+        <Message icon={<AlertCircle className="text-warning" />} title="Can't play this" onClose={onClose} onRetry={() => { setError(null); requestRetry(n => n + 1); }}>
           {error}
         </Message>
       ) : (
@@ -900,34 +992,38 @@ function PlayerOverlay({
           showChrome ? 'opacity-100' : 'opacity-0',
         )}
       >
-        <div className="text-white">
-          <p className="text-lg font-semibold">{item.title}</p>
+        <div className="min-w-0 text-white">
+          <p className="truncate text-lg font-semibold">{item.title}</p>
           {item.subtitle && <p className="text-sm text-white/60">{item.subtitle}</p>}
         </div>
+        <div className="pointer-events-auto flex shrink-0 gap-2">
+        <Button variant="glass" size="icon" aria-label={minimized ? 'Expand player' : 'Minimize player'} onClick={() => { if (!minimized && document.fullscreenElement) void document.exitFullscreen(); onMinimize(); }}>{minimized ? <Maximize /> : <Minimize />}</Button>
         <Button variant="glass" size="icon" className="pointer-events-auto" aria-label="Close player" onClick={onClose}>
           <X />
         </Button>
+        </div>
       </div>
 
-      {skippable && !skippedNote && (
-        <Button variant="primary" size="lg" className="absolute bottom-28 right-6 z-10 shadow-2xl shadow-black/50" onClick={() => seekTo(skippable.end_ms)}>
+      {!!updatePrefs.error && <div className="absolute inset-x-6 top-24 z-10"><ErrorNotice error={updatePrefs.error} onRetry={() => { if (updatePrefs.variables) updatePrefs.mutate(updatePrefs.variables); }} /></div>}
+      {!minimized && skippable && !skippedNote && (
+        <Button variant="primary" size="lg" className="absolute bottom-72 right-6 sm:bottom-28 z-10 shadow-2xl shadow-black/50" onClick={() => seekTo(skippable.end_ms)}>
           {skippable.kind === 'intro' ? 'Skip Intro' : 'Skip Recap'} <SkipForward />
         </Button>
       )}
-      {inCredits && upNextIn === null && credits && (
-        <Button variant="primary" size="lg" className="absolute bottom-28 right-6 z-10 shadow-2xl shadow-black/50" onClick={() => (next ? onNext() : seekTo(credits.end_ms))}>
+      {!minimized && inCredits && upNextIn === null && credits && (
+        <Button variant="primary" size="lg" className="absolute bottom-72 right-6 sm:bottom-28 z-10 shadow-2xl shadow-black/50" onClick={() => (next ? onNext() : seekTo(credits.end_ms))}>
           {next ? 'Play Next' : 'Skip Credits'} <SkipForward />
         </Button>
       )}
       {skippedNote && (
-        <div className="pointer-events-none absolute bottom-28 right-6 z-10 rounded-full bg-black/70 px-4 py-2 text-sm text-white ring-1 ring-white/15">{skippedNote}</div>
+        <div className="pointer-events-none absolute bottom-72 right-6 sm:bottom-28 z-10 rounded-full bg-black/70 px-4 py-2 text-sm text-white ring-1 ring-white/15">{skippedNote}</div>
       )}
-      {item.preroll && next && (
-        <Button variant="glass" className="absolute bottom-28 right-6 z-10" onClick={onNext}>
+      {!minimized && item.preroll && next && (
+        <Button variant="glass" className="absolute bottom-72 right-6 sm:bottom-28 z-10" onClick={onNext}>
           Skip <SkipForward />
         </Button>
       )}
-      {upNextIn !== null && next && (
+      {!minimized && upNextIn !== null && next && (
         <UpNext item={next} seconds={upNextIn} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
       )}
       {searching && planState && item.itemId && (
@@ -949,7 +1045,7 @@ function PlayerOverlay({
           }}
         />
       )}
-      {stopped === null && !error && castFrom === null && (
+      {!minimized && stopped === null && !error && castFrom === null && (
         <div
           className={cn(
             'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-6 pb-5 pt-16 text-white transition-opacity duration-500',
@@ -965,7 +1061,8 @@ function PlayerOverlay({
             thumbs={thumbs}
             chapters={planState?.chapters ?? []}
           />
-          <div className="mt-3 flex items-center gap-1">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto sm:flex-1">
             <ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>
               {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
             </ControlButton>
@@ -989,7 +1086,8 @@ function PlayerOverlay({
             <span className="ml-2 text-[13px] tabular-nums text-white/80">
               {fmt.clock(positionMS)} <span className="text-white/40">/ {dur ? fmt.clock(dur) : '–:––'}</span>
             </span>
-            <div className="flex-1" />
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto">
             {planState && planState.audio_tracks.length > 1 && (
               <PlayerMenu icon={<Languages />} label="Audio" onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>Audio</DropdownMenuLabel>
@@ -1116,6 +1214,7 @@ function PlayerOverlay({
                 </div>
               </PlayerMenu>
             )}
+            <ControlButton label="Playback queue" onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton>
             <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>
               <DropdownMenuLabel>Speed</DropdownMenuLabel>
               {speeds.map((s) => (
@@ -1156,9 +1255,21 @@ function PlayerOverlay({
             <ControlButton label={fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'} onClick={toggleFullscreen}>
               {fullscreen ? <Minimize /> : <Maximize />}
             </ControlButton>
+            </div>
           </div>
         </div>
       )}
+      {minimized && <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-black/70 p-2"><ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>{paused ? <Play /> : <Pause />}</ControlButton>{next && <ControlButton label={'Next: ' + next.title} onClick={onNext}><SkipForward /></ControlButton>}<ControlButton label="Playback queue" onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton></div>}
+      <Dialog open={queueOpen} onOpenChange={setQueueOpen}>
+        <DialogContent title="Playback queue" description="Arrange what plays next. Minimize the player to browse and add more titles." overlayClassName="z-[120]" className="z-[121]" footer={<Button variant="secondary" disabled={!next} onClick={queue.clear}>Clear upcoming</Button>}>
+          <ol className="space-y-3">
+            {queue.state?.items.slice(queue.state.index).map((entry, i, items) => <li key={entry.queueId} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3">
+              <div className="min-w-0 flex-1 basis-40"><p className="break-words text-sm font-medium">{entry.title}</p><p className="text-xs text-muted">{i === 0 ? 'Now playing' : 'Up next'}{entry.subtitle ? ' · ' + entry.subtitle : ''}</p></div>
+              {i > 0 && <div className="flex gap-1"><Button size="icon" variant="ghost" aria-label={'Move ' + entry.title + ' up'} disabled={i === 1} onClick={() => queue.move(entry.queueId, -1)}><ArrowUp /></Button><Button size="icon" variant="ghost" aria-label={'Move ' + entry.title + ' down'} disabled={i === items.length - 1} onClick={() => queue.move(entry.queueId, 1)}><ArrowDown /></Button><Button size="icon" variant="ghost" aria-label={'Play ' + entry.title + ' now'} onClick={() => { queue.jump(entry.queueId); setQueueOpen(false); }}><Play /></Button><Button size="icon" variant="ghost" aria-label={'Remove ' + entry.title + ' from queue'} onClick={() => queue.remove(entry.queueId)}><Trash2 /></Button></div>}
+            </li>)}
+          </ol>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
@@ -1251,7 +1362,7 @@ function UpNext({ item, seconds, onTick, onPlay, onCancel }: { item: NowPlaying;
     return () => window.clearTimeout(t);
   }, [seconds]);
   return (
-    <div className="absolute bottom-28 right-6 z-10 w-80 rounded-2xl bg-black/80 p-4 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
+    <div className="absolute bottom-72 right-6 sm:bottom-28 z-10 w-80 rounded-2xl bg-black/80 p-4 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
       <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Up next in {seconds}</p>
       <p className="mt-1 truncate font-semibold">{item.title}</p>
       {item.subtitle && <p className="truncate text-sm text-white/60">{item.subtitle}</p>}
@@ -1267,12 +1378,13 @@ function UpNext({ item, seconds, onTick, onPlay, onCancel }: { item: NowPlaying;
   );
 }
 
-function Message({ icon, title, children, onClose }: { icon: ReactNode; title: string; children: ReactNode; onClose: () => void }) {
+function Message({ icon, title, children, onClose, onRetry }: { icon: ReactNode; title: string; children: ReactNode; onClose: () => void; onRetry?: () => void }) {
   return (
     <div className="max-w-md px-6 text-center text-white">
       <div className="mx-auto mb-4 flex justify-center [&_svg]:size-10 [&_svg]:stroke-[1.5]">{icon}</div>
       <h2 className="text-xl font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-white/60">{children}</p>
+      {onRetry && <Button variant="glass" className="mr-3 mt-6" onClick={onRetry}>Retry playback</Button>}
       <Button variant="glass" className="mt-6" onClick={onClose}>
         Close
       </Button>
@@ -1287,7 +1399,7 @@ function ControlButton({ label, onClick, children }: { label: string; onClick: (
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex size-10 items-center justify-center rounded-full text-white/90 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 [&_svg]:size-5"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full text-white/90 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 [&_svg]:size-5"
     >
       {children}
     </button>
@@ -1302,7 +1414,7 @@ function PlayerMenu({ icon, label, children, onOpenChange }: { icon: ReactNode; 
           type="button"
           aria-label={label}
           title={label}
-          className="flex size-10 items-center justify-center rounded-full text-white/90 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/15 [&_svg]:size-5"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full text-white/90 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/15 [&_svg]:size-5"
         >
           {icon}
         </button>
@@ -1317,7 +1429,7 @@ function PlayerMenu({ icon, label, children, onOpenChange }: { icon: ReactNode; 
 function VolumeControl({ volume, muted, onVolume, onMute }: { volume: number; muted: boolean; onVolume: (v: number) => void; onMute: () => void }) {
   const level = muted ? 0 : volume;
   return (
-    <div className="group/vol flex items-center">
+    <div className="group/vol hidden items-center sm:flex">
       <ControlButton label={muted ? 'Unmute (M)' : 'Mute (M)'} onClick={onMute}>
         {level === 0 ? <VolumeX /> : level < 0.5 ? <Volume1 /> : <Volume2 />}
       </ControlButton>

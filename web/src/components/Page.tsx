@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button } from './ui/button';
 
 /** Wraps each page with a gentle fade-and-rise entrance. */
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
@@ -23,7 +25,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className="text-3xl font-bold md:text-4xl">{title}</h1>
         {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex max-w-full flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );
 }
@@ -40,11 +42,23 @@ export function EmptyState({ icon, title, children }: { icon: ReactNode; title: 
   );
 }
 
-export function ErrorState({ error }: { error: unknown }) {
+export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  if (!error) return null;
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-warning/10 p-3 text-sm text-warning">
+      <span className="min-w-0 flex-1 break-words">{error instanceof Error ? error.message : String(error)}</span>
+      {onRetry && <Button size="sm" variant="secondary" onClick={onRetry}>Retry</Button>}
+    </div>
+  );
+}
+
+export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const qc = useQueryClient();
   return (
     <div className="mx-auto max-w-md px-6 py-24 text-center">
       <h2 className="text-lg font-semibold">Something went wrong</h2>
       <p className="mt-2 text-sm text-muted">{error instanceof Error ? error.message : String(error)}</p>
+      <Button className="mt-4" variant="secondary" onClick={onRetry ?? (() => { void qc.refetchQueries({ type: 'active', stale: true }); })}>Retry</Button>
     </div>
   );
 }
