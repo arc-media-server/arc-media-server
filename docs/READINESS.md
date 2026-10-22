@@ -652,3 +652,33 @@ privacy safeguards. Container smoke now asserts persistent logging for root/non-
 reset of temporary detail mode plus retained history across recreation, and the CI-injected
 revision. Its script syntax check passes locally; Docker is unavailable here, so those new
 container assertions require CI and are not recorded as local acceptance.
+
+## Cloud development environment (#157, 22 October 2026)
+
+The owner approved Codex Cloud for cross-PC development with GitHub retaining completed work
+and handoffs. The private `arc-media-server` environment is published with only Arc's repo,
+the package-manager network preset and three owner-approved public Go/Playwright download hosts.
+No production secrets, owner database/settings/media or Unraid connection were used.
+
+Setup required a checksum-verified Go 1.27.0 compiler ahead of the base's unrelated `go` board
+game, Node 24, FFmpeg/ffprobe, GCC and pinned Chromium 156. The base lacks sudo, but already
+has the required browser libraries. The repo setup helper now supports this case and requires
+real launch/content checks of both pinned Chromium and its headless shell; missing libraries
+still fail, without browser substitution, suppressed validation or privilege bypass.
+
+The setup task passed the complete verifier at fc3ace2, then fast-forwarded to e8e315d and
+passed the exact corrected setup command. No Go/web product or test source changed between
+those commits. Publication was followed by a distinct task restoring the compiler, npm deps,
+browsers and caches at e8e315d, matching GitHub main. Its exact verifier passed UI/app/e2e type
+checks, Go vet/tests/race, embedded-server build and all 38 browser journeys with zero browser
+failures/skips/retries. Because most Go results were initially cached, it also ran uncached
+ordinary Go and race suites; both exited zero. Each suite recorded 231 tests/subtests,
+zero failures/skips, 26 test-bearing packages and six packages without tests. Results are
+retained at /workspace/arc-cloud-evidence/FRESH-TASK.md in the cloud chat and on #157.
+
+The normal cloud command-permission review was required for browser/proxy access; environment
+network policy and global security protections were retained. GitHub independently passed the
+exact Linux setup/verification recipe for e8e315d in run 39847970913 and its full release/image
+gates in run 39847970870. See [CODEX-CLOUD](CODEX-CLOUD.md) for the private chat and rebuild steps.
+Physical confirmation from the owner's second PC remains unperformed. These are developer-
+environment results, not real-library, device, GPU, casting, Unraid or sustained-use acceptance.

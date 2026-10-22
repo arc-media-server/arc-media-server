@@ -289,7 +289,19 @@ The owner works from more than one PC (Windows). On a fresh clone:
   only Arc. The owner explicitly approved and saved the three public Go/Playwright download
   hosts listed in CODEX-CLOUD. The cloud base lacks sudo but both pinned Chromium binaries
   launch with existing libraries; setup now supports this path with mandatory launch checks.
-  Full cloud verification, publication and fresh-task acceptance still require actual evidence.
+  At that draft stage, full verification, publication and fresh-task acceptance were pending.
+  Completed follow-up: arc-media-server is Published and Only me. A separate restored task at
+  e8e315d confirmed the saved toolchain/dependencies/browsers/caches and matched live GitHub main.
+  Its exact verifier passed all 38 browser journeys with no failures/skips/retries; supplemental
+  uncached ordinary Go and race runs also passed. Each run counted 231 tests/subtests,
+  no failures/skips, 26 test-bearing packages plus six with no tests. Platform per-command
+  permission review was needed for browser/proxy operations; no global restrictions were disabled.
+  Continue in the private chat "Arc — stability and readiness (Cloud)" linked from CODEX-CLOUD.
+  Full evidence lives in /workspace/arc-cloud-evidence/FRESH-TASK.md in that chat and GitHub #157.
+  e8e315d also passed cloud preflight (39847970913) and all release/publication gates (39847970870).
+  Actual reopening from the owner's other PC has not been physically exercised. GitHub stays
+  authoritative; use codex/ branches/PRs for cloud code, keep handoffs current, and never infer
+  deployment/device readiness from this developer-environment acceptance.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
