@@ -283,6 +283,10 @@ what Arc finds, then add it). There are no config files; everything is set in th
 
 ### Working on the web app
 
+For development that follows you between computers, see the repository's
+[Codex Cloud setup and handoff](docs/CODEX-CLOUD.md). GitHub remains the source of
+truth; cloud testing uses generated media and isolated databases.
+
 Run AMS, then in another terminal `cd web && npm run dev` and open the address Vite prints.
 Changes appear instantly; API calls are forwarded to the running server.
 
