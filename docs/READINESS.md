@@ -57,6 +57,13 @@ hardware performance or sustained Unraid acceptance; owner data/settings/media w
 
 ## Acceptance checklist
 
+The broader UI assessment is recorded in [UI-REVIEW.md](UI-REVIEW.md) and #148. Four focused
+diagnostic journeys reproduce #149–#152 and the custom-row full-results gap; they are separate
+from the normal regression suite. A diagnostic pass establishes the observed defect/gap,
+not a fix. No product code changed in this assessment. Desktop/narrow screenshots and source
+review cover the requested areas with the limits documented there; real devices and sustained
+use remain unverified. Follow `web/review/README.md` to reproduce with isolated data.
+
 | Area | Evidence required | Status |
 | --- | --- | --- |
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |

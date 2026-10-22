@@ -214,7 +214,21 @@ The owner works from more than one PC (Windows). On a fresh clone:
   without retries (4.3 minutes), go vet ./..., go test ./..., generated API and diff checks pass.
   Final watcher-only safeguards were rechecked separately. Local CGO is off; Linux race and
   container/publication checks remain separate CI evidence for this commit.
-  Broader Plex-style web UI/feature-gap review follows scanning and remains pending.
+  Broader eight-area UI/feature-gap assessment completed (22 October), tracked in #148 and
+  docs/UI-REVIEW.md. This was a review only: no product fixes or new features implemented.
+  Four isolated diagnostic journeys reproduce: failed Home requests resembling empty content
+  (#149), silent preference/display-order save failures (#150), phone-width Profiles overflow/
+  unreadable names (#151), and pointer-only Home reordering (#152). A synthetic 60-match row
+  also confirms 24 cards with no full-results route for runtime/date/rating custom rows.
+  Proposed UX work: unify filters and full-results links, explain display-order scope and reset
+  inheritance, organise Settings, expose audio language preference, improve narrow player
+  controls. Queue editing/Play Next is a later separate feature decision. Fix load/save feedback
+  and mobile/keyboard usability first. Do not treat every suggestion as approved implementation.
+  Reproduction harness: web/review/README.md and playwright.review.config.ts, separate from the
+  normal 23 e2e regressions. Its passing checks assert observed gaps, not corrected behaviour;
+  convert them to desired-behaviour regressions as fixes land. Four diagnostics and their own
+  TypeScript check pass; screenshots inspected. Source review covers all eight requested areas,
+  not every action/device. Owner data and Unraid were untouched. #134/#135/#137 stay open.
 - The owner has said to keep working through milestones without check-ins. For product decisions,
   pick a sensible default, build it to be easy to change, and log it as a comment on GitHub issue #80
   ("Decisions waiting for the owner"); they review those in a batch. Only stop for risky or
