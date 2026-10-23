@@ -24,6 +24,7 @@ import (
 	"ams/internal/api"
 	"ams/internal/artwork"
 	"ams/internal/auth"
+	"ams/internal/background"
 	"ams/internal/backup"
 	"ams/internal/config"
 	"ams/internal/logbuf"
@@ -124,12 +125,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	notifier := notify.New(st, log)
 	// The maintenance window; its hours come from the settings below.
 	window := schedule.New(2, 5)
-	var previewsAtNight atomic.Bool
 	backups := backup.New(backupDir, st, log)
 	backups.Activity = tasks
 	backups.Window = window
 	backups.OnFail = func(err error) { notifier.Problem("The automatic backup failed: " + err.Error()) }
-	go backups.Run(ctx)
 
 	if legacy != nil {
 		if err := importLegacyConfig(ctx, legacy, legacyConfig, st, log); err != nil {
@@ -145,7 +144,32 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	redactSettings(cfg)
 	window.Set(cfg.MaintenanceStart, cfg.MaintenanceEnd)
-	previewsAtNight.Store(cfg.PreviewsAtNight)
+	bg, err := background.New(ctx, st, window, tasks)
+	if err != nil {
+		return err
+	}
+	bg.Configure(cfg)
+	go bg.Monitor(ctx)
+	backups.Allowed = func() bool { return bg.Ready("backup") && !bg.Forced("backup") }
+	bg.Register("backup", func() {
+		go func() {
+			defer bg.CompletePass("backup")
+			for !bg.Ready("backup") {
+				if ctx.Err() != nil || bg.Mode("backup") == "off" {
+					return
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Second):
+				}
+			}
+			if _, err := backups.Create(ctx, backup.ReasonAuto); err != nil {
+				log.Warn("requested backup failed", "err", err)
+			}
+		}()
+	})
+	go backups.Run(ctx)
 	// Other sites' ratings (IMDb, and Rotten Tomatoes and Metacritic with an OMDb key).
 	extRatings := ratings.New(filepath.Join(dataDir, "ratings"), st, log)
 	extRatings.Activity, extRatings.Window = tasks, window
@@ -222,6 +246,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// After each scan, download new artwork so it's there offline.
 	var skips *markers.Manager // set below; scans finishing wake it
 	sc.OnFinish = func(libraryID int64) {
+		bg.Wake("previews")
+		bg.Wake("analysis")
+		bg.Wake("markers")
 		artKeeper.Trigger()
 		extRatings.Changed()
 		if skips != nil {
@@ -244,7 +271,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// Scan libraries when their folders change.
 	watch := watcher.New(sc.Request, log)
 	scanConfig := func(c settings.Settings) watcher.Config {
-		return watcher.Config{Automatic: c.ScanAutomatic, Partial: c.ScanPartial, Interval: time.Duration(c.ScanIntervalHours) * time.Hour}
+		return watcher.Config{Automatic: c.ScanAutomatic, Partial: c.ScanPartial, Interval: time.Duration(c.ScanMinutes()) * time.Minute}
 	}
 	watch.Configure(scanConfig(cfg))
 	watch.ScanPaths = sc.RequestPaths
@@ -257,7 +284,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}, log)
 	thumbs.Activity = tasks
-	thumbs.Allowed = func() bool { return !previewsAtNight.Load() || window.Open() }
+	thumbs.Background = bg
+	bg.Register("previews", thumbs.Wake)
+	go bg.RunAnalysis(ctx, sc.EnrichFormatFile)
 	go thumbs.Run(ctx)
 	// Intro and credits markers, found in the background.
 	skips = markers.New(st, log)
@@ -267,7 +296,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		defer ffMu.Unlock()
 		return ffmpegBin
 	}
-	skips.Configure(cfg.TheIntroDBKey, cfg.DetectIntros)
+	sc.MaintenanceAllowed = func() bool { return bg.MaintenanceReady() && !sc.DiscoveryPending() }
+	skips.Background = bg
+	bg.Register("markers", skips.WakeLocal)
+	skips.Configure(cfg.TheIntroDBKey, cfg.DetectionMode != "off")
 	go skips.Run(ctx)
 	// Optimized versions, made one at a time in the background.
 	optimizer := optimize.New(filepath.Join(dataDir, "optimized"), st, log)
@@ -293,6 +325,53 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	librariesChanged(cfg.ScanOnStart)
 
+	var refreshing atomic.Bool
+	bg.Register("metadata", func() {
+		if !refreshing.CompareAndSwap(false, true) {
+			return
+		}
+		go func() {
+			defer refreshing.Store(false)
+			defer bg.CompletePass("metadata")
+			libs, err := st.ListLibraries(ctx)
+			if err != nil {
+				return
+			}
+			for _, lib := range libs {
+				for ctx.Err() == nil {
+					if bg.Mode("metadata") == "off" {
+						return
+					}
+					if !bg.MaintenanceReady() {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(time.Second):
+						}
+						continue
+					}
+					if !sc.Maintain(lib.ID) {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(time.Second):
+						}
+						continue
+					}
+					for sc.Status(lib.ID).Running {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(250 * time.Millisecond):
+						}
+					}
+					if sc.Status(lib.ID).Phase != "Metadata refresh paused" {
+						break
+					}
+				}
+			}
+		}()
+	})
 	// Once a night, refresh known titles without discovering media folders,
 	// and catch up on scrubbing previews. Backups check the window themselves.
 	go func() {
@@ -304,15 +383,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			case <-time.After(5 * time.Minute):
 			}
 			night := window.Night(time.Now())
-			if !window.Open() || night == last {
+			if !bg.Ready("metadata") || night == last {
 				continue
 			}
 			last = night
 			task := tasks.Start("maintenance", "Nightly maintenance")
 			libs, err := st.ListLibraries(ctx)
-			for _, l := range libs {
-				sc.Maintain(l.ID)
-			}
+			bg.Wake("metadata")
 			thumbs.Wake()
 			task.Detail(fmt.Sprintf("Requested known-title maintenance for %d libraries", len(libs)))
 			task.Finish(err)
@@ -370,12 +447,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		tvdb.SetKey(next.TVDBKey)
 		subsOnline.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
 		extRatings.SetOMDbKey(next.OMDbKey)
-		skips.Configure(next.TheIntroDBKey, next.DetectIntros)
+		skips.Configure(next.TheIntroDBKey, next.DetectionMode != "off")
 		window.Set(next.MaintenanceStart, next.MaintenanceEnd)
-		if next.PreviewsAtNight != current.PreviewsAtNight {
-			previewsAtNight.Store(next.PreviewsAtNight)
-			thumbs.Wake()
-		}
+		bg.Configure(next)
 		current = next
 		watch.Configure(scanConfig(next))
 		applyHomeNetworks(next.HomeNetworks)
@@ -444,9 +518,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
+		Store: st, Scanner: sc, Background: bg, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
+			bg.Reset(ctx)
 			next, err := settings.Load(ctx, st)
 			if err != nil {
 				return err

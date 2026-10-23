@@ -93,6 +93,10 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
           </ul>
         )}
       </section>
+      {data.scheduled?.some(t => t.enabled && t.pending > 0 && t.state !== 'running') && <section>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Scheduled work</h3>
+        <ul className="space-y-2">{data.scheduled.filter(t => t.enabled && t.pending > 0 && t.state !== 'running').map(t => <li key={t.kind} className="text-sm"><p>{t.title}</p><p className="text-xs text-subtle">{t.state} · {t.detail}</p></li>)}</ul>
+      </section>}
       {done.length > 0 && (
         <section>
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Recently finished</h3>

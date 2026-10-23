@@ -19,7 +19,7 @@ settings, including through the API.
 | Setting | Recommended default | Help text and behaviour |
 | --- | --- | --- |
 | Scan automatically when files change | On | “Find new or changed media when your folders report a change.” Independent of scheduled scans. |
-| Full library scan | Every hour | “Check all library folders for changes, including changes your drives may not report.” Choices: Off, every hour, every 6 hours, every 12 hours, daily. |
+| Full library scan | Every hour | “Check all library folders for changes, including changes your drives may not report.” Choices: Off, every 15/30 minutes, every hour, every 2/6/12 hours, daily. |
 
 Under a collapsed **Advanced** disclosure:
 
@@ -88,7 +88,9 @@ recursive discovery scans. Existing Scan now remains available while a drive is 
 ## Implementation boundaries
 
 Persist global values through internal/settings and the existing admin settings API; accept
-only the supported intervals and actual booleans. Missing values load the recommended defaults
+only the supported intervals and actual booleans. The canonical scan interval is stored/API-exposed
+in minutes (`scan_interval_minutes`); legacy hour requests remain supported, including fractional
+hours for the 15/30-minute choices. Missing values load the recommended defaults
 for existing installations: automatic On, partial On, hourly, startup On. Keep explicit false
 distinct from an absent value. No configuration file or per-library schema is needed.
 
@@ -124,10 +126,10 @@ Plex places automatic/periodic scanning and the advanced partial-scan switch in 
 network notification limits and intervals from server start. Arc follows that placement and
 separation, with one schedule dropdown instead of an enable switch plus interval dropdown.
 
-Plex also offers 15-minute, 30-minute and 2-hour intervals. The initial Arc proposal keeps the
-smaller previously discussed set; expand only if there is a practical need. Hourly is proposed
-to retain Arc's current missed-event fallback, not asserted to be Plex's default. The Advanced
-startup switch makes Arc's existing behaviour explicit.
+Arc now supports the same 15/30-minute and 1/2/6/12/24-hour interval choices (#164). Hourly
+retains Arc's missed-event fallback and is not asserted to be Plex's default. The Advanced
+startup switch makes Arc's existing behaviour explicit. See BACKGROUND-WORK-PLAN.md for
+independent media-analysis and optional-processing schedules.
 
 Plex separately exposes an optional maintenance-time discovery scan in
 [Scheduled Tasks](https://support.plex.tv/articles/201553286-scheduled-tasks/). Arc's proposal

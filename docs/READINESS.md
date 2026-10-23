@@ -887,3 +887,69 @@ No owner database/settings/media, production keys, Unraid or persistent server w
 These results do not establish all DV profiles/authoring variants, actual Atmos-positive
 bitstream detection, HDR display appearance, receiver pass-through, network-drive throughput,
 production-container binary behaviour or sustained-use acceptance. #134–#138 remain open.
+
+
+## Background analysis and scheduling (#164, 23 October 2026)
+
+The owner approved the written [background-work plan](BACKGROUND-WORK-PLAN.md) and its
+implementation after comparing Arc with Plex's Library/Scheduled Tasks controls. Baseline
+e5f36e0. Discovery remains independent, with 15/30-minute and 2-hour choices added to the
+existing intervals. Canonical minute settings retain legacy hour API requests, including
+fractional hours for 15/30-minute round trips, and preserve explicit Off/restored values.
+
+Existing source-format enrichment now drains independently of scans during maintenance or
+Run now. A 32-row cursor page is no longer a run limit. Previews and local intro/credits
+detection share Off / During maintenance / When added and during maintenance. The persisted
+policy epoch distinguishes existing from newly probed media across restarts. Existing
+per-library preview/marker scopes remain. Maintenance & diagnostics provides task switches,
+status and per-task Run now; Activity displays pending/paused work without treating it as
+running foreground activity. Basic new/changed-file probing remains automatic.
+
+Migration 0048 stores revision-specific queued/running/paused/completed/failed work, cascades
+jobs when their media records are removed, and versions explicit marker resets. Missing
+preview artifacts can reopen completed work. Optional format/preview/local-detection jobs
+share fair admission, yield to playback/discovery/refresh, and cancel subprocess leases when
+policy closes or restores invalidate them. Failures back off for an hour; Run now can retry
+them. The override coalesces and applies to the requested backlog rather than permanently
+changing schedules. Metadata refresh checks live policy, including discovery queued behind
+the same library slot. Backups finish an admitted database copy safely; manual/safety backups
+remain independent. Unrelated settings saves do not start backups or metadata refresh.
+
+Eleven scheduler regressions exercise controlled windows/overnight/added policies, serial/fair
+admission, foreground/Off/window/restore cancellation, completed/interrupted restart, changed
+revisions, retry delay, marker reset, missing preview artifacts, obsolete waiters and waking an
+idle server when maintenance opens. A saved-catalog fixture contains 70 pending files (one
+intentionally unavailable): one pass attempts all 70 across cursor pages, completes 69 and
+retains the failure; an immediate second pass performs zero repeats. Its analysis callback
+uses isolated store updates, not a real NAS probe throughput measurement.
+
+Actual HTTP-router progress requests cancel an optional lease on playing and permit a new
+lease on paused, tested under race detection. A blocked local TLS provider regression proves
+a queued discovery request cancels maintenance holding the same library slot and then finds
+new synthetic media. This added regression initially caught a context-interface capture race
+in the maintenance monitor; the monitor now captures an immutable context. The final complete
+scanner race suite passes (52.4s), as do final task-access/playback/legacy-hour API regressions
+under race detection (7.5s) and the final scheduler race suite (27.9s). The original race log
+is retained separately in cloud evidence; it was not accepted as a passing run.
+
+The unchanged cloud verifier exited 0: production/app/e2e TypeScript, Go vet/tests/race,
+embedded-server build and all 47 browser journeys passed (browser phase 5.3m, zero failures,
+skips or retries). The first attempt stopped at the generated API reference check; docs/API.md
+was regenerated for the new admin endpoints before the complete rerun. Final compatibility,
+path/revision, admission and same-library priority hardening received additional targeted/race
+checks; all-package ordinary Go tests, Go vet and the embedded build passed again before
+publication. These final checks supplement the full verifier rather than replacing any gate.
+
+Four focused browser journeys passed for task modes/actions/retry, 15-minute interval
+persistence, Activity paused status, existing global scan controls and restored settings.
+The new task-status Activity presentation uses explicitly injected status data; scheduler and
+router/scanner tests provide separate backend evidence. A 390px Maintenance page capture was
+inspected, and its no-overflow check passes. Full browser checks retain existing desktop/phone
+Settings, playback, scanning, backup/restore and access regressions. Cloud evidence is retained
+under /workspace/arc-cloud-evidence/scheduling, including first failures and final logs.
+
+No owner database/settings/media, production keys, Unraid or persistent server used. Prepared
+Go 1.27.0, npm dependencies and pinned Chromium were used without new tool installation.
+Real server-local time/TZ deployment, NAS CPU/I/O impact, physical devices/hardware, actual
+production-container operation and sustained-use acceptance remain open on #134–#138. Hosted
+GitHub checks/image publication remain separate from this cloud verification.

@@ -37,14 +37,26 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Background scheduling (#164, 23 October): discovery now offers 15/30-minute and 2-hour
+  intervals alongside the existing choices. A separate revision-aware worker drains existing
+  format analysis during maintenance or Run now; database pages are not a run limit. Previews
+  and local intro/credits detection use Off / During maintenance / When added and during
+  maintenance. Existing-file work waits for the shared server-local window. Task switches,
+  status and Run now live in Maintenance & diagnostics, with pending work also in Activity.
+  Optional analysis/preview/detection jobs share fair admission and yield to playback/scans;
+  unfinished jobs resume, completed revisions persist and failures back off. Metadata refresh
+  respects live policy; manual/safety backups remain independent. Migration 0048 stores jobs
+  and the policy epoch. Legacy settings, restores and missing artifacts are covered by isolated
+  checks; see docs/BACKGROUND-WORK-PLAN.md and READINESS.md for the exact contract and evidence.
+
 - Source format labels (#163, 23 October): Movie/file details and series episode file details
   show Dolby Vision, HDR10+, HDR10/PQ, HLG and codec/profile-aware audio (TrueHD, Dolby Digital+,
   DTS-HD, Atmos/DTS:X when actually reported). Player source track/version menus share these
   labels. Multiple versions never contribute a mixed HDR/audio badge; a whole series is not
   assigned one episode's formats. These describe source metadata, not current device output.
   Migration 0047 adds evidence/status and a one-time format-probe version. New/changed candidate
-  videos get a bounded FFprobe frame sample; existing files enrich at most 32 per library scan,
-  only if seen in that scan. Optional failure is remembered without losing basic metadata.
+  videos get a bounded FFprobe frame sample; existing-file enrichment now follows #164
+  background scheduling rather than the original 32-files-per-scan backfill. Optional failure is remembered without losing basic metadata.
   Unchanged scans skip completed attempts. See docs/SOURCE-FORMATS.md for limits and backfill.
 
 - Settings and title spacing (#161, 22 October): Settings retains five groups, with imports/

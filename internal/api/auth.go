@@ -760,31 +760,32 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"scan_automatic":         st.ScanAutomatic,
 		"scan_partial":           st.ScanPartial,
 		"scan_on_start":          st.ScanOnStart,
-		"scan_interval_hours":    st.ScanIntervalHours,
-		"maintenance_start":      st.MaintenanceStart,
-		"maintenance_end":        st.MaintenanceEnd,
-		"previews_at_night":      st.PreviewsAtNight,
-		"omdb_api_key":           maskKey(st.OMDbKey),
-		"preroll_paths":          st.PrerollPaths,
-		"preroll_mode":           st.PrerollMode,
-		"preroll_found":          len(prerollFiles(st.PrerollPaths)),
-		"theintrodb_api_key":     maskKey(st.TheIntroDBKey),
-		"detect_intros":          st.DetectIntros,
-		"remote_kbps":            st.RemoteKbps,
-		"upload_kbps":            st.UploadKbps,
-		"remote_access":          st.RemoteAccess,
-		"remote_port":            st.OutsidePort(),
-		"upnp":                   st.UPnP,
-		"https_mode":             st.HTTPSMode,
-		"https_cert":             st.HTTPSCert,
-		"https_key":              st.HTTPSKey,
-		"https_domain":           st.HTTPSDomain,
-		"home_networks":          st.HomeNetworks,
-		"transcode_dir":          st.TranscodeDir,
-		"max_transcodes":         st.MaxTranscodes,
-		"listen":                 st.ListenAddress(),
-		"from_env":               settings.FromEnv(),
-		"transcoder":             s.transcoderCaps(),
+		"scan_interval_hours":    float64(st.ScanMinutes()) / 60,
+		"scan_interval_minutes":  st.ScanMinutes(), "analysis_enabled": st.AnalysisEnabled, "metadata_refresh_enabled": st.MetadataRefreshEnabled, "auto_backups_enabled": st.AutoBackupsEnabled, "preview_mode": st.PreviewMode, "detection_mode": st.DetectionMode,
+		"maintenance_start":  st.MaintenanceStart,
+		"maintenance_end":    st.MaintenanceEnd,
+		"previews_at_night":  st.PreviewsAtNight,
+		"omdb_api_key":       maskKey(st.OMDbKey),
+		"preroll_paths":      st.PrerollPaths,
+		"preroll_mode":       st.PrerollMode,
+		"preroll_found":      len(prerollFiles(st.PrerollPaths)),
+		"theintrodb_api_key": maskKey(st.TheIntroDBKey),
+		"detect_intros":      st.DetectIntros,
+		"remote_kbps":        st.RemoteKbps,
+		"upload_kbps":        st.UploadKbps,
+		"remote_access":      st.RemoteAccess,
+		"remote_port":        st.OutsidePort(),
+		"upnp":               st.UPnP,
+		"https_mode":         st.HTTPSMode,
+		"https_cert":         st.HTTPSCert,
+		"https_key":          st.HTTPSKey,
+		"https_domain":       st.HTTPSDomain,
+		"home_networks":      st.HomeNetworks,
+		"transcode_dir":      st.TranscodeDir,
+		"max_transcodes":     st.MaxTranscodes,
+		"listen":             st.ListenAddress(),
+		"from_env":           settings.FromEnv(),
+		"transcoder":         s.transcoderCaps(),
 	}
 }
 
@@ -824,45 +825,53 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider
 // before being saved; a new port or network setting takes effect straight away.
 // Global scanning: "scan_automatic", "scan_partial", "scan_on_start" (booleans), and
-// "scan_interval_hours" (0, 1, 6, 12 or 24). Changes apply without restarting.
+// "scan_interval_minutes" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy
+// "scan_interval_hours", processing modes (off/scheduled/added) and task enable switches.
+// Changes apply without restarting.
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		TMDBKey       *string `json:"tmdb_api_key"`
-		TVDBKey       *string `json:"tvdb_api_key"`
-		FFprobePath   *string `json:"ffprobe_path"`
-		LocalBypass   *bool   `json:"local_bypass"`
-		HWAccel       *bool   `json:"hw_accel"`
-		ToneMap       *bool   `json:"tone_mapping"`
-		OSKey         *string `json:"opensubtitles_api_key"`
-		OSUser        *string `json:"opensubtitles_username"`
-		OSPassword    *string `json:"opensubtitles_password"`
-		Port          *int    `json:"port"`
-		AllowNetwork  *bool   `json:"allow_network"`
-		Region        *string `json:"region"`
-		ScanAutomatic *bool   `json:"scan_automatic"`
-		ScanPartial   *bool   `json:"scan_partial"`
-		ScanOnStart   *bool   `json:"scan_on_start"`
-		ScanInterval  *int    `json:"scan_interval_hours"`
-		MaintStart    *int    `json:"maintenance_start"`
-		MaintEnd      *int    `json:"maintenance_end"`
-		PreviewsNight *bool   `json:"previews_at_night"`
-		OMDbKey       *string `json:"omdb_api_key"`
-		PrerollPaths  *string `json:"preroll_paths"`
-		PrerollMode   *string `json:"preroll_mode"`
-		TheIntroDBKey *string `json:"theintrodb_api_key"`
-		DetectIntros  *bool   `json:"detect_intros"`
-		RemoteKbps    *int    `json:"remote_kbps"`
-		UploadKbps    *int    `json:"upload_kbps"`
-		RemoteAccess  *bool   `json:"remote_access"`
-		RemotePort    *int    `json:"remote_port"`
-		UPnP          *bool   `json:"upnp"`
-		HTTPSMode     *string `json:"https_mode"`
-		HTTPSCert     *string `json:"https_cert"`
-		HTTPSKey      *string `json:"https_key"`
-		HTTPSDomain   *string `json:"https_domain"`
-		HomeNetworks  *string `json:"home_networks"`
-		TranscodeDir  *string `json:"transcode_dir"`
-		MaxTranscodes *int    `json:"max_transcodes"`
+		TMDBKey                *string  `json:"tmdb_api_key"`
+		TVDBKey                *string  `json:"tvdb_api_key"`
+		FFprobePath            *string  `json:"ffprobe_path"`
+		LocalBypass            *bool    `json:"local_bypass"`
+		HWAccel                *bool    `json:"hw_accel"`
+		ToneMap                *bool    `json:"tone_mapping"`
+		OSKey                  *string  `json:"opensubtitles_api_key"`
+		OSUser                 *string  `json:"opensubtitles_username"`
+		OSPassword             *string  `json:"opensubtitles_password"`
+		Port                   *int     `json:"port"`
+		AllowNetwork           *bool    `json:"allow_network"`
+		Region                 *string  `json:"region"`
+		ScanAutomatic          *bool    `json:"scan_automatic"`
+		ScanPartial            *bool    `json:"scan_partial"`
+		ScanOnStart            *bool    `json:"scan_on_start"`
+		ScanInterval           *float64 `json:"scan_interval_hours"`
+		ScanMinutes            *int     `json:"scan_interval_minutes"`
+		AnalysisEnabled        *bool    `json:"analysis_enabled"`
+		MetadataRefreshEnabled *bool    `json:"metadata_refresh_enabled"`
+		AutoBackupsEnabled     *bool    `json:"auto_backups_enabled"`
+		PreviewMode            *string  `json:"preview_mode"`
+		DetectionMode          *string  `json:"detection_mode"`
+		MaintStart             *int     `json:"maintenance_start"`
+		MaintEnd               *int     `json:"maintenance_end"`
+		PreviewsNight          *bool    `json:"previews_at_night"`
+		OMDbKey                *string  `json:"omdb_api_key"`
+		PrerollPaths           *string  `json:"preroll_paths"`
+		PrerollMode            *string  `json:"preroll_mode"`
+		TheIntroDBKey          *string  `json:"theintrodb_api_key"`
+		DetectIntros           *bool    `json:"detect_intros"`
+		RemoteKbps             *int     `json:"remote_kbps"`
+		UploadKbps             *int     `json:"upload_kbps"`
+		RemoteAccess           *bool    `json:"remote_access"`
+		RemotePort             *int     `json:"remote_port"`
+		UPnP                   *bool    `json:"upnp"`
+		HTTPSMode              *string  `json:"https_mode"`
+		HTTPSCert              *string  `json:"https_cert"`
+		HTTPSKey               *string  `json:"https_key"`
+		HTTPSDomain            *string  `json:"https_domain"`
+		HomeNetworks           *string  `json:"home_networks"`
+		TranscodeDir           *string  `json:"transcode_dir"`
+		MaxTranscodes          *int     `json:"max_transcodes"`
 	}
 	var raw json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
@@ -874,7 +883,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours"} {
+	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours", "scan_interval_minutes", "preview_mode", "detection_mode", "analysis_enabled", "metadata_refresh_enabled", "auto_backups_enabled"} {
 		if v, ok := fields[key]; ok && string(v) == "null" {
 			writeError(w, http.StatusBadRequest, key+" cannot be null")
 			return
@@ -895,11 +904,42 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		next.ScanOnStart = *body.ScanOnStart
 	}
 	if body.ScanInterval != nil {
-		if !settings.ValidScanInterval(*body.ScanInterval) {
-			writeError(w, http.StatusBadRequest, "scan interval must be 0, 1, 6, 12 or 24 hours")
+		minutes := *body.ScanInterval * 60
+		if minutes != float64(int(minutes)) || !settings.ValidScanMinutes(int(minutes)) {
+			writeError(w, 400, "unsupported scan interval")
 			return
 		}
-		next.ScanIntervalHours = *body.ScanInterval
+		next.ScanIntervalMinutes = int(minutes)
+		next.ScanIntervalHours = int(minutes) / 60
+	}
+	if body.ScanMinutes != nil {
+		if !settings.ValidScanMinutes(*body.ScanMinutes) {
+			writeError(w, 400, "scan interval must be 0, 15, 30, 60, 120, 360, 720 or 1440 minutes")
+			return
+		}
+		next.ScanIntervalMinutes = *body.ScanMinutes
+		next.ScanIntervalHours = *body.ScanMinutes / 60
+	}
+	for _, p := range []struct {
+		src  *string
+		dest *string
+	}{{body.PreviewMode, &next.PreviewMode}, {body.DetectionMode, &next.DetectionMode}} {
+		if p.src != nil {
+			if !settings.ValidProcessingMode(*p.src) {
+				writeError(w, 400, "processing mode must be off, scheduled or added")
+				return
+			}
+			*p.dest = *p.src
+		}
+	}
+	if body.AnalysisEnabled != nil {
+		next.AnalysisEnabled = *body.AnalysisEnabled
+	}
+	if body.MetadataRefreshEnabled != nil {
+		next.MetadataRefreshEnabled = *body.MetadataRefreshEnabled
+	}
+	if body.AutoBackupsEnabled != nil {
+		next.AutoBackupsEnabled = *body.AutoBackupsEnabled
 	}
 	if body.TMDBKey != nil {
 		next.TMDBKey = strings.TrimSpace(*body.TMDBKey)
@@ -962,12 +1002,30 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.PreviewsNight != nil {
 		next.PreviewsAtNight = *body.PreviewsNight
+		if body.PreviewMode == nil {
+			next.PreviewMode = "added"
+			if *body.PreviewsNight {
+				next.PreviewMode = "scheduled"
+			}
+		}
+	}
+	if body.PreviewMode != nil {
+		next.PreviewsAtNight = next.PreviewMode == "scheduled"
+	}
+	if body.DetectionMode != nil {
+		next.DetectIntros = next.DetectionMode != "off"
 	}
 	if body.TheIntroDBKey != nil {
 		next.TheIntroDBKey = strings.TrimSpace(*body.TheIntroDBKey)
 	}
 	if body.DetectIntros != nil {
 		next.DetectIntros = *body.DetectIntros
+		if body.DetectionMode == nil {
+			next.DetectionMode = "off"
+			if *body.DetectIntros {
+				next.DetectionMode = "scheduled"
+			}
+		}
 	}
 	for _, v := range []*int{body.RemoteKbps, body.UploadKbps} {
 		if v != nil && (*v < 0 || *v > 1_000_000) {

@@ -44,3 +44,43 @@ func TestScanDefaultsAndExplicitOffPersist(t *testing.T) {
 		}
 	}
 }
+
+func TestSchedulingModesLegacyMigrationAndMinuteIntervals(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "schedule.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	for k, v := range map[string]string{"scan_interval_hours": "6", "previews_at_night": "1", "detect_intros": "0"} {
+		if err := st.SetSetting(ctx, k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := Load(ctx, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ScanMinutes() != 360 || s.PreviewMode != "scheduled" || s.DetectionMode != "off" || !s.AnalysisEnabled || !s.MetadataRefreshEnabled || !s.AutoBackupsEnabled {
+		t.Fatalf("legacy defaults: %+v", s)
+	}
+	for _, minutes := range []int{0, 15, 30, 60, 120, 360, 720, 1440} {
+		s.ScanIntervalMinutes = minutes
+		s.ScanIntervalHours = minutes / 60
+		s.PreviewMode = "off"
+		s.DetectionMode = "added"
+		s.AnalysisEnabled = false
+		s.MetadataRefreshEnabled = false
+		s.AutoBackupsEnabled = false
+		if err := Save(ctx, st, s); err != nil {
+			t.Fatal(err)
+		}
+		s, err = Load(ctx, st)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s.ScanMinutes() != minutes || s.PreviewMode != "off" || s.DetectionMode != "added" || s.AnalysisEnabled || s.MetadataRefreshEnabled || s.AutoBackupsEnabled {
+			t.Fatalf("lost explicit settings: %+v", s)
+		}
+	}
+}

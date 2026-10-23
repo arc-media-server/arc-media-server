@@ -3,6 +3,7 @@ package api
 
 import (
 	"ams/internal/activity"
+	"ams/internal/background"
 	"ams/internal/notify"
 	"ams/internal/optimize"
 	"ams/internal/remote"
@@ -43,7 +44,8 @@ type Deps struct {
 	Artwork *artwork.Cache
 	Backups *backup.Manager
 	// Activity tracks background work for the Activity menu.
-	Activity *activity.Tracker
+	Activity   *activity.Tracker
+	Background *background.Manager
 	// Notify sends events to webhooks.
 	Notify *notify.Notifier
 	// Markers finds intros and credits; told when markers are reset.
@@ -82,6 +84,7 @@ type Deps struct {
 
 type Server struct {
 	watchProblem func(int64) string
+	background   *background.Manager
 
 	store            *store.Store
 	scanner          *scanner.Scanner
@@ -117,10 +120,20 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
+	if d.Background != nil {
+		d.Background.SetPlayback(func() bool {
+			for _, p := range s.playing.list() {
+				if !p.paused {
+					return true
+				}
+			}
+			return false
+		})
+	}
 	mux := http.NewServeMux()
 	s.revision = d.Revision
 
@@ -147,6 +160,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
 	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
+	mux.HandleFunc("GET /api/maintenance", admin(s.getMaintenance))
+	mux.HandleFunc("POST /api/maintenance/{kind}/run", admin(s.runMaintenance))
 	mux.HandleFunc("POST /api/imports", admin(s.startImport))
 	mux.HandleFunc("GET /api/webhooks", admin(s.listWebhooks))
 	mux.HandleFunc("POST /api/webhooks", admin(s.saveWebhook))

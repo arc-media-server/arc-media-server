@@ -2,42 +2,6 @@ package store
 
 import "context"
 
-// PendingFormats is deliberately capped. It never resets probed_at or changes chapter,
-// matching, watch-state or presence data. Missing/unreadable files are excluded.
-func (s *Store) PendingFormats(ctx context.Context, libraryID, seenSince int64) ([]MediaFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, path, size, mtime FROM media_files m
- WHERE library_id=? AND format_probe_version=0 AND probed_at IS NOT NULL
- AND probe_error='' AND missing_since IS NULL AND last_seen_at >= ? AND EXISTS
- (SELECT 1 FROM media_streams st WHERE st.file_id=m.id AND st.kind='video'
- AND (st.codec IN ('hevc','h265','av1') OR st.color_transfer IN ('smpte2084','arib-std-b67')))
- ORDER BY path LIMIT 32`, libraryID, seenSince)
-	if err != nil {
-		return nil, err
-	}
-	var files []MediaFile
-	for rows.Next() {
-		var f MediaFile
-		f.LibraryID = libraryID
-		if err := rows.Scan(&f.ID, &f.Path, &f.Size, &f.ModTime); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		files = append(files, f)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, err
-	}
-	for i := range files {
-		files[i].Streams, err = s.fileStreams(ctx, files[i].ID)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return files, nil
-}
-
 // SaveFormats protects against a concurrent regular probe/change: only the old pending
 // revision can be enriched. A failed optional sample is recorded as attempted too.
 func (s *Store) SaveFormats(ctx context.Context, f MediaFile) error {
@@ -46,7 +10,7 @@ func (s *Store) SaveFormats(ctx context.Context, f MediaFile) error {
 		return err
 	}
 	defer tx.Rollback()
-	r, err := tx.ExecContext(ctx, `UPDATE media_files SET format_probe_version=1 WHERE id=? AND size=? AND mtime=? AND format_probe_version=0`, f.ID, f.Size, f.ModTime)
+	r, err := tx.ExecContext(ctx, `UPDATE media_files SET format_probe_version=1 WHERE id=? AND path=? AND size=? AND mtime=? AND format_probe_version=0`, f.ID, f.Path, f.Size, f.ModTime)
 	if err != nil {
 		return err
 	}

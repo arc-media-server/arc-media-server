@@ -10,7 +10,7 @@ import (
 	"ams/internal/store"
 )
 
-func TestFormatBackfillIsOnceAndPreservesBasicFileData(t *testing.T) {
+func TestFormatEnrichmentPreservesDataAndRejectsChangedFile(t *testing.T) {
 	ctx := context.Background()
 	st, s, lib, root := libraryFixture(t, "movies", map[string]string{"Example (2000).mkv": "isolated fixture"})
 	path := filepath.Join(root, "Example (2000).mkv")
@@ -25,21 +25,12 @@ func TestFormatBackfillIsOnceAndPreservesBasicFileData(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.prober = probe.New("nonexistent-format-ffprobe")
-	if err = s.enrichPendingFormats(ctx, &store.Library{ID: lib}, 1); err != nil {
+	if err = s.EnrichFormatFile(ctx, *f); err != nil {
 		t.Fatal(err)
 	}
-	pending, err := st.PendingFormats(ctx, lib, 0)
+	pending, err := st.PendingFormatPage(ctx, lib, 0)
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("failed optional probe keeps retrying: %v %v", pending, err)
-	}
-	if got := s.Status(lib).FilesProbed; got != 1 {
-		t.Fatalf("actual read attempts=%d", got)
-	}
-	if err = s.enrichPendingFormats(ctx, &store.Library{ID: lib}, 1); err != nil {
-		t.Fatal(err)
-	}
-	if got := s.Status(lib).FilesProbed; got != 1 {
-		t.Fatalf("unchanged rescan reads again: %d", got)
 	}
 	saved, err := st.GetFileByPath(ctx, path)
 	if err != nil || saved.DurationMS != 120000 || !saved.Probed || saved.ProbeError != "" {
@@ -54,13 +45,14 @@ func TestFormatBackfillIsOnceAndPreservesBasicFileData(t *testing.T) {
 	if _, err = st.SaveFile(ctx, f, 1, 1); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = os.WriteFile(path, []byte("isolated fixture"), 0644) })
 	if err = os.WriteFile(path, []byte("changed size"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err = s.enrichPendingFormats(ctx, &store.Library{ID: lib}, 1); err != nil {
-		t.Fatal(err)
+	if err = s.EnrichFormatFile(ctx, *f); err == nil {
+		t.Fatal("changed file accepted")
 	}
-	pending, err = st.PendingFormats(ctx, lib, 0)
+	pending, err = st.PendingFormatPage(ctx, lib, 0)
 	if err != nil || len(pending) != 1 {
 		t.Fatalf("changed file not left for normal probing: %v %v", pending, err)
 	}

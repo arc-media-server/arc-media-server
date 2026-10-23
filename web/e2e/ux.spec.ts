@@ -570,3 +570,50 @@ test('series file details show episode source tracks without claiming series-wid
   await expect(dialog.getByText(/Source formats; playback output depends/)).toBeVisible();
   await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
 });
+
+test('background scheduling exposes modes, task controls and recoverable Run now', async ({ page }, info) => {
+  await seed(page);
+  await page.goto('/settings?section=library');
+  const interval = page.getByRole('combobox', { name: 'Full library scan', exact: true });
+  await expect(interval.getByRole('option', { name: 'Every 15 minutes', exact: true })).toHaveCount(1);
+  await expect(interval.getByRole('option', { name: 'Every 30 minutes', exact: true })).toHaveCount(1);
+  await expect(interval.getByRole('option', { name: 'Every 2 hours', exact: true })).toHaveCount(1);
+  await interval.selectOption('15'); await expect(interval).toBeEnabled();
+  await page.reload(); await expect(interval).toHaveValue('15');
+  expect((await (await page.request.get('/api/settings')).json()).scan_interval_minutes).toBe(15);
+  await page.goto('/settings?section=playback');
+  const detection = page.getByRole('combobox', { name: 'Local intro and credits detection', exact: true });
+  await detection.selectOption('off'); await expect(detection).toBeEnabled();
+  await page.reload(); await expect(detection).toHaveValue('off');
+  await page.goto('/settings?section=maintenance');
+  const preview = page.getByRole('combobox', { name: 'Scrubbing preview processing', exact: true });
+  await preview.selectOption('scheduled'); await expect(preview).toBeEnabled();
+  const analysis = page.getByRole('switch', { name: 'Update existing media analysis', exact: true });
+  await analysis.click(); await expect(analysis).not.toBeChecked();
+  const run = page.getByRole('button', { name: 'Run update media analysis now', exact: true });
+  await expect(run).toBeDisabled();
+  await analysis.click(); await expect(analysis).toBeChecked(); await expect(run).toBeEnabled();
+  await page.route('**/api/maintenance/analysis/run', r => r.fulfill({ status: 503, json: { error: 'Task could not start' } }));
+  await run.click(); await expect(page.getByText('Task could not start', { exact: true })).toBeVisible();
+  await page.unroute('**/api/maintenance/analysis/run');
+  await page.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByText('Task could not start', { exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.reload(); await expect(preview).toHaveValue('scheduled');
+  await expect(run).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('scheduled-work-phone.png'), fullPage: true });
+});
+
+test('Activity distinguishes paused background work from running foreground work', async ({ page }) => {
+  await seed(page);
+  await page.route('**/api/activity', r => r.fulfill({ json: { running: [], recent: [], scheduled: [
+    { kind: 'analysis', title: 'Update media analysis', state: 'paused', detail: 'Waiting for playback or scanning', pending: 70, completed: 5, failed: 0, enabled: true },
+  ] } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Activity', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Scheduled work', exact: true })).toBeVisible();
+  await expect(page.getByText('Update media analysis', { exact: true })).toBeVisible();
+  await expect(page.getByText('paused · Waiting for playback or scanning', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Nothing right now/)).toBeVisible();
+});
