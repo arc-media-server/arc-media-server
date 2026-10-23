@@ -208,6 +208,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Consolidate management pages under Settings and link Dashboard from Activity (#166; desktop/phone navigation and profile-boundary checks in READINESS)
 - [x] Explain active scan/matching/inspection work by title, preserving concurrent operations and truthful reused/error summaries (#167; isolated backend/browser evidence in READINESS)
 - [x] Add per-library and all-library scans in Settings library management, with running guards and partial-failure retry (#168; isolated desktop/phone evidence in READINESS)
+- [x] Keep rescans focused on changes, move age-based metadata refresh into maintenance and reduce unchanged link/artwork database work (#169; isolated correctness and writer-queue evidence in READINESS)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

@@ -200,6 +200,53 @@ func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string
 	return tx.Commit()
 }
 
+// FileLink is an existing file-to-item association, including multipart position.
+type FileLink struct {
+	ItemID string
+	Part   int
+}
+
+// FileLinks snapshots only the requested files, in bounded reads. Callers compare
+// fresh mappings rather than retaining an identity cache across scans or restores.
+func (s *Store) FileLinks(ctx context.Context, fileIDs []int64) (map[int64][]FileLink, error) {
+	links := map[int64][]FileLink{}
+	unique := make([]int64, 0, len(fileIDs))
+	seen := map[int64]bool{}
+	for _, id := range fileIDs {
+		if !seen[id] {
+			unique = append(unique, id)
+			seen[id] = true
+		}
+	}
+	fileIDs = unique
+	for start := 0; start < len(fileIDs); start += 256 {
+		end := min(start+256, len(fileIDs))
+		args := make([]any, 0, end-start)
+		for _, id := range fileIDs[start:end] {
+			args = append(args, id)
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT file_id, item_id, part FROM item_files WHERE file_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")+`)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id int64
+			var link FileLink
+			if err := rows.Scan(&id, &link.ItemID, &link.Part); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			links[id] = append(links[id], link)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return links, nil
+}
+
 // FileActivityTitle provides a display title for actual inspection work only. It is
 // not used in the unchanged-file discovery hot path. A multi-episode file uses its
 // series title; the filename identifies the inspected source separately.

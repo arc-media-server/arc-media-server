@@ -37,6 +37,15 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Incremental rescans (#169, 23 October): ordinary scans no longer refresh matched titles
+  because of age or retry old unmatched titles. Maintenance owns overdue/incomplete movie
+  refresh (draining pages), due/airing shows and old unmatched recovery under existing admission.
+  Discovery still handles new/pending content, unfinished series imports, genuinely new unknown
+  episodes and explicit language/source/provider changes. New episode lookup bypasses stale
+  preview responses. Fresh batch comparisons preserve unchanged episode links; unchanged local
+  artwork/theme/season art avoid the writer queue. Activity distinguishes checking from changing
+  links. No migration or identity cache. Plan: docs/INCREMENTAL-RESCAN-PLAN.md. Affected Go/API,
+  race/vet/build and eight focused browser journeys pass; actual results/limits in READINESS.
 - Manage libraries scans (#168, 23 October): Settings → Manage libraries offers Scan all
   libraries and a Scan button per row. Bulk requests only idle libraries, keeps running scans
   untouched and reports partial failures beside the affected library with Retry. Pending/running

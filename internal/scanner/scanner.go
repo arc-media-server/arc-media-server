@@ -126,6 +126,8 @@ func (st Status) describe() string {
 		parts = append(parts, fmt.Sprintf("Checking files and titles · %d files checked", st.FilesSeen))
 	case st.Total > 0:
 		parts = append(parts, fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 0), st.Total))
+	case st.Done > 0:
+		parts = append(parts, fmt.Sprintf("%s · %d checked", st.Phase, st.Done))
 	default:
 		parts = append(parts, st.Phase)
 	}
@@ -362,11 +364,6 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		task.Finish(err)
 	}()
 	scanStart := time.Now().UnixMilli()
-	if len(paths) == 0 && lib.Kind == "movies" && s.tmdb.Configured() {
-		if err := s.store.RetryUnmatched(ctx, lib.ID, time.Now().Add(-24*time.Hour).Unix()); err != nil {
-			return err
-		}
-	}
 	seen := &seenFiles{st: s.store, at: scanStart}
 	ctx = context.WithValue(ctx, seenKey{}, seen)
 	secondary := &secondaryShows{files: map[string][]episodeFile{}}
@@ -552,17 +549,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		s.update(lib.ID, func(st *Status) { st.Missing = n })
 	}
 
-	switch lib.Kind {
-	case "movies":
-		if s.tmdb.Configured() {
-			if len(paths) == 0 {
-				if err := s.refreshUnsyncedMovies(ctx, lib.ID); err != nil {
-					return fmt.Errorf("metadata: %w", err)
-				}
-			}
-		}
-	case "shows": // Already linked progressively as each show folder finished discovery.
-	case "videos":
+	if lib.Kind == "videos" {
 		if err := s.syncVideoFolders(ctx, lib, folders, allRootsOK && len(paths) == 0); err != nil {
 			return err
 		}
@@ -985,7 +972,9 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 		// Leave the item pending so the next scan retries it.
 		s.log.Warn("tmdb lookup failed", "title", it.Title, "year", it.Year, "err", err)
 		s.update(libraryID, func(st *Status) { st.MetadataErrors++ })
-		s.retryLater(libraryID)
+		if !isMetadataMaintenance(ctx) {
+			s.retryLater(libraryID)
+		}
 		return nil
 	}
 	if m == nil {
@@ -1052,40 +1041,31 @@ func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Det
 	return s.store.SetAltTitlesKeywords(ctx, itemID, d.AltTitles, d.Keywords)
 }
 
-// refreshUnsyncedMovies fetches matched movies that have never been fully fetched (e.g. matched
-// before AMS stored genres and cast), a batch per scan.
-func (s *Scanner) refreshUnsyncedMovies(ctx context.Context, libraryID int64) error {
-	return s.refreshMovies(ctx, libraryID, true)
-}
-
-func (s *Scanner) refreshMovies(ctx context.Context, libraryID int64, retryDiscovery bool) error {
-	items, err := s.store.UnsyncedItems(ctx, libraryID, "movie", 200)
-	if err != nil {
-		return err
-	}
-	// In the maintenance window, movies whose details are a month old are refreshed too.
-	if s.Window.Open() {
-		stale, err := s.store.StaleItems(ctx, libraryID, "movie", time.Now().Add(-movieResyncAfter).Unix(), 100)
-		if err != nil {
+// refreshMovies is known-title maintenance, independent of discovery and its clock window.
+func (s *Scanner) refreshMovies(ctx context.Context, libraryID int64) error {
+	before := time.Now().Add(-movieResyncAfter).Unix()
+	after := ""
+	s.phase(libraryID, "Updating movie details", 0)
+	for {
+		items, err := s.store.MetadataRefreshPage(ctx, libraryID, before, after, 200)
+		if err != nil || len(items) == 0 {
 			return err
 		}
-		items = append(items, stale...)
-	}
-	s.phase(libraryID, "Updating movie details", len(items))
-	return each(ctx, len(items), matchWorkers, func(i int) error {
-		defer s.step(libraryID)
-		if _, err := s.RefreshMovie(ctx, items[i].ID); err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
+		after = items[len(items)-1].ID
+		if err := each(ctx, len(items), matchWorkers, func(i int) error {
+			defer s.step(libraryID)
+			if _, err := s.RefreshMovie(ctx, items[i].ID); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				s.update(libraryID, func(st *Status) { st.MetadataErrors++ })
+				s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
 			}
-			s.update(libraryID, func(st *Status) { st.MetadataErrors++ })
-			s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
-			if retryDiscovery {
-				s.retryLater(libraryID)
-			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
 }
 
 // inLanguage is ctx asking for a library's metadata language.

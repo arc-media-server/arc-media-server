@@ -15,7 +15,7 @@ import (
 	"ams/internal/store"
 )
 
-// Series metadata (and their orderings) are refreshed at most this often during scans.
+// Existing series metadata is refreshed at this age during metadata maintenance.
 const resyncAfter = 7 * 24 * time.Hour
 
 type episodeFile struct {
@@ -126,17 +126,23 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	if err != nil {
 		return err
 	}
-	age := time.Since(time.Unix(syncedAt, 0))
 
-	// A show still airing is also refreshed (at most daily) once its next episode's date has come.
-	nextAired, err := s.store.NextAired(ctx, id)
+	series, err := s.store.GetItem(ctx, id)
 	if err != nil {
 		return err
 	}
-	aired := nextAired != "" && nextAired <= time.Now().Format("2006-01-02") && age > 24*time.Hour
-
-	// The weekly refresh waits for the maintenance window (unless the server is never on then).
-	due := age > resyncAfter && s.Window.Open() || age > 4*resyncAfter
+	fileIDs := make([]int64, 0, len(g.files))
+	for _, file := range g.files {
+		fileIDs = append(fileIDs, file.fileID)
+	}
+	links, err := s.store.FileLinks(ctx, fileIDs)
+	if err != nil {
+		return err
+	}
+	hasUnlinked := false
+	for _, file := range g.files {
+		hasUnlinked = hasUnlinked || len(links[file.fileID]) == 0
+	}
 	synced := false
 	secondary, _ := ctx.Value(secondaryKey{}).(*secondaryShows)
 	essential := syncedAt == 0 && secondary != nil && s.hasProviders()
@@ -149,7 +155,7 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		// path so identity/history are never sacrificed for a faster refresh.
 		essential = len(children) == 0
 	}
-	if s.hasProviders() && (syncedAt == 0 || due || aired) {
+	if s.hasProviders() && (created || series.MetadataState == "pending" || syncedAt == 0 && series.MetadataState == "matched" || series.MetadataState == "unmatched" && hasUnlinked) {
 		if err := s.syncSeriesMetadata(ctx, lib, id, false, essential); err != nil {
 			if ctx.Err() != nil {
 				return err
@@ -165,16 +171,16 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 		secondary.add(id, g.files)
 	}
 
-	// Files naming episodes the cached metadata doesn't know yet are usually new episodes:
-	// refresh once (at most hourly) before treating them as unknown.
-	canResync := !synced && s.hasProviders() && syncedAt != 0 && age > time.Hour
+	// A genuinely new unlinked file can need new provider episodes. Previously linked
+	// unknown files retry in metadata maintenance, not on every otherwise unchanged scan.
+	canResync := !synced && s.hasProviders() && syncedAt != 0 && hasUnlinked
 	unknown, err := s.linkEpisodeFiles(ctx, lib, id, g.files, !canResync)
 	if err != nil {
 		return err
 	}
 	if unknown > 0 && canResync {
 		log.Info("unknown episodes found, refreshing metadata", "series", g.name.Title, "files", unknown)
-		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
+		if err := s.SyncSeriesMetadata(metadata.WithFresh(ctx), lib, id, false); err != nil {
 			s.update(lib.ID, func(st *Status) { st.MetadataErrors++ })
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
 			s.retryLater(lib.ID)
@@ -673,10 +679,10 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 	}
 	if currentWork(ctx) == nil {
 		var finish func()
-		ctx, finish = s.working(ctx, lib.ID, "Linking episodes", activityTitle(series.Title, series.Year), "Using saved episode metadata")
+		ctx, finish = s.working(ctx, lib.ID, "Checking episode links", activityTitle(series.Title, series.Year), "Using saved episode metadata")
 		defer finish()
 	}
-	currentWork(ctx).Update("Linking episodes", "Using saved episode metadata")
+	currentWork(ctx).Update("Checking episode links", "Using saved episode metadata")
 	currentWork(ctx).Progress(0, len(files))
 	lib = forSeries(lib, series)
 	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
@@ -729,9 +735,18 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		}
 	}
 
+	fileIDs := make([]int64, 0, len(files))
+	for _, file := range files {
+		fileIDs = append(fileIDs, file.fileID)
+	}
+	links, err := s.store.FileLinks(ctx, fileIDs)
+	if err != nil {
+		return 0, err
+	}
 	var byDate map[string][]string
 	images := map[string]func(...string) string{}
 	for index, f := range files {
+		currentWork(ctx).Update("Checking episode links", "Using saved episode metadata")
 		currentWork(ctx).Progress(index, len(files))
 		var ids []string
 		missing := false
@@ -779,8 +794,12 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		if missing {
 			unknown++
 		}
-		if err := s.store.SetFileItems(ctx, f.fileID, dedupe(ids), 0); err != nil {
-			return 0, err
+		if !sameEpisodeLinks(links[f.fileID], dedupe(ids)) {
+			currentWork(ctx).Update("Linking episodes", filepath.Base(f.path))
+			currentWork(ctx).Progress(index, len(files))
+			if err := s.store.SetFileItems(ctx, f.fileID, dedupe(ids), 0); err != nil {
+				return 0, err
+			}
 		}
 		// A "<file>-thumb.jpg" beside the episode is its still.
 		dir := filepath.Dir(f.path)
@@ -875,4 +894,21 @@ func dedupe(ids []string) []string {
 		}
 	}
 	return out
+}
+
+// Inputs are fresh snapshots; set comparison preserves multi-episode and multipart correctness.
+func sameEpisodeLinks(existing []store.FileLink, desired []string) bool {
+	if len(existing) != len(desired) {
+		return false
+	}
+	want := map[string]bool{}
+	for _, id := range desired {
+		want[id] = true
+	}
+	for _, link := range existing {
+		if link.Part != 0 || !want[link.ItemID] {
+			return false
+		}
+	}
+	return true
 }

@@ -25,6 +25,36 @@ func (s *Store) SetSeasonLocalPosters(ctx context.Context, seriesID string, file
 }
 
 func (s *Store) setSeasonArt(ctx context.Context, seriesID, col string, values map[int]string) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT season_number, `+col+` FROM season_art WHERE series_id = ? AND `+col+` <> ''`, seriesID)
+	if err != nil {
+		return err
+	}
+	same, count, wanted := true, 0, 0
+	for _, value := range values {
+		if value != "" {
+			wanted++
+		}
+	}
+	for rows.Next() {
+		var n int
+		var value string
+		if err := rows.Scan(&n, &value); err != nil {
+			rows.Close()
+			return err
+		}
+		count++
+		if values[n] != value {
+			same = false
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	if same && count == wanted {
+		return nil
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
