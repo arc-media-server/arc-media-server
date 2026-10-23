@@ -11,6 +11,11 @@ the existing Dashboard/Insights/Health/Libraries/Profiles/Backups URLs. Activity
 Dashboard. Plan: [SETTINGS-NAVIGATION-PLAN.md](SETTINGS-NAVIGATION-PLAN.md); focused
 desktop/phone/profile-boundary verification and limits are recorded in READINESS.
 
+Activity handoff (#167): scans expose concurrent title/file operations and real stages;
+background format analysis is separate, and completed scans distinguish reused details and
+inspection/metadata problems. See [SCAN-ACTIVITY-PLAN.md](SCAN-ACTIVITY-PLAN.md) and READINESS
+for the implementation, actual fixture results and limits. No owner data was used.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

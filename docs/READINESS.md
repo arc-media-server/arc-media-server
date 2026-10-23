@@ -1,5 +1,46 @@
 # Stability and release readiness
 
+## Scan, matching and inspection Activity (#167, 23 October 2026)
+
+Plan: [SCAN-ACTIVITY-PLAN.md](SCAN-ACTIVITY-PLAN.md). Each library task reports a bounded
+set of concurrent operations with stage, subject and optional detail. Stages cover actual
+file checking/inspection, movie/series matching on TMDB/TheTVDB, saving metadata and artwork
+references, episode/order mapping/saving and linking files using saved episode metadata.
+Independent format analysis identifies its library/title/filename and retains the subject in
+finished history. No artwork-download stage is claimed for saved references. Reporting adds
+no provider/probe calls or per-file title queries to unchanged discovery; title lookup occurs
+only for actual file inspection. Filenames are basenames, not media-root paths.
+
+Discovery has an unknown growing total, so Activity stays indeterminate. Known stage counts
+start at zero. Finished summaries distinguish reused file details, successful reads, inspection
+errors, deferred metadata updates and unrecognised files. Existing counters/matching/scheduling
+remain; the added status fields are additive and need no migration. The UI wraps titles and
+complete summaries (including failed scans), shows two operations and expands additional ones
+and details. Activity stays admin-only and retains its Dashboard link.
+
+Verification passed: production/app and e2e TypeScript, affected Go packages (activity, scanner,
+background, store, API, API reference), Go vet and final embedded-server build. Complete affected
+tracker/scanner/background race packages passed; subsequently added held-probe cancellation
+checks and final analysis-history wording passed focused race checks. Backend fixtures hold
+two movie provider calls concurrently, hold known movie/series refreshes, confirm cached rescans
+reuse details with no repeated provider calls, observe an actual held probe child through
+cancellation, count failed inspections, and verify analysis identity/cleanup and snapshot copies.
+
+Six focused Chromium journeys passed without retries (42.6 seconds): real delayed movie/TV
+imports expose matching subjects/stages through /api/activity; unchanged series rescans do not
+probe again; Settings/Activity Dashboard navigation remains usable; desktop/390px concurrent
+Activity/details/summaries wrap without overflow; paused scheduled work remains distinct. Final
+copy/screenshot rerun: one journey passed (9.5 seconds). Actual desktop/phone screenshots were
+inspected. Rich concurrent UI rows/counts are synthetic fixtures, separately supported by real
+scanner/probe tests. No large-library/NAS/device/Unraid performance claim is made.
+
+Actual evidence: `/workspace/arc-cloud-evidence/scan-activity/`. The initial sandbox attempt
+could not open a loopback fixture listener; supported command review allowed it. An initial
+test compilation error (unused loop variable) was corrected and rechecked. Both initial logs
+remain. Only temporary stores/generated clips/local providers and a disposable probe helper
+child were used; no owner data/settings/media, keys, persistent server or new tools. The full
+unrelated suite was not repeated; hosted CI/image publication is separate evidence.
+
 ## Settings management navigation (#166, 23 October 2026)
 
 Owner-approved plan: [SETTINGS-NAVIGATION-PLAN.md](SETTINGS-NAVIGATION-PLAN.md).

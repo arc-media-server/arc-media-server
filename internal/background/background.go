@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -338,9 +339,16 @@ func (m *Manager) analysisPass(ctx context.Context, analyze func(context.Context
 					}
 					continue
 				}
-				task := m.Activity.Start("analysis", "Updating media analysis")
-				task.Detail("Reading source format details")
+				title, _ := m.store.FileActivityTitle(work, f.ID)
+				if title == "" {
+					title = filepath.Base(f.Path)
+				}
+				task := m.Activity.Start("analysis", "Analyzing formats in "+lib.Name)
+				task.Detail("Background video, audio and HDR inspection")
+				operation := task.Work("Inspecting source formats", title, filepath.Base(f.Path))
 				err := analyze(work, f)
+				operation.Finish()
+				task.Detail("Video, audio and HDR inspection · " + title)
 				paused := work.Err() != nil
 				finish(err)
 				task.Finish(err)
