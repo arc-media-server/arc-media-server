@@ -40,6 +40,13 @@ Ubuntu runner whenever the scripts change, or when manually dispatched. Its resu
 validates this Linux recipe; it does not create or verify a Codex account environment.
 The existing Docker release gates remain independent.
 
+Both GitHub workflows install media/compiler prerequisites with
+`bash tools/ci/install-media-deps.sh`, bounded to five minutes. This GitHub-runner-only
+helper selects official Ubuntu HTTPS archives instead of the slow Azure HTTP mirror,
+retains signed package checks and omits optional recommended packages (#165).
+Published cloud tasks continue to use their saved compiler/media prerequisites; do not
+run this helper to repair missing restored state.
+
 Allow package installation during setup. Required sources include npm, the Go
 module proxy/checksum database and toolchain downloads, Linux package mirrors and
 Playwright's browser download hosts. Let setup report missing destinations rather

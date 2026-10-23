@@ -1,5 +1,31 @@
 # Stability and release readiness
 
+## CI FFmpeg package download timeout (#165, 23 October 2026)
+
+Run [39941884612](https://github.com/JonzaUK/arc-media-server/actions/runs/39941884612)
+at `3a470b1` failed at the five-minute FFmpeg installation limit. Apt selected
+`http://azure.archive.ubuntu.com/ubuntu`; downloading the 9 MB libcodec2 package
+took over three minutes. Linux Go/race/browser checks never started. Windows checks,
+container acceptance and multi-platform image preparation passed; release tagging was
+skipped, leaving the prior published image in place. HDR/audio commit `e5f36e0` had
+passed its separate run 39931694480; that does not validate the scheduling commit.
+
+The shared GitHub-runner prerequisite helper now replaces official Ubuntu HTTP/Azure
+archive entries with the official HTTPS archive, including the runner's apt mirror
+list. It preserves suites, components, signing keys and third-party sources, omits
+optional recommended packages, retains bounded retries/timeouts and verifies both
+FFmpeg tools. Both workflows use the helper; the cloud preflight also triggers on helper
+changes. All Go/race/browser/container tests and release dependencies are unchanged.
+
+Local verification: eight isolated checks passed (zero failures/skips): source/mirror
+rewrite and signature/component/vendor preservation, idempotence, update/install failure
+propagation, unusable ffprobe rejection, non-GitHub rejection, and each workflow's retained
+verification steps. Bash syntax, YAML parsing and diff checks passed. Tests stubbed package
+commands against temporary source fixtures; no host packages or saved environment state
+were changed. Full product tests were not repeated locally for this CI-only change.
+Hosted download performance, tests and image publication require the new GitHub run.
+Actual failed-job log and results: `/workspace/arc-cloud-evidence/ci-ffmpeg/`.
+
 Target: an alpha release other people can test. Implemented features and verified deployments
 are separate: a closed feature milestone does not establish that every device works.
 
