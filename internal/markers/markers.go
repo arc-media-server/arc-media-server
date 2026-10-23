@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"ams/internal/activity"
+	"ams/internal/background"
 	"ams/internal/schedule"
 	"ams/internal/store"
 )
@@ -31,18 +32,20 @@ type Manager struct {
 
 	// FFmpeg finds the program for detection; Activity and Window as elsewhere (detection, which is
 	// heavy, waits for the maintenance window).
-	FFmpeg   func() string
-	Activity *activity.Tracker
-	Window   *schedule.Window
+	FFmpeg     func() string
+	Activity   *activity.Tracker
+	Window     *schedule.Window
+	Background *background.Manager
 
 	mu     sync.Mutex
 	key    string // TheIntroDB
 	detect bool
 	wake   chan struct{}
+	local  chan struct{}
 }
 
 func New(st *store.Store, log *slog.Logger) *Manager {
-	return &Manager{store: st, log: log, http: &http.Client{Timeout: 20 * time.Second}, detect: true, wake: make(chan struct{}, 1)}
+	return &Manager{store: st, log: log, http: &http.Client{Timeout: 20 * time.Second}, detect: true, wake: make(chan struct{}, 1), local: make(chan struct{}, 1)}
 }
 
 // Configure sets TheIntroDB's key ("" to use IntroDB alone) and whether to detect markers on this
@@ -63,35 +66,55 @@ func (m *Manager) Wake() {
 }
 
 // Run looks for markers until ctx ends.
+func (m *Manager) WakeLocal() {
+	select {
+	case m.local <- struct{}{}:
+	default:
+	}
+}
+
 func (m *Manager) Run(ctx context.Context) {
+	onlineAfter := time.Now().Add(3 * time.Minute)
 	select {
 	case <-ctx.Done():
 		return
-	case <-time.After(3 * time.Minute): // let start-up scans go first
+	case <-m.local:
+	case <-time.After(time.Until(onlineAfter)):
 	}
 	for {
-		if err := m.pass(ctx); err != nil && ctx.Err() == nil {
+		if err := m.pass(ctx, time.Now().Before(onlineAfter)); err != nil && ctx.Err() == nil {
+			m.Background.AbandonTurn("markers")
 			m.log.Warn("looking for intros failed", "err", err)
+		}
+		delay := time.Hour
+		if left := time.Until(onlineAfter); left > 0 {
+			delay = min(delay, left)
 		}
 		select {
 		case <-ctx.Done():
 			return
+		case <-m.local:
 		case <-m.wake:
 			select {
 			case <-ctx.Done():
 				return
+			case <-m.local:
 			case <-time.After(time.Minute):
 			}
-		case <-time.After(time.Hour):
+		case <-time.After(delay):
 		}
 	}
 }
 
 // pass looks up every episode file not yet checked: chapters, then online; then, in the
 // maintenance window, detection for seasons still without intros.
-func (m *Manager) pass(ctx context.Context) error {
-	jobs, err := m.store.MarkerJobs(ctx, time.Now().Add(-recheckAfter).Unix(), 2000)
-	if err != nil || len(jobs) == 0 {
+func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
+	var jobs []store.MarkerJob
+	var err error
+	if len(localOnly) == 0 || !localOnly[0] {
+		jobs, err = m.store.MarkerJobs(ctx, time.Now().Add(-recheckAfter).Unix(), 2000)
+	}
+	if err != nil {
 		return err
 	}
 	m.log.Info("looking for intros and credits", "files", len(jobs))
@@ -113,15 +136,9 @@ func (m *Manager) pass(ctx context.Context) error {
 			return ctx.Err()
 		}
 		task.Progress(i+1, len(jobs))
-		have, err := m.find(ctx, j, key, &online)
+		_, err := m.find(ctx, j, key, &online)
 		if err != nil {
 			return err
-		}
-		if j.Movie && !slices.Contains(have, "credits") {
-			movies = append(movies, j)
-		}
-		if !j.Movie && !slices.Contains(have, "intro") && j.Season >= 0 {
-			missing[season{j.SeriesID, j.Season}] = true
 		}
 		if err := m.store.MarkersChecked(ctx, j.FileID); err != nil {
 			return err
@@ -132,12 +149,37 @@ func (m *Manager) pass(ctx context.Context) error {
 	if m.FFmpeg != nil {
 		ffmpeg = m.FFmpeg()
 	}
-	if !detect || ffmpeg == "" || !m.Window.Open() {
+	if !detect || ffmpeg == "" || m.Background == nil && !m.Window.Open() || m.Background != nil && m.Background.Mode("markers") == "off" {
+		m.Background.AbandonTurn("markers")
 		return nil
+	}
+	localJobs, err := m.store.MarkerJobs(ctx, time.Now().Add(time.Second).Unix(), -1)
+	if err != nil {
+		return err
+	}
+	for _, j := range localJobs {
+		if !m.Background.CanStart("markers", j.FileID, j.ProbedAt) {
+			continue
+		}
+		have, err := m.store.FileMarkers(ctx, j.FileID)
+		if err != nil {
+			return err
+		}
+		intro, credits := false, false
+		for _, marker := range have {
+			intro = intro || marker.Kind == "intro"
+			credits = credits || marker.Kind == "credits"
+		}
+		if j.Movie && !credits {
+			movies = append(movies, j)
+		}
+		if !j.Movie && !intro && j.Season >= 0 {
+			missing[season{j.SeriesID, j.Season}] = true
+		}
 	}
 	n := 0
 	for s := range missing {
-		if ctx.Err() != nil || !m.Window.Open() {
+		if ctx.Err() != nil || m.Background == nil && !m.Window.Open() {
 			return ctx.Err()
 		}
 		n++
@@ -147,33 +189,66 @@ func (m *Manager) pass(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		found, err := detectSeason(ctx, ffmpeg, files)
+		ids := []int64{}
+		for _, file := range files {
+			ids = append(ids, file.FileID)
+		}
+		work, finish, allowed := m.Background.Begin(ctx, "markers", fmt.Sprintf("season:%s:%d", s.series, s.number), ids...)
+		if !allowed {
+			if m.Background.Deferred("markers") {
+				return ctx.Err()
+			}
+			continue
+		}
+		found, err := detectSeason(work, ffmpeg, files)
+		if err == nil {
+			for fileID, ms := range found {
+				if err = m.store.SaveMarkers(work, fileID, ms); err != nil {
+					break
+				}
+			}
+		}
+		paused := work.Err() != nil
+		finish(err)
+		if paused {
+			return ctx.Err()
+		}
 		if err != nil {
 			m.log.Warn("detecting intros failed", "err", err)
 			continue
 		}
-		for fileID, ms := range found {
-			if err := m.store.SaveMarkers(ctx, fileID, ms); err != nil {
-				return err
-			}
-		}
+
 	}
 	for i, j := range movies {
-		if ctx.Err() != nil || !m.Window.Open() {
+		if ctx.Err() != nil || m.Background == nil && !m.Window.Open() {
 			return ctx.Err()
 		}
 		task.Progress(i+1, len(movies))
 		task.Detail(fmt.Sprintf("Finding movie credits (%d of %d)", i+1, len(movies)))
-		found, err := detectCredits(ctx, ffmpeg, j.Path, j.DurationMS)
+		work, finish, allowed := m.Background.Begin(ctx, "markers", fmt.Sprintf("movie:%d", j.FileID), j.FileID)
+		if !allowed {
+			if m.Background.Deferred("markers") {
+				return ctx.Err()
+			}
+			continue
+		}
+		found, err := detectCredits(work, ffmpeg, j.Path, j.DurationMS)
+		if err == nil && found != nil {
+			err = m.store.SaveMarkers(work, j.FileID, []store.Marker{*found})
+		}
+		paused := work.Err() != nil
+		finish(err)
+		if paused {
+			return ctx.Err()
+		}
 		if err != nil {
 			m.log.Warn("detecting credits failed", "file", j.Path, "err", err)
 			continue
 		}
-		if found != nil {
-			if err := m.store.SaveMarkers(ctx, j.FileID, []store.Marker{*found}); err != nil {
-				return err
-			}
-		}
+
+	}
+	if m.Background != nil {
+		m.Background.CompletePass("markers")
 	}
 	return nil
 }

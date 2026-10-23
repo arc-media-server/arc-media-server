@@ -128,6 +128,8 @@ type Scanner struct {
 
 	// OnFinish, if set, is called after each scan (successful or not). Set it before starting scans.
 	OnFinish func(libraryID int64)
+	// MaintenanceAllowed is set before workers start; nil retains standalone behavior.
+	MaintenanceAllowed func() bool
 	// Activity, if set, is told about each scan.
 	Activity *activity.Tracker
 	// Window, if set, is when regular metadata refreshes happen (always, if nil).
@@ -551,9 +553,6 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return err
 	}
 
-	if err := s.enrichPendingFormats(ctx, lib, scanStart); err != nil {
-		return err
-	}
 	st := s.Status(lib.ID)
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
 		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched, "not_recognised", st.Unrecognised)

@@ -278,6 +278,7 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 
 // VideoFile is a present, readable movie or episode file and its picture size.
 type VideoFile struct {
+	ProbedAt      int64
 	ID            int64
 	Path          string
 	DurationMS    int64
@@ -293,7 +294,7 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 		SELECT m.id, m.path, m.duration_ms,
 			COALESCE((SELECT width FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
 			COALESCE((SELECT height FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
-			COALESCE((SELECT color_transfer FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), '')
+			COALESCE((SELECT color_transfer FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), ''), COALESCE(m.probed_at,0)
 		FROM media_files m
 		JOIN item_files f ON f.file_id = m.id JOIN items i ON i.id = f.item_id
 		JOIN libraries l ON l.id = i.library_id AND l.trickplay = 1
@@ -308,7 +309,7 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 	var out []VideoFile
 	for rows.Next() {
 		var v VideoFile
-		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height, &v.ColorTransfer); err != nil {
+		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height, &v.ColorTransfer, &v.ProbedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, v)

@@ -215,7 +215,7 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
 test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
   void media;
   await setup(page);
-  const before = { region: 'GB', local_bypass: false, max_transcodes: 1, scan_automatic: false, scan_partial: false, scan_on_start: false, scan_interval_hours: 0 };
+  const before = { region: 'GB', local_bypass: false, max_transcodes: 1, scan_automatic: false, scan_partial: false, scan_on_start: false, scan_interval_hours: 0, preview_mode: 'off', detection_mode: 'off', analysis_enabled: false, metadata_refresh_enabled: false, auto_backups_enabled: false };
   expect((await page.request.patch('/api/settings', { data: before })).ok()).toBeTruthy();
   const backup = await page.request.post('/api/backups');
   expect(backup.ok()).toBeTruthy();
@@ -525,7 +525,7 @@ test('global scanning controls persist, apply live and respect startup Off', asy
   const automatic = page.getByRole('switch', { name: 'Scan automatically when files change', exact: true });
   await expect(automatic).toBeChecked();
   const schedule = page.getByRole('combobox', { name: 'Full library scan', exact: true });
-  await expect(schedule).toHaveValue('1');
+  await expect(schedule).toHaveValue('60');
   await page.getByText('Advanced scanning options', { exact: true }).click();
   const partial = page.getByRole('switch', { name: 'Scan only changed folders', exact: true });
   const startup = page.getByRole('switch', { name: 'Scan when Arc starts', exact: true });
@@ -552,11 +552,11 @@ test('global scanning controls persist, apply live and respect startup Off', asy
   await page.setViewportSize({ width: 1280, height: 720 });
   // A failed save leaves the saved value intact and supports retry.
   await page.route('**/api/settings', route => route.request().method() === 'PATCH' ? route.fulfill({ status: 503, json: { error: 'Fixture settings unavailable' } }) : route.continue());
-  await schedule.selectOption('6');
+  await schedule.selectOption('360');
   await expect(page.getByText('Fixture settings unavailable', { exact: true })).toBeVisible();
   await expect(schedule).toHaveValue('0');
   await page.unroute('**/api/settings');
-  await schedule.selectOption('6');
+  await schedule.selectOption('360');
   await expect(schedule).toBeEnabled();
   await schedule.selectOption('0');
   await expect(schedule).toBeEnabled();

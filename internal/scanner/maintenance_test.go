@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,5 +85,64 @@ func TestMaintenanceRefreshesKnownTitlesWithoutDiscoveringFiles(t *testing.T) {
 				t.Fatalf("media file was visited: %+v %v", file, err)
 			}
 		})
+	}
+}
+
+func TestQueuedDiscoveryPreemptsSameLibraryMetadata(t *testing.T) {
+	entered, cancelled, release := make(chan struct{}, 1), make(chan struct{}, 1), make(chan struct{})
+	localProviders(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/3/movie/101" {
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
+			select {
+			case <-r.Context().Done():
+				select {
+				case cancelled <- struct{}{}:
+				default:
+				}
+				return
+			case <-release:
+			}
+			fmt.Fprint(w, `{"id":101,"title":"Known","release_date":"2020-01-01"}`)
+			return
+		}
+		fmt.Fprint(w, `{"results":[]}`)
+	})
+	st, s, lib, _ := libraryFixture(t, "movies", map[string]string{"New Discovery (2020).mkv": "isolated"})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(func() { unblock(); s.Wait() })
+	ctx := context.Background()
+	id, _, err := st.EnsureItem(ctx, &store.Item{LibraryID: lib, Kind: "movie", Title: "Known", TMDBID: 101}, "known")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetMetadataState(ctx, id, "matched"); err != nil {
+		t.Fatal(err)
+	}
+	s.tmdb = metadata.NewTMDB("local-fixture")
+	s.MaintenanceAllowed = func() bool { return !s.DiscoveryPending() }
+	if !s.Maintain(lib) {
+		t.Fatal("maintenance denied")
+	}
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("maintenance did not reach provider")
+	}
+	s.Request(lib)
+	select {
+	case <-cancelled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("queued discovery did not cancel same-library maintenance")
+	}
+	unblock()
+	s.Wait()
+	items, _, err := st.ListItems(ctx, store.ItemQuery{LibraryID: lib, Kind: "movie"})
+	if err != nil || len(items) == 0 {
+		t.Fatalf("queued scan never discovered media: %+v %v", items, err)
 	}
 }

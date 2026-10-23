@@ -49,7 +49,7 @@ func TestFormatUpgradeBackfillAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pending, err := st.PendingFormats(ctx, lib, 0)
+	pending, err := st.PendingFormatPage(ctx, lib, 0)
 	if err != nil || len(pending) != 1 {
 		t.Fatalf("%+v %v", pending, err)
 	}
@@ -60,7 +60,7 @@ func TestFormatUpgradeBackfillAndPersistence(t *testing.T) {
 	if err := st.SaveFormats(ctx, f); err != nil {
 		t.Fatal(err)
 	}
-	pending, err = st.PendingFormats(ctx, lib, 0)
+	pending, err = st.PendingFormatPage(ctx, lib, 0)
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("repeated enrichment: %v %v", pending, err)
 	}
@@ -102,7 +102,7 @@ func TestFormatUpgradeBackfillAndPersistence(t *testing.T) {
 	}
 }
 
-func TestPendingFormatsBoundedToSeenFiles(t *testing.T) {
+func TestPendingFormatPagesIncludePreviouslySeenFiles(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(ctx, filepath.Join(t.TempDir(), "formats.db"), Options{})
 	if err != nil {
@@ -123,20 +123,46 @@ func TestPendingFormatsBoundedToSeenFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files, err := st.PendingFormats(ctx, lib, 2)
+	files, err := st.PendingFormatPage(ctx, lib, 0)
 	if err != nil || len(files) != 32 {
 		t.Fatalf("batch=%d err=%v", len(files), err)
 	}
 	for _, f := range files {
-		if f.Path == "00.mkv" {
-			t.Fatal("unseen/offline root entered backfill")
-		}
+
 		if err := st.SaveFormats(ctx, f); err != nil {
 			t.Fatal(err)
 		}
 	}
-	files, err = st.PendingFormats(ctx, lib, 2)
-	if err != nil || len(files) != 2 {
+	files, err = st.PendingFormatPage(ctx, lib, 0)
+	if err != nil || len(files) != 3 {
 		t.Fatalf("remaining batch=%d err=%v", len(files), err)
+	}
+}
+
+func TestFormatEnrichmentRejectsDifferentRestoredPath(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(ctx, filepath.Join(t.TempDir(), "formats.db"), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lib, err := st.SyncLibrary(ctx, "Formats", "movies", "tmdb_aired", []string{t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := MediaFile{LibraryID: lib, Path: "restored.mkv", Size: 100, ModTime: 1, Streams: []Stream{{Index: 0, Kind: "video", Codec: "hevc"}}}
+	f.ID, err = st.SaveFile(ctx, &f, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := f
+	stale.Path = "different-before-restore.mkv"
+	stale.Streams = []Stream{{Index: 0, Kind: "video", Codec: "hevc", DolbyVision: true}}
+	if err := st.SaveFormats(ctx, stale); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := st.PendingFormatPage(ctx, lib, 0)
+	if err != nil || len(pending) != 1 || pending[0].Streams[0].DolbyVision {
+		t.Fatalf("stale restored path changed source evidence: %+v %v", pending, err)
 	}
 }

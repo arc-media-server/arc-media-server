@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
+import { ScheduledWork } from '@/components/ScheduledWork';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
 import { FolderPicker } from '@/components/FolderPicker';
@@ -307,25 +308,28 @@ function ServerSettings() {
               onChange={(v) => update.mutate({ scan_automatic: v })}
             />
             <Row
-              setting="scan_interval_hours" label="Full library scan"
+              setting="scan_interval_minutes" label="Full library scan"
               description="Check all library folders for changes, including changes your drives may not report. Intervals run from server start or when this setting changes."
             >
               <select
                 aria-label="Full library scan"
-                value={s.scan_interval_hours}
+                value={s.scan_interval_minutes}
                 disabled={update.isPending}
-                onChange={(e) => update.mutate({ scan_interval_hours: Number(e.target.value) })}
+                onChange={(e) => update.mutate({ scan_interval_minutes: Number(e.target.value) })}
                 className={inputClass + ' w-44 [&>option]:bg-surface'}
               >
                 <option value={0}>Off</option>
-                <option value={1}>Every hour</option>
-                <option value={6}>Every 6 hours</option>
-                <option value={12}>Every 12 hours</option>
-                <option value={24}>Every 24 hours</option>
+                <option value={15}>Every 15 minutes</option>
+                <option value={30}>Every 30 minutes</option>
+                <option value={60}>Every hour</option>
+                <option value={120}>Every 2 hours</option>
+                <option value={360}>Every 6 hours</option>
+                <option value={720}>Every 12 hours</option>
+                <option value={1440}>Every 24 hours</option>
               </select>
             </Row>
             <p className="px-5 py-3 text-sm text-muted">Some network drives do not report changes. Keep a scheduled scan enabled to catch them.</p>
-            {s.scan_interval_hours === 0 && (
+            {s.scan_interval_minutes === 0 && (
               <p className="px-5 pb-3 text-sm text-muted" role="status">
                 {!s.scan_automatic && !s.scan_on_start
                   ? 'Libraries update when you scan them or change their folders.'
@@ -389,13 +393,9 @@ function ServerSettings() {
               link="https://theintrodb.org"
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
-            <ToggleRow
-              setting="detect_intros" label="Find intros and credits on this computer"
-              description="When a title isn't in the databases: an episode is compared with the rest of its season to find the intro and credits they share, and a movie's closing credits are spotted from the picture. Runs in the maintenance time."
-              checked={s.detect_intros}
-              busy={update.isPending}
-              onChange={(v) => update.mutate({ detect_intros: v })}
-            />
+            <Row setting="detection_mode" label="Find intros and credits on this computer" description="Compare episodes or analyse movie credits when online markers are unavailable. Existing files wait for maintenance; library intro/credits switches still apply.">
+              <ProcessingSelect label="Local intro and credits detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />
+            </Row>
           </Section>
 
           <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
@@ -519,7 +519,7 @@ function ServerSettings() {
           >
             <Row
               setting={['maintenance_start', 'maintenance_end']} label="Maintenance time"
-              description="Every night in this window Arc refreshes details that are a week (shows) or a month (movies) old, and takes the daily backup. New-file discovery follows your Library scanning settings."
+              description="Enabled tasks run in these hours, using the server’s local time. Work resumes next time if it cannot finish. New-file discovery follows Library scanning settings."
             >
               <div className="flex items-center gap-2 text-sm">
                 <HourSelect label="Maintenance start" value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
@@ -527,13 +527,13 @@ function ServerSettings() {
                 <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
-            <ToggleRow
-              setting="previews_at_night" label="Make scrubbing previews only at this time"
-              description="Otherwise they're made as soon as new files arrive, which keeps the processor busy for a while after adding a lot. Files someone starts watching always get theirs straight away."
-              checked={s.previews_at_night}
-              busy={update.isPending}
-              onChange={(v) => update.mutate({ previews_at_night: v })}
-            />
+            <Row setting="preview_mode" label="Scrubbing previews" description="Applies to libraries with previews enabled. Existing files wait for maintenance. Optional work pauses for playback or scanning.">
+              <ProcessingSelect label="Scrubbing preview processing" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />
+            </Row>
+            <ToggleRow setting="analysis_enabled" label="Update existing media analysis" description="Fill missing HDR and audio format details in the background during maintenance. New files are analysed automatically." checked={s.analysis_enabled} busy={update.isPending} onChange={v => update.mutate({ analysis_enabled: v })} />
+            <ToggleRow setting="metadata_refresh_enabled" label="Refresh known-title metadata" description="Refresh ageing title details during maintenance without scanning media folders." checked={s.metadata_refresh_enabled} busy={update.isPending} onChange={v => update.mutate({ metadata_refresh_enabled: v })} />
+            <ToggleRow setting="auto_backups_enabled" label="Automatic database backups" description="Take daily database backups during maintenance. Manual and safety backups remain available." checked={s.auto_backups_enabled} busy={update.isPending} onChange={v => update.mutate({ auto_backups_enabled: v })} />
+            <ScheduledWork />
           </Section>
 
           <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
@@ -1283,4 +1283,10 @@ function PasswordRow() {
       )}
     </Row>
   );
+}
+
+function ProcessingSelect({label,value,busy,onChange}:{label:string;value:ServerSettings['preview_mode'];busy:boolean;onChange:(value:ServerSettings['preview_mode'])=>void}) {
+ return <select aria-label={label} value={value} disabled={busy} onChange={e=>onChange(e.target.value as ServerSettings['preview_mode'])} className={inputClass+' max-w-full w-64 [&>option]:bg-surface'}>
+  <option value="off">Off</option><option value="scheduled">During maintenance</option><option value="added">When added and during maintenance</option>
+ </select>;
 }

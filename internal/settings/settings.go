@@ -14,8 +14,13 @@ import (
 
 // Settings are the server-wide settings.
 type Settings struct {
-	ScanAutomatic, ScanPartial, ScanOnStart bool
-	ScanIntervalHours                       int // 0 disables recurring discovery
+	loadedScanHours, loadedScanMinutes                          int
+	ScanAutomatic, ScanPartial, ScanOnStart                     bool
+	ScanIntervalMinutes                                         int
+	AnalysisEnabled, MetadataRefreshEnabled, AutoBackupsEnabled bool
+	PreviewMode, DetectionMode                                  string
+	BackgroundEpoch                                             int64
+	ScanIntervalHours                                           int // 0 disables recurring discovery
 
 	TMDBKey string
 	TVDBKey string
@@ -280,16 +285,68 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	} else if h, err := strconv.Atoi(v); err == nil && ValidScanInterval(h) {
 		s.ScanIntervalHours = h
 	}
+
+	for key, dest := range map[string]*bool{"analysis_enabled": &s.AnalysisEnabled, "metadata_refresh_enabled": &s.MetadataRefreshEnabled, "auto_backups_enabled": &s.AutoBackupsEnabled} {
+		v, err := get(key)
+		if err != nil {
+			return s, err
+		}
+		*dest = v != "0"
+	}
+	s.PreviewMode = "added"
+	if s.PreviewsAtNight {
+		s.PreviewMode = "scheduled"
+	}
+	s.DetectionMode = "scheduled"
+	if !s.DetectIntros {
+		s.DetectionMode = "off"
+	}
+	for key, dest := range map[string]*string{"preview_mode": &s.PreviewMode, "detection_mode": &s.DetectionMode} {
+		v, err := get(key)
+		if err != nil {
+			return s, err
+		}
+		if ValidProcessingMode(v) {
+			*dest = v
+		}
+	}
+	v, err = get("background_epoch")
+	if err != nil {
+		return s, err
+	}
+	s.BackgroundEpoch, _ = strconv.ParseInt(v, 10, 64)
+	s.ScanIntervalMinutes = s.ScanIntervalHours * 60
+	v, err = get("scan_interval_minutes")
+	if err != nil {
+		return s, err
+	}
+	if n, e := strconv.Atoi(v); e == nil && ValidScanMinutes(n) {
+		s.ScanIntervalMinutes = n
+		s.ScanIntervalHours = n / 60
+	}
+	s.loadedScanHours, s.loadedScanMinutes = s.ScanIntervalHours, s.ScanIntervalMinutes
 	return s, nil
 }
 
+func (s Settings) ScanMinutes() int {
+	if s.ScanIntervalHours != s.loadedScanHours && s.ScanIntervalMinutes == s.loadedScanMinutes {
+		return s.ScanIntervalHours * 60
+	}
+	return s.ScanIntervalMinutes
+}
+func ValidProcessingMode(v string) bool { return v == "off" || v == "scheduled" || v == "added" }
+func ValidScanMinutes(n int) bool {
+	return n == 0 || n == 15 || n == 30 || n == 60 || n == 120 || n == 360 || n == 720 || n == 1440
+}
+
 // ValidScanInterval reports the supported full-discovery intervals (hours).
-func ValidScanInterval(h int) bool { return h == 0 || h == 1 || h == 6 || h == 12 || h == 24 }
+func ValidScanInterval(h int) bool { return h == 0 || h == 1 || h == 2 || h == 6 || h == 12 || h == 24 }
 
 // Save stores the settings.
 func Save(ctx context.Context, st *store.Store, s Settings) error {
 	for key, v := range map[string]string{
-		keyScanAutomatic: boolString(s.ScanAutomatic), keyScanPartial: boolString(s.ScanPartial), keyScanOnStart: boolString(s.ScanOnStart), keyScanInterval: strconv.Itoa(s.ScanIntervalHours),
+		keyScanAutomatic: boolString(s.ScanAutomatic), keyScanPartial: boolString(s.ScanPartial), keyScanOnStart: boolString(s.ScanOnStart), keyScanInterval: strconv.Itoa(s.ScanMinutes() / 60),
+		"scan_interval_minutes": strconv.Itoa(s.ScanMinutes()), "analysis_enabled": boolString(s.AnalysisEnabled), "metadata_refresh_enabled": boolString(s.MetadataRefreshEnabled), "auto_backups_enabled": boolString(s.AutoBackupsEnabled), "preview_mode": s.PreviewMode, "detection_mode": s.DetectionMode,
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,

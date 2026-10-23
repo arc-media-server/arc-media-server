@@ -57,7 +57,8 @@ type Manager struct {
 	// Activity, if set, is told about each backup.
 	Activity *activity.Tracker
 	// Window, if set, is when the daily backup is taken.
-	Window *schedule.Window
+	Window  *schedule.Window
+	Allowed func() bool
 	// OnFail, if set, is told when an automatic backup fails.
 	OnFail func(error)
 }
@@ -231,6 +232,9 @@ func (m *Manager) Restore(ctx context.Context, name string) error {
 func (m *Manager) Run(ctx context.Context) {
 	var lastAttempt time.Time
 	check := func() {
+		if m.Allowed != nil && !m.Allowed() {
+			return
+		}
 		if time.Since(lastAttempt) < interval {
 			return
 		}

@@ -41,23 +41,25 @@ candidate stream. Missing evidence never means the whole bitstream was proven fr
 metadata. Metadata can occur later than the sampled prefix; profile/fallback and hybrid
 coverage are not exhaustive. The frame RPU profile is not treated as the consumer DV profile.
 
-Existing successful candidate files enrich gradually: at most **32 per library scan**, using
-existing scanner worker concurrency. Compact stream evidence and frame sampling share the
-same four-second budget, so declared DV profiles and newly reported audio profiles are captured
-without replacing basic metadata. Only files seen during that scan are eligible; unavailable
-roots cannot consume the front of every batch. The Activity phase is "Updating format labels"
-and these read attempts contribute to file-details-read counts. Basic file metadata, chapters,
-matching and watch history are retained. A saved attempt, including unavailable, is skipped
-on later unchanged scans. File size/time revisions and concurrent full probes are checked
-before saving; a new normal probe wins over stale enrichment.
+Existing successful candidate files enrich through the independent background analysis worker
+(#164), enabled during maintenance by default. Run now processes the current backlog outside
+that window while respecting playback/scanning priority. It continues across 32-row database
+pages; another scan is not required. Work resumes in later windows and after restarts.
+Offline/changed files do not block later files. Completed attempts remain skipped; failed
+work uses a retry delay. Normal new/changed-file import analysis remains automatic.
 
-Large libraries will need multiple scans for the backfill. With scheduled/startup scans off,
-manual scans still advance it. Already saved audio profiles need no backfill to display the
-richer audio names. Eligible backfilled files refresh structured audio profiles/layouts too; other existing
-files retain their saved metadata until a future normal probe. Layouts are not invented from
-channel counts. A failed optional attempt is not automatically retried
-on every scan; a changed/new file is probed again. There is no new tuning setting or mandatory
-library re-add. Real network-drive throughput and CPU/I/O costs still need deployment evidence.
+The shared scheduler admits one optional heavy analysis/preview/detection job at a time, with
+fair turns between waiting worker types. Compact source-format stream evidence and sampling
+share the same four-second per-file budget. Saved metadata, chapters, matching and watch history
+are retained. File path/size/time revisions and concurrent normal probes are checked before
+saving; restored settings invalidate in-flight scheduling leases.
+
+Already saved audio profiles need no background read to display richer codec names. Eligible
+backfill refreshes structured audio profiles/layouts too; other records retain their saved
+metadata until a normal file probe. Missing layouts are not inferred from channel counts.
+An optional sample saved as unavailable is not repeatedly read on unchanged scans; new/changed
+files are probed normally. Runtime job failures such as unavailable files remain pending and
+retry later. Real network-drive throughput and CPU/I/O costs still need deployment evidence.
 
 ## Verification boundary
 

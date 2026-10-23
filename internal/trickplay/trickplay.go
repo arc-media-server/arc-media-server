@@ -7,6 +7,7 @@ package trickplay
 
 import (
 	"ams/internal/activity"
+	"ams/internal/background"
 	"bufio"
 	"bytes"
 	"cmp"
@@ -63,7 +64,8 @@ type Manager struct {
 	failed map[int64]bool
 
 	// Activity, if set, is told while previews are being made.
-	Activity *activity.Tracker
+	Activity   *activity.Tracker
+	Background *background.Manager
 	// Allowed, if set, says whether previews may be made now for files nobody asked for yet.
 	Allowed func() bool
 }
@@ -132,11 +134,14 @@ func (m *Manager) Run(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		return
+	case <-m.wake:
 	case <-time.After(30 * time.Second): // let start-up scans go first
 	}
 	for {
 		if m.ffmpeg() != "" {
 			m.pass(ctx)
+		} else {
+			m.Background.AbandonTurn("previews")
 		}
 		select {
 		case <-ctx.Done():
@@ -149,6 +154,9 @@ func (m *Manager) Run(ctx context.Context) {
 
 // pass makes thumbnails for urgent files, then everything still without them.
 func (m *Manager) pass(ctx context.Context) {
+	if m.Background != nil && m.Background.Mode("previews") == "off" {
+		return
+	}
 	files, err := m.store.VideoFiles(ctx)
 	if err != nil {
 		m.log.Warn("listing files for scrubbing previews failed", "err", err)
@@ -158,21 +166,22 @@ func (m *Manager) pass(ctx context.Context) {
 	for _, f := range files {
 		byID[f.ID] = f
 	}
+	visited := map[int64]bool{}
 	next := func() (store.VideoFile, bool) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		for len(m.urgent) > 0 {
 			id := m.urgent[0]
 			m.urgent = m.urgent[1:]
-			if f, ok := byID[id]; ok && !m.failed[id] && m.Info(id) == nil {
+			if f, ok := byID[id]; ok && m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[id] && !visited[id] && m.Info(id) == nil {
 				return f, true
 			}
 		}
-		if m.Allowed != nil && !m.Allowed() {
+		if m.Background == nil && m.Allowed != nil && !m.Allowed() {
 			return store.VideoFile{}, false
 		}
 		for _, f := range files {
-			if !m.failed[f.ID] && m.Info(f.ID) == nil {
+			if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.Info(f.ID) == nil {
 				return f, true
 			}
 		}
@@ -184,11 +193,22 @@ func (m *Manager) pass(ctx context.Context) {
 	for ctx.Err() == nil {
 		f, ok := next()
 		if !ok {
+			if m.Background != nil {
+				m.Background.CompletePass("previews")
+			}
 			return
+		}
+		visited[f.ID] = true
+		work, finish, allowed := m.Background.BeginPreview(ctx, f.ID)
+		if !allowed {
+			if m.Background.Deferred("previews") {
+				return
+			}
+			continue
 		}
 		if task == nil {
 			for _, f := range files {
-				if !m.failed[f.ID] && m.Info(f.ID) == nil {
+				if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.Info(f.ID) == nil {
 					todo++
 				}
 			}
@@ -198,12 +218,20 @@ func (m *Manager) pass(ctx context.Context) {
 		task.Progress(done, max(todo, done))
 		task.Detail(filepath.Base(f.Path))
 		start := time.Now()
-		if err := m.make(ctx, f); err != nil {
+		err := m.make(work, f)
+		paused := work.Err() != nil
+		finish(err)
+		if paused {
+			return
+		}
+		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
 			m.mu.Lock()
-			m.failed[f.ID] = true
+			if m.Background == nil {
+				m.failed[f.ID] = true
+			}
 			m.mu.Unlock()
 			m.log.Warn("couldn't make scrubbing previews", "file", filepath.Base(f.Path), "err", err)
 			continue

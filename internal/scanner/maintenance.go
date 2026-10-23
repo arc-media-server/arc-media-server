@@ -10,6 +10,31 @@ import (
 // maintain deliberately reads known database titles, never the media directory tree.
 // The caller reserves the same per-library slot as discovery, preventing overlap.
 func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
+	root := ctx
+	if s.MaintenanceAllowed != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		go func(watch context.Context) {
+			timer := time.NewTicker(250 * time.Millisecond)
+			defer timer.Stop()
+			for {
+				select {
+				case <-watch.Done():
+					return
+				case <-timer.C:
+					if !s.MaintenanceAllowed() {
+						cancel()
+						return
+					}
+				}
+			}
+		}(ctx)
+		if !s.MaintenanceAllowed() {
+			s.update(libraryID, func(st *Status) { st.Phase = "Metadata refresh paused" })
+			return nil
+		}
+	}
 	lib, err := s.store.GetLibrary(ctx, libraryID)
 	if err != nil || lib == nil {
 		return err
@@ -27,6 +52,11 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		s.mu.Lock()
 		delete(s.tasks, libraryID)
 		s.mu.Unlock()
+		if ctx.Err() != nil && root.Err() == nil {
+			err = nil
+			s.update(libraryID, func(st *Status) { st.Phase = "Metadata refresh paused" })
+			task.Detail("Paused until maintenance can continue")
+		}
 		task.Finish(err)
 	}()
 	if lib.Kind == "movies" {
@@ -65,4 +95,22 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		}
 		return nil
 	})
+}
+
+// DiscoveryPending includes changes queued behind a maintenance lease on the same library.
+// They have no running Activity entry yet, so checking only active scans would miss them.
+func (s *Scanner) DiscoveryPending() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, pending := range s.again {
+		if pending {
+			return true
+		}
+	}
+	for _, paths := range s.pendingPaths {
+		if len(paths) > 0 {
+			return true
+		}
+	}
+	return false
 }

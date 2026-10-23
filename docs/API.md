@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-162 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+164 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -244,6 +244,13 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/logs` | admin | ?level=info&after=<seq> is the server's recent log lines, oldest first. |
 
+### maintenance
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/maintenance` | admin |  |
+| POST | `/api/maintenance/{kind}/run` | admin |  |
+
 ### me
 
 | Method | Path | Who | What it does |
@@ -354,7 +361,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/settings` | admin | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit) |
-| PATCH | `/api/settings` | admin | With any of "tmdb_api_key", "tvdb_api_key", "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider before being saved; a new port or network setting takes effect straight away. Global scanning: "scan_automatic", "scan_partial", "scan_on_start" (booleans), and "scan_interval_hours" (0, 1, 6, 12 or 24). Changes apply without restarting. |
+| PATCH | `/api/settings` | admin | With any of "tmdb_api_key", "tvdb_api_key", "ffprobe_path", "local_bypass", "port", "allow_network". Keys are checked with the provider before being saved; a new port or network setting takes effect straight away. Global scanning: "scan_automatic", "scan_partial", "scan_on_start" (booleans), and "scan_interval_minutes" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy "scan_interval_hours", processing modes (off/scheduled/added) and task enable switches. Changes apply without restarting. |
 
 ### stats
 

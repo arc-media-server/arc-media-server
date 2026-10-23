@@ -378,6 +378,9 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 
 /** Something being watched right now (Dashboard). */
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
+export type ProcessingMode = 'off' | 'scheduled' | 'added';
+export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean }
+
 export interface ActivityTask {
   id: number;
   kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers' | 'optimize';
@@ -827,6 +830,12 @@ export interface ServerSettings {
   scan_partial: boolean;
   scan_on_start: boolean;
   scan_interval_hours: number;
+  scan_interval_minutes: number;
+  preview_mode: ProcessingMode;
+  detection_mode: ProcessingMode;
+  analysis_enabled: boolean;
+  metadata_refresh_enabled: boolean;
+  auto_backups_enabled: boolean;
   maintenance_start: number;
   maintenance_end: number;
   /** Make scrubbing previews only in the maintenance window. */
@@ -939,7 +948,7 @@ export const api = {
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
@@ -1015,7 +1024,9 @@ export const api = {
   importSession: (id: string) => request<ImportSession>('GET', `/api/imports/${id}`),
   chooseImportServer: (id: string, serverId: string) => request<ImportSession>('POST', `/api/imports/${id}/server`, { server_id: serverId }),
   runImport: (id: string, profiles: Record<string, string>) => request<ImportSession>('POST', `/api/imports/${id}/run`, { profiles }),
-  activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[] }>('GET', '/api/activity'),
+  maintenance: () => request<ScheduledTask[]>('GET', '/api/maintenance'),
+  runMaintenance: (kind: string) => request<{ queued: boolean }>('POST', '/api/maintenance/' + kind + '/run'),
+  activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[]; scheduled?: ScheduledTask[] }>('GET', '/api/activity'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
   startPlayback: (
     itemId: string,
