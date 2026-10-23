@@ -363,3 +363,25 @@ func TestMonitorWakesWhenClockWindowOpensWhileServerStaysIdle(t *testing.T) {
 		t.Fatal("opening maintenance window did not wake an idle worker")
 	}
 }
+
+func TestAnalysisActivityIdentifiesLibraryAndFile(t *testing.T) {
+	ctx, st, m, lib := fixture(t)
+	f := savedFile(t, ctx, st, lib, "Example.Movie.mkv", 99)
+	calls := 0
+	m.analysisPass(ctx, func(context.Context, store.MediaFile) error {
+		calls++
+		running, _ := m.Activity.Snapshot()
+		if len(running) != 1 || running[0].Kind != "analysis" || running[0].Title != "Analyzing formats in Jobs" || len(running[0].Current) != 1 {
+			t.Fatalf("analysis activity: %+v", running)
+		}
+		op := running[0].Current[0]
+		if op.Subject != "Example.Movie.mkv" || op.Detail != "Example.Movie.mkv" || op.Stage != "Inspecting source formats" {
+			t.Fatalf("operation: %+v", op)
+		}
+		return st.SaveFormats(ctx, f)
+	})
+	running, recent := m.Activity.Snapshot()
+	if calls != 1 || len(running) != 0 || len(recent) != 1 || len(recent[0].Current) != 0 {
+		t.Fatalf("analysis cleanup: %d %+v %+v", calls, running, recent)
+	}
+}

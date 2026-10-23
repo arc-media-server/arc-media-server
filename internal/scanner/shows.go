@@ -80,6 +80,8 @@ func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, grou
 func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Configured() }
 
 func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *seriesGroup, log *slog.Logger) error {
+	ctx, finish := s.working(ctx, lib.ID, "Checking series", activityTitle(g.name.Title, g.name.Year), "Checking saved metadata and local artwork")
+	defer finish()
 	id, created, err := s.store.EnsureItem(ctx, &store.Item{
 		LibraryID: lib.ID, Kind: "series", Title: g.name.Title, Year: g.name.Year,
 		TVDBID: g.name.TVDBID, TMDBID: g.name.TMDBID, IMDBID: g.name.IMDBID,
@@ -152,6 +154,7 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 			if ctx.Err() != nil {
 				return err
 			}
+			s.update(lib.ID, func(st *Status) { st.MetadataErrors++ })
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
 			s.retryLater(lib.ID)
 		} else {
@@ -172,6 +175,7 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 	if unknown > 0 && canResync {
 		log.Info("unknown episodes found, refreshing metadata", "series", g.name.Title, "files", unknown)
 		if err := s.SyncSeriesMetadata(ctx, lib, id, false); err != nil {
+			s.update(lib.ID, func(st *Status) { st.MetadataErrors++ })
 			log.Warn("series metadata failed", "series", g.name.Title, "err", err)
 			s.retryLater(lib.ID)
 		}
@@ -207,6 +211,11 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if series == nil {
 		return fmt.Errorf("series %s not found", seriesID)
 	}
+	if currentWork(ctx) == nil {
+		var finish func()
+		ctx, finish = s.working(ctx, lib.ID, "Refreshing series", activityTitle(series.Title, series.Year), "Updating known metadata")
+		defer finish()
+	}
 	lib = forSeries(lib, series)
 	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	ctx = metadata.WithEssentialTV(ctx, "")
@@ -222,10 +231,12 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	tvdbID, tmdbID := series.TVDBID, series.TMDBID
 
 	fetchTVDB := func() error {
+		currentWork(ctx).Update("Fetching series and episodes", "TheTVDB")
 		ser, types, err := s.tvdb.Series(ctx, tvdbID)
 		if err != nil {
 			return fmt.Errorf("tvdb series %d: %w", tvdbID, err)
 		}
+		currentWork(ctx).Update("Fetching episode orders", "TheTVDB")
 		ords, err := s.tvdb.Orderings(ctx, tvdbID, types)
 		if err != nil {
 			return err
@@ -239,6 +250,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 
 	if s.tvdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tvdb") || series.DetailsProvider == "tvdb") {
+		currentWork(ctx).Update("Matching series", "TheTVDB")
 		if tvdbID == 0 {
 			if tvdbID, err = s.tvdb.SearchSeries(ctx, series.Title, series.Year); err != nil {
 				return fmt.Errorf("tvdb search: %w", err)
@@ -251,6 +263,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		}
 	}
 	if s.tmdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tmdb") || series.DetailsProvider != "tvdb") {
+		currentWork(ctx).Update("Matching series", "TMDB")
 		if tmdbID == 0 && tvdbID != 0 {
 			if tmdbID, err = s.tmdb.FindTV(ctx, strconv.FormatInt(tvdbID, 10), "tvdb_id"); err != nil {
 				return fmt.Errorf("tmdb find: %w", err)
@@ -267,6 +280,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 		}
 		if tmdbID != 0 {
+			currentWork(ctx).Update("Fetching series and episodes", "TMDB")
 			ser, ords, err := s.tmdb.TV(ctx, tmdbID)
 			if err != nil {
 				return fmt.Errorf("tmdb series %d: %w", tmdbID, err)
@@ -317,6 +331,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 	applyDetails(&it, primary.Details)
 	it.MetadataState = "matched"
+	currentWork(ctx).Update("Saving series details", "Saving metadata and artwork references")
 	if err := s.store.UpdateMetadata(ctx, &it); err != nil {
 		return err
 	}
@@ -351,6 +366,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			return err
 		}
 	}
+	currentWork(ctx).Update("Mapping episode orders", "Preserving episode identity across providers")
 	otherToCanon, err := s.mapEpisodes(ctx, series.ID, canon, tmdbID, canonEps, otherEps, deep)
 	if err != nil {
 		return err
@@ -393,7 +409,9 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 
 	itemFor := map[int64]string{}
-	for _, cid := range canonOrder {
+	currentWork(ctx).Update("Saving episodes", "Saving provider episode metadata")
+	currentWork(ctx).Progress(0, len(canonOrder))
+	for index, cid := range canonOrder {
 		e := canonEps[cid]
 		key := episodeKey(series.ID, canon, cid)
 		if fk, ok := sourcePos[cid]; ok {
@@ -425,8 +443,10 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			return err
 		}
 		itemFor[cid] = itemID
+		currentWork(ctx).Progress(index+1, len(canonOrder))
 	}
 
+	currentWork(ctx).Update("Saving episode orders", "Preserving provider and custom episode orders")
 	keep := map[int64]bool{}
 	for _, o := range orderings {
 		var entries []store.OrderingEntry
@@ -651,6 +671,13 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 	if err != nil {
 		return 0, err
 	}
+	if currentWork(ctx) == nil {
+		var finish func()
+		ctx, finish = s.working(ctx, lib.ID, "Linking episodes", activityTitle(series.Title, series.Year), "Using saved episode metadata")
+		defer finish()
+	}
+	currentWork(ctx).Update("Linking episodes", "Using saved episode metadata")
+	currentWork(ctx).Progress(0, len(files))
 	lib = forSeries(lib, series)
 	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
 	orderings, err := s.store.ListOrderings(ctx, seriesID)
@@ -704,7 +731,8 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 
 	var byDate map[string][]string
 	images := map[string]func(...string) string{}
-	for _, f := range files {
+	for index, f := range files {
+		currentWork(ctx).Progress(index, len(files))
 		var ids []string
 		missing := false
 		switch {
@@ -769,6 +797,7 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 			}
 		}
 	}
+	currentWork(ctx).Progress(len(files), len(files))
 	return unknown, nil
 }
 

@@ -669,6 +669,50 @@ test('background scheduling exposes modes, task controls and recoverable Run now
   await page.screenshot({ path: info.outputPath('scheduled-work-phone.png'), fullPage: true });
 });
 
+test('Activity shows concurrent titles, actual stages, file details and complete summaries', async ({ page }, info) => {
+  const now = new Date().toISOString();
+  await page.route('**/api/activity', route => route.fulfill({ json: {
+    running: [
+      { id: 10, kind: 'scan', title: 'Scanning Movies', detail: 'Checking files and titles · 420 files checked', started_at: now, current: [
+        { id: 1, stage: 'Matching movie', subject: 'Dune (2021)', detail: 'Looking up metadata on TMDB' },
+        { id: 2, stage: 'Inspecting file', subject: 'The Last Observatory: Beyond the Northern Horizon (2026)', detail: 'The.Last.Observatory.2026.2160p.TrueHD.Atmos.mkv' },
+        { id: 3, stage: 'Saving movie details', subject: 'Arrival (2016)', detail: 'Saving metadata and artwork references' },
+      ] },
+      { id: 11, kind: 'scan', title: 'Scanning Series', detail: 'Checking files and titles · 30 files checked', started_at: now, current: [
+        { id: 4, stage: 'Linking episodes', subject: 'Severance', detail: 'Using saved episode metadata', done: 6, total: 10 },
+      ] },
+      { id: 12, kind: 'analysis', title: 'Analyzing formats in Movies', detail: 'Background video, audio and HDR inspection', started_at: now, current: [
+        { id: 5, stage: 'Inspecting source formats', subject: 'Blade Runner (1982)', detail: 'Blade.Runner.1982.mkv' },
+      ] },
+    ],
+    recent: [{ id: 9, kind: 'scan', title: 'Scanning Completed Library', started_at: now, finished_at: now,
+      detail: '420 files checked · 3 file details read · 416 reused saved details · 1 inspection error · 2 identified · 1 not matched', error: 'Stopped before it finished' }],
+  } }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await page.getByRole('button', { name: /^Activity/ }).click();
+    const panel = page.locator('[data-radix-popper-content-wrapper]');
+    await expect(panel.getByText('Matching movie · Dune (2021)', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Inspecting file · The Last Observatory: Beyond the Northern Horizon (2026)', { exact: true })).toBeVisible();
+    await expect(panel.getByText('6 of 10', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Inspecting source formats · Blade Runner (1982)', { exact: true })).toBeVisible();
+    await expect(panel.getByText(/\d+%/, { exact: true })).toHaveCount(0); // Discovery totals are unknown.
+    await panel.getByText('Show 1 more active operation', { exact: true }).click();
+    await expect(panel.getByText('Saving movie details · Arrival (2016)', { exact: true })).toBeVisible();
+    const file = panel.getByText('Inspecting file · The Last Observatory: Beyond the Northern Horizon (2026)', { exact: true }).locator('..');
+    await file.getByText('Details', { exact: true }).click();
+    await expect(file.getByText('The.Last.Observatory.2026.2160p.TrueHD.Atmos.mkv', { exact: true })).toBeVisible();
+    await expect(panel.getByText(/416 reused saved details/)).toBeVisible();
+    await expect(panel.getByText('Stopped before it finished', { exact: true })).toBeVisible();
+    expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await panel.getByText('Matching movie · Dune (2021)', { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath(`activity-titles-${width}.png`), animations: 'disabled' });
+    await page.keyboard.press('Escape');
+  }
+});
+
 test('Activity distinguishes paused background work from running foreground work', async ({ page }) => {
   await seed(page);
   await page.route('**/api/activity', r => r.fulfill({ json: { running: [], recent: [], scheduled: [

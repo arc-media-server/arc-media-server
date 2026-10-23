@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"ams/internal/activity"
 	"ams/internal/metadata"
 	"ams/internal/store"
+	"strings"
 )
 
 func TestMaintenanceRefreshesKnownTitlesWithoutDiscoveringFiles(t *testing.T) {
@@ -38,6 +40,7 @@ func TestMaintenanceRefreshesKnownTitlesWithoutDiscoveringFiles(t *testing.T) {
 				}
 			})
 			st, s, lib, root := libraryFixture(t, kind, map[string]string{"Undiscovered/Undiscovered S01E01.mkv": "fixture"})
+			s.Activity = activity.New()
 			ctx := context.Background()
 			itemKind, tmdb := "movie", int64(101)
 			if kind == "shows" {
@@ -62,6 +65,12 @@ func TestMaintenanceRefreshesKnownTitlesWithoutDiscoveringFiles(t *testing.T) {
 			case <-entered:
 			case <-time.After(5 * time.Second):
 				t.Fatal("known title not refreshed")
+			}
+			running, _ := s.Activity.Snapshot()
+			if len(running) != 1 || len(running[0].Current) != 1 || !strings.Contains(running[0].Current[0].Subject, title) || !strings.Contains(running[0].Current[0].Detail, "TMDB") {
+				close(release)
+				s.Wait()
+				t.Fatalf("held refresh activity: %+v", running)
 			}
 			if s.Maintain(lib) || s.Start(lib) {
 				t.Fatal("concurrent library work admitted")

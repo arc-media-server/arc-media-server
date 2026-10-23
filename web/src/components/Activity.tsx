@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
 import { Link } from 'react-router';
 import { AlertCircle, Check, LayoutDashboard, Loader2, Zap } from 'lucide-react';
-import { api, type ActivityTask } from '@/lib/api';
+import { api, type ActivityOperation, type ActivityTask } from '@/lib/api';
 import { useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
@@ -111,10 +111,10 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
               <li key={t.id} className="flex items-start gap-2.5 text-sm">
                 {t.error ? <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" /> : <Check className="mt-0.5 size-4 shrink-0 text-subtle" />}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate">{t.title}</p>
-                  <p className={cn('truncate text-xs', t.error ? 'text-warning' : 'text-subtle')}>
-                    {t.error ?? [since(t.finished_at!), t.kind === 'scan' ? t.detail : `took ${took(t)}`].filter(Boolean).join(' · ')}
-                  </p>
+                  <p className="break-words">{t.title}</p>
+                  {t.detail && <p className="mt-0.5 break-words text-xs text-muted">{t.detail}</p>}
+                  {t.error && <p className="mt-0.5 break-words text-xs text-warning">{t.error}</p>}
+                  <p className="mt-0.5 text-xs text-subtle">{since(t.finished_at!)} · took {took(t)}</p>
                 </div>
               </li>
             ))}
@@ -130,18 +130,36 @@ function RunningTask({ task: t }: { task: ActivityTask }) {
   return (
     <li>
       <div className="flex items-baseline justify-between gap-3 text-sm">
-        <p className="truncate font-medium">{t.title}</p>
+        <p className="min-w-0 break-words font-medium">{t.title}</p>
         {pct !== null && <span className="shrink-0 text-xs tabular-nums text-subtle">{pct}%</span>}
       </div>
-      {t.detail && <p className="mt-0.5 truncate text-xs text-subtle">{t.detail}</p>}
+      {t.detail && <p className="mt-0.5 break-words text-xs text-subtle">{t.detail}</p>}
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-3">
         <div
           className={cn('h-full rounded-full bg-accent transition-all duration-500', pct === null && 'w-1/3 animate-pulse')}
-          style={pct === null ? undefined : { width: `${Math.max(pct, 2)}%` }}
+          style={pct === null ? undefined : { width: `${pct}%` }}
         />
       </div>
+      {!!t.current?.length && <div className="mt-3 space-y-2 border-l-2 border-border pl-3">
+        {t.current.slice(0, 2).map(work => <CurrentOperation key={work.id} work={work} />)}
+        {t.current.length > 2 && <details>
+          <summary className="cursor-pointer py-1 text-xs font-medium text-accent">Show {t.current.length - 2} more active {t.current.length === 3 ? 'operation' : 'operations'}</summary>
+          <div className="mt-2 space-y-2">{t.current.slice(2).map(work => <CurrentOperation key={work.id} work={work} />)}</div>
+        </details>}
+      </div>}
     </li>
   );
+}
+
+function CurrentOperation({ work }: { work: ActivityOperation }) {
+  return <div className="min-w-0 text-xs">
+    <p className="break-words font-medium">{work.stage} · {work.subject}</p>
+    {!!work.total && <p className="mt-0.5 text-subtle">{work.done ?? 0} of {work.total}</p>}
+    {work.detail && <details className="mt-0.5">
+      <summary className="cursor-pointer py-0.5 text-subtle">Details</summary>
+      <p className="break-words py-1 text-muted">{work.detail}</p>
+    </details>}
+  </div>;
 }
 
 /** "just now", "4 min ago", "2 h ago". */

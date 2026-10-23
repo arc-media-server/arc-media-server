@@ -20,6 +20,8 @@ type Task struct {
 	Title string `json:"title"`
 	// What it's doing now, e.g. "Looking through folders · 120 files".
 	Detail string `json:"detail,omitempty"`
+	// Independently tracked concurrent operations; never a last-worker-wins label.
+	Current []Operation `json:"current,omitempty"`
 	// Progress, when it's known: Done of Total.
 	Done       int       `json:"done,omitempty"`
 	Total      int       `json:"total,omitempty"`
@@ -28,12 +30,24 @@ type Task struct {
 	Error      string    `json:"error,omitempty"`
 }
 
+// Operation is one active title/file within a task. Detail contains a filename or
+// short explanation, not a full media path or provider response.
+type Operation struct {
+	ID      int64  `json:"id"`
+	Stage   string `json:"stage"`
+	Subject string `json:"subject"`
+	Detail  string `json:"detail,omitempty"`
+	Done    int    `json:"done,omitempty"`
+	Total   int    `json:"total,omitempty"`
+}
+
 // Tracker holds the running tasks and the last few finished ones. A nil Tracker tracks nothing.
 type Tracker struct {
-	mu      sync.Mutex
-	next    int64
-	running []*Task
-	recent  []Task
+	mu            sync.Mutex
+	next          int64
+	nextOperation int64
+	running       []*Task
+	recent        []Task
 }
 
 func New() *Tracker { return &Tracker{} }
@@ -72,6 +86,62 @@ func (h *Handle) Detail(s string) { h.set(func(t *Task) { t.Detail = s }) }
 // Progress sets how far through the task is (total 0 for unknown).
 func (h *Handle) Progress(done, total int) { h.set(func(t *Task) { t.Done, t.Total = done, total }) }
 
+// Work reports one concurrent operation. The bound exceeds current scanner worker
+// counts; reporting never creates an unbounded per-file history.
+func (h *Handle) Work(stage, subject, detail string) *Work {
+	if h == nil {
+		return nil
+	}
+	h.t.mu.Lock()
+	defer h.t.mu.Unlock()
+	if !h.task.FinishedAt.IsZero() || len(h.task.Current) >= 16 {
+		return nil
+	}
+	h.t.nextOperation++
+	id := h.t.nextOperation
+	h.task.Current = append(h.task.Current, Operation{ID: id, Stage: stage, Subject: subject, Detail: detail})
+	return &Work{h: h, id: id}
+}
+
+// Work is scoped to a worker; finish it on every exit, including cancellation.
+type Work struct {
+	h  *Handle
+	id int64
+}
+
+func (w *Work) change(fn func(*Operation)) {
+	if w == nil {
+		return
+	}
+	w.h.set(func(t *Task) {
+		for i := range t.Current {
+			if t.Current[i].ID == w.id {
+				fn(&t.Current[i])
+				return
+			}
+		}
+	})
+}
+func (w *Work) Update(stage, detail string) {
+	w.change(func(o *Operation) { o.Stage, o.Detail, o.Done, o.Total = stage, detail, 0, 0 })
+}
+func (w *Work) Progress(done, total int) {
+	w.change(func(o *Operation) { o.Done, o.Total = done, total })
+}
+func (w *Work) Finish() {
+	if w == nil {
+		return
+	}
+	w.h.set(func(t *Task) {
+		for i, o := range t.Current {
+			if o.ID == w.id {
+				t.Current = append(t.Current[:i], t.Current[i+1:]...)
+				return
+			}
+		}
+	})
+}
+
 // Finish ends the task, with the error that stopped it (nil when it went fine).
 func (h *Handle) Finish(err error) {
 	if h == nil {
@@ -81,6 +151,7 @@ func (h *Handle) Finish(err error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	h.task.FinishedAt = time.Now()
+	h.task.Current = nil
 	switch {
 	case errors.Is(err, context.Canceled) || err != nil && strings.HasSuffix(err.Error(), context.Canceled.Error()):
 		// e.g. the page that asked for a refresh was closed, or Arc is stopping.
@@ -109,7 +180,9 @@ func (t *Tracker) Snapshot() (running, recent []Task) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, r := range t.running {
-		running = append(running, *r)
+		copy := *r
+		copy.Current = append([]Operation(nil), r.Current...)
+		running = append(running, copy)
 	}
 	return running, append(recent, t.recent...)
 }

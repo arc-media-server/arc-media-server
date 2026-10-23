@@ -206,6 +206,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Unify background analysis and maintenance scheduling, processing modes, resumable work and task controls (#164; isolated evidence in READINESS)
 - [x] Avoid the slow Azure HTTP package mirror in CI media prerequisite installation (#165; hosted verification remains separate)
 - [x] Consolidate management pages under Settings and link Dashboard from Activity (#166; desktop/phone navigation and profile-boundary checks in READINESS)
+- [x] Explain active scan/matching/inspection work by title, preserving concurrent operations and truthful reused/error summaries (#167; isolated backend/browser evidence in READINESS)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

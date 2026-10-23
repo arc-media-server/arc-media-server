@@ -200,6 +200,18 @@ func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string
 	return tx.Commit()
 }
 
+// FileActivityTitle provides a display title for actual inspection work only. It is
+// not used in the unchanged-file discovery hot path. A multi-episode file uses its
+// series title; the filename identifies the inspected source separately.
+func (s *Store) FileActivityTitle(ctx context.Context, fileID int64) (string, error) {
+	var title string
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(p.title, ''), i.title)
+		FROM item_files f JOIN items i ON i.id = f.item_id
+		LEFT JOIN items p ON p.id = i.parent_id
+		WHERE f.file_id = ? ORDER BY i.id LIMIT 1`, fileID).Scan(&title)
+	return title, err
+}
+
 // ItemFiles returns an item's files (including missing ones) with their streams, ordered by part.
 func (s *Store) ItemFiles(ctx context.Context, itemID string) ([]MediaFile, error) {
 	rows, err := s.db.QueryContext(ctx, `

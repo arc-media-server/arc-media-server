@@ -162,6 +162,9 @@ export interface ScanStatus {
   finished_at?: string;
   files_seen: number;
   files_probed: number;
+  files_reused?: number;
+  probe_errors?: number;
+  metadata_errors?: number;
   new_items: number;
   files_missing: number;
   matched: number;
@@ -383,15 +386,25 @@ export interface ScheduledTask { kind: string; title: string; state: string; det
 
 export interface ActivityTask {
   id: number;
-  kind: 'scan' | 'refresh' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers' | 'optimize';
+  kind: 'scan' | 'refresh' | 'analysis' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers' | 'optimize';
   title: string;
   /** What it's doing now, e.g. "Matching movies · 3 of 40". */
   detail?: string;
+  current?: ActivityOperation[];
   done?: number;
   total?: number;
   started_at: string;
   finished_at?: string;
   error?: string;
+}
+
+export interface ActivityOperation {
+  id: number;
+  stage: string;
+  subject: string;
+  detail?: string;
+  done?: number;
+  total?: number;
 }
 
 /** An address Arc posts events to. */

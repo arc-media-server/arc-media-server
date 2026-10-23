@@ -35,6 +35,7 @@ func (s *Scanner) finishSecondary(ctx context.Context, lib *store.Library, q *se
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
+			s.update(lib.ID, func(st *Status) { st.MetadataErrors++ })
 			s.log.Warn("alternate episode orders deferred", "series", id, "err", err)
 			s.retryLater(lib.ID)
 			return nil // The essential, playable ordering remains intact.

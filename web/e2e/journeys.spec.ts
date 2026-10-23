@@ -37,6 +37,12 @@ for (const shows of [false, true]) {
       await expect(dialog).not.toBeVisible();
       const status = await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json();
       expect(status.running).toBe(true);
+      await expect.poll(async () => {
+        const activity = await (await page.request.get('/api/activity')).json();
+        return activity.running.some((task: { current?: { subject: string; stage: string; detail?: string }[] }) =>
+          task.current?.some(work => work.subject.includes(shows ? 'Arc Show' : 'Arc Movie') &&
+            /Matching|Fetching/.test(work.stage) && work.detail?.includes('TMDB')));
+      }).toBe(true);
       await expect(page.locator('aside').getByRole('link', { name: shows ? 'Background TV' : 'Background movies', exact: true })).toBeVisible();
       expect(previews).toBe(0);
       await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running, { timeout: 30_000 }).toBe(false);

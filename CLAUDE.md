@@ -37,6 +37,15 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Scan Activity (#167, 23 October): each library task now exposes bounded concurrent
+  movie/series/file operations with actual matching/provider, metadata/episode-saving,
+  cached-linking and inspection stages. Independent format analysis names its library/file.
+  Unknown discovery totals stay indeterminate; summaries separate reused details, successful
+  reads and inspection/deferred-metadata/unrecognised-file problems. Activity wraps titles and
+  summaries, with extra operations/filenames expandable. No matching/probing policy change or
+  migration. Affected Go/API tests, tracker/scanner/background race checks, production/app/e2e
+  TypeScript and six focused browser journeys pass; plan/evidence in docs/SCAN-ACTIVITY-PLAN.md
+  and READINESS. Real owner-library/device acceptance remains separate.
 - Settings navigation (#166, 23 October): management pages now share a Settings rail
   grouped by Server, Libraries, Playback, People & access and Maintenance, alongside personal
   preferences. The desktop Manage group and phone Manage menu are replaced by Settings;

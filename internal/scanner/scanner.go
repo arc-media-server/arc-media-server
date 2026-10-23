@@ -55,15 +55,18 @@ type extraFile struct {
 }
 
 type Status struct {
-	Running     bool      `json:"running"`
-	StartedAt   time.Time `json:"started_at,omitzero"`
-	FinishedAt  time.Time `json:"finished_at,omitzero"`
-	FilesSeen   int       `json:"files_seen"`
-	FilesProbed int       `json:"files_probed"`
-	NewItems    int       `json:"new_items"`
-	Missing     int64     `json:"files_missing"`
-	Matched     int       `json:"matched"`
-	Unmatched   int       `json:"unmatched"`
+	Running        bool      `json:"running"`
+	StartedAt      time.Time `json:"started_at,omitzero"`
+	FinishedAt     time.Time `json:"finished_at,omitzero"`
+	FilesSeen      int       `json:"files_seen"`
+	FilesProbed    int       `json:"files_probed"`
+	FilesReused    int       `json:"files_reused"`
+	ProbeErrors    int       `json:"probe_errors"`
+	MetadataErrors int       `json:"metadata_errors"`
+	NewItems       int       `json:"new_items"`
+	Missing        int64     `json:"files_missing"`
+	Matched        int       `json:"matched"`
+	Unmatched      int       `json:"unmatched"`
 	// Video files in a TV library that couldn't be read as an episode.
 	Unrecognised int    `json:"not_recognised"`
 	Error        string `json:"error,omitempty"`
@@ -78,7 +81,19 @@ type Status struct {
 
 // summary separates files checked from details actually read and titles identified.
 func (st Status) summary() string {
-	parts := []string{fmt.Sprintf("%d files checked", st.FilesSeen), fmt.Sprintf("%d file details read", st.FilesProbed)}
+	parts := []string{fmt.Sprintf("%d files checked", st.FilesSeen), fmt.Sprintf("%d file details read", max(0, st.FilesProbed-st.ProbeErrors))}
+	if st.FilesReused > 0 {
+		parts = append(parts, fmt.Sprintf("%d reused saved details", st.FilesReused))
+	}
+	if st.ProbeErrors > 0 {
+		parts = append(parts, fmt.Sprintf("%d inspection error%s", st.ProbeErrors, pluralSuffix(st.ProbeErrors)))
+	}
+	if st.MetadataErrors > 0 {
+		parts = append(parts, fmt.Sprintf("%d metadata update%s deferred", st.MetadataErrors, pluralSuffix(st.MetadataErrors)))
+	}
+	if st.Unrecognised > 0 {
+		parts = append(parts, fmt.Sprintf("%d unrecognised file%s", st.Unrecognised, pluralSuffix(st.Unrecognised)))
+	}
 	if st.Matched > 0 {
 		parts = append(parts, fmt.Sprintf("%d identified", st.Matched))
 	}
@@ -94,14 +109,23 @@ func (st Status) summary() string {
 	return strings.Join(parts, " · ")
 }
 
+func pluralSuffix(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
 // describe says what a running scan is doing, for the Activity menu.
 func (st Status) describe() string {
 	var parts []string
 	switch {
 	case st.Phase == "":
 		parts = append(parts, fmt.Sprintf("Looking through folders · %d files", st.FilesSeen))
+	case st.Phase == "Checking files and titles":
+		parts = append(parts, fmt.Sprintf("Checking files and titles · %d files checked", st.FilesSeen))
 	case st.Total > 0:
-		parts = append(parts, fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 1), st.Total))
+		parts = append(parts, fmt.Sprintf("%s · %d of %d", st.Phase, max(min(st.Done, st.Total), 0), st.Total))
 	default:
 		parts = append(parts, st.Phase)
 	}
@@ -286,7 +310,11 @@ func (s *Scanner) update(libraryID int64, fn func(*Status)) {
 	fn(st)
 	if h := s.tasks[libraryID]; h != nil {
 		h.Detail(st.describe())
-		h.Progress(st.Done, st.Total)
+		if st.Phase == "Checking files and titles" {
+			h.Progress(0, 0)
+		} else {
+			h.Progress(st.Done, st.Total)
+		}
 	}
 	s.mu.Unlock()
 }
@@ -699,6 +727,8 @@ func (s *Scanner) linkExtras(ctx context.Context, lib *store.Library, extras []e
 // recordFile stores a file and marks it seen in this scan. A new or changed file is read with
 // ffprobe now if probeNow, otherwise later by probePending, so titles can be matched first.
 func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path string, d fs.DirEntry, scanStart int64, probeNow bool) (int64, error) {
+	ctx, finish := s.working(ctx, lib.ID, "Checking file", filepath.Base(path), "Checking for changes")
+	defer finish()
 	info, err := d.Info()
 	if err != nil {
 		return 0, err
@@ -711,6 +741,9 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	}
 	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
 	if unchanged && (existing.Probed || !probeNow) {
+		if existing.Probed {
+			s.update(lib.ID, func(st *Status) { st.FilesReused++ })
+		}
 		if seen, _ := ctx.Value(seenKey{}).(*seenFiles); seen != nil {
 			seen.ids = append(seen.ids, existing.ID)
 			if len(seen.ids) >= 256 {
@@ -728,12 +761,18 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	if err != nil {
 		return 0, err
 	}
-	s.update(lib.ID, func(st *Status) { st.FilesProbed++ })
+	s.update(lib.ID, func(st *Status) {
+		st.FilesProbed++
+		if f.ProbeError != "" {
+			st.ProbeErrors++
+		}
+	})
 	return fileID, nil
 }
 
 // saveProbed reads a file with ffprobe and stores what's in it (or why it couldn't be read).
 func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int64) (int64, error) {
+	currentWork(ctx).Update("Inspecting file", "Reading video, audio and HDR details · "+filepath.Base(f.Path))
 	var probedAt int64
 	if res, err := s.prober.Probe(ctx, f.Path); err != nil {
 		if ctx.Err() != nil {
@@ -766,11 +805,23 @@ func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStar
 	s.phase(lib.ID, "Reading file details", len(files))
 	return each(ctx, len(files), probeWorkers, func(i int) error {
 		f := files[i]
+		title, _ := s.store.FileActivityTitle(ctx, f.ID)
+		if title == "" {
+			title = filepath.Base(f.Path)
+		}
+		ctx, finish := s.working(ctx, lib.ID, "Inspecting file", title, filepath.Base(f.Path))
+		defer finish()
 		probe := store.MediaFile{LibraryID: lib.ID, Path: f.Path, Size: f.Size, ModTime: f.ModTime}
 		if _, err := s.saveProbed(ctx, &probe, max(f.LastSeen, scanStart)); err != nil {
 			return err
 		}
-		s.update(lib.ID, func(st *Status) { st.FilesProbed++; st.Done++ })
+		s.update(lib.ID, func(st *Status) {
+			st.FilesProbed++
+			st.Done++
+			if probe.ProbeError != "" {
+				st.ProbeErrors++
+			}
+		})
 		return nil
 	})
 }
@@ -922,6 +973,8 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 	if it == nil || it.MetadataState != "pending" {
 		return nil
 	}
+	ctx, finish := s.working(ctx, libraryID, "Matching movie", activityTitle(it.Title, it.Year), "Looking up metadata on TMDB")
+	defer finish()
 	tctx, save := s.traced(ctx, it.ID)
 	m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
 	save()
@@ -931,6 +984,7 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 		}
 		// Leave the item pending so the next scan retries it.
 		s.log.Warn("tmdb lookup failed", "title", it.Title, "year", it.Year, "err", err)
+		s.update(libraryID, func(st *Status) { st.MetadataErrors++ })
 		s.retryLater(libraryID)
 		return nil
 	}
@@ -938,6 +992,7 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 		s.update(libraryID, func(st *Status) { st.Unmatched++ })
 		return s.store.SetMetadataState(ctx, it.ID, "unmatched")
 	}
+	currentWork(ctx).Update("Saving movie details", "Saving metadata and artwork references")
 	if err := s.saveMovie(ctx, *it, m); err != nil {
 		return err
 	}
@@ -1023,6 +1078,7 @@ func (s *Scanner) refreshMovies(ctx context.Context, libraryID int64, retryDisco
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
+			s.update(libraryID, func(st *Status) { st.MetadataErrors++ })
 			s.log.Warn("refreshing movie failed", "title", items[i].Title, "err", err)
 			if retryDiscovery {
 				s.retryLater(libraryID)
@@ -1059,6 +1115,8 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	if it.MetadataState == "locked" {
 		return true, nil // a home video: nothing to look up
 	}
+	ctx, finish := s.working(ctx, it.LibraryID, "Refreshing movie", activityTitle(it.Title, it.Year), "Looking up metadata on TMDB")
+	defer finish()
 	ctx = s.inLanguage(ctx, it.LibraryID)
 	tctx, save := s.traced(ctx, it.ID)
 	m, err := s.tmdb.MatchMovie(tctx, it.Title, it.Year, it.TMDBID, it.IMDBID)
@@ -1069,6 +1127,7 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	if m == nil {
 		return false, s.store.SetMetadataState(ctx, it.ID, "unmatched")
 	}
+	currentWork(ctx).Update("Saving movie details", "Saving metadata and artwork references")
 	return true, s.saveMovie(ctx, *it, m)
 }
 

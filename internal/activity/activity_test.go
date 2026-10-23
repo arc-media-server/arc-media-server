@@ -2,6 +2,8 @@ package activity
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -29,4 +31,50 @@ func TestTracker(t *testing.T) {
 	if r, _ := none.Snapshot(); len(r) != 0 {
 		t.Error("nil tracker has tasks")
 	}
+}
+
+func TestConcurrentWorkSnapshotsAndCleanup(t *testing.T) {
+	tr := New()
+	a, b := tr.Start("scan", "Movies"), tr.Start("scan", "Series")
+	first := a.Work("Matching movie", "First", "TMDB")
+	second := a.Work("Inspecting file", "Second", "Second.mkv")
+	other := b.Work("Linking episodes", "Example Show", "Saved metadata")
+	running, _ := tr.Snapshot()
+	running[0].Current[0].Subject = "mutated snapshot"
+	first.Update("Saving movie details", "Artwork references")
+	second.Progress(0, 10)
+	running, _ = tr.Snapshot()
+	if len(running[0].Current) != 2 || running[0].Current[0].Subject != "First" || running[1].Current[0].Subject != "Example Show" {
+		t.Fatalf("concurrent operations: %+v", running)
+	}
+	first.Finish()
+	running, _ = tr.Snapshot()
+	if len(running[0].Current) != 1 || running[0].Current[0].Subject != "Second" {
+		t.Fatalf("wrong worker removed: %+v", running)
+	}
+	var wg sync.WaitGroup
+	for n := range 6 {
+		wg.Go(func() {
+			for range 100 {
+				w := a.Work("Inspecting file", fmt.Sprint(n), "File")
+				w.Update("Saving", "Details")
+				tr.Snapshot()
+				w.Finish()
+			}
+		})
+	}
+	wg.Wait()
+	a.Finish(nil)
+	second.Update("late update", "Must not reappear")
+	second.Finish()
+	_, recent := tr.Snapshot()
+	if len(recent) != 1 || len(recent[0].Current) != 0 {
+		t.Fatalf("finished work leaked: %+v", recent)
+	}
+	other.Finish()
+	var none *Handle
+	w := none.Work("Stage", "Title", "Detail")
+	w.Update("Stage", "Detail")
+	w.Progress(0, 0)
+	w.Finish()
 }
