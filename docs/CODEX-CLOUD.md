@@ -16,6 +16,10 @@ background format analysis is separate, and completed scans distinguish reused d
 inspection/metadata problems. See [SCAN-ACTIVITY-PLAN.md](SCAN-ACTIVITY-PLAN.md) and READINESS
 for the implementation, actual fixture results and limits. No owner data was used.
 
+Library management (#168): individual Scan and Scan all libraries now live in Settings →
+Manage libraries. Running scans are left alone, request failures show per-row Retry, and
+Activity carries detailed progress. Focused desktop/phone results are in READINESS.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

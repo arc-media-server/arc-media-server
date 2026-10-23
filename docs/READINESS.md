@@ -1,5 +1,26 @@
 # Stability and release readiness
 
+## Manage libraries scan actions (#168, 23 October 2026)
+
+Settings → Manage libraries now offers Scan all libraries beside Add Library and a Scan
+action per library. Bulk requests use the existing admin endpoint for idle libraries only;
+already-running scans continue. Request-pending and running buttons are disabled. Each request
+settles independently, so one failure does not prevent other libraries starting; affected rows
+show the error and Retry. Bulk feedback counts accepted/failed requests, not completed scans.
+Activity remains the source of detailed progress/results. All-running and empty states are
+handled; Edit/Remove/Add remain available and row actions wrap on phones. No backend or
+matching/scheduling policy changes, migrations or new settings.
+
+Production build/app TypeScript, e2e TypeScript and diff checks passed. Three focused Chromium
+journeys passed without retries (27.2 seconds): individual request/pending guard, bulk idle-only
+requests, 503 partial failure/retry without repeating accepted requests, all-running/empty state,
+390px layout without overflow, existing Settings/Activity navigation and ordinary-profile
+management protection. Real local scan endpoints were used; already-running status and one
+503 were browser fixtures. Actual desktop/phone screenshots were inspected. Tests used only
+temporary libraries, generated clips and local providers; no owner data/settings/media/Unraid.
+Evidence: `/workspace/arc-cloud-evidence/manage-library-scans/`. No unrelated Go/race/full-browser
+suite rerun for this UI-only change. Hosted image publication and owner deployment remain separate.
+
 ## Scan, matching and inspection Activity (#167, 23 October 2026)
 
 Plan: [SCAN-ACTIVITY-PLAN.md](SCAN-ACTIVITY-PLAN.md). Each library task reports a bounded

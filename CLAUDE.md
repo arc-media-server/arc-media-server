@@ -37,6 +37,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Manage libraries scans (#168, 23 October): Settings → Manage libraries offers Scan all
+  libraries and a Scan button per row. Bulk requests only idle libraries, keeps running scans
+  untouched and reports partial failures beside the affected library with Retry. Pending/running
+  state prevents repeated requests; Add/Edit/Remove remain available and phone actions wrap.
+  Existing admin scan endpoints/policies are unchanged. Production/app/e2e TypeScript and three
+  focused browser journeys pass; results and deployment limits are recorded in READINESS.
 - Scan Activity (#167, 23 October): each library task now exposes bounded concurrent
   movie/series/file operations with actual matching/provider, metadata/episode-saving,
   cached-linking and inspection stages. Independent format analysis names its library/file.

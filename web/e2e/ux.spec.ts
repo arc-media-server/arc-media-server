@@ -47,6 +47,69 @@ for (const shows of [false, true]) {
   });
 }
 
+test('Manage libraries requests individual and bulk scans with running guards and partial retry', async ({ page }, info) => {
+  await expect(page.getByRole('button', { name: 'Scan all libraries', exact: true })).toHaveCount(0);
+  const { lib: movies } = await seed(page);
+  const others: Library[] = [];
+  for (const [name, kind, path] of [['Series fixtures', 'shows', media.shows], ['Empty fixtures', 'movies', media.empty]]) {
+    const result = await page.request.post('/api/libraries', { data: { name, kind, paths: [path] } });
+    expect(result.ok()).toBe(true);
+    const lib: Library = await result.json(); others.push(lib);
+    await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  }
+  const [shows, empty] = others;
+  const posts: number[] = [];
+  page.on('request', request => {
+    const match = new URL(request.url()).pathname.match(/^\/api\/libraries\/(\d+)\/scan$/);
+    if (match && request.method() === 'POST') posts.push(Number(match[1]));
+  });
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const movieScan = '**/api/libraries/' + movies.id + '/scan';
+  await page.route(movieScan, async route => { await gate; await route.continue(); });
+  await page.goto('/libraries');
+  const row = page.getByRole('region', { name: movies.name, exact: true });
+  const all = page.getByRole('button', { name: 'Scan all libraries', exact: true });
+  await row.getByRole('button', { name: 'Scan ' + movies.name, exact: true }).click();
+  await expect(row.getByRole('button', { name: 'Scan ' + movies.name, exact: true })).toBeDisabled();
+  await expect(all).toBeDisabled();
+  release();
+  await expect(all).toBeEnabled();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${movies.id}/scan`)).json()).running).toBe(false);
+  expect(posts).toEqual([movies.id]);
+  await page.unroute(movieScan);
+  await page.screenshot({ path: info.outputPath('manage-scans-desktop.png'), animations: 'disabled' });
+
+  // Simulate another client already scanning this library; it must get no POST.
+  const busy = new Set([shows.id]);
+  await page.route('**/api/libraries', async route => {
+    const response = await route.fetch();
+    const libraries: Library[] = await response.json();
+    await route.fulfill({ response, json: libraries.map(lib => busy.has(lib.id) ? { ...lib, scan: { ...lib.scan, running: true, phase: 'Checking files and titles' } } : lib) });
+  });
+  await page.route(movieScan, route => route.fulfill({ status: 503, json: { error: 'Fixture scan unavailable' } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Scan ' + shows.name, exact: true })).toBeDisabled();
+  await all.click();
+  await expect(page.getByText('Scan requested for 1 library. 1 library could not start. Retry below.', { exact: true })).toBeVisible();
+  await expect(row.getByText('Fixture scan unavailable', { exact: true })).toBeVisible();
+  expect(posts.filter(id => id === shows.id)).toHaveLength(0);
+  expect(posts.filter(id => id === empty.id)).toHaveLength(1);
+  expect(posts.filter(id => id === movies.id)).toHaveLength(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('manage-scans-phone-error.png'), fullPage: true, animations: 'disabled' });
+  await page.unroute(movieScan);
+  await row.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(row.getByText('Fixture scan unavailable', { exact: true })).toHaveCount(0);
+  await expect(all).toBeEnabled();
+  expect(posts.filter(id => id === movies.id)).toHaveLength(3);
+  busy.add(movies.id); busy.add(empty.id);
+  await page.reload();
+  await expect(all).toBeDisabled();
+  await expect(page.getByText('All libraries are already scanning.', { exact: true })).toBeVisible();
+});
+
 test('management pages share Settings navigation and Activity opens Dashboard on desktop and phone', async ({ page }, info) => {
   await seed(page);
   await page.route('**/api/health/libraries', route => route.fulfill({ json: { fixture: 900 } }));
