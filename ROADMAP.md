@@ -204,6 +204,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Refine Settings grouping, persistent navigation, local save feedback and accessibility; lower title headers and tighten the Cast gap (#161; isolated evidence in READINESS)
 - [x] Show evidence-based source HDR and codec/profile audio labels with bounded one-time enrichment (#163; source metadata only, device acceptance remains #135)
 - [x] Unify background analysis and maintenance scheduling, processing modes, resumable work and task controls (#164; isolated evidence in READINESS)
+- [x] Avoid the slow Azure HTTP package mirror in CI media prerequisite installation (#165; hosted verification remains separate)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

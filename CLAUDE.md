@@ -37,6 +37,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- CI media prerequisites (#165, 23 October): run 39941884612 timed out downloading FFmpeg
+  dependencies from the runner's Azure HTTP mirror before Linux tests started. Both workflows
+  now use tools/ci/install-media-deps.sh to select official Ubuntu HTTPS archives, omit optional
+  recommended packages and verify ffmpeg/ffprobe. Signed apt verification and all release gates
+  remain. Eight isolated helper/workflow checks pass; hosted verification is separate evidence.
 - Background scheduling (#164, 23 October): discovery now offers 15/30-minute and 2-hour
   intervals alongside the existing choices. A separate revision-aware worker drains existing
   format analysis during maintenance or Run now; database pages are not a run limit. Previews
