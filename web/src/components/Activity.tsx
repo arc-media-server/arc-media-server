@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
-import { AlertCircle, Check, Loader2, Zap } from 'lucide-react';
+import { Link } from 'react-router';
+import { AlertCircle, Check, LayoutDashboard, Loader2, Zap } from 'lucide-react';
 import { api, type ActivityTask } from '@/lib/api';
 import { useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -68,6 +69,11 @@ export function ActivityButton({ className }: { className?: string }) {
           <div className="max-h-[min(70vh,520px)] overflow-y-auto p-4">
             <ActivityList />
           </div>
+          <Popover.Close asChild>
+            <Link to="/dashboard" className="flex min-h-11 items-center gap-2 border-t border-border px-4 py-3 text-sm font-medium text-accent hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+              <LayoutDashboard className="size-4" /> View Dashboard
+            </Link>
+          </Popover.Close>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

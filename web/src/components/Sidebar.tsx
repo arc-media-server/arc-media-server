@@ -1,9 +1,10 @@
 import { createElement, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Bookmark, ChartColumn, ChevronsUpDown, DatabaseBackup, Sparkles, FolderCog, Tv, HeartPulse, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
+import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAuth, useIsAdmin } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
+import { isSettingsPath } from '@/lib/settings-navigation';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
 import { Avatar } from '@/components/Avatar';
@@ -24,15 +25,6 @@ export function useLibraries() {
     queryFn: api.libraries,
     // Poll while a scan is running so progress shows live.
     refetchInterval: (q) => (q.state.data?.some((l) => l.scan.running) ? 1500 : false),
-  });
-}
-
-/** How many things across all libraries need the user (unidentified, unreadable, unrecognised). */
-export function useHealthCount(enabled: boolean) {
-  return useQuery({
-    queryKey: ['health-summary'],
-    enabled,
-    queryFn: async () => Object.values(await api.healthSummary()).reduce((a, b) => a + b, 0),
   });
 }
 
@@ -69,7 +61,7 @@ function SearchBox({ className }: { className?: string }) {
   }, [location.pathname, location.search]);
 
   return (
-    <label className={cn('flex h-9 items-center gap-2 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border transition-shadow focus-within:ring-accent', className)}>
+    <label className={cn('flex h-9 min-w-0 items-center gap-2 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border transition-shadow focus-within:ring-accent', className)}>
       <Search className="size-4 shrink-0 text-subtle" />
       <input
         value={value}
@@ -84,31 +76,24 @@ function SearchBox({ className }: { className?: string }) {
           }, 250);
         }}
         placeholder="Search"
-        className="w-full bg-transparent outline-none placeholder:text-subtle"
+        className="min-w-0 w-full bg-transparent outline-none placeholder:text-subtle"
       />
     </label>
   );
 }
 
-function NavItem({ to, icon, children, badge, busy }: { to: string; icon: ReactNode; children: ReactNode; badge?: number; busy?: boolean }) {
+function NavItem({ to, icon, children, busy, active }: { to: string; icon: ReactNode; children: ReactNode; busy?: boolean; active?: boolean }) {
+  const { pathname } = useLocation();
+  const selected = active ?? pathname === to;
   return (
-    <NavLink
-      to={to}
-      end
-      className={({ isActive }) =>
-        cn(
-          'flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors [&_svg]:size-[18px]',
-          isActive ? 'bg-surface-3 text-foreground' : 'text-muted hover:bg-surface-2 hover:text-foreground',
-        )
-      }
-    >
+    <Link to={to} aria-current={selected ? 'page' : undefined} className={cn(
+      'flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors [&_svg]:size-[18px]',
+      selected ? 'bg-surface-3 text-foreground' : 'text-muted hover:bg-surface-2 hover:text-foreground',
+    )}>
       <span className="shrink-0">{icon}</span>
       <span className="flex-1 truncate">{children}</span>
       {busy && <Loader2 className="animate-spin text-accent" />}
-      {!!badge && (
-        <span className="rounded-full bg-warning/15 px-1.5 text-[11px] font-semibold text-warning">{badge}</span>
-      )}
-    </NavLink>
+    </Link>
   );
 }
 
@@ -179,8 +164,7 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
 
 export function Sidebar() {
   const { data: libraries } = useLibraries();
-  const admin = useIsAdmin();
-  const { data: problems } = useHealthCount(admin);
+  const { pathname } = useLocation();
 
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
@@ -224,41 +208,19 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        {admin && (
-          <div>
-            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Manage</p>
-            <div className="space-y-0.5">
-              {manageLinks.map((l) => (
-                <NavItem key={l.to} to={l.to} icon={l.icon} badge={l.to === '/health' ? problems : undefined}>
-                  {l.label}
-                </NavItem>
-              ))}
-            </div>
-          </div>
-        )}
       </nav>
-      <div className="border-t border-border p-2">
+      <div className="space-y-1 border-t border-border p-2">
+        <NavItem to="/settings" icon={<Settings />} active={isSettingsPath(pathname)}>Settings</NavItem>
         <ProfileMenu />
       </div>
     </aside>
   );
 }
 
-const manageLinks = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard /> },
-  { to: '/insights', label: 'Insights', icon: <ChartColumn /> },
-  { to: '/health', label: 'Library Health', icon: <HeartPulse /> },
-  { to: '/libraries', label: 'Libraries', icon: <FolderCog /> },
-  { to: '/profiles', label: 'Profiles', icon: <Users /> },
-  { to: '/backups', label: 'Backups', icon: <DatabaseBackup /> },
-  { to: '/settings', label: 'Settings', icon: <Settings /> },
-];
-
 /** Compact top bar used instead of the sidebar on small screens. */
 export function MobileBar() {
   const { data: libraries } = useLibraries();
-  const admin = useIsAdmin();
-  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const link = ({ isActive }: { isActive: boolean }) =>
     cn('shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors', isActive ? 'bg-foreground text-background' : 'bg-surface-2 text-muted');
   return (
@@ -268,6 +230,7 @@ export function MobileBar() {
         <SearchBox className="flex-1" />
         <NewsButton />
         <ActivityButton />
+        <Link to="/settings" aria-label="Settings" aria-current={isSettingsPath(pathname) ? 'page' : undefined} className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground', isSettingsPath(pathname) && 'bg-surface-3 text-foreground')}><Settings className="size-[18px]" /></Link>
         <ProfileMenu compact />
       </div>
       <div className="flex min-w-0 items-center">
@@ -287,7 +250,6 @@ export function MobileBar() {
           </NavLink>
         ))}
       </nav>
-      {admin && <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="mr-3 shrink-0 rounded-full bg-surface-2 px-3 py-2 text-sm font-medium">Manage</button></DropdownMenuTrigger><DropdownMenuContent align="end">{manageLinks.map(l => <DropdownMenuItem key={l.to} onSelect={() => navigate(l.to)}>{l.icon}{l.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
       </div>
     </div>
   );

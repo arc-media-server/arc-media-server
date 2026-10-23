@@ -20,6 +20,7 @@ import { PlaylistPage, PlaylistsPage } from './pages/Playlists';
 import { PersonPage } from './pages/Person';
 import { LibrariesPage } from './pages/Libraries';
 import { SettingsPage } from './pages/Settings';
+import { SettingsArea } from './components/SettingsArea';
 import { ProfilesPage } from './pages/Profiles';
 import { LinkDevicePage } from './components/Devices';
 import { AuthGate } from './components/auth/AuthGate';
@@ -50,15 +51,17 @@ export function App() {
             <Route path="/person/:id" element={<PersonPage />} />
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/health" element={<HealthPage />} />
+            <Route element={<SettingsArea />}>
+              <Route path="/health" element={<HealthPage />} />
+              <Route path="/backups" element={<BackupsPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/insights" element={<InsightsPage />} />
+              <Route path="/libraries" element={<LibrariesPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/profiles" element={<ProfilesPage />} />
+            </Route>
             <Route path="/attention" element={<Navigate to="/health" replace />} />
-            <Route path="/backups" element={<BackupsPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/insights" element={<InsightsPage />} />
             <Route path="/year" element={<YearPage />} />
-            <Route path="/libraries" element={<LibrariesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/profiles" element={<ProfilesPage />} />
             <Route path="/link" element={<LinkDevicePage />} />
             <Route
               path="*"
