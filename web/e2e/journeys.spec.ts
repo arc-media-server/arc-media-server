@@ -459,7 +459,8 @@ test('profile switching enforces library access and protects admin pages', async
   const movies = await addLibrary(page, 'Private Movies', media.movies);
   await addLibrary(page, 'Allowed Shows', media.shows, true);
   const hidden = (await (await page.request.get(`/api/items?library_id=${movies.id}`)).json()).items[0];
-  await page.locator('aside').getByRole('link', { name: 'Profiles', exact: true }).click();
+  await page.locator('aside').getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Settings sections' }).getByRole('link', { name: 'Profiles', exact: true }).click();
   await page.getByRole('button', { name: 'Add Profile', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name', { exact: true }).fill('Viewer');
@@ -483,7 +484,15 @@ test('profile switching enforces library access and protects admin pages', async
   await page.goto(`/movie/${hidden.id}`);
   await expect(page.getByText('item not found', { exact: true })).toBeVisible();
   await page.goto('/profiles');
-  await expect(page.getByText('only the admin profile can do this', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole('navigation', { name: 'Settings sections' })).toHaveCount(0);
+  await expect(page.getByRole('switch', { name: 'Auto-Play', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Activity/ })).toHaveCount(0);
+  for (const path of ['/dashboard', '/insights', '/health', '/libraries', '/backups']) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/settings$/);
+  }
+
 });
 
 test('real video plays, saves progress on close and resumes after reload', async ({ page, media }, testInfo) => {

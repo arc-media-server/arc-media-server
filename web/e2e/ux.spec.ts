@@ -47,6 +47,70 @@ for (const shows of [false, true]) {
   });
 }
 
+test('management pages share Settings navigation and Activity opens Dashboard on desktop and phone', async ({ page }, info) => {
+  await seed(page);
+  await page.route('**/api/health/libraries', route => route.fulfill({ json: { fixture: 900 } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const sidebar = page.locator('aside');
+  await expect(sidebar.getByText('Manage', { exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: 'Dashboard', exact: true })).toHaveCount(0);
+  await sidebar.getByRole('link', { name: 'Settings', exact: true }).click();
+  const nav = page.getByRole('navigation', { name: 'Settings sections' });
+  await expect(nav.getByLabel('900 library issues')).toBeVisible();
+  for (const [label, path, heading] of [
+    ['Dashboard', '/dashboard', 'Dashboard'], ['Insights', '/insights', 'Insights'],
+    ['Library Health', '/health', 'Library Health'], ['Manage libraries', '/libraries', 'Libraries'],
+    ['Profiles', '/profiles', 'Profiles'], ['Backups & restore', '/backups', 'Backups'],
+  ]) {
+    const link = nav.getByRole('link', { name: new RegExp('^' + label) });
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(path + '$'));
+    await expect(link).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page');
+  }
+  await page.goto('/insights?tab=storage&days=90');
+  await page.reload();
+  await expect(nav.getByRole('link', { name: 'Insights', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveURL(/tab=storage&days=90/);
+  await nav.getByRole('link', { name: 'Dashboard', exact: true }).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/insights\?tab=storage&days=90/);
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('settings-management-desktop.png') });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Activity/ }).click();
+  const dashboard = page.getByRole('link', { name: 'View Dashboard', exact: true });
+  await expect(dashboard).toBeVisible();
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('activity-dashboard-desktop.png') });
+  await dashboard.focus(); await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(dashboard).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Manage', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  const selector = page.getByRole('combobox', { name: 'Settings section', exact: true });
+  await selector.selectOption('dashboard');
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.reload(); await expect(selector).toHaveValue('dashboard');
+  await selector.selectOption('libraries');
+  await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
+  await selector.selectOption('maintenance');
+  await expect(page.getByRole('heading', { name: 'Scheduled tasks', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('settings-management-phone.png') });
+  await page.getByRole('button', { name: /^Activity/ }).click();
+  await expect(dashboard).toBeVisible();
+  await page.screenshot({ animations: 'disabled', path: info.outputPath('activity-dashboard-phone.png') });
+  await dashboard.click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(dashboard).toHaveCount(0);
+  await expect(selector).toHaveValue('dashboard');
+});
+
 test('settings groups expose labelled controls and persistent desktop and mobile navigation', async ({ page }, info) => {
   await seed(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -75,7 +139,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
     for (const select of await selects.all()) await expect(select).toHaveAccessibleName(/.+/);
   }
   await expect(page.getByRole('link', { name: 'Backups & restore', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Library Health', exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Library Health/ }).last()).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/settings');
   const selector = page.getByRole('combobox', { name: 'Settings section', exact: true });

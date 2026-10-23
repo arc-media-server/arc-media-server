@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
@@ -22,54 +23,20 @@ import { Diagnostics } from '@/components/Diagnostics';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
-type SettingsGroup = 'profile' | 'library' | 'playback' | 'access' | 'maintenance';
 const SettingsSection = createContext<SettingsGroup>('profile');
-const settingsGroups: { id: SettingsGroup; label: string }[] = [
-  { id: 'profile', label: 'Your profile' }, { id: 'library', label: 'Libraries & metadata' },
-  { id: 'playback', label: 'Playback & transcoding' }, { id: 'access', label: 'Access & devices' },
-  { id: 'maintenance', label: 'Maintenance & diagnostics' },
-];
-const sectionGroups: Record<string, SettingsGroup> = {
-  'Online metadata': 'library', 'Ratings': 'library', 'Library scanning': 'library',
-  'Moving in': 'library', 'Notifications': 'library',
-  'Media tools': 'playback', 'Intro & credit detection': 'playback', 'Pre-roll': 'playback',
-  'Subtitle downloads': 'playback', 'Converting': 'playback', 'Optimized Versions': 'playback',
-  'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
-  'Scheduled tasks': 'maintenance', 'Diagnostics': 'maintenance',
-};
 
 export function SettingsPage() {
   const admin = useIsAdmin();
-  const [params, setParams] = useSearchParams();
-  const selected = admin && settingsGroups.some(g => g.id === params.get('section')) ? params.get('section') as SettingsGroup : 'profile';
-  useEffect(() => { window.scrollTo(0, 0); }, [selected]);
+  const [params] = useSearchParams();
+  const selected = admin ? selectedSettingsSection(params.get('section')) : 'profile';
   return (
     <Page className="pb-16">
       <PageHeader title="Settings" subtitle={selected === 'profile' ? 'Your preferences follow your profile.' : 'Server settings apply to everyone. Only admins can change these.'} />
-      <div className={cn('px-6 md:px-10', admin && 'grid gap-8 lg:grid-cols-[224px_minmax(0,768px)] lg:items-start')}>
-        {admin && <nav aria-label="Settings sections" className="sticky top-0 z-30 -mx-6 bg-background/95 px-6 py-3 backdrop-blur-xl md:-mx-10 md:px-10 lg:top-6 lg:mx-0 lg:rounded-2xl lg:bg-surface lg:p-3">
-          <label className="sr-only" htmlFor="settings-section">Settings section</label>
-          <select id="settings-section" value={selected} onChange={e => setParams(e.target.value === 'profile' ? {} : { section: e.target.value })} className={inputClass + ' w-full lg:hidden'}>
-            {settingsGroups.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
-          </select>
-          <div className="hidden space-y-1 lg:block">
-            {settingsGroups.map(g => <Link key={g.id} to={g.id === 'profile' ? '/settings' : '/settings?section=' + g.id} aria-current={selected === g.id ? 'page' : undefined} className={cn('block rounded-xl px-3 py-2.5 text-sm font-medium', selected === g.id ? 'bg-foreground text-background' : 'text-muted hover:bg-surface-2 hover:text-foreground')}>{g.label}</Link>)}
-          </div>
-          <div className="mt-4 hidden border-t border-border pt-3 lg:block">
-            <p className="mb-2 px-3 text-xs text-subtle">On this page</p>
-            {(selected === 'profile' ? ['Playback', 'Subtitles', 'Display'] : Object.keys(sectionGroups).filter(title => sectionGroups[title] === selected)).map(title => <a key={title} href={'#' + sectionId(title)} className="block rounded-lg px-3 py-1.5 text-xs text-muted hover:text-foreground">{title}</a>)}
-          </div>
-        </nav>}
-        <div className="min-w-0 max-w-3xl space-y-8">
-          <p className="text-sm text-muted">Switches and menus save immediately. Text fields use Save.</p>
-          <SettingsSection.Provider value={selected}>
-            {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
-          </SettingsSection.Provider>
-          {selected === 'maintenance' && <section aria-label="Recovery tools" className="rounded-2xl bg-surface p-5">
-            <h2 className="mb-3 text-lg font-semibold">Recovery tools</h2>
-            <div className="flex flex-wrap gap-4"><Link to="/backups" className="text-accent underline">Backups & restore</Link><Link to="/health" className="text-accent underline">Library Health</Link></div>
-          </section>}
-        </div>
+      <div className="max-w-[848px] space-y-8 px-6 md:px-10">
+        <p className="text-sm text-muted">Switches and menus save immediately. Text fields use Save.</p>
+        <SettingsSection.Provider value={selected}>
+          {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
+        </SettingsSection.Provider>
       </div>
     </Page>
   );

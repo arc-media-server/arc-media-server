@@ -1,5 +1,32 @@
 # Stability and release readiness
 
+## Settings management navigation (#166, 23 October 2026)
+
+Owner-approved plan: [SETTINGS-NAVIGATION-PLAN.md](SETTINGS-NAVIGATION-PLAN.md).
+The desktop Manage group and mobile Manage menu are replaced with a Settings entry.
+Settings and all six dedicated management pages share grouped navigation: personal
+preferences, Server, Libraries, Playback, People & access, Maintenance. The health count
+moves with Library Health. Existing management URLs, query parameters and settings-section
+links remain valid; phones use a grouped section selector. Activity includes View Dashboard
+even with no active tasks and closes when followed. Ordinary profiles see personal
+preferences only; direct management URLs redirect before admin components/queries mount.
+API authorization is unchanged.
+
+Production build/app TypeScript and e2e TypeScript passed. Five focused Chromium journeys
+passed without retries (37.3 seconds): all management destinations and active states, old
+URLs/query state/reload/history, Activity keyboard/touch linking and popover dismissal,
+desktop/390px navigation without overflow, section anchors, settings saving/error/retry,
+mobile profiles/player controls and household-profile protection. The health badge test
+injects a synthetic 900 count; it is not an owner-library measurement. Actual screenshots
+were inspected. Initial checks caught an active-link aria-current bug (fixed by explicitly
+marking the containing Settings link) and an old exact-name locator that omitted the health
+badge's accessible count (updated). Initial failure logs/traces remain preserved.
+
+Evidence: `/workspace/arc-cloud-evidence/settings-navigation/`. Tests used temporary
+databases, generated clips and local metadata fixtures; no owner data/settings/media or
+Unraid access. No backend changes, unrelated full Go/race suite or full browser suite rerun;
+hosted checks/publication and owner deployment remain separate evidence. No persistent server.
+
 ## CI FFmpeg package download timeout (#165, 23 October 2026)
 
 Run [39941884612](https://github.com/JonzaUK/arc-media-server/actions/runs/39941884612)

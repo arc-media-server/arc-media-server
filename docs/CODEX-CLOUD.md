@@ -6,6 +6,11 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Navigation handoff (#166, 23 October): server management lives within Settings, including
+the existing Dashboard/Insights/Health/Libraries/Profiles/Backups URLs. Activity links to
+Dashboard. Plan: [SETTINGS-NAVIGATION-PLAN.md](SETTINGS-NAVIGATION-PLAN.md); focused
+desktop/phone/profile-boundary verification and limits are recorded in READINESS.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

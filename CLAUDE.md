@@ -37,6 +37,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Settings navigation (#166, 23 October): management pages now share a Settings rail
+  grouped by Server, Libraries, Playback, People & access and Maintenance, alongside personal
+  preferences. The desktop Manage group and phone Manage menu are replaced by Settings;
+  Activity offers an admin-only View Dashboard link that closes the popover. Existing URLs,
+  settings section links and health counts remain. Ordinary profiles retain preferences only
+  and are redirected before admin pages mount. Production/app/e2e TypeScript and five focused
+  browser journeys pass; see docs/SETTINGS-NAVIGATION-PLAN.md and READINESS for scope/evidence.
 - CI media prerequisites (#165, 23 October): run 39941884612 timed out downloading FFmpeg
   dependencies from the runner's Azure HTTP mirror before Linux tests started. Both workflows
   now use tools/ci/install-media-deps.sh to select official Ubuntu HTTPS archives, omit optional
