@@ -52,6 +52,15 @@ titles remain governed by their existing maintenance settings. Refreshing known 
 not require a full media-folder discovery walk. Explicit Refresh metadata remains separate
 from Scan now; a scan does not force every provider response to be downloaded again.
 
+Routine rescans no longer use metadata age as a reason to refresh existing movies or shows,
+or retry old unmatched titles (#169). Those run through metadata maintenance and its enabled/
+foreground/window policy; Run now bypasses the clock, not the enabled switch. New/pending
+content, unfinished initial series imports and explicit language/provider changes still finish
+their requested matching work. A genuinely new episode missing from cached numbering can fetch
+current provider data; an already-linked unresolved episode waits for maintenance (at least an
+hour since its series refresh) instead of querying providers on each scan. Explicit Refresh
+metadata remains available. See [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md).
+
 ## Network shares and unavailable folders
 
 Show a short note beside the schedule: “Some network drives do not report changes. Keep a

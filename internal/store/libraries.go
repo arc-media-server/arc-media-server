@@ -246,7 +246,7 @@ func (s *Store) SetLibraryLanguage(ctx context.Context, id int64, lang string) e
 	if _, err := s.db.ExecContext(ctx, `UPDATE libraries SET metadata_language = ? WHERE id = ?`, lang, id); err != nil {
 		return err
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE library_id = ? AND kind IN ('movie', 'series')`, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0, metadata_state = 'pending' WHERE library_id = ? AND kind IN ('movie', 'series') AND metadata_state <> 'locked'`, id)
 	return err
 }
 

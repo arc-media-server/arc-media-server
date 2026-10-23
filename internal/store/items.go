@@ -175,7 +175,7 @@ func (s *Store) ItemsWithMetadataState(ctx context.Context, libraryID int64, kin
 // RetryUnmatched revisits old uncertain/no-result titles during reconciliation, not every
 // watcher event. Locked metadata and user edits are preserved by the normal match writer.
 func (s *Store) RetryUnmatched(ctx context.Context, libraryID int64, before int64) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET metadata_state = 'pending' WHERE library_id = ? AND kind = 'movie' AND metadata_state = 'unmatched' AND updated_at < ?`, libraryID, before)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET metadata_state = 'pending' WHERE library_id = ? AND kind IN ('movie', 'series') AND metadata_state = 'unmatched' AND updated_at < ?`, libraryID, before)
 	return err
 }
 
@@ -197,6 +197,12 @@ func (s *Store) UnsyncedItems(ctx context.Context, libraryID int64, kind string,
 		out = append(out, it)
 	}
 	return out, rows.Err()
+}
+
+// MetadataRefreshPage lists known matched movies due for refresh. The ID cursor
+// lets a pass drain its backlog without repeatedly retrying a failed first page.
+func (s *Store) MetadataRefreshPage(ctx context.Context, libraryID int64, before int64, after string, limit int) ([]Item, error) {
+	return s.queryItems(ctx, `SELECT `+itemCols+` FROM items WHERE library_id = ? AND kind = 'movie' AND metadata_state = 'matched' AND (synced_at = 0 OR synced_at < ?) AND id > ? ORDER BY id LIMIT ?`, libraryID, before, after, limit)
 }
 
 // UpdateMetadata writes provider metadata onto an item. Fields the user locked keep their values,
@@ -227,12 +233,26 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 
 // SetLocalTheme records the theme tune found next to a show or movie ("" for none).
 func (s *Store) SetLocalTheme(ctx context.Context, id, path string) error {
+	var same bool
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items WHERE id = ? AND local_theme = ?)`, id, path).Scan(&same); err != nil {
+		return err
+	}
+	if same {
+		return nil
+	}
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_theme = ? WHERE id = ? AND local_theme <> ?`, path, id, path)
 	return err
 }
 
 // SetLocalArt records the artwork files found next to an item's media ("" for none).
 func (s *Store) SetLocalArt(ctx context.Context, id, poster, backdrop, logo string) error {
+	var same bool
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items WHERE id = ? AND local_poster = ? AND local_backdrop = ? AND local_logo = ?)`, id, poster, backdrop, logo).Scan(&same); err != nil {
+		return err
+	}
+	if same {
+		return nil
+	}
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_poster = ?, local_backdrop = ?, local_logo = ?
 		WHERE id = ? AND (local_poster <> ? OR local_backdrop <> ? OR local_logo <> ?)`,
 		poster, backdrop, logo, id, poster, backdrop, logo)
@@ -794,4 +814,11 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 		items = append(items, it)
 	}
 	return items, total, rows.Err()
+}
+
+// HasUnmatchedEpisodes checks only playable unmatched episodes, not orphan/provider-only rows.
+func (s *Store) HasUnmatchedEpisodes(ctx context.Context, seriesID string) (bool, error) {
+	var found bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items i WHERE i.parent_id = ? AND i.kind = 'episode' AND i.metadata_state = 'unmatched' AND EXISTS(SELECT 1 FROM item_files f WHERE f.item_id = i.id))`, seriesID).Scan(&found)
+	return found, err
 }

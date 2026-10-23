@@ -64,6 +64,13 @@ https://support.plex.tv/articles/201553286-scheduled-tasks/
 
 ## Implemented contract
 
+Rescan separation follow-up (#169): age-only metadata refresh and old unmatched retries are
+maintenance work. Movie maintenance drains cursor pages rather than a fixed per-scan allowance;
+failed candidates are attempted once per pass. Existing unknown episode metadata retries in
+maintenance after an hour; genuinely new unknown files can request fresh data during discovery.
+Explicit language changes mark known unlocked titles pending so their requested refresh remains
+independent of scheduled maintenance. Details: [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md).
+
 Migration 0048 persists revision-specific jobs and a policy epoch. The epoch separates old
 library files from newly probed files for the added policy; restart does not reclassify old
 files as new. Revisions include file identity/path/size/time; local detection also includes

@@ -2,15 +2,26 @@ package scanner
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"ams/internal/metadata"
+	"ams/internal/store"
 )
+
+type metadataMaintenanceKey struct{}
+
+func isMetadataMaintenance(ctx context.Context) bool {
+	value, _ := ctx.Value(metadataMaintenanceKey{}).(bool)
+	return value
+}
 
 // maintain deliberately reads known database titles, never the media directory tree.
 // The caller reserves the same per-library slot as discovery, preventing overlap.
 func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 	root := ctx
+	ctx = context.WithValue(ctx, metadataMaintenanceKey{}, true)
 	if s.MaintenanceAllowed != nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -56,6 +67,16 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 			err = nil
 			s.update(libraryID, func(st *Status) { st.Phase = "Metadata refresh paused" })
 			task.Detail("Paused until maintenance can continue")
+		} else {
+			status := s.Status(libraryID)
+			parts := []string{"Known-title metadata checked"}
+			if status.Matched > 0 {
+				parts = append(parts, fmt.Sprintf("%d identified", status.Matched))
+			}
+			if status.MetadataErrors > 0 {
+				parts = append(parts, fmt.Sprintf("%d update%s deferred", status.MetadataErrors, pluralSuffix(status.MetadataErrors)))
+			}
+			task.Detail(strings.Join(parts, " · "))
 		}
 		task.Finish(err)
 	}()
@@ -63,14 +84,27 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		if !s.tmdb.Configured() {
 			return nil
 		}
-		return s.refreshMovies(ctx, libraryID, false)
+		if err := s.store.RetryUnmatched(ctx, libraryID, time.Now().Add(-24*time.Hour).Unix()); err != nil {
+			return err
+		}
+		if err := s.matchMovies(ctx, libraryID); err != nil {
+			return err
+		}
+		return s.refreshMovies(ctx, libraryID)
 	}
 	if !s.hasProviders() {
 		return nil
 	}
-	items, err := s.store.ItemsWithMetadataState(ctx, libraryID, "series", "matched")
-	if err != nil {
+	if err := s.store.RetryUnmatched(ctx, libraryID, time.Now().Add(-24*time.Hour).Unix()); err != nil {
 		return err
+	}
+	var items []store.Item
+	for _, state := range []string{"matched", "pending"} {
+		next, err := s.store.ItemsWithMetadataState(ctx, libraryID, "series", state)
+		if err != nil {
+			return err
+		}
+		items = append(items, next...)
 	}
 	s.phase(libraryID, "Updating known show details", len(items))
 	return each(ctx, len(items), matchWorkers, func(i int) error {
@@ -85,7 +119,11 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 			return err
 		}
 		age := time.Since(time.Unix(synced, 0))
-		if synced != 0 && age <= resyncAfter && !(age > 24*time.Hour && next != "" && next <= time.Now().Format("2006-01-02")) {
+		unknown, err := s.store.HasUnmatchedEpisodes(ctx, it.ID)
+		if err != nil {
+			return err
+		}
+		if !(unknown && age > time.Hour) && it.MetadataState != "pending" && synced != 0 && age <= resyncAfter && !(age > 24*time.Hour && next != "" && next <= time.Now().Format("2006-01-02")) {
 			return nil
 		}
 		// This updates metadata/order mappings using existing identity, not a file scan.

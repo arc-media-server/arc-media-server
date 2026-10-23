@@ -22,6 +22,11 @@ func WithPreviewReuse(ctx context.Context) context.Context {
 	return context.WithValue(ctx, cacheModeKey{}, cacheMode{read: true})
 }
 
+// WithFresh bypasses preview responses when new files require newer provider data.
+func WithFresh(ctx context.Context) context.Context {
+	return context.WithValue(ctx, cacheModeKey{}, cacheMode{})
+}
+
 type cachedResponse struct {
 	data []byte
 	at   time.Time

@@ -20,6 +20,11 @@ Library management (#168): individual Scan and Scan all libraries now live in Se
 Manage libraries. Running scans are left alone, request failures show per-row Retry, and
 Activity carries detailed progress. Focused desktop/phone results are in READINESS.
 
+Rescan follow-up (#169): normal scans reuse established metadata/links; age refresh and old
+unmatched retries run in maintenance. New/pending and explicit changes still match; local
+sidecars still update. Plan: [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md). See READINESS
+for provider-count, writer-queue, history/recovery, race and browser evidence. No migration.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

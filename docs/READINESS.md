@@ -1,5 +1,55 @@
 # Stability and release readiness
 
+## Routine rescan/maintenance separation (#169, 23 October 2026)
+
+Owner-approved plan: [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md).
+Ordinary rescans no longer refresh old matched movies/shows or retry old unmatched titles
+solely because time elapsed. Metadata maintenance owns those tasks, including incomplete movie
+metadata and old unmatched movie/series recovery. It respects existing enabled/admission and
+foreground cancellation; admitted Run now handles stale movies outside the clock window. Movie
+refresh drains 200-row cursor pages; failures do not block later pages or get retried in the
+same pass. Maintenance lookup errors no longer schedule discovery scans. Its Activity summary
+retains deferred updates instead of implying a filesystem scan occurred.
+
+New/pending content, unfinished initial series-import recovery and explicit language/provider/
+numbering actions remain supported. A genuinely new unlinked episode can request fresh provider
+data when cached numbering cannot place it. That lookup bypasses the preview response cache;
+the first regression caught the stale-cache case. Existing linked unknown episodes retry in
+maintenance after an hour, with file-only episode identity/history retained when matched later.
+Explicit library-language changes mark unlocked known titles pending, preserving immediate
+requested matching rather than waiting for their age to become due.
+
+Identical file-link writes already no-opped before this change. Episode linking now compares
+fresh, bounded batched snapshots and avoids repeated per-file link reads when mappings agree;
+it still validates filename/order mappings and local assets. There is no persistent identity
+cache or migration. Activity says Checking episode links for that work, and Linking episodes
+when a mapping changes. Unchanged local artwork/theme/season-art calls return through the read
+pool instead of joining the writer queue; changed/removed local assets and chosen art remain.
+
+Verification passed: six affected Go packages (scanner/store/background/metadata/API/apidoc),
+full scanner/store/background/metadata race packages, final added-maintenance focused race,
+Go vet, embedded-server build, production/app/e2e TypeScript and diff checks. Seven new Go test
+functions cover stale unchanged movie/show scans with zero age-driven provider calls and zero
+probes, maintenance disabled/admitted outside-window behavior, explicit language refresh, new
+unknown episode refresh without repeated rescan requests, later matching with preserved watch
+history, old unmatched movie/show maintenance-only retry, >200 failed candidates drained once,
+no discovery retry after maintenance failure, writer-held unchanged artwork operations, and
+link snapshots across 256-row boundaries/duplicate IDs. Existing provider-switch, alternate-
+order/import-retry, custom placement, local assets and missing/offline regressions also pass.
+
+Eight focused Chromium journeys passed without retries (1.2 minutes): initial movie/TV import,
+unchanged series scan, restored settings/access, individual/bulk scan controls, Settings/Activity
+navigation, concurrent Activity detail and paused work. Actual evidence is in
+`/workspace/arc-cloud-evidence/incremental-rescans/`. The initial new-episode test exposed preview
+cache reuse and now passes; a later paging test fixture lacked required added_at/updated_at,
+was corrected and rechecked. Initial failure logs are retained, not counted as passing.
+
+Only temporary stores/generated clips/local providers were used. SQL aging and held-writer
+tests target disposable fixture databases. No owner data/settings/media, production keys,
+Unraid, installed tools or persistent server. Full rescans still walk the directory tree and
+check local sidecars; no Plex-equivalent speed, real NAS throughput/device or sustained-use
+claim is made. Full unrelated browser suite not repeated; hosted publication is separate.
+
 ## Manage libraries scan actions (#168, 23 October 2026)
 
 Settings → Manage libraries now offers Scan all libraries beside Add Library and a Scan
