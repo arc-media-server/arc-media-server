@@ -108,17 +108,22 @@ type Chapter struct {
 }
 
 type Stream struct {
-	Index     int
-	Kind      string
-	Codec     string
-	Profile   string
-	Language  string
-	Title     string
-	Width     int
-	Height    int
-	Channels  int
-	IsDefault bool
-	IsForced  bool
+	Index              int
+	Kind               string
+	Codec              string
+	Profile            string
+	Language           string
+	Title              string
+	Width              int
+	Height             int
+	Channels           int
+	IsDefault          bool
+	IsForced           bool
+	ChannelLayout      string
+	DolbyVision        bool
+	DolbyVisionProfile int
+	HDR10Plus          bool
+	HDRProbeStatus     string
 	// Video: pixel format, bits per sample, colour transfer/primaries (HDR) and frames per second.
 	PixFmt         string
 	BitDepth       int
@@ -135,21 +140,23 @@ type ffprobeOutput struct {
 		BitRate    string `json:"bit_rate"`
 	} `json:"format"`
 	Streams []struct {
-		Index       int               `json:"index"`
-		CodecType   string            `json:"codec_type"`
-		CodecName   string            `json:"codec_name"`
-		Profile     string            `json:"profile"`
-		Width       int               `json:"width"`
-		Height      int               `json:"height"`
-		Channels    int               `json:"channels"`
-		PixFmt      string            `json:"pix_fmt"`
-		BitsRaw     string            `json:"bits_per_raw_sample"`
-		Transfer    string            `json:"color_transfer"`
-		Primaries   string            `json:"color_primaries"`
-		AvgRate     string            `json:"avg_frame_rate"`
-		BitRate     string            `json:"bit_rate"`
-		Tags        map[string]string `json:"tags"`
-		Disposition map[string]int    `json:"disposition"`
+		Index         int               `json:"index"`
+		CodecType     string            `json:"codec_type"`
+		CodecName     string            `json:"codec_name"`
+		Profile       string            `json:"profile"`
+		Width         int               `json:"width"`
+		Height        int               `json:"height"`
+		Channels      int               `json:"channels"`
+		ChannelLayout string            `json:"channel_layout"`
+		SideData      []formatSideData  `json:"side_data_list"`
+		PixFmt        string            `json:"pix_fmt"`
+		BitsRaw       string            `json:"bits_per_raw_sample"`
+		Transfer      string            `json:"color_transfer"`
+		Primaries     string            `json:"color_primaries"`
+		AvgRate       string            `json:"avg_frame_rate"`
+		BitRate       string            `json:"bit_rate"`
+		Tags          map[string]string `json:"tags"`
+		Disposition   map[string]int    `json:"disposition"`
 	} `json:"streams"`
 	Chapters []struct {
 		StartTime string            `json:"start_time"`
@@ -212,21 +219,26 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 			tags[strings.ToLower(k)] = v
 		}
 		res.Streams = append(res.Streams, Stream{
-			Index:     s.Index,
-			Kind:      s.CodecType,
-			Codec:     s.CodecName,
-			Profile:   s.Profile,
-			Language:  tags["language"],
-			Title:     tags["title"],
-			Width:     s.Width,
-			Height:    s.Height,
-			Channels:  s.Channels,
-			IsDefault: s.Disposition["default"] == 1,
-			IsForced:  s.Disposition["forced"] == 1,
-			PixFmt:    s.PixFmt, BitDepth: bitDepth(s.BitsRaw, s.PixFmt),
+			Index:         s.Index,
+			Kind:          s.CodecType,
+			Codec:         s.CodecName,
+			Profile:       s.Profile,
+			Language:      tags["language"],
+			Title:         tags["title"],
+			Width:         s.Width,
+			Height:        s.Height,
+			Channels:      s.Channels,
+			ChannelLayout: s.ChannelLayout,
+			IsDefault:     s.Disposition["default"] == 1,
+			IsForced:      s.Disposition["forced"] == 1,
+			PixFmt:        s.PixFmt, BitDepth: bitDepth(s.BitsRaw, s.PixFmt),
 			ColorTransfer: s.Transfer, ColorPrimaries: s.Primaries, FrameRate: frameRate(s.AvgRate),
 			Bitrate: parseInt(s.BitRate),
 		})
+		applyFormatSideData(&res.Streams[len(res.Streams)-1], s.SideData)
+	}
+	if err := p.enrichFrames(ctx, path, res.Streams); err != nil {
+		return nil, err
 	}
 	for _, c := range raw.Chapters {
 		start, err1 := strconv.ParseFloat(c.StartTime, 64)

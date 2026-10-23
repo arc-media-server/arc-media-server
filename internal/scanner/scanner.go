@@ -551,6 +551,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return err
 	}
 
+	if err := s.enrichPendingFormats(ctx, lib, scanStart); err != nil {
+		return err
+	}
 	st := s.Status(lib.ID)
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
 		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched, "not_recognised", st.Unrecognised)
@@ -1072,6 +1075,7 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 
 func applyProbe(f *store.MediaFile, res *probe.Result) {
 	f.Container, f.DurationMS, f.Bitrate = res.Container, res.DurationMS, res.Bitrate
+	f.FormatProbeVersion = 1
 	for _, c := range res.Chapters {
 		f.Chapters = append(f.Chapters, store.Chapter{StartMS: c.StartMS, EndMS: c.EndMS, Title: c.Title})
 	}
@@ -1081,7 +1085,8 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 			Title: ps.Title, Width: ps.Width, Height: ps.Height, Channels: ps.Channels,
 			IsDefault: ps.IsDefault, IsForced: ps.IsForced, PixFmt: ps.PixFmt, BitDepth: ps.BitDepth,
 			ColorTransfer: ps.ColorTransfer, ColorPrimaries: ps.ColorPrimaries, FrameRate: ps.FrameRate,
-			Bitrate: ps.Bitrate,
+			Bitrate: ps.Bitrate, ChannelLayout: ps.ChannelLayout, DolbyVision: ps.DolbyVision,
+			DolbyVisionProfile: ps.DolbyVisionProfile, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
 		})
 	}
 }

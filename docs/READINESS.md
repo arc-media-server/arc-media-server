@@ -828,3 +828,62 @@ and title pages at 1366/1440/1920 were inspected. Reports/logs/screenshots are r
 is intact. No owner database/settings/media, production keys, Unraid or persistent server used.
 Actual owner deployment, physical devices and sustained-use acceptance remain open on #134–#138;
 GitHub container/publication checks are separate from these local results.
+
+
+## Source HDR and audio format labels (#163, 23 October 2026)
+
+The owner approved evidence-based HDR and audio labels after a read-only investigation.
+Movie headers/file details, on-demand series episode file details and player source-track/
+version menus now display Dolby Vision, HDR10+, HDR10/PQ, HLG and codec/profile-aware audio,
+including TrueHD, Dolby Digital+, DTS-HD and reported Atmos/DTS:X. File/version isolation
+prevents combining different source formats; multi-version editions do not claim one source
+format in the header. No series-wide HDR claim is inferred from an episode. Source labels
+remain separate from actual playback output and unchanged compatibility/tone-mapping logic.
+
+Migration 0047 adds source evidence/status, channel layout and format-probe version. New/
+changed candidate videos receive a bounded frame sample alongside structured stream metadata.
+Existing successful candidates enrich at most 32 per library scan, only for files seen during
+that scan; compact stream evidence and sampling share a four-second budget. Failed optional
+attempts are remembered without losing duration, chapters or basic metadata. Completed attempts
+are skipped on unchanged scans. Revision/concurrent-probe checks reject stale enrichment.
+[Source format contract](SOURCE-FORMATS.md) records packet/time/output limits, gradual backfill,
+unknown/negative sampling semantics and remaining device/profile limits.
+
+Portable fake-subprocess regressions cover structured DV flags/profile, independent hybrid
+flags, stream-index isolation, preserved audio profiles/layouts, failed/cancelled optional
+probes and output limits (including io.Copy). Actual schema-46 records upgrade without losing
+basic probes, saved audio profiles or chapters. Store/scanner checks cover positive evidence
+round trips, capped/seen-file batches, one-time attempts and protection from concurrent normal
+probes/changed files. API regression retains the original tone-mapping HDR contract while
+exposing richer source labels. Existing scanner/watch-state/recovery coverage remains in place.
+
+Thirty final actual-file metadata assertions passed: fifteen cases through both the normal
+Arc Prober and the existing-file enrichment path. Small public regression HEVC bitstreams
+from quietvoid/dovi_tool and quietvoid/hdr10plus_tool (Git blob hashes verified) provide encoded
+DV/HDR10+ positives in raw/MP4/MKV forms; stripped/static-only and delayed-metadata controls,
+plus generated PQ/HLG/SDR/misleading-name files, provide the other cases. These files were not
+committed or drawn from owner media. Cloud evidence under arc-cloud-evidence/hdr-validation
+includes provenance.json and ARC-FINAL-FIXTURES.log; reproduction scripts remain outside Git.
+
+Two new browser journeys use generated imports and explicitly injected source metadata to
+check movie edition isolation, multi-version headers, generic TrueHD versus TrueHD Atmos,
+hybrid DV+HDR10+ labels at 1440/390px, no document overflow, and episode file details with
+HLG/Dolby Digital+ Atmos/DTS:X and a misleading-title negative control. Desktop/phone captures
+were inspected. Browser injection proves presentation; actual-file probing and store tests
+supply separate detection/persistence evidence, not a physical HDR/Atmos playback claim.
+
+The first full verifier passed Go vet/tests/race and the embedded build, but finished with
+44 browser passes and one failure in the pre-existing Settings inline-save viewport check.
+The screenshot put Save at the viewport bottom and its local error immediately below it.
+The test now centres the upload control before saving; its error-content, viewport and retry
+assertions remain intact. Settings product code is unchanged. Original failure log, screenshot,
+trace and exit status are retained in hdr-validation/first-verification. The final unchanged cloud
+verifier exited 0: production/app/e2e TypeScript, Go vet/tests/race, embedded-server build
+and all 45 browser journeys passed (4.6 minutes for the browser phase; zero browser failures,
+skips or retries). Final actual-file probe/enrichment checks passed 30/30. GitHub CI/image
+publication is separate evidence and was not assumed complete from these cloud checks.
+
+No owner database/settings/media, production keys, Unraid or persistent server was used.
+These results do not establish all DV profiles/authoring variants, actual Atmos-positive
+bitstream detection, HDR display appearance, receiver pass-through, network-drive throughput,
+production-container binary behaviour or sustained-use acceptance. #134–#138 remain open.

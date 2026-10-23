@@ -4,7 +4,8 @@ import { CollectionRows } from '@/components/Collections';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
-import { api, type MediaFile } from '@/lib/api';
+import { api } from '@/lib/api';
+import { FileDetails } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
 import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
 import { isLocalVideo } from '@/lib/kinds';
@@ -52,9 +53,10 @@ export function MoviePage() {
   const editions = [...new Set(present.map((f) => f.edition ?? ''))];
   const currentEdition = editions.includes(edition ?? '') ? (edition ?? '') : (editions[0] ?? '');
   const file = present.find((f) => (f.edition ?? '') === currentEdition) ?? item.files?.find((f) => !f.missing) ?? item.files?.[0];
-  const resolutions = [...new Set(present.map((f) => fmt.videoStream(f)).filter(Boolean).map((v) => fmt.resolution(v!.width, v!.height)))];
+  const singleVersion = present.filter(f => (f.edition ?? '') === currentEdition).length <= 1;
   const video = fmt.videoStream(file);
-  const audio = fmt.audioStreams(file)[0];
+  const tracks = fmt.audioStreams(file);
+  const audio = tracks.find((s) => s.is_default) ?? tracks[0];
   const playable = !!item.stream_url && item.files?.some((f) => !f.missing);
   const resumeAt = item.user_data?.position_ms ?? 0;
   const details = detailParts(item);
@@ -77,10 +79,11 @@ export function MoviePage() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <MetaLine parts={[local && item.release_date ? fmt.date(item.release_date) : item.year, fmt.runtime(item.runtime_min || fmt.durationMinutes(file?.duration_ms)), details.genres, details.rating]} />
           {details.contentRating && <Badge>{details.contentRating}</Badge>}
-          {resolutions.length > 1
-            ? resolutions.map((res) => <Badge key={res}>{res}</Badge>)
-            : video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
-          {audio?.channels && audio.channels > 2 && <Badge>{fmt.channels(audio.channels)}</Badge>}
+          {singleVersion ? <>
+            {video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
+            {fmt.sourceFormats(video).map((label) => <Badge key={label}>{label}</Badge>)}
+            {audio && <Badge>{fmt.audioFormat(audio)}</Badge>}
+          </> : <Badge>{present.filter(f => (f.edition ?? '') === currentEdition).length} versions</Badge>}
         </div>
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
         {item.metadata_state === 'unmatched' && admin && (
@@ -162,61 +165,5 @@ export function MoviePage() {
       {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
       {dialogs}
     </Page>
-  );
-}
-
-export function FileDetails({ file, several }: { file: MediaFile; several?: boolean }) {
-  const video = fmt.videoStream(file);
-  const audio = fmt.audioStreams(file);
-  const subs = fmt.subtitleStreams(file);
-  return (
-    <section className="mx-6 mt-10 md:mx-10">
-      <h2 className="mb-4 text-lg font-semibold">
-        {several
-          ? ['About This Version:', file.edition, video && fmt.resolution(video.width, video.height), file.part > 0 && `Part ${file.part}`]
-              .filter(Boolean)
-              .join(' ')
-          : 'About This File'}
-      </h2>
-      <div className="grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2 lg:grid-cols-4">
-        <Detail label="Video">
-          {video ? `${fmt.resolution(video.width, video.height)} · ${fmt.codec(video.codec)}` : '—'}
-          {video && <span className="block text-subtle">{video.width}×{video.height}</span>}
-        </Detail>
-        <Detail label="Audio">
-          {audio.length === 0
-            ? '—'
-            : audio.map((a) => (
-                <span key={a.index} className="block">
-                  {[fmt.language(a.language), fmt.codec(a.codec), fmt.channels(a.channels)].filter(Boolean).join(' · ')}
-                </span>
-              ))}
-        </Detail>
-        <Detail label="Subtitles">
-          {subs.length === 0
-            ? 'None'
-            : subs.map((s) => (
-                <span key={s.index} className="block">
-                  {[fmt.language(s.language) || 'Unknown', fmt.codec(s.codec), s.is_forced && 'Forced'].filter(Boolean).join(' · ')}
-                </span>
-              ))}
-        </Detail>
-        <Detail label="File">
-          {[file.container?.toUpperCase(), fmt.fileSize(file.size)].filter(Boolean).join(' · ')}
-          {file.missing && <span className="block text-warning">Missing from disk</span>}
-        </Detail>
-      </div>
-      <p className="mt-3 break-all font-mono text-xs text-subtle">{file.path}</p>
-      {file.probe_error && <p className="mt-2 text-xs text-warning">Couldn't read this file: {file.probe_error}</p>}
-    </section>
-  );
-}
-
-function Detail({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-surface p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</p>
-      <div className="mt-1.5 text-sm leading-relaxed">{children}</div>
-    </div>
   );
 }

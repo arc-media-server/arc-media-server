@@ -59,8 +59,17 @@ const codecNames: Record<string, string> = {
   webvtt: 'WebVTT',
 };
 
-export function codec(name?: string): string {
+export function codec(name?: string, profile?: string): string {
   if (!name) return '';
+  const p = profile?.toLowerCase() ?? '';
+  if (name === 'truehd' && p === 'dolby truehd + dolby atmos') return 'TrueHD Atmos';
+  if (name === 'eac3' && p === 'dolby digital plus + dolby atmos') return 'Dolby Digital+ Atmos';
+  if (name === 'dts') {
+    if (p === 'dts-hd ma + dts:x' || p === 'dts-hd ma + dts:x imax') return 'DTS-HD MA · DTS:X';
+    if (p === 'dts-hd ma') return 'DTS-HD MA';
+    if (p === 'dts-hd hra') return 'DTS-HD HRA';
+    if (p === 'dts express') return 'DTS Express';
+  }
   return codecNames[name] ?? name.toUpperCase();
 }
 
@@ -125,6 +134,21 @@ function startOfDay(d: Date): number {
 
 export function videoStream(file?: MediaFile): Stream | undefined {
   return file?.streams.find((s) => s.kind === 'video');
+}
+
+/** Labels describe source metadata, not HDR/Atmos output on the current device. */
+export function sourceFormats(video?: Stream): string[] {
+  if (!video) return [];
+  const labels: string[] = [];
+  if (video.dolby_vision) labels.push('Dolby Vision');
+  if (video.hdr10_plus) labels.push('HDR10+');
+  if (!labels.length && video.color_transfer === 'smpte2084') labels.push('HDR10');
+  if (video.color_transfer === 'arib-std-b67') labels.push('HLG');
+  return labels;
+}
+
+export function audioFormat(audio?: Stream): string {
+  return audio ? [codec(audio.codec, audio.profile), channels(audio.channels)].filter(Boolean).join(' ') : '';
 }
 
 export function audioStreams(file?: MediaFile): Stream[] {

@@ -1,3 +1,4 @@
+import { SourceFilesButton } from '@/components/SourceFormats';
 import { QueueActions } from '@/components/QueueActions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
@@ -472,6 +473,7 @@ function EpisodeRow({
         </div>
       </div>
       <div className="col-span-2 flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
       {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
       {ep.available && (
         <AddToPlaylistButton

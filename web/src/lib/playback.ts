@@ -42,22 +42,10 @@ export function fallbackCaps(failed: PlaybackPlan['method']): PlayerCaps {
 }
 
 const channelNames: Record<number, string> = { 1: 'Mono', 2: 'Stereo', 6: '5.1', 8: '7.1' };
-const audioCodecs: Record<string, string> = {
-  aac: 'AAC',
-  ac3: 'Dolby Digital',
-  eac3: 'Dolby Digital+',
-  truehd: 'TrueHD',
-  dts: 'DTS',
-  flac: 'FLAC',
-  mp3: 'MP3',
-  opus: 'Opus',
-  vorbis: 'Vorbis',
-};
-
 /** e.g. "English" with "Dolby Digital 5.1 · Commentary" as detail. */
 export function audioLabel(t: AudioTrack, i: number) {
   const name = t.language && t.language !== 'und' ? fmt.language(t.language) : `Track ${i + 1}`;
-  const detail = [audioCodecs[t.codec] ?? t.codec.toUpperCase(), t.channels ? (channelNames[t.channels] ?? `${t.channels} ch`) : '', t.title]
+  const detail = [fmt.codec(t.codec, t.profile), t.channels ? (channelNames[t.channels] ?? `${t.channels} ch`) : '', t.title]
     .filter(Boolean)
     .join(' · ');
   return { name, detail };
@@ -144,7 +132,7 @@ export function saveQuality(kbps: number) {
 /** e.g. "Director's Cut" with "4K · HDR10 · HEVC · 58 GB", or "4K" with "HDR10 · HEVC · 58 GB". */
 export function versionLabel(v: Version) {
   const res = v.width && v.height ? fmt.resolution(v.width, v.height) : '';
-  const rest = [v.hdr, v.video_codec ? fmt.codec(v.video_codec) : '', fmt.fileSize(v.size)];
+  const rest = [...(v.source_formats ?? (v.hdr ? [v.hdr] : [])), v.video_codec ? fmt.codec(v.video_codec) : '', fmt.fileSize(v.size)];
   return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || 'Version', detail: rest.filter(Boolean).join(' · ') };
 }
 

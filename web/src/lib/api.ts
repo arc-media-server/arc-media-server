@@ -60,6 +60,15 @@ export interface Stream {
   kind: 'video' | 'audio' | 'subtitle' | 'attachment' | 'data' | string;
   codec: string;
   profile?: string;
+  channel_layout?: string;
+  color_transfer?: string;
+  color_primaries?: string;
+  bit_depth?: number;
+  dolby_vision?: boolean;
+  dolby_vision_profile?: number;
+  hdr10_plus?: boolean;
+  /** sampled means a bounded read, never proof of whole-file absence. */
+  hdr_probe_status?: '' | 'stream' | 'sampled' | 'unavailable';
   language?: string;
   title?: string;
   width?: number;
@@ -443,6 +452,8 @@ export type PlaybackMethod = 'direct' | 'remux' | 'transcode';
 
 export interface AudioTrack {
   index: number;
+  profile?: string;
+  channel_layout?: string;
   language?: string;
   title?: string;
   codec: string;
@@ -489,6 +500,7 @@ export interface Version {
   video_codec?: string;
   /** HDR10 or HLG. */
   hdr?: string;
+  source_formats?: string[];
   size: number;
   duration_ms?: number;
 }

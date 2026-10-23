@@ -133,6 +133,9 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.goto('/settings?section=access');
   const upload = page.getByRole('textbox', { name: 'Internet upload speed', exact: true });
+  // Centre the control before saving; an auto-scrolled button at the bottom edge
+  // leaves no room for the new inline feedback, independent of where it is rendered.
+  await upload.evaluate(el => el.scrollIntoView({ block: 'center' }));
   await upload.fill('25');
   await page.route('**/api/settings', route => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 503, json: { error: 'Upload save failed' } }) : route.continue());
@@ -507,3 +510,63 @@ async function setup(page: Page) {
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).last().click();
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
 }
+
+test('source labels keep HDR and profile-based audio with their own movie version', async ({ page }, info) => {
+  const { item } = await seed(page);
+  const original = await (await page.request.get('/api/items/' + item.id)).json();
+  const base = original.files[0];
+  const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, streams: [
+    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled' },
+    { index: 1, kind: 'audio', codec: 'truehd', profile: audioProfile, channels: 8, language: 'eng', is_default: true, is_forced: false },
+  ] });
+  const files = [file(101, 'Cinema', true, true, 'Dolby TrueHD + Dolby Atmos'), file(102, 'Standard', false, false, '')];
+  await page.route('**/api/items/' + item.id, r => r.fulfill({ json: { ...original, files } }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/movie/' + item.id);
+    const hero = page.locator('main').getByRole('radiogroup', { name: 'Edition' }).locator('..');
+    await expect(hero.getByText('Dolby Vision', { exact: true })).toBeVisible();
+    await expect(hero.getByText('HDR10+', { exact: true })).toBeVisible();
+    await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toBeVisible();
+    await page.getByRole('radio', { name: 'Standard', exact: true }).click();
+    await expect(hero.getByText('HDR10', { exact: true })).toBeVisible();
+    await expect(hero.getByText('Dolby TrueHD 7.1', { exact: true })).toBeVisible();
+    await expect(hero.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
+    await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`source-formats-${width}.png`), fullPage: true });
+  }
+  files[1].edition = 'Cinema';
+  await page.goto('/movie/' + item.id);
+  const hero = page.locator('main h1').locator('..');
+  await expect(hero.getByText('2 versions', { exact: true })).toBeVisible();
+  await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
+});
+
+test('series file details show episode source tracks without claiming series-wide HDR', async ({ page }) => {
+  const { item } = await seed(page, true);
+  await page.goto('/series/' + item.id);
+  const button = page.getByRole('button', { name: /^File details for / }).first();
+  await expect(button).toBeVisible();
+  // Intercept only the on-demand item read; the series and episode list remain real.
+  await page.route('**/api/items/*', async r => {
+    if (r.request().method() !== 'GET') return r.continue();
+    const response = await r.fetch(); const episode = await response.json();
+    if (episode.kind !== 'episode') return r.fulfill({ response });
+    return r.fulfill({ json: { ...episode, files: episode.files.map((f: object) => ({ ...f, streams: [
+      { index: 0, kind: 'video', codec: 'hevc', width: 1920, height: 1080, color_transfer: 'arib-std-b67' },
+      { index: 1, kind: 'audio', codec: 'eac3', profile: 'Dolby Digital Plus + Dolby Atmos', channels: 6 },
+      { index: 2, kind: 'audio', codec: 'dts', profile: 'DTS-HD MA + DTS:X', channels: 8 },
+      { index: 3, kind: 'audio', codec: 'truehd', channels: 8, title: 'Atmos DV HDR10+ (misleading track title)' },
+    ] })) } });
+  });
+  await button.click();
+  const dialog = page.getByRole('dialog', { name: /^File details:/ });
+  await expect(dialog.getByText(/1080p · HEVC · HLG/)).toBeVisible();
+  await expect(dialog.getByText('Dolby Digital+ Atmos · 5.1', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('DTS-HD MA · DTS:X · 7.1', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Dolby TrueHD · 7.1', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText(/Source formats; playback output depends/)).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+});

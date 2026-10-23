@@ -202,6 +202,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Clarify scan Activity and keep browsing independent of session bookkeeping; index cached-episode cleanup (#158; isolated evidence in READINESS, deployment confirmation pending)
 - [x] Balance movie/series headers, enlarge desktop posters and expand long synopses (#160; isolated viewport and keyboard evidence in READINESS)
 - [x] Refine Settings grouping, persistent navigation, local save feedback and accessibility; lower title headers and tighten the Cast gap (#161; isolated evidence in READINESS)
+- [x] Show evidence-based source HDR and codec/profile audio labels with bounded one-time enrichment (#163; source metadata only, device acceptance remains #135)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)
