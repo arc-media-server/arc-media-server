@@ -1,5 +1,45 @@
 # Stability and release readiness
 
+## Scanner worker CI regression (#173, 23 October 2026)
+
+Arc/Plex review #162 now tracks all 36 audit findings through separate review issues or
+existing dedicated issues. First review: failed publication run 39974633288 at a5f0a711.
+Linux TestEach returned the expected boom error but counted 166 callbacks beyond index 100;
+its arbitrary maximum of 50 assumed callback 10 had already run. Concurrent dispatch does
+not guarantee that callback execution order. This failure does not establish that the
+scanner continued after receiving a published error.
+
+A controlled external copy of the unchanged helper held callback 10 while other workers
+continued: 899 callbacks beyond index 100 finished before the error was released, then the
+helper correctly returned boom. This demonstrates the invalid assertion; it is not a replay
+of the hosted scheduler trace. The original test also passed 1,000 single-CPU repetitions,
+so isolated passes alone were not accepted as an explanation or a fix.
+
+The replacement TestEach holds the first worker wave using channels, proves the configured
+concurrency is reached without sleeps, checks the upper limit and verifies every index runs
+exactly once. TestEachStopsOnError uses one worker to assert exactly 11 calls through index
+10 and the original error. TestEachDelayedError holds that error while all other work finishes
+and verifies the eventual error is retained after dispatch has drained. Ten-second contexts
+are deadlock watchdogs, not callback-order assertions. No scanner runtime, workflow gate,
+dependency, media or database changes.
+
+Local verification passed: all Go packages (287 tests/subtests, 196 top-level functions,
+27 test-bearing packages and six packages without tests), Go vet, the embedded-server build
+and the full scanner race package (81 tests/subtests, 40 top-level functions). The three worker
+tests passed 1,000 repetitions each both at the default CPU setting and GOMAXPROCS=1 (6,000
+test executions total, no failures/skips). Two deliberately invalid external helper variants
+are rejected: continuing dispatch after reporting boom fails with 999 calls instead of 11;
+discarding an error after dispatch drains returns nil and fails the delayed-error regression.
+An initial worker-continue-only control still passed because its dispatcher correctly stops;
+that control does not violate the contract and is retained as such in the evidence.
+
+Evidence: `/workspace/arc-cloud-evidence/ci-173/`, including the original repeated run,
+controlled baseline, final ordinary/race/repetition logs and external mutation checks.
+The web app and browser suite were not rerun locally for this test-only correction. Hosted
+Linux/Windows/browser/container verification and image publication are separately recorded
+on #173; local success is not a claim those hosted gates have passed. No owner data/settings/
+media, real providers, production keys, Unraid, tool installation or persistent server used.
+
 ## Routine rescan/maintenance separation (#169, 23 October 2026)
 
 Owner-approved plan: [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md).

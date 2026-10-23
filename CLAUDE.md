@@ -37,6 +37,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Arc/Plex audit review queue: #162 indexes all 36 findings (new review issues #170–#199,
+  plus existing dedicated issues). Review each before implementing, deferring or closing with
+  a reason. Work starts with CI #173, then optimized playback #170–#172; optional/intentional
+  differences are not automatically accepted changes. #173 replaces a scheduler-dependent
+  TestEach assertion with gated concurrency, exact single-worker stop and delayed-error tests.
+  Scanner runtime and CI gates are unchanged. All Go tests/vet, scanner race and repeated
+  worker checks pass locally; hosted publication remains separate evidence on #173.
 - Incremental rescans (#169, 23 October): ordinary scans no longer refresh matched titles
   because of age or retry old unmatched titles. Maintenance owns overdue/incomplete movie
   refresh (draining pages), due/airing shows and old unmatched recovery under existing admission.

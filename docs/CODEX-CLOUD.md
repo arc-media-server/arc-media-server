@@ -6,6 +6,13 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Audit review queue: [#162](https://github.com/JonzaUK/arc-media-server/issues/162) indexes all
+36 Arc/Plex findings, with independent review/implementation-or-close decisions. Start with
+CI #173, then optimized-copy correctness #170–#172. The #173 TestEach correction uses controlled
+worker gates instead of assuming a failing callback runs before later indices. It preserves
+the runtime helper and CI gates; local ordinary Go, vet, scanner race and repeated checks pass.
+See READINESS and #173 for exact evidence and the separate hosted publication result.
+
 Navigation handoff (#166, 23 October): server management lives within Settings, including
 the existing Dashboard/Insights/Health/Libraries/Profiles/Backups URLs. Activity links to
 Dashboard. Plan: [SETTINGS-NAVIGATION-PLAN.md](SETTINGS-NAVIGATION-PLAN.md); focused
