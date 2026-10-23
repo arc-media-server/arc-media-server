@@ -168,12 +168,14 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 }
 
 type audioTrackDTO struct {
-	Index    int    `json:"index"`
-	Language string `json:"language,omitempty"`
-	Title    string `json:"title,omitempty"`
-	Codec    string `json:"codec"`
-	Channels int    `json:"channels,omitempty"`
-	Default  bool   `json:"default"`
+	Index         int    `json:"index"`
+	Language      string `json:"language,omitempty"`
+	Title         string `json:"title,omitempty"`
+	Codec         string `json:"codec"`
+	Channels      int    `json:"channels,omitempty"`
+	Profile       string `json:"profile,omitempty"`
+	ChannelLayout string `json:"channel_layout,omitempty"`
+	Default       bool   `json:"default"`
 }
 
 type playbackPlan struct {
@@ -336,7 +338,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	for _, st := range f.Streams {
 		if st.Kind == "audio" {
 			out.AudioTracks = append(out.AudioTracks, audioTrackDTO{Index: st.Index, Language: st.Language,
-				Title: st.Title, Codec: st.Codec, Channels: st.Channels, Default: st.IsDefault})
+				Title: st.Title, Codec: st.Codec, Channels: st.Channels, Default: st.IsDefault, Profile: st.Profile, ChannelLayout: st.ChannelLayout})
 		}
 	}
 
@@ -522,9 +524,10 @@ type versionDTO struct {
 	Height     int    `json:"height,omitempty"`
 	VideoCodec string `json:"video_codec,omitempty"`
 	// HDR10 or HLG, from the colour transfer.
-	HDR        string `json:"hdr,omitempty"`
-	Size       int64  `json:"size"`
-	DurationMS int64  `json:"duration_ms,omitempty"`
+	HDR           string   `json:"hdr,omitempty"`
+	SourceFormats []string `json:"source_formats,omitempty"`
+	Size          int64    `json:"size"`
+	DurationMS    int64    `json:"duration_ms,omitempty"`
 }
 
 func hdrName(st *store.Stream) string {
@@ -547,6 +550,15 @@ func versions(files []store.MediaFile) []versionDTO {
 		v := versionDTO{FileID: f.ID, Edition: f.Edition, Size: f.Size, DurationMS: f.DurationMS}
 		if st := videoStream(&f); st != nil {
 			v.Width, v.Height, v.VideoCodec, v.HDR = st.Width, st.Height, st.Codec, hdrName(st)
+			if st.DolbyVision {
+				v.SourceFormats = append(v.SourceFormats, "Dolby Vision")
+			}
+			if st.HDR10Plus {
+				v.SourceFormats = append(v.SourceFormats, "HDR10+")
+			}
+			if len(v.SourceFormats) == 0 && v.HDR != "" {
+				v.SourceFormats = append(v.SourceFormats, v.HDR)
+			}
 		}
 		out = append(out, v)
 	}

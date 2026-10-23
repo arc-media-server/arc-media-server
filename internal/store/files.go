@@ -42,16 +42,16 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	var id int64
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO media_files (library_id, path, size, mtime, container, duration_ms, bitrate,
-			probed_at, probe_error, last_seen_at, missing_since)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+			probed_at, probe_error, last_seen_at, missing_since, format_probe_version)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
 		ON CONFLICT (path) DO UPDATE SET
 			library_id = excluded.library_id, size = excluded.size, mtime = excluded.mtime,
 			container = excluded.container, duration_ms = excluded.duration_ms, bitrate = excluded.bitrate,
 			probed_at = excluded.probed_at, probe_error = excluded.probe_error,
-			last_seen_at = excluded.last_seen_at, missing_since = NULL
+			last_seen_at = excluded.last_seen_at, missing_since = NULL, format_probe_version = excluded.format_probe_version
 		RETURNING id`,
 		f.LibraryID, f.Path, f.Size, f.ModTime, f.Container, f.DurationMS, f.Bitrate,
-		probed, f.ProbeError, seenAt).Scan(&id)
+		probed, f.ProbeError, seenAt, f.FormatProbeVersion).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -72,11 +72,11 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	for _, st := range f.Streams {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO media_streams (file_id, idx, kind, codec, profile, language, title, width, height,
-				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, st.Index, st.Kind, st.Codec, st.Profile, st.Language, st.Title, st.Width, st.Height,
 			st.Channels, boolInt(st.IsDefault), boolInt(st.IsForced), st.PixFmt, st.BitDepth, st.ColorTransfer,
-			st.ColorPrimaries, st.FrameRate, st.Bitrate); err != nil {
+			st.ColorPrimaries, st.FrameRate, st.Bitrate, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus); err != nil {
 			return 0, err
 		}
 	}
@@ -257,7 +257,7 @@ func (s *Store) SeriesFilePaths(ctx context.Context, seriesID string, limit int)
 func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT idx, kind, codec, profile, language, title, width, height, channels, is_default, is_forced,
-			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate
+			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status
 		FROM media_streams WHERE file_id = ? ORDER BY idx`, fileID)
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 		var st Stream
 		if err := rows.Scan(&st.Index, &st.Kind, &st.Codec, &st.Profile, &st.Language, &st.Title,
 			&st.Width, &st.Height, &st.Channels, &st.IsDefault, &st.IsForced, &st.PixFmt, &st.BitDepth,
-			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate); err != nil {
+			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate, &st.ChannelLayout, &st.DolbyVision, &st.DolbyVisionProfile, &st.HDR10Plus, &st.HDRProbeStatus); err != nil {
 			return nil, err
 		}
 		streams = append(streams, st)

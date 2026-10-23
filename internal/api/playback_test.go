@@ -156,3 +156,19 @@ func TestRemoteLimit(t *testing.T) {
 		t.Errorf("two remote streams = %d, want 4000", got)
 	}
 }
+
+// Richer source labels must not change the colour-transfer contract used for tone mapping.
+func TestVersionSourceFormatsDoNotChangePlaybackHDR(t *testing.T) {
+	f := store.MediaFile{ID: 1, Streams: []store.Stream{{Kind: "video", Codec: "hevc", ColorTransfer: "smpte2084", DolbyVision: true, HDR10Plus: true}}}
+	v := versions([]store.MediaFile{f})
+	if len(v) != 1 || v[0].HDR != "HDR10" || !slices.Equal(v[0].SourceFormats, []string{"Dolby Vision", "HDR10+"}) {
+		t.Fatalf("%+v", v)
+	}
+	f.Streams[0].DolbyVision = false
+	f.Streams[0].HDR10Plus = false
+	f.Streams[0].ColorTransfer = "arib-std-b67"
+	v = versions([]store.MediaFile{f})
+	if v[0].HDR != "HLG" || !slices.Equal(v[0].SourceFormats, []string{"HLG"}) {
+		t.Fatalf("%+v", v)
+	}
+}

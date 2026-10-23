@@ -37,6 +37,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Source format labels (#163, 23 October): Movie/file details and series episode file details
+  show Dolby Vision, HDR10+, HDR10/PQ, HLG and codec/profile-aware audio (TrueHD, Dolby Digital+,
+  DTS-HD, Atmos/DTS:X when actually reported). Player source track/version menus share these
+  labels. Multiple versions never contribute a mixed HDR/audio badge; a whole series is not
+  assigned one episode's formats. These describe source metadata, not current device output.
+  Migration 0047 adds evidence/status and a one-time format-probe version. New/changed candidate
+  videos get a bounded FFprobe frame sample; existing files enrich at most 32 per library scan,
+  only if seen in that scan. Optional failure is remembered without losing basic metadata.
+  Unchanged scans skip completed attempts. See docs/SOURCE-FORMATS.md for limits and backfill.
+
 - Settings and title spacing (#161, 22 October): Settings retains five groups, with imports/
   notifications in Libraries & metadata, renamed Playback & transcoding and Maintenance &
   diagnostics, clearer subtitle/intro scopes and optimized versions last in playback.
