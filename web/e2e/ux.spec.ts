@@ -399,7 +399,7 @@ test('queue editing preserves current playback, browsing and saved episode progr
   let starts = 0;
   page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith('/playback')) starts++; });
   await page.goto('/series/' + shows.item.id);
-  await page.getByRole('button', { name: /^Play S/ }).click();
+  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
   const video = page.locator('video');
   const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
@@ -537,7 +537,7 @@ test('switching profiles stops compact playback after saving the original profil
 test('compact playback carries on to the next episode after its countdown', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  await page.getByRole('button', { name: /^Play S/ }).click();
+  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
