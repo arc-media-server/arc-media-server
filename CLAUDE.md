@@ -45,7 +45,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   state per row and removes only after server confirmation, including failed subsequent
   list refresh. Episode artwork/details have a native playback button with Enter/Space,
   a visible focus ring and separate sibling actions. No API/schema/scanning policy change.
-  Isolated actual results and fixture limitations are in READINESS and #176–#180.
+  Isolated actual results and fixture limitations are in READINESS and #176–#180. First
+  hosted b0fc9dc passed 60/62 journeys but blocked publication: two older /^Play S/ selectors
+  also matched the new Play Second Chapter button. They now target the season/episode-code
+  button explicitly; all queue/progress/countdown assertions and runtime labels stay intact.
 
 - Audit corrections #172/#174/#175: completed optimized copies record measured output duration/
   average total bitrate (migration 0051), with height and effective manual/remote/upload-budget

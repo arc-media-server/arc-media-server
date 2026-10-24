@@ -67,6 +67,17 @@ remain retained. All stores/media/provider fixtures were temporary; no owner dat
 production keys, Unraid, new tools/dependencies or persistent server. Evidence:
 `/workspace/arc-cloud-evidence/review-176-180/`.
 
+Hosted follow-up: run 40137947443 at b0fc9dc passed Windows, container checks, Linux Go/race
+and **60/62 browser journeys**, including all eight new recovery checks. Publication was skipped
+because two existing queue/compact-player tests used the broad button selector /^Play S/; the
+new valid Play Second Chapter button made it ambiguous with Play S1 E1. The correction targets
+the main season/episode-code Play button explicitly in those two tests, retaining every queue,
+playback/progress and countdown assertion. Production labels/behavior and CI gates are unchanged.
+Both corrected local journeys passed (28 seconds, zero failures/skips/retries), as did e2e
+TypeScript; this brings the distinct local browser coverage to 17 journeys. The first hosted
+log is retained as hosted-first-linux.log; final hosted results are tracked in the same
+evidence folder and on #176–#180.
+
 ## Audit corrections: bitrate, Search and phone filter recovery (#172/#174/#175, 24 October 2026)
 
 Starting clean baseline d232230 matched GitHub main read-only. Work branch:

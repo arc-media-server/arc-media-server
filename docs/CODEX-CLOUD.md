@@ -11,7 +11,10 @@ cached news/playlists/devices/optimized copies/notifications remain visible with
 Dependent playlist/webhook actions explain unavailable prerequisites. Failed news refresh is not
 marked seen; per-device errors stay independent and successful revocation is retained if list
 refresh fails. Episode playback uses a native button separate from row actions. No backend or
-schema changes. READINESS and individual issues record actual isolated checks and hosted outcome.
+schema changes. First hosted b0fc9dc passed 60/62 browser journeys and blocked publication on
+ambiguous older /^Play S/ queue-test selectors. The follow-up narrows those two selectors to
+season/episode codes without changing assertions or runtime labels. READINESS and individual
+issues record actual checks and hosted outcome.
 
 Audit handoff (#172/#174/#175): optimized selection respects measured average total bitrate
 and effective quality/remote/upload-share limits; migration 0051 preserves existing copies with
