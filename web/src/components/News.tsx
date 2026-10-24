@@ -5,13 +5,15 @@ import { Popover } from 'radix-ui';
 import { Bell } from 'lucide-react';
 import { api, itemHref, posterUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from '@/components/Page';
 import { Artwork } from '@/components/Artwork';
 
 /** "New for you": new episodes of shows the profile watches, and new movies, with a count of unread. */
 export function NewsButton({ className }: { className?: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const { data } = useQuery({ queryKey: ['news'], queryFn: api.news, refetchInterval: 5 * 60_000 });
+  const news = useQuery({ queryKey: ['news'], queryFn: api.news, refetchInterval: 5 * 60_000 });
+  const { data } = news;
   const seen = useMutation({ mutationFn: api.newsSeen, onSuccess: () => qc.invalidateQueries({ queryKey: ['news'] }) });
   const unread = data?.unread ?? 0;
   return (
@@ -20,7 +22,7 @@ export function NewsButton({ className }: { className?: string }) {
       onOpenChange={(o) => {
         setOpen(o);
         // Closing it marks what was shown as seen.
-        if (!o && unread > 0) seen.mutate();
+        if (!o && unread > 0 && !news.error) seen.mutate();
       }}
     >
       <Popover.Trigger
@@ -49,8 +51,12 @@ export function NewsButton({ className }: { className?: string }) {
             <p className="text-xs text-subtle">New episodes of shows you watch, and new movies, from the last month.</p>
           </div>
           <div className="max-h-[min(65vh,480px)] overflow-y-auto p-1.5">
-            {!data ? (
-              <div className="m-2 h-16 animate-pulse rounded-xl bg-surface-2" />
+            {news.error && <div className="m-2 space-y-2">
+              {data && <p className="text-xs text-muted">Showing the last loaded updates. They may be out of date.</p>}
+              <ErrorNotice error={news.error} onRetry={() => void news.refetch()} busy={news.isFetching} />
+            </div>}
+            {!data ? (news.error ? null :
+              <div role="status" className="m-2 h-16 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">Loading new additions…</span></div>
             ) : data.entries.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted">Nothing new yet. New episodes of shows you watch will show up here.</p>
             ) : (

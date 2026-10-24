@@ -6,6 +6,13 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Recovery handoff (#176–#180): query failures show local Retry instead of endless/empty states;
+cached news/playlists/devices/optimized copies/notifications remain visible with a stale notice.
+Dependent playlist/webhook actions explain unavailable prerequisites. Failed news refresh is not
+marked seen; per-device errors stay independent and successful revocation is retained if list
+refresh fails. Episode playback uses a native button separate from row actions. No backend or
+schema changes. READINESS and individual issues record actual isolated checks and hosted outcome.
+
 Audit handoff (#172/#174/#175): optimized selection respects measured average total bitrate
 and effective quality/remote/upload-share limits; migration 0051 preserves existing copies with
 unknown measurements for unlimited playback. Limited playback falls back conservatively. Search
