@@ -27,6 +27,7 @@ func (s *Server) optimizeItems(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	var fileIDs []int64
+	var selected []store.MediaFile
 	addFiles := func(itemID string) error {
 		files, err := s.store.ItemFiles(ctx, itemID)
 		if err != nil {
@@ -50,6 +51,7 @@ func (s *Server) optimizeItems(w http.ResponseWriter, r *http.Request) {
 		}
 		if best != nil {
 			fileIDs = append(fileIDs, best.ID)
+			selected = append(selected, *best)
 		}
 		return nil
 	}
@@ -79,6 +81,22 @@ func (s *Server) optimizeItems(w http.ResponseWriter, r *http.Request) {
 		if err := addFiles(it.ID); err != nil {
 			s.fail(w, err)
 			return
+		}
+	}
+	// An explicit Optimize can repair missing artifacts and changes not scanned yet.
+	for _, f := range selected {
+		list, err := s.store.FileOptimized(ctx, f.ID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		for _, o := range list {
+			if o.Quality == body.Quality && !optimize.Usable(&o, &f) {
+				if _, err := s.store.FailOptimize(ctx, &o, "The source or copy changed. Optimize it again."); err != nil {
+					s.fail(w, err)
+					return
+				}
+			}
 		}
 	}
 	n, err := s.store.QueueOptimize(ctx, fileIDs, body.Quality)
@@ -132,7 +150,7 @@ func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCa
 		return nil
 	}
 	for i := range list {
-		if maxHeight == 0 || list[i].Quality <= maxHeight {
+		if (maxHeight == 0 || list[i].Quality <= maxHeight) && optimize.Usable(&list[i], f) {
 			return &list[i]
 		}
 	}
@@ -141,5 +159,5 @@ func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCa
 
 // optimizedURL is where a player streams an optimized copy.
 func optimizedURL(itemID string, o *store.Optimized) string {
-	return fmt.Sprintf("/api/items/%s/stream?file=%d&optimized=%d", itemID, o.FileID, o.Quality)
+	return fmt.Sprintf("/api/items/%s/stream?file=%d&optimized=%d&optimized_rev=%s", itemID, o.FileID, o.Quality, o.JobID)
 }

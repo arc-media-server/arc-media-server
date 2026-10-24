@@ -1,5 +1,61 @@
 # Stability and release readiness
 
+## Optimized-copy source revision correctness (#170)
+
+Contract and compatibility behavior: [OPTIMIZED-COPIES.md](OPTIMIZED-COPIES.md). A fresh
+regression at 6886f1f reproduced the audit finding: after SaveFile updated a source, the old
+optimized copy still appeared playable. The initial failing log is preserved, not counted
+as a pass.
+
+Migration 0049 records source path/size/time, actual conversion-time filesystem precision and
+attempt identity. SaveFile atomically invalidates changed-source copies without changing item
+or file identity. Claim/completion/failure guards and unique filenames isolate superseded
+workers. Playback and the final streaming endpoint validate saved/actual source revisions and
+artifact existence/size; new URLs also bind the attempt. Missing artifacts can be explicitly
+requeued. Restart resumes interrupted jobs under fresh attempt IDs and prunes only orphaned
+Arc-owned output. Registered failed copies and unrelated files remain removable/preserved.
+
+Legacy completed copies are deliberately not stamped with an inferred source: they may already
+be stale. Their generated files remain recorded but require Optimize again; there is no bulk
+background rebuild. Actual schema-48 upgrade/pre-upgrade backup, restart persistence, metadata
+edits/locks and resume-point retention are tested. Original media is only read by Arc.
+
+Local final verification passed: all Go packages (304 tests/subtests, 205 top-level functions,
+28 test-bearing packages and five with no tests), Go vet, production/app and e2e TypeScript,
+and embedded-server build. Four affected packages passed race checks (store/optimize/API/scanner,
+190 tests/subtests, 113 top-level); after preserving the existing startup-error fallback,
+final store/optimize/API race checks also passed (109 tests/subtests, 73 top-level). No test
+failures or skipped test cases in these final runs; no-test packages are counted separately.
+
+Nine new Go functions produce 17 focused test/subtest passes: source size/time changes versus
+unchanged saves; queued-source invalidation; late completion/failure after replacement,
+deletion/requeue and restart; legacy upgrade/reopen; actual generated-media regeneration;
+controlled subprocess replacement/deletion; interrupted subprocess recovery/owned cleanup;
+and API selection/range/URL/missing-artifact repair. The real worker test verifies a six-second
+copy is replaced by a nine-second copy and optimization leaves its input bytes unchanged.
+
+Seven full-app HTTP observations pass with generated media/local providers: initial optimized
+playback, rejection/fallback before a scan, post-scan identity/title preservation and updated
+duration, explicit nine-second regeneration with new generation/bytes, missing-artifact
+fallback, explicit repair and valid-copy reuse across restart. The first HTTP script mixed
+Fetch's ok property with Playwright's ok method at its restart assertion; corrected in the
+external harness. A second replay reached all seven checks but reported a nonzero runner
+status, so was not accepted as a passing run. The final instrumented replay records child
+exit 0, runner exit 0 and all seven checks; earlier attempts remain retained. Neither harness
+result was treated as a new product defect.
+
+Four focused pinned-Chromium journeys passed (zero failures/skips/retries, 50 seconds): real
+remux/transcode playback with seeking/resume, direct video progress/reload resume and backup
+restore with live settings/access. The entire unrelated browser suite was not repeated locally;
+hosted Linux/Windows/full-browser/container/publication results are separately recorded on #170.
+Evidence: `/workspace/arc-cloud-evidence/optimized-170/`.
+
+Only isolated stores, generated clips, stand-in subprocesses and local providers were used.
+No owner data/settings/media, production keys, Unraid, tool/dependency installation or persistent
+Arc server. Filesystem revision checks are not whole-file hashing or guarantees about already
+open streams. Device/HDR/Atmos/NAS/sustained-use acceptance remains separate; #171/#172 audio
+and bitrate findings are outside this source-revision fix.
+
 ## Scanner worker CI regression (#173, 23 October 2026)
 
 Arc/Plex review #162 now tracks all 36 audit findings through separate review issues or

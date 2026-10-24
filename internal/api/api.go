@@ -599,10 +599,12 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request) {
 	// An optimized copy of the file (made in Arc's data folder).
 	if q, _ := strconv.Atoi(r.URL.Query().Get("optimized")); q > 0 {
 		path = ""
+		revision := r.URL.Query().Get("optimized_rev")
 		if list, err := s.store.FileOptimized(r.Context(), chosen.ID); err == nil {
 			for _, o := range list {
-				if o.Quality == q {
+				if o.Quality == q && (revision == "" || revision == o.JobID) && optimize.Usable(&o, chosen) {
 					path = o.Path
+					break
 				}
 			}
 		}

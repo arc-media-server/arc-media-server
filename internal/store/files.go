@@ -55,6 +55,14 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	if err != nil {
 		return 0, err
 	}
+	// Keep identity/history, but revoke generated copies and in-flight attempts for old bytes.
+	if _, err := tx.ExecContext(ctx, `UPDATE optimized_versions SET status='failed',
+		error='The source changed. Optimize it again.', job_id=lower(hex(randomblob(16)))
+		WHERE file_id=? AND (source_path<>? OR source_size<>? OR source_mtime<>?)
+		AND (status<>'failed' OR error<>'The source changed. Optimize it again.')`,
+		id, f.Path, f.Size, f.ModTime); err != nil {
+		return 0, err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM media_streams WHERE file_id = ?`, id); err != nil {
 		return 0, err
 	}
