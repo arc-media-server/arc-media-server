@@ -1,5 +1,59 @@
 # Stability and release readiness
 
+
+## Library, backup and bulk-selection clarity (#181/#182/#185, 25 October 2026)
+
+Starting checkout c8dc62c was clean and matched GitHub main read-only. Work branch:
+codex/library-backup-selection-clarity. Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0,
+FFprobe 7.1.5, dependencies/caches and pinned Chromium 156 revision 1248 were present;
+no tools or dependencies were installed. Only disposable stores, generated media and local
+provider fixtures were used. No owner data/settings/media, production keys or Unraid access.
+
+All three findings were confirmed in current code. #181 associates the name input and each
+movie/show advanced select with a visible label using unique React IDs; descriptive text is
+linked with aria-describedby, including the changing file-numbering explanation. Group labels
+(Type/Folders) remain groups rather than labelling an arbitrary nested button. Layout and
+save/validation behavior remain unchanged. #182 reads the existing settings query: On/Off,
+server-local maintenance window (including overnight/equal-hours all-day), foreground-work
+admission delay, manual/safety availability and last saved successful backup. Loading/error
+never implies Off; policy errors offer local Retry without disabling manual backup. The link
+opens existing Scheduled tasks. There is no startup-time guarantee or scheduling change.
+The backup manager's legacy overdue-window exception is still gated by background.Ready
+in cmd/ams; the UI describes the actual application gate, not the manager in isolation.
+Last successful backup means the newest saved snapshot, not proof of a successful latest
+attempt; no new persistent failure-history API or real recovery acceptance is claimed.
+#185 says Select loaded (N), preserving the existing explicit-ID bulk mutation contract.
+New pages are never selected implicitly; Select None and route/filter reset remain intact.
+No all-matching selection, API, database, dependencies or scheduler behavior changes.
+
+Four new Chromium journeys failed against the previous embedded build: both movie/show
+name controls were unnamed, backup policy was absent and the bulk control implied all.
+After rebuilding, all four pass with no failures/skips/retries (23.6 seconds):
+
+- Movie/show Add and Edit expose named controls and real associated help; clicking Name
+  focuses the input, keyboard language selection saves through the real API, reopening
+  retains it, and changing show numbering updates its help. Phone screenshots inspected.
+- Actual automatic-backup Off, real manual snapshot creation, actual Settings toggle to On,
+  same-SPA query-cache update, overnight and all-day windows, unavailable-policy Retry and
+  continued manual-action availability. This does not simulate a full day of scheduling.
+- A synthetic filtered 501-title response loads 500. The explicitly captured mock bulk write
+  contains exactly those 500 IDs; Load more retains the prior 500 selection until explicitly
+  selecting the loaded 501. Clearing/Done and the 390px control layout are checked. Synthetic
+  records never reach real mutations; this is scope evidence, not a scanner benchmark.
+
+Production/app and e2e TypeScript, production UI build, embedded-server build and
+`git diff --check` pass. Seven related existing journeys also pass without failures/skips/retries: invalid-folder
+retry, reaching title 501, selection reset across libraries, real restore/settings reload,
+removal safety-backup labelling, desktop/phone management navigation and labelled Settings
+controls. Total distinct focused browser checks: 11. Hosted validation/publication is tracked
+on the individual issues and #162; it remains separate until the new run completes.
+Full local Go/race suites were not repeated for these UI-only corrections; hosted gates
+retain their existing backend/race coverage. Previous hosted runs remain historical evidence.
+Artifacts: `/workspace/arc-cloud-evidence/review-181-182-185/` (START.json, before.json,
+after.json, retained failure traces and inspected screenshots). No persistent fixture server
+is left running. Physical screen readers/devices, owner recovery and sustained-use acceptance
+remain separate from Chromium accessibility-name/keyboard and temporary-store checks.
+
 ## Recoverable UI errors and episode keyboard playback (#176–#180, 24 October 2026)
 
 The clean starting checkout 14094bb matched GitHub main read-only. Work branch:

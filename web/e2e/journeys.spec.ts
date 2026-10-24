@@ -301,7 +301,7 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
   await addLibrary(page, 'Second library', media.empty);
   await page.goto(`/library/${first.id}`);
   await page.getByRole('button', { name: 'Select', exact: true }).click();
-  await page.getByRole('button', { name: 'Select All', exact: true }).click();
+  await page.getByRole('button', { name: 'Select loaded (2)', exact: true }).click();
   await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
   await page.locator('aside').getByRole('link', { name: 'Second library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
