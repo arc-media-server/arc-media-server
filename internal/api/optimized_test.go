@@ -80,6 +80,7 @@ func TestOptimizedStreamGuardsAndRepair(t *testing.T) {
 		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			t.Fatal(err)
 		}
+		o.AudioStream = -1
 		if ok, err := s.store.FinishOptimize(ctx, o, path, int64(len(content))); err != nil || !ok {
 			t.Fatalf("finish %v %v", ok, err)
 		}
@@ -106,14 +107,14 @@ func TestOptimizedStreamGuardsAndRepair(t *testing.T) {
 	oldURL := optimizedURL(item, &old)
 	stream(oldURL, 200, "first copy", "")
 	stream(oldURL, 206, "fir", "bytes=0-2")
-	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720); picked == nil {
+	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720, nil); picked == nil {
 		t.Fatal("valid copy not selected")
 	}
 	// Same size and saved seconds: the higher-resolution conversion snapshot still detects it.
 	if err := os.Chtimes(source, modified, modified.Add(time.Millisecond)); err != nil {
 		t.Fatal(err)
 	}
-	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720); picked != nil {
+	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720, nil); picked != nil {
 		t.Fatal("unscanned timestamp change selected old copy")
 	}
 	stream(oldURL, 404, "", "")
@@ -124,7 +125,7 @@ func TestOptimizedStreamGuardsAndRepair(t *testing.T) {
 	if err := os.Remove(old.Path); err != nil {
 		t.Fatal(err)
 	}
-	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720); picked != nil {
+	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720, nil); picked != nil {
 		t.Fatal("missing artifact selected")
 	}
 	stream(oldURL, 404, "", "")
@@ -156,7 +157,7 @@ func TestOptimizedStreamGuardsAndRepair(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream(optimizedURL(item, &current), 404, "", "")
-	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720); picked != nil {
+	if picked := s.optimizedFor(request("POST", "/", ""), f, caps, 720, nil); picked != nil {
 		t.Fatal("scanned replacement selected old copy")
 	}
 }

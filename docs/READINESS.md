@@ -1,5 +1,58 @@
 # Stability and release readiness
 
+## Optimized audio selection correctness (#171, 24 October 2026)
+
+Starting clean baseline: 226d05d (GitHub main matched read-only); working branch
+codex/optimized-audio. The new preferred-French API regression failed before the change:
+playback reported source audio stream 2 while returning the English optimized MP4. The original
+failing response is retained at `/workspace/arc-cloud-evidence/optimized-171/before.log`.
+
+Migration 0050 persists the exact mapped source audio index, language and title on attempt-owned
+completion. The optimizer continues encoding default/first-source audio as AAC stereo, records
+silent copies explicitly and writes language/title/default metadata. Playback eligibility now
+compares the effective profile-derived or explicit source choice, including same-language
+commentary. Mismatches use the existing original/remux/transcode path; matching explicit choices
+can reuse an artifact. Explicit no-audio choices cannot return audible original/cached media.
+Source choices and codec labels remain unchanged; the optional playback `optimized` object and
+player info identify the served quality, source audio mapping and actual AAC stereo output.
+
+Older completed copies, including schema-49 artifacts, have unknown audio provenance and require
+explicit Optimize again; files remain recorded/removable. There is no automatic bulk rebuild.
+An actual schema-49 upgrade creates a valid pre-upgrade backup; regeneration and reopen retain
+the new track metadata. Source identity, watch state and source bytes are not rewritten. Contract
+and response semantics: [OPTIMIZED-COPIES.md](OPTIMIZED-COPIES.md). Bitrate eligibility stays #172.
+
+Local verification passed: all Go packages, **321 tests/subtests (208 top-level functions),
+28 test-bearing packages and five packages with no tests**, zero failed/skipped test cases.
+Store/optimizer/API race checks passed **125 tests/subtests (76 top-level functions)**; a final
+API race rerun covers the added explicit-mute decision case. Go vet, embedded-server build,
+production/app TypeScript/Vite build, e2e TypeScript and git diff whitespace checks passed.
+
+New regression coverage includes ten API preference/explicit-selection cases (language aliases,
+missing preferred language, overriding preferences, alternate language, same-language commentary,
+no audio and invalid index), original MP4 audio-disable decisions, schema-49 audio migration/
+backup/restart, and real FFmpeg output for default English, default French and no-default first
+track. FFprobe verifies the actual sole output track (AAC, stereo, MP4 index 1, language/default).
+Decoded output samples measure approximately 439.9/879.9 Hz for distinct 440/880 Hz input tones;
+this establishes actual mapping rather than trusting language tags. It is not a spoken-language
+or physical-speaker listening test.
+
+Three pinned Chromium journeys passed (zero failures/skips/retries, 84 seconds): existing real
+remux and transcode play/seek/resume, plus new real multi-audio optimized playback. The new
+journey sets the profile to French, confirms remux of source track 2, switches to English and
+checks optimized track/output details and advancing playback, inspects the actual info-menu
+screenshot, then switches back to French and confirms playback advances. It uses generated
+multi-audio MKV and local metadata. The complete unrelated browser suite was not repeated locally;
+hosted Linux/Windows/full-browser/container/publication results are recorded separately on #171.
+
+Initial sandboxed broad Go/browser attempts were blocked by local socket and compiler-subprocess
+permissions, not accepted as passing runs. They remain retained (go-all.jsonl, browser.json,
+fixture-start.log); rerunning with the required execution permissions passed without tool or
+dependency changes. All media, stores and provider fixtures were temporary; no owner media,
+settings, production keys, Unraid or persistent server was used. Prepared Go 1.27.0, Node 24.19.0,
+npm 11.9.0, FFmpeg/FFprobe 7.1.5, GCC 14.2 and pinned Chromium revision 1248 were present.
+Evidence, versions and initial/final results: `/workspace/arc-cloud-evidence/optimized-171/`.
+
 ## Optimized-copy source revision correctness (#170)
 
 Contract and compatibility behavior: [OPTIMIZED-COPIES.md](OPTIMIZED-COPIES.md). A fresh

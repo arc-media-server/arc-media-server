@@ -59,7 +59,7 @@ func key(fileID int64, quality int) string { return fmt.Sprintf("%d-%d", fileID,
 // Usable checks the actual source and artifact, not just a completed database status. A source
 // replacement can precede its next scan, and the artifact may have been removed independently.
 func Usable(o *store.Optimized, f *store.MediaFile) bool {
-	if o.Status != "done" || !o.MatchesSource(f) {
+	if o.Status != "done" || o.AudioStream < -1 || !o.MatchesSource(f) {
 		return false
 	}
 	info, err := sourceInfo(o, f)
@@ -238,16 +238,20 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	defer m.removeArtifact(tmp)
 	args := []string{"-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y", "-i", f.Path, "-map", "0:v:0"}
 	audio := -1
+	o.AudioStream, o.AudioLanguage, o.AudioTitle = -1, "", ""
 	for _, s := range f.Streams {
 		if s.Kind == "audio" && (audio < 0 || s.IsDefault) {
 			audio = s.Index
+			o.AudioStream, o.AudioLanguage, o.AudioTitle = s.Index, s.Language, s.Title
 			if s.IsDefault {
 				break
 			}
 		}
 	}
 	if audio >= 0 {
-		args = append(args, "-map", "0:"+strconv.Itoa(audio))
+		args = append(args, "-map", "0:"+strconv.Itoa(audio),
+			"-metadata:s:a:0", "language="+o.AudioLanguage, "-metadata:s:a:0", "title="+o.AudioTitle,
+			"-disposition:a:0", "default")
 	}
 	scale := fmt.Sprintf("scale=-2:'min(%d,ih)'", o.Quality)
 	for _, s := range f.Streams {

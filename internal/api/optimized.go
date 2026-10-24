@@ -141,7 +141,7 @@ func (s *Server) deleteOptimized(w http.ResponseWriter, r *http.Request) {
 
 // optimizedFor picks a finished optimized copy of a file this player can play as it is (MP4,
 // H.264, AAC), within a height limit (0 for none), or nil.
-func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCaps, maxHeight int) *store.Optimized {
+func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCaps, maxHeight int, audio *store.Stream) *store.Optimized {
 	if !caps.has(caps.Containers, "mp4") || !caps.has(caps.Video, "h264") || !caps.has(caps.Audio, "aac") {
 		return nil
 	}
@@ -150,7 +150,7 @@ func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCa
 		return nil
 	}
 	for i := range list {
-		if (maxHeight == 0 || list[i].Quality <= maxHeight) && optimize.Usable(&list[i], f) {
+		if (maxHeight == 0 || list[i].Quality <= maxHeight) && list[i].MatchesAudio(audio) && optimize.Usable(&list[i], f) {
 			return &list[i]
 		}
 	}

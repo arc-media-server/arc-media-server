@@ -42,6 +42,7 @@ func TestDecide(t *testing.T) {
 		{"10-bit h264", file("mp4", store.Stream{Kind: "video", Codec: "h264", BitDepth: 10}, aac), 1, "transcode", true,
 			[]string{"10-bit H.264 video"}},
 		{"no audio", file("mp4", h264), -1, "direct", false, nil},
+		{"audio explicitly disabled", file("mp4", h264, aac), -1, "remux", false, []string{"audio disabled"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var audio *store.Stream

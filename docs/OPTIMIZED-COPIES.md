@@ -46,9 +46,33 @@ copy**. They are not silently trusted or automatically regenerated as a large ba
 Queued/interrupted legacy work receives current saved source snapshots and is validated before
 conversion. Normal backup-before-migration and restore/version-compatibility safeguards apply.
 
-This issue does not change optimized audio selection (#171), bitrate eligibility (#172),
+This source-revision fix does not change bitrate eligibility (#172),
 format/codec labels, quality presets or background processing policy. Source codec/HDR labels
 still describe the source, not the capabilities of a generated copy or the actual device output.
+
+## Audio selection (#171)
+
+Completed copies record the exact mapped source audio index, language and title. The optimizer
+still uses the source default track (or first audio track) and produces AAC stereo; no new
+track-generation option or background batch is introduced. A silent source records an explicit
+no-audio value. FFmpeg receives the corresponding language/title metadata and default flag.
+
+Playback resolves the profile preference or explicit track choice first, then accepts a copy
+only when its recorded source index matches that exact choice. Two tracks in the same language,
+such as main audio and commentary, are distinct. A nonmatching copy falls back to the original,
+remuxing or live conversion for the chosen track. Explicit matching choices may reuse the copy,
+including switching back from an alternate track; choosing no audio cannot return audible media.
+
+The playback response retains `audio_stream` and `audio_tracks` as source indices/details for
+track switching. An optional `optimized` object identifies the served quality, `source_audio_stream`
+and the actual output `audio` (MP4 index 1, AAC, two channels, saved language/title), or no audio.
+The player's info menu says Optimized Direct Play and describes that output instead of claiming
+to send the original file or its surround codec. Source format badges continue to describe sources.
+
+Migration 0050 adds audio provenance. Previously completed copies, including schema-49 copies,
+have no recorded track proof and require explicit Optimize again; their files stay removable.
+Queued work is recorded when it completes. No source file, item identity or watch history changes.
+The migration follows the existing pre-upgrade backup rules.
 
 ## Verification boundary
 

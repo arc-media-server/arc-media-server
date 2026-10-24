@@ -211,6 +211,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Keep rescans focused on changes, move age-based metadata refresh into maintenance and reduce unchanged link/artwork database work (#169; isolated correctness and writer-queue evidence in READINESS)
 - [x] Replace scheduler-dependent scanner worker assertions with gated concurrency, exact stop-on-error and delayed-error regressions (#173; local checks in READINESS, hosted publication tracked on the issue)
 - [x] Bind optimized copies to source revisions and attempt ownership; reject stale/missing artifacts and support safe regeneration/restart (#170; contract in OPTIMIZED-COPIES, local results in READINESS and hosted publication on the issue)
+- [x] Match optimized copies to effective audio choices and report actual served AAC stereo audio (#171; exact source-track provenance, safe fallback and explicit regeneration for unknown legacy copies)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)
