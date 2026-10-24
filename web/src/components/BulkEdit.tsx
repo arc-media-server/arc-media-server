@@ -51,7 +51,7 @@ export function SelectionBar({
         <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface p-2 pl-4 shadow-2xl shadow-black/50">
           <span className="mr-1 text-sm font-medium tabular-nums">{n ? `${n} selected` : 'Choose titles'}</span>
           <Button variant="ghost" size="sm" onClick={n === items.length ? onClear : onSelectAll}>
-            {n === items.length ? 'Select None' : 'Select All'}
+            {n === items.length ? 'Select None' : `Select loaded (${items.length})`}
           </Button>
           <span className="mx-1 h-5 w-px bg-border" />
           <Button variant="secondary" size="sm" disabled={!n} onClick={() => setDialog('edit')}>

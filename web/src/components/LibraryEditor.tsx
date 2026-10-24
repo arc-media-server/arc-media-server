@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, ChevronDown, Film, FolderPlus, HelpCircle, Loader2, Tv, X, Clapperboard } from 'lucide-react';
 import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SourceOrdering } from '@/lib/api';
@@ -32,6 +32,7 @@ export function LibraryEditorDialog({ library, open, onOpenChange }: { library?:
 function Editor({ library, onDone }: { library?: Library; onDone: () => void }) {
   const qc = useQueryClient();
   const editing = !!library;
+  const fieldId = useId();
   const [kind, setKind] = useState<LibraryKind>(library?.kind ?? 'movies');
   const [name, setName] = useState(library?.name ?? '');
   const [nameTouched, setNameTouched] = useState(editing);
@@ -126,8 +127,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               )}
             </Field>
           )}
-          <Field label="Name">
+          <Field label="Name" controlId={`${fieldId}-name`}>
             <input
+              id={`${fieldId}-name`}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -168,9 +170,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
             <summary className="cursor-pointer text-sm font-medium">Advanced</summary>
             <div className="mt-4 space-y-6">
               {kind === 'shows' && (
-                <Field label="Episode numbering in your file names">
+                <Field label="Episode numbering in your file names" controlId={`${fieldId}-ordering`}>
                   <div className="relative">
-                    <select value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
+                    <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
                       {orderings.map((o) => (
                         <option key={o.value} value={o.value}>
                           {o.label}
@@ -179,15 +181,15 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
                   </div>
-                  <p className="mt-1.5 text-xs text-subtle">
+                  <p id={`${fieldId}-ordering-help`} className="mt-1.5 text-xs text-subtle">
                     {orderings.find((o) => o.value === ordering)?.hint}. This is only how files are named; you can show each series in any
                     order later.
                   </p>
                 </Field>
               )}
               {kind === 'movies' && (
-                <Field label="Automatic collections">
-                  <select value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
+                <Field label="Automatic collections" controlId={`${fieldId}-collection-min`}>
+                  <select id={`${fieldId}-collection-min`} aria-describedby={`${fieldId}-collection-min-help`} value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
                     <option value={0}>Off</option>
                     {[1, 2, 3, 4, 5].map((n) => (
                       <option key={n} value={n}>
@@ -195,25 +197,25 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
+                  <p id={`${fieldId}-collection-min-help`} className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
                 </Field>
               )}
               {kind !== 'videos' && (
-                <Field label="Collections in the library">
-                  <select value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
+                <Field label="Collections in the library" controlId={`${fieldId}-collection-grid`}>
+                  <select id={`${fieldId}-collection-grid`} aria-describedby={`${fieldId}-collection-grid-help`} value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
                     {(['items', 'collection', 'both'] as const).map((m) => (
                       <option key={m} value={m}>
                         {gridLabels[m]}
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
+                  <p id={`${fieldId}-collection-grid-help`} className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
                 </Field>
               )}
               {kind !== 'videos' && (
-              <Field label="Metadata language">
+              <Field label="Metadata language" controlId={`${fieldId}-language`}>
                 <div className="relative">
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
+                  <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
                     {metadataLanguages.map(([code, name]) => (
                       <option key={code} value={code}>
                         {name}
@@ -222,7 +224,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
                 </div>
-                <p className="mt-1.5 text-xs text-subtle">
+                <p id={`${fieldId}-language-help`} className="mt-1.5 text-xs text-subtle">
                   {language && !language.startsWith('en')
                     ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
                     : 'The language titles and descriptions are shown in.'}
@@ -286,10 +288,14 @@ function parentOf(path: string) {
 }
 
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, controlId, children }: { label: string; controlId?: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</p>
+      {controlId ? (
+        <label htmlFor={controlId} className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</label>
+      ) : (
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{label}</p>
+      )}
       {children}
     </div>
   );

@@ -6,6 +6,14 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Clarity handoff (#181/#182/#185, 25 October): movie/show library controls have explicit
+labels and associated help without a layout redesign. Backups shows live automatic-backup
+policy, server-local maintenance hours, last saved successful backup, manual/safety availability
+and a link to existing settings; unavailable policy offers Retry. Bulk selection explicitly
+names loaded titles and does not select newly loaded pages implicitly. No new API, schema,
+scheduling policy or server-wide selection. READINESS records isolated results; the individual
+issues and #162 hold hosted validation/publication and the next review agenda.
+
 Recovery handoff (#176–#180): query failures show local Retry instead of endless/empty states;
 cached news/playlists/devices/optimized copies/notifications remain visible with a stale notice.
 Dependent playlist/webhook actions explain unavailable prerequisites. Failed news refresh is not

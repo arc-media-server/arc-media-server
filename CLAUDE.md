@@ -37,6 +37,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Library/backup/bulk clarity (#181/#182/#185): library name and movie/show advanced selects
+  now have explicit labels with unique IDs; existing explanatory text is associated with the
+  corresponding select. Backups reads live settings, reports On/Off and the server-local
+  maintenance window (including overnight/all-day), keeps manual/safety backups available,
+  reports the last saved successful backup and links to the existing maintenance controls.
+  Unavailable policy has local Retry rather than assuming Off. Bulk selection says Select
+  loaded (N); loading another page never silently selects it. No API/schema/scheduling or
+  all-matching selection change. Actual isolated checks and limits are in READINESS; hosted
+  publication and completion evidence are tracked on the individual issues and #162.
+
 - Recoverable UI failures (#176–#180): New for You, playlist selection, Devices, Optimized
   Versions and Notifications distinguish unavailable/loading/empty/loaded states, retain
   cached data with an explicit stale notice and offer local Retry. Playlist creation waits
