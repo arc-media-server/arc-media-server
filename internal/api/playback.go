@@ -151,6 +151,9 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 	if !audioOK {
 		d.Reasons = append(d.Reasons, codecName(audio.Codec)+" audio")
 	}
+	if audio == nil && defaultAudio(f) != nil {
+		d.Reasons = append(d.Reasons, "audio disabled")
+	}
 	if audio != nil && audio != defaultAudio(f) {
 		d.Reasons = append(d.Reasons, "another audio track chosen")
 	}
@@ -178,10 +181,19 @@ type audioTrackDTO struct {
 	Default       bool   `json:"default"`
 }
 
+// Optimized playback retains source indices for track choices while identifying the audio
+// actually encoded in the served MP4 (video 0, audio 1). It is not source codec metadata.
+type optimizedPlaybackDTO struct {
+	Quality           int            `json:"quality"`
+	SourceAudioStream int            `json:"source_audio_stream"`
+	Audio             *audioTrackDTO `json:"audio,omitempty"`
+}
+
 type playbackPlan struct {
-	Method  string   `json:"method"` // direct, remux or transcode
-	Reasons []string `json:"reasons"`
-	URL     string   `json:"url"`
+	Optimized *optimizedPlaybackDTO `json:"optimized,omitempty"`
+	Method    string                `json:"method"` // direct, remux or transcode
+	Reasons   []string              `json:"reasons"`
+	URL       string                `json:"url"`
 	// The URL is an HLS playlist (play it with hls.js, or natively in Safari).
 	HLS       bool   `json:"hls"`
 	SessionID string `json:"session_id,omitempty"`
@@ -343,15 +355,19 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// A file this player can't play as it is may have an optimized copy it can (with the file's
-	// usual audio and no subtitles burned in).
-	if d.Method != "direct" && body.BurnSubtitle == "" && body.AudioStream == nil {
+	// selected audio and no subtitles burned in).
+	if d.Method != "direct" && body.BurnSubtitle == "" {
 		maxHeight := limitHeight
 		if body.Caps.MaxHeight > 0 && (maxHeight == 0 || body.Caps.MaxHeight < maxHeight) {
 			maxHeight = body.Caps.MaxHeight
 		}
-		if o := s.optimizedFor(r, f, body.Caps, maxHeight); o != nil {
+		if o := s.optimizedFor(r, f, body.Caps, maxHeight, audio); o != nil {
 			out.Method, out.Reasons = "direct", []string{fmt.Sprintf("the optimized %dp version", o.Quality)}
 			out.URL, out.OffsetMS = optimizedURL(it.ID, o), 0
+			out.Optimized = &optimizedPlaybackDTO{Quality: o.Quality, SourceAudioStream: o.AudioStream}
+			if o.AudioStream >= 0 {
+				out.Optimized.Audio = &audioTrackDTO{Index: 1, Language: o.AudioLanguage, Title: o.AudioTitle, Codec: "aac", Channels: 2, Default: true}
+			}
 			s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
 			writeJSON(w, http.StatusOK, out)
 			return

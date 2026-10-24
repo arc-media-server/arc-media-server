@@ -37,6 +37,15 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Optimized audio correctness (#171): migration 0050 saves the exact source audio index,
+  language and title. Eligibility checks the effective profile/explicit choice, including
+  same-language commentary; mismatches use normal original/remux/conversion playback.
+  Matching explicit choices can reuse a copy. Playback responses identify optimized quality
+  and actual AAC stereo audio separately from source choices; player info no longer calls
+  an optimized copy the original. Legacy completed copies need explicit Optimize again;
+  there is no automatic reconversion. Contract: docs/OPTIMIZED-COPIES.md; actual verification
+  and limitations in READINESS and #171. #172 bitrate eligibility remains separate.
+
 - Optimized-copy source revisions (#170): migration 0049 records saved source snapshots and
   opaque attempt IDs. Changed files invalidate old copies; playback and stream requests also
   check real source metadata/artifact availability before a scan. Attempt-owned completion and
@@ -44,7 +53,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   explicit missing-copy repair are covered. Older completed copies lack provenance and ask
   for Optimize again, without an automatic batch rebuild. Originals/history/edits are retained.
   Contract: docs/OPTIMIZED-COPIES.md; local Go/race, real-media HTTP and playback browser evidence
-  in READINESS. Hosted publication is separate on #170; audio/bitrate #171/#172 remain next.
+  in READINESS. Hosted publication is separate on #170; audio follow-up is recorded above; #172 remains next.
 - Arc/Plex audit review queue: #162 indexes all 36 findings (new review issues #170–#199,
   plus existing dedicated issues). Review each before implementing, deferring or closing with
   a reason. Work starts with CI #173, then optimized playback #170–#172; optional/intentional

@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-type Fixtures = { movies: string; shows: string; empty: string; playback: string };
+type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string };
 const password = 'Arc-browser-test-123';
 
 const test = base.extend<{ media: Fixtures }>({
@@ -336,6 +336,46 @@ for (const method of ['remux', 'transcode'] as const) {
     await page.getByRole('button', { name: 'Close player', exact: true }).click();
   });
 }
+
+test('optimized playback respects preferred and explicit audio and identifies served audio', async ({ page, media }, info) => {
+  await setup(page);
+  await addLibrary(page, 'Audio fixtures', media.audio);
+  const lib = (await (await page.request.get('/api/libraries')).json()).find((l: { name: string }) => l.name === 'Audio fixtures');
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items[0];
+  expect((await page.request.post('/api/optimize', { data: { item_ids: [item.id], quality: 720 } })).ok()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get('/api/optimized')).json()).versions[0]?.status, { timeout: 30_000 }).toBe('done');
+  expect((await page.request.patch('/api/me/prefs', { data: { audio_language: 'fra' } })).ok()).toBeTruthy();
+  await page.goto(`/movie/${item.id}`);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  const frenchResponse = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  const french = await (await frenchResponse).json();
+  expect(french.audio_stream).toBe(2);
+  expect(french.method).toBe('remux');
+  expect(french.optimized).toBeUndefined();
+  const video = page.locator('video');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Audio', exact: true }).click();
+  const englishResponse = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
+  await page.getByRole('menuitem', { name: /English/ }).click();
+  const english = await (await englishResponse).json();
+  expect(english.audio_stream).toBe(1);
+  expect(english.optimized).toMatchObject({ quality: 720, source_audio_stream: 1, audio: { index: 1, language: 'eng', codec: 'aac', channels: 2 } });
+  expect(english.url).toContain('optimized=720');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Playback info', exact: true }).click();
+  await expect(page.getByText('Optimized Direct Play', { exact: true })).toBeVisible();
+  await expect(page.getByText(/optimized 720p copy.*English.*AAC.*Stereo/)).toBeVisible();
+  await page.screenshot({ path: info.outputPath('optimized-audio-info.png') });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Audio', exact: true }).click();
+  const backToFrench = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
+  await page.getByRole('menuitem', { name: /French/ }).click();
+  expect((await (await backToFrench).json()).audio_stream).toBe(2);
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
 
 async function libraryForm(page: Page, name: string, path: string, shows = false) {
   await page.goto('/libraries');

@@ -6,12 +6,18 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Optimized audio handoff (#171): completed copies record exact mapped source tracks; playback
+checks profile and explicit selections and falls back for missing alternate tracks. The player
+identifies the optimized copy and its AAC stereo output. Migration 0050 requires explicit
+regeneration for older completed copies with unknown audio provenance, retaining removable files
+and avoiding bulk work. See OPTIMIZED-COPIES, READINESS and #171 for validation. #172 remains next.
+
 Optimized-copy handoff (#170): migration 0049 binds copies to source revisions and attempt IDs;
 playback/streaming reject stale or missing artifacts, including before the next scan. Old
 workers cannot overwrite a newer request. Restart/cleanup and missing-copy regeneration are
 covered. Older completed copies need Optimize again because provenance cannot be inferred;
 there is no automatic bulk regeneration or forced source reprobe. See OPTIMIZED-COPIES.md,
-READINESS and #170 for evidence/limits. #171/#172 remain separate audio/bitrate work.
+READINESS and #170 for evidence/limits. Audio follow-up is recorded above; #172 remains separate bitrate work.
 
 Audit review queue: [#162](https://github.com/JonzaUK/arc-media-server/issues/162) indexes all
 36 Arc/Plex findings, with independent review/implementation-or-close decisions. Start with

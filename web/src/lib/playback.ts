@@ -55,6 +55,15 @@ export function audioLabel(t: AudioTrack, i: number) {
 export function methodLabel(p: PlaybackPlan) {
   switch (p.method) {
     case 'direct':
+      if (p.optimized) {
+        const a = p.optimized.audio;
+        const track = a ? audioLabel(a, 0) : undefined;
+        return {
+          title: 'Optimized Direct Play',
+          detail: `Arc is sending the optimized ${p.optimized.quality}p copy. ` +
+            (track ? `Audio: ${track.name} · ${track.detail}.` : 'This copy has no audio.'),
+        };
+      }
       return { title: 'Direct Play', detail: 'The original file, exactly as it is.' };
     case 'remux':
       return { title: 'Repackaged', detail: `The video is sent as it is; Arc adapts the rest for this browser (${p.reasons.join(', ')}).` };
