@@ -7,11 +7,13 @@ package optimize
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +56,73 @@ func (m *Manager) Wake() {
 
 func key(fileID int64, quality int) string { return fmt.Sprintf("%d-%d", fileID, quality) }
 
+// Usable checks the actual source and artifact, not just a completed database status. A source
+// replacement can precede its next scan, and the artifact may have been removed independently.
+func Usable(o *store.Optimized, f *store.MediaFile) bool {
+	if o.Status != "done" || !o.MatchesSource(f) {
+		return false
+	}
+	info, err := sourceInfo(o, f)
+	if err != nil || info.ModTime().UnixNano() != o.SourceMTimeNS {
+		return false
+	}
+	copy, err := os.Stat(o.Path)
+	return err == nil && copy.Mode().IsRegular() && copy.Size() > 0 && copy.Size() == o.Size
+}
+
+func sourceInfo(o *store.Optimized, f *store.MediaFile) (os.FileInfo, error) {
+	if !o.MatchesSource(f) {
+		return nil, errors.New("the source changed; optimize it again after scanning")
+	}
+	info, err := os.Stat(f.Path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() || info.Size() != o.SourceSize || info.ModTime().Unix() != o.SourceMTime {
+		return nil, errors.New("the source changed; optimize it again after scanning")
+	}
+	return info, nil
+}
+
+var artifactName = regexp.MustCompile(`^\d+-(720|1080)(-[A-Za-z0-9]+)?\.mp4(\.part)?$`)
+
+func (m *Manager) removeArtifact(path string) {
+	if filepath.Dir(filepath.Clean(path)) == filepath.Clean(m.dir) && artifactName.MatchString(filepath.Base(path)) {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			m.log.Warn("removing unused optimized copy failed", "err", err)
+		}
+	}
+}
+
+// Prune only Arc's own generated filenames, retaining every registered artifact (including
+// older failed copies the owner can remove). Interrupted attempt output is never reused.
+func (m *Manager) prune(ctx context.Context) error {
+	list, err := m.store.OptimizedVersions(ctx)
+	if err != nil {
+		return err
+	}
+	keep := map[string]bool{}
+	for _, o := range list {
+		if o.Path != "" {
+			keep[filepath.Clean(o.Path)] = true
+		}
+	}
+	entries, err := os.ReadDir(m.dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		path := filepath.Join(m.dir, e.Name())
+		if !e.IsDir() && artifactName.MatchString(e.Name()) && !keep[filepath.Clean(path)] {
+			m.removeArtifact(path)
+		}
+	}
+	return nil
+}
+
 // Delete removes a copy, stopping it first if it's being made.
 func (m *Manager) Delete(ctx context.Context, fileID int64, quality int) error {
 	m.mu.Lock()
@@ -66,7 +135,7 @@ func (m *Manager) Delete(ctx context.Context, fileID int64, quality int) error {
 		return err
 	}
 	if path != "" {
-		os.Remove(path)
+		m.removeArtifact(path)
 	}
 	return nil
 }
@@ -75,6 +144,8 @@ func (m *Manager) Delete(ctx context.Context, fileID int64, quality int) error {
 func (m *Manager) Run(ctx context.Context) {
 	if err := m.store.ResetConverting(ctx); err != nil {
 		m.log.Warn("resuming optimized versions failed", "err", err)
+	} else if err := m.prune(ctx); err != nil {
+		m.log.Warn("cleaning interrupted optimized versions failed", "err", err)
 	}
 	for {
 		for ctx.Err() == nil {
@@ -112,7 +183,17 @@ func (m *Manager) make(ctx context.Context, o *store.Optimized) {
 }
 
 func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activity.Handle) error {
-	files, err := m.store.ItemFiles(ctx, o.ItemID)
+	cctx, cancel := context.WithCancel(ctx)
+	m.mu.Lock()
+	m.cancel[key(o.FileID, o.Quality)] = cancel
+	m.mu.Unlock()
+	defer func() {
+		cancel()
+		m.mu.Lock()
+		delete(m.cancel, key(o.FileID, o.Quality))
+		m.mu.Unlock()
+	}()
+	files, err := m.store.ItemFiles(cctx, o.ItemID)
 	if err != nil {
 		return err
 	}
@@ -123,8 +204,8 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		}
 	}
 	fail := func(err error) error {
-		m.store.SetOptimizeStatus(context.WithoutCancel(ctx), o.FileID, o.Quality, "failed", "", 0, err.Error())
-		return err
+		_, saveErr := m.store.FailOptimize(context.WithoutCancel(ctx), o, err.Error())
+		return errors.Join(err, saveErr)
 	}
 	ffmpeg := ""
 	if m.FFmpeg != nil {
@@ -136,25 +217,25 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	case ffmpeg == "":
 		return fail(fmt.Errorf("FFmpeg wasn't found"))
 	}
-	if err := m.store.SetOptimizeStatus(ctx, o.FileID, o.Quality, "converting", "", 0, ""); err != nil {
+	before, err := sourceInfo(o, f)
+	if err != nil {
+		return fail(err)
+	}
+	claimed, err := m.store.ClaimOptimize(cctx, o, before.ModTime().UnixNano())
+	if err != nil {
 		return err
 	}
-	cctx, cancel := context.WithCancel(ctx)
-	m.mu.Lock()
-	m.cancel[key(o.FileID, o.Quality)] = cancel
-	m.mu.Unlock()
-	defer func() {
-		cancel()
-		m.mu.Lock()
-		delete(m.cancel, key(o.FileID, o.Quality))
-		m.mu.Unlock()
-	}()
+	if !claimed {
+		return nil // deleted, already claimed, or superseded
+	}
 
 	if err := os.MkdirAll(m.dir, 0o755); err != nil {
 		return fail(err)
 	}
-	out := filepath.Join(m.dir, key(o.FileID, o.Quality)+".mp4")
+	// Attempt-specific paths keep a superseded worker from overwriting a newer artifact.
+	out := filepath.Join(m.dir, key(o.FileID, o.Quality)+"-"+o.JobID+".mp4")
 	tmp := out + ".part"
+	defer m.removeArtifact(tmp)
 	args := []string{"-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y", "-i", f.Path, "-map", "0:v:0"}
 	audio := -1
 	for _, s := range f.Streams {
@@ -198,7 +279,6 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		}
 	}
 	if err := cmd.Wait(); err != nil {
-		os.Remove(tmp)
 		if cctx.Err() != nil && ctx.Err() == nil {
 			return nil // deleted while being made
 		}
@@ -211,12 +291,48 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		}
 		return fail(fmt.Errorf("converting failed: %s", msg))
 	}
+	if cctx.Err() != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return nil
+	}
+	after, err := sourceInfo(o, f)
+	if err != nil {
+		return fail(err)
+	}
+	if !os.SameFile(before, after) || after.ModTime().UnixNano() != o.SourceMTimeNS {
+		return fail(errors.New("the source changed while making this copy; optimize it again"))
+	}
 	if err := os.Rename(tmp, out); err != nil {
 		return fail(err)
 	}
-	var size int64
-	if info, err := os.Stat(out); err == nil {
-		size = info.Size()
+	info, err := os.Stat(out)
+	if err != nil || info.Size() == 0 {
+		m.removeArtifact(out)
+		return fail(errors.New("the converted copy is unavailable"))
 	}
-	return m.store.SetOptimizeStatus(ctx, o.FileID, o.Quality, "done", out, size, "")
+	finished, err := m.store.FinishOptimize(cctx, o, out, info.Size())
+	if err != nil || !finished {
+		m.removeArtifact(out)
+		if ctx.Err() != nil {
+			return ctx.Err() // leave this interrupted attempt resumable
+		}
+		if cctx.Err() != nil {
+			return nil // deleted while finishing
+		}
+		if err != nil {
+			return fail(err)
+		}
+		// A missing catalog source can invalidate completion without changing the attempt ID.
+		// Mark that attempt failed, but never replace a newer queued/completed generation.
+		if _, err := m.store.FailOptimize(context.WithoutCancel(ctx), o, "The source or request changed. Optimize it again."); err != nil {
+			return err
+		}
+		return nil // an older completion never changes the newer request
+	}
+	if o.Path != "" && o.Path != out {
+		m.removeArtifact(o.Path)
+	}
+	return nil
 }

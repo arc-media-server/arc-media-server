@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"time"
@@ -24,24 +25,48 @@ type Optimized struct {
 	Title       string `json:"title"`
 	SeriesTitle string `json:"series_title,omitempty"`
 	CreatedAt   int64  `json:"created_at"`
+	// Source and attempt identity are internal, never a promise about playback capabilities.
+	SourcePath    string `json:"-"`
+	SourceSize    int64  `json:"-"`
+	SourceMTime   int64  `json:"-"`
+	SourceMTimeNS int64  `json:"-"`
+	JobID         string `json:"-"`
 }
 
 const optimizedCols = `o.file_id, o.quality, o.path, o.size, o.status, o.error, o.created_at, i.id, i.title,
-	COALESCE((SELECT p.title FROM items p WHERE p.id = i.parent_id), '')`
+	COALESCE((SELECT p.title FROM items p WHERE p.id = i.parent_id), ''),
+	o.source_path, o.source_size, o.source_mtime, o.source_mtime_ns, o.job_id`
 
 func scanOptimized(row interface{ Scan(...any) error }, o *Optimized) error {
-	return row.Scan(&o.FileID, &o.Quality, &o.Path, &o.Size, &o.Status, &o.Error, &o.CreatedAt, &o.ItemID, &o.Title, &o.SeriesTitle)
+	return row.Scan(&o.FileID, &o.Quality, &o.Path, &o.Size, &o.Status, &o.Error, &o.CreatedAt, &o.ItemID, &o.Title, &o.SeriesTitle,
+		&o.SourcePath, &o.SourceSize, &o.SourceMTime, &o.SourceMTimeNS, &o.JobID)
 }
 
 const optimizedFrom = ` FROM optimized_versions o JOIN item_files f ON f.file_id = o.file_id JOIN items i ON i.id = f.item_id`
 
-// QueueOptimize asks for optimized copies of files at a quality (ones already made or queued stay).
+// MatchesSource compares a copy's provenance with the saved file revision. Filesystem freshness
+// and artifact existence are checked separately, including at the final stream request.
+func (o *Optimized) MatchesSource(f *MediaFile) bool {
+	return f != nil && !f.Missing && o.FileID == f.ID && o.JobID != "" &&
+		o.SourcePath == f.Path && o.SourceSize == f.Size && o.SourceMTime == f.ModTime
+}
+
+const optimizedSourceCurrent = `EXISTS (SELECT 1 FROM media_files m WHERE m.id=optimized_versions.file_id
+	AND m.missing_since IS NULL AND m.path=source_path AND m.size=source_size AND m.mtime=source_mtime)`
+
+// QueueOptimize retains current completed/queued copies, but regenerates failed or changed ones.
 func (s *Store) QueueOptimize(ctx context.Context, fileIDs []int64, quality int) (int, error) {
 	n := 0
 	for _, id := range fileIDs {
-		res, err := s.db.ExecContext(ctx, `INSERT INTO optimized_versions (file_id, quality, status, created_at)
-			VALUES (?, ?, 'queued', ?) ON CONFLICT (file_id, quality) DO UPDATE SET status = 'queued', error = ''
-			WHERE status = 'failed'`, id, quality, time.Now().Unix())
+		res, err := s.db.ExecContext(ctx, `INSERT INTO optimized_versions
+			(file_id, quality, status, created_at, source_path, source_size, source_mtime, job_id)
+			SELECT id, ?, 'queued', ?, path, size, mtime, ? FROM media_files WHERE id=? AND missing_since IS NULL
+			ON CONFLICT (file_id, quality) DO UPDATE SET status='queued', error='',
+			created_at=excluded.created_at, source_path=excluded.source_path, source_size=excluded.source_size,
+			source_mtime=excluded.source_mtime, source_mtime_ns=0, job_id=excluded.job_id
+			WHERE optimized_versions.status='failed' OR source_path<>excluded.source_path
+			OR source_size<>excluded.source_size OR source_mtime<>excluded.source_mtime`,
+			quality, time.Now().Unix(), rand.Text(), id)
 		if err != nil {
 			return n, err
 		}
@@ -63,22 +88,57 @@ func (s *Store) NextOptimize(ctx context.Context) (*Optimized, error) {
 	return &o, err
 }
 
-// SetOptimizeStatus records how making a copy is going.
-func (s *Store) SetOptimizeStatus(ctx context.Context, fileID int64, quality int, status, path string, size int64, errText string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status = ?, path = ?, size = ?, error = ?
-		WHERE file_id = ? AND quality = ?`, status, path, size, errText, fileID, quality)
-	return err
+// ClaimOptimize reserves a queued attempt only while its source still matches the catalog.
+func (s *Store) ClaimOptimize(ctx context.Context, o *Optimized, sourceMTimeNS int64) (bool, error) {
+	r, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='converting', source_mtime_ns=?
+		WHERE file_id=? AND quality=? AND job_id=? AND status='queued' AND `+optimizedSourceCurrent,
+		sourceMTimeNS, o.FileID, o.Quality, o.JobID)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	if n > 0 {
+		o.SourceMTimeNS = sourceMTimeNS
+	}
+	return n > 0, err
+}
+
+// FinishOptimize cannot publish a deleted, superseded, or source-invalidated attempt.
+func (s *Store) FinishOptimize(ctx context.Context, o *Optimized, path string, size int64) (bool, error) {
+	r, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='done', path=?, size=?, error=''
+		WHERE file_id=? AND quality=? AND job_id=? AND status='converting' AND source_mtime_ns=? AND `+optimizedSourceCurrent,
+		path, size, o.FileID, o.Quality, o.JobID, o.SourceMTimeNS)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	return n > 0, err
+}
+
+// FailOptimize retains an older artifact for removal and cannot overwrite a newer attempt.
+func (s *Store) FailOptimize(ctx context.Context, o *Optimized, message string) (bool, error) {
+	r, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='failed', error=?
+		WHERE file_id=? AND quality=? AND job_id=?`, message, o.FileID, o.Quality, o.JobID)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	return n > 0, err
 }
 
 // ResetConverting puts copies left half-made (Arc stopped while converting) back in the queue.
 func (s *Store) ResetConverting(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status = 'queued' WHERE status = 'converting'`)
+	_, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='queued', source_mtime_ns=0,
+		job_id=lower(hex(randomblob(16))) WHERE status='converting'`)
 	return err
 }
 
 // FileOptimized lists a file's finished optimized copies, best first.
 func (s *Store) FileOptimized(ctx context.Context, fileID int64) ([]Optimized, error) {
-	return s.optimizedList(ctx, ` WHERE o.file_id = ? AND o.status = 'done' ORDER BY o.quality DESC`, fileID)
+	return s.optimizedList(ctx, ` WHERE o.file_id=? AND o.status='done'
+		AND EXISTS (SELECT 1 FROM media_files m WHERE m.id=o.file_id AND m.missing_since IS NULL
+		AND m.path=o.source_path AND m.size=o.source_size AND m.mtime=o.source_mtime)
+		ORDER BY o.quality DESC`, fileID)
 }
 
 // OptimizedVersions lists every optimized copy, newest first.
