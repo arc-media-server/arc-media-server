@@ -438,12 +438,9 @@ function EpisodeRow({
 
   return (
     <div
-      className={cn('group grid grid-cols-[96px_minmax(0,1fr)] gap-3 py-4 sm:flex sm:gap-5', playable ? 'cursor-pointer' : 'opacity-45')}
-      onClick={onPlay}
-      role={playable ? 'button' : undefined}
-      tabIndex={playable ? 0 : undefined}
-      onKeyDown={(e) => e.key === 'Enter' && onPlay()}
+      className={cn('group flex flex-col gap-3 py-4 sm:flex-row sm:gap-5', !playable && 'opacity-45')}
     >
+      <div className="relative grid min-w-0 flex-1 grid-cols-[96px_minmax(0,1fr)] gap-3 sm:flex sm:gap-5">
       <div className="relative w-24 shrink-0 overflow-hidden rounded-xl ring-1 ring-border sm:w-56">
         <Artwork src={ep.images?.primary} alt={ep.title} kind="still" icon="tv" className={cn(hideSpoilers && 'scale-110 blur-xl')} />
         {playable && (
@@ -472,7 +469,10 @@ function EpisodeRow({
           </div>
         </div>
       </div>
-      <div className="col-span-2 flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      {playable && <button type="button" aria-label={`Play ${ep.title}`} onClick={onPlay}
+        className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent" />}
+      </div>
+      <div className="flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
       {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
       {ep.available && (

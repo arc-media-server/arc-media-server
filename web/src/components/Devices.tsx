@@ -4,7 +4,7 @@ import { CheckCircle2, Globe, Loader2, MonitorSmartphone, Tv } from 'lucide-reac
 import { api, type Device } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { Page, PageHeader } from '@/components/Page';
+import { ErrorNotice, Page, PageHeader } from '@/components/Page';
 
 /** Link a Device: enter the code a TV shows to sign it in, as plex.tv/link does. */
 export function LinkDevicePage() {
@@ -62,43 +62,58 @@ export function LinkDevicePage() {
 
 /** Settings: every signed-in browser and app, to sign out ones that shouldn't be. */
 export function DevicesList() {
-  const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ['devices'], queryFn: api.devices });
+  const devices = useQuery({ queryKey: ['devices'], queryFn: api.devices });
+  const { data } = devices;
   const [all, setAll] = useState(false);
-  const signOut = useMutation({
-    mutationFn: (d: Device) => api.signOutDevice(d.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['devices'] }),
-  });
-  if (!data) return <div className="m-4 h-12 animate-pulse rounded-xl bg-surface-2" />;
+  const feedback = devices.error && <div className="m-4 space-y-2">
+    {data && <p className="text-xs text-muted">Showing the last loaded devices. They may be out of date.</p>}
+    <ErrorNotice error={devices.error} onRetry={() => void devices.refetch()} busy={devices.isFetching} />
+  </div>;
+  if (!data) return feedback || <div role="status" className="m-4 h-12 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">Loading devices…</span></div>;
   return (
     <>
-      {(all ? data : data.slice(0, 8)).map((d) => (
-        <div key={d.id} className="flex items-center gap-3 px-4 py-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted [&_svg]:size-4">
-            {d.device ? <Tv /> : d.via === 'local' ? <Globe /> : <MonitorSmartphone />}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">
-              {d.device || browserName(d.user_agent)}
-              {d.this_device && <span className="font-normal text-muted"> · this browser</span>}
-            </p>
-            <p className="truncate text-xs text-subtle">
-              {[d.profile || (d.via === 'friend' ? 'Friend' : 'Choosing a profile'), viaLabel[d.via], `used ${fmt.ago(d.last_seen_at)}`].filter(Boolean).join(' · ')}
-            </p>
-          </div>
-          {!d.this_device && (
-            <Button variant="ghost" size="sm" disabled={signOut.isPending} onClick={() => signOut.mutate(d)}>
-              Sign Out
-            </Button>
-          )}
-        </div>
-      ))}
+      {feedback}
+      {data.length === 0 && <p className="px-4 py-3 text-sm text-muted">No devices are signed in.</p>}
+      {(all ? data : data.slice(0, 8)).map(d => <DeviceRow key={d.id} device={d} />)}
       {!all && data.length > 8 && (
-        <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-3 text-left text-sm text-accent hover:underline">
+        <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-3 text-left text-sm text-accent">
           Show all {data.length}
         </button>
       )}
     </>
+  );
+}
+
+// Each row owns its request/error so one device's retry cannot clear another's failure.
+function DeviceRow({ device: d }: { device: Device }) {
+  const qc = useQueryClient();
+  const signOut = useMutation({
+    mutationFn: () => api.signOutDevice(d.id),
+    onSuccess: () => {
+      // Remove only after the server confirms revocation, even if the following refresh fails.
+      qc.setQueryData<Device[]>(['devices'], list => list?.filter(device => device.id !== d.id));
+      return qc.invalidateQueries({ queryKey: ['devices'] });
+    },
+  });
+  const name = d.device || browserName(d.user_agent);
+  return (
+    <div role="group" aria-label={`Device: ${name}`} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted [&_svg]:size-4">
+        {d.device ? <Tv /> : d.via === 'local' ? <Globe /> : <MonitorSmartphone />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {name}{d.this_device && <span className="font-normal text-muted"> · this browser</span>}
+        </p>
+        <p className="truncate text-xs text-subtle">
+          {[d.profile || (d.via === 'friend' ? 'Friend' : 'Choosing a profile'), viaLabel[d.via], `used ${fmt.ago(d.last_seen_at)}`].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+      {!d.this_device && <Button variant="ghost" size="sm" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
+        {signOut.isPending && <Loader2 className="animate-spin" />}{signOut.error ? 'Retry' : 'Sign Out'}
+      </Button>}
+      {signOut.error && <div className="w-full"><ErrorNotice error={signOut.error} /></div>}
+    </div>
   );
 }
 

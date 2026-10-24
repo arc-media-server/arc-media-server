@@ -42,12 +42,12 @@ export function EmptyState({ icon, title, children }: { icon: ReactNode; title: 
   );
 }
 
-export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+export function ErrorNotice({ error, onRetry, busy = false }: { error: unknown; onRetry?: () => void; busy?: boolean }) {
   if (!error) return null;
   return (
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-warning/10 p-3 text-sm text-warning">
       <span className="min-w-0 flex-1 break-words">{error instanceof Error ? error.message : String(error)}</span>
-      {onRetry && <Button size="sm" variant="secondary" onClick={onRetry}>Retry</Button>}
+      {onRetry && <Button size="sm" variant="secondary" disabled={busy} onClick={onRetry}>{busy ? 'Retrying…' : 'Retry'}</Button>}
     </div>
   );
 }

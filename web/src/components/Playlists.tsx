@@ -4,6 +4,7 @@ import { Check, ListPlus, ListVideo, Loader2, Plus } from 'lucide-react';
 import { api, type Item, type Playlist } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
@@ -79,19 +80,28 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
   const add = useMutation({ mutationFn: (id: string) => api.addToPlaylist(id, [item.id]), onSuccess: (_, id) => done(id) });
   const create = useMutation({ mutationFn: () => api.createPlaylist(name.trim(), [item.id]), onSuccess: (p) => done(p.id) });
   const error = add.error ?? create.error;
+  const busy = add.isPending || create.isPending || added !== null;
+  const canCreate = !!playlists.data && !playlists.error;
   const what = item.kind === 'series' ? `every episode of ${item.title} you have` : item.title;
 
   return (
     <DialogContent title="Add to Playlist" description={`Add ${what} to one of your playlists.`} className="w-[min(480px,calc(100vw-32px))]">
       <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
-        {error && <p className="text-sm text-warning">{error.message}</p>}
+        {error && <ErrorNotice error={error} />}
+        {playlists.error && <div className="space-y-2">
+          {playlists.data && <p className="text-xs text-muted">Showing the last loaded playlists. They may be out of date.</p>}
+          <ErrorNotice error={playlists.error} onRetry={() => void playlists.refetch()} busy={playlists.isFetching} />
+        </div>}
+        {!playlists.data && !playlists.error && <p role="status" className="text-sm text-muted">Loading playlists…</p>}
+        {playlists.data && !playlists.error && editable.length === 0 && <p className="text-sm text-muted">No editable playlists yet. Create one below.</p>}
+        {!canCreate && <p className="text-xs text-muted">{playlists.error ? 'Refresh your playlists before creating another.' : 'Load your playlists before creating another.'}</p>}
         {editable.length > 0 && (
           <div className="max-h-72 divide-y divide-border overflow-y-auto rounded-2xl ring-1 ring-border">
             {editable.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                disabled={add.isPending || added !== null}
+                disabled={busy}
                 onClick={() => add.mutate(p.id)}
                 className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-2 disabled:opacity-70"
               >
@@ -109,11 +119,11 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
           className="flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) create.mutate();
+            if (canCreate && !busy && name.trim()) create.mutate();
           }}
         >
-          <input autoFocus={!editable.length} value={name} onChange={(e) => setName(e.target.value)} placeholder="New playlist" maxLength={100} className={inputClass} />
-          <Button type="submit" variant="secondary" disabled={!name.trim() || create.isPending || added !== null}>
+          <input autoFocus={!editable.length} value={name} onChange={(e) => setName(e.target.value)} placeholder="New playlist" aria-label="New playlist" maxLength={100} className={inputClass} />
+          <Button type="submit" variant="secondary" disabled={!canCreate || !name.trim() || busy}>
             {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Create
           </Button>
         </form>

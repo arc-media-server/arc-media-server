@@ -4,6 +4,7 @@ import { AlertCircle, Check, Loader2, Trash2 } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 
@@ -85,25 +86,31 @@ function OptimizeForm({ items, onDone }: { items: Item[]; onDone: () => void }) 
 /** Settings: the optimized copies, what they take up, and removing them. */
 export function OptimizedList() {
   const qc = useQueryClient();
-  const { data } = useQuery({
+  const optimized = useQuery({
     queryKey: ['optimized'],
     queryFn: api.optimized,
     refetchInterval: (q) => (q.state.data?.versions.some((v) => v.status === 'queued' || v.status === 'converting') ? 3000 : false),
   });
+  const { data } = optimized;
+  const feedback = optimized.error && <div className="m-4 space-y-2">
+    {data && <p className="text-xs text-muted">Showing the last loaded optimized copies. They may be out of date.</p>}
+    <ErrorNotice error={optimized.error} onRetry={() => void optimized.refetch()} busy={optimized.isFetching} />
+  </div>;
   const remove = useMutation({
     mutationFn: (v: { file_id: number; quality: number }) => api.deleteOptimized(v.file_id, v.quality),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['optimized'] }),
   });
-  if (!data) return <div className="m-4 h-12 animate-pulse rounded-xl bg-surface-2" />;
+  if (!data) return feedback || <div role="status" className="m-4 h-12 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">Loading optimized copies…</span></div>;
   if (data.versions.length === 0) {
     return (
-      <p className="px-4 py-3.5 text-xs leading-relaxed text-muted">
+      <>{feedback}<p className="px-4 py-3.5 text-xs leading-relaxed text-muted">
         None yet. Choose Optimize from a title&apos;s ⋯ menu, or Select titles in a library, to make easy-to-play copies ahead of time.
-      </p>
+      </p></>
     );
   }
   return (
     <>
+      {feedback}
       <p className="px-4 py-3 text-xs text-muted">
         {fmt.plural(data.versions.length, 'copy', 'copies')} · {fmt.fileSize(data.total_size)} in Arc&apos;s data folder
       </p>

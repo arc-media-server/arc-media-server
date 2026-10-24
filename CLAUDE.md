@@ -37,6 +37,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Recoverable UI failures (#176–#180): New for You, playlist selection, Devices, Optimized
+  Versions and Notifications distinguish unavailable/loading/empty/loaded states, retain
+  cached data with an explicit stale notice and offer local Retry. Playlist creation waits
+  for a usable list while retaining drafts; webhook forms wait for available event data.
+  Failed news refreshes are not marked seen on close. Device revocation owns pending/error
+  state per row and removes only after server confirmation, including failed subsequent
+  list refresh. Episode artwork/details have a native playback button with Enter/Space,
+  a visible focus ring and separate sibling actions. No API/schema/scanning policy change.
+  Isolated actual results and fixture limitations are in READINESS and #176–#180.
+
 - Audit corrections #172/#174/#175: completed optimized copies record measured output duration/
   average total bitrate (migration 0051), with height and effective manual/remote/upload-budget
   eligibility. Unknown legacy measurements remain usable without a limit and otherwise fall

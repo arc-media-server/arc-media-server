@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, Pencil, Plus, Send, Trash2, XCircle } from 'lucide-react';
 import { api, type Webhook } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { ErrorNotice } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -19,7 +20,8 @@ const formatLabels = { discord: 'Discord', slack: 'Slack', json: 'JSON' };
 /** Webhooks: where Arc posts events, for Discord, Slack, home automation or anything else. */
 export function Webhooks() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ['webhooks'], queryFn: api.webhooks });
+  const webhooks = useQuery({ queryKey: ['webhooks'], queryFn: api.webhooks });
+  const { data } = webhooks;
   const [editing, setEditing] = useState<Webhook | 'new' | null>(null);
   const [removing, setRemoving] = useState<Webhook | null>(null);
   const remove = useMutation({
@@ -29,6 +31,12 @@ export function Webhooks() {
   const test = useMutation({ mutationFn: (h: Webhook) => api.testWebhook(h.id), onSettled: () => qc.invalidateQueries({ queryKey: ['webhooks'] }) });
   return (
     <>
+      {webhooks.error && <div className="m-4 space-y-2">
+        {data && <p className="text-xs text-muted">Showing the last loaded notifications. They may be out of date.</p>}
+        <ErrorNotice error={webhooks.error} onRetry={() => void webhooks.refetch()} busy={webhooks.isFetching} />
+      </div>}
+      {!data && !webhooks.error && <p role="status" className="px-4 py-3 text-sm text-muted">Loading notifications…</p>}
+      {data && data.webhooks.length === 0 && <p className="px-4 py-3 text-sm text-muted">No notifications configured yet.</p>}
       {data?.webhooks.map((h) => (
         <div key={h.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
           <div className="min-w-0 flex-1 basis-64">
@@ -64,10 +72,10 @@ export function Webhooks() {
       ))}
       <div className="flex items-center gap-4 px-4 py-3.5">
         <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted">
-          {data?.webhooks.length ? 'Add another' : 'Add a Discord or Slack webhook to get messages there, or any address to receive events as JSON'}
-          {data?.webhooks.length ? '.' : ' (for home automation, ntfy and the like).'}
+          {!data ? 'Load notifications before adding a webhook.' : data.webhooks.length ? 'Add another' : 'Add a Discord or Slack webhook to get messages there, or any address to receive events as JSON'}
+          {!data ? '' : data.webhooks.length ? '.' : ' (for home automation, ntfy and the like).'}
         </p>
-        <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
+        <Button variant="secondary" size="sm" disabled={!data} onClick={() => setEditing('new')}>
           <Plus /> Add Webhook
         </Button>
       </div>

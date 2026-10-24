@@ -1,5 +1,72 @@
 # Stability and release readiness
 
+## Recoverable UI errors and episode keyboard playback (#176–#180, 24 October 2026)
+
+The clean starting checkout 14094bb matched GitHub main read-only. Work branch:
+codex/recoverable-ui-errors. Fresh pre-fix browser fixtures reproduced all five findings:
+**seven journeys failed at the expected checks** (News, playlist picker, Space activation,
+Devices/Optimized Versions/Notifications, and device sign-out feedback). Raw before.json and
+its screenshots/traces are retained, not counted as passing acceptance.
+
+- **#176:** New for You exposes local query errors/Retry, an accessible loading status and a
+  distinct empty state. Cached entries remain visible with a stale notice. Closing after a
+  failed refresh no longer marks unseen updates seen; fresh recovery retains the existing
+  seen behavior. Discovery/news eligibility rules are unchanged.
+- **#177:** playlist list-loading errors remain separate from add/create errors. Existing cached
+  editable lists remain available with an honest stale notice; creation is disabled with a
+  reason until the list is usable. Retry preserves the selected title and unsaved name.
+  Competing add/create requests are disabled while a mutation is pending. Smart playlists
+  remain excluded from manual additions.
+- **#178:** a native button overlays only the episode artwork/details, with an explicit Play
+  name and focus ring. Source/queue/playlist/watched/edit controls are siblings, not nested
+  interactive descendants. Native Enter/Space and mouse behavior each start playback once;
+  Space does not scroll, and playlist/watched Space actions do not start playback. The
+  approved series/title page structure is retained and desktop/390px rows were inspected.
+- **#179:** Devices, Optimized Versions and Notifications distinguish loading/empty/unavailable/
+  loaded states, retain cached records visibly on refresh errors and provide local Retry.
+  Add Webhook is disabled with an explanation until its event data can support the form;
+  cached usable data still supports forms. Shared ErrorNotice can disable its retry button
+  and say Retrying while a query request is pending.
+- **#180:** each device row owns pending/error state, with visible failure and Retry. Rows are
+  removed only after the server confirms revocation, updating the cache before refreshing
+  so a failed subsequent list request does not resurrect a confirmed signed-out device.
+  Errors for two different rows remain independent through retries/list refresh.
+
+Local final verification passed: production/app TypeScript/Vite build, e2e TypeScript, final
+embedded-server build and diff whitespace checks. Existing backend session/cast regressions
+passed **eight tests/subtests (four top-level functions)**, including cookie transport, cast
+revocation after logout/password/profile/home-policy changes and session bookkeeping. No Go
+source/API/schema/dependency changes were needed, so the full unrelated Go/race suite was not
+repeated locally; hosted verification/publication is separate evidence on the issues.
+
+The **eight new Chromium journeys passed**, zero failures/skips/retries, 37 seconds. Checks
+cover initial 503 then Retry, true empty lists, cached lists after failed refresh, playlist
+name/title preservation and actual addition after recovery, native episode keyboard/mouse
+activation and independent row actions. Settings stale-state fixtures use correctly typed
+synthetic list responses and controlled client time. The device test uses two real temporary
+app sessions from the actual API (Unix-second timestamps), injects DELETE failures, then proves
+real successful revocation returns 401 for each token while the current admin stays signed in.
+It also verifies that confirmed removal survives an injected subsequent list-refresh failure.
+No webhook was sent to an external service.
+
+Six existing related Chromium journeys passed (zero failures/skips/retries, 36 seconds): manual
+editable-playlist selection, alternate episode order/unplaced files, Settings grouping/navigation,
+local server-setting save/error/retry, mobile Settings/player controls and playlist keyboard
+ordering/write recovery. The existing profile/library/admin boundary journey also passed (18 seconds, access.json),
+for **15 distinct local browser journeys passed** overall. Desktop/phone episode focus, news/playlist and Settings/device error screenshots
+were visually inspected; this is not a full screen-reader or physical-device audit.
+
+An initial post-change run passed six new journeys but rejected two fixture assumptions: initial
+library imports are intentionally excluded from News, and a closing player's exit animation can
+briefly coexist with its replacement. The corrected cached-news test injects a typed news entry
+for a real generated item; the keyboard test waits for actual player removal before reopening.
+No discovery/player animation policy was changed to make those tests pass. A root-directory
+compiler lookup was canceled without installing anything; root node_modules and a cached tsc
+shim were absent, and the prepared local compiler completed the final check. Earlier attempts
+remain retained. All stores/media/provider fixtures were temporary; no owner data/settings/media,
+production keys, Unraid, new tools/dependencies or persistent server. Evidence:
+`/workspace/arc-cloud-evidence/review-176-180/`.
+
 ## Audit corrections: bitrate, Search and phone filter recovery (#172/#174/#175, 24 October 2026)
 
 Starting clean baseline d232230 matched GitHub main read-only. Work branch:
