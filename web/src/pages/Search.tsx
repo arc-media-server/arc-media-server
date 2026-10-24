@@ -17,7 +17,6 @@ export function SearchPage() {
   const results = useQuery({
     queryKey: ['search', q],
     enabled: q.length > 0,
-    placeholderData: (prev) => prev,
     queryFn: () => api.search(q),
   });
 
@@ -27,7 +26,8 @@ export function SearchPage() {
   return (
     <Page className="pb-16">
       <PageHeader title={q ? `Results for “${q}”` : 'Search'} subtitle={q ? undefined : 'Find movies, shows, episodes, people and collections.'} />
-      <div className="space-y-12 px-6 md:px-10">
+      {q && results.isFetching && <p role="status" className="mb-4 px-6 text-sm text-muted md:px-10">Searching…</p>}
+      <div className="space-y-12 px-6 md:px-10" aria-busy={!!q && results.isFetching}>
         {!q ? null : results.error ? (
           <ErrorState error={results.error} />
         ) : !d ? (

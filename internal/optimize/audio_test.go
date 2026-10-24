@@ -1,14 +1,46 @@
 package optimize
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"math"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
+	"ams/internal/probe"
 	"ams/internal/store"
 )
+
+func TestOptimizedUnknownMeasurementIsConservative(t *testing.T) {
+	for _, mode := range []string{"probe unavailable", "probe failed", "no measured duration"} {
+		t.Run(mode, func(t *testing.T) {
+			x := conversionTest(t)
+			helperConverter(t, x)
+			if mode != "probe unavailable" {
+				x.m.Probe = func(context.Context, string) (*probe.Result, error) {
+					if mode == "probe failed" {
+						return nil, errors.New("measurement fixture failure")
+					}
+					return &probe.Result{Bitrate: 1234}, nil
+				}
+			}
+			if err := os.WriteFile(filepath.Join(x.root, "release"), nil, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := x.m.convert(t.Context(), x.queue(t, 720), nil); err != nil {
+				t.Fatal(err)
+			}
+			copy := x.copy(t, 720)
+			if !Usable(&copy, x.f) || !copy.WithinBitrate(0) || copy.WithinBitrate(2000) || copy.Bitrate != 0 || copy.DurationMS != 0 {
+				t.Fatalf("unknown measurement accepted for a limited stream: %+v", copy)
+			}
+		})
+	}
+}
 
 func TestRealOptimizedAudioProvenance(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
@@ -50,10 +82,14 @@ func TestRealOptimizedAudioProvenance(t *testing.T) {
 				store.Stream{Index: 2, Kind: "audio", Codec: "aac", Channels: 1, Language: "fra", IsDefault: tc.defaultTrack == 1})
 			x.save(t)
 			x.m.FFmpeg = func() string { return ffmpeg }
+			x.m.Probe = probe.New(ffprobe).Probe
 			if err := x.m.convert(t.Context(), x.queue(t, 720), nil); err != nil {
 				t.Fatal(err)
 			}
 			copy := x.copy(t, 720)
+			if copy.DurationMS < 2900 || copy.DurationMS > 3300 || copy.Bitrate <= 0 {
+				t.Fatalf("missing measured output metadata: %+v", copy)
+			}
 			if copy.AudioStream != tc.index || copy.AudioLanguage != tc.language || !copy.MatchesAudio(&x.f.Streams[tc.index]) || !Usable(&copy, x.f) {
 				t.Fatalf("wrong provenance: %+v", copy)
 			}

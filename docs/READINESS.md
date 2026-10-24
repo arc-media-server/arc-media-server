@@ -1,5 +1,67 @@
 # Stability and release readiness
 
+## Audit corrections: bitrate, Search and phone filter recovery (#172/#174/#175, 24 October 2026)
+
+Starting clean baseline d232230 matched GitHub main read-only. Work branch:
+codex/bitrate-search-filter-recovery. The next three unresolved items in #162 were confirmed
+against current code before implementing. Only isolated stores, generated clips and local
+providers were used; no owner data/settings/media, production keys, Unraid or persistent server.
+
+**#172:** the pre-fix API regression accepted an optimized copy under a 2 Mbps request despite
+unknown output rate. Migration 0051 adds measured output duration/average total bitrate; the
+configured FFprobe inspects the completed output, and attempt-owned completion persists the
+larger of its format rate and actual bytes divided by measured duration. Source/preset rates are
+not substituted. Selection enforces the effective manual, remote and per-stream upload-share
+budget and independent client/quality height limits. Exact boundaries fit; even one bit/s over
+budget does not. Unknown/nonpositive duration/rate falls back under limits. Existing copies are
+preserved for unlimited playback without a backfill/rebuild. Failed output measurement has the
+same conservative behavior. This is average-rate eligibility, not a VBR peak, traffic shaping
+or real-network throughput guarantee. Existing live-conversion policy is unchanged. Contract:
+[OPTIMIZED-COPIES.md](OPTIMIZED-COPIES.md).
+
+Fifteen API budget cases cover manual/remote/upload-share tightening, unknown and exact/over
+boundaries, height and home behavior. Real generated outputs are probed; schema-50 migration,
+valid pre-upgrade backup, restart persistence and requeue measurement reset are covered. Three
+worker measurement-failure cases preserve unlimited usability and reject limited selection.
+A new full-app journey makes a noisy generated 720p-preset copy whose measured rate exceeds
+2 Mbps, verifies unlimited selection and actual reported duration/rate, then requests 2 Mbps
+and gets an actual HLS conversion rather than that copy. It does not emulate remote congestion.
+
+**#174:** the held-response baseline reproduced the new query heading with an old actionable
+movie. Search now keeps cached results within their query key, without previous-query placeholder
+data. An accessible Searching status sits outside the busy results region so live announcements
+are not deferred by aria-busy. Delayed/zero-result responses, an older response arriving after
+returning to a newer query, error/retry, clearing and back/forward navigation are exercised.
+
+**#175:** the phone baseline had no empty-state Clear filters action. Filter controls now wrap
+instead of hiding recovery in a horizontal strip. Active values stay reachable even when absent
+from current facets. The empty state and filter controls both offer Clear filters; removing
+filters preserves sort, direction and unrelated URL state. At 390px the journey checks horizontal
+bounds/no page overflow, removes an individual active genre, clears using keyboard activation
+and restores content with sorting intact. The final check also explicitly scrolls the empty
+state into view and confirms its button is within the viewport; screenshots were inspected.
+Normal vertical scrolling remains supported.
+
+Verification: all Go packages passed **343 tests/subtests (211 top-level functions), 28 test-bearing
+packages and five no-test packages**, zero failed/skipped test cases. Full store/optimizer/API
+race checks passed **144 tests/subtests (78 top-level functions)**; a final focused race run passed
+**50 tests/subtests (13 top-level functions)** including the final measurement-failure/boundary
+changes. Go vet, final embedded-server build, production/app TypeScript/Vite build, e2e TypeScript
+and diff whitespace checks passed. Eight focused Chromium journeys passed (zero failed/skipped/
+retries, 127 seconds), covering the three new regressions, search error/history, optimized audio,
+and actual remux/transcode seek/resume. A final targeted replay passed all three new journeys (zero failures/skips/retries, 28 seconds),
+checking accessible status placement, the empty-state viewport and retained actual output data.
+The generated copy measured 4,653,398 bits/s over 6,041 ms; a 2 Mbps request rejected it and
+started actual HLS conversion. Screenshots of the final pending/phone states were inspected. Hosted full-suite/publication
+results are separate and recorded on #172/#174/#175.
+
+Earlier results remain retained: pre-fix failing Go/browser regressions; a JSX typo initially
+blocked the UI build, and that first browser pass used the prior embedded UI (six journeys passed,
+two UI regressions failed). That attempt is not accepted as validation of the UI changes. The typo
+was corrected, the production UI rebuilt successfully and all eight reran successfully. No test
+was weakened to accept stale results or a hidden button. Final evidence and limitations:
+`/workspace/arc-cloud-evidence/review-172-174-175/`.
+
 ## Optimized audio selection correctness (#171, 24 October 2026)
 
 Starting clean baseline: 226d05d (GitHub main matched read-only); working branch

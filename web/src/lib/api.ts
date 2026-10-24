@@ -480,7 +480,7 @@ export interface AudioTrack {
 /** How the server will send a movie or episode to this player. */
 export interface PlaybackPlan {
   /** A generated MP4; source track indices remain in audio_stream/audio_tracks for choices. */
-  optimized?: { quality: number; source_audio_stream: number; audio?: AudioTrack };
+  optimized?: { quality: number; source_audio_stream: number; audio?: AudioTrack; duration_ms?: number; bitrate?: number };
   method: PlaybackMethod;
   /** Why it can't be played as it is, e.g. "MKV file", "Dolby Digital audio". */
   reasons: string[];
