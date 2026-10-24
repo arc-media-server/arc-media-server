@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"ams/internal/activity"
+	"ams/internal/probe"
 	"ams/internal/store"
 	"ams/internal/transcode"
 )
@@ -33,6 +35,9 @@ type Manager struct {
 	dir   string
 	log   *slog.Logger
 
+	// Probe inspects only the completed output. Failure leaves the copy usable without
+	// a bitrate budget, but ineligible for limited playback.
+	Probe    func(context.Context, string) (*probe.Result, error)
 	FFmpeg   func() string
 	ToneMap  func() bool // FFmpeg can map HDR to SDR
 	Activity *activity.Tracker
@@ -315,6 +320,17 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	if err != nil || info.Size() == 0 {
 		m.removeArtifact(out)
 		return fail(errors.New("the converted copy is unavailable"))
+	}
+	o.DurationMS, o.Bitrate = 0, 0
+	if m.Probe != nil {
+		measured, err := m.Probe(cctx, out)
+		if err != nil {
+			m.log.Warn("measuring optimized copy failed; limited playback will convert instead", "err", err)
+		} else if measured != nil && measured.DurationMS > 0 {
+			o.DurationMS = measured.DurationMS
+			// Include audio and container overhead; never substitute source bitrate or nominal preset.
+			o.Bitrate = max(measured.Bitrate, int64(math.Ceil(float64(info.Size())*8000/float64(o.DurationMS))))
+		}
 	}
 	finished, err := m.store.FinishOptimize(cctx, o, out, info.Size())
 	if err != nil || !finished {

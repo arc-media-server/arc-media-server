@@ -13,7 +13,8 @@ import (
 	"ams/internal/store"
 )
 
-func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
+func optimizedAudioFixture(t *testing.T, durationMS, bitrate int64, quality int) (*Server, *store.User, *store.MediaFile, string) {
+	t.Helper()
 	s, viewer := securityServer(t)
 	ctx := t.Context()
 	root := t.TempDir()
@@ -33,7 +34,7 @@ func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &store.MediaFile{LibraryID: lib, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix(), Container: "matroska", Streams: []store.Stream{
+	f := &store.MediaFile{LibraryID: lib, Path: path, Size: info.Size(), ModTime: info.ModTime().Unix(), Container: "matroska", Bitrate: 10000000, Streams: []store.Stream{
 		{Index: 0, Kind: "video", Codec: "h264", Height: 90},
 		{Index: 1, Kind: "audio", Codec: "ac3", Channels: 6, Language: "eng", IsDefault: true},
 		{Index: 2, Kind: "audio", Codec: "aac", Channels: 2, Language: "fra"},
@@ -46,7 +47,7 @@ func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
 	if err = s.store.SetFileItems(ctx, f.ID, []string{item}, 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.store.QueueOptimize(ctx, []int64{f.ID}, 720); err != nil {
+	if _, err = s.store.QueueOptimize(ctx, []int64{f.ID}, quality); err != nil {
 		t.Fatal(err)
 	}
 	o, err := s.store.NextOptimize(ctx)
@@ -61,9 +62,18 @@ func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
 		t.Fatal(err)
 	}
 	o.AudioStream, o.AudioLanguage = 1, "eng"
+	o.DurationMS, o.Bitrate = durationMS, bitrate
 	if ok, err := s.store.FinishOptimize(ctx, o, copyPath, 12); err != nil || !ok {
 		t.Fatalf("finish %v %v", ok, err)
 	}
+
+	return s, viewer, f, item
+}
+
+func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
+	s, viewer, f, item := optimizedAudioFixture(t, 0, 0, 720)
+	ctx := t.Context()
+	var err error
 
 	for _, tc := range []struct {
 		name, language, extra string
@@ -78,6 +88,7 @@ func TestOptimizedPlaybackRespectsPreferredAudio(t *testing.T) {
 		{"explicit alternate overrides English profile", "eng", `,"audio_stream":2`, 503, 2},
 		{"same-language commentary is a different track", "eng", `,"audio_stream":3`, 503, 3},
 		{"explicit no audio must not serve audible copy", "eng", `,"audio_stream":-1`, 503, -1},
+		{"limited quality rejects unknown copy bitrate", "eng", `,"max_kbps":2000`, 503, 1},
 		{"invalid selected track", "", `,"audio_stream":99`, 400, -1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

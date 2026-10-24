@@ -184,6 +184,8 @@ type audioTrackDTO struct {
 // Optimized playback retains source indices for track choices while identifying the audio
 // actually encoded in the served MP4 (video 0, audio 1). It is not source codec metadata.
 type optimizedPlaybackDTO struct {
+	DurationMS        int64          `json:"duration_ms,omitempty"`
+	Bitrate           int64          `json:"bitrate,omitempty"`
 	Quality           int            `json:"quality"`
 	SourceAudioStream int            `json:"source_audio_stream"`
 	Audio             *audioTrackDTO `json:"audio,omitempty"`
@@ -357,14 +359,17 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	// A file this player can't play as it is may have an optimized copy it can (with the file's
 	// selected audio and no subtitles burned in).
 	if d.Method != "direct" && body.BurnSubtitle == "" {
-		maxHeight := limitHeight
+		maxHeight := 0
+		if body.MaxKbps > 0 {
+			maxHeight = qualityHeight(body.MaxKbps)
+		}
 		if body.Caps.MaxHeight > 0 && (maxHeight == 0 || body.Caps.MaxHeight < maxHeight) {
 			maxHeight = body.Caps.MaxHeight
 		}
-		if o := s.optimizedFor(r, f, body.Caps, maxHeight, audio); o != nil {
+		if o := s.optimizedFor(r, f, body.Caps, maxHeight, body.MaxKbps, audio); o != nil {
 			out.Method, out.Reasons = "direct", []string{fmt.Sprintf("the optimized %dp version", o.Quality)}
 			out.URL, out.OffsetMS = optimizedURL(it.ID, o), 0
-			out.Optimized = &optimizedPlaybackDTO{Quality: o.Quality, SourceAudioStream: o.AudioStream}
+			out.Optimized = &optimizedPlaybackDTO{Quality: o.Quality, SourceAudioStream: o.AudioStream, DurationMS: o.DurationMS, Bitrate: o.Bitrate}
 			if o.AudioStream >= 0 {
 				out.Optimized.Audio = &audioTrackDTO{Index: 1, Language: o.AudioLanguage, Title: o.AudioTitle, Codec: "aac", Channels: 2, Default: true}
 			}

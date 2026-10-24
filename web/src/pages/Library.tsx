@@ -63,6 +63,11 @@ export function LibraryPage() {
     min_rating: Number(params.get('min_rating')) || undefined,
   };
   const filtered = Object.values(filters).some(Boolean);
+  const clearFilters = () => {
+    const next = new URLSearchParams(params);
+    for (const key of Object.keys(filters)) next.delete(key);
+    setParams(next, { replace: true });
+  };
   const reverse = params.get('reverse') === '1';
   const libraryQuery = useLibraries();
   const { data: libraries } = libraryQuery;
@@ -206,7 +211,7 @@ export function LibraryPage() {
       {lib && <CollectionDialog library={lib} open={newCollection} onOpenChange={setNewCollection} onSaved={(c) => navigate(`/collection/${c.id}`)} />}
       {!!facets.error && <div className="px-6 md:px-10"><ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} /></div>}
       {lib && view === 'titles' && facets.data && (
-        <div className="scrollbar-none -mt-2 mb-6 flex gap-2 overflow-x-auto px-6 md:px-10">
+        <div className="-mt-2 mb-6 flex flex-wrap gap-2 px-6 md:px-10">
           <FilterChip active={!!filters.unwatched} onClick={() => setParam('unwatched', filters.unwatched ? undefined : '1')}>
             Unwatched
           </FilterChip>
@@ -216,7 +221,7 @@ export function LibraryPage() {
             options={facets.data.genres.map((f) => [f.value, f.value, f.count])}
             onChange={(v) => setParam('genre', v)}
           />
-          {facets.data.labels.length > 0 && (
+          {(facets.data.labels.length > 0 || !!filters.label) && (
             <FilterMenu
               label="Label"
               value={filters.label}
@@ -224,7 +229,7 @@ export function LibraryPage() {
               onChange={(v) => setParam('label', v)}
             />
           )}
-          {facets.data.languages.length > 1 && (
+          {(facets.data.languages.length > 1 || !!filters.language) && (
             <FilterMenu
               label="Language"
               value={filters.language}
@@ -238,7 +243,7 @@ export function LibraryPage() {
             options={facets.data.decades.map((f) => [f.value, `${f.value}s`, f.count])}
             onChange={(v) => setParam('decade', v)}
           />
-          {facets.data.resolutions.length > 1 && (
+          {(facets.data.resolutions.length > 1 || !!filters.resolution) && (
             <FilterMenu
               label="Quality"
               value={filters.resolution}
@@ -247,8 +252,8 @@ export function LibraryPage() {
             />
           )}
           {filtered && (
-            <Button variant="ghost" size="sm" className="shrink-0" onClick={() => { const next = new URLSearchParams(); if (sort !== 'title') next.set('sort', sort); if (reverse) next.set('reverse', '1'); setParams(next, { replace: true }); }}>
-              <X /> Clear
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={clearFilters}>
+              <X /> Clear filters
             </Button>
           )}
         </div>
@@ -313,7 +318,8 @@ export function LibraryPage() {
           <PosterGridSkeleton />
         ) : items.data.items.length === 0 && filtered ? (
           <EmptyState icon={<FolderSearch />} title="Nothing matches">
-            Try fewer filters.
+            <p>Try fewer filters.</p>
+            <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button>
           </EmptyState>
         ) : items.data.items.length === 0 ? (
           <EmptyState icon={<FolderSearch />} title="Nothing here yet">
@@ -406,13 +412,13 @@ function FilterMenu({
   options: [value: string, label: string, count: number][];
   onChange: (value?: string) => void;
 }) {
-  if (!options.length) return null;
+  if (!options.length && !value) return null;
   const chosen = options.find(([v]) => v === value);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <FilterChip active={!!chosen}>
-          {chosen ? chosen[1] : label} <ChevronDown className="size-3.5 opacity-60" />
+        <FilterChip active={!!value} className="max-w-full" aria-label={value ? `${label}: ${chosen?.[1] ?? value}` : label}>
+          <span className="truncate">{chosen?.[1] ?? value ?? label}</span> <ChevronDown className="size-3.5 opacity-60" />
         </FilterChip>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">

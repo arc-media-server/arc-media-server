@@ -305,6 +305,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	optimizer := optimize.New(filepath.Join(dataDir, "optimized"), st, log)
 	optimizer.Activity = tasks
 	optimizer.FFmpeg = skips.FFmpeg
+	optimizer.Probe = prober.Probe
 	optimizer.ToneMap = func() bool { return transcoder.Caps().ToneMapping }
 	go optimizer.Run(ctx)
 	librariesChanged := func(scan bool) {

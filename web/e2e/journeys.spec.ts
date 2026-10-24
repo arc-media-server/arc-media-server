@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
-type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string };
+type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string };
 const password = 'Arc-browser-test-123';
 
 const test = base.extend<{ media: Fixtures }>({
@@ -157,6 +157,96 @@ test('review: Search displays a failed request instead of loading forever', asyn
   await page.goto('/search?q=Arc');
   await expect(page.getByText('Review search unavailable', { exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('search-error.png') });
+});
+
+test('review: pending Search keeps results consistent and handles late responses and retry', async ({ page, media }, info) => {
+  await setup(page);
+  await addLibrary(page, 'Search fixtures', media.movies);
+  await page.goto('/search?q=Arc');
+  await expect(page.getByRole('link', { name: /Arc Movie/ }).first()).toBeVisible();
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let seen = false;
+  await page.route('**/api/search?*', async route => {
+    if (new URL(route.request().url()).searchParams.get('q') !== 'NoSuchReviewTitle') return route.continue();
+    seen = true;
+    const response = await route.fetch();
+    await held;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.locator('aside input[placeholder="Search"]').fill('NoSuchReviewTitle');
+    await expect.poll(() => seen).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Results for “NoSuchReviewTitle”' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Arc Movie/ })).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('Searching');
+    await expect(page.locator('[aria-busy="true"] [role="status"]')).toHaveCount(0);
+    await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+    await page.screenshot({ path: info.outputPath('search-pending.png') });
+    release();
+    await expect(page.getByRole('heading', { name: 'No results', exact: true })).toBeVisible();
+    await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  } finally { release(); }
+  await page.unroute('**/api/search?*');
+  let releaseLate!: () => void;
+  const lateHeld = new Promise<void>(resolve => { releaseLate = resolve; });
+  let lateSeen = false;
+  await page.route('**/api/search?*', async route => {
+    if (new URL(route.request().url()).searchParams.get('q') !== 'LateOldQuery') return route.continue();
+    const response = await route.fetch(); lateSeen = true;
+    await lateHeld; await route.fulfill({ response });
+  });
+  try {
+    await page.locator('aside input[placeholder="Search"]').fill('LateOldQuery');
+    await expect.poll(() => lateSeen).toBe(true);
+    await page.locator('aside input[placeholder="Search"]').fill('Arc');
+    await expect(page.getByRole('heading', { name: 'Results for “Arc”' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Arc Movie/ }).first()).toBeVisible();
+    const lateDone = page.waitForResponse(r => r.url().includes('q=LateOldQuery'));
+    releaseLate(); await lateDone;
+    await expect(page.getByRole('heading', { name: 'Results for “Arc”' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Arc Movie/ }).first()).toBeVisible();
+  } finally { releaseLate(); }
+  await page.unroute('**/api/search?*');
+  let fail = true;
+  await page.route('**/api/search?*', route => fail ? route.fulfill({ status: 503, json: { error: 'Search retry fixture' } }) : route.continue());
+  await page.locator('aside input[placeholder="Search"]').fill('Retry fixture');
+  await expect(page.getByText('Search retry fixture', { exact: true })).toBeVisible();
+  fail = false;
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'No results', exact: true })).toBeVisible();
+});
+
+test('review: phone filters wrap and empty results offer visible recovery preserving sort', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Phone filters', media.movies);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(`/library/${lib.id}?genre=NoSuchGenre&decade=1990&language=fra&sort=year&reverse=1&min_runtime=150`);
+  await expect(page.getByRole('heading', { name: 'Nothing matches', exact: true })).toBeVisible();
+  const clear = page.getByRole('button', { name: 'Clear filters', exact: true });
+  await expect(clear).toHaveCount(2);
+  for (const button of await clear.all()) {
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    expect(box?.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole('button', { name: 'Genre: NoSuchGenre', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Any genre', exact: true }).click();
+  await expect(page).not.toHaveURL(/genre=/);
+  expect(new URL(page.url()).searchParams.get('min_runtime')).toBe('150');
+  await page.screenshot({ path: info.outputPath('phone-filter-controls.png') });
+  await clear.last().scrollIntoViewIfNeeded();
+  await expect(clear.last()).toBeInViewport();
+  await page.screenshot({ path: info.outputPath('phone-filter-recovery.png') });
+  await clear.last().focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('link', { name: /Arc Movie/ }).first()).toBeVisible();
+  const url = new URL(page.url());
+  expect(url.searchParams.get('sort')).toBe('year');
+  expect(url.searchParams.get('reverse')).toBe('1');
+  expect([...url.searchParams.keys()].sort()).toEqual(['reverse', 'sort']);
 });
 
 test('review: manual additions only offer editable playlists', async ({ page, media }) => {
@@ -363,6 +453,8 @@ test('optimized playback respects preferred and explicit audio and identifies se
   expect(english.audio_stream).toBe(1);
   expect(english.optimized).toMatchObject({ quality: 720, source_audio_stream: 1, audio: { index: 1, language: 'eng', codec: 'aac', channels: 2 } });
   expect(english.url).toContain('optimized=720');
+  expect(english.optimized.bitrate).toBeGreaterThan(0);
+  expect(english.optimized.duration_ms).toBeGreaterThan(119_000);
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Playback info', exact: true }).click();
   await expect(page.getByText('Optimized Direct Play', { exact: true })).toBeVisible();
@@ -375,6 +467,29 @@ test('optimized playback respects preferred and explicit audio and identifies se
   expect((await (await backToFrench).json()).audio_stream).toBe(2);
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
+
+test('optimized bitrate budget uses measured output and falls back to real conversion', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Budget fixtures', media.budget);
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items[0];
+  expect((await page.request.post('/api/optimize', { data: { item_ids: [item.id], quality: 720 } })).ok()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get('/api/optimized')).json()).versions[0]?.status, { timeout: 45_000 }).toBe('done');
+  const caps = { containers: ['mp4'], video: ['h264'], audio: ['aac'], max_height: 720 };
+  const unlimitedResponse = await page.request.post(`/api/items/${item.id}/playback`, { data: { caps } });
+  expect(unlimitedResponse.ok()).toBeTruthy();
+  const unlimited = await unlimitedResponse.json();
+  await info.attach('measured-optimized-copy', { body: JSON.stringify(unlimited.optimized, null, 2), contentType: 'application/json' });
+  expect(unlimited.optimized.bitrate).toBeGreaterThan(2_000_000);
+  expect(unlimited.optimized.duration_ms).toBeGreaterThanOrEqual(5900);
+  const limitedResponse = await page.request.post(`/api/items/${item.id}/playback`, { data: { caps, max_kbps: 2000 } });
+  expect(limitedResponse.ok()).toBeTruthy();
+  const limited = await limitedResponse.json();
+  expect(limited.method).toBe('transcode');
+  expect(limited.optimized).toBeUndefined();
+  expect(limited.hls).toBe(true);
+  await expect.poll(async () => (await page.request.get(limited.url)).status()).toBe(200);
+  expect((await page.request.delete(`/api/transcode/${limited.session_id}`)).ok()).toBeTruthy();
 });
 
 async function libraryForm(page: Page, name: string, path: string, shows = false) {

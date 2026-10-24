@@ -46,7 +46,7 @@ copy**. They are not silently trusted or automatically regenerated as a large ba
 Queued/interrupted legacy work receives current saved source snapshots and is validated before
 conversion. Normal backup-before-migration and restore/version-compatibility safeguards apply.
 
-This source-revision fix does not change bitrate eligibility (#172),
+The source-revision fix does not change
 format/codec labels, quality presets or background processing policy. Source codec/HDR labels
 still describe the source, not the capabilities of a generated copy or the actual device output.
 
@@ -73,6 +73,32 @@ Migration 0050 adds audio provenance. Previously completed copies, including sch
 have no recorded track proof and require explicit Optimize again; their files stay removable.
 Queued work is recorded when it completes. No source file, item identity or watch history changes.
 The migration follows the existing pre-upgrade backup rules.
+
+## Bitrate eligibility (#172)
+
+After conversion, Arc uses its configured FFprobe to inspect the generated output, then saves
+its duration and average total bitrate under the same attempt/source completion guards. The
+rate includes video, audio and container overhead, taking the larger of FFprobe's format rate
+and the rate computed from actual output bytes and measured duration. Source bitrate and nominal
+720p/1080p preset rates are not measurements of that copy.
+
+Selection checks both height and the effective bitrate budget: the player's manual quality,
+server remote limit and the current per-stream upload share feed the same rule. The copy's
+average total rate must fit the budget without a tolerance; unknown/nonpositive rate or duration
+cannot qualify under a limit. The quality-derived height limit applies even when the original
+file is already small. Source/audio/artifact validation from #170/#171 remains required.
+
+Migration 0051 leaves existing copies intact with unknown rate/duration. They remain usable
+without a bitrate limit. Limited playback uses the normal original/remux/live-conversion path
+when a copy is unknown or over budget. Owners can remove and remake a legacy copy through the
+existing controls to record measurements; no background probe batch, automatic reconversion or
+new setting is introduced. If output measurement fails, the completed copy remains available
+for unlimited playback and limited playback falls back conservatively. The optional playback
+`optimized` object includes `bitrate` (bits/s) and `duration_ms` when measured.
+
+This checks an average encoded rate, not instantaneous VBR peaks, actual connection throughput,
+congestion or a network traffic shaper. Remote/upload planning checks are isolated API evidence,
+not a measurement of the owner's remote connection. Existing live-transcode policy is unchanged.
 
 ## Verification boundary
 

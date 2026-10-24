@@ -13,10 +13,12 @@ import (
 
 // Optimized is one optimized copy of a file.
 type Optimized struct {
-	FileID  int64  `json:"file_id"`
-	Quality int    `json:"quality"` // the most lines tall: 1080 or 720
-	Path    string `json:"-"`
-	Size    int64  `json:"size"`
+	FileID     int64  `json:"file_id"`
+	Quality    int    `json:"quality"` // the most lines tall: 1080 or 720
+	Path       string `json:"-"`
+	Size       int64  `json:"size"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+	Bitrate    int64  `json:"bitrate,omitempty"`
 	// queued, converting, done or failed.
 	Status string `json:"status"`
 	Error  string `json:"error,omitempty"`
@@ -40,11 +42,11 @@ type Optimized struct {
 
 const optimizedCols = `o.file_id, o.quality, o.path, o.size, o.status, o.error, o.created_at, i.id, i.title,
 	COALESCE((SELECT p.title FROM items p WHERE p.id = i.parent_id), ''),
-	o.source_path, o.source_size, o.source_mtime, o.source_mtime_ns, o.job_id, o.audio_stream, o.audio_language, o.audio_title`
+	o.source_path, o.source_size, o.source_mtime, o.source_mtime_ns, o.job_id, o.audio_stream, o.audio_language, o.audio_title, o.duration_ms, o.bitrate`
 
 func scanOptimized(row interface{ Scan(...any) error }, o *Optimized) error {
 	return row.Scan(&o.FileID, &o.Quality, &o.Path, &o.Size, &o.Status, &o.Error, &o.CreatedAt, &o.ItemID, &o.Title, &o.SeriesTitle,
-		&o.SourcePath, &o.SourceSize, &o.SourceMTime, &o.SourceMTimeNS, &o.JobID, &o.AudioStream, &o.AudioLanguage, &o.AudioTitle)
+		&o.SourcePath, &o.SourceSize, &o.SourceMTime, &o.SourceMTimeNS, &o.JobID, &o.AudioStream, &o.AudioLanguage, &o.AudioTitle, &o.DurationMS, &o.Bitrate)
 }
 
 const optimizedFrom = ` FROM optimized_versions o JOIN item_files f ON f.file_id = o.file_id JOIN items i ON i.id = f.item_id`
@@ -68,6 +70,12 @@ func (o *Optimized) MatchesAudio(audio *Stream) bool {
 	return o.AudioStream >= 0 && o.AudioStream == audio.Index
 }
 
+// WithinBitrate uses the completed artifact's measured average total bitrate (bits/s).
+// Unknown duration/rate is eligible only without a budget; this is not a peak/network guarantee.
+func (o *Optimized) WithinBitrate(maxKbps int) bool {
+	return maxKbps <= 0 || (o.DurationMS > 0 && o.Bitrate > 0 && (o.Bitrate-1)/1000+1 <= int64(maxKbps))
+}
+
 // QueueOptimize retains current completed/queued copies, but regenerates failed or changed ones.
 func (s *Store) QueueOptimize(ctx context.Context, fileIDs []int64, quality int) (int, error) {
 	n := 0
@@ -77,7 +85,7 @@ func (s *Store) QueueOptimize(ctx context.Context, fileIDs []int64, quality int)
 			SELECT id, ?, 'queued', ?, path, size, mtime, ? FROM media_files WHERE id=? AND missing_since IS NULL
 			ON CONFLICT (file_id, quality) DO UPDATE SET status='queued', error='',
 			created_at=excluded.created_at, source_path=excluded.source_path, source_size=excluded.source_size,
-			source_mtime=excluded.source_mtime, source_mtime_ns=0, job_id=excluded.job_id, audio_stream=-2, audio_language='', audio_title=''
+			source_mtime=excluded.source_mtime, source_mtime_ns=0, job_id=excluded.job_id, audio_stream=-2, audio_language='', audio_title='', duration_ms=0, bitrate=0
 			WHERE optimized_versions.status='failed' OR source_path<>excluded.source_path
 			OR source_size<>excluded.source_size OR source_mtime<>excluded.source_mtime`,
 			quality, time.Now().Unix(), rand.Text(), id)
@@ -119,9 +127,9 @@ func (s *Store) ClaimOptimize(ctx context.Context, o *Optimized, sourceMTimeNS i
 
 // FinishOptimize cannot publish a deleted, superseded, or source-invalidated attempt.
 func (s *Store) FinishOptimize(ctx context.Context, o *Optimized, path string, size int64) (bool, error) {
-	r, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='done', path=?, size=?, error='', audio_stream=?, audio_language=?, audio_title=?
+	r, err := s.db.ExecContext(ctx, `UPDATE optimized_versions SET status='done', path=?, size=?, error='', audio_stream=?, audio_language=?, audio_title=?, duration_ms=?, bitrate=?
 		WHERE file_id=? AND quality=? AND job_id=? AND status='converting' AND source_mtime_ns=? AND `+optimizedSourceCurrent,
-		path, size, o.AudioStream, o.AudioLanguage, o.AudioTitle, o.FileID, o.Quality, o.JobID, o.SourceMTimeNS)
+		path, size, o.AudioStream, o.AudioLanguage, o.AudioTitle, o.DurationMS, o.Bitrate, o.FileID, o.Quality, o.JobID, o.SourceMTimeNS)
 	if err != nil {
 		return false, err
 	}
