@@ -260,13 +260,19 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.goto('/settings?section=access');
   const upload = page.getByRole('textbox', { name: 'Internet upload speed', exact: true });
-  // Centre the control before saving; an auto-scrolled button at the bottom edge
-  // leaves no room for the new inline feedback, independent of where it is rendered.
-  await upload.evaluate(el => el.scrollIntoView({ block: 'center' }));
   await upload.fill('25');
   await page.route('**/api/settings', route => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 503, json: { error: 'Upload save failed' } }) : route.continue());
-  await upload.locator('..').getByRole('button', { name: 'Save', exact: true }).click();
+  const saveUpload = upload.locator('..').getByRole('button', { name: 'Save', exact: true });
+  // Wait for page/control motion before centering. Otherwise actionability's
+  // later auto-scroll can put Save at the bottom edge, below the intended setup.
+  await saveUpload.click({ trial: true });
+  await saveUpload.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  await expect.poll(async () => {
+    const box = await saveUpload.boundingBox();
+    return !!box && box.y >= 0 && box.y + box.height < page.viewportSize()!.height - 150;
+  }, { message: 'Save has viewport room for its inline feedback before clicking' }).toBe(true);
+  await saveUpload.click();
   await expect(page.getByRole('alert')).toContainText('Upload save failed');
   await expect(page.getByRole('alert')).toBeInViewport();
   await page.unroute('**/api/settings');
