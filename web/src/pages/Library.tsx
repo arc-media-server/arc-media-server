@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
@@ -44,13 +44,18 @@ const browsePositions = new Map<string, number>();
 function useBrowsePosition(key: string, ready: boolean) {
   const navigation = useNavigationType();
   const restore = useRef<number | undefined>(undefined);
-  useEffect(() => {
+  useLayoutEffect(() => {
     restore.current = navigation === 'POP' ? browsePositions.get(key) : undefined;
     let lastY = window.scrollY;
     const remember = () => { lastY = window.scrollY; };
     window.addEventListener('scroll', remember, { passive: true });
+    // Router links can navigate before the last scroll event is delivered. Capture
+    // the departure position before their click handler replaces the page.
+    window.addEventListener('click', remember, true);
     return () => {
+      // Detach before the app's passive route-to-top effect can overwrite lastY.
       window.removeEventListener('scroll', remember);
+      window.removeEventListener('click', remember, true);
       browsePositions.delete(key);
       browsePositions.set(key, lastY);
       if (browsePositions.size > 40) browsePositions.delete(browsePositions.keys().next().value!);
