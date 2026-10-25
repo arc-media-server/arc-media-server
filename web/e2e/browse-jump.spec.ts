@@ -98,12 +98,19 @@ test('browse jump: unloaded boundary, continuation, loaded selection and Back po
   await target.scrollIntoViewIfNeeded();
   const y = await page.evaluate(() => window.scrollY);
   expect(y).toBeGreaterThan(1000);
-  await target.click();
+  // A title can open in the same task as a final scroll, before its scroll event.
+  // Record the departure position at navigation rather than relying on that event.
+  const departureY = await target.evaluate((link: HTMLAnchorElement) => {
+    window.scrollTo(0, window.scrollY - 200);
+    const departure = window.scrollY;
+    link.click();
+    return departure;
+  });
   await expect(page).toHaveURL(new RegExp(`/movie/${template.id}`));
   await expect(page.getByRole('heading', { level: 1, name: template.title })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole('combobox', { name: 'Jump to letter' })).toHaveValue('s');
-  await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - y)).toBeLessThan(5);
+  await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - departureY)).toBeLessThan(5);
   await expect(target).toBeVisible();
   await page.screenshot({ path: info.outputPath('back-at-letter.png') });
 });

@@ -68,6 +68,17 @@ journey read allTextContents before the asynchronous sidebar list rendered (rece
 of Films/Series). Its follow-up uses Playwright's waiting toHaveText assertion for the same exact
 ordered labels; no runtime behavior, timeout or retry policy changes. Actual follow-up validation
 and publication are recorded on the issues and in the evidence directory below.
+The second hosted run 40223357038 passed all five new journeys but finished 85/86 overall:
+the existing jump-to-letter Back-position journey returned to the top. Windows, Linux
+Go/vet/race, container checks and image preparation passed; publication was skipped. A focused
+same-task scroll/title-click regression reproduces the lost departure position locally: the
+last scroll event can arrive after navigation. Click-time capture alone still failed (8/9
+focused journeys passed); an instrumented trace then showed the route-to-top scroll overwriting
+the saved departure with zero before passive cleanup. The library now detaches/saves in layout
+cleanup before the app's passive route-to-top effect, and captures pending position before
+the router's click handler replaces the page, covering pointer and keyboard-generated clicks.
+The regression retains exact Back-position/visible-target checks and exercises pending scroll
+delivery explicitly. Both hosted failures and the pre-fix reproduction remain evidence.
 Final hosted full-suite/container/publication results are recorded on the issues/#162 and in that
 directory separately; previous runs remain historical. Current official Plex playback overview
 was readable, while navigation/completion/auto-sync/audio-enhancement pages returned 403; exact
