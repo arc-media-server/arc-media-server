@@ -1,5 +1,9 @@
 # Remaining Web and Server audit review
 
+Owner follow-up: #106/#109 were subsequently accepted for implementation. Their current
+contract is in [EPISODE-DETAILS-SPECIALS.md](EPISODE-DETAILS-SPECIALS.md); the original
+review/deferral and plan below remain historical. READINESS and the issues record actual checks.
+
 Baseline ad40546, 25 October 2026. This pass covers nine Astra findings from #162;
 native/offline apps (F25) and physical HDR/Atmos output acceptance (F26) are excluded.
 The current pass implements bounded controls and sender fixes, and records concrete
@@ -9,7 +13,7 @@ plans for larger optional projects. It does not equate a review decision with fe
 | --- | --- | --- |
 | F21 | #189 | Implement profile library ordering, retain all available libraries; no pin/hide model |
 | F22 | #190 | Implement profile completion percentage, existing 90% default; no credit-marker/autoplay change |
-| F24 | #106/#109 | Plan a separate metadata/display-order project; keep open, not implemented |
+| F24 | #106/#109 | Initially planned; subsequently implemented in the owner-authorized #106/#109 follow-up; see EPISODE-DETAILS-SPECIALS.md |
 | F27 | #192 | Correct sender file/audio/position ownership, failure cleanup and subtitle-limit feedback; keep open for receiver validation/full subtitle transport |
 | F28 | #193 | Defer pacing/budgets until measured resource pressure; preserve existing controls |
 | F29 | #138 | Review and consolidate alpha acceptance checklist; keep release gate open |

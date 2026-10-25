@@ -30,8 +30,11 @@ type Episode struct {
 	RuntimeMin int
 	Still      string // TMDB path or full URL
 	// TMDB only: the episode's position in TMDB aired order, needed for TMDB episode lookups.
-	AiredSeason int
-	AiredNumber int
+	AiredSeason       int
+	AiredNumber       int
+	People            []Credit // Episode guest cast and director/writer credits, when supplied.
+	AirsBeforeSeason  *int     // TVDB aired placement hints; nil means unknown.
+	AirsBeforeEpisode *int
 }
 
 // Ordering is one provider arrangement of a series' episodes into seasons.

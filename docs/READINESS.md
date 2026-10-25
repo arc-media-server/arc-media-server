@@ -1,5 +1,63 @@
 # Stability and release readiness
 
+## Episode details and specials (#106/#109, 25 October 2026)
+
+The owner accepted both recommendations after the Web/Server review. Clean baseline ba4fab1
+matched GitHub main; work branch codex/episode-details-specials. Saved activation selected
+Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5 and prepared dependencies/caches/pinned
+Chromium revision 1248. No new tools/dependencies, owner data/settings/media/keys, Unraid or
+persistent server. Contract: [EPISODE-DETAILS-SPECIALS.md](EPISODE-DETAILS-SPECIALS.md).
+
+Episode Details shows stored guest cast/directors/writers separately from Play, with Retry and
+existing spoiler protection. Aggregate cast counts use supplied provider totals, not sums or
+local-file counts. Credits follow Details From through mapped stable episode IDs; canonical
+text/numbering and locks remain separate. Unsupported/missing credits are cleared, not silently
+backfilled. Reopening details rechecks the local store after refresh/provider switches.
+
+Episode Order's opt-in specials setting follows profile/server-default inheritance. Stable
+TheTVDB aired hints drive the same traversal for seasons, Next Up, player Next/autoplay,
+queue/playlist expansion and season watched actions. Original Special labels, unavailable/
+unknown fallback, custom/manual placements, repeated multi-part positions and watch data stay
+intact. Migration 0052 preserves older credit identities/defaults and starts no batch work;
+existing shows populate through explicit metadata refresh or configured metadata maintenance.
+
+Actual local checks:
+
+- Uncached ordinary Go: **381 tests/subtests (230 top-level)**, zero failures/skips.
+- Uncached affected store/scanner/API race: **244 tests/subtests (130 top-level)**, zero
+  failures/skips. Final alternate traversal/legacy-upgrade assertions also receive a focused
+  store race check; reruns are not counted as additional distinct tests.
+- Six distinct focused browser journeys pass together (31.70s), zero failures/skips/retries:
+  three new provider-import/details/spoiler/inline-specials journeys plus existing alternate
+  order, episode preplay and keyboard playback regressions. The three new journeys pass again
+  after final dialog freshness/icon refinements (18.53s) and again after narrowing episode
+  persistence to credits only (18.17s); reruns are not extra distinct journeys.
+- Production/app/e2e TypeScript, UI build, vet, API-document contract, embedded build and diff
+  checks pass. Desktop/390px dialog/inline-season captures inspected; Details and File details
+  use distinct icons and all actions remain reachable without changing approved hero geometry.
+- Generated clips import through actual local TMDB/TVDB providers. Browser checks verify guest/
+  crew/count persistence, provider switching/clearing/restoration, immediate dialog freshness,
+  locked title/files/resume, failed read/Retry, hidden spoilers/no playback, imported placement
+  hints, failed save/Retry, retained Special label, actual Next endpoints, unknown fallback,
+  profile override and inheritance reset. Store/API checks add inaccessible-library denial,
+  Next Up and queue expansion, manual/custom/alternate/multi-part behavior, before-season and
+  before-episode hints, malformed/unmapped hints and real schema-51 safety-backup/online restore.
+
+Development failures are retained. The first ordinary affected run could not bind local TLS
+fixture ports inside the restricted sandbox; the same checks pass with permitted local
+listeners. The first browser run passed 2/3: its test expected S00E01 while Arc deliberately
+labels season-zero episodes Special 1. The assertion now checks that existing label and the
+unchanged API source season/number separately; product formatting was not changed. One gofmt
+command used web/ as cwd and was rerun from the repository root. No failure is relabelled as
+acceptance and no timeout/retry/assertion coverage was weakened.
+
+Raw JSON/logs/screenshots: `/workspace/arc-cloud-evidence/episode-details-specials/`.
+Final hosted full-suite/container/publication results are recorded separately on #106/#109/#162
+and in that directory. Earlier results remain historical. Fixtures do not establish real-world
+provider data accuracy, all cross-provider mappings, owner-library throughput, physical-device,
+NAS, recovery or public-release acceptance. Rollback across 0052 needs a compatible pre-upgrade
+backup as usual; real owner data was never opened.
+
 
 
 

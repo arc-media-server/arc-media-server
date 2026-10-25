@@ -272,7 +272,7 @@ func (s *Server) orderedEpisodeIDs(r *http.Request, series *store.Item) ([]strin
 	// Seasons first, then specials (an episode in both, like a pilot, goes where its season puts it).
 	for _, specials := range []bool{false, true} {
 		for _, e := range entries {
-			if (e.Season == 0) == specials && available[e.EpisodeID] && !seen[e.EpisodeID] {
+			if (e.Season == 0 && !e.InlineSpecial) == specials && available[e.EpisodeID] && !seen[e.EpisodeID] {
 				seen[e.EpisodeID] = true
 				out = append(out, e.EpisodeID)
 			}

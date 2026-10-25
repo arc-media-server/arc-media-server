@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-169 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+170 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -350,6 +350,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/series/{id}/seasons/{n}/image` | profile | Is a season's poster: the file in the show's folder if there is one, otherwise the provider's. |
 | GET | `/api/series/{id}/orderings` | profile | Available orderings and the one in use |
 | PUT | `/api/series/{id}/display-ordering` | profile | {"ordering_id": 12} (null resets). The choice is the current profile's own; the admin's choice is also the default for profiles that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode mapping first. |
+| PATCH | `/api/series/{id}/specials` | profile | {"inline_specials": true\|false\|null}. null restores inheritance (or Off for the admin's server default). This changes display/ playback traversal only; manual/custom placements and original numbering remain authoritative. |
 | POST | `/api/series/{id}/orderings` | admin | {"name": "...", "copy_from": <ordering id>} creates a custom ordering starting as a copy of another. |
 | DELETE | `/api/series/{id}/orderings/{oid}` | admin | (custom orderings only) |
 | PUT | `/api/series/{id}/orderings/{oid}/entries/{eid}` | admin | {"season_number": 1, "episode_number": 5} Manually positions an episode. Manual positions survive metadata refreshes. |

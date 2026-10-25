@@ -230,6 +230,8 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Move title metadata refresh into More and distinguish playback queue from saved playlists (#187)
 - [x] Add owner-selected, filter/access-aware A–Z library jumps with paging and Back position (#188)
 - [x] Clarify backup/NFO scope and retain approved language/provider/scheduling/edition decisions (#191/#194/#104/#195; #136 remains a readiness gate)
+- [x] Store/show episode guest cast, directors/writers and supplied series actor counts under Details From, with independent spoiler-aware details/Retry (#106)
+- [x] Offer inherited/profile specials-in-seasons placement with stable hints and shared browse/Next Up/autoplay/queue traversal, preserving manual orders/history (#109)
 - [x] Save profile-specific library navigation order without hiding libraries (#189)
 - [x] Offer profile watched percentage with the existing 90% default and consistent history boundary (#190)
 - [x] Offer session-local text-subtitle timing/reset without editing source files (#199)
@@ -255,8 +257,6 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
 - Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
 - Keep every country's age rating (#105)
-- Per-episode cast/crew and actor appearance counts (#106; provenance/model/UI/lock plan in docs/WEB-SERVER-REVIEW.md; not implemented)
-- Place specials between seasons (#109; shared display/traversal/identity plan in docs/WEB-SERVER-REVIEW.md; not implemented)
 - Conversion pacing/storage budgets (#193), adaptive remote quality (#197), optional dialogue/normalization (#198): reviewed/deferred with task/evidence and acceptance criteria in docs/WEB-SERVER-REVIEW.md
 
 ## Explicitly not planned

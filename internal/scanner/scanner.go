@@ -1079,14 +1079,18 @@ func (s *Scanner) saveMovie(ctx context.Context, it store.Item, m *metadata.Movi
 	return s.store.MarkSynced(ctx, it.ID)
 }
 
+func storedCredits(people []metadata.Credit) []store.Credit {
+	credits := make([]store.Credit, 0, len(people))
+	for _, p := range people {
+		credits = append(credits, store.Credit{TMDBID: p.TMDBID, Name: p.Name, ProfilePath: p.ProfilePath,
+			Role: p.Role, Character: p.Character, Order: p.Order, EpisodeCount: p.EpisodeCount})
+	}
+	return credits
+}
+
 // saveDetails stores genres and credits.
 func (s *Scanner) saveDetails(ctx context.Context, itemID string, d metadata.Details) error {
-	credits := make([]store.Credit, 0, len(d.People))
-	for _, p := range d.People {
-		credits = append(credits, store.Credit{TMDBID: p.TMDBID, Name: p.Name, ProfilePath: p.ProfilePath,
-			Role: p.Role, Character: p.Character, Order: p.Order})
-	}
-	if err := s.store.SetItemDetails(ctx, itemID, d.Genres, credits); err != nil {
+	if err := s.store.SetItemDetails(ctx, itemID, d.Genres, storedCredits(d.People)); err != nil {
 		return err
 	}
 	if err := s.store.SetRecommendations(ctx, itemID, d.Recommendations); err != nil {

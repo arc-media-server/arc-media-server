@@ -20,10 +20,12 @@ type Ordering struct {
 }
 
 type OrderingEntry struct {
-	EpisodeID string `json:"episode_id"`
-	Season    int    `json:"season_number"`
-	Episode   int    `json:"episode_number"`
-	Locked    bool   `json:"locked,omitempty"`
+	EpisodeID     string `json:"episode_id"`
+	Season        int    `json:"season_number"`
+	Episode       int    `json:"episode_number"`
+	Locked        bool   `json:"locked,omitempty"`
+	GroupSeason   int    `json:"-"` // Display container; source Season/Episode remain unchanged.
+	InlineSpecial bool   `json:"inline_special,omitempty"`
 }
 
 // UpsertOrdering creates or renames the ordering identified by (series, source, ref).

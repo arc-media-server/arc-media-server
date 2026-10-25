@@ -1,4 +1,5 @@
 import { SourceFilesButton } from '@/components/SourceFormats';
+import { EpisodeDetailsButton } from '@/components/EpisodeDetails';
 import { QueueActions } from '@/components/QueueActions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
@@ -34,6 +35,7 @@ import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -83,6 +85,15 @@ export function SeriesPage() {
     onSuccess: (data) => {
       qc.setQueryData(['orderings', id], data);
       return qc.invalidateQueries({ queryKey: ['seasons', id] });
+    },
+  });
+
+  const specials = useMutation({
+    mutationFn: (inline: boolean | null) => api.setInlineSpecials(id!, inline),
+    onSuccess: async (data) => {
+      qc.setQueryData(['orderings', id], data);
+      await qc.invalidateQueries({ queryKey: ['seasons', id] });
+      await Promise.all(['continue', 'next-up'].map(key => qc.invalidateQueries({ queryKey: [key] })));
     },
   });
 
@@ -176,6 +187,7 @@ export function SeriesPage() {
 
       <div className="space-y-2 px-6 md:px-10">
         <ErrorNotice error={setOrdering.error} onRetry={() => setOrdering.mutate(setOrdering.variables ?? null)} />
+        <ErrorNotice error={specials.error} onRetry={() => specials.mutate(specials.variables ?? null)} />
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
         <ErrorNotice error={orderings.error} onRetry={() => void orderings.refetch()} />
       </div>
@@ -237,6 +249,9 @@ export function SeriesPage() {
               pending={setOrdering.isPending}
               onSelect={(o) => setOrdering.mutate(o)}
               onCompare={orderings.data.orderings.length > 1 ? () => setComparing(true) : undefined}
+              inlineSpecials={orderings.data.inline_specials}
+              onSpecials={(inline) => specials.mutate(inline)}
+              specialsPending={specials.isPending}
             />
           )}
         </div>
@@ -317,7 +332,7 @@ export function SeriesPage() {
  */
 function nextToPlay(all: SeasonEpisode[]): SeasonEpisode | undefined {
   const eps = all.filter((e) => e.available && e.stream_url);
-  const main = eps.filter((e) => e.season_number > 0);
+  const main = eps.filter((e) => e.season_number > 0 || e.inline_special);
   const list = main.length ? main : eps;
   let last = -1;
   list.forEach((e, i) => {
@@ -349,6 +364,7 @@ function OrderingMenu({
   onSelect,
   onCompare,
   admin, onReset,
+  inlineSpecials, onSpecials, specialsPending,
 }: {
   orderings: Ordering[];
   selected: number;
@@ -357,6 +373,9 @@ function OrderingMenu({
   onCompare?: () => void;
   admin: boolean;
   onReset: () => void;
+  inlineSpecials: boolean;
+  onSpecials: (inline: boolean | null) => void;
+  specialsPending: boolean;
 }) {
   const current = orderings.find((o) => o.id === selected);
   const groups: [string, Ordering[]][] = [
@@ -396,6 +415,12 @@ function OrderingMenu({
               </div>
             ))}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem checked={inlineSpecials} disabled={specialsPending} onCheckedChange={(checked) => onSpecials(checked)}>
+          Show specials in seasons
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuItem disabled={specialsPending} onSelect={() => onSpecials(null)}>{admin ? 'Reset specials to Off' : 'Use server specials setting'}</DropdownMenuItem>
+        <DropdownMenuLabel className="whitespace-normal text-xs font-normal">Uses TheTVDB placement hints from metadata refresh. Unknown specials stay in Specials. Manual/custom orders stay as arranged.</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>{admin ? 'Your choice also sets the server default' : 'Your profile only'}</DropdownMenuLabel>
         <DropdownMenuItem onSelect={onReset}>{admin ? 'Reset to source order' : 'Use server default'}</DropdownMenuItem>
@@ -453,7 +478,7 @@ function EpisodeRow({
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="flex items-baseline gap-3">
-          {!unplaced && <span className="w-7 shrink-0 text-sm tabular-nums text-subtle">{ep.episode_number}</span>}
+          {!unplaced && <span className={cn('shrink-0 text-sm tabular-nums text-subtle', ep.inline_special ? 'w-auto' : 'w-7')}>{ep.inline_special ? episodeCode(0, ep.episode_number) : ep.episode_number}</span>}
           <div className="min-w-0">
             <h3 className="truncate text-[15px] font-semibold">{ep.title}</h3>
             <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-subtle">
@@ -472,6 +497,7 @@ function EpisodeRow({
         className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent" />}
       </div>
       <div className="flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      <EpisodeDetailsButton episode={ep} />
       {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
       {playable && <PlaybackOptionsButton compact item={nowPlayingFor({ ...ep, series_title: seriesTitle })} />}
       {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
