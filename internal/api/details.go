@@ -9,16 +9,17 @@ import (
 )
 
 type creditDTO struct {
-	PersonID  int64  `json:"person_id"`
-	Name      string `json:"name"`
-	Role      string `json:"role"`
-	Character string `json:"character,omitempty"`
-	Image     string `json:"image,omitempty"`
+	PersonID     int64  `json:"person_id"`
+	Name         string `json:"name"`
+	Role         string `json:"role"`
+	Character    string `json:"character,omitempty"`
+	Image        string `json:"image,omitempty"`
+	EpisodeCount int    `json:"episode_count,omitempty"`
 }
 
-// addDetails fills in a movie or show's genres, cast and crew.
+// addDetails fills stored title/episode genres, cast and crew.
 func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
-	if d.Kind != "movie" && d.Kind != "series" {
+	if d.Kind != "movie" && d.Kind != "series" && d.Kind != "episode" {
 		return nil
 	}
 	genres, err := s.store.ItemGenres(r.Context(), d.ID)
@@ -44,7 +45,7 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 	d.Collections = s.itemCollections(r, &d.Item)
 	d.Credits = make([]creditDTO, 0, len(credits))
 	for _, c := range credits {
-		cd := creditDTO{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character}
+		cd := creditDTO{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character, EpisodeCount: c.EpisodeCount}
 		if c.ProfilePath != "" {
 			cd.Image = "/api/people/" + strconv.FormatInt(c.PersonID, 10) + "/image?v=" + artwork.Key(artwork.Source("person", "primary", c.ProfilePath))
 		}

@@ -2,19 +2,22 @@ package metadata
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-const tvdbBase = "https://api4.thetvdb.com/v4"
+// Like AMS_TMDB_URL, this permits isolated provider fixtures without real credentials.
+var tvdbBase = cmp.Or(os.Getenv("AMS_TVDB_URL"), "https://api4.thetvdb.com/v4")
 
 // TVDB is a client for TheTVDB v4 API.
 type TVDB struct {
@@ -312,14 +315,16 @@ func (c *TVDB) episodesIn(ctx context.Context, id int64, seasonType, lang string
 		var resp struct {
 			Data struct {
 				Episodes []struct {
-					ID           int64  `json:"id"`
-					SeasonNumber int    `json:"seasonNumber"`
-					Number       int    `json:"number"`
-					Name         string `json:"name"`
-					Overview     string `json:"overview"`
-					Aired        string `json:"aired"`
-					Runtime      int    `json:"runtime"`
-					Image        string `json:"image"`
+					ID                int64  `json:"id"`
+					SeasonNumber      int    `json:"seasonNumber"`
+					Number            int    `json:"number"`
+					Name              string `json:"name"`
+					Overview          string `json:"overview"`
+					Aired             string `json:"aired"`
+					Runtime           int    `json:"runtime"`
+					Image             string `json:"image"`
+					AirsBeforeSeason  *int   `json:"airsBeforeSeason"`
+					AirsBeforeEpisode *int   `json:"airsBeforeEpisode"`
 				} `json:"episodes"`
 			} `json:"data"`
 			Links struct {
@@ -338,6 +343,7 @@ func (c *TVDB) episodesIn(ctx context.Context, id int64, seasonType, lang string
 			entries = append(entries, Entry{Season: e.SeasonNumber, Number: e.Number, Episode: &Episode{
 				Provider: "tvdb", ID: e.ID, Title: title, Overview: e.Overview, AirDate: e.Aired,
 				RuntimeMin: e.Runtime, Still: tvdbImage(e.Image),
+				AirsBeforeSeason: e.AirsBeforeSeason, AirsBeforeEpisode: e.AirsBeforeEpisode,
 			}})
 		}
 		if resp.Links.Next == nil || *resp.Links.Next == "" || len(resp.Data.Episodes) == 0 {

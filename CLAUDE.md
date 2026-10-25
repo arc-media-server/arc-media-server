@@ -37,6 +37,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Episode details/specials (#106/#109, 25 October): episode rows now open stored description,
+  guest cast and director/writer credits independently of Play, with spoiler protection/Retry.
+  Series cast cards show provider-reported appearance counts. Credits follow Details From;
+  canonical episode text/numbering stays separate and unsupported/unmapped sources remain empty.
+  Episode Order offers opt-in specials in seasons, with profile/server-default inheritance.
+  Stable mapped TVDB aired hints feed one traversal for seasons/Next Up/autoplay/queue/season
+  actions, retaining Special labels, unknown fallback, manual/custom placements and history.
+  Migration 0052 preserves old credits/defaults and starts no batch work. Existing libraries
+  need normal Refresh metadata/maintenance to populate the new fields. Contract:
+  docs/EPISODE-DETAILS-SPECIALS.md; actual results/limits: READINESS and #106/#109/#162.
+
+
 - Web/server audit pass (#189/#190/#199/#192, 25 October): personal settings now save library
   navigation order (all available libraries remain visible) and future watched percentage,
   retaining the 90% default. Persisted progress and active history share the boundary; no

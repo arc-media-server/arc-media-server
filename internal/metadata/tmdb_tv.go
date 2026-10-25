@@ -125,20 +125,22 @@ func (c *TMDB) FindTV(ctx context.Context, externalID, source string) (int64, er
 }
 
 type tmdbEpisode struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	Overview      string `json:"overview"`
-	AirDate       string `json:"air_date"`
-	Runtime       int    `json:"runtime"`
-	StillPath     string `json:"still_path"`
-	SeasonNumber  int    `json:"season_number"`
-	EpisodeNumber int    `json:"episode_number"`
-	Order         int    `json:"order"`
+	ID            int64            `json:"id"`
+	Name          string           `json:"name"`
+	Overview      string           `json:"overview"`
+	AirDate       string           `json:"air_date"`
+	Runtime       int              `json:"runtime"`
+	StillPath     string           `json:"still_path"`
+	SeasonNumber  int              `json:"season_number"`
+	EpisodeNumber int              `json:"episode_number"`
+	Order         int              `json:"order"`
+	GuestStars    []tmdbCastMember `json:"guest_stars"`
+	Crew          []tmdbCrewMember `json:"crew"`
 }
 
 func (e tmdbEpisode) toEpisode() *Episode {
 	return &Episode{Provider: "tmdb", ID: e.ID, Title: e.Name, Overview: e.Overview, AirDate: e.AirDate,
-		RuntimeMin: e.Runtime, Still: e.StillPath, AiredSeason: e.SeasonNumber, AiredNumber: e.EpisodeNumber}
+		RuntimeMin: e.Runtime, Still: e.StillPath, AiredSeason: e.SeasonNumber, AiredNumber: e.EpisodeNumber, People: credits(e.GuestStars, e.Crew)}
 }
 
 // TV fetches series metadata plus all of its orderings: TMDB aired order and every episode group.

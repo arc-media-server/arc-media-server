@@ -263,12 +263,15 @@ export interface Ordering {
 }
 
 export interface OrderingsResponse {
+	inline_specials: boolean;
+	specials_overridden: boolean;
   display_ordering_id: number;
   source_ordering: string;
   orderings: Ordering[];
 }
 
 export interface SeasonEpisode extends Item {
+	inline_special?: boolean;
   season_number: number;
   episode_number: number;
   available: boolean;
@@ -747,6 +750,7 @@ export interface Extra {
 }
 
 export interface Credit {
+	episode_count?: number;
   person_id: number;
   name: string;
   role: 'actor' | 'director' | 'writer' | 'creator';
@@ -1156,6 +1160,8 @@ export const api = {
       `/api/series/${seriesId}/seasons${query({ ordering: opts.ordering, missing: opts.missing ? 1 : undefined })}`,
     ),
   orderings: (seriesId: string) => request<OrderingsResponse>('GET', `/api/series/${seriesId}/orderings`),
+  setInlineSpecials: (seriesId: string, inline: boolean | null) =>
+    request<OrderingsResponse>('PATCH', `/api/series/${seriesId}/specials`, { inline_specials: inline }),
   setDisplayOrdering: (seriesId: string, orderingId: number | null) =>
     request<OrderingsResponse>('PUT', `/api/series/${seriesId}/display-ordering`, { ordering_id: orderingId }),
   refreshSeries: (seriesId: string) => request<OrderingsResponse>('POST', `/api/series/${seriesId}/refresh`),

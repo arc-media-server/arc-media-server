@@ -301,6 +301,9 @@ func (s *Store) SetItemDetails(ctx context.Context, itemID string, genres []stri
 		return err
 	}
 	for _, c := range credits {
+		if c.TMDBID <= 0 || strings.TrimSpace(c.Name) == "" {
+			continue
+		}
 		var pid int64
 		if err := tx.QueryRowContext(ctx, `
 			INSERT INTO people (tmdb_id, name, profile_path) VALUES (?, ?, ?)
@@ -310,8 +313,8 @@ func (s *Store) SetItemDetails(ctx context.Context, itemID string, genres []stri
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `
-			INSERT OR IGNORE INTO item_people (item_id, person_id, role, character, ord) VALUES (?, ?, ?, ?, ?)`,
-			itemID, pid, c.Role, c.Character, c.Order); err != nil {
+			INSERT OR IGNORE INTO item_people (item_id, person_id, role, character, ord, episode_count) VALUES (?, ?, ?, ?, ?, ?)`,
+			itemID, pid, c.Role, c.Character, c.Order, max(0, c.EpisodeCount)); err != nil {
 			return err
 		}
 	}
@@ -339,7 +342,7 @@ func (s *Store) ItemGenres(ctx context.Context, itemID string) ([]string, error)
 // ItemCredits returns an item's cast and crew in billing order.
 func (s *Store) ItemCredits(ctx context.Context, itemID string) ([]Credit, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT p.id, p.tmdb_id, p.name, p.profile_path, ip.role, ip.character, ip.ord
+		SELECT p.id, p.tmdb_id, p.name, p.profile_path, ip.role, ip.character, ip.ord, ip.episode_count
 		FROM item_people ip JOIN people p ON p.id = ip.person_id
 		WHERE ip.item_id = ? ORDER BY ip.ord`, itemID)
 	if err != nil {
@@ -349,7 +352,7 @@ func (s *Store) ItemCredits(ctx context.Context, itemID string) ([]Credit, error
 	out := []Credit{}
 	for rows.Next() {
 		var c Credit
-		if err := rows.Scan(&c.PersonID, &c.TMDBID, &c.Name, &c.ProfilePath, &c.Role, &c.Character, &c.Order); err != nil {
+		if err := rows.Scan(&c.PersonID, &c.TMDBID, &c.Name, &c.ProfilePath, &c.Role, &c.Character, &c.Order, &c.EpisodeCount); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

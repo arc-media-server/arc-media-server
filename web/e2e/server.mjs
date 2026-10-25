@@ -68,7 +68,7 @@ async function reset(restart = false) {
   await stopApp();
   const data = join(root, `data-${restart ? generation : ++generation}`);
   child = spawn(binary, ['-data', data, '-config', 'none'], {
-    cwd: root, env: { ...env, AMS_LISTEN: '127.0.0.1:18199', AMS_TMDB_URL: 'http://127.0.0.1:18200/tmdb',
+    cwd: root, env: { ...env, AMS_LISTEN: '127.0.0.1:18199', AMS_TMDB_URL: 'http://127.0.0.1:18200/tmdb', AMS_TVDB_URL: 'http://127.0.0.1:18200/tvdb',
       AMS_IMDB_RATINGS_URL: 'http://127.0.0.1:18200/no-ratings', AMS_OMDB_URL: 'http://127.0.0.1:18200/no-scores',
       AMS_INTRODB_URL: 'http://127.0.0.1:18200/no-markers', AMS_THEINTRODB_URL: 'http://127.0.0.1:18200/no-markers' },
     stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
@@ -95,7 +95,34 @@ const show = { id: 303, name: 'Arc Show', original_name: 'Arc Show', original_la
   seasons: [{ season_number: 1, name: 'Season 1' }], episode_groups: { results: [{ id: 'reverse', name: 'Story Order', type: 5 }] },
   'season/1': { overview: 'Fixture season.', episodes }, content_ratings: { results: [{ iso_3166_1: 'GB', rating: 'PG' }] } };
 
+const specialEpisodes = [
+  { id: 5011, name: 'Opening', season_number: 1, episode_number: 1, air_date: '2020-01-01' },
+  { id: 5012, name: 'Return', season_number: 1, episode_number: 2, air_date: '2020-01-03' },
+  { id: 5013, name: 'Interlude', season_number: 0, episode_number: 1, air_date: '2020-01-02' },
+  { id: 5014, name: 'Unplaced Extra', season_number: 0, episode_number: 2, air_date: '2020-02-01' },
+].map(e => ({ ...e, runtime: 2, overview: `Details of ${e.name}.`, guest_stars: [{ id: 8001, name: 'Fixture Guest', character: 'Visitor' }],
+  crew: [{ id: 8002, name: 'Fixture Director', job: 'Director' }, { id: 8003, name: 'Fixture Writer', job: 'Writer' }] }));
+const specialShow = { id: 501, name: 'Fixture Show', original_name: 'Fixture Show', first_air_date: '2020-01-01',
+  external_ids: { tvdb_id: 601 }, seasons: [{ season_number: 0, name: 'Specials' }, { season_number: 1, name: 'Season 1' }],
+  'season/0': { episodes: specialEpisodes.filter(e => e.season_number === 0) },
+  'season/1': { episodes: specialEpisodes.filter(e => e.season_number === 1) },
+  aggregate_credits: { cast: [{ id: 8001, name: 'Fixture Guest', roles: [{ character: 'Visitor' }], total_episode_count: 14 }] } };
+
+function tvdbMetadata(path) {
+  if (path === '/tvdb/login') return { data: { token: 'local-fixture-token' } };
+  if (path === '/tvdb/search') return { data: [{ tvdb_id: '601', name: 'Fixture Show', year: '2020' }] };
+  if (path === '/tvdb/series/601/extended') return { data: { id: 601, name: 'Fixture Show', firstAired: '2020-01-01',
+    seasonTypes: [{ type: 'official' }], remoteIds: [{ type: 12, id: '501' }] } };
+  if (path === '/tvdb/series/601/translations/eng') return { data: {} };
+  if (path === '/tvdb/series/601/episodes/official/eng') return { data: { episodes: specialEpisodes.map(e => ({
+    id: e.id + 1000, name: e.name, seasonNumber: e.season_number, number: e.episode_number, aired: e.air_date,
+    overview: `TVDB ${e.name}.`, ...(e.id === 5013 ? { airsBeforeSeason: 1, airsBeforeEpisode: 2 } : {}),
+  })) }, links: { next: null } };
+  return null;
+}
+
 function metadata(url) {
+  if (url.pathname.startsWith('/tvdb/')) return tvdbMetadata(url.pathname);
   const p = url.pathname.slice('/tmdb'.length);
   const query = (url.searchParams.get('query') ?? '').toLowerCase();
   if (p === '/configuration') return { images: {} };
@@ -106,7 +133,8 @@ function metadata(url) {
   if (p === '/movie/505') return movie(505, 'Transcode Movie');
   if (p === '/movie/101') return movie(101, 'Arc Movie');
   if (p === '/movie/202') return movie(202, 'Resolved Movie');
-  if (p === '/search/tv') return { results: query === 'arc show' ? [show] : [] };
+  if (p === '/search/tv') return { results: query === 'arc show' ? [show] : query === 'fixture show' ? [specialShow] : [] };
+  if (p === '/tv/501') return specialShow;
   if (p === '/tv/303') return show;
   if (p === '/tv/episode_group/reverse') return { id: 'reverse', name: 'Story Order', type: 5,
     groups: [{ order: 1, name: 'Story Season', episodes: [...episodes].reverse().map((e, order) => ({ ...e, order })) }] };
@@ -167,7 +195,7 @@ try {
   if (ffmpeg !== 'ffmpeg') env.PATH = dirname(ffmpeg) + ';' + (env.PATH ?? env.Path ?? '');
   run('go', ['build', '-o', binary, './cmd/ams']);
   const media = join(root, 'media');
-  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget'), preplay: join(media, 'Preplay') };
+  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), specials: join(media, 'Specials'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget'), preplay: join(media, 'Preplay') };
   for (const p of Object.values(fixtures)) await mkdir(p, { recursive: true });
   const sample = join(root, 'sample.mp4');
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=120:size=160x90:rate=10',
@@ -203,6 +231,9 @@ try {
   await mkdir(season, { recursive: true });
   for (const n of ['01', '02', '99']) await copyFile(sample, join(season, `Arc Show - S01E${n}.mp4`));
   await writeFile(join(season, 'Arc Show - S01E01.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nEpisode French subtitle\n');
+  const specialFolder = join(fixtures.specials, 'Fixture Show (2020) {tmdb-501}');
+  await mkdir(specialFolder, { recursive: true });
+  for (const code of ['S01E01','S01E02','S00E01','S00E02']) await copyFile(sample, join(specialFolder, `Fixture Show ${code}.mp4`));
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(18200, '127.0.0.1', resolve); });
   console.log('Isolated browser fixture server ready.');
 } catch (err) { console.error(err); await cleanup(); process.exit(1); }

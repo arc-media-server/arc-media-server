@@ -64,11 +64,45 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	inline, overridden, err := s.store.InlineSpecials(r.Context(), series.ID, currentUserID(r))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"display_ordering_id": display,
 		"source_ordering":     cmp.Or(series.SourceOrdering, lib.SourceOrdering),
 		"orderings":           orderings,
+		"inline_specials":     inline,
+		"specials_overridden": overridden,
 	})
+}
+
+// setSpecials: PATCH /api/series/{id}/specials {"inline_specials": true|false|null}.
+// null restores inheritance (or Off for the admin's server default). This changes display/
+// playback traversal only; manual/custom placements and original numbering remain authoritative.
+func (s *Server) setSpecials(w http.ResponseWriter, r *http.Request) {
+	series, _, ok := s.seriesFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Inline json.RawMessage `json:"inline_specials"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.Inline) == 0 {
+		writeError(w, 400, "inline_specials must be true, false or null")
+		return
+	}
+	var enabled *bool
+	if err := json.Unmarshal(body.Inline, &enabled); err != nil {
+		writeError(w, 400, "inline_specials must be true, false or null")
+		return
+	}
+	if err := s.store.SetInlineSpecials(r.Context(), series.ID, currentUserID(r), currentUser(r).IsAdmin, enabled); err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.listOrderings(w, r)
 }
 
 // setDisplayOrdering: PUT /api/series/{id}/display-ordering {"ordering_id": 12} (null resets).
@@ -138,6 +172,7 @@ type seasonEpisode struct {
 	EpisodeNumber int  `json:"episode_number"`
 	Available     bool `json:"available"`
 	Locked        bool `json:"locked,omitempty"`
+	InlineSpecial bool `json:"inline_special,omitempty"`
 }
 
 type seasonDTO struct {
@@ -202,7 +237,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	seasons := []*seasonDTO{}
 	placed := map[string]bool{}
 	if ordering != nil {
-		entries, err := s.store.OrderingEntries(ctx, ordering.ID)
+		entries, err := s.store.DisplayEntries(ctx, ordering.ID, currentUserID(r))
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -241,22 +276,22 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			if !available[e.EpisodeID] && !includeMissing {
 				continue
 			}
-			sd := bySeason[e.Season]
+			sd := bySeason[e.GroupSeason]
 			if sd == nil {
-				d := details[e.Season]
-				sd = &seasonDTO{SeasonNumber: e.Season, Name: d.Name, Overview: d.Overview, LockedFields: d.LockedFields,
-					Poster: seasonPosterURL(series.ID, e.Season, posters[e.Season])}
+				d := details[e.GroupSeason]
+				sd = &seasonDTO{SeasonNumber: e.GroupSeason, Name: d.Name, Overview: d.Overview, LockedFields: d.LockedFields,
+					Poster: seasonPosterURL(series.ID, e.GroupSeason, posters[e.GroupSeason])}
 				if sd.LockedFields == nil {
 					sd.LockedFields = []string{}
 				}
 				if sd.Name == "" {
-					sd.Name = defaultSeasonName(e.Season)
+					sd.Name = defaultSeasonName(e.GroupSeason)
 				}
-				bySeason[e.Season] = sd
+				bySeason[e.GroupSeason] = sd
 				seasons = append(seasons, sd)
 			}
 			sd.Episodes = append(sd.Episodes, seasonEpisode{itemDTO: toDTO(ep), SeasonNumber: e.Season,
-				EpisodeNumber: e.Episode, Available: available[e.EpisodeID], Locked: e.Locked})
+				EpisodeNumber: e.Episode, Available: available[e.EpisodeID], Locked: e.Locked, InlineSpecial: e.InlineSpecial})
 		}
 		// Specials last, like every other media app.
 		if len(seasons) > 1 && seasons[0].SeasonNumber == 0 {

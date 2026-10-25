@@ -74,13 +74,14 @@ type Item struct {
 
 // Credit is a person's part in a movie or show.
 type Credit struct {
-	PersonID    int64  `json:"person_id"`
-	TMDBID      int64  `json:"tmdb_id"`
-	Name        string `json:"name"`
-	ProfilePath string `json:"-"`
-	Role        string `json:"role"` // actor, director, writer, creator
-	Character   string `json:"character,omitempty"`
-	Order       int    `json:"-"`
+	PersonID     int64  `json:"person_id"`
+	TMDBID       int64  `json:"tmdb_id"`
+	Name         string `json:"name"`
+	ProfilePath  string `json:"-"`
+	Role         string `json:"role"` // actor, director, writer, creator
+	Character    string `json:"character,omitempty"`
+	Order        int    `json:"-"`
+	EpisodeCount int    `json:"episode_count,omitempty"`
 }
 
 type MediaFile struct {

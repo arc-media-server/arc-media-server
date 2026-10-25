@@ -448,8 +448,41 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		if err := s.store.UpdateMetadata(ctx, &ep); err != nil {
 			return err
 		}
+		// Credits follow Details From, independently of canonical text/numbering.
+		// Never keep stale TMDB credits when switching to an unsupported/missing source.
+		var people []metadata.Credit
+		if primary == tmdbSeries {
+			creditEpisode := e
+			if canon != "tmdb" {
+				creditEpisode = otherEps[canonToOther[cid]]
+			}
+			if creditEpisode != nil {
+				people = creditEpisode.People
+			}
+		}
+		if err := s.store.SetItemDetails(ctx, itemID, nil, storedCredits(people)); err != nil {
+			return err
+		}
 		itemFor[cid] = itemID
 		currentWork(ctx).Progress(index+1, len(canonOrder))
+	}
+
+	// Resolve TVDB aired placement hints to stable identities, not display numbers.
+	// Partial/essential fetches without aired data retain the previous hint set.
+	for _, o := range orderings {
+		if o.Source != "tvdb_aired" {
+			continue
+		}
+		stable := func(providerID int64) string {
+			if canon == "tvdb" {
+				return itemFor[providerID]
+			}
+			return itemFor[otherToCanon[providerID]]
+		}
+		before := specialPlacements(o, stable)
+		if err := s.store.ReplaceSpecialPlacements(ctx, series.ID, before); err != nil {
+			return err
+		}
 	}
 
 	currentWork(ctx).Update("Saving episode orders", "Preserving provider and custom episode orders")

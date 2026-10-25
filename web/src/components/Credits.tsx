@@ -63,14 +63,14 @@ export function showStatus(item: Item): string {
 }
 
 /** A scrolling row of the cast, with photos. */
-export function CastRow({ credits }: { credits?: Credit[] }) {
+export function CastRow({ credits, title = 'Cast' }: { credits?: Credit[]; title?: string }) {
   const scroller = useRef<HTMLDivElement>(null);
   const cast = (credits ?? []).filter((c) => c.role === 'actor');
   if (!cast.length) return null;
   const scroll = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
     <section className="group/row relative mt-6">
-      <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">Cast</h2>
+      <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">{title}</h2>
       <div ref={scroller} className="scrollbar-none flex gap-5 overflow-x-auto px-6 pb-2 md:px-10">
         {cast.map((c) => (
           <Link key={c.person_id} to={`/person/${c.person_id}`} className="group/person w-24 shrink-0 text-center outline-none">
@@ -83,6 +83,7 @@ export function CastRow({ credits }: { credits?: Credit[] }) {
             </div>
             <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-tight">{c.name}</p>
             {c.character && <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-subtle">{c.character}</p>}
+            {!!c.episode_count && <p className="mt-0.5 text-xs text-subtle">{fmt.plural(c.episode_count, 'episode')}</p>}
           </Link>
         ))}
       </div>

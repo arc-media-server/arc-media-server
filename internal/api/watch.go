@@ -205,12 +205,12 @@ func (s *Server) seriesEpisodeIDs(r *http.Request, series *store.Item, season *i
 	if err != nil || oid == 0 {
 		return nil, err
 	}
-	entries, err := s.store.OrderingEntries(ctx, oid)
+	entries, err := s.store.DisplayEntries(ctx, oid, currentUserID(r))
 	if err != nil {
 		return nil, err
 	}
 	for _, e := range entries {
-		if e.Season == *season && available[e.EpisodeID] {
+		if e.GroupSeason == *season && available[e.EpisodeID] {
 			ids = append(ids, e.EpisodeID)
 		}
 	}
@@ -248,7 +248,7 @@ func (s *Server) orderPositions(ctx context.Context, userID string, series *stor
 	if err != nil || oid == 0 {
 		return map[string][2]int{}, nil, err
 	}
-	entries, err := s.store.OrderingEntries(ctx, oid)
+	entries, err := s.store.DisplayEntries(ctx, oid, userID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -447,7 +447,7 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 		}
 		for _, e := range entries[start+1:] {
 			d := data[e.EpisodeID]
-			if e.Season == 0 || !available[e.EpisodeID] || d.Played || e.EpisodeID == ws.LastEpisodeID {
+			if e.Season == 0 && !e.InlineSpecial || !available[e.EpisodeID] || d.Played || e.EpisodeID == ws.LastEpisodeID {
 				continue
 			}
 			if d.PositionMS == 0 { // part-watched ones are in Continue Watching
@@ -538,9 +538,9 @@ func nextInOrder(entries []store.OrderingEntry, current string, available map[st
 	if at < 0 {
 		return ""
 	}
-	special := entries[at].Season == 0
+	special := entries[at].Season == 0 && !entries[at].InlineSpecial
 	for _, e := range entries[at+1:] {
-		if e.EpisodeID == current || !available[e.EpisodeID] || (e.Season == 0) != special {
+		if e.EpisodeID == current || !available[e.EpisodeID] || (e.Season == 0 && !e.InlineSpecial) != special {
 			continue
 		}
 		return e.EpisodeID

@@ -92,12 +92,13 @@ func (r tmdbRecommendations) ids() []int64 {
 
 // Credit is a person's part in a movie or show.
 type Credit struct {
-	TMDBID      int64
-	Name        string
-	ProfilePath string // TMDB image path
-	Role        string // actor, director, writer or creator
-	Character   string
-	Order       int
+	TMDBID       int64
+	Name         string
+	ProfilePath  string // TMDB image path
+	Role         string // actor, director, writer or creator
+	Character    string
+	Order        int
+	EpisodeCount int // Provider-supplied aggregate total; 0 is unknown.
 }
 
 // How many actors are kept per title.
@@ -133,11 +134,12 @@ func names(list []tmdbNamed) []string {
 }
 
 type tmdbCastMember struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	ProfilePath string `json:"profile_path"`
-	Character   string `json:"character"`
-	Order       int    `json:"order"`
+	ID                int64  `json:"id"`
+	Name              string `json:"name"`
+	ProfilePath       string `json:"profile_path"`
+	Character         string `json:"character"`
+	Order             int    `json:"order"`
+	TotalEpisodeCount int    `json:"total_episode_count"`
 	// TV aggregate credits list each actor's roles instead.
 	Roles []struct {
 		Character string `json:"character"`
@@ -166,10 +168,16 @@ func credits(cast []tmdbCastMember, crew []tmdbCrewMember) []Credit {
 		if character == "" && len(c.Roles) > 0 {
 			character = c.Roles[0].Character
 		}
-		out = append(out, Credit{TMDBID: c.ID, Name: c.Name, ProfilePath: c.ProfilePath, Role: "actor", Character: character, Order: i})
+		if c.ID <= 0 || strings.TrimSpace(c.Name) == "" {
+			continue
+		}
+		out = append(out, Credit{TMDBID: c.ID, Name: c.Name, ProfilePath: c.ProfilePath, Role: "actor", Character: character, Order: i, EpisodeCount: max(0, c.TotalEpisodeCount)})
 	}
 	seen := map[[2]any]bool{}
 	for _, c := range crew {
+		if c.ID <= 0 || strings.TrimSpace(c.Name) == "" {
+			continue
+		}
 		jobs := []string{c.Job}
 		for _, j := range c.Jobs {
 			jobs = append(jobs, j.Job)

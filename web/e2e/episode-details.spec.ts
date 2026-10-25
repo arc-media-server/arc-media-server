@@ -1,0 +1,126 @@
+import { test as base, expect, type Page } from '@playwright/test';
+import type { Item, SeasonsResponse } from '../src/lib/api';
+
+const test = base.extend<{ media: { specials: string } }>({
+  media: async ({ page }, use) => {
+    const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
+    expect(reset.ok).toBe(true);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.context().route('**/*', route => {
+      const url = new URL(route.request().url());
+      return url.hostname === '127.0.0.1' || url.protocol === 'data:' ? route.continue() : route.abort();
+    });
+    expect((await page.request.post('/api/auth/setup', { data: { name: 'Owner', password: 'Episodes-fixture-123', local_bypass: false,
+      tmdb_api_key: 'local-fixture-key', tvdb_api_key: 'local-fixture-key', region: 'GB' } })).ok()).toBeTruthy();
+    expect((await page.request.patch('/api/settings', { data: { scan_automatic: false, scan_on_start: false, scan_interval_minutes: 0,
+      preview_mode: 'off', detection_mode: 'off', analysis_enabled: false, metadata_refresh_enabled: false, auto_backups_enabled: false } })).ok()).toBeTruthy();
+    await use(await reset.json());
+    expect(errors, 'uncaught browser errors').toEqual([]);
+  },
+});
+
+async function importShow(page: Page, path: string) {
+  const r = await page.request.post('/api/libraries', { data: { name: 'Episode fixtures', kind: 'shows', source_ordering: 'tmdb_aired', paths: [path] } });
+  expect(r.ok()).toBeTruthy(); const lib = await r.json();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  const series: Item = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items[0];
+  expect(series.title).toBe('Fixture Show');
+  const refresh = await page.request.post(`/api/series/${series.id}/refresh?deep=1`);
+  expect(refresh.ok(), await refresh.text()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  const seasons: SeasonsResponse = await (await page.request.get(`/api/series/${series.id}/seasons`)).json();
+  const episodes = seasons.seasons.flatMap(s => s.episodes);
+  expect(episodes).toHaveLength(4);
+  return { series, episodes };
+}
+
+test('episode details: imported credits/counts, keyboard/phone, provider switching and preserved identity', async ({ page, media }, info) => {
+  const { series, episodes } = await importShow(page, media.specials);
+  const ep = episodes.find(e => e.title === 'Opening')!;
+  const before = await (await page.request.get(`/api/items/${ep.id}`)).json();
+  expect(before.credits.map((c: { name: string }) => c.name)).toEqual(['Fixture Guest', 'Fixture Director', 'Fixture Writer']);
+  expect((await page.request.patch(`/api/items/${ep.id}`, { data: { title: 'My opening' } })).ok()).toBeTruthy();
+  expect((await page.request.put(`/api/items/${ep.id}/progress`, { data: { position_ms: 70000, duration_ms: 120000, state: 'stopped' } })).ok()).toBeTruthy();
+  await page.goto(`/series/${series.id}`);
+  await expect(page.getByText('14 episodes', { exact: true })).toBeVisible();
+  const details = page.getByRole('button', { name: 'Details for My opening', exact: true });
+  await details.focus(); await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'My opening', exact: true });
+  await expect(dialog.getByText('Fixture Director', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Fixture Writer', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Fixture Guest', { exact: true })).toBeVisible();
+  await expect(page.locator('video')).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('episode-details-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('episode-details-phone.png') });
+  await page.keyboard.press('Escape');
+  expect((await page.request.patch(`/api/items/${series.id}`, { data: { details_provider: 'tvdb' } })).ok()).toBeTruthy();
+  const changed = await (await page.request.get(`/api/items/${ep.id}`)).json();
+  expect(changed.credits ?? []).toEqual([]);
+  expect(changed.title).toBe('My opening'); expect(changed.user_data.position_ms).toBe(70000);
+  expect(changed.files.map((f: { id: number }) => f.id)).toEqual(before.files.map((f: { id: number }) => f.id));
+  await details.click();
+  await expect(dialog).toContainText('No cast or crew supplied by the selected details provider.');
+  await expect(dialog.getByText('Fixture Guest', { exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  expect((await page.request.patch(`/api/items/${series.id}`, { data: { details_provider: '' } })).ok()).toBeTruthy();
+  const restored = await (await page.request.get(`/api/items/${ep.id}`)).json();
+  expect(restored.credits).toHaveLength(3); expect(restored.title).toBe('My opening');
+  await details.click();
+  await expect(dialog.getByText('Fixture Guest', { exact: true })).toBeVisible();
+});
+
+test('episode details: unavailable request Retry and spoiler protection do not start playback', async ({ page, media }) => {
+  const { series } = await importShow(page, media.specials);
+  let fail = true;
+  await page.route('**/api/items/*', route => route.request().method() === 'GET' && fail
+    ? route.fulfill({ status: 503, json: { error: 'Episode details unavailable' } }) : route.continue());
+  await page.goto(`/series/${series.id}`);
+  await page.getByRole('button', { name: 'Details for Opening', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Opening', exact: true });
+  await expect(dialog.getByRole('alert')).toContainText('Episode details unavailable');
+  fail = false; await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(dialog.getByText('Fixture Guest', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  expect((await page.request.patch('/api/me/prefs', { data: { hide_spoilers: true } })).ok()).toBeTruthy();
+  await page.reload();
+  await page.getByRole('button', { name: 'Details for Opening', exact: true }).click();
+  await expect(dialog).toContainText('Description and guest appearances hidden until you watch it.');
+  await expect(dialog.getByText('Fixture Guest', { exact: true })).toHaveCount(0);
+  await expect(page.locator('video')).toHaveCount(0);
+});
+
+test('inline specials: imported hints, save Retry, traversal, unknown fallback and profile inheritance', async ({ page, media }, info) => {
+  const { series, episodes } = await importShow(page, media.specials);
+  const first = episodes.find(e => e.title === 'Opening')!;
+  const special = episodes.find(e => e.title === 'Interlude')!;
+  const last = episodes.find(e => e.title === 'Return')!;
+  await page.goto(`/series/${series.id}`);
+  let fail = true;
+  await page.route('**/api/series/*/specials', route => fail ? route.fulfill({ status: 503, json: { error: 'Specials save unavailable' } }) : route.continue());
+  const menu = async () => page.getByRole('button', { name: /^Aired Order/ }).click();
+  await menu(); await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Specials save unavailable');
+  expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(false);
+  fail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+  await expect(page.getByText('Special 1', { exact: true })).toBeVisible();
+  const next = await (await page.request.get(`/api/items/${first.id}/next`)).json(); expect(next.id).toBe(special.id);
+  expect((await (await page.request.get(`/api/items/${special.id}/next`)).json()).id).toBe(last.id);
+  const ordered: SeasonsResponse = await (await page.request.get(`/api/series/${series.id}/seasons`)).json();
+  expect(ordered.seasons[0].episodes.map(e => e.title)).toEqual(['Opening', 'Interlude', 'Return']);
+  expect(ordered.seasons[1].episodes.map(e => e.title)).toEqual(['Unplaced Extra']);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('inline-specials-phone.png'), fullPage: true });
+  const user = await (await page.request.post('/api/profiles', { data: { name: 'Other viewer' } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: user.id } })).ok()).toBeTruthy();
+  await page.reload();
+  await menu(); await expect(page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true })).toBeChecked();
+  await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toHaveCount(0);
+  await menu(); await page.getByRole('menuitem', { name: 'Use server specials setting', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+});

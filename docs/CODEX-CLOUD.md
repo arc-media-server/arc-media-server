@@ -1,5 +1,12 @@
 # Arc development in Codex Cloud
 
+Episode-details/specials handoff (#106/#109, 25 October): owner accepted the previously planned
+features. EPISODE-DETAILS-SPECIALS.md defines credit provenance, supplied appearance counts,
+spoiler-aware Details, stable TVDB placement hints and the shared browse/playback traversal.
+Migration 0052 starts no bulk refresh; existing shows populate through explicit metadata refresh
+or existing maintenance. Source numbering, files, history and manual/custom placements remain.
+READINESS and GitHub #106/#109/#162 hold actual local/hosted evidence and remaining limits.
+
 The owner approved using Codex Cloud for cross-PC development on 22 October 2026,
 with GitHub remaining the source of truth. The private `arc-media-server` environment
 is now published, and a separate task restored it and passed verification. The
