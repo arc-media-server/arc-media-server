@@ -44,13 +44,14 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-165 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+169 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/activity` | admin | Lists what the server is doing now, and what it finished recently (newest first). |
+| POST | `/api/activity/{id}/stop` | admin | Requests a stop for that cancellable task. |
 
 ### auth
 
@@ -219,6 +220,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/libraries` | profile | Libraries with their size and scan status |
 | GET | `/api/libraries/{id}/scan` | profile | Scan progress |
+| POST | `/api/libraries/{id}/work` | admin | Starts {"operation":"refresh"\|"analyze"}. Refresh refetches known titles regardless of age; analyze rereads known present files, not folders. Both preserve locked metadata/history and share the library's scan/maintenance lease. |
+| POST | `/api/libraries/{id}/stop` | admin | Stops {"job_id":...} only. It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled. |
 | GET | `/api/libraries/{id}/facets` | profile | Lists the genres, decades and resolutions a library's titles can be filtered by, with counts. |
 | GET | `/api/libraries/{id}/collections` | profile | Lists a library's collections. |
 | GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions as Plex shows them: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
@@ -250,6 +253,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/maintenance` | admin |  |
+| GET | `/api/maintenance/window` | admin | Reports the actual server clock, timezone/offset and current or next maintenance window, including overnight and all-day policy. |
 | POST | `/api/maintenance/{kind}/run` | admin |  |
 
 ### me

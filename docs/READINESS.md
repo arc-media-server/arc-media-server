@@ -2,6 +2,83 @@
 
 
 
+
+## Library work, safe Stop, clock and title-action reviews (#183/#184/#196/#187/#188, 25 October 2026)
+
+Clean starting commit f8261f7 matched GitHub main read-only; work branch
+codex/library-maintenance-controls. Saved activation selected Go 1.27.0, with prepared
+Node/npm, compiler, FFmpeg, pinned Chromium/dependencies/caches present. No installation,
+owner settings/media/keys, Unraid or persistent server. Earlier hosted results remain history.
+
+Review decisions: implement #183/#184/#196/#187; defer #188 in its existing Later milestone.
+#183's current item/show/bulk refresh and due-only Run now do not provide an explicit
+library-wide force refresh or basic-file/optional-format repair. New confirmed library actions
+reuse provider/field-lock rules and drain ID cursors. Reanalysis preserves identity, links,
+watch state, edited markers, presence/last-seen and existing probed-at timestamps; it does not
+reclassify existing files as newly added work. Before/after physical stats and a transactional
+saved-revision guard reject changed/offline/removed sources without losing previous details.
+#184 adds owned cancellable runs to the existing library lease, dropping scanner follow-ups
+and waking cancelled retry timers. Stops are distinct from errors, cannot target later runs
+or survive a restart as a valid control for a new run, and keep unvisited files present.
+Library/Activity controls expose stopping/stopped and Retry; bulk metadata refresh is also
+cancellable. #196 reports actual server clock/zone/offset and open/next maintenance policy,
+including overnight/all-day and DST skips/repeats; no scheduling-hour bug or policy change is
+claimed. #187 moves Refresh into More and distinguishes Playback queue from saved playlists
+with labels/icons, preserving the approved hero/poster/background/Cast layout classes.
+Contract: [LIBRARY-WORK-CONTROLS.md](LIBRARY-WORK-CONTROLS.md); additive API docs regenerated.
+
+#188 current code still provides search, shared filters, reverse/saved sorting, 500-item paging
+and Load more. Fresh existing browser checks cover reaching title 501 and saved sort direction;
+earlier audit Back-scroll evidence remains historical. No owner-library navigation session was
+available to establish whether alphabet jump, density or a list view actually helps. Adding a
+control solely from synthetic card counts would not meet the issue's adoption criterion or
+the project's simplicity principle. No navigation feature was added and no performance/parity
+claim is made. Keep #188 open/deferred; revisit with a specific observed owner browsing task.
+
+Actual local results:
+
+- Complete ordinary Go run: 364 tests/subtests, 219 top-level; zero failures/skips. Vet passes.
+  Affected activity/scanner/store/background/schedule/API race run: 250 tests/subtests,
+  136 top-level; zero failures/skips. Seven new regression functions include 13 cases/subtests.
+- Tests hold a local provider until cancellation during a bounded incomplete discovery,
+  prove unvisited files remain present and queued work/retry timers are dropped, reject stale
+  Stop IDs and cancel an actual held child executable used as FFprobe. Another force refresh
+  visits 205 freshly synced provider records across the 200-row cursor while keeping locks.
+  Analysis storage checks preserve presence/identity and original probe timestamps and reject
+  late changed/missing revisions. Clock cases exercise real Europe/London DST transitions.
+- Seven new Chromium journeys pass together (47.4 seconds), zero failures/skips/retries.
+  Real generated MP4 reanalysis and provider refresh preserve edited titles, file IDs and
+  resume; controls exercise conflicts, stopped/idempotent/stale requests, Activity Stop,
+  errors/Retry, server-derived clocks, title refresh actions and ordinary-profile denial.
+- Ten related existing journeys pass together (76.5 seconds): library scan guards/partial
+  retry, Settings grouping/navigation, queue/progress, per-profile saved sort, source-format
+  labels, reaching title 501, profile/library access, playlist recovery and preplay/optimized
+  audio. Total distinct focused browser journeys: 17, not a sum of reruns.
+- Final follow-ups pass: five phone/1440px/clock/access journeys, one library-row failure
+  journey using deliberately disabled fixture providers, and one real disposable-server
+  restart/stale-Stop journey. The last run preserves saved state across restart and proves
+  a pre-restart ID cannot affect a new run. A final 13-case targeted race run covers the
+  timestamp-preservation refinement, and the embedded-server build passes. Clock/API-contract
+  checks, production/app/e2e TypeScript and production build pass; diff checks are clean.
+- Desktop/phone screenshots were inspected. Stop/Retry stays reachable at 390px; repair
+  confirmation spells out cost and preserved data; clock text wraps inside the Settings card;
+  movie/series Refresh remains available in More without changing the approved layout geometry.
+
+Raw development failures remain retained, not counted as successful acceptance: the first
+browser pass had 3 passes/4 fixture failures (alertdialog role, rejected delay outside the
+fixture limit, series refresh route). The deterministic provider hold initially lacked its
+await in the actual provider-response branch, producing 5 passes/2 failures; corrected, all
+seven pass. A wrong working-directory harness preparation and an obsolete interrupted run
+(exit 130) are also retained. Production failures were not concealed by retries.
+
+Final hosted verification/publication is recorded on the individual issues/#162 and alongside
+these artifacts after its new run completes. Prior runs are not substituted. Evidence:
+`/workspace/arc-cloud-evidence/review-183-184-196-187-188/` (START.json, go-final.jsonl,
+race-final.jsonl, analysis-preservation-final.jsonl, passed.json, existing.json, mobile.json,
+failure.json, restart.json and failure traces/screenshots). Physical NAS/device/provider quotas,
+owner navigation benefit, long jobs under real load, power-loss/full-disk and sustained use
+remain separate. No native-client, HDR/Atmos-output or owner-deployment acceptance is claimed.
+
 ## Preplay source/track choices (#186, 25 October 2026)
 
 Clean starting commit becadf5 matched GitHub main read-only; work branch

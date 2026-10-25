@@ -56,9 +56,7 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		return nil
 	}
 	task := s.Activity.Start("refresh", "Updating known titles in "+lib.Name)
-	s.mu.Lock()
-	s.tasks[libraryID] = task
-	s.mu.Unlock()
+	s.registerTask(libraryID, task)
 	defer func() {
 		s.mu.Lock()
 		delete(s.tasks, libraryID)

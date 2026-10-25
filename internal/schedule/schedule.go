@@ -65,3 +65,36 @@ func (w *Window) Night(t time.Time) string {
 	}
 	return t.Format(time.DateOnly)
 }
+
+type Info struct {
+	Now       time.Time `json:"now"`
+	LocalTime string    `json:"local_time"`
+	Timezone  string    `json:"timezone"`
+	Open      bool      `json:"open"`
+	AllDay    bool      `json:"all_day"`
+	NextStart time.Time `json:"next_start,omitzero"`
+	NextLocal string    `json:"next_local,omitempty"`
+}
+
+// Info uses the scheduler's own clock semantics, including DST skips/repeated local hours.
+func (w *Window) Info(now time.Time) Info {
+	out := Info{Now: now, LocalTime: now.Format("2006-01-02 15:04:05 -07:00 MST"), Timezone: now.Location().String(), Open: w.OpenAt(now), AllDay: true}
+	if out.Timezone == "Local" {
+		out.Timezone, _ = now.Zone()
+	}
+	if w != nil {
+		w.mu.Lock()
+		out.AllDay = w.start == w.end
+		w.mu.Unlock()
+	}
+	if !out.Open {
+		// Inspect real clock instants, not a possibly nonexistent/ambiguous time.Date hour.
+		for next := now.Truncate(time.Minute).Add(time.Minute); next.Before(now.Add(49 * time.Hour)); next = next.Add(time.Minute) {
+			if w.OpenAt(next) {
+				out.NextStart, out.NextLocal = next, next.Format("2006-01-02 15:04 -07:00 MST")
+				break
+			}
+		}
+	}
+	return out
+}

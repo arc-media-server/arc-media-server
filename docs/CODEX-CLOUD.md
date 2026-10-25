@@ -6,6 +6,15 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Library-work handoff (#183/#184/#196/#187, 25 October): confirmed library repair actions
+and safe Stop now live in Manage libraries/Activity, sharing scan admission and preserving
+identity/presence/history. Stop cancels scanner-owned follow-ups/retry timers and uses run IDs
+independent across server lifetimes. Server clock/window values are server-derived, including
+DST and all-day/overnight cases. Title Refresh moved into More; queue/playlist labels/icons
+are distinct. #188 navigation controls are reviewed/deferred pending real owner task evidence.
+Contract: [LIBRARY-WORK-CONTROLS.md](LIBRARY-WORK-CONTROLS.md); actual results and limitations
+in READINESS and the individual GitHub issues/#162. No migration or dependency installation.
+
 Preplay handoff (#186, 25 October): movie/series-next/episode Playback options offers
 version/audio/subtitle choices before Play/Resume. Shared server resolution prevents drift
 from normal playback; no stream/conversion begins in the dialog. Choices bind to the source,

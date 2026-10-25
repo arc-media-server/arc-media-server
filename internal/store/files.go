@@ -29,6 +29,16 @@ func (s *Store) GetFileByPath(ctx context.Context, path string) (*MediaFile, err
 
 // SaveFile inserts or updates a file and replaces its streams. seenAt marks it present in the current scan.
 func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int64) (int64, error) {
+	return s.saveFile(ctx, f, probedAt, seenAt, false)
+}
+
+// SaveAnalysis replaces technical details only if the existing saved revision still matches.
+// It preserves presence, last-seen values, item links, history and edited markers.
+func (s *Store) SaveAnalysis(ctx context.Context, f *MediaFile, probedAt int64) (int64, error) {
+	return s.saveFile(ctx, f, probedAt, 0, true)
+}
+
+func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int64, analysis bool) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -40,7 +50,13 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 		probed = probedAt
 	}
 	var id int64
-	err = tx.QueryRowContext(ctx, `
+	if analysis {
+		err = tx.QueryRowContext(ctx, `UPDATE media_files SET container=?,duration_ms=?,bitrate=?,
+      probed_at=COALESCE(probed_at,?),probe_error=?,format_probe_version=? WHERE id=? AND path=? AND size=? AND mtime=?
+      AND missing_since IS NULL RETURNING id`, f.Container, f.DurationMS, f.Bitrate, probed, f.ProbeError,
+			f.FormatProbeVersion, f.ID, f.Path, f.Size, f.ModTime).Scan(&id)
+	} else {
+		err = tx.QueryRowContext(ctx, `
 		INSERT INTO media_files (library_id, path, size, mtime, container, duration_ms, bitrate,
 			probed_at, probe_error, last_seen_at, missing_since, format_probe_version)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
@@ -50,8 +66,9 @@ func (s *Store) SaveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 			probed_at = excluded.probed_at, probe_error = excluded.probe_error,
 			last_seen_at = excluded.last_seen_at, missing_since = NULL, format_probe_version = excluded.format_probe_version
 		RETURNING id`,
-		f.LibraryID, f.Path, f.Size, f.ModTime, f.Container, f.DurationMS, f.Bitrate,
-		probed, f.ProbeError, seenAt, f.FormatProbeVersion).Scan(&id)
+			f.LibraryID, f.Path, f.Size, f.ModTime, f.Container, f.DurationMS, f.Bitrate,
+			probed, f.ProbeError, seenAt, f.FormatProbeVersion).Scan(&id)
+	}
 	if err != nil {
 		return 0, err
 	}

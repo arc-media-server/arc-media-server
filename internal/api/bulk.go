@@ -105,9 +105,16 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 
 // refreshItems fetches metadata again for many titles, one at a time, reporting in Activity.
 func (s *Server) refreshItems(ctx context.Context, items []*store.Item) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	task := s.activity.Start("refresh", fmt.Sprintf("Refreshing %d titles", len(items)))
+	task.Cancellable(cancel)
 	failed := 0
 	for i, it := range items {
+		if ctx.Err() != nil {
+			task.Finish(ctx.Err())
+			return
+		}
 		task.Progress(i+1, len(items))
 		task.Detail(it.Title)
 		var err error
@@ -118,6 +125,10 @@ func (s *Server) refreshItems(ctx context.Context, items []*store.Item) {
 			if lib, err = s.store.GetLibrary(ctx, it.LibraryID); err == nil && lib != nil {
 				err = s.scanner.SyncSeriesMetadata(ctx, lib, it.ID, false)
 			}
+		}
+		if ctx.Err() != nil {
+			task.Finish(ctx.Err())
+			return
 		}
 		if err != nil {
 			failed++

@@ -1,3 +1,4 @@
+import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -494,6 +495,7 @@ function ServerSettings() {
                 <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
+            <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
             <Row setting="preview_mode" label="Scrubbing previews" description="Applies to libraries with previews enabled. Existing files wait for maintenance. Optional work pauses for playback or scanning.">
               <ProcessingSelect label="Scrubbing preview processing" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />
             </Row>

@@ -37,6 +37,21 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Explicit library repairs/Stop/clock (#183/#184/#196): Manage libraries has separate confirmed
+  Refresh all metadata and Reanalyze files actions, draining cursor pages rather than limiting
+  operation scope to one page. They share the scanner library lease. Reanalysis preserves
+  presence, original probe timestamps, identity/history/markers and rejects stale/unavailable
+  revisions; manual repairs do not broaden scheduled policy. Library/Activity Stop cancels
+  owned contexts and pending scanner retries, with stopping/stopped states and run IDs safe
+  across restarts. Partial discovery never sweeps unvisited files. Existing bulk refresh is
+  cancellable too. A server-derived maintenance clock handles overnight/all-day/DST policy.
+  Contract: LIBRARY-WORK-CONTROLS.md; actual local/hosted evidence and limits: READINESS/issues.
+- Title actions (#187): Refresh metadata lives in More, with existing failure Retry retained.
+  Playback queue has an explicit label and a distinct icon from saved playlists. Approved
+  hero/poster/background/Cast geometry and queue behavior are preserved. #188 was reviewed:
+  existing search/filter/sort/paging and Back navigation are present; density/alphabet controls
+  are deferred pending an observed owner browsing task, not added from synthetic card counts.
+
 - Preplay track choices (#186): Playback options on movies/series-next/episode rows opens a
   compact version/audio/subtitle dialog with Play/Resume. A profile-authenticated source-options
   endpoint shares actual playback file/audio resolution and starts no stream or conversion.

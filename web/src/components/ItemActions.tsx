@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, MoreHorizontal, Pencil, SearchCheck, Split } from 'lucide-react';
+import { Gauge, Layers, MoreHorizontal, Pencil, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -37,7 +37,7 @@ export function useItemDialogs(item: Item | undefined) {
 }
 
 /** The "⋯" button on a movie or show page. */
-export function MoreMenu({ item, onOpen }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void }) {
+export function MoreMenu({ item, onOpen, onRefresh, refreshing }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void; onRefresh?: () => void; refreshing?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -46,6 +46,7 @@ export function MoreMenu({ item, onOpen }: { item?: Item; onOpen: (d: Exclude<Di
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? 'Refreshing metadata…' : 'Refresh metadata'}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => onOpen('edit')}>
           <Pencil className="size-4 text-muted" /> Edit…
         </DropdownMenuItem>
