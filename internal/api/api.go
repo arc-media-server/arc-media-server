@@ -471,6 +471,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		Search:  strings.TrimSpace(q.Get("q")),
 		Sort:    q.Get("sort"),
 		Reverse: q.Get("reverse") == "1",
+		Jump:    strings.ToLower(q.Get("jump")),
 	}
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
 	query.Limit, _ = strconv.Atoi(q.Get("limit"))
@@ -495,7 +496,11 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, total, err := s.store.ListItems(r.Context(), query)
+	if query.Jump != "" && (len(query.Jump) != 1 || query.Jump[0] < 'a' || query.Jump[0] > 'z' || (query.Sort != "" && query.Sort != "title")) {
+		writeError(w, http.StatusBadRequest, "jump requires a letter A–Z and title sort")
+		return
+	}
+	items, total, offset, err := s.store.ListItemsPage(r.Context(), query)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -505,7 +510,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out})
+	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out, "offset": offset})
 }
 
 func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.Item, bool) {

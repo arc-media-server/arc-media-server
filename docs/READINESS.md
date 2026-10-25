@@ -3,6 +3,55 @@
 
 
 
+## Owner-selected library letter navigation (#188, 25 October 2026)
+
+This supersedes #188's earlier deferral below: the owner explicitly chose **Jump to a
+letter**. The accepted task is reaching a chosen alphabetical section without traversing
+all earlier posters. No real owner-navigation performance measurement is claimed.
+Baseline a68537c matched live GitHub main; isolated branch codex/library-letter-jump.
+Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5, compiler/dependencies/caches
+and pinned Chromium revision 1248 were present; no installation or production access.
+
+Title-sorted grids offer All titles / A–Z with server-calculated offsets in the same
+filtered/access-controlled query. Reverse starts at the end of the chosen letter;
+absent letters advance in the current direction. Load more continues from the actual
+offset without reapplying the jump. Counts stay library-wide within current filters.
+All titles retains filters/direction, other sorts remove the letter, and bulk selection
+remains loaded-only. A bounded tab-local, profile-scoped history-position cache restores
+Back after title navigation. Source IDs/history/media and schema/dependencies are unchanged.
+Contract and API/Unicode/concurrent-change limits: [LIBRARY-NAVIGATION.md](LIBRARY-NAVIGATION.md).
+
+Actual local verification:
+
+- Full Go: **372 tests/subtests, 221 top-level**, zero failures/skips.
+- Affected store/API race: **151 tests/subtests, 78 top-level**, zero failures/skips.
+- Nine distinct browser journeys pass together, **51.99s**, no failures/skips/retries:
+  four new movie/series, >500 jump/continuation/Back/selection and phone failure/recovery
+  journeys, plus five existing paging, loaded selection, phone filters, access and saved-sort
+  regressions. The large browser grid is synthetic; real-store tests cover 1,020 linked
+  records and real API/UI checks cover generated movie/series files.
+- Store cases verify hidden-label and no-library access affect both count and offset,
+  search, article sort titles, forward/reverse missing-letter behavior, numeric/non-Latin
+  reachability and paging. API cases exercise uppercase letters, validation and profile denial.
+- Production/app/e2e TypeScript, production UI build, Go vet, embedded-server build and
+  diff checks pass. Desktop/390px screenshots were inspected: controls wrap without page
+  overflow and the active-letter/reset status stays visible.
+
+Retained development failures: the first browser pass had one pass/three failures caused
+by fixture API requests omitting series kind and exact link-name selectors omitting card
+years; corrected without weakening behavior assertions, the four then passed and all nine
+passed together. Initial test compilation used the wrong existing middleware/update helper
+signatures; corrected. An initial API-doc command used web/ as cwd; regenerated from repo
+root. These are not recorded as successful checks. Raw results/screenshots/logs are under
+`/workspace/arc-cloud-evidence/review-188/`. Final hosted full-suite/publication results are
+recorded on #188/#162 and alongside these artifacts, independently of historical runs.
+
+Only generated clips, temporary stores and local providers were used. No owner media,
+settings, keys, Unraid, new tools or persistent server. Exact current Plex shortcut behavior
+could not be fetched (official page returned 403); no parity, scanner-speed, memory-scale,
+physical-device or real-owner benefit claim. Position restoration is tab-local and depends
+on the existing page cache, not durable or cross-device scroll storage.
+
 ## Library work, safe Stop, clock and title-action reviews (#183/#184/#196/#187/#188, 25 October 2026)
 
 Clean starting commit f8261f7 matched GitHub main read-only; work branch

@@ -667,6 +667,16 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 
 // ListItems returns a page of items plus the total match count.
 func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error) {
+	items, total, _, err := s.ListItemsPage(ctx, q)
+	return items, total, err
+}
+
+// ListItemsPage also returns the actual start offset, including a requested letter jump.
+// Jumping changes the starting position, never the filters or the total match count.
+func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, int, error) {
+	if q.Jump != "" && (len(q.Jump) != 1 || q.Jump[0] < 'a' || q.Jump[0] > 'z' || (q.Sort != "" && q.Sort != "title")) {
+		return nil, 0, 0, errors.New("jump requires a letter a–z and title sort")
+	}
 	// Only list things that can be played: items with a present file, or series with at least one
 	// such episode.
 	where := []string{`(EXISTS (
@@ -756,7 +766,21 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 
 	var total int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond, args...).Scan(&total); err != nil {
-		return nil, 0, err
+		return nil, 0, 0, err
+	}
+	offset := max(0, q.Offset)
+	if q.Jump != "" {
+		boundary, comparison := q.Jump, "<"
+		if q.Reverse {
+			// Descending starts with the last title in the chosen letter (or next
+			// available earlier letter), not with the first title at its lower bound.
+			boundary, comparison = string([]byte{q.Jump[0] + 1}), ">="
+		}
+		jumpArgs := append(append([]any{}, args...), boundary)
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond+
+			` AND sort_title `+comparison+` ?`, jumpArgs...).Scan(&offset); err != nil {
+			return nil, 0, 0, err
+		}
 	}
 
 	order := "sort_title ASC, year ASC"
@@ -798,22 +822,22 @@ func (s *Store) ListItems(ctx context.Context, q ItemQuery) ([]Item, int, error)
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	all := append(append(append([]any{}, args...), orderArgs...), limit, q.Offset)
+	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items WHERE `+cond+
 		` ORDER BY `+order+` LIMIT ? OFFSET ?`, all...)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, 0, err
 	}
 	defer rows.Close()
 	items := []Item{}
 	for rows.Next() {
 		var it Item
 		if err := scanItem(rows, &it); err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 		items = append(items, it)
 	}
-	return items, total, rows.Err()
+	return items, total, offset, rows.Err()
 }
 
 // HasUnmatchedEpisodes checks only playable unmatched episodes, not orphan/provider-only rows.

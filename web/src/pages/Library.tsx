@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
@@ -38,10 +38,38 @@ export const sorts: Record<ItemSort, string> = {
 };
 export const resolutions: Record<Resolution, string> = { '4k': '4K', '1080': '1080p', '720': '720p', sd: 'SD' };
 
+// History-entry positions live only in this tab, scoped to the active profile. Keep
+// them bounded; the query cache supplies the loaded pages when returning from a title.
+const browsePositions = new Map<string, number>();
+function useBrowsePosition(key: string, ready: boolean) {
+  const navigation = useNavigationType();
+  const restore = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    restore.current = navigation === 'POP' ? browsePositions.get(key) : undefined;
+    let lastY = window.scrollY;
+    const remember = () => { lastY = window.scrollY; };
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', remember);
+      browsePositions.delete(key);
+      browsePositions.set(key, lastY);
+      if (browsePositions.size > 40) browsePositions.delete(browsePositions.keys().next().value!);
+    };
+  }, [key, navigation]);
+  useEffect(() => {
+    if (!ready || restore.current === undefined) return;
+    const y = restore.current;
+    // Run after the app's normal route-to-top effect and cached posters have mounted.
+    const frame = requestAnimationFrame(() => { window.scrollTo(0, y); restore.current = undefined; });
+    return () => cancelAnimationFrame(frame);
+  }, [key, ready]);
+}
+
 export function LibraryPage() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const profileId = useAuth().data?.profile?.id;
   useEffect(() => {
     if (!profileId || params.toString()) return;
@@ -50,6 +78,8 @@ export function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, profileId]);
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
+  const letterParam = params.get('letter')?.toLowerCase() ?? '';
+  const letter = sort === 'title' && /^[a-z]$/.test(letterParam) ? letterParam : '';
   const filters = {
     genre: params.get('genre') ?? undefined,
     language: params.get('language') ?? undefined,
@@ -102,18 +132,19 @@ export function LibraryPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selecting]);
   const unit = kindUnit(lib?.kind)[0];
-  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, reverse, limit: 500, ...filters };
+  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, reverse, limit: 500, ...filters, ...(letter ? { jump: letter } : {}) };
   const items = useInfiniteQuery({
     queryKey: ['items', 'browse', query],
-    queryFn: ({ pageParam }) => api.items({ ...query, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.items({ ...query, jump: pageParam === 0 ? query.jump : undefined, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (last, _pages, offset) => {
-      const next = offset + last.items.length;
+      const next = (last.offset ?? offset) + last.items.length;
       return last.items.length && next < last.total ? next : undefined;
     },
     select: (data) => ({ total: data.pages[0].total, items: data.pages.flatMap((p) => p.items) }),
     enabled: !!lib,
   });
+  useBrowsePosition(`${profileId}:${location.key}`, !!items.data);
   const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
 
   // Change one URL parameter, keeping the rest.
@@ -121,6 +152,7 @@ export function LibraryPage() {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
+    if (key === 'sort' && value && value !== 'title') next.delete('letter');
     if (profileId && (key === 'sort' || key === 'reverse')) {
       const saved = new URLSearchParams(); saved.set('sort', next.get('sort') || 'title'); if (next.has('reverse')) saved.set('reverse', '1');
       try { localStorage.setItem(`arc-browse:${profileId}:${id}`, saved.toString()); } catch { /* storage is optional */ }
@@ -168,6 +200,15 @@ export function LibraryPage() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {sort === 'title' && (
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <span>Jump to</span>
+                  <select aria-label="Jump to letter" value={letter} onChange={(e) => { setParam('letter', e.target.value || undefined); window.scrollTo(0, 0); }} className="h-9 max-w-32 rounded-lg bg-surface px-2 text-sm text-foreground ring-1 ring-border focus-visible:outline-2 focus-visible:outline-accent">
+                    <option value="">All titles</option>
+                    {'abcdefghijklmnopqrstuvwxyz'.split('').map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                  </select>
+                </label>
+              )}
               {sort !== 'shuffle' && <Button variant="ghost" size="sm" aria-label="Reverse sort direction" aria-pressed={reverse} onClick={() => setParam('reverse', reverse ? undefined : '1')}>↕ <span className="hidden sm:inline">Reverse</span></Button>}
               {admin && !selecting && (
                 <Button variant="ghost" size="sm" onClick={() => setSelecting(true)}>
@@ -296,6 +337,9 @@ export function LibraryPage() {
         </div>
       )}
       <div className={cn('px-6 md:px-10', view === 'recommended' && 'hidden')}>
+        {view === 'titles' && letter && (
+          <p role="status" className="mb-4 text-sm text-muted">Starting at {letter.toUpperCase()}{reverse ? ' · Z–A' : ' · A–Z'}. <button type="button" onClick={() => setParam('letter')} className="text-accent underline underline-offset-4">All titles</button></p>
+        )}
         {view === 'collections' ? (
           collections.error ? (
             <ErrorState error={collections.error} />
@@ -316,6 +360,11 @@ export function LibraryPage() {
           <ErrorState error={items.error} />
         ) : !items.data ? (
           <PosterGridSkeleton />
+        ) : items.data.items.length === 0 && letter && items.data.total > 0 ? (
+          <EmptyState icon={<FolderSearch />} title="No titles in this direction">
+            <p>Choose another letter or return to All titles.</p>
+            <Button variant="secondary" className="mt-4" onClick={() => setParam('letter')}>All titles</Button>
+          </EmptyState>
         ) : items.data.items.length === 0 && filtered ? (
           <EmptyState icon={<FolderSearch />} title="Nothing matches">
             <p>Try fewer filters.</p>
@@ -328,7 +377,7 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
-            collections={!selecting && !filtered && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
+            collections={!selecting && !filtered && !letter && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
             collectionUnit={unit}
             landscape={lib?.kind === 'videos'}
             select={

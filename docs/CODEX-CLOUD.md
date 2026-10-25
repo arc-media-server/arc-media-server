@@ -11,7 +11,7 @@ and safe Stop now live in Manage libraries/Activity, sharing scan admission and 
 identity/presence/history. Stop cancels scanner-owned follow-ups/retry timers and uses run IDs
 independent across server lifetimes. Server clock/window values are server-derived, including
 DST and all-day/overnight cases. Title Refresh moved into More; queue/playlist labels/icons
-are distinct. #188 navigation controls are reviewed/deferred pending real owner task evidence.
+are distinct. #188 was initially deferred; the owner subsequently selected jump-to-letter (handoff below).
 First hosted 8594200 passed 76/77 journeys and blocked publication: the older refresh-recovery
 journey still targeted a Refresh button. It now opens More → Refresh metadata, retaining
 all failure/Retry/watchlist assertions and runtime/CI behavior. Final hosted outcome is
@@ -90,6 +90,15 @@ Rescan follow-up (#169): normal scans reuse established metadata/links; age refr
 unmatched retries run in maintenance. New/pending and explicit changes still match; local
 sidecars still update. Plan: [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-PLAN.md). See READINESS
 for provider-count, writer-queue, history/recovery, race and browser evidence. No migration.
+
+## Library navigation handoff (#188, 25 October)
+
+Owner chose jump-to-letter after the earlier deferral. Title grids now start at a server-derived
+A–Z position within existing filters/profile access, including beyond 500 loaded titles. Actual
+offsets continue paging; reverse, All titles and existing saved sort remain. Letter URLs and
+bounded profile-scoped tab-local history positions retain place on Back. No density/list option,
+migration or dependency change. Contract: [LIBRARY-NAVIGATION.md](LIBRARY-NAVIGATION.md).
+READINESS and #188/#162 record actual isolated results and hosted publication separately.
 
 ## Create the environment
 
