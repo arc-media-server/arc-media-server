@@ -100,6 +100,19 @@ bounded profile-scoped tab-local history positions retain place on Back. No dens
 migration or dependency change. Contract: [LIBRARY-NAVIGATION.md](LIBRARY-NAVIGATION.md).
 READINESS and #188/#162 record actual isolated results and hosted publication separately.
 
+## Recovery/metadata review handoff (25 October)
+
+#136/#191/#194/#104/#195 were reviewed together. Database backups and restore confirmation
+now name the file boundary; RECOVERY.md describes stopped-folder recovery/rollback. A fresh
+isolated copied-store/API test restores actual uploaded PNG bytes plus database identity,
+locks/settings/history/resume and proves DB-only restore cannot recreate replaced artwork.
+#136 stays open for real storage/power-loss/external-config acceptance. NFO documentation
+is IDs/artwork only, with no episode-sidecar import; full import is not accepted. Approved
+language learning and single-provider scopes remain; the older #104 backfill is superseded.
+Global scheduling/shared editions/personal-media focus remain intentional. See
+[REVIEW-RECOVERY-METADATA.md](REVIEW-RECOVERY-METADATA.md), READINESS and the GitHub
+issues/#162 for exact decisions, actual checks and separate hosted publication evidence.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

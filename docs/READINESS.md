@@ -3,6 +3,64 @@
 
 
 
+## Recovery/local-metadata and retained-policy review (#136/#191/#194/#104/#195, 25 October 2026)
+
+Starting 7659488 matched live GitHub main; clean isolated branch codex/recovery-metadata-review.
+Saved activation selected Go 1.27.0, Node 24.19.0/npm 11.9.0 and FFprobe 7.1.5; compiler,
+locked dependencies, Go/browser caches and pinned Chromium revision 1248 were present.
+No installations, owner data/settings/media/keys, Unraid or persistent server.
+
+Decisions and evidence are in [REVIEW-RECOVERY-METADATA.md](REVIEW-RECOVERY-METADATA.md).
+#136 gets explicit database/file scope in Backups and its restore confirmation, a complete
+stopped-folder/rollback guide in [RECOVERY.md](RECOVERY.md), and a fresh copied-store/API
+recovery rehearsal. #136 stays open for real storage/power-loss/external-config acceptance.
+#191 corrects README and [LOCAL-METADATA.md](LOCAL-METADATA.md): provider IDs and separate
+artwork work, NFO titles/plots/cast and episode sidecars are not imported. A parser accepting
+an episodedetails root is not scanner support. Broader import is not accepted by this review.
+#194 retains approved player/preplay-to-profile language learning, including forced/Off and
+successful-preplay-admission rules. #104 is superseded by the owner's recorded single-provider
+policy; tests now make canonical episode gaps and series gaps explicit through source switches.
+#195 retains global schedules, shared edition identity, local/personal-media focus and no
+source-media deletion; separate native/later/public-release issues are unchanged.
+
+Actual fresh checks:
+
+- Full ordinary Go: **373 tests/subtests, 222 top-level**, zero failures/skips.
+- Backup/store/API/scanner/transcode race: **246 tests/subtests, 130 top-level**, zero
+  failures/skips. Existing drive-return, provider-outage, interrupted/killed scan, old-schema
+  upgrade/restore, invalid snapshot, SQLite-capacity and conversion-storage/shutdown/restart
+  fixtures ran fresh; they are not relabelled as physical-system acceptance.
+- New recovery rehearsal uploads a real generated PNG through the API, snapshots the closed
+  data directory, replaces/removes its prior upload, proves DB-only restore cannot recreate it,
+  then opens an independent full copy. It verifies original uploaded bytes through authenticated
+  image serving, title/poster locks, settings, stable IDs, history/resume, certificate-fixture
+  bytes and unchanged separate source media. Opaque certificate bytes do not test real TLS.
+- Existing two-provider switch test now proves blank TVDB episode synopsis/still/runtime remain
+  blank despite richer mapped TMDB fields, switching to TMDB obtains its own fields and switching
+  back clears them while keeping locked title/identity/resume/custom placement. A missing series
+  TMDB synopsis is not backfilled. NFO cases cover ignored text/cast, episodedetails parser scope
+  and malformed XML, alongside existing scan/artwork/edition checks.
+- Five distinct browser journeys pass, zero failures/skips/retries: four in 69.41 seconds
+  (backup policy/scope/cancel, immediate restore settings/access, removal safety label and
+  generated French audio/subtitle learning) plus the selected edition/version/cancellation
+  journey in 22.12 seconds. Its title was initially omitted by the selection expression;
+  it was then run explicitly. No failed journey was hidden or retried.
+- Production/app/e2e TypeScript, UI build, vet, embedded-server build and diff checks pass.
+  Desktop restore-confirmation and 390px page screenshots were inspected; scope is readable,
+  actions remain reachable and cancellation makes no restore request.
+
+The first new Go/provider checks passed. A README edit command initially ran from web/ and
+failed before writing; corrected from repository root. Logs, JSON counts, screenshots and
+initial runs are retained under `/workspace/arc-cloud-evidence/review-136-191-194-104-195/`.
+Hosted full-suite/container/publication results are recorded on the issues/#162 and in that
+folder separately, once available. Existing historical verification baselines remain intact.
+
+The current official Plex NFO guide was readable and describes a broader 1.43.1+ agent;
+backup/account-language documentation returned 403. No exact current parity is claimed.
+Full-filesystem ENOSPC/permissions on the deployment storage, abrupt whole-server loss during
+active playback/conversion, external TLS/environment/mount restoration and an owner-controlled
+recovery rehearsal remain on #136. No physical-device or sustained-use acceptance is claimed.
+
 ## Owner-selected library letter navigation (#188, 25 October 2026)
 
 This supersedes #188's earlier deferral below: the owner explicitly chose **Jump to a

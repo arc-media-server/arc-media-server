@@ -27,12 +27,12 @@ func TestFullProviderRefreshAndSourceSwitchPreservesEpisode(t *testing.T) {
 		case "/v4/series/404/translations/eng":
 			body = `{"data":{}}`
 		case "/v4/series/404/episodes/official/eng":
-			body = `{"data":{"episodes":[{"id":200,"name":"Pilot","seasonNumber":1,"number":1,"aired":"2020-01-01","overview":"TVDB episode"}]},"links":{"next":null}}`
+			body = `{"data":{"episodes":[{"id":200,"name":"Pilot","seasonNumber":1,"number":1,"aired":"2020-01-01","overview":""}]},"links":{"next":null}}`
 		case "/3/tv/303":
 			if r.URL.Query().Get("append_to_response") == "season/1" {
-				body = `{"season/1":{"episodes":[{"id":100,"name":"Pilot","season_number":1,"episode_number":1,"air_date":"2020-01-01","overview":"TMDB episode"}]}}`
+				body = `{"season/1":{"episodes":[{"id":100,"name":"Pilot","season_number":1,"episode_number":1,"air_date":"2020-01-01","overview":"TMDB episode","runtime":43,"still_path":"/tmdb-still.jpg"}]}}`
 			} else {
-				body = `{"id":303,"name":"Example","original_name":"Example","first_air_date":"2020-01-01","overview":"TMDB overview","external_ids":{"tvdb_id":404},"seasons":[{"season_number":1,"name":"Season 1"}]}`
+				body = `{"id":303,"name":"Example","original_name":"Example","first_air_date":"2020-01-01","overview":"","external_ids":{"tvdb_id":404},"seasons":[{"season_number":1,"name":"Season 1"}]}`
 			}
 		default:
 			t.Errorf("unexpected fixture request: %s", r.URL.Path)
@@ -128,6 +128,19 @@ func TestFullProviderRefreshAndSourceSwitchPreservesEpisode(t *testing.T) {
 		it, err := st.GetItemByKey(ctx, lib, episodeKey(show, provider, number))
 		if err != nil || it == nil || it.ID != id || it.Title != title {
 			t.Fatalf("%s lost identity/edit: %+v %v", source, it, err)
+		}
+		// The owner retained one provider per metadata scope. Mapping the other
+		// provider must not silently fill numbering-provider episode gaps (#104).
+		wantOverview, wantStill, wantRuntime := "", "", 0
+		if provider == "tmdb" {
+			wantOverview, wantStill, wantRuntime = "TMDB episode", "/tmdb-still.jpg", 43
+		}
+		if it.Overview != wantOverview || it.PosterPath != wantStill || it.RuntimeMin != wantRuntime {
+			t.Fatalf("%s mixed episode providers: %+v", source, it)
+		}
+		series, err := st.GetItem(ctx, show)
+		if err != nil || series.Overview != "" {
+			t.Fatalf("series TMDB gap backfilled from TVDB: %+v %v", series, err)
 		}
 		children, err := st.Children(ctx, show)
 		if err != nil || len(children) != 1 {

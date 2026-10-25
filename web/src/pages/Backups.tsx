@@ -59,6 +59,12 @@ export function BackupsPage() {
         }
       />
       <div className="space-y-4 px-6 md:px-10">
+        <section aria-label="Backup scope" className="space-y-2 rounded-2xl bg-surface p-4 text-sm ring-1 ring-border">
+          <h2 className="font-medium">Database backups and full server recovery</h2>
+          <p className="text-muted">Back Up Now saves library matches, edits, episode orders, profiles, settings and watch history. It does not include uploaded artwork, certificates or optimized videos.</p>
+          <p className="text-muted">For a full server backup, stop Arc and copy its entire data folder to separate storage (/config in Docker). Keep your media and any externally configured files separately, and retain the matching Arc version.</p>
+          <p className="text-muted">Restoring a database backup does not restore or roll back those separate files. Previously uploaded artwork may be unavailable if its image file is no longer present.</p>
+        </section>
         <section aria-label="Automatic backup status" className="space-y-2 rounded-2xl bg-surface p-4 ring-1 ring-border text-sm">
           {settings.error ? (
             <>
@@ -132,9 +138,9 @@ export function BackupsPage() {
       >
         <p>
           Arc will go back to how it was on <span className="text-foreground">{fmt.dateTime(restoring?.created_at)}</span>:
-          matches, episode orders and everything else it knows. Changes made since then will be undone.
+          the saved database, including matches, edits, episode orders, profiles, settings and watch history. Database changes made since then will be undone.
         </p>
-        <p>Your current state is saved as a backup first, so you can switch back. Your media files aren't touched.</p>
+        <p>Your current database is saved first, so you can switch back. Uploaded artwork, certificates and optimized videos are not restored or rolled back. Your media files aren't touched.</p>
       </ConfirmDialog>
 
       <ConfirmDialog

@@ -37,6 +37,17 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Recovery/metadata review (#136/#191/#194/#104/#195, 25 October): Backups now states the
+  database-only boundary and warns that files such as uploaded artwork are not restored.
+  RECOVERY.md documents full stopped-folder copies; a fresh copied-store/API rehearsal
+  verifies actual uploaded image bytes, locks/settings/history/resume and DB-only limits.
+  #136 retains physical storage/power-loss/external-config acceptance. LOCAL-METADATA.md
+  documents IDs/artwork only, including no episode-sidecar import. Full NFO import is not
+  accepted. Approved language learning, single-provider metadata scopes, global schedules,
+  shared edition watch identity and no source-media deletion remain. Older #104 backfill is
+  superseded; provider-gap/switch assertions preserve locks/identity. Review decisions and
+  fresh results: docs/REVIEW-RECOVERY-METADATA.md, READINESS and GitHub #162/the five issues.
+
 - Library letter navigation (#188, 25 October): owner selected A–Z jumps after the initial
   deferral. Title-sorted grids use an access/filter-aware server offset beyond loaded pages;
   reverse, Load more, All titles, existing default-sort persistence and loaded-only selection

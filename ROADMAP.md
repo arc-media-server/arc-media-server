@@ -229,9 +229,10 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Show actual server time/zone and current/next maintenance window (#196)
 - [x] Move title metadata refresh into More and distinguish playback queue from saved playlists (#187)
 - [x] Add owner-selected, filter/access-aware A–Z library jumps with paging and Back position (#188)
+- [x] Clarify backup/NFO scope and retain approved language/provider/scheduling/edition decisions (#191/#194/#104/#195; #136 remains a readiness gate)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
-- [ ] Prove failure recovery, upgrades and backup completeness (#136)
+- [ ] Prove failure recovery, upgrades and backup completeness (#136; database/file scope clarified and stopped-folder/API upload recovery rehearsed; physical storage/power-loss/external-config acceptance remains)
 - [ ] Complete a 7–14 day real-server trial with resource measurements (#137)
 - [ ] Verify clean installations and alpha release packaging (#138)
 
@@ -248,7 +249,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Offline downloads/sync
 - Translate the web app into other languages (react-i18next + Weblate) (#122)
 - Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
-- Fill blank episode details from the other provider (#104)
+- Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
 - Keep every country's age rating (#105)
 - Per-episode cast and crew, and actor episode counts (#106)
 - Place specials between seasons (TheTVDB "airs before") (#109)

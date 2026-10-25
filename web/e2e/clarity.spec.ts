@@ -121,6 +121,21 @@ test('clarity: backup policy reflects live Off/On, windows, failures and manual 
   fail = false;
   await status.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(status.getByText('Automatic backups: On', { exact: true })).toBeVisible();
+  const scope = page.getByRole('region', { name: 'Backup scope', exact: true });
+  await expect(scope).toContainText('does not include uploaded artwork, certificates or optimized videos');
+  let restores = 0;
+  page.on('request', r => { if (r.method() === 'POST' && /\/api\/backups\/[^/]+\/restore$/.test(r.url())) restores++; });
+  await page.getByRole('button', { name: 'Restore', exact: true }).click();
+  const confirmation = page.getByRole('alertdialog', { name: 'Restore this backup?', exact: true });
+  await expect(confirmation).toContainText('Database changes made since then will be undone.');
+  await expect(confirmation).toContainText('Uploaded artwork, certificates and optimized videos are not restored or rolled back.');
+  await page.screenshot({ path: info.outputPath('database-restore-scope.png') });
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(restores, 'opening and cancelling the scope warning must not restore').toBe(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await scope.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('backup-scope-phone.png'), fullPage: true });
 });
 
 test('clarity: bulk selection names loaded scope and does not select later pages implicitly', async ({ page, media }, info) => {
