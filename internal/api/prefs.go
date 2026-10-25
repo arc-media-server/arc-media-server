@@ -15,6 +15,10 @@ import (
 // kept spoiler-free.
 
 type prefs struct {
+	// Library navigation order only; never changes library visibility or Home rows.
+	LibraryOrder []int64 `json:"library_order,omitempty"`
+	// Percentage for future progress reports; zero keeps the existing 90% default.
+	WatchedPercent int `json:"watched_percent,omitempty"`
 	// Blur stills and hide descriptions of episodes the profile hasn't started.
 	HideSpoilers bool `json:"hide_spoilers"`
 	// "dark", "light", or "" to follow the device.
@@ -88,6 +92,19 @@ type rowFilter struct {
 }
 
 func (p *prefs) validate() error {
+	if p.WatchedPercent != 0 && (p.WatchedPercent < 50 || p.WatchedPercent > 100) {
+		return fmt.Errorf("watched_percent must be 50–100, or 0 for the 90%% default")
+	}
+	if len(p.LibraryOrder) > 500 {
+		return fmt.Errorf("library_order is limited to 500 libraries")
+	}
+	seenLibraries := map[int64]bool{}
+	for _, id := range p.LibraryOrder {
+		if id <= 0 || seenLibraries[id] {
+			return fmt.Errorf("library_order must contain distinct positive IDs")
+		}
+		seenLibraries[id] = true
+	}
 	if p.Theme != "" && p.Theme != "dark" && p.Theme != "light" {
 		return fmt.Errorf(`theme is "dark", "light" or "" (follow the device)`)
 	}
@@ -202,7 +219,8 @@ func (s *Server) withDefaultHome(ctx context.Context, p prefs) prefs {
 	return p
 }
 
-// getPrefs: GET /api/me/prefs is the current profile's preferences.
+// getPrefs: GET /api/me/prefs is the current profile's preferences, including library_order
+// (navigation only, never access) and watched_percent (50–100; absent/0 keeps 90%).
 func (s *Server) getPrefs(w http.ResponseWriter, r *http.Request) {
 	s.writePrefs(w, r, currentUserID(r))
 }
@@ -237,8 +255,9 @@ func (s *Server) profileFromPath(w http.ResponseWriter, r *http.Request) (*store
 	return u, true
 }
 
-// updatePrefs: PATCH /api/me/prefs changes the fields sent ({"hide_spoilers": true} or
-// {"home": [...]}) and returns them all.
+// updatePrefs: PATCH /api/me/prefs changes only the fields sent, e.g. {"library_order": [2,1]},
+// {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all.
+// An empty library_order resets navigation order; watched_percent 0 resets completion to 90%.
 func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	s.patchPrefs(w, r, currentUserID(r))
 }
@@ -290,6 +309,8 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	var body struct {
 		HideSpoilers     *bool          `json:"hide_spoilers"`
+		LibraryOrder     *[]int64       `json:"library_order"`
+		WatchedPercent   *int           `json:"watched_percent"`
 		Theme            *string        `json:"theme"`
 		SubtitleLanguage *string        `json:"subtitle_language"`
 		AudioLanguage    *string        `json:"audio_language"`
@@ -307,6 +328,12 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.HideSpoilers != nil {
 		p.HideSpoilers = *body.HideSpoilers
+	}
+	if body.LibraryOrder != nil {
+		p.LibraryOrder = *body.LibraryOrder
+	}
+	if body.WatchedPercent != nil {
+		p.WatchedPercent = *body.WatchedPercent
 	}
 	if body.Theme != nil {
 		p.Theme = *body.Theme

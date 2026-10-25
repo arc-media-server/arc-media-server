@@ -26,7 +26,8 @@ Early development. Working today:
   added-date, runtime and rating filters, reversible sorting and a remembered sort per profile
   and library on this device. Failed requests show errors and Retry instead of false empty states.
 - Settings groups profile preferences, libraries/metadata, server playback, access/devices and
-  maintenance/recovery. Each profile can explicitly choose its preferred audio language.
+  maintenance/recovery. Each profile can choose its preferred audio language, arrange library
+  navigation and set when future playback counts as watched (90% by default).
 - A visible playback queue supports Play next, Add to queue, reordering, removing and clearing
   upcoming titles. Minimize the player to browse while it continues; closing it or switching
   profiles saves progress. The queue ends when you close the player or refresh the page.
@@ -111,6 +112,8 @@ Early development. Working today:
   old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
   picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
   language turns subtitles on by themselves next time, and forced subtitles show for foreign dialogue
+- Text subtitles have session-local earlier/later timing and Reset in the player, including
+  the native PiP cue clock; source files are never edited
 - Subtitle mode and style per profile (Settings > Subtitles, as in Plex): turn on in the language last
   chosen, when the audio is in another language, always, or only when picked (forced ones always
   show); size, colour (white or yellow), background (shaded box, black box or outline) and position

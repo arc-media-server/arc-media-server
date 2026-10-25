@@ -1,4 +1,5 @@
 import { MaintenanceClock } from '@/components/MaintenanceClock';
+import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,6 +55,12 @@ function ProfileSettings() {
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
       <Section title="Playback" hint="For your profile only.">
+        <Row setting="watched_percent" label="Mark as watched at" description="Applies to future playback progress for your profile. It does not skip credits, stop playback or change earlier watch history.">
+          <select aria-label="Mark as watched at" value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent}%{percent === 90 ? ' (default)' : ''}</option>)}
+            {!!p.watched_percent && ![75, 90, 95, 100].includes(p.watched_percent) && <option value={p.watched_percent}>{p.watched_percent}%</option>}
+          </select>
+        </Row>
         <Row setting="audio_language" label="Preferred audio language" description="Used when a matching track is available. Choosing a language in the player also updates this preference.">
           <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
             <option value="">Use the file's default</option>
@@ -82,6 +89,7 @@ function ProfileSettings() {
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
+      <LibraryNavigationSettings prefs={p} update={update} />
       <Section title="Subtitles" hint="Also in the player's Subtitles menu, where choosing a track sets your language.">
         <Row setting="subtitle_mode" label="Turn on by themselves" description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select

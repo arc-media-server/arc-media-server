@@ -83,12 +83,18 @@ export function CastSession({
   title,
   subtitle,
   startMS,
+  fileId,
+  audioStream,
+  burnSubtitle,
   onEnd,
 }: {
   itemId: string;
   title: string;
   subtitle?: string;
   startMS: number;
+  fileId: number;
+  audioStream: number;
+  burnSubtitle?: string;
   onEnd: (positionMS: number) => void;
 }) {
   const [device, setDevice] = useState('');
@@ -104,21 +110,41 @@ export function CastSession({
   const player = useRef<any>(null);
   const controller = useRef<any>(null);
   const pos = useRef(startMS);
+  const duration = useRef(0);
   const ended = useRef(false);
+  const generation = useRef(0);
 
   // Start (or restart, to seek in a converted stream) the title on the device.
   const start = useCallback(
     async (atMS: number) => {
+      const run = ++generation.current;
       setBusy(true);
       setError(null);
+      let ownedSession: string | undefined;
       try {
-        const plan = await api.startPlayback(itemId, { caps: chromecastCaps, start_ms: Math.round(atMS) });
+        if (session.current) {
+          const old = session.current;
+          session.current = undefined;
+          await api.stopTranscode(old).catch(() => {});
+        }
+        if (run !== generation.current) return;
+        const plan = await api.startPlayback(itemId, { caps: chromecastCaps, start_ms: Math.round(atMS), file_id: fileId, audio_stream: audioStream, burn_subtitle: burnSubtitle });
+        ownedSession = plan.session_id;
+        if (run !== generation.current) {
+          if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
+          return;
+        }
         const { url, local_only } = await api.castLink(plan.url);
+        if (run !== generation.current) {
+          if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
+          return;
+        }
         if (local_only) throw new Error('Only this computer can reach Arc. Turn on Allow other devices in Settings > Network so the Chromecast can too.');
         offset.current = plan.hls ? plan.offset_ms : 0;
         direct.current = !plan.hls;
         session.current = plan.session_id;
         setDurationMS(plan.duration_ms);
+        duration.current = plan.duration_ms;
         const { chrome, cast } = window;
         const s = cast.framework.CastContext.getInstance().getCurrentSession();
         if (!s) throw new Error('The Chromecast disconnected');
@@ -134,15 +160,20 @@ export function CastSession({
         info.metadata.subtitle = subtitle;
         const req = new chrome.cast.media.LoadRequest(info);
         req.autoplay = true;
-        req.currentTime = plan.hls ? 0 : atMS / 1000;
+        // A copied stream may begin at an earlier keyframe, just as in the browser.
+        req.currentTime = plan.hls ? Math.max(0, (atMS - plan.offset_ms) / 1000) : atMS / 1000;
         await s.loadMedia(req);
+        if (run !== generation.current) return;
         setBusy(false);
       } catch (e) {
+        if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
+        if (session.current === ownedSession) session.current = undefined;
+        if (run !== generation.current) return;
         setBusy(false);
         setError(e instanceof Error ? e.message : typeof e === 'object' && e && 'code' in e ? `The Chromecast couldn't play it (${String((e as { code: string }).code)})` : String(e));
       }
     },
-    [itemId, title, subtitle],
+    [itemId, title, subtitle, fileId, audioStream, burnSubtitle],
   );
 
   // Follow the device: where it is, paused or not, and whether it's still connected.
@@ -162,7 +193,13 @@ export function CastSession({
     const onConnected = () => {
       if (!p.isConnected && !ended.current) {
         ended.current = true;
-        onEnd(pos.current);
+        ++generation.current;
+        const owned = session.current;
+        session.current = undefined;
+        void (async () => {
+          if (owned) await api.stopTranscode(owned).catch(() => {});
+          onEnd(pos.current);
+        })();
       }
     };
     c.addEventListener(T.CURRENT_TIME_CHANGED, onTime);
@@ -181,8 +218,11 @@ export function CastSession({
   // Closing the player stops casting too.
   useEffect(
     () => () => {
+      ++generation.current;
+      if (session.current) void api.stopTranscode(session.current).catch(() => {});
       if (ended.current) return;
       ended.current = true;
+      void api.reportProgress(itemId, pos.current, duration.current, 'stopped').catch(() => {});
       window.cast?.framework.CastContext.getInstance().endCurrentSession(true);
     },
     [],
@@ -209,10 +249,17 @@ export function CastSession({
     }
   };
 
-  const stop = () => {
+  const stop = async () => {
+    if (ended.current) return;
+    ++generation.current;
     ended.current = true;
-    void api.reportProgress(itemId, pos.current, durationMS, 'paused').catch(() => {});
+    setBusy(true);
+    const owned = session.current;
+    session.current = undefined;
     window.cast?.framework.CastContext.getInstance().endCurrentSession(true);
+    // Release the receiver's slot before the browser starts a replacement conversion.
+    if (owned) await api.stopTranscode(owned).catch(() => {});
+    await api.reportProgress(itemId, pos.current, durationMS, 'paused').catch(() => {});
     onEnd(pos.current);
   };
 
@@ -224,7 +271,7 @@ export function CastSession({
         <p className="mt-1 text-2xl font-semibold">{title}</p>
         {subtitle && <p className="text-white/60">{subtitle}</p>}
       </div>
-      {error && <p className="max-w-md text-center text-sm text-warning">{error}</p>}
+      {error && <div className="max-w-md space-y-2 text-center"><p role="alert" className="text-sm text-warning">{error}</p><Button variant="secondary" onClick={() => void start(pos.current)}>Retry casting</Button></div>}
       <div className="w-full max-w-xl">
         <input
           type="range"
@@ -232,6 +279,7 @@ export function CastSession({
           min={0}
           max={durationMS || 1}
           value={positionMS}
+          disabled={busy}
           onChange={(e) => seekTo(Number(e.target.value))}
           className="w-full accent-[var(--color-accent)]"
         />
@@ -241,13 +289,13 @@ export function CastSession({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <Button variant="glass" size="icon" aria-label="Back 10 seconds" onClick={() => seekTo(pos.current - 10_000)}>
+        <Button variant="glass" size="icon" aria-label="Back 10 seconds" disabled={busy} onClick={() => seekTo(pos.current - 10_000)}>
           <RotateCcw />
         </Button>
         <Button variant="primary" size="lg" className="size-14 rounded-full p-0" aria-label={paused ? 'Play' : 'Pause'} disabled={busy} onClick={() => controller.current?.playOrPause()}>
           {busy ? <Loader2 className="animate-spin" /> : paused ? <Play /> : <Pause />}
         </Button>
-        <Button variant="glass" size="icon" aria-label="Forward 10 seconds" onClick={() => seekTo(pos.current + 10_000)}>
+        <Button variant="glass" size="icon" aria-label="Forward 10 seconds" disabled={busy} onClick={() => seekTo(pos.current + 10_000)}>
           <RotateCw />
         </Button>
       </div>

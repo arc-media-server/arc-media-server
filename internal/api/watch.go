@@ -80,7 +80,12 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 			body.DurationMS = files[0].DurationMS
 		}
 	}
-	d, err := s.store.ReportProgress(r.Context(), currentUserID(r), it.ID, body.PositionMS, body.DurationMS)
+	prefs, err := s.loadPrefs(r)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	d, err := s.store.ReportProgressAt(r.Context(), currentUserID(r), it.ID, body.PositionMS, body.DurationMS, prefs.WatchedPercent)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -92,7 +97,7 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// The progress is saved either way, but a player the admin stopped is told to close.
-	why, play := s.playing.progress(r, it.ID, body.PositionMS, body.DurationMS, body.State)
+	why, play := s.playing.progressAt(r, it.ID, body.PositionMS, body.DurationMS, body.State, prefs.WatchedPercent)
 	if play != nil {
 		s.recordPlay(r.Context(), it, play)
 	}
