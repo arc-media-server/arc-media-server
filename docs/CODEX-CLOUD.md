@@ -113,6 +113,20 @@ Global scheduling/shared editions/personal-media focus remain intentional. See
 [REVIEW-RECOVERY-METADATA.md](REVIEW-RECOVERY-METADATA.md), READINESS and the GitHub
 issues/#162 for exact decisions, actual checks and separate hosted publication evidence.
 
+## Web and Server audit handoff (25 October)
+
+Baseline ad40546. #189 adds profile-only all-visible library ordering; #190 adds future watched
+percentage with 90% default and shared watch/history boundary; #199 adds session/file/track
+text-caption timing and native PiP cue-clock wiring. #192 corrects source/audio/position and
+conversion ownership during sender handoff/retry/seek/handback, and explains app cast/AirPlay
+text-caption limits. SDK/native-event fixtures are not physical receiver/Safari acceptance;
+#192 remains open for the remaining contract. No schema/dependency/source-media changes.
+[WEB-SERVER-REVIEW.md](WEB-SERVER-REVIEW.md) contains all nine review outcomes and concrete
+plans for #106/#109; #193/#197/#198 remain deferred. #138 retains the release gate with
+[ALPHA-CHECKLIST.md](ALPHA-CHECKLIST.md). READINESS/issues/#162 record actual checks and
+hosted verification/publication separately. No native app, owner-server or HDR/Atmos output
+work was performed; keep those remaining acceptance boundaries explicit.
+
 ## Create the environment
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,

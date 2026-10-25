@@ -688,6 +688,10 @@ export interface SubtitleStyle {
 
 /** The current profile's own preferences. */
 export interface Prefs {
+  /** Navigation order only; unavailable/unknown IDs never grant access. */
+  library_order?: number[];
+  /** Future progress threshold; absent/zero retains 90%. */
+  watched_percent?: number;
   hide_spoilers: boolean;
   /** "" follows the device. */
   theme: Theme;

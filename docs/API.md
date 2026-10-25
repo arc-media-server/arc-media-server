@@ -261,8 +261,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/me/year` | profile | ?year=2026 is the current profile's year in review (this year by default), with the years it has history for. |
-| GET | `/api/me/prefs` | profile | Is the current profile's preferences. |
-| PATCH | `/api/me/prefs` | profile | Changes the fields sent ({"hide_spoilers": true} or {"home": [...]}) and returns them all. |
+| GET | `/api/me/prefs` | profile | Is the current profile's preferences, including library_order (navigation only, never access) and watched_percent (50–100; absent/0 keeps 90%). |
+| PATCH | `/api/me/prefs` | profile | Changes only the fields sent, e.g. {"library_order": [2,1]}, {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%. |
 
 ### news
 

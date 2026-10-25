@@ -37,6 +37,19 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Web/server audit pass (#189/#190/#199/#192, 25 October): personal settings now save library
+  navigation order (all available libraries remain visible) and future watched percentage,
+  retaining the 90% default. Persisted progress and active history share the boundary; no
+  earlier plays/markers/autoplay policy is rewritten. Player text captions offer session/file/
+  track-local ±10s timing and Reset, including native PiP track wiring. Cast handoff/seek/retry
+  keep actual file/audio and compensate remux keyframes; owned conversions are released before
+  browser handback. App Chromecast/AirPlay buttons explain text-caption limits rather than
+  silently dropping them. Receiver compatibility/full transport remains on #192/#135.
+  WEB-SERVER-REVIEW.md records all nine decisions: #106/#109 have concrete metadata/order plans;
+  #193/#197/#198 remain deferred pending resource/remote/listening tasks; #138 remains a release
+  gate with ALPHA-CHECKLIST.md. These planned/deferred features are not implemented. Native and
+  physical HDR/Atmos findings remain outside this pass. Actual checks/limits: READINESS and #162.
+
 - Recovery/metadata review (#136/#191/#194/#104/#195, 25 October): Backups now states the
   database-only boundary and warns that files such as uploaded artwork are not restored.
   RECOVERY.md documents full stopped-folder copies; a fresh copied-store/API rehearsal

@@ -19,16 +19,26 @@ type UserData struct {
 	Watchlisted bool `json:"watchlisted,omitempty"`
 }
 
-// Watched thresholds, as in Plex: a resume point is kept after the first minute, and anything
-// more than 90% through counts as watched.
-const (
-	minResumeMS    = 60_000
-	watchedPercent = 0.90
-)
+// A resume point is kept after the first minute. Default completion remains 90%.
+const minResumeMS = 60_000
+
+// CompletionReached is shared by persisted watch state and active watch history.
+// Invalid/legacy preferences retain the existing default; no old history is rewritten.
+func CompletionReached(positionMS, durationMS int64, percent int) bool {
+	if percent < 50 || percent > 100 {
+		percent = 90
+	}
+	return durationMS > 0 && float64(positionMS) >= float64(percent)/100*float64(durationMS)
+}
 
 // ReportProgress records how far a profile has got through an item. Passing the watched
 // threshold marks it watched (once per viewing) and clears the resume point. It returns the new state.
 func (s *Store) ReportProgress(ctx context.Context, userID, itemID string, positionMS, durationMS int64) (UserData, error) {
+	return s.ReportProgressAt(ctx, userID, itemID, positionMS, durationMS, 90)
+}
+
+// ReportProgressAt applies a profile's completion preference to new progress only.
+func (s *Store) ReportProgressAt(ctx context.Context, userID, itemID string, positionMS, durationMS int64, percent int) (UserData, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return UserData{}, err
@@ -43,7 +53,7 @@ func (s *Store) ReportProgress(ctx context.Context, userID, itemID string, posit
 		return UserData{}, err
 	}
 	now := time.Now().Unix()
-	finished := durationMS > 0 && float64(positionMS) >= watchedPercent*float64(durationMS)
+	finished := CompletionReached(positionMS, durationMS, percent)
 	switch {
 	case finished:
 		// Count it once: not again for the progress reports that follow in the same viewing.

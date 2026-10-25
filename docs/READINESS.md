@@ -3,6 +3,71 @@
 
 
 
+## Remaining Web and Server audit pass (25 October 2026)
+
+Clean baseline ad40546 matched GitHub main; branch codex/web-server-review. Saved activation
+selected Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5 and prepared compiler/dependencies/
+caches/pinned Chromium revision 1248. No installation, owner data/settings/media/keys, Unraid
+or persistent server. This pass addresses nine findings; native/offline and physical HDR/Atmos
+findings remain outside its scope.
+
+[WEB-SERVER-REVIEW.md](WEB-SERVER-REVIEW.md) records each decision and contract. Implement #189
+all-visible profile library order, #190 future completion percentage (90% default) shared by
+persisted state and active history, and #199 session/file/track text-caption timing/reset,
+including native PiP cue-clock wiring. Correct #192 sender file/audio/position ownership,
+remux seek compensation, failed/stale conversion cleanup and post-render browser handback.
+Cast Stop/disconnect release the old conversion first, and explicit player close saves the
+receiver position. App Chromecast/AirPlay buttons explain browser-text-caption limitations;
+receiver/native-Safari/full-subtitle/capability acceptance remains on #192/#135.
+
+Plan, do not claim implementation of #106 episode credits/counts and #109 inline specials:
+provenance, stable identity, existing locks/orders and shared playback traversal are explicit.
+Defer #193 pacing/budgets, #197 adaptive quality and #198 audio processing pending their
+representative tasks/measurements. No managed relay is accepted. #138 retains the public
+readiness gate with [ALPHA-CHECKLIST.md](ALPHA-CHECKLIST.md), not a cloud-based alpha declaration.
+No new native-client requirement, schema/dependency change, source edit or history rewrite.
+
+Actual checks:
+
+- Uncached ordinary Go: **376 tests/subtests, 225 top-level**, zero failures/skips.
+- Uncached affected API/store race: **155 tests/subtests, 82 top-level**, zero failures/skips.
+  New checks verify preference validation/profile isolation/reset, 90/95/100 boundaries,
+  duration/legacy fallback, once-only completion and matching history/notification boundary.
+- **17 distinct browser journeys pass together (237.69s)**, no failures/skips/retries: five new
+  ordering/threshold/timing/casting journeys plus 12 existing preplay, caption-race, source-budget,
+  access, resume and playback regressions. After final sender refinements, the five new journeys
+  pass again **27.73s**, not counted as five extra distinct journeys.
+- Real generated video/subtitle tracks verify cue timing at the actual video clock, seeking,
+  track/session reset and native TextTrack/VTTCue timing through simulated PiP events. Receiver/
+  SDK and AirPlay API stand-ins verify request choices, unsupported-text feedback, converted
+  Retry/seek, completed conversion release before exact-audio handback, simulated disconnect
+  and final receiver position saved when the player closes. Actual receiver/Safari/PiP-window
+  behavior and picture burn-in output are not newly proven by those fixtures.
+- Library order save failure rolls back with Retry, persists across reload/phone navigation and
+  cannot add an inaccessible library even when its ID is saved. Completion tests retain old
+  played history, obey 95/100 thresholds and preserve existing historical play-count semantics.
+- Production/app/e2e TypeScript, UI build, vet, API-document contract and embedded-server build
+  pass; diff checks are clean. Desktop/390px screenshots were inspected; menus scroll and
+  personal controls stay reachable without changing approved movie/series hero geometry.
+
+Development failures are retained. The first browser run passed 3/5: one test wrongly assumed
+Mark Unwatched cleared historical play counts; another ended while browser handback routing was
+still in flight. Corrected, 5/5 passed, then all 17 passed together. A subsequent final sender
+check passed 4/5 and exposed a real asynchronous handback race: load could run before React
+remounted the video. Moving handback into a post-render effect fixes it; Stop and simulated
+disconnect now preserve exact audio and release their slot before starting browser conversion.
+Five pass after that fix and again after final-position-save coverage. A TypeScript check also
+caught an incorrectly ordered load argument during refinement, corrected before final build.
+One temporary evidence-copy command used web/ as cwd; final artifacts were copied from repo root.
+No failure is relabelled as acceptance or hidden by a retry policy change.
+
+Raw JSON/logs, failure traces and screenshots: `/workspace/arc-cloud-evidence/web-server-review/`.
+Final hosted full-suite/container/publication results are recorded on the issues/#162 and in that
+directory separately; previous runs remain historical. Current official Plex playback overview
+was readable, while navigation/completion/auto-sync/audio-enhancement pages returned 403; exact
+current control/default parity is not claimed. Real device, remote-network, server-resource,
+listening, release/distribution and sustained-use acceptance remain separate.
+
 ## Recovery/local-metadata and retained-policy review (#136/#191/#194/#104/#195, 25 October 2026)
 
 Starting 7659488 matched live GitHub main; clean isolated branch codex/recovery-metadata-review.

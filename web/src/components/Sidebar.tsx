@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { usePrefs } from '@/lib/home';
+import { navigationLibraries } from '@/lib/library-navigation';
 import { isSettingsPath } from '@/lib/settings-navigation';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
@@ -163,7 +165,9 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
 }
 
 export function Sidebar() {
-  const { data: libraries } = useLibraries();
+  const { data } = useLibraries();
+  const prefs = usePrefs();
+  const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
   const { pathname } = useLocation();
 
   return (
@@ -219,7 +223,9 @@ export function Sidebar() {
 
 /** Compact top bar used instead of the sidebar on small screens. */
 export function MobileBar() {
-  const { data: libraries } = useLibraries();
+  const { data } = useLibraries();
+  const prefs = usePrefs();
+  const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
   const { pathname } = useLocation();
   const link = ({ isActive }: { isActive: boolean }) =>
     cn('shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors', isActive ? 'bg-foreground text-background' : 'bg-surface-2 text-muted');

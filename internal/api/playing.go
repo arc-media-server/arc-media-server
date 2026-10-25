@@ -151,6 +151,10 @@ func (n *nowPlaying) openStream(r *http.Request, itemID, extraID string) (stop c
 // closed). It returns a reason if the admin has stopped the playback, and what to record in
 // watch history (nil if nothing).
 func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durationMS int64, state string) (string, *playUpdate) {
+	return n.progressAt(r, itemID, positionMS, durationMS, state, 90)
+}
+
+func (n *nowPlaying) progressAt(r *http.Request, itemID string, positionMS, durationMS int64, state string, percent int) (string, *playUpdate) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	key := playbackKey(r, itemID, "")
@@ -166,7 +170,7 @@ func (n *nowPlaying) progress(r *http.Request, itemID string, positionMS, durati
 	p.counted = now
 	p.positionMS, p.durationMS, p.paused = positionMS, durationMS, state == "paused"
 	justCompleted := false
-	if durationMS > 0 && float64(positionMS) >= 0.9*float64(durationMS) && !p.completed {
+	if store.CompletionReached(positionMS, durationMS, percent) && !p.completed {
 		p.completed, justCompleted = true, true
 	}
 	if state == "stopped" {

@@ -280,6 +280,14 @@ function PlayerOverlay({
   const [menuOpen, setMenuOpen] = useState(false);
   const [subtitle, setSubtitle] = useState<SubtitleTrack | null>(null);
   const [cues, setCues] = useState<SubtitleCue[]>([]);
+  // Timing belongs to this queue item's playback session and exact source/track.
+  // Switching tracks remembers their offsets until the player closes; no source writes.
+  const [subtitleOffsets, setSubtitleOffsets] = useState<Record<string, number>>({});
+  const subtitleTimingKey = `${planState?.file_id}:${subtitle?.id}`;
+  const subtitleOffsetMS = subtitle && !subtitle.image ? subtitleOffsets[subtitleTimingKey] ?? 0 : 0;
+  const shiftSubtitles = (delta: number | null) => setSubtitleOffsets(previous => ({
+    ...previous, [subtitleTimingKey]: delta === null ? 0 : Math.max(-10000, Math.min(10000, (previous[subtitleTimingKey] ?? 0) + delta)),
+  }));
   const subtitleGeneration = useRef(0);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
   const subStyle = prefs.data?.subtitle_style ?? {};
@@ -300,7 +308,8 @@ function PlayerOverlay({
   const lastReport = useRef(0);
   // Casting to a Chromecast: where it started (the cast panel takes over until it stops).
   const castAvailable = useCastAvailable();
-  const [castFrom, setCastFrom] = useState<number | null>(null);
+  const [castFrom, setCastFrom] = useState<{ startMS: number; fileId: number; audioStream: number; burnSubtitle?: string } | null>(null);
+  const castReturn = useRef<{ positionMS: number; audioStream: number } | null>(null);
   const castOn = useRef(false);
   castOn.current = castFrom !== null;
   // AirPlay (Safari): the video element plays a cast link the Apple TV can open itself.
@@ -573,7 +582,7 @@ function PlayerOverlay({
     }
     let raf = 0;
     const tick = () => {
-      const t = absMS();
+      const t = absMS() - subtitleOffsetMS;
       const text = cues
         .filter((c) => c.start_ms <= t && t < c.end_ms)
         .map((c) => c.text)
@@ -583,7 +592,7 @@ function PlayerOverlay({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [cues, absMS]);
+  }, [cues, absMS, subtitleOffsetMS]);
 
   // Save while the video ref still exists. Passive effect cleanup runs after React detaches
   // the element, losing the final position if no periodic report has been sent yet.
@@ -622,7 +631,7 @@ function PlayerOverlay({
       const wireless = !!v.webkitCurrentPlaybackTargetIsWireless;
       if (wireless === airplay.current || !item.itemId) return;
       airplay.current = wireless;
-      void load(absMS());
+      void load(absMS(), plan.current?.audio_stream);
     };
     v.addEventListener('webkitplaybacktargetavailabilitychanged', onAvailability);
     v.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', onTarget);
@@ -633,15 +642,32 @@ function PlayerOverlay({
   }, [item.itemId, load, absMS]);
 
   const startCast = useCallback(async () => {
+    if (subtitle && !subtitle.image) {
+      setTrackNotice('Chromecast cannot receive browser-rendered text subtitles yet. Turn subtitles Off to cast, or keep playing here.');
+      return;
+    }
     const at = absMS();
     if (!(await chooseChromecast())) return;
+    const source = plan.current;
+    if (!source) return;
+    ++loadGeneration.current;
     const v = video.current;
     v?.pause();
     detach();
     v?.removeAttribute('src');
     v?.load();
-    setCastFrom(at);
-  }, [absMS, detach]);
+    if (source.session_id) await api.stopTranscode(source.session_id).catch(() => {});
+    setCastFrom({ startMS: at, fileId: source.file_id, audioStream: source.audio_stream, burnSubtitle: burn.current });
+  }, [absMS, detach, subtitle]);
+
+  // Stop/disconnect can finish asynchronously. Resume only after the browser's
+  // video element has remounted, rather than racing React's batched state update.
+  useEffect(() => {
+    if (castFrom !== null || !castReturn.current) return;
+    const target = castReturn.current;
+    castReturn.current = null;
+    if (video.current) void load(target.positionMS, target.audioStream);
+  }, [castFrom, load]);
 
   // Keep a converting session alive while paused.
   useEffect(() => {
@@ -721,15 +747,15 @@ function PlayerOverlay({
     track.mode = 'showing';
     const offsetS = offset.current / 1000;
     for (const c of cues) {
-      const start = c.start_ms / 1000 - offsetS;
-      const end = c.end_ms / 1000 - offsetS;
+      const start = (c.start_ms + subtitleOffsetMS) / 1000 - offsetS;
+      const end = (c.end_ms + subtitleOffsetMS) / 1000 - offsetS;
       if (end > 0) track.addCue(new VTTCue(Math.max(0, start), end, c.text));
     }
     return () => {
       for (const c of Array.from(track.cues ?? [])) track.removeCue(c);
       track.mode = 'disabled';
     };
-  }, [pip, cues, planState]);
+  }, [pip, cues, planState, subtitleOffsetMS]);
 
   const toggleFullscreen = useCallback(() => {
     // The whole page, so menus (rendered outside the player) stay visible.
@@ -924,10 +950,13 @@ function PlayerOverlay({
           itemId={item.itemId}
           title={item.title}
           subtitle={item.subtitle}
-          startMS={castFrom}
+          startMS={castFrom.startMS}
+          fileId={castFrom.fileId}
+          audioStream={castFrom.audioStream}
+          burnSubtitle={castFrom.burnSubtitle}
           onEnd={(ms) => {
+            castReturn.current = { positionMS: ms, audioStream: castFrom.audioStream };
             setCastFrom(null);
-            void load(ms);
           }}
         />
       ) : stopped !== null ? (
@@ -1155,6 +1184,14 @@ function PlayerOverlay({
                   );
                 })}
                 {subtitleError && <p className="max-w-64 px-2.5 py-1.5 text-xs text-warning">{subtitleError}</p>}
+                {subtitle && !subtitle.image && <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Timing: {subtitleOffsetMS > 0 ? '+' : ''}{(subtitleOffsetMS / 1000).toFixed(1)}s {subtitleOffsetMS > 0 ? '(later)' : subtitleOffsetMS < 0 ? '(earlier)' : ''}</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={subtitleOffsetMS <= -10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(-500); }}>Show 0.5s earlier</DropdownMenuItem>
+                  <DropdownMenuItem disabled={subtitleOffsetMS >= 10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(500); }}>Show 0.5s later</DropdownMenuItem>
+                  <DropdownMenuItem disabled={subtitleOffsetMS === 0} onSelect={(e) => { e.preventDefault(); shiftSubtitles(null); }}>Reset subtitle timing</DropdownMenuItem>
+                </>}
+                {subtitle?.image && <p className="max-w-64 px-2.5 py-1.5 text-xs text-white/60">Timing adjustment is available for text subtitles. Image subtitles are part of the converted video.</p>}
                 {item.itemId && (
                   <>
                     <DropdownMenuSeparator />
@@ -1264,7 +1301,13 @@ function PlayerOverlay({
             {airplayAvailable && item.itemId && (
               <ControlButton
                 label="AirPlay"
-                onClick={() => (video.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void } | null)?.webkitShowPlaybackTargetPicker?.()}
+                onClick={() => {
+                  if (subtitle && !subtitle.image) {
+                    setTrackNotice('AirPlay cannot receive browser-rendered text subtitles yet. Turn subtitles Off to cast, or keep playing here.');
+                    return;
+                  }
+                  (video.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void } | null)?.webkitShowPlaybackTargetPicker?.();
+                }}
               >
                 <Airplay />
               </ControlButton>
