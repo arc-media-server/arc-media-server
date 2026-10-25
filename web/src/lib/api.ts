@@ -157,6 +157,10 @@ export interface Item {
 }
 
 export interface ScanStatus {
+  job_id?: number;
+  operation?: 'scan' | 'maintenance' | 'refresh' | 'analyze';
+  stopping?: boolean;
+  stopped?: boolean;
   running: boolean;
   started_at?: string;
   finished_at?: string;
@@ -385,6 +389,9 @@ export type ProcessingMode = 'off' | 'scheduled' | 'added';
 export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean }
 
 export interface ActivityTask {
+  can_stop?: boolean;
+  stopping?: boolean;
+  stopped?: boolean;
   id: number;
   kind: 'scan' | 'refresh' | 'analysis' | 'previews' | 'backup' | 'maintenance' | 'ratings' | 'import' | 'markers' | 'optimize';
   title: string;
@@ -1042,6 +1049,10 @@ export const api = {
   importSession: (id: string) => request<ImportSession>('GET', `/api/imports/${id}`),
   chooseImportServer: (id: string, serverId: string) => request<ImportSession>('POST', `/api/imports/${id}/server`, { server_id: serverId }),
   runImport: (id: string, profiles: Record<string, string>) => request<ImportSession>('POST', `/api/imports/${id}/run`, { profiles }),
+  maintenanceWindow: () => request<{ now: string; local_time: string; timezone: string; open: boolean; all_day: boolean; next_start?: string; next_local?: string }>('GET', '/api/maintenance/window'),
+  startLibraryWork: (id: number, operation: 'refresh' | 'analyze') => request<ScanStatus>('POST', `/api/libraries/${id}/work`, { operation }),
+  stopLibraryWork: (id: number, jobId: number) => request<ScanStatus>('POST', `/api/libraries/${id}/stop`, { job_id: jobId }),
+  stopActivity: (id: number) => request<void>('POST', `/api/activity/${id}/stop`),
   maintenance: () => request<ScheduledTask[]>('GET', '/api/maintenance'),
   runMaintenance: (kind: string) => request<{ queued: boolean }>('POST', '/api/maintenance/' + kind + '/run'),
   activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[]; scheduled?: ScheduledTask[] }>('GET', '/api/activity'),

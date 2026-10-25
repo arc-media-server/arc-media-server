@@ -4,6 +4,8 @@ package activity
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"strings"
 	"sync"
@@ -28,6 +30,9 @@ type Task struct {
 	StartedAt  time.Time `json:"started_at"`
 	FinishedAt time.Time `json:"finished_at,omitzero"`
 	Error      string    `json:"error,omitempty"`
+	CanStop    bool      `json:"can_stop,omitempty"`
+	Stopping   bool      `json:"stopping,omitempty"`
+	Stopped    bool      `json:"stopped,omitempty"`
 }
 
 // Operation is one active title/file within a task. Detail contains a filename or
@@ -48,9 +53,70 @@ type Tracker struct {
 	nextOperation int64
 	running       []*Task
 	recent        []Task
+	cancels       map[int64]func()
 }
 
-func New() *Tracker { return &Tracker{} }
+// NewRunID seeds exact-in-JavaScript numeric IDs independently for each server lifetime.
+func NewRunID() int64 {
+	var seed [8]byte
+	_, _ = rand.Read(seed[:])
+	return int64(binary.BigEndian.Uint64(seed[:]) & ((1 << 52) - 1))
+}
+
+func New() *Tracker { return &Tracker{next: NewRunID()} }
+
+// Cancellable attaches a job-owned cancellation callback. Stop never calls it under the tracker lock.
+func (h *Handle) Cancellable(cancel func()) {
+	if h == nil {
+		return
+	}
+	h.t.mu.Lock()
+	defer h.t.mu.Unlock()
+	if !h.task.FinishedAt.IsZero() {
+		return
+	}
+	if h.t.cancels == nil {
+		h.t.cancels = map[int64]func(){}
+	}
+	h.t.cancels[h.task.ID] = cancel
+	h.task.CanStop = true
+}
+
+func (h *Handle) Stopping() { h.set(func(t *Task) { t.Stopping = true }) }
+
+// Stop is idempotent for the same task, including an already stopped recent task.
+func (t *Tracker) Stop(id int64) bool {
+	if t == nil {
+		return false
+	}
+	t.mu.Lock()
+	for _, task := range t.running {
+		if task.ID != id {
+			continue
+		}
+		cancel := t.cancels[id]
+		if cancel == nil {
+			t.mu.Unlock()
+			return false
+		}
+		if task.Stopping {
+			t.mu.Unlock()
+			return true
+		}
+		task.Stopping = true
+		t.mu.Unlock()
+		cancel()
+		return true
+	}
+	for _, task := range t.recent {
+		if task.ID == id && task.Stopped {
+			t.mu.Unlock()
+			return true
+		}
+	}
+	t.mu.Unlock()
+	return false
+}
 
 // Handle reports on one task. Its methods do nothing on a nil Handle.
 type Handle struct {
@@ -152,6 +218,13 @@ func (h *Handle) Finish(err error) {
 	defer t.mu.Unlock()
 	h.task.FinishedAt = time.Now()
 	h.task.Current = nil
+	delete(t.cancels, h.task.ID)
+	h.task.CanStop = false
+	if h.task.Stopping {
+		h.task.Stopped, h.task.Stopping = true, false
+		h.task.Detail = "Stopped · " + h.task.Detail
+		err = nil
+	}
 	switch {
 	case errors.Is(err, context.Canceled) || err != nil && strings.HasSuffix(err.Error(), context.Canceled.Error()):
 		// e.g. the page that asked for a refresh was closed, or Arc is stopping.

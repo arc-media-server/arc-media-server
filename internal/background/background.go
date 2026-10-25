@@ -110,7 +110,7 @@ func (m *Manager) busy() bool {
 	}
 	running, _ := m.Activity.Snapshot()
 	for _, r := range running {
-		if r.Kind == "scan" || r.Kind == "refresh" {
+		if r.Kind == "scan" || r.Kind == "refresh" || r.Kind == "analysis" && r.CanStop {
 			return true
 		}
 	}
@@ -440,7 +440,7 @@ func (m *Manager) MaintenanceReady() bool {
 	}
 	running, _ := m.Activity.Snapshot()
 	for _, r := range running {
-		if r.Kind == "scan" {
+		if r.Kind == "scan" || r.Kind == "analysis" && r.CanStop {
 			return false
 		}
 	}

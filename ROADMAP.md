@@ -224,6 +224,10 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Show live automatic-backup policy and accurate manual/safety backup guidance (#182)
 - [x] Name bulk selection's loaded-title scope explicitly (#185)
 - [x] Offer source-bound version/audio/subtitle choices before browser playback, preserving profile learning and optimized eligibility (#186)
+- [x] Add explicit library-wide metadata refresh and file reanalysis with safe cursor scope (#183)
+- [x] Add owned Stop controls for scans/library work/Activity and cancellable bulk refresh (#184)
+- [x] Show actual server time/zone and current/next maintenance window (#196)
+- [x] Move title metadata refresh into More and distinguish playback queue from saved playlists (#187)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)
@@ -237,6 +241,9 @@ _Doesn't block development; must be done before AMS is shared or published._
 - [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
 
 ## Later
+
+- Library navigation density/alphabet controls (#188): reviewed and deferred until an owner
+  browsing task establishes which improvement helps; existing search/filters/sort/paging remain.
 
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ListPlus, ListVideo, Loader2, Plus } from 'lucide-react';
+import { Check, ListMusic, ListVideo, Loader2, Plus } from 'lucide-react';
 import { api, type Item, type Playlist } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -40,14 +40,14 @@ export function AddToPlaylistButton({ item, label, className, size = 'lg' }: { i
         variant="secondary"
         size={size}
         className={cn(!label && size === 'lg' && 'size-12 rounded-2xl px-0', className)}
-        title="Add to Playlist"
+        title="Save to a playlist"
         aria-label="Add to Playlist"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
         }}
       >
-        <ListPlus /> {label && 'Add to Playlist'}
+        <ListMusic /> {label && 'Add to Playlist'}
       </Button>
       {/* React events bubble out of the dialog's portal: keep them from the row it sits in (an episode row plays on click). */}
       <span className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>

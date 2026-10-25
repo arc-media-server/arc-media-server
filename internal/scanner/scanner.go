@@ -54,7 +54,17 @@ type extraFile struct {
 	ownerDir, ownerStem string
 }
 
+type jobControl struct {
+	id     int64
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
 type Status struct {
+	JobID          int64     `json:"job_id,omitempty"`
+	Operation      string    `json:"operation,omitempty"`
+	Stopping       bool      `json:"stopping,omitempty"`
+	Stopped        bool      `json:"stopped,omitempty"`
 	Running        bool      `json:"running"`
 	StartedAt      time.Time `json:"started_at,omitzero"`
 	FinishedAt     time.Time `json:"finished_at,omitzero"`
@@ -164,14 +174,18 @@ type Scanner struct {
 	FFmpeg   func() string
 	ThumbDir string
 
-	wg     sync.WaitGroup
-	mu     sync.Mutex
-	status map[int64]*Status
-	tasks  map[int64]*activity.Handle
+	wg        sync.WaitGroup
+	mu        sync.Mutex
+	status    map[int64]*Status
+	jobs      map[int64]*jobControl
+	nextJob   int64
+	stopEpoch map[int64]int64
+	tasks     map[int64]*activity.Handle
 	// Libraries that changed during their scan and need scanning again when it ends.
 	again         map[int64]bool
 	pendingPaths  map[int64][]string
 	retryPending  map[int64]bool
+	retryWake     map[int64]chan struct{}
 	retryAttempts map[int64]int
 	retryBase     time.Duration // zero uses the automatic one-minute base
 	// Titles a library preview identified, so adding the library doesn't search for them again.
@@ -181,7 +195,7 @@ type Scanner struct {
 // New creates a scanner. Background scans stop when ctx is cancelled.
 func New(ctx context.Context, st *store.Store, prober *probe.Prober, tmdb *metadata.TMDB, tvdb *metadata.TVDB, log *slog.Logger) *Scanner {
 	return &Scanner{ctx: ctx, store: st, prober: prober, tmdb: tmdb, tvdb: tvdb, log: log,
-		status: map[int64]*Status{}, again: map[int64]bool{}, pendingPaths: map[int64][]string{}, retryPending: map[int64]bool{}, retryAttempts: map[int64]int{}, tasks: map[int64]*activity.Handle{}}
+		nextJob: activity.NewRunID(), status: map[int64]*Status{}, jobs: map[int64]*jobControl{}, stopEpoch: map[int64]int64{}, again: map[int64]bool{}, pendingPaths: map[int64][]string{}, retryPending: map[int64]bool{}, retryWake: map[int64]chan struct{}{}, retryAttempts: map[int64]int{}, tasks: map[int64]*activity.Handle{}}
 }
 
 // Start begins a background scan of a library. It returns false if one is already running.
@@ -196,6 +210,9 @@ func (s *Scanner) Start(libraryID int64) bool {
 func (s *Scanner) Request(libraryID int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if st := s.status[libraryID]; st != nil && st.Stopping {
+		return
+	}
 	if !s.startLocked(libraryID) {
 		s.again[libraryID] = true
 		delete(s.pendingPaths, libraryID)
@@ -210,6 +227,9 @@ func (s *Scanner) RequestPaths(libraryID int64, paths []string) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if st := s.status[libraryID]; st != nil && st.Stopping {
+		return
+	}
 	if !s.startLocked(libraryID, paths...) && !s.again[libraryID] {
 		s.pendingPaths[libraryID] = append(s.pendingPaths[libraryID], paths...)
 		if len(s.pendingPaths[libraryID]) > 4096 {
@@ -231,31 +251,59 @@ func (s *Scanner) startLocked(libraryID int64, paths ...string) bool {
 }
 
 func (s *Scanner) startWorkLocked(libraryID int64, maintenance bool, paths ...string) bool {
+	kind := "scan"
+	if maintenance {
+		kind = "maintenance"
+	}
+	return s.startKindLocked(libraryID, kind, paths...)
+}
+
+// StartOperation reserves the same library lease as discovery and scheduled refresh.
+func (s *Scanner) StartOperation(libraryID int64, operation string) bool {
+	if operation != "refresh" && operation != "analyze" {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startKindLocked(libraryID, operation)
+}
+
+func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...string) bool {
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
 	}
 	if s.ctx.Err() != nil {
 		return false
 	}
-	s.status[libraryID] = &Status{Running: true, StartedAt: time.Now(), Phase: "Opening library"}
+	ctx, cancel := context.WithCancel(s.ctx)
+	s.nextJob++
+	job := &jobControl{id: s.nextJob, ctx: ctx, cancel: cancel}
+	s.jobs[libraryID] = job
+	s.status[libraryID] = &Status{JobID: job.id, Operation: operation, Running: true, StartedAt: time.Now(), Phase: "Opening library"}
 	paths = append([]string(nil), paths...)
 
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		defer cancel()
 		var err error
-		if maintenance {
-			err = s.maintain(s.ctx, libraryID)
-		} else {
-			err = s.scanPaths(s.ctx, libraryID, paths)
+		switch operation {
+		case "maintenance":
+			err = s.maintain(ctx, libraryID)
+		case "refresh", "analyze":
+			err = s.manualWork(ctx, libraryID, operation)
+		default:
+			err = s.scanPaths(ctx, libraryID, paths)
 		}
 		s.update(libraryID, func(st *Status) {
 			st.FinishedAt = time.Now()
-			if err != nil {
+			if st.Stopping || errors.Is(err, context.Canceled) {
+				st.Stopped, st.Stopping, st.Phase = true, false, "Stopped"
+			} else if err != nil {
 				st.Error = err.Error()
 			}
 		})
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			st := s.Status(libraryID)
 			name := st.libraryName
 			if name == "" {
@@ -269,6 +317,11 @@ func (s *Scanner) startWorkLocked(libraryID int64, maintenance bool, paths ...st
 		}
 		s.mu.Lock()
 		s.status[libraryID].Running = false
+		delete(s.jobs, libraryID)
+		if s.status[libraryID].Stopped {
+			delete(s.again, libraryID)
+			delete(s.pendingPaths, libraryID)
+		}
 		if s.again[libraryID] {
 			delete(s.again, libraryID)
 			delete(s.pendingPaths, libraryID)
@@ -352,9 +405,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return err
 	}
 	task := s.Activity.Start("scan", "Scanning "+lib.Name)
-	s.mu.Lock()
-	s.tasks[lib.ID] = task
-	s.mu.Unlock()
+	s.registerTask(lib.ID, task)
 	task.Detail(s.Status(lib.ID).describe())
 	defer func() {
 		s.mu.Lock()
@@ -526,6 +577,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		}
 	}
 	if err := pipeline.finish(); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if allRootsOK {
@@ -1141,4 +1195,50 @@ func (s *Scanner) CollectionInfo(ctx context.Context, tmdbID int64) (*metadata.C
 		return nil, nil
 	}
 	return s.tmdb.Collection(ctx, tmdbID)
+}
+
+// Stop targets a particular run, so a stale button cannot stop a later replacement.
+func (s *Scanner) Stop(libraryID, jobID int64) bool {
+	s.mu.Lock()
+	st := s.status[libraryID]
+	if st == nil || st.JobID != jobID {
+		s.mu.Unlock()
+		return false
+	}
+	if st.Stopped || st.Stopping {
+		s.mu.Unlock()
+		return true
+	}
+	job := s.jobs[libraryID]
+	if job == nil || !st.Running {
+		s.mu.Unlock()
+		return false
+	}
+	st.Stopping = true
+	s.stopEpoch[libraryID]++
+	delete(s.retryPending, libraryID)
+	if wake := s.retryWake[libraryID]; wake != nil {
+		close(wake)
+		delete(s.retryWake, libraryID)
+	}
+	delete(s.again, libraryID)
+	delete(s.pendingPaths, libraryID)
+	if task := s.tasks[libraryID]; task != nil {
+		task.Stopping()
+	}
+	s.mu.Unlock()
+	job.cancel()
+	return true
+}
+
+func (s *Scanner) registerTask(libraryID int64, task *activity.Handle) {
+	s.mu.Lock()
+	s.tasks[libraryID] = task
+	if job := s.jobs[libraryID]; job != nil {
+		task.Cancellable(func() { s.Stop(libraryID, job.id) })
+		if s.status[libraryID].Stopping {
+			task.Stopping()
+		}
+	}
+	s.mu.Unlock()
 }

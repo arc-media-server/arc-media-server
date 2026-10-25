@@ -18,6 +18,12 @@ let fixtures;
 let stopped = false;
 let resetting = false;
 let metadataDelayMS = 0;
+let releaseMetadata;
+let metadataGate = Promise.resolve();
+function holdMetadata(hold) {
+  if (hold && !releaseMetadata) metadataGate = new Promise(resolve => { releaseMetadata = resolve; });
+  if (!hold) { releaseMetadata?.(); releaseMetadata = undefined; metadataGate = Promise.resolve(); }
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: repo, env, encoding: 'utf8', ...options });
@@ -58,6 +64,7 @@ async function stopApp() {
 
 async function reset(restart = false) {
   metadataDelayMS = 0;
+  holdMetadata(false);
   await stopApp();
   const data = join(root, `data-${restart ? generation : ++generation}`);
   child = spawn(binary, ['-data', data, '-config', 'none'], {
@@ -113,6 +120,7 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === '/health') return json(200, { ready: true });
     if (url.pathname === '/fixtures') return json(200, fixtures);
+    if (url.pathname === '/metadata-hold' && req.method === 'POST') { holdMetadata(url.searchParams.get('hold') === '1'); return json(200, { held: !!releaseMetadata }); }
     if (url.pathname === '/metadata-delay' && req.method === 'POST') {
       const ms = Number(url.searchParams.get('ms'));
       if (!Number.isFinite(ms) || ms < 0 || ms > 3000) return json(400, { error: 'Invalid fixture delay' });
@@ -138,6 +146,7 @@ const server = createServer(async (req, res) => {
       try { await reset(); return json(200, fixtures); } finally { resetting = false; }
     }
     const body = metadata(url);
+    if (body) await metadataGate;
     if (body && metadataDelayMS) await new Promise(resolve => setTimeout(resolve, metadataDelayMS));
     json(body ? 200 : 404, body ?? { error: `No test fixture for ${url.pathname}` });
   } catch (err) { console.error(err); json(500, { error: String(err) }); }

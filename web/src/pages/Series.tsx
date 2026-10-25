@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, RefreshCw, Shuffle } from 'lucide-react';
+import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
 import { api, type Ordering, type SeasonEpisode } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { EditSeasonDialog } from '@/components/EditSeason';
@@ -164,10 +164,7 @@ export function SeriesPage() {
           {available > 0 && <AddToPlaylistButton item={series} />}
           {admin && (
             <>
-              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-              </Button>
-              <MoreMenu item={series} onOpen={openDialog} />
+              <MoreMenu item={series} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} />
             </>
           )}
         </div>

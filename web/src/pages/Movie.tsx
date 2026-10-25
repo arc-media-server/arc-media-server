@@ -3,7 +3,7 @@ import { useParams } from 'react-router';
 import { CollectionRows } from '@/components/Collections';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, Play, RefreshCw, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { FileDetails } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
@@ -142,12 +142,7 @@ export function MoviePage() {
           {playable && <AddToPlaylistButton item={item} />}
           {admin && (
             <>
-              {!isLocalVideo(item) && (
-              <Button variant="secondary" size="lg" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-                {refresh.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh
-              </Button>
-              )}
-              <MoreMenu item={item} onOpen={openDialog} />
+              <MoreMenu item={item} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} />
             </>
           )}
         </div>

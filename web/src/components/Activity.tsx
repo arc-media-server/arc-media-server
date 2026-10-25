@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
 import { Link } from 'react-router';
 import { AlertCircle, Check, LayoutDashboard, Loader2, Zap } from 'lucide-react';
 import { api, type ActivityOperation, type ActivityTask } from '@/lib/api';
 import { useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ErrorNotice } from '@/components/Page';
 
 /** What the server is doing (admins only), checked often while something runs or the list is open. */
 export function useActivity(watching = false) {
@@ -111,7 +113,7 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
               <li key={t.id} className="flex items-start gap-2.5 text-sm">
                 {t.error ? <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" /> : <Check className="mt-0.5 size-4 shrink-0 text-subtle" />}
                 <div className="min-w-0 flex-1">
-                  <p className="break-words">{t.title}</p>
+                  <p className="break-words">{t.title}{t.stopped && <span className="ml-2 text-subtle">Stopped</span>}</p>
                   {t.detail && <p className="mt-0.5 break-words text-xs text-muted">{t.detail}</p>}
                   {t.error && <p className="mt-0.5 break-words text-xs text-warning">{t.error}</p>}
                   <p className="mt-0.5 text-xs text-subtle">{since(t.finished_at!)} · took {took(t)}</p>
@@ -126,6 +128,11 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
 }
 
 function RunningTask({ task: t }: { task: ActivityTask }) {
+  const qc = useQueryClient();
+  const stop = useMutation({ mutationFn: () => api.stopActivity(t.id), onSuccess: () => {
+    void qc.invalidateQueries({ queryKey: ['activity'] });
+    void qc.invalidateQueries({ queryKey: ['libraries'] });
+  } });
   const pct = t.total ? Math.min(100, Math.round(((t.done ?? 0) / t.total) * 100)) : null;
   return (
     <li>
@@ -133,6 +140,9 @@ function RunningTask({ task: t }: { task: ActivityTask }) {
         <p className="min-w-0 break-words font-medium">{t.title}</p>
         {pct !== null && <span className="shrink-0 text-xs tabular-nums text-subtle">{pct}%</span>}
       </div>
+      {t.stopping && <p role="status" className="mt-1 text-xs text-muted">Stopping… completed changes will be kept.</p>}
+      {t.can_stop && <Button size="sm" variant="secondary" className="mt-2" disabled={t.stopping || stop.isPending} onClick={() => stop.mutate()} aria-label={`Stop ${t.title}`}>{t.stopping || stop.isPending ? 'Stopping…' : 'Stop'}</Button>}
+      <ErrorNotice error={stop.error} onRetry={() => stop.mutate()} busy={stop.isPending} />
       {t.detail && <p className="mt-0.5 break-words text-xs text-subtle">{t.detail}</p>}
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-3">
         <div
