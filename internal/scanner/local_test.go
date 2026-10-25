@@ -28,6 +28,9 @@ func TestReadNFO(t *testing.T) {
 			NFO{TVDBID: 78874}},
 		{"link.nfo", "https://www.imdb.com/title/tt0133093/\n", NFO{IMDBID: "tt0133093"}},
 		{"empty.nfo", "<movie><title>Nothing</title></movie>", NFO{}},
+		{"episode.nfo", `<episodedetails><title>Local text</title><plot>Not imported</plot><uniqueid type="tvdb">12345</uniqueid></episodedetails>`, NFO{TVDBID: 12345}},
+		{"plot-only.nfo", `<tvshow><title>Local show</title><plot>Local synopsis</plot><actor><name>Local actor</name></actor></tvshow>`, NFO{}},
+		{"malformed.nfo", `<movie><uniqueid type="tmdb">949`, NFO{}},
 	}
 	for _, tt := range tests {
 		if got := readNFO(write(tt.name, tt.body)); got != tt.want {

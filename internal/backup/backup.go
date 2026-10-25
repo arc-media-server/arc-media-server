@@ -1,6 +1,7 @@
 // Package backup takes automatic daily backups of the AMS database, keeps a sensible number of
-// them, and restores one on request. Backups hold everything AMS knows (matches, orderings,
-// watch history); media files are never part of them and are never touched.
+// them, and restores one on request. Backups hold database state (matches, orderings,
+// settings, watch history), not uploaded artwork, certificates or generated assets.
+// Media files are never part of them and are never touched.
 package backup
 
 import (

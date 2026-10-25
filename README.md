@@ -122,7 +122,9 @@ Early development. Working today:
 - Artwork cached locally after each scan, so it loads fast and works offline
 - Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg / clearlogo.png and `<file>-poster.jpg`,
   `<file>-fanart.jpg`, `<file>-clearlogo.png`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
-  Radarr and Sonarr `.nfo` files (movie.nfo, tvshow.nfo, `<file>.nfo`) make identification exact
+  Radarr and Sonarr `.nfo` files (`movie.nfo`, `tvshow.nfo`, movie `<file>.nfo`) help identify titles.
+  NFO support reads provider IDs only; it does not import titles, plots, cast or episode sidecars.
+  See [local metadata and artwork](docs/LOCAL-METADATA.md) for exact scope
 - Clear logos: movie and series pages show the title's logo artwork (from TMDB, or a local
   clearlogo.png / logo.png) instead of plain text, and the cast sits right under the summary
 - Artwork, in the Edit dialog (Details, Poster, Background and Logo tabs, plus Seasons for a show's
@@ -355,6 +357,7 @@ choose its path in Settings > Converting.
 
 Before upgrading, stop Arc and preserve the complete `/config` directory on separate storage.
 Built-in backups contain the database only; uploaded artwork and certificates are separate files.
+Follow the [backup and recovery guide](docs/RECOVERY.md) for scope, stopped-folder copies and restore checks.
 Keep the previous image's immutable commit tag as well. For rollback, stop Arc and restore the
 saved data directory into a separate location, then run the matching previous image against it.
 An older Arc refuses a database with newer schema versions. Do not run two servers against the
