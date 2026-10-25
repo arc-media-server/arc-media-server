@@ -35,7 +35,7 @@ import { api, ApiError, type SubtitleStyle, type Chapter, type Item, type Playba
 import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
-import { audioLabel, chooseSubtitle, fallbackCaps, methodLabel, playerCaps, qualities, qualityName, readQuality, saveQuality, subtitleLabel, versionLabel } from '@/lib/playback';
+import { audioLabel, chooseSubtitle, rememberedSubtitleLanguage, fallbackCaps, methodLabel, playerCaps, qualities, qualityName, readQuality, saveQuality, subtitleLabel, versionLabel } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent } from './ui/dialog';
 import { ErrorNotice } from './Page';
@@ -57,6 +57,8 @@ export interface NowPlaying {
   edition?: string;
   /** A pre-roll video before a movie: it carries straight on, and can be skipped. */
   preroll?: boolean;
+  /** Explicit preplay choices belong to this source file, never another episode/version. */
+  selection?: { fileId: number; audioStream?: number; subtitle?: string | null; burnSubtitle?: string };
 }
 
 interface QueuedItem extends NowPlaying { queueId: string }
@@ -253,7 +255,7 @@ function PlayerOverlay({
   // What the current stream was asked for with: seeks and audio changes keep it.
   const caps = useRef<PlayerCaps>(playerCaps());
   // A picture subtitle track being burned into the video; restarts keep it.
-  const burn = useRef<string | undefined>(undefined);
+  const burn = useRef<string | undefined>(item.selection?.burnSubtitle);
   // The quality limit chosen on this device (0 for the original); restarts keep it.
   const quality = useRef(readQuality());
   const [qualityState, setQualityState] = useState(quality.current);
@@ -285,6 +287,8 @@ function PlayerOverlay({
   const setSubtitleSize = (size: SubtitleSize) => updatePrefs.mutate({ subtitle_style: { ...subStyle, size } });
   const [cueText, setCueText] = useState('');
   const autoChosen = useRef(false);
+  const preplayApplied = useRef(false);
+  const [trackNotice, setTrackNotice] = useState<string | null>(null);
   // Thumbnails for the timeline, if the library makes them.
   const [thumbs, setThumbs] = useState<{ info: TrickplayInfo; sheets: string[] } | null>(null);
   const lastSubtitle = useRef<SubtitleTrack | null>(null);
@@ -361,7 +365,7 @@ function PlayerOverlay({
         }
         let p: PlaybackPlan;
         try {
-          p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream, file_id: plan.current?.file_id, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
+          p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream ?? (plan.current ? undefined : item.selection?.audioStream), file_id: plan.current?.file_id ?? item.selection?.fileId, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
         } catch (e) {
           if (generation !== loadGeneration.current) return;
           setLoading(false);
@@ -475,11 +479,12 @@ function PlayerOverlay({
   const selectSubtitle = useCallback(
     async (t: SubtitleTrack | null, remember: boolean) => {
       const generation = ++subtitleGeneration.current;
+      if (remember) setTrackNotice(null);
       const p = plan.current;
       if (!p || !item.itemId) return;
       // Turning them off forgets the language only where the language is what turns them on.
-      if (remember && t && !t.forced) updatePrefs.mutate({ subtitle_language: t.language ?? '' });
-      else if (remember && !t && !prefs.data?.subtitle_mode) updatePrefs.mutate({ subtitle_language: '' });
+      const remembered = rememberedSubtitleLanguage(t, prefs.data?.subtitle_mode);
+      if (remember && remembered !== undefined) updatePrefs.mutate({ subtitle_language: remembered });
       if (t) lastSubtitle.current = t;
       setSubtitle(t);
       setCues([]);
@@ -515,6 +520,7 @@ function PlayerOverlay({
       setSubtitle(null);
       setCues([]);
       autoChosen.current = false;
+      setTrackNotice(null);
       await load(at);
     },
     [absMS, load],
@@ -540,7 +546,22 @@ function PlayerOverlay({
     if (autoChosen.current || !planState || !prefs.data) return;
     autoChosen.current = true;
     const audioLang = planState.audio_tracks.find((a) => a.index === planState.audio_stream)?.language;
-    const t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang, prefs.data.subtitle_mode);
+    const selection = !preplayApplied.current && item.selection?.fileId === planState.file_id ? item.selection : undefined;
+    preplayApplied.current = true;
+    let t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang, prefs.data.subtitle_mode);
+    const patch: { audio_language?: string; subtitle_language?: string } = {};
+    if (selection?.audioStream !== undefined && selection.audioStream === planState.audio_stream && audioLang && audioLang !== prefs.data.audio_language) patch.audio_language = audioLang;
+    if (selection?.subtitle !== undefined) {
+      const explicit = selection.subtitle === null ? null : planState.subtitle_tracks.find(track => track.id === selection.subtitle);
+      if (explicit !== undefined) {
+        t = explicit ?? undefined;
+        const remembered = rememberedSubtitleLanguage(explicit, prefs.data.subtitle_mode);
+        if (remembered !== undefined) patch.subtitle_language = remembered;
+      } else {
+        setTrackNotice('The selected subtitles are no longer available. Using your profile defaults.');
+      }
+    }
+    if (Object.keys(patch).length) updatePrefs.mutate(patch);
     if (t) void selectSubtitle(t, false);
   }, [planState, prefs.data, selectSubtitle]);
 
@@ -575,7 +596,7 @@ function PlayerOverlay({
 
   // Start playing when the player opens; end the conversion when it closes.
   useEffect(() => {
-    void load(item.startMS ?? 0);
+    void load(item.startMS ?? 0, item.selection?.audioStream);
     const onHide = () => report('stopped');
     window.addEventListener('pagehide', onHide);
     return () => {
@@ -897,6 +918,7 @@ function PlayerOverlay({
       transition={{ duration: 0.25 }}
       onMouseMove={poke}
     >
+      {trackNotice && <p role="status" className="absolute left-4 right-4 top-20 z-20 rounded-xl bg-black/80 p-3 text-sm text-white">{trackNotice}</p>}
       {castFrom !== null && item.itemId ? (
         <CastSession
           itemId={item.itemId}

@@ -477,6 +477,9 @@ export interface AudioTrack {
   default: boolean;
 }
 
+/** Source choices resolved with the same edition/version and audio defaults as playback. */
+export type PlaybackOptions = Pick<PlaybackPlan, 'file_id' | 'audio_stream' | 'audio_tracks' | 'subtitle_tracks' | 'versions'>;
+
 /** How the server will send a movie or episode to this player. */
 export interface PlaybackPlan {
   /** A generated MP4; source track indices remain in audio_stream/audio_tracks for choices. */
@@ -1043,6 +1046,8 @@ export const api = {
   runMaintenance: (kind: string) => request<{ queued: boolean }>('POST', '/api/maintenance/' + kind + '/run'),
   activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[]; scheduled?: ScheduledTask[] }>('GET', '/api/activity'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
+  playbackOptions: (itemId: string, body: { caps: PlayerCaps; file_id?: number; edition?: string }) =>
+    request<PlaybackOptions>('POST', `/api/items/${itemId}/playback-options`, body),
   startPlayback: (
     itemId: string,
     body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string; max_kbps?: number },

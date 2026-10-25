@@ -250,30 +250,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id", "audio_stream", "start_ms"`)
 		return
 	}
-	files, err := s.store.ItemFiles(r.Context(), it.ID)
-	if err == nil && s.scanner != nil {
-		// A title played before its scan got to reading its files: read them now.
-		var read bool
-		if read, err = s.scanner.EnsureProbed(r.Context(), files); err == nil && read {
-			files, err = s.store.ItemFiles(r.Context(), it.ID)
-		}
-	}
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	var f *store.MediaFile
-	if body.FileID != 0 {
-		for i := range files {
-			if !files[i].Missing && files[i].ID == body.FileID {
-				f = &files[i]
-			}
-		}
-	} else {
-		f = bestVersion(files, body.Edition, body.Caps)
-	}
+	files, f := s.playbackFile(w, r, it.ID, body.FileID, body.Edition, body.Caps)
 	if f == nil {
-		writeError(w, http.StatusNotFound, "no playable file for this item")
 		return
 	}
 	if why := s.playing.refusalFor(r, it.ID); why != "" {
@@ -284,12 +262,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	video := videoStream(f)
 	audio := defaultAudio(f)
 	if body.AudioStream == nil {
-		// The profile's preferred language, when the file has it.
-		if p, err := s.loadPrefs(r); err == nil && p.AudioLanguage != "" {
-			if a := preferredAudio(f, p.AudioLanguage); a != nil {
-				audio = a
-			}
-		}
+		audio = s.playbackDefaultAudio(r, f)
 	} else {
 		audio = nil
 		for i := range f.Streams {
@@ -335,6 +308,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	if video != nil {
 		out.SourceHeight = video.Height
 	}
+	var err error
 	if out.Chapters, err = s.store.FileChapters(r.Context(), f.ID); err != nil {
 		s.fail(w, err)
 		return
@@ -349,12 +323,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	if audio != nil {
 		out.AudioStream = audio.Index
 	}
-	for _, st := range f.Streams {
-		if st.Kind == "audio" {
-			out.AudioTracks = append(out.AudioTracks, audioTrackDTO{Index: st.Index, Language: st.Language,
-				Title: st.Title, Codec: st.Codec, Channels: st.Channels, Default: st.IsDefault, Profile: st.Profile, ChannelLayout: st.ChannelLayout})
-		}
-	}
+	out.AudioTracks = audioTracks(f)
 
 	// A file this player can't play as it is may have an optimized copy it can (with the file's
 	// selected audio and no subtitles burned in).
@@ -836,4 +805,91 @@ func (s *Server) remoteLimit(r *http.Request, itemID string) int {
 		}
 	}
 	return limit
+}
+
+// playbackFile resolves source files without starting playback or conversion.
+func (s *Server) playbackFile(w http.ResponseWriter, r *http.Request, itemID string, fileID int64, edition string, caps clientCaps) ([]store.MediaFile, *store.MediaFile) {
+	files, err := s.store.ItemFiles(r.Context(), itemID)
+	if err == nil && s.scanner != nil {
+		// A title played before its scan got to reading its files: read them now.
+		var read bool
+		if read, err = s.scanner.EnsureProbed(r.Context(), files); err == nil && read {
+			files, err = s.store.ItemFiles(r.Context(), itemID)
+		}
+	}
+	if err != nil {
+		s.fail(w, err)
+		return nil, nil
+	}
+	var f *store.MediaFile
+	if fileID != 0 {
+		for i := range files {
+			if !files[i].Missing && files[i].ID == fileID {
+				f = &files[i]
+			}
+		}
+	} else {
+		f = bestVersion(files, edition, caps)
+	}
+	if f == nil {
+		writeError(w, http.StatusNotFound, "no playable file for this item")
+		return nil, nil
+	}
+	return files, f
+}
+
+func (s *Server) playbackDefaultAudio(r *http.Request, f *store.MediaFile) *store.Stream {
+	audio := defaultAudio(f)
+	if p, err := s.loadPrefs(r); err == nil && p.AudioLanguage != "" {
+		if a := preferredAudio(f, p.AudioLanguage); a != nil {
+			audio = a
+		}
+	}
+	return audio
+}
+
+func audioTracks(f *store.MediaFile) []audioTrackDTO {
+	out := []audioTrackDTO{}
+	for _, st := range f.Streams {
+		if st.Kind == "audio" {
+			out = append(out, audioTrackDTO{Index: st.Index, Language: st.Language,
+				Title: st.Title, Codec: st.Codec, Channels: st.Channels, Default: st.IsDefault, Profile: st.Profile, ChannelLayout: st.ChannelLayout})
+		}
+	}
+	return out
+}
+
+// playbackOptions: POST /api/items/{id}/playback-options resolves the edition/version and
+// source track choices without starting a stream, conversion, progress or preference update.
+// Send {"caps": {...}} and optionally "file_id" or "edition" as for playback.
+func (s *Server) playbackOptions(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Caps    clientCaps `json:"caps"`
+		FileID  int64      `json:"file_id"`
+		Edition string     `json:"edition"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id" or "edition"`)
+		return
+	}
+	files, f := s.playbackFile(w, r, it.ID, body.FileID, body.Edition, body.Caps)
+	if f == nil {
+		return
+	}
+	audio := s.playbackDefaultAudio(r, f)
+	index := -1
+	if audio != nil {
+		index = audio.Index
+	}
+	writeJSON(w, http.StatusOK, struct {
+		FileID         int64             `json:"file_id"`
+		AudioStream    int               `json:"audio_stream"`
+		AudioTracks    []audioTrackDTO   `json:"audio_tracks"`
+		SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
+		Versions       []versionDTO      `json:"versions"`
+	}{f.ID, index, audioTracks(f), s.subtitleTracks(f), versions(files)})
 }

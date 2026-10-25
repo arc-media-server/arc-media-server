@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-164 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+165 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -183,6 +183,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items/{id}` | profile | Item details with files and streams |
 | GET | `/api/items/{id}/stream` | profile | Serves the original file with HTTP range support (direct play). ?file=<id> selects a specific part or version; otherwise the first available file is used. |
 | POST | `/api/items/{id}/playback` | profile | {"caps": {...}, "file_id", "audio_stream", "start_ms"} decides how to play a movie or episode on this player and, unless it can play the file as it is, starts converting it. Starting again (e.g. to seek or change audio track) ends the player's previous conversion. |
+| POST | `/api/items/{id}/playback-options` | profile | Resolves the edition/version and source track choices without starting a stream, conversion, progress or preference update. Send {"caps": {...}} and optionally "file_id" or "edition" as for playback. |
 | GET | `/api/items/{id}/subtitles` | profile | ?file=<id> lists a file's subtitle tracks. |
 | GET | `/api/items/{id}/subtitles/search` | profile | ?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first. |
 | POST | `/api/items/{id}/subtitles/download` | profile | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |

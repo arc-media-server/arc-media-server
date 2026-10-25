@@ -25,6 +25,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { AddToPlaylistButton } from '@/components/Playlists';
 import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
+import { PlaybackOptionsButton } from '@/components/PlaybackOptions';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
@@ -143,6 +144,7 @@ export function SeriesPage() {
         )}
         <div className="mt-7 flex flex-wrap gap-3">
           {upNext && <PlayButton episode={upNext} seriesTitle={series.title} />}
+          {upNext && <PlaybackOptionsButton item={nowPlayingFor({ ...upNext, series_title: series.title })} />}
           {available > 1 && (
             <Button
               variant="secondary"
@@ -474,6 +476,7 @@ function EpisodeRow({
       </div>
       <div className="flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
+      {playable && <PlaybackOptionsButton compact item={nowPlayingFor({ ...ep, series_title: seriesTitle })} />}
       {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
       {ep.available && (
         <AddToPlaylistButton

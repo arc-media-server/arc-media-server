@@ -223,6 +223,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Associate library editor controls with their visible labels and help (#181)
 - [x] Show live automatic-backup policy and accurate manual/safety backup guidance (#182)
 - [x] Name bulk selection's loaded-title scope explicitly (#185)
+- [x] Offer source-bound version/audio/subtitle choices before browser playback, preserving profile learning and optimized eligibility (#186)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)

@@ -158,7 +158,7 @@ try {
   if (ffmpeg !== 'ffmpeg') env.PATH = dirname(ffmpeg) + ';' + (env.PATH ?? env.Path ?? '');
   run('go', ['build', '-o', binary, './cmd/ams']);
   const media = join(root, 'media');
-  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget') };
+  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget'), preplay: join(media, 'Preplay') };
   for (const p of Object.values(fixtures)) await mkdir(p, { recursive: true });
   const sample = join(root, 'sample.mp4');
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=120:size=160x90:rate=10',
@@ -176,6 +176,16 @@ try {
     '-map', '0:v:0', '-map', '0:a:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac',
     '-metadata:s:a:0', 'language=eng', '-metadata:s:a:1', 'language=fra',
     '-disposition:a:0', 'default', '-disposition:a:1', '0', join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv')]);
+  await writeFile(join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nPreplay French subtitle\n');
+  const theatrical = 'Audio Movie (2020) {tmdb-606} {edition-Theatrical}';
+  const directors = "Audio Movie (2020) {tmdb-606} {edition-Director's Cut}";
+  await copyFile(join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv'), join(fixtures.preplay, theatrical + '.mkv'));
+  run(ffmpeg, ['-v', 'error', '-y', '-i', join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv'),
+    '-map', '0:v:0', '-map', '0:a:1', '-map', '0:a:0', '-c', 'copy',
+    '-disposition:a:0', 'default', '-disposition:a:1', '0', join(fixtures.preplay, directors + '.mkv')]);
+  for (const name of [theatrical, directors]) {
+    await writeFile(join(fixtures.preplay, name + '.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nPreplay French subtitle\n');
+  }
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=6:size=960x540:rate=24',
     '-f', 'lavfi', '-i', 'sine=duration=6', '-vf', 'noise=alls=100:allf=t+u',
     '-c:v', 'libx264', '-threads', '2', '-preset', 'ultrafast', '-crf', '18', '-c:a', 'aac',
@@ -183,6 +193,7 @@ try {
   const season = join(fixtures.shows, 'Arc Show (2020)', 'Season 01');
   await mkdir(season, { recursive: true });
   for (const n of ['01', '02', '99']) await copyFile(sample, join(season, `Arc Show - S01E${n}.mp4`));
+  await writeFile(join(season, 'Arc Show - S01E01.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nEpisode French subtitle\n');
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(18200, '127.0.0.1', resolve); });
   console.log('Isolated browser fixture server ready.');
 } catch (err) { console.error(err); await cleanup(); process.exit(1); }
