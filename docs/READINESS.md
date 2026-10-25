@@ -62,6 +62,12 @@ One temporary evidence-copy command used web/ as cwd; final artifacts were copie
 No failure is relabelled as acceptance or hidden by a retry policy change.
 
 Raw JSON/logs, failure traces and screenshots: `/workspace/arc-cloud-evidence/web-server-review/`.
+First hosted run 40214846505 passed 85/86 browser journeys, with Windows, Linux Go/vet/race,
+image preparation and container acceptance passing; publication was skipped. The new library-order
+journey read allTextContents before the asynchronous sidebar list rendered (received [] instead
+of Films/Series). Its follow-up uses Playwright's waiting toHaveText assertion for the same exact
+ordered labels; no runtime behavior, timeout or retry policy changes. Actual follow-up validation
+and publication are recorded on the issues and in the evidence directory below.
 Final hosted full-suite/container/publication results are recorded on the issues/#162 and in that
 directory separately; previous runs remain historical. Current official Plex playback overview
 was readable, while navigation/completion/auto-sync/audio-enhancement pages returned 403; exact

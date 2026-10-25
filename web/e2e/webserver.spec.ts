@@ -56,8 +56,8 @@ test('web server: library order saves per profile, retries and never grants libr
   }
   await page.goto('/settings');
   const region = page.getByRole('region', { name: 'Library navigation order' });
-  const original = await page.locator('aside nav a[href^="/library/"]').allTextContents();
-  expect(original).toEqual(['Films', 'Series']);
+  const original = ['Films', 'Series'];
+  await expect(page.locator('aside nav a[href^="/library/"]')).toHaveText(original);
   let fail = true;
   await page.route('**/api/me/prefs', route => route.request().method() === 'PATCH' && fail && route.request().postDataJSON().library_order
     ? route.fulfill({ status: 503, json: { error: 'Order save unavailable' } }) : route.continue());
