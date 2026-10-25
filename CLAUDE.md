@@ -37,6 +37,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Library letter navigation (#188, 25 October): owner selected A–Z jumps after the initial
+  deferral. Title-sorted grids use an access/filter-aware server offset beyond loaded pages;
+  reverse, Load more, All titles, existing default-sort persistence and loaded-only selection
+  remain. Letter URLs and bounded tab-local history positions support returning from a title.
+  Numeric/non-Latin titles remain in normal browsing; no new collation/density/list settings.
+  Contract: docs/LIBRARY-NAVIGATION.md; actual checks and limits in READINESS/#188/#162.
+
 - Explicit library repairs/Stop/clock (#183/#184/#196): Manage libraries has separate confirmed
   Refresh all metadata and Reanalyze files actions, draining cursor pages rather than limiting
   operation scope to one page. They share the scanner library lease. Reanalysis preserves
@@ -53,7 +60,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Playback queue has an explicit label and a distinct icon from saved playlists. Approved
   hero/poster/background/Cast geometry and queue behavior are preserved. #188 was reviewed:
   existing search/filter/sort/paging and Back navigation are present; density/alphabet controls
-  are deferred pending an observed owner browsing task, not added from synthetic card counts.
+  were initially deferred. The owner subsequently selected jump-to-letter (#188); see the
+  current navigation contract below.
 
 - Preplay track choices (#186): Playback options on movies/series-next/episode rows opens a
   compact version/audio/subtitle dialog with Play/Resume. A profile-authenticated source-options

@@ -228,6 +228,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Add owned Stop controls for scans/library work/Activity and cancellable bulk refresh (#184)
 - [x] Show actual server time/zone and current/next maintenance window (#196)
 - [x] Move title metadata refresh into More and distinguish playback queue from saved playlists (#187)
+- [x] Add owner-selected, filter/access-aware A–Z library jumps with paging and Back position (#188)
 - [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
 - [ ] Verify playback, hardware conversion and casting on real devices (#135)
 - [ ] Prove failure recovery, upgrades and backup completeness (#136)
@@ -241,9 +242,6 @@ _Doesn't block development; must be done before AMS is shared or published._
 - [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
 
 ## Later
-
-- Library navigation density/alphabet controls (#188): reviewed and deferred until an owner
-  browsing task establishes which improvement helps; existing search/filters/sort/paging remain.
 
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR

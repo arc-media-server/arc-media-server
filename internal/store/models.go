@@ -146,6 +146,9 @@ type ItemQuery struct {
 	Reverse   bool   // reverse the selected sort direction
 	Limit     int
 	Offset    int
+	// Jump starts at an A–Z title boundary within the same filtered/access-controlled list.
+	// Only for title sort. ListItemsPage returns the effective offset for further paging.
+	Jump string
 	// What the profile may see: its age limit and libraries.
 	Access Access
 
