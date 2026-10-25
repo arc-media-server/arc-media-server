@@ -14,6 +14,7 @@ import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components
 import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { QueueActions } from '@/components/QueueActions';
 import { usePlayer } from '@/components/Player';
+import { PlaybackOptionsButton } from '@/components/PlaybackOptions';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
@@ -133,6 +134,7 @@ export function MoviePage() {
               <RotateCcw />
             </Button>
           )}
+          {playable && <PlaybackOptionsButton item={{ title: item.title, subtitle: [item.year, currentEdition].filter(Boolean).join(' · ') || undefined, itemId: item.id, src: item.stream_url!, startMS: resumeAt, edition: currentEdition }} />}
           <TrailerButton extras={item.extras} title={item.title} />
           <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
           <WatchlistButton item={item} />

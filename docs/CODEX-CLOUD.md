@@ -6,6 +6,14 @@ is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
 Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
 
+Preplay handoff (#186, 25 October): movie/series-next/episode Playback options offers
+version/audio/subtitle choices before Play/Resume. Shared server resolution prevents drift
+from normal playback; no stream/conversion begins in the dialog. Choices bind to the source,
+reset on version change, survive initial retry and preserve approved language learning only
+after successful start. Ordinary Play and optimized eligibility remain. Contract:
+[PREPLAY-OPTIONS.md](PREPLAY-OPTIONS.md); READINESS and #186/#162 record actual checks,
+injected-fixture boundaries, hosted publication and remaining physical-device limits.
+
 Clarity handoff (#181/#182/#185, 25 October): movie/show library controls have explicit
 labels and associated help without a layout redesign. Backups shows live automatic-backup
 policy, server-local maintenance hours, last saved successful backup, manual/safety availability

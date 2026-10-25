@@ -1,6 +1,73 @@
 # Stability and release readiness
 
 
+
+## Preplay source/track choices (#186, 25 October 2026)
+
+Clean starting commit becadf5 matched GitHub main read-only; work branch
+codex/preplay-track-options. Saved activation selected Go 1.27.0 and the prepared Node/npm,
+FFmpeg, dependencies/caches and pinned Chromium 156 revision 1248. No installation or owner
+media/settings/keys/Unraid access. Only generated clips, disposable stores and local providers.
+
+The finding remains current: tracks were selectable only after Play. Movies, series-next and
+available episode rows now offer Playback options with named version/audio/subtitle controls
+and Play/Resume. A new profile-authenticated options endpoint shares actual playback file,
+probe and preferred/default-audio resolution. It creates no stream/conversion or playback
+progress/preference write, though unprobed files can be inspected on demand. Access checks
+and source ownership apply. Version changes discard file-specific choices; labels follow the
+selected edition. Ordinary Play/Resume and optimized eligibility are unchanged. Source choices
+bind to the initial queue item/file and survive initial admission retry; picture subtitles enter
+the first request as burn-in. Off suppresses automatic selection, and a vanished text track
+reports profile-default fallback. Manual subtitle/version recovery clears that notice.
+
+Approved language learning applies after successful admission only, combining preplay audio/
+subtitle preference changes in one PATCH. Full subtitles remember language, forced ones do
+not overwrite it, and Off follows the existing subtitle-mode rule. Automatic defaults and
+cancellation do not learn choices. No migration, dependencies, quality policy or casting changes.
+Contract and Plex references: [PREPLAY-OPTIONS.md](PREPLAY-OPTIONS.md). The API reference was
+regenerated; its contract checks pass.
+
+Fresh validation:
+
+- Affected API/API-documentation ordinary checks: 89 tests/subtests (30 top-level), zero
+  failures/skips. Focused playback/options/optimized race checks: 50 tests/subtests (7
+  top-level), zero failures/skips. API tests verify French/two-letter/default/fallback audio,
+  source commentary choices, no playback URL/session or preference updates, malformed input,
+  unrelated file IDs and restricted-library denial. Existing best-version/optimized tests
+  retain their assertions. Vet and the embedded-server build pass.
+- Four new browser journeys pass, then a combined 10-journey run passes without failures,
+  skips or retries (103.3 seconds). Six existing journeys cover delayed-subtitle French/Off
+  races, optimized audio/output and measured bitrate budgets, editable queues/progress and
+  compact autoplay. These are ten distinct journeys, not the sum of repeated runs.
+- Actual generated two-language audio and external French subtitles play. An injected first
+  start failure performs no preference write; Retry preserves the exact file/audio in both
+  requests. Successful French uses the original/remux path rather than an English optimized
+  copy. Switching to English can use the matching optimized copy; Off remains Off and the
+  existing language preference policy is checked through the real API.
+- Generated theatrical/director files reverse their audio ordering. The chosen edition/file
+  resolves correctly; version switches reset IDs and defaults, errors offer Retry, cancellation
+  makes no playback/preference writes, and the actual selected file/audio reaches playback.
+  Episode header/keyboard row controls target First Chapter and display actual subtitle cues.
+- Picture tracks and removal-at-start are injected response fixtures: the first request has
+  burn_subtitle, a converter-unavailable error is explicit, and a missing text track explains
+  fallback. These prove request/recovery wiring, not physical PGS/DVD burn-in output. A focused
+  final follow-up checks that choosing actual English subtitles clears the fallback notice.
+- Production/app and e2e TypeScript, production UI build and diff checks pass. Desktop/390px
+  screenshots were inspected. Screenshot review caught and corrected a stale original-edition
+  description after changing versions; the selected-edition assertion now guards it.
+
+Development failures are retained: initial Go compilation found an extracted local error
+variable that needed declaring; the first browser pass had two fixture assertion failures
+(language normalizes fre to fra; a status locator matched both page and player). The next four
+journeys and combined ten pass; no failures are relabelled as successful runs. A final isolated
+notice-clear check is retained separately. Full hosted validation/publication is tracked on
+#186/#162 and saved alongside local results, rather than assumed from historical runs.
+
+Evidence: `/workspace/arc-cloud-evidence/preplay-186/` (START.json, backend-final.jsonl,
+race-final.jsonl, first.json/final.json/verified.json, fallback.json, logs, traces and screenshots).
+Physical devices, actual HDR/Atmos output, cast receiver choices (#192), screen-reader acceptance
+and owner-server/sustained-use checks remain unverified here. No persistent server is started.
+
 ## Library, backup and bulk-selection clarity (#181/#182/#185, 25 October 2026)
 
 Starting checkout c8dc62c was clean and matched GitHub main read-only. Work branch:

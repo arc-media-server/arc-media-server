@@ -177,3 +177,10 @@ export const devicePresets: { id: string; label: string; caps: () => PlayerCaps 
     caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac'], max_height: 2160 }),
   },
 ];
+
+/** The existing player learning policy: forced subtitles do not replace the preferred language. */
+export function rememberedSubtitleLanguage(track: SubtitleTrack | null, mode: SubtitleMode = ''): string | undefined {
+  if (track && !track.forced) return track.language ?? '';
+  if (!track && !mode) return '';
+  return undefined;
+}

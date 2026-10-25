@@ -37,6 +37,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Preplay track choices (#186): Playback options on movies/series-next/episode rows opens a
+  compact version/audio/subtitle dialog with Play/Resume. A profile-authenticated source-options
+  endpoint shares actual playback file/audio resolution and starts no stream or conversion.
+  Version changes reset track IDs; explicit choices bind to the selected file and survive
+  initial retry. Subtitle Off is explicit, picture burn-in enters the first request, and a
+  disappeared text track reports fallback. The selected edition label follows the chosen file.
+  Ordinary Play, approved profile learning and optimized eligibility remain; cancelling/failed
+  starts do not learn preferences. No migration/dependencies. Contract: PREPLAY-OPTIONS.md;
+  actual isolated checks/limits in READINESS; hosted publication and completion on #186/#162.
+
 - Library/backup/bulk clarity (#181/#182/#185): library name and movie/show advanced selects
   now have explicit labels with unique IDs; existing explanatory text is associated with the
   corresponding select. Backups reads live settings, reports On/Off and the server-local
