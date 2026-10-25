@@ -12,7 +12,11 @@ identity/presence/history. Stop cancels scanner-owned follow-ups/retry timers an
 independent across server lifetimes. Server clock/window values are server-derived, including
 DST and all-day/overnight cases. Title Refresh moved into More; queue/playlist labels/icons
 are distinct. #188 navigation controls are reviewed/deferred pending real owner task evidence.
-Contract: [LIBRARY-WORK-CONTROLS.md](LIBRARY-WORK-CONTROLS.md); actual results and limitations
+First hosted 8594200 passed 76/77 journeys and blocked publication: the older refresh-recovery
+journey still targeted a Refresh button. It now opens More → Refresh metadata, retaining
+all failure/Retry/watchlist assertions and runtime/CI behavior. Final hosted outcome is
+recorded on the issues and in the task evidence folder. Contract:
+[LIBRARY-WORK-CONTROLS.md](LIBRARY-WORK-CONTROLS.md); actual results and limitations
 in READINESS and the individual GitHub issues/#162. No migration or dependency installation.
 
 Preplay handoff (#186, 25 October): movie/series-next/episode Playback options offers

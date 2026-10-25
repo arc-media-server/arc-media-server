@@ -46,6 +46,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   across restarts. Partial discovery never sweeps unvisited files. Existing bulk refresh is
   cancellable too. A server-derived maintenance clock handles overnight/all-day/DST policy.
   Contract: LIBRARY-WORK-CONTROLS.md; actual local/hosted evidence and limits: READINESS/issues.
+  First hosted 8594200 passed 76/77 browser journeys but blocked publication on an older
+  Refresh-button selector. The existing recovery test now opens More → Refresh metadata;
+  its failure/Retry/persisted-watchlist assertions and all runtime/CI behavior remain.
 - Title actions (#187): Refresh metadata lives in More, with existing failure Retry retained.
   Playback queue has an explicit label and a distinct icon from saved playlists. Approved
   hero/poster/background/Cast geometry and queue behavior are preserved. #188 was reviewed:

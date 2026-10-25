@@ -471,9 +471,10 @@ test('comparison keeps selections on failure and profiles can return to inherite
 test('ratings, watchlist and metadata refresh failures explain and recover', async ({ page }) => {
   const { item } = await seed(page);
   await page.goto('/movie/' + item.id);
-  for (const [suffix, action] of [['rating', '5 stars'], ['watchlist', 'Add to Watchlist'], ['refresh', 'Refresh']]) {
+  for (const [suffix, action] of [['rating', '5 stars'], ['watchlist', 'Add to Watchlist'], ['refresh', 'Refresh metadata']]) {
     await page.route('**/' + suffix, r => r.fulfill({ status: 503, json: { error: suffix + ' unavailable' } }));
-    await page.getByRole(suffix === 'rating' ? 'radio' : 'button', { name: action, exact: true }).click();
+    if (suffix === 'refresh') await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole(suffix === 'rating' ? 'radio' : suffix === 'refresh' ? 'menuitem' : 'button', { name: action, exact: true }).click();
     await expect(page.getByText(suffix + ' unavailable', { exact: true })).toBeVisible();
     await page.unroute('**/' + suffix);
     await page.getByRole('button', { name: 'Retry', exact: true }).click();

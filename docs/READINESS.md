@@ -71,8 +71,14 @@ await in the actual provider-response branch, producing 5 passes/2 failures; cor
 seven pass. A wrong working-directory harness preparation and an obsolete interrupted run
 (exit 130) are also retained. Production failures were not concealed by retries.
 
-Final hosted verification/publication is recorded on the individual issues/#162 and alongside
-these artifacts after its new run completes. Prior runs are not substituted. Evidence:
+First hosted run 40176974946 at 8594200 passed Windows, Linux Go/vet/race, container
+acceptance and all seven new journeys, but finished with 76/77 browser passes. Publication
+was correctly skipped. The existing ratings/watchlist/refresh recovery journey still searched
+for the former Refresh button. Its follow-up opens More and selects Refresh metadata; all
+failure feedback, Retry and persisted-watchlist assertions remain. No runtime, gate or retry
+policy change. The corrected journey passes locally; raw hosted failure is retained as
+hosted-first-linux.log. Final hosted verification/publication is recorded on the individual
+issues/#162 and alongside these artifacts after the follow-up run completes. Prior runs are not substituted. Evidence:
 `/workspace/arc-cloud-evidence/review-183-184-196-187-188/` (START.json, go-final.jsonl,
 race-final.jsonl, analysis-preservation-final.jsonl, passed.json, existing.json, mobile.json,
 failure.json, restart.json and failure traces/screenshots). Physical NAS/device/provider quotas,
