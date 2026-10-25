@@ -52,6 +52,16 @@ command used web/ as cwd and was rerun from the repository root. No failure is r
 acceptance and no timeout/retry/assertion coverage was weakened.
 
 Raw JSON/logs/screenshots: `/workspace/arc-cloud-evidence/episode-details-specials/`.
+First hosted run 40231916541 passed 88/89 browser journeys, including all three new journeys;
+Windows, Linux Go/vet/race, container acceptance and image preparation passed, while publication
+was skipped. The older Settings upload-error viewport check failed. Its downloaded screenshot/
+trace shows Save still moving after early centering; actionability then auto-scrolled it to
+y=687.5 in a 720px viewport, leaving inline feedback below the fold. The unchanged journey passes
+locally. Its follow-up waits for actionability with a trial click, centers the stabilized Save
+and verifies feedback room before the real click. Error content/viewport/Retry/persistence
+assertions, runtime Settings code, timeouts and retry policy remain unchanged. The failed hosted
+log/report/trace remain evidence. The corrected Settings journey and all three new journeys
+pass together locally (4/4, 22.40s, zero failures/skips/retries), with e2e TypeScript/diff checks.
 Final hosted full-suite/container/publication results are recorded separately on #106/#109/#162
 and in that directory. Earlier results remain historical. Fixtures do not establish real-world
 provider data accuracy, all cross-provider mappings, owner-library throughput, physical-device,
