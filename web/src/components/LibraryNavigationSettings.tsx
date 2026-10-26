@@ -18,7 +18,7 @@ export function LibraryNavigationSettings({ prefs, update }: { prefs: Prefs; upd
   return (
     <section aria-label="Library navigation order" className="space-y-3 rounded-2xl bg-surface p-4 ring-1 ring-border">
       <h2 className="font-medium">Library order</h2>
-      <p className="text-sm text-muted">Arrange the libraries in your sidebar and phone navigation. All your available libraries stay visible; Home rows and access permissions are separate.</p>
+      <p className="text-sm text-muted">The order of libraries in your sidebar and menus.</p>
       {libraries.error ? <ErrorNotice error={libraries.error} onRetry={() => void libraries.refetch()} />
         : !libraries.data ? <p role="status" className="text-sm text-muted">Loading libraries…</p>
         : ordered.length === 0 ? <p className="text-sm text-muted">No libraries available.</p>
