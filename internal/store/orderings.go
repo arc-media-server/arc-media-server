@@ -420,3 +420,14 @@ func (s *Store) ClearDisplayOrdering(ctx context.Context, seriesID, userID strin
 		`DELETE FROM series_display WHERE series_id = ? AND user_id = ?`, seriesID, userID)
 	return err
 }
+
+// DisplayChoice returns the saved choice, or zero when the next default applies. Administrators
+// edit the server default too; ordinary profiles only edit their own override.
+func (s *Store) DisplayChoice(ctx context.Context, seriesID, userID string, admin bool) (int64, error) {
+	var id int64
+	err := s.db.QueryRowContext(ctx, `SELECT ordering_id FROM series_display WHERE series_id=? AND (user_id=? OR (? AND user_id='')) ORDER BY user_id='' LIMIT 1`, seriesID, userID, admin).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return id, err
+}

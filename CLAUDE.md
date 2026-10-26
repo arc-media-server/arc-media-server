@@ -37,6 +37,19 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Fast development images and ordering form (26 October): owner explicitly removed full
+  verification from the main image feedback loop. Main publishes latest/SHA after compilation
+  and image building; tests/race/browser/container jobs are intentionally skipped, not passed.
+  Full verification remains the manual default and gates v-prefixed tags/PR validation.
+  Manual/version publication uses SHA/version tags, leaving development latest to main pushes.
+  New main pushes cancel superseded image runs. Policy: docs/IMAGE-PUBLISHING.md.
+  Display order/Specials now use full-width native form fields beside File episode order;
+  Compare orders is a separate button. Saved choices are distinguished from inherited effective
+  order without changing files/metadata or Save/Cancel/profile behavior. Actual focused checks
+  and hosted publication timing: READINESS and GitHub handoff. No full-suite claim for this UI/
+  workflow change; prior 93/93 acceptance at 2ba97df is historical.
+
+
 - Metadata/order simplification and Recently Added (26 October): library Metadata provider
   selects show information; File episode order selects filename interpretation and episode
   information, with per-show override in Edit → Metadata & ordering. Display order/specials
@@ -255,7 +268,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Isolated verification evidence and deployment limits are recorded in docs/READINESS.md.
 
 - Release scheduling (22 October): Docker image preparation now runs alongside verification.
-  Only the final gated job tags the prepared digest as latest/commit; all existing checks remain.
+  That original all-push gate is superseded by the owner-approved development-image policy
+  above. Full verification remains for manual/version/PR runs.
   FFmpeg/browser installation and jobs have time limits to prevent indefinite runner stalls.
   Local workflow structure/shell checks pass; hosted validation/timing is separate evidence in
   docs/READINESS.md. Container acceptance still builds its own isolated image.

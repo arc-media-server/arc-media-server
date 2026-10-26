@@ -1,4 +1,11 @@
 import { test as base, expect, type Page } from '@playwright/test';
+
+async function chooseDisplay(page: Page, label: RegExp) {
+ const select=page.getByRole('combobox',{name:'Display order',exact:true});
+ const value=await select.locator('option').filter({hasText:label}).first().getAttribute('value');
+ if(!value)throw new Error('Display option missing');
+ await select.selectOption(value);
+}
 import type { Item, SeasonsResponse } from '../src/lib/api';
 
 const test = base.extend<{ media: { specials: string } }>({
@@ -67,9 +74,16 @@ test('metadata ordering: staged file order, Retry, scoped refresh and independen
   await open();
   await expect(dialog.getByRole('combobox',{name:'File episode order',exact:true})).toHaveValue('tvdb_aired');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await dialog.getByRole('button',{name:'Save',exact:true}).click({trial:true});
+  const boxes=await dialog.getByRole('combobox').evaluateAll(elements=>elements.map(element=>{
+    const box=element.getBoundingClientRect();return {x:box.x,width:box.width};
+  }));
+  expect(boxes).toHaveLength(3);
+  for(const box of boxes.slice(1)){
+    expect(box.x).toBeCloseTo(boxes[0].x,0);expect(box.width).toBeCloseTo(boxes[0].width,0);
+  }
   await page.screenshot({path:info.outputPath('show-metadata-ordering-phone.png')});
-  await dialog.getByRole('button',{name:/Aired Order/}).click();
-  await page.getByRole('menuitemradio',{name:'Aired Order (TMDB)',exact:true}).click();
+  await chooseDisplay(page,/TMDB.*Aired Order/);
   await dialog.getByRole('button',{name:'Save',exact:true}).click();
   await expect(dialog).not.toBeVisible();
   expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
@@ -155,8 +169,8 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   await page.goto(`/series/${series.id}`);
   let fail = true;
   await page.route('**/api/series/*/specials', route => fail ? route.fulfill({ status: 503, json: { error: 'Specials save unavailable' } }) : route.continue());
-  const menu = async () => { await page.getByRole('button', { name: 'Episode ordering…', exact:true }).click(); await page.getByRole('button', {name:/^Aired Order/}).click(); };
-  await menu(); await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
+  const menu = async () => { await page.getByRole('button', { name: 'Episode ordering…', exact:true }).click(); };
+  await menu(); await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('on'); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Specials save unavailable');
   expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(false);
   fail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click();
@@ -173,9 +187,9 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   const user = await (await page.request.post('/api/profiles', { data: { name: 'Other viewer' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: user.id } })).ok()).toBeTruthy();
   await page.reload();
-  await menu(); await expect(page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true })).toBeChecked();
-  await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
+  await menu(); await expect(page.getByRole('combobox',{name:'Specials in seasons',exact:true})).toHaveValue('inherit');
+  await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('off'); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toHaveCount(0);
-  await menu(); await page.getByRole('menuitem', { name: 'Use server specials setting', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
+  await menu(); await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('inherit'); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
 });

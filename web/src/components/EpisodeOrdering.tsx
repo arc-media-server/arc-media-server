@@ -1,86 +1,59 @@
-import { ChevronDown, GitCompareArrows, ListOrdered, Loader2 } from 'lucide-react';
+import { useId } from 'react';
+import { GitCompareArrows } from 'lucide-react';
 import type { Ordering } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-export function OrderingMenu({
-  orderings,
-  selected,
-  pending,
-  onSelect,
-  onCompare,
-  admin, onReset,
-  inlineSpecials, onSpecials, specialsPending,
+import { FieldLabel, inputClass } from '@/components/ui/field';
+
+/** Staged form fields; the enclosing Edit dialog owns Save/Cancel and error recovery. */
+export function EpisodeOrderingFields({
+  orderings, selected, pending, onSelect, onCompare, admin, specials, onSpecials,
 }: {
   orderings: Ordering[];
   selected: number;
   pending: boolean;
-  onSelect: (id: number) => void;
+  onSelect: (id: number | null) => void;
   onCompare?: () => void;
   admin: boolean;
-  onReset: () => void;
-  inlineSpecials: boolean;
-  onSpecials: (inline: boolean | null) => void;
-  specialsPending: boolean;
+  specials: 'inherit' | 'on' | 'off';
+  onSpecials: (value: boolean | null) => void;
 }) {
-  const current = orderings.find((o) => o.id === selected);
+  const id = useId();
   const groups: [string, Ordering[]][] = [
-    ['TheTVDB', orderings.filter((o) => o.source.startsWith('tvdb'))],
-    ['TMDB', orderings.filter((o) => o.source.startsWith('tmdb'))],
-    ['Custom', orderings.filter((o) => o.source === 'custom')],
-    ['From File Names', orderings.filter((o) => o.source === 'file')],
+    ['TheTVDB', orderings.filter(o => o.source.startsWith('tvdb'))],
+    ['TMDB', orderings.filter(o => o.source.startsWith('tmdb'))],
+    ['Custom', orderings.filter(o => o.source === 'custom')],
+    ['From file names', orderings.filter(o => o.source === 'file')],
   ];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="sm" disabled={pending}>
-          {pending ? <Loader2 className="animate-spin" /> : <ListOrdered />}
-          {pending ? 'Matching episodes…' : (current?.name ?? (admin ? 'Follow file order' : 'Use server default'))}
-          {current && !pending && <span className="text-subtle">{providerLabel(current)}</span>}
-          <ChevronDown className="text-subtle" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuRadioGroup value={String(selected)} onValueChange={(v) => onSelect(Number(v))}>
-          {groups
-            .filter(([, list]) => list.length)
-            .map(([label, list], i) => (
-              <div key={label}>
-                {i > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuLabel>{label}</DropdownMenuLabel>
-                {list.map((o) => (
-                  <DropdownMenuRadioItem key={o.id} value={String(o.id)} aria-label={`${o.name}${providerLabel(o) ? ` (${providerLabel(o)})` : ''}`}>
-                    <div className="min-w-0">
-                      <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-subtle">
-                        {[o.description?.replace(/^(TVDB|TMDB)( · )?/, ''), fmt.plural(o.episode_count, 'episode')].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                  </DropdownMenuRadioItem>
-                ))}
-              </div>
-            ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem checked={inlineSpecials} disabled={specialsPending} onCheckedChange={(checked) => onSpecials(checked)}>
-          Show specials in seasons
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuItem disabled={specialsPending} onSelect={() => onSpecials(null)}>{admin ? 'Reset specials to Off' : 'Use server specials setting'}</DropdownMenuItem>
-        <DropdownMenuLabel className="whitespace-normal text-xs font-normal">Uses TheTVDB placement hints from metadata refresh. Unknown specials stay in Specials. Manual/custom orders stay as arranged.</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>{admin ? 'Your choice also sets the server default' : 'Your profile only'}</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={onReset}>{admin ? 'Follow file order' : 'Use server default'}</DropdownMenuItem>
-        {onCompare && (
-          <DropdownMenuItem onSelect={onCompare}>
-            <GitCompareArrows className="size-4 text-muted" /> Compare Orders…
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem disabled className="text-xs text-subtle">
-          Changes how episodes are shown. Your files aren't touched.
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  return <div className="space-y-6">
+    <div>
+      <label htmlFor={`${id}-display`}><FieldLabel>Display order</FieldLabel></label>
+      <select id={`${id}-display`} aria-describedby={`${id}-display-help`} value={selected || 'inherit'} disabled={pending}
+        onChange={e => onSelect(e.target.value === 'inherit' ? null : Number(e.target.value))} className={inputClass}>
+        <option value="inherit">{admin ? 'Follow file order' : 'Use server default'}</option>
+        {groups.filter(([, list]) => list.length).map(([label, list]) => <optgroup key={label} label={label}>
+          {list.map(o => <option key={o.id} value={o.id}>
+            {[providerLabel(o), o.name, fmt.plural(o.episode_count, 'episode')].filter(Boolean).join(' · ')}
+          </option>)}
+        </optgroup>)}
+      </select>
+      <p id={`${id}-display-help`} className="mt-1.5 text-xs text-subtle">Changes browsing and playback sequence. Your files keep the same episode identities.</p>
+      {onCompare && <Button type="button" variant="ghost" size="sm" className="mt-2" disabled={pending} onClick={onCompare}>
+        <GitCompareArrows className="size-4" /> Compare orders…
+      </Button>}
+    </div>
+    <div>
+      <label htmlFor={`${id}-specials`}><FieldLabel>Specials in seasons</FieldLabel></label>
+      <select id={`${id}-specials`} aria-describedby={`${id}-specials-help`} value={specials} disabled={pending}
+        onChange={e => onSpecials(e.target.value === 'inherit' ? null : e.target.value === 'on')} className={inputClass}>
+        <option value="inherit">{admin ? 'Default (Off)' : 'Use server setting'}</option>
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+      <p id={`${id}-specials-help`} className="mt-1.5 text-xs text-subtle">Places specials between regular episodes when their position is known. Others stay in Specials; custom placements are kept.</p>
+    </div>
+    <p className="text-xs text-subtle">{admin ? 'Your choice also sets the server default' : 'Your profile only'}</p>
+  </div>;
 }
 
 function providerLabel(o: Ordering) {

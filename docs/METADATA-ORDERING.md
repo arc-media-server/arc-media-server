@@ -13,6 +13,10 @@ single-show refresh scope and the Recently Added episode-sample cutoff.
 | Edit Show, Metadata & ordering | File episode order | Library default or per-show TMDB aired / TVDB aired, DVD or absolute override |
 | Edit Show, Metadata & ordering | Display order | Presentation/playback traversal of identified episodes; Follow file order or another available provider/custom order |
 
+Display order and Specials in seasons are full-width native form fields matching File episode
+order. Compare orders is a separate button. The form distinguishes a saved display choice from
+its inherited effective order, so Follow file order / Use server default are shown accurately.
+
 The season area has an Episode ordering… shortcut to this same dialog. Ordinary profiles
 can change display order/specials for themselves; file numbering and library metadata remain
 administrator-only. The administrator's display choice also sets the existing server default.

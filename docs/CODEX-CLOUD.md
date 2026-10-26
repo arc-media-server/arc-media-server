@@ -272,3 +272,13 @@ for rollback. Scoped show refreshes coordinate with library work and do not disc
 files. Recently Added removes the pre-grouping 400-episode cutoff. READINESS and the GitHub
 handoff record actual checks/failures; live Duncanville/owner-data/provider completeness is
 not established by local fixtures. No production access or persistent server.
+
+
+## Fast owner image feedback — 26 October 2026
+
+The owner explicitly requested fast internal images. IMAGE-PUBLISHING.md supersedes earlier
+all-main-push verification gates: main builds/publishes latest/SHA without waiting for the
+full suite. Skipped checks are not passes. Full manual verification remains the default and
+version tags are gated. Use focused local checks for the actual change; do not rerun the full
+suite merely to publish small owner fixes. Record scope/results/limits and actual image timing.
+Display ordering now uses proper staged form fields, including saved versus inherited choice.

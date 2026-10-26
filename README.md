@@ -301,8 +301,9 @@ Motion for animation and TanStack Query for data loading.
 ### Stability and release readiness
 
 The current readiness checklist and required evidence are in [docs/READINESS.md](docs/READINESS.md).
-GitHub runs the web build and Go checks on Linux and Windows before publishing a Docker image.
-Linux also runs media tests with FFmpeg and checks for data races.
+Normal main pushes publish the development Docker image after compilation/building. Full
+Linux/Windows, media, race, browser and container verification runs on demand and gates version
+tags. See [image publishing policy](docs/IMAGE-PUBLISHING.md).
 
 Browser regressions run against the real server using generated clips, local metadata fixtures
 and a new temporary database for every test. No personal API keys, settings or media are used.
@@ -338,7 +339,8 @@ hardening pass does not provide a trusted-proxy setting for password-free access
 
 GitHub builds an image on every push to `main` (`.github/workflows/docker.yml`), for normal PCs
 and servers (amd64) and ARM boards like the Raspberry Pi (arm64):
-`ghcr.io/jonzauk/arc-media-server:latest`. It includes FFmpeg.
+`ghcr.io/jonzauk/arc-media-server:latest`. It includes FFmpeg. This is the fast development
+channel; full verification is separate and gates version-tagged images.
 
 1. The repository is private, so sign in to the registry once: `docker login ghcr.io` (your GitHub
    name, and a personal access token with `read:packages` as the password).
