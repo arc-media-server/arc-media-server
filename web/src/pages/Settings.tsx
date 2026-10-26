@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
+import { EmptyTrashControl } from '@/components/EmptyTrashTask';
 import { MaintenanceTasks } from '@/components/ScheduledWork';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
@@ -535,6 +536,13 @@ function ServerSettings() {
                   description: 'A daily database backup. Manual and safety backups are always available in Backups & restore.',
                   control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Automatic database backups" />,
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
+                },
+                {
+                  kind: 'empty_trash', label: 'Empty trash automatically',
+                  description: 'Off by default. During maintenance after a fresh complete scan, permanently remove missing records and their watch history. Every folder needs a readable known file; otherwise cleanup waits. A safety backup is required. Media files are never deleted.',
+                  control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
+                  feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
+                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">Choose library…</Link>,
                 },
               ]}
             />

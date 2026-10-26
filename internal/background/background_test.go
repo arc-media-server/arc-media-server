@@ -385,3 +385,35 @@ func TestAnalysisActivityIdentifiesLibraryAndFile(t *testing.T) {
 		t.Fatalf("analysis cleanup: %d %+v %+v", calls, running, recent)
 	}
 }
+
+func TestEmptyTrashOnlyOptInMaintenance(t *testing.T) {
+	ctx, _, m, _ := fixture(t)
+	if m.Ready("empty_trash") {
+		t.Fatal("enabled without opt-in")
+	}
+	m.Configure(settings.Settings{EmptyTrashEnabled: true})
+	if !m.Ready("empty_trash") {
+		t.Fatal("cleanup depended on metadata or auto-backup setting")
+	}
+	m.now = func() time.Time { return time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC) }
+	if m.Ready("empty_trash") {
+		t.Fatal("cleanup outside window")
+	}
+	if err := m.RunNow(ctx, "empty_trash"); err == nil {
+		t.Fatal("unconfirmed global Run now admitted")
+	}
+	m.now = func() time.Time { return time.Date(2026, 10, 23, 3, 0, 0, 0, time.UTC) }
+	m.SetPlayback(func() bool { return true })
+	if m.Ready("empty_trash") {
+		t.Fatal("cleanup during playback")
+	}
+	m.SetPlayback(nil)
+	scan := m.Activity.Start("scan", "Scanning")
+	if m.Ready("empty_trash") {
+		t.Fatal("cleanup during discovery")
+	}
+	scan.Finish(nil)
+	if !m.Ready("empty_trash") {
+		t.Fatal("cleanup did not resume")
+	}
+}

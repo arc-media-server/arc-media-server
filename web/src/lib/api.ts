@@ -158,7 +158,7 @@ export interface Item {
 
 export interface ScanStatus {
   job_id?: number;
-  operation?: 'scan' | 'maintenance' | 'refresh' | 'analyze';
+  operation?: 'scan' | 'maintenance' | 'refresh' | 'analyze' | 'empty_trash';
   stopping?: boolean;
   stopped?: boolean;
   running: boolean;
@@ -876,6 +876,7 @@ export interface ServerSettings {
   analysis_enabled: boolean;
   metadata_refresh_enabled: boolean;
   auto_backups_enabled: boolean;
+  empty_trash_enabled: boolean;
   maintenance_start: number;
   maintenance_end: number;
   /** Make scrubbing previews only in the maintenance window. */
@@ -988,7 +989,7 @@ export const api = {
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'empty_trash_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
