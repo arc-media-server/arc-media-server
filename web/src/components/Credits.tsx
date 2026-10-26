@@ -1,8 +1,7 @@
-import { Fragment, useRef } from 'react';
+import { Fragment } from 'react';
 import { Link } from 'react-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Credit, Item } from '@/lib/api';
-import { cn } from '@/lib/utils';
+import { RowShell } from '@/components/RowShell';
 import * as fmt from '@/lib/format';
 import { Scores } from '@/components/Scores';
 
@@ -64,16 +63,12 @@ export function showStatus(item: Item): string {
 
 /** A scrolling row of the cast, with photos. */
 export function CastRow({ credits, title = 'Cast' }: { credits?: Credit[]; title?: string }) {
-  const scroller = useRef<HTMLDivElement>(null);
   const cast = (credits ?? []).filter((c) => c.role === 'actor');
   if (!cast.length) return null;
-  const scroll = (dir: 1 | -1) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
   return (
-    <section className="group/row relative mt-6">
-      <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">{title}</h2>
-      <div ref={scroller} className="scrollbar-none flex gap-5 overflow-x-auto px-6 pb-2 md:px-10">
+    <RowShell title={title} className="mt-6">
         {cast.map((c) => (
-          <Link key={c.person_id} to={`/person/${c.person_id}`} className="group/person w-24 shrink-0 text-center outline-none">
+          <Link key={c.person_id} to={`/person/${c.person_id}`} className="group/person w-24 shrink-0 snap-start text-center outline-none">
             <div className="mx-auto size-24 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border transition-transform duration-300 group-hover/person:scale-105 group-focus-visible/person:ring-2 group-focus-visible/person:ring-accent">
               {c.image ? (
                 <img src={c.image} alt="" loading="lazy" className="size-full object-cover" />
@@ -86,23 +81,7 @@ export function CastRow({ credits, title = 'Cast' }: { credits?: Credit[]; title
             {!!c.episode_count && <p className="mt-0.5 text-xs text-subtle">{fmt.plural(c.episode_count, 'episode')}</p>}
           </Link>
         ))}
-      </div>
-      {cast.length > 8 &&
-        ([-1, 1] as const).map((dir) => (
-          <button
-            key={dir}
-            type="button"
-            aria-label={dir < 0 ? 'Scroll left' : 'Scroll right'}
-            onClick={() => scroll(dir)}
-            className={cn(
-              'glass absolute top-[60px] hidden size-10 items-center justify-center rounded-full border border-border opacity-0 shadow-xl transition-opacity group-hover/row:opacity-100 md:flex',
-              dir < 0 ? 'left-3' : 'right-3',
-            )}
-          >
-            {dir < 0 ? <ChevronLeft className="size-5" /> : <ChevronRight className="size-5" />}
-          </button>
-        ))}
-    </section>
+    </RowShell>
   );
 }
 

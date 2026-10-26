@@ -1,5 +1,48 @@
 # Stability and release readiness
 
+## Desktop row navigation and profile Home hero (26 October 2026)
+
+Started clean at main `3c0a480`, branch `codex/desktop-row-navigation`; rebased cleanly onto
+`5833fbb` after Claude’s Activity #217 merged. Poster/thumb, cast and
+Extras rows share actual-overflow-aware visible header arrows, disabled at each end. Keyboard
+row navigation, focus reveal, resize updates, reduced motion and native horizontal input remain;
+normal mouse-wheel vertical page scrolling is explicitly checked. Fixed cast-count gating and
+missing Extras controls are removed. Existing card widths, actions and links remain.
+
+Your profile → Home → Show home hero defaults On. The optional `show_home_hero` preference is
+saved with the profile's existing JSON, preserves unrelated edits/default layouts and leaves
+other profiles unchanged. Off removes the banner/large gap and its queries/timer while retaining
+rows and an accessible Edit Home toolbar. Existing optimistic rollback/Retry is reused. No schema
+migration or dependency/tool installation. Contract: [HOME-NAVIGATION.md](HOME-NAVIGATION.md).
+
+Actual local validation at this baseline:
+
+- **104/104 full browser journeys** pass together (637.56s), zero failures/skips/retries or
+  uncaught suite errors, against the prepared pinned Chromium rev1248. Includes six new journeys
+  covering mouse/keyboard/endpoints/focus, true overflow with seven cast members, Extras,
+  resizing, horizontal wheel, normal vertical wheel, phone geometry and hero default/save
+  failure/Retry/restart/query suppression. Full raw JSON and earlier artifacts are preserved.
+- **100/100 API Go tests/subtests** (38 top-level), zero failures/skips, including persisted
+  hero choice, profile isolation, unrelated patches and strict boolean types. API-package vet
+  passes. Production/app TypeScript, e2e TypeScript, production UI and the browser fixture's real
+  embedded-server build pass. The six adaptive policy tests also pass.
+- After the clean #217 rebase, the rebuilt combined UI and all six new journeys pass again
+  (23.2s); all 100 API checks and API vet pass on that integrated baseline too. The full 104-run
+  above was at the starting baseline, followed by this focused integration check.
+- Initial new-browser run: 2/5 passed, 3 failed because new test selectors expected only a
+  poster's title, while its existing accessible link also includes image text/year. Corrected
+  those selectors; the five passed (20.3s). Added the sixth vertical-wheel case and query-request
+  check, then ran the full suite above. No runtime failure was masked and no assertions,
+  timeouts, retry settings or existing tests were weakened.
+
+Evidence: `/workspace/arc-cloud-evidence/desktop-navigation/`, including JSON/logs and inspected
+light/dark desktop, narrow layout and hidden-hero captures. Large rows/cast/Extras/banner artwork
+are injected UI fixtures, not provider or large-real-library acceptance. No owner data/settings/
+keys, Unraid, persistent server, container/deployment, full Go/race suite or physical owner-PC/
+other-browser-engine validation. Prepared Go 1.27.0 / Node 24.19.0 / npm 11.9.0. Current policy
+starts no Actions on PRs; checks are local and the owner merges after review.
+
+
 ## Weekly database/cache upkeep (#203, 26 October 2026)
 
 Started clean from main `fadb49c` after #204 merged, on `codex/maintenance-upkeep-203`.

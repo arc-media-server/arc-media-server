@@ -15,6 +15,8 @@ import (
 // kept spoiler-free.
 
 type prefs struct {
+	// Large featured banner on Home; absent keeps the existing visible default.
+	ShowHomeHero *bool `json:"show_home_hero,omitempty"`
 	// Library navigation order only; never changes library visibility or Home rows.
 	LibraryOrder []int64 `json:"library_order,omitempty"`
 	// Percentage for future progress reports; zero keeps the existing 90% default.
@@ -308,6 +310,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		return
 	}
 	var body struct {
+		ShowHomeHero     *bool          `json:"show_home_hero"`
 		HideSpoilers     *bool          `json:"hide_spoilers"`
 		LibraryOrder     *[]int64       `json:"library_order"`
 		WatchedPercent   *int           `json:"watched_percent"`
@@ -325,6 +328,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "send the preferences to change as JSON")
 		return
+	}
+	if body.ShowHomeHero != nil {
+		p.ShowHomeHero = body.ShowHomeHero
 	}
 	if body.HideSpoilers != nil {
 		p.HideSpoilers = *body.HideSpoilers
