@@ -1,7 +1,7 @@
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
-import { ScheduledWork } from '@/components/ScheduledWork';
+import { MaintenanceTasks } from '@/components/ScheduledWork';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
 import { FolderPicker } from '@/components/FolderPicker';
@@ -356,7 +356,7 @@ function ServerSettings() {
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
-          <Section title="Intro & credit detection" hint="Create the markers used by Skip Intro, Recap and Credits. Automatic skipping is a separate preference in Your profile. Each library chooses whether to offer Skip Intro and Skip Credits (Libraries › Edit).">
+          <Section title="Intro & credit detection" hint="Where the markers for Skip Intro, Recap and Credits come from. Each library chooses whether to offer them (Manage libraries › Edit), and automatic skipping is a preference in Your profile.">
             <Row
               label="Chapters and IntroDB"
               description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
@@ -369,8 +369,8 @@ function ServerSettings() {
               link="https://theintrodb.org"
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
-            <Row setting="detection_mode" label="Find intros and credits on this computer" description="Compare episodes or analyse movie credits when online markers are unavailable. Existing files wait for maintenance; library intro/credits switches still apply.">
-              <ProcessingSelect label="Local intro and credits detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />
+            <Row label="Find intros and credits on this computer" description={<>When there are no chapters or online markers, Arc compares a season&apos;s episodes or looks for movie credits itself. It is a scheduled task: choose when it runs in Maintenance &amp; diagnostics. Currently: {processingLabels[s.detection_mode]}.</>}>
+              <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">Scheduled tasks</Link>
             </Row>
           </Section>
 
@@ -504,13 +504,40 @@ function ServerSettings() {
               </div>
             </Row>
             <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
-            <Row setting="preview_mode" label="Scrubbing previews" description="Applies to libraries with previews enabled. Existing files wait for maintenance. Optional work pauses for playback or scanning.">
-              <ProcessingSelect label="Scrubbing preview processing" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />
-            </Row>
-            <ToggleRow setting="analysis_enabled" label="Update existing media analysis" description="Fill missing HDR and audio format details in the background during maintenance. New files are analysed automatically." checked={s.analysis_enabled} busy={update.isPending} onChange={v => update.mutate({ analysis_enabled: v })} />
-            <ToggleRow setting="metadata_refresh_enabled" label="Refresh known-title metadata" description="Refresh ageing title details during maintenance without scanning media folders." checked={s.metadata_refresh_enabled} busy={update.isPending} onChange={v => update.mutate({ metadata_refresh_enabled: v })} />
-            <ToggleRow setting="auto_backups_enabled" label="Automatic database backups" description="Take daily database backups during maintenance. Manual and safety backups remain available." checked={s.auto_backups_enabled} busy={update.isPending} onChange={v => update.mutate({ auto_backups_enabled: v })} />
-            <ScheduledWork />
+            <MaintenanceTasks
+              rows={[
+                {
+                  kind: 'previews', label: 'Scrubbing previews',
+                  description: 'Timeline pictures for libraries with previews turned on (Manage libraries › Edit › Advanced).',
+                  control: <ProcessingSelect label="Scrubbing preview processing" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
+                  feedback: <SaveFeedback settings={['preview_mode']} />,
+                },
+                {
+                  kind: 'markers', label: 'Intro & credit detection',
+                  description: 'Compare episodes or analyse movie credits on this computer when chapters and online databases have no markers.',
+                  control: <ProcessingSelect label="Local intro and credits detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
+                  feedback: <SaveFeedback settings={['detection_mode']} />,
+                },
+                {
+                  kind: 'analysis', label: 'Media analysis',
+                  description: 'Fill in missing HDR and audio format details for existing files. New files are analysed when added.',
+                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Update existing media analysis" />,
+                  feedback: <SaveFeedback settings={['analysis_enabled']} />,
+                },
+                {
+                  kind: 'metadata', label: 'Metadata refresh',
+                  description: 'Refresh ageing title details and airing shows, without scanning media folders.',
+                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label="Refresh known-title metadata" />,
+                  feedback: <SaveFeedback settings={['metadata_refresh_enabled']} />,
+                },
+                {
+                  kind: 'backup', label: 'Database backups',
+                  description: 'A daily database backup. Manual and safety backups are always available in Backups & restore.',
+                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Automatic database backups" />,
+                  feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
+                },
+              ]}
+            />
           </Section>
 
           <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
@@ -1262,8 +1289,10 @@ function PasswordRow() {
   );
 }
 
+const processingLabels: Record<ServerSettings['preview_mode'], string> = { off: 'Off', scheduled: 'During maintenance', added: 'When added and during maintenance' };
+
 function ProcessingSelect({label,value,busy,onChange}:{label:string;value:ServerSettings['preview_mode'];busy:boolean;onChange:(value:ServerSettings['preview_mode'])=>void}) {
- return <select aria-label={label} value={value} disabled={busy} onChange={e=>onChange(e.target.value as ServerSettings['preview_mode'])} className={inputClass+' max-w-full w-64 [&>option]:bg-surface'}>
-  <option value="off">Off</option><option value="scheduled">During maintenance</option><option value="added">When added and during maintenance</option>
+ return <select aria-label={label} value={value} disabled={busy} onChange={e=>onChange(e.target.value as ServerSettings['preview_mode'])} className={inputClass+' min-w-0 flex-1 sm:w-72 sm:flex-none [&>option]:bg-surface'}>
+  {(Object.keys(processingLabels) as ServerSettings['preview_mode'][]).map(v => <option key={v} value={v}>{processingLabels[v]}</option>)}
  </select>;
 }
