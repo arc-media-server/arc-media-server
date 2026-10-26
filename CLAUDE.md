@@ -50,8 +50,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Settings copy review (#210, 26 October): every Settings description rewritten as one short,
   plain sentence; implementation detail and cross-references removed. Maintenance tasks are named
   the same everywhere (visible, aria, Run now, server titles): Scrubbing previews, Intro & credit
-  detection, HDR and audio formats (formerly Media analysis: it only detects DV/HDR10+/Atmos for
-  older files), Metadata refresh, Database backups, Empty trash automatically. Tasks show status
+  detection, Media analysis (Plex's "Upgrade media analysis": brings older files' analysis up to
+  date, currently DV/HDR10+/Atmos), Metadata refresh, Database backups, Empty trash automatically. Tasks show status
   only when Running/Paused/failed. The clock is one "Server time: HH:MM zone" line under
   Maintenance time (owner asked to drop next-window detail; hours follow the server's clock).
 
