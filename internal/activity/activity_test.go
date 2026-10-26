@@ -78,3 +78,24 @@ func TestConcurrentWorkSnapshotsAndCleanup(t *testing.T) {
 	w.Progress(0, 0)
 	w.Finish()
 }
+
+func TestDiscardLeavesNoFinishedEntry(t *testing.T) {
+	tr := New()
+	quiet := tr.Start("markers", "Finding intros and credits")
+	quiet.Cancellable(func() {})
+	kept := tr.Start("scan", "Scanning Movies")
+	quiet.Discard()
+	kept.Finish(nil)
+	running, recent := tr.Snapshot()
+	if len(running) != 0 {
+		t.Errorf("running = %+v", running)
+	}
+	if len(recent) != 1 || recent[0].Title != "Scanning Movies" {
+		t.Errorf("recent = %+v", recent)
+	}
+	if tr.Stop(quiet.task.ID) {
+		t.Error("a discarded task can still be stopped")
+	}
+	var none *Handle
+	none.Discard()
+}
