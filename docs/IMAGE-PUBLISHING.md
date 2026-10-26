@@ -7,10 +7,10 @@ container suite before the owner can try a fix.
 | Trigger | Work | Published tags |
 | --- | --- | --- |
 | Push to main | Build both architectures, then publish immediately | latest and full commit SHA |
-| Manual run, Full verification checked (default) | Linux/Windows Go/vet, race, full browser suite, embedded build, container lifecycle/upgrade/rollback, image build | Commit SHA, only when all required checks pass |
+| Manual run, Full verification checked (default) | Linux Go/vet, race, full browser suite, embedded build, container lifecycle/upgrade/rollback, image build | Commit SHA, only when all required checks pass |
 | Manual run, Full verification unchecked | Build and publish | Commit SHA |
 | Push a v-prefixed version tag | Full verification before publication | Version tag and commit SHA |
-| Pull request | Full verification/container acceptance | None |
+| Pull request | Nothing runs (owner, 26 October): agents run checks locally, the owner tests | None |
 
 Manual/version runs do not move the development latest tag, so a slower verification run cannot
 overwrite a newer main testing image. Failed/cancelled builds never publish. Verification runs
@@ -22,8 +22,14 @@ The Dockerfile still compiles production TypeScript and the Go server. The same 
 check remains. Main does not run or claim passes for Go tests, race, browser journeys or container
 acceptance; those workflow jobs are deliberately skipped. Focused local checks appropriate to a
 change still provide feedback during development. The full tools/codex-cloud/verify.sh remains
-available unchanged. The separate Codex Cloud preflight still runs for changes to its setup
-helpers; it does not gate image publication.
+available unchanged. The Codex Cloud preflight is manual-only.
+
+Pull requests start no GitHub runs (owner decision, 26 October, after Actions minutes ran out).
+Agents run the checks relevant to a change in their own environments before opening a PR (Go
+vet/tests, TypeScript, production build, affected browser journeys; the full browser suite for
+broad changes) and list the actual results in the PR. Container checks can't run in those environments; use the
+manual full verification before a release. Windows checks were removed (owner, 26 October: Arc
+isn't run on Windows for now); re-add a windows-latest job if that changes.
 
 For full verification in GitHub: Actions → Docker image → Run workflow → leave Full verification
 checked. A version tag such as v0.1-beta always requires full verification regardless of manual

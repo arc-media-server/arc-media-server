@@ -610,8 +610,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Current workflow policy (owner, 26 October): ALL additions and fixes go through pull requests,
   by Claude and Codex alike. This supersedes the 22 October direct-to-main policy. Never push to
   main. Work on a branch (Claude: the branch the session assigns, `claude/...`; Codex: `codex/...`),
-  open a PR into main, and let the PR workflow run full verification (Linux/Windows checks, race,
-  browser journeys, container acceptance). The owner merges, or tells the agent to. Keep one
+  open a PR into main. PRs start no GitHub Actions runs (owner, 26 October, to save Actions
+  minutes): before opening a PR the agent runs the relevant checks itself (go vet/test, tsc,
+  production build, affected browser journeys; the full browser suite for broad changes) and
+  lists the actual results in the PR; the owner tests too. Container checks need the manual "Run
+  workflow" full verification (Linux only; Windows CI removed until Arc runs on Windows), which
+  release tags also require. The owner merges,
+  or tells the agent to. Keep one
   branch per agent/task and never have two agents on the same branch. Preserve unrelated work,
   never force push, keep PRs focused, and keep GitHub handoffs and these notes current in the PR.
   Merging to main publishes the development `latest` image (docs/IMAGE-PUBLISHING.md). Start new

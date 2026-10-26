@@ -213,8 +213,9 @@ Start a task with:
 > update shared notes and GitHub, and report checks with their limitations.
 
 The owner updated the workflow on 26 October: every change, by Codex or Claude, goes through a
-pull request. Do not push to main. Work on a `codex/` branch, open a PR into main and let the PR
-workflow run full verification; the owner merges. Claude cloud sessions use their assigned
+pull request. Do not push to main. Work on a `codex/` branch and open a PR into main; the owner
+merges. PRs start no GitHub Actions runs, so run the relevant checks (or the full verifier) in
+the task first and list the actual results in the PR. Claude cloud sessions use their assigned
 `claude/` branches and follow the same rule. Never have two agents on the same branch, never
 force push, and after a PR merges start the next branch from the latest main. Merging to main
 publishes the development image after its gates. Local PCs can pull completed changes with
