@@ -746,9 +746,9 @@ test('background scheduling exposes modes, task controls and recoverable Run now
   await page.reload(); await expect(detection).toHaveValue('off');
   const preview = page.getByRole('combobox', { name: 'Scrubbing previews', exact: true });
   await preview.selectOption('scheduled'); await expect(preview).toBeEnabled();
-  const analysis = page.getByRole('switch', { name: 'HDR and audio formats', exact: true });
+  const analysis = page.getByRole('switch', { name: 'Media analysis', exact: true });
   await analysis.click(); await expect(analysis).not.toBeChecked();
-  const run = page.getByRole('button', { name: 'Run HDR and audio formats now', exact: true });
+  const run = page.getByRole('button', { name: 'Run Media analysis now', exact: true });
   await expect(run).toBeDisabled();
   await analysis.click(); await expect(analysis).toBeChecked(); await expect(run).toBeEnabled();
   await page.route('**/api/maintenance/analysis/run', r => r.fulfill({ status: 503, json: { error: 'Task could not start' } }));

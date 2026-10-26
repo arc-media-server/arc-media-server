@@ -521,9 +521,9 @@ function ServerSettings() {
                   feedback: <SaveFeedback settings={['detection_mode']} />,
                 },
                 {
-                  kind: 'analysis', label: 'HDR and audio formats',
-                  description: 'Detects Dolby Vision, HDR10+ and Atmos in older files. New files are checked when they’re added.',
-                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="HDR and audio formats" />,
+                  kind: 'analysis', label: 'Media analysis',
+                  description: 'Brings older files up to date when Arc learns to read more from them, such as Dolby Vision, HDR10+ and Atmos. New files are analysed when added.',
+                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Media analysis" />,
                   feedback: <SaveFeedback settings={['analysis_enabled']} />,
                 },
                 {

@@ -26,7 +26,7 @@ type Status struct {
 	Enabled   bool   `json:"enabled"`
 }
 
-var titles = map[string]string{"analysis": "HDR and audio formats", "previews": "Scrubbing previews", "markers": "Intro & credit detection", "metadata": "Metadata refresh", "backup": "Database backups", "empty_trash": "Empty trash automatically"}
+var titles = map[string]string{"analysis": "Media analysis", "previews": "Scrubbing previews", "markers": "Intro & credit detection", "metadata": "Metadata refresh", "backup": "Database backups", "empty_trash": "Empty trash automatically"}
 
 type waiter struct {
 	ticket  uint64
