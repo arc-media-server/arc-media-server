@@ -55,6 +55,15 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
     if (!nameTouched) setName(kind === 'shows' ? 'TV Shows' : kind === 'videos' ? 'Home Videos' : 'Movies');
   }, [kind, nameTouched]);
 
+  // A one-line reminder of the advanced choices while the section is closed.
+  const features = [trickplay && 'Scrubbing previews', kind === 'shows' && skipIntros && 'Skip intros', kind !== 'videos' && skipCredits && 'Skip credits'].filter(Boolean);
+  const advancedSummary = [
+    kind === 'shows' && (detailsProvider === 'tvdb' ? 'TheTVDB' : 'TMDB'),
+    kind === 'shows' && orderings.find((o) => o.value === ordering)?.label,
+    kind !== 'videos' && metadataLanguages.find(([code]) => code === language)?.[1],
+    features.length ? features.join(', ') : 'No player extras',
+  ].filter(Boolean).join(' · ');
+
   const start = useMutation({
     mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths, metadata_language: language }, library?.id),
     onSuccess: (res) => {
@@ -167,116 +176,113 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
               )}
             </div>
           </Field>
-          <details open={editing || undefined} className="rounded-2xl border border-border p-4">
-            <summary className="cursor-pointer text-sm font-medium">Advanced</summary>
-            <div className="mt-4 space-y-6">
-              {kind === 'shows' && <Field label="Metadata provider" controlId={`${fieldId}-provider`}>
-                <select id={`${fieldId}-provider`} aria-describedby={`${fieldId}-provider-help`} value={detailsProvider} onChange={e=>setDetailsProvider(e.target.value as ''|'tvdb')} className={inputClass}><option value="">TMDB</option><option value="tvdb">TheTVDB</option></select>
-                <p id={`${fieldId}-provider-help`} className="mt-1.5 text-xs text-subtle">Show titles, descriptions, artwork and cast. Episode information follows File episode order.</p>
-              </Field>}
-              {kind === 'shows' && (
-                <Field label="File episode order" controlId={`${fieldId}-ordering`}>
-                  <div className="relative">
-                    <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
-                      {orderings.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
+          <details open={editing || undefined} className="group rounded-2xl bg-surface-2/30 ring-1 ring-border">
+            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Advanced</span>
+                <span className="block truncate text-xs text-subtle group-open:hidden">{advancedSummary}</span>
+              </span>
+              <ChevronDown className="size-4 shrink-0 text-subtle transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="space-y-5 border-t border-border px-3 pb-4 pt-4 sm:px-4">
+              {kind !== 'videos' && (
+                <SettingGroup title="Metadata">
+                  {kind === 'shows' && (
+                    <SelectRow id={`${fieldId}-provider`} label="Metadata provider" help="Where show titles, descriptions, artwork and cast come from.">
+                      <select id={`${fieldId}-provider`} aria-describedby={`${fieldId}-provider-help`} value={detailsProvider} onChange={(e) => setDetailsProvider(e.target.value as '' | 'tvdb')} className={selectClass}>
+                        <option value="">TMDB</option>
+                        <option value="tvdb">TheTVDB</option>
+                      </select>
+                    </SelectRow>
+                  )}
+                  {kind === 'shows' && (
+                    <SelectRow
+                      id={`${fieldId}-ordering`}
+                      label="File episode order"
+                      help={`${orderings.find((o) => o.value === ordering)?.hint}. Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.`}
+                    >
+                      <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={selectClass}>
+                        {orderings.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </SelectRow>
+                  )}
+                  <SelectRow
+                    id={`${fieldId}-language`}
+                    label="Metadata language"
+                    help={
+                      <>
+                        {language && !language.startsWith('en')
+                          ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
+                          : 'The language titles and descriptions are shown in.'}
+                        {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
+                      </>
+                    }
+                  >
+                    <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
+                      {metadataLanguages.map(([code, name]) => (
+                        <option key={code} value={code}>
+                          {name}
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
-                  </div>
-                  <p id={`${fieldId}-ordering-help`} className="mt-1.5 text-xs text-subtle">
-                    {orderings.find((o) => o.value === ordering)?.hint}. Also selects the episode metadata provider. Individual shows can override this default; display order is separate.
-                  </p>
-                </Field>
-              )}
-              {kind === 'movies' && (
-                <Field label="Automatic collections" controlId={`${fieldId}-collection-min`}>
-                  <select id={`${fieldId}-collection-min`} aria-describedby={`${fieldId}-collection-min-help`} value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={inputClass}>
-                    <option value={0}>Off</option>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <option key={n} value={n}>
-                        When I have {n === 1 ? 'any film' : `${n} or more films`} from one
-                      </option>
-                    ))}
-                  </select>
-                  <p id={`${fieldId}-collection-min-help`} className="mt-1.5 text-xs text-subtle">Films TMDB groups together, like a trilogy, are shown as a collection.</p>
-                </Field>
+                  </SelectRow>
+                </SettingGroup>
               )}
               {kind !== 'videos' && (
-                <Field label="Collections in the library" controlId={`${fieldId}-collection-grid`}>
-                  <select id={`${fieldId}-collection-grid`} aria-describedby={`${fieldId}-collection-grid-help`} value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={inputClass}>
-                    {(['items', 'collection', 'both'] as const).map((m) => (
-                      <option key={m} value={m}>
-                        {gridLabels[m]}
-                      </option>
-                    ))}
-                  </select>
-                  <p id={`${fieldId}-collection-grid-help`} className="mt-1.5 text-xs text-subtle">How a collection appears when you browse the whole library. Each collection can choose for itself in its Edit dialog.</p>
-                </Field>
+                <SettingGroup title="Collections">
+                  {kind === 'movies' && (
+                    <SelectRow id={`${fieldId}-collection-min`} label="Automatic collections" help="Films TMDB groups together, like a trilogy, become a collection once you have this many.">
+                      <select id={`${fieldId}-collection-min`} aria-describedby={`${fieldId}-collection-min-help`} value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={selectClass}>
+                        <option value={0}>Off</option>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <option key={n} value={n}>
+                            {n === 1 ? 'Any film from a set' : `${n} or more films`}
+                          </option>
+                        ))}
+                      </select>
+                    </SelectRow>
+                  )}
+                  <SelectRow id={`${fieldId}-collection-grid`} label="Collections in the library" help="How collections appear when you browse the whole library. Each collection can choose for itself.">
+                    <select id={`${fieldId}-collection-grid`} aria-describedby={`${fieldId}-collection-grid-help`} value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={selectClass}>
+                      {(['items', 'collection', 'both'] as const).map((m) => (
+                        <option key={m} value={m}>
+                          {gridLabels[m]}
+                        </option>
+                      ))}
+                    </select>
+                  </SelectRow>
+                </SettingGroup>
               )}
-              {kind !== 'videos' && (
-              <Field label="Metadata language" controlId={`${fieldId}-language`}>
-                <div className="relative">
-                  <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={cn(inputClass, 'appearance-none pr-9')}>
-                    {metadataLanguages.map(([code, name]) => (
-                      <option key={code} value={code}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
-                </div>
-                <p id={`${fieldId}-language-help`} className="mt-1.5 text-xs text-subtle">
-                  {language && !language.startsWith('en')
-                    ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
-                    : 'The language titles and descriptions are shown in.'}
-                  {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
-                </p>
-              </Field>
-              )}
-              <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-                <span>
-                  <span className="block text-sm font-medium">Scrubbing previews</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                    Show a picture while dragging along the timeline. Arc makes them in the background, which takes a little time and about
-                    5 MB per film. Turning this off deletes them.
-                  </span>
-                </span>
-                <Switch checked={trickplay} onCheckedChange={setTrickplay} aria-label="Scrubbing previews" />
-              </label>
-              {kind === 'shows' && (
-                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-                  <span>
-                    <span className="block text-sm font-medium">Skip intros</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                      Offer Skip Intro and Skip Recap. Arc finds them from chapters, online databases, or by comparing a season&apos;s episodes.
-                    </span>
-                  </span>
-                  <Switch checked={skipIntros} onCheckedChange={setSkipIntros} aria-label="Skip intros" />
-                </label>
-              )}
-              {kind !== 'videos' && (
-                <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
-                  <span>
-                    <span className="block text-sm font-medium">Skip credits</span>
-                    <span className="mt-0.5 block text-xs leading-relaxed text-subtle">
-                      {kind === 'shows'
-                        ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.'
-                        : 'Offer Skip Credits. Arc finds them from chapters, TheIntroDB, or by spotting the closing credits at night.'}
-                    </span>
-                  </span>
-                  <Switch checked={skipCredits} onCheckedChange={setSkipCredits} aria-label="Skip credits" />
-                </label>
-              )}
+              <SettingGroup title="Player">
+                <SwitchRow label="Scrubbing previews" help="A picture while dragging along the timeline. Made in the background, about 5 MB per film; turning this off deletes them." checked={trickplay} onChange={setTrickplay} />
+                {kind === 'shows' && (
+                  <SwitchRow label="Skip intros" help="Offer Skip Intro and Skip Recap, found from chapters, online databases or by comparing a season's episodes." checked={skipIntros} onChange={setSkipIntros} />
+                )}
+                {kind !== 'videos' && (
+                  <SwitchRow
+                    label="Skip credits"
+                    help={kind === 'shows' ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.' : 'Offer Skip Credits, found from chapters, TheIntroDB or by spotting the closing credits at night.'}
+                    checked={skipCredits}
+                    onChange={setSkipCredits}
+                  />
+                )}
+              </SettingGroup>
               {!editing && (
-                <div>
-                  <Button variant="secondary" size="sm" disabled={!paths.length || !name.trim() || start.isPending || save.isPending} onClick={() => start.mutate()}>
-                    {start.isPending && <Loader2 className="animate-spin" />} Preview folders
-                  </Button>
-                  <p className="mt-1.5 text-xs text-subtle">Optional: check what Arc would find before adding the library.</p>
-                </div>
+                <SettingGroup title="Before adding">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+                    <div className="min-w-0 flex-1 basis-56">
+                      <p className="text-sm font-medium">Check the folders first</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-subtle">Optional: see what Arc would find before adding the library.</p>
+                    </div>
+                    <Button variant="secondary" size="sm" disabled={!paths.length || !name.trim() || start.isPending || save.isPending} onClick={() => start.mutate()}>
+                      {start.isPending && <Loader2 className="animate-spin" />} Preview folders
+                    </Button>
+                  </div>
+                </SettingGroup>
               )}
             </div>
           </details>
@@ -302,6 +308,47 @@ function Field({ label, controlId, children }: { label: string; controlId?: stri
       )}
       {children}
     </div>
+  );
+}
+
+const selectClass = cn(inputClass, 'h-9 appearance-none pr-9');
+
+/** A titled block of advanced settings rows. */
+function SettingGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section aria-label={title}>
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{title}</h3>
+      <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/60 ring-1 ring-border">{children}</div>
+    </section>
+  );
+}
+
+/** A setting with its label and help on the left and a drop-down on the right (stacked on phones). */
+function SelectRow({ id, label, help, children }: { id: string; label: string; help: ReactNode; children: ReactNode }) {
+  return (
+    <div className="grid gap-x-6 gap-y-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] sm:items-center">
+      <div className="min-w-0">
+        <label htmlFor={id} className="block text-sm font-medium">{label}</label>
+        <p id={`${id}-help`} className="mt-0.5 text-xs leading-relaxed text-subtle">{help}</p>
+      </div>
+      <div className="relative">
+        {children}
+        <ChevronDown className="pointer-events-none absolute right-3 top-2.5 size-4 text-subtle" />
+      </div>
+    </div>
+  );
+}
+
+/** An on/off setting; the whole row toggles it. */
+function SwitchRow({ label, help, checked, onChange }: { label: string; help: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-6 px-4 py-3">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-subtle">{help}</span>
+      </span>
+      <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
+    </label>
   );
 }
 
