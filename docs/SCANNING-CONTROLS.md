@@ -63,9 +63,9 @@ metadata remains available. See [INCREMENTAL-RESCAN-PLAN.md](INCREMENTAL-RESCAN-
 
 ## Network shares and unavailable folders
 
-Show a short note beside the schedule: “Some network drives do not report changes. Keep a
-scheduled scan enabled to catch them.” Do not claim to detect reliable notifications from
-the filesystem type alone.
+The Full library scan description says it catches changes that network drives don't report
+(26 October copy review, #210; previously a separate note). Do not claim to detect reliable
+notifications from the filesystem type alone.
 
 If watching actually fails or loses events, show the affected library in Library Health with
 the reason and whether a scheduled fallback is enabled. When scheduling is Off, explain that

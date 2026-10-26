@@ -47,6 +47,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Submitted on a codex branch/PR; no main push or deployment acceptance claim.
 
 
+- Settings copy review (#210, 26 October): every Settings description rewritten as one short,
+  plain sentence; implementation detail and cross-references removed. Maintenance tasks are named
+  the same everywhere (visible, aria, Run now, server titles): Scrubbing previews, Intro & credit
+  detection, HDR and audio formats (formerly Media analysis: it only detects DV/HDR10+/Atmos for
+  older files), Metadata refresh, Database backups, Empty trash automatically. Tasks show status
+  only when Running/Paused/failed. The clock is one "Server time: HH:MM zone" line under
+  Maintenance time (owner asked to drop next-window detail; hours follow the server's clock).
+
 - Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
   (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings
   under Metadata, Collections, Player and (adding only) Before adding, with label/help left and

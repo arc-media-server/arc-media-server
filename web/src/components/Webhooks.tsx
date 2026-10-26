@@ -72,8 +72,8 @@ export function Webhooks() {
       ))}
       <div className="flex items-center gap-4 px-4 py-3.5">
         <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted">
-          {!data ? 'Load notifications before adding a webhook.' : data.webhooks.length ? 'Add another' : 'Add a Discord or Slack webhook to get messages there, or any address to receive events as JSON'}
-          {!data ? '' : data.webhooks.length ? '.' : ' (for home automation, ntfy and the like).'}
+          {!data ? 'Load notifications before adding a webhook.' : data.webhooks.length ? 'Add another' : 'Add a Discord or Slack webhook, or any address that accepts JSON'}
+          {!data ? '' : data.webhooks.length ? '.' : ' (like ntfy or home automation).'}
         </p>
         <Button variant="secondary" size="sm" disabled={!data} onClick={() => setEditing('new')}>
           <Plus /> Add Webhook
