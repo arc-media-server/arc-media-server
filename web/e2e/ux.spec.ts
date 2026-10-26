@@ -763,7 +763,7 @@ test('background scheduling exposes modes, task controls and recoverable Run now
   await page.screenshot({ path: info.outputPath('scheduled-work-phone.png'), fullPage: true });
 });
 
-test('Activity shows concurrent titles, actual stages, file details and complete summaries', async ({ page }, info) => {
+test('Dashboard Activity shows concurrent titles, actual stages, file details and complete summaries', async ({ page }, info) => {
   const now = new Date().toISOString();
   await page.route('**/api/activity', route => route.fulfill({ json: {
     running: [
@@ -784,9 +784,8 @@ test('Activity shows concurrent titles, actual stages, file details and complete
   } }));
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/');
-    await page.getByRole('button', { name: /^Activity/ }).click();
-    const panel = page.locator('[data-radix-popper-content-wrapper]');
+    await page.goto('/dashboard');
+    const panel = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Activity', exact: true }) });
     await expect(panel.getByText('Matching movie · Dune (2021)', { exact: true })).toBeVisible();
     await expect(panel.getByText('Inspecting file · The Last Observatory: Beyond the Northern Horizon (2026)', { exact: true })).toBeVisible();
     await expect(panel.getByText('6 of 10', { exact: true })).toBeVisible();
@@ -803,8 +802,52 @@ test('Activity shows concurrent titles, actual stages, file details and complete
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await panel.getByText('Matching movie · Dune (2021)', { exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`activity-titles-${width}.png`), animations: 'disabled' });
+  }
+});
+
+test('the Activity menu stays simple: task, current title, progress and recent work', async ({ page }, info) => {
+  const now = new Date().toISOString();
+  let stopped = 0;
+  await page.route('**/api/activity/10/stop', route => { stopped++; return route.fulfill({ status: 202, json: {} }); });
+  await page.route('**/api/activity', route => route.fulfill({ json: {
+    running: [
+      { id: 10, kind: 'scan', title: 'Scanning Movies', detail: 'Checking files and titles · 420 files checked', started_at: now, can_stop: true, current: [
+        { id: 1, stage: 'Matching movie', subject: 'Dune (2021)', detail: 'Looking up metadata on TMDB' },
+        { id: 2, stage: 'Inspecting file', subject: 'Arrival (2016)', detail: 'Arrival.2016.mkv' },
+      ] },
+      { id: 12, kind: 'refresh', title: 'Refreshing metadata in Movies', detail: 'Refreshing metadata in Movies', started_at: now, done: 3, total: 12 },
+    ],
+    recent: [
+      { id: 9, kind: 'scan', title: 'Scanning TV Shows', started_at: now, finished_at: now, detail: '3 files checked · 1 identified' },
+      { id: 8, kind: 'backup', title: 'Backing up the database', started_at: now, finished_at: now, error: 'Disk full' },
+    ],
+    scheduled: [{ kind: 'analysis', title: 'Update media analysis', state: 'paused', detail: 'Waiting for playback or scanning', pending: 70, completed: 5, failed: 0, enabled: true }],
+  } }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await page.getByRole('button', { name: /^Activity/ }).click();
+    const panel = page.locator('[data-radix-popper-content-wrapper]');
+    await expect(panel.getByText('Scanning Movies', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Dune (2021) and 1 more', { exact: true })).toBeVisible();
+    await expect(panel.getByText('3 of 12', { exact: true })).toBeVisible();
+    await expect(panel.getByText('25%', { exact: true })).toBeVisible();
+    // Internal steps, file names, scan statistics and scheduled backlogs stay on the Dashboard.
+    for (const hidden of [/Matching movie/, /Inspecting file/, /Arrival\.2016\.mkv/, /files checked/, /Scheduled work/, /Update media analysis/]) {
+      await expect(panel.getByText(hidden)).toHaveCount(0);
+    }
+    await expect(panel.getByText('Scanned TV Shows', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Backed up the database', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Disk full', { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`activity-menu-${width}.png`), animations: 'disabled' });
     await page.keyboard.press('Escape');
   }
+  await page.getByRole('button', { name: /^Activity/ }).click();
+  await page.getByRole('button', { name: 'Stop Scanning Movies', exact: true }).click();
+  await expect.poll(() => stopped).toBe(1);
+  await page.getByRole('link', { name: 'View Dashboard', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 test('Activity distinguishes paused background work from running foreground work', async ({ page }) => {
@@ -812,8 +855,7 @@ test('Activity distinguishes paused background work from running foreground work
   await page.route('**/api/activity', r => r.fulfill({ json: { running: [], recent: [], scheduled: [
     { kind: 'analysis', title: 'Update media analysis', state: 'paused', detail: 'Waiting for playback or scanning', pending: 70, completed: 5, failed: 0, enabled: true },
   ] } }));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Activity', exact: true }).click();
+  await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Scheduled work', exact: true })).toBeVisible();
   await expect(page.getByText('Update media analysis', { exact: true })).toBeVisible();
   await expect(page.getByText('paused · Waiting for playback or scanning', { exact: true })).toBeVisible();

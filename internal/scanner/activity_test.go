@@ -189,3 +189,46 @@ func TestActivityInspectionErrorsAndUnrecognisedSummary(t *testing.T) {
 		t.Fatal(summary)
 	}
 }
+
+func TestMaintenanceListsOnlyRunsThatDidSomething(t *testing.T) {
+	localProviders(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasPrefix(r.URL.Path, "/3/search/") {
+			fmt.Fprint(w, `{"results":[{"id":101,"title":"Known","release_date":"2020-01-01"}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"id":101,"title":"Known","release_date":"2020-01-01"}`)
+	})
+	st, s, lib, root := libraryFixture(t, "movies", map[string]string{"Known (2020).mkv": "known"})
+	s.tmdb = metadata.NewTMDB("local-fixture")
+	s.Activity = activity.New()
+	s.Start(lib)
+	s.Wait()
+	items, _, err := st.ListItems(context.Background(), store.ItemQuery{LibraryID: lib, Kind: "movie"})
+	if err != nil || len(items) != 1 || items[0].MetadataState != "matched" {
+		t.Fatalf("fixture not matched: %+v %v", items, err)
+	}
+	refreshes := func() int {
+		_, recent := s.Activity.Snapshot()
+		n := 0
+		for _, task := range recent {
+			if task.Kind == "refresh" && strings.HasPrefix(task.Title, "Updating details in ") {
+				n++
+			}
+		}
+		return n
+	}
+	// Nothing is due straight after matching: the routine check leaves no finished entry.
+	s.Maintain(lib)
+	s.Wait()
+	if n := refreshes(); n != 0 {
+		t.Fatalf("idle maintenance listed %d finished refreshes", n)
+	}
+	// A stale title is refreshed and that run is listed.
+	fixtureSQL(t, root, `UPDATE items SET synced_at = 0 WHERE kind = 'movie'`)
+	s.Maintain(lib)
+	s.Wait()
+	if n := refreshes(); n != 1 {
+		t.Fatalf("maintenance that refreshed a title listed %d entries", n)
+	}
+}

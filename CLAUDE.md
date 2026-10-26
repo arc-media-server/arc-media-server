@@ -47,6 +47,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Submitted on a codex branch/PR; no main push or deployment acceptance claim.
 
 
+- Simple Activity menu (#208, 26 October): owner asked for Plex-like simplicity. The Activity
+  menu shows each running task with one plain line (current title, or N of M), a progress bar
+  and a small Stop, then up to four past-tense Recent entries with time/errors. Steps, file
+  names, scan statistics and scheduled backlogs moved to Dashboard → Activity (unchanged detail).
+  activity.Handle.Discard drops runs that did nothing: the intro/credits pass and the scheduled
+  metadata refresh (now "Updating details in …") no longer list empty entries.
+
 - Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
   (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings
   under Metadata, Collections, Player and (adding only) Before adding, with label/help left and
