@@ -2,6 +2,7 @@ import { Clapperboard, Film, Play } from 'lucide-react';
 import type { Extra } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { usePlayer } from './Player';
+import { RowShell } from './RowShell';
 import { Button } from './ui/button';
 
 const kindNames: Record<Extra['kind'], string> = {
@@ -32,15 +33,13 @@ export function ExtrasRow({ extras, title }: { extras?: Extra[]; title: string }
   const play = usePlayer();
   if (!extras?.length) return null;
   return (
-    <section className="mt-10">
-      <h2 className="mb-4 px-6 text-lg font-semibold md:px-10">Extras</h2>
-      <div className="scrollbar-none flex gap-5 overflow-x-auto px-6 pb-2 md:px-10">
+    <RowShell title="Extras" className="mt-10">
         {extras.map((e) => (
           <button
             key={e.id}
             type="button"
             onClick={() => play({ title: e.title, subtitle: `${title} · ${kindNames[e.kind]}`, src: e.stream_url })}
-            className="group w-60 shrink-0 text-left outline-none"
+            className="group w-60 shrink-0 snap-start text-left outline-none"
           >
             <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-surface-3 ring-1 ring-border transition-all duration-300 group-hover:-translate-y-1 group-focus-visible:ring-2 group-focus-visible:ring-accent">
               <Film className="size-7 text-subtle transition-opacity group-hover:opacity-0" strokeWidth={1.5} />
@@ -57,7 +56,6 @@ export function ExtrasRow({ extras, title }: { extras?: Extra[]; title: string }
             <p className="text-xs text-subtle">{kindNames[e.kind]}</p>
           </button>
         ))}
-      </div>
-    </section>
+    </RowShell>
   );
 }

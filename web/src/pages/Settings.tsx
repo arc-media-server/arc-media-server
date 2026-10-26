@@ -90,6 +90,10 @@ function ProfileSettings() {
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
+      <Section title="Home" hint="For your profile only.">
+        <ToggleRow setting="show_home_hero" label="Show home hero" description="Show the large featured title banner at the top of Home. Hide it to go straight to your rows."
+          checked={p.show_home_hero !== false} busy={busy} onChange={v => update.mutate({ show_home_hero: v })} />
+      </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
       <Section title="Subtitles" hint="Choosing subtitles in the player updates these too.">
         <Row setting="subtitle_mode" label="Show subtitles" description={subtitleModeHints[p.subtitle_mode ?? '']}>
