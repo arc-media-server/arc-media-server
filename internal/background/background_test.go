@@ -366,22 +366,27 @@ func TestMonitorWakesWhenClockWindowOpensWhileServerStaysIdle(t *testing.T) {
 
 func TestAnalysisActivityIdentifiesLibraryAndFile(t *testing.T) {
 	ctx, st, m, lib := fixture(t)
-	f := savedFile(t, ctx, st, lib, "Example.Movie.mkv", 99)
+	files := map[string]store.MediaFile{}
+	for i, name := range []string{"Example.Movie.mkv", "Second.Movie.mkv"} {
+		files[name] = savedFile(t, ctx, st, lib, name, int64(99+i))
+	}
 	calls := 0
-	m.analysisPass(ctx, func(context.Context, store.MediaFile) error {
+	m.analysisPass(ctx, func(_ context.Context, f store.MediaFile) error {
 		calls++
 		running, _ := m.Activity.Snapshot()
-		if len(running) != 1 || running[0].Kind != "analysis" || running[0].Title != "Analyzing formats in Jobs" || len(running[0].Current) != 1 {
+		if len(running) != 1 || running[0].Kind != "analysis" || running[0].Title != "Analyzing media in Jobs" || len(running[0].Current) != 1 {
 			t.Fatalf("analysis activity: %+v", running)
 		}
 		op := running[0].Current[0]
-		if op.Subject != "Example.Movie.mkv" || op.Detail != "Example.Movie.mkv" || op.Stage != "Inspecting source formats" {
+		name := filepath.Base(f.Path)
+		if op.Subject != name || op.Detail != name || op.Stage != "Inspecting source formats" {
 			t.Fatalf("operation: %+v", op)
 		}
-		return st.SaveFormats(ctx, f)
+		return st.SaveFormats(ctx, files[name])
 	})
+	// One finished entry for the library's pass, not one per file.
 	running, recent := m.Activity.Snapshot()
-	if calls != 1 || len(running) != 0 || len(recent) != 1 || len(recent[0].Current) != 0 {
+	if calls != 2 || len(running) != 0 || len(recent) != 1 || len(recent[0].Current) != 0 || recent[0].Detail != "2 analysed · 0 failed" {
 		t.Fatalf("analysis cleanup: %d %+v %+v", calls, running, recent)
 	}
 }

@@ -775,7 +775,7 @@ test('Dashboard Activity shows concurrent titles, actual stages, file details an
       { id: 11, kind: 'scan', title: 'Scanning Series', detail: 'Checking files and titles · 30 files checked', started_at: now, current: [
         { id: 4, stage: 'Linking episodes', subject: 'Severance', detail: 'Using saved episode metadata', done: 6, total: 10 },
       ] },
-      { id: 12, kind: 'analysis', title: 'Analyzing formats in Movies', detail: 'Background video, audio and HDR inspection', started_at: now, current: [
+      { id: 12, kind: 'analysis', title: 'Analyzing media in Movies', detail: 'Background video, audio and HDR inspection', started_at: now, current: [
         { id: 5, stage: 'Inspecting source formats', subject: 'Blade Runner (1982)', detail: 'Blade.Runner.1982.mkv' },
       ] },
     ],

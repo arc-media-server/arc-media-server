@@ -28,6 +28,7 @@ func (s *Scanner) manualWork(ctx context.Context, libraryID int64, operation str
 	}
 	task := s.Activity.Start(kind, title)
 	s.registerTask(libraryID, task)
+	s.log.Info("library work started", "work", title)
 	completed, failed := 0, 0
 	defer func() {
 		s.mu.Lock()
@@ -35,6 +36,7 @@ func (s *Scanner) manualWork(ctx context.Context, libraryID int64, operation str
 		s.mu.Unlock()
 		task.Detail(fmt.Sprintf("%d completed · %d failed", completed, failed))
 		task.Finish(err)
+		s.log.Info("library work finished", "work", title, "completed", completed, "failed", failed, "err", err)
 	}()
 	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, title })
 	if operation == "refresh" {
