@@ -816,6 +816,7 @@ test('the Activity menu stays simple: task, current title, progress and recent w
         { id: 2, stage: 'Inspecting file', subject: 'Arrival (2016)', detail: 'Arrival.2016.mkv' },
       ] },
       { id: 12, kind: 'refresh', title: 'Refreshing metadata in Movies', detail: 'Refreshing metadata in Movies', started_at: now, done: 3, total: 12 },
+      { id: 13, kind: 'scan', title: 'Scanning TV Shows', detail: 'Reading file details · 3 of 40', started_at: now, done: 3, total: 40 },
     ],
     recent: [
       { id: 9, kind: 'scan', title: 'Scanning TV Shows', started_at: now, finished_at: now, detail: '3 files checked · 1 identified' },
@@ -829,7 +830,8 @@ test('the Activity menu stays simple: task, current title, progress and recent w
     await page.getByRole('button', { name: /^Activity/ }).click();
     const panel = page.locator('[data-radix-popper-content-wrapper]');
     await expect(panel.getByText('Scanning Movies', { exact: true })).toBeVisible();
-    await expect(panel.getByText('Dune (2021) and 1 more', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Matching · Dune (2021) and 1 more', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Reading files · 3 of 40', { exact: true })).toBeVisible();
     await expect(panel.getByText('3 of 12', { exact: true })).toBeVisible();
     await expect(panel.getByText('25%', { exact: true })).toBeVisible();
     // Internal steps, file names, scan statistics and scheduled backlogs stay on the Dashboard.

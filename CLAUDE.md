@@ -65,6 +65,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   names, scan statistics and scheduled backlogs moved to Dashboard → Activity (unchanged detail).
   activity.Handle.Discard drops runs that did nothing: the intro/credits pass and the scheduled
   metadata refresh (now "Updating details in …") no longer list empty entries.
+  Scans also name their step in the menu (Finding files / Matching / Reading files, #214).
 
 - Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
   (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings
