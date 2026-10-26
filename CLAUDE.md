@@ -37,6 +37,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
+  thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
+  overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data
+  changes; keyboard Left/Right/Home/End, focus reveal and native horizontal/vertical input remain.
+  Card sizes/actions are preserved. Your profile → Home → Show home hero defaults On; an optional
+  per-profile JSON preference hides the banner without a large gap, keeps Edit Home accessible,
+  and disables banner-only queries/timers. Existing profiles retain their visible default.
+  No migration/dependencies. Contract: docs/HOME-NAVIGATION.md; actual local full-browser/API
+  evidence and physical-browser limitations in READINESS. PR only; no PR Actions under current
+  policy, and the owner asks agents to stop after opening the PR.
+
+
 - Maintenance upkeep (#203, 26 October): Optimize database and Clean up cached files default On
   in the unified task list, run weekly in the quiet maintenance window and offer coalesced Run now
   plus persisted last results. Database work joins the writer queue, checks integrity, updates

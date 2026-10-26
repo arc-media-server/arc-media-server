@@ -135,11 +135,12 @@ export function Home() {
   const editing = params.get('edit') === '1';
   const setEditing = (open: boolean) => setParams(open ? { edit: '1' } : {}, { replace: true });
   const split = !!prefs.data?.split_up_next;
+  const showHero = !!prefs.data && prefs.data.show_home_hero !== false;
   const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data]);
   // The banner: the most recently added titles with a backdrop, taking turns.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
-    enabled: !!libraries?.length,
+    enabled: showHero && !!libraries?.length,
     queryFn: async () => {
       // Home videos stay out of it: they're personal, and rarely have artwork worth a banner.
       const lists = await Promise.all(
@@ -150,6 +151,8 @@ export function Home() {
       return all.slice(0, featuredCount);
     },
   });
+
+  const hasFeatured = showHero && !!featuredQuery.data?.length;
 
   if (isLoading) return <div className="m-6 h-64 animate-pulse rounded-2xl bg-surface" />;
   if (libraryQuery.error && !libraries) return <ErrorState error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />;
@@ -174,18 +177,16 @@ export function Home() {
       {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
       {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
       {prefs.data && (
-        <Button
-          size="sm"
-          onClick={() => setEditing(true)}
-          className="absolute right-6 top-5 z-20 bg-black/30 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/45 md:right-10"
-        >
-          <SlidersHorizontal /> Edit Home
-        </Button>
+        <div className={hasFeatured ? 'absolute right-6 top-5 z-20 md:right-10' : 'flex justify-end px-6 py-5 md:px-10'}>
+          <Button size="sm" onClick={() => setEditing(true)} className={hasFeatured ? 'bg-black/30 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/45' : undefined}>
+            <SlidersHorizontal /> Edit Home
+          </Button>
+        </div>
       )}
-      {featuredQuery.data?.length ? <Featured items={featuredQuery.data} /> : <div className="h-10" />}
-      <div className="relative z-10 -mt-6 space-y-10">
+      {hasFeatured && <section aria-label="Featured titles"><Featured items={featuredQuery.data!} /></section>}
+      <div className={cn('relative z-10 space-y-10', hasFeatured && '-mt-6')}>
         {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
-        {!!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
+        {showHero && !!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
         {visibleRows(rows, split)
           .filter((r) => !r.hidden)
           .map((r) => (

@@ -230,6 +230,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Show actual server time/zone and current/next maintenance window (#196)
 - [x] Move title metadata refresh into More and distinguish playback queue from saved playlists (#187)
 - [x] Add owner-selected, filter/access-aware A–Z library jumps with paging and Back position (#188)
+- [x] Make horizontal content rows navigable on desktop and add per-profile Home hero visibility (owner request, 26 October; HOME-NAVIGATION contract and local evidence in READINESS)
 - [x] Clarify backup/NFO scope and retain approved language/provider/scheduling/edition decisions (#191/#194/#104/#195; #136 remains a readiness gate)
 - [x] Store/show episode guest cast, directors/writers and supplied series actor counts under Details From, with independent spoiler-aware details/Retry (#106)
 - [x] Offer inherited/profile specials-in-seasons placement with stable hints and shared browse/Next Up/autoplay/queue traversal, preserving manual orders/history (#109)
