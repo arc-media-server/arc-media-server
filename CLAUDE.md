@@ -37,6 +37,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Maintenance task list (#202, 26 October): Settings › Maintenance & diagnostics › Scheduled
+  tasks shows the maintenance window/clock, then each task once (Scrubbing previews, Intro &
+  credit detection, Media analysis, Metadata refresh, Database backups) with its Off / During
+  maintenance / When added choice or switch, a readable live status and Run now in one row.
+  Intro detection timing moved there from Playback, which keeps marker sources and links to it.
+  Accessible control/Run-now names, settings, API and defaults are unchanged (detection still
+  defaults to During maintenance; changing it is an owner decision on #80). UI only.
+
 - Fast development images and ordering form (26 October): owner explicitly removed full
   verification from the main image feedback loop. Main publishes latest/SHA after compilation
   and image building; tests/race/browser/container jobs are intentionally skipped, not passed.

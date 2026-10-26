@@ -738,10 +738,12 @@ test('background scheduling exposes modes, task controls and recoverable Run now
   await page.reload(); await expect(interval).toHaveValue('15');
   expect((await (await page.request.get('/api/settings')).json()).scan_interval_minutes).toBe(15);
   await page.goto('/settings?section=playback');
+  await expect(page.getByRole('combobox', { name: 'Local intro and credits detection', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Scheduled tasks', exact: true }).click();
+  await expect(page).toHaveURL(/section=maintenance/);
   const detection = page.getByRole('combobox', { name: 'Local intro and credits detection', exact: true });
   await detection.selectOption('off'); await expect(detection).toBeEnabled();
   await page.reload(); await expect(detection).toHaveValue('off');
-  await page.goto('/settings?section=maintenance');
   const preview = page.getByRole('combobox', { name: 'Scrubbing preview processing', exact: true });
   await preview.selectOption('scheduled'); await expect(preview).toBeEnabled();
   const analysis = page.getByRole('switch', { name: 'Update existing media analysis', exact: true });

@@ -18,6 +18,9 @@ tracked in [GitHub #164](https://github.com/JonzaUK/arc-media-server/issues/164)
 4. Keep one server-local daily maintenance window, including overnight/all-day windows.
    Provide switches for existing-media analysis, known-title metadata refresh and automatic
    backups, plus Run now for each enabled task. Manual/safety backups remain available.
+   Settings › Maintenance & diagnostics › Scheduled tasks lists each task once (#202): its
+   choice or switch, live status and Run now share a row. Playback › Intro & credit detection
+   keeps only marker sources (chapters/IntroDB, TheIntroDB key) and links to the task's timing.
 5. A shared admission controller serializes optional heavy analysis/preview/detection work.
    Playback and scanning take priority. Cancel optional subprocess work when its window ends,
    settings disable it, playback/scanning begins or Arc shuts down. Resume unfinished work
