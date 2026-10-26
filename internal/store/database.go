@@ -55,7 +55,7 @@ func (d *database) WriteRowContext(ctx context.Context, query string, args ...an
 	return d.writer.QueryRowContext(ctx, query, args...)
 }
 
-// Raw connection access is for online restore and must join the writer queue too.
+// Raw connection access for online restore and upkeep must join the writer queue too.
 func (d *database) Conn(ctx context.Context) (*sql.Conn, error) {
 	return d.writer.Conn(ctx)
 }

@@ -2,11 +2,15 @@ package subtitles
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"ams/internal/store"
 )
@@ -87,7 +91,7 @@ func TestCues(t *testing.T) {
 	}
 	// The file beside it is in Windows-1252, as old subtitle files often are.
 	os.WriteFile(srt, []byte(strings.ReplaceAll(srtText, "é", "\xe9")), 0o644)
-	f := &store.MediaFile{Path: video, Streams: []store.Stream{{Index: 0, Kind: "video", Codec: "h264"}, {Index: 1, Kind: "subtitle", Codec: "subrip"}}}
+	f := &store.MediaFile{ID: 42, Path: video, Streams: []store.Stream{{Index: 0, Kind: "video", Codec: "h264"}, {Index: 1, Kind: "subtitle", Codec: "subrip"}}}
 	tracks := Tracks(f)
 	if len(tracks) != 2 || tracks[0].ID != "s1" || !tracks[1].External {
 		t.Fatalf("tracks: %+v", tracks)
@@ -103,7 +107,7 @@ func TestCues(t *testing.T) {
 		}
 	}
 	// Cached the second time.
-	if entries, _ := os.ReadDir(filepath.Join(dir, "cache")); len(entries) != 2 {
+	if entries, _ := os.ReadDir(filepath.Join(dir, "cache", "42")); len(entries) != 2 {
 		t.Errorf("cache has %d files", len(entries))
 	}
 }
@@ -136,5 +140,42 @@ func TestDownloads(t *testing.T) {
 		if got := LanguageCode2(in); got != want {
 			t.Errorf("LanguageCode2(%q) = %q", in, got)
 		}
+	}
+}
+
+func TestLegacyCuesAdoptFileOwnershipWithoutExtraction(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "film.mkv")
+	if err := os.WriteFile(source, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	stamp := time.Unix(100, 0)
+	if err := os.Chtimes(source, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d|s1", source, info.Size(), info.ModTime().Unix())))
+	key := hex.EncodeToString(sum[:12])
+	cacheDir := filepath.Join(dir, "cache")
+	if err := os.Mkdir(cacheDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(cacheDir, key+".json")
+	if err := os.WriteFile(legacy, []byte(`[{"start_ms":1000,"end_ms":2000,"text":"Retained"}]`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	c := NewCache(cacheDir, func() string { t.Error("legacy cache re-extracted media"); return "not-called" })
+	cues, err := c.Cues(t.Context(), &store.MediaFile{ID: 7, Path: source}, Track{ID: "s1"})
+	if err != nil || len(cues) != 1 || cues[0].Text != "Retained" {
+		t.Fatalf("cues=%+v err=%v", cues, err)
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Fatalf("adopted legacy file retained: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(cacheDir, "7", key+".json")); err != nil {
+		t.Fatal(err)
 	}
 }
