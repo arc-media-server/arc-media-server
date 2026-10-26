@@ -23,6 +23,6 @@ export function Diagnostics() {
     {status.data && <p className="text-xs text-muted">{status.data.persistent ? 'Recent logs survive restarts. Arc keeps up to three 2 MB log files.' : 'Recent logs are available for this session only.'}</p>}
     {status.data?.storage_error && <ErrorNotice error={'Could not retain logs: ' + status.data.storage_error} />}
     <Button variant="secondary" disabled={!status.data || download.isPending} onClick={() => download.mutate()}>{download.isPending ? 'Preparing diagnostics…' : 'Download diagnostics'}</Button>
-    <p className="text-xs text-muted">Includes recent logs and build information. Known secrets are removed; profile/media names and paths may be included. No database or media files.</p>
+    <p className="text-xs text-muted">Recent logs and build details, with passwords and keys removed. Names and file paths may be included.</p>
   </div>;
 }

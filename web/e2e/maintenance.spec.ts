@@ -129,8 +129,8 @@ test('maintenance: server clock keeps server timezone, retries errors and reflec
   let fail = false;
   await page.route('**/api/maintenance/window', route => route.fulfill(fail ? { status: 503, json: { error: 'Clock fixture unavailable' } } : { json: { now: '2026-10-25T01:30:00+01:00', local_time: '2026-10-25 01:30:00 +01:00 BST', timezone: 'Europe/London', open: false, all_day: false, next_start: '2026-10-25T23:00:00Z', next_local: '2026-10-25 23:00 +00:00 GMT' } }));
   await page.reload();
-  await expect(clock).toContainText('2026-10-25 01:30:00 +01:00 BST');
-  await expect(clock).toContainText('Next maintenance window: 2026-10-25 23:00 +00:00 GMT');
+  await expect(clock).toContainText('Server time: 01:30 Europe/London');
+  await expect(page.getByText(/Next maintenance window/)).toHaveCount(0);
   fail = true;
   await page.reload();
   await expect(clock.getByRole('alert')).toContainText('Clock fixture unavailable');
@@ -140,7 +140,7 @@ test('maintenance: server clock keeps server timezone, retries errors and reflec
   await page.unroute('**/api/maintenance/window');
   await page.getByRole('combobox', { name: 'Maintenance start', exact: true }).selectOption('6');
   await page.getByRole('combobox', { name: 'Maintenance end', exact: true }).selectOption('6');
-  await expect(clock).toContainText('Maintenance window: open all day.');
+  await expect(page.getByText('Tasks can run at any time.', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 900 });
   await page.screenshot({ path: info.outputPath('server-clock-phone.png') });
 });
