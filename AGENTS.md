@@ -14,5 +14,6 @@ isolated verification, cross-device handoff and the branch/PR workflow. Cloud ta
 state does not replace GitHub commits or establish actual deployment validation.
 
 Workflow rule (owner, 26 October): all additions and fixes use pull requests, for Codex and
-Claude alike. Never push to main; use a branch (`codex/...`), open a PR and let its full
-verification run. One agent per branch. See the workflow policy in `CLAUDE.md`.
+Claude alike. Never push to main; use a branch (`codex/...`) and open a PR. PRs start no GitHub
+Actions runs: run the relevant checks yourself first and list the results in the PR. One agent
+per branch. See the workflow policy in `CLAUDE.md`.

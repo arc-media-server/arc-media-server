@@ -1,12 +1,12 @@
 # Development pushes publish as soon as compilation/image building succeeds. Full verification
 # gates version tags and explicit manual verification; latest is the owner's development image.
+# Pull requests run nothing here (owner, 26 October): agents run checks locally and the owner tests.
 name: Docker image
 
 on:
   push:
     branches: [main]
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
     inputs:
       full_verification:
@@ -24,14 +24,11 @@ permissions:
 
 jobs:
   checks:
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
-    name: Checks (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
+    # Linux only (owner, 26 October): Arc isn't run on Windows for now.
+    name: Checks
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
     permissions:
       contents: read
     steps:
@@ -52,32 +49,27 @@ jobs:
           npm run build
       - name: Install FFmpeg for media integration tests
         timeout-minutes: 5
-        if: runner.os == 'Linux'
         run: bash tools/ci/install-media-deps.sh
       - name: Analyse Go code
         run: go vet ./...
       - name: Run tests
         run: go test ./... -timeout 10m
       - name: Check concurrent code
-        if: runner.os == 'Linux'
         run: go test -race ./... -timeout 15m
       - name: Build server with embedded web app
         run: go build ./cmd/ams
       - name: Install browser for regression tests
         timeout-minutes: 5
-        if: runner.os == 'Linux'
         working-directory: web
         run: npx playwright install --with-deps chromium
       - name: Check browser tests
-        if: runner.os == 'Linux'
         working-directory: web
         run: npx tsc -p e2e/tsconfig.json
       - name: Run browser journeys against isolated Arc server
-        if: runner.os == 'Linux'
         working-directory: web
         run: npm run test:e2e:only
       - name: Save browser report and failure evidence
-        if: always() && runner.os == 'Linux'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: browser-test-report
@@ -87,7 +79,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
   container-smoke:
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
     name: Container installation and persistence
     env:
       EXPECTED_REVISION: ${{ github.sha }}
