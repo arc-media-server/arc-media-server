@@ -170,7 +170,7 @@ function LibraryRow({ lib, onEdit, onRemove, onScan, scanDisabled, scanPending, 
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-2 sm:shrink-0">
       <Button variant="secondary" size="sm" onClick={onScan} disabled={scanDisabled || lib.scan.running} aria-label={`Scan ${lib.name}`}>
-        {scanPending || lib.scan.running ? <Loader2 className="animate-spin" /> : <RefreshCw />} {lib.scan.stopping ? 'Stopping…' : lib.scan.running ? (lib.scan.operation === 'refresh' || lib.scan.operation === 'analyze' ? 'Working…' : 'Scanning…') : scanPending ? 'Requesting…' : 'Scan'}
+        {scanPending || lib.scan.running ? <Loader2 className="animate-spin" /> : <RefreshCw />} {lib.scan.stopping ? 'Stopping…' : lib.scan.running ? (lib.scan.operation === 'refresh' || lib.scan.operation === 'analyze' || lib.scan.operation === 'empty_trash' ? 'Working…' : 'Scanning…') : scanPending ? 'Requesting…' : 'Scan'}
       </Button>
       <LibraryWorkControls library={lib} />
       <Button variant="secondary" size="sm" onClick={onEdit}>

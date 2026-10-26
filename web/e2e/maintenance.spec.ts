@@ -1,4 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
+import { rename } from 'node:fs/promises';
+import { relative, isAbsolute } from 'node:path';
 
 type Media = { movies: string; shows: string };
 const test = base.extend<{ media: Media }>({
@@ -173,4 +175,77 @@ test('maintenance: ordinary profiles cannot start or stop jobs or read the serve
   expect((await page.request.post(`/api/libraries/${lib.id}/stop`, { data: { job_id: 1 } })).status()).toBe(403);
   expect((await page.request.post('/api/activity/1/stop')).status()).toBe(403);
   expect((await page.request.get('/api/maintenance/window')).status()).toBe(403);
+});
+
+
+test('empty trash: automatic mode needs confirmation, saves Off by default and retries failures', async ({ page, media }, info) => {
+  void media;
+  await page.goto('/settings?section=maintenance');
+  const toggle = page.getByRole('switch', { name: 'Empty trash automatically', exact: true });
+  await expect(toggle).not.toBeChecked();
+  await toggle.click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('watch history');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(toggle).not.toBeChecked();
+  let fail = true;
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH' && fail ? route.fulfill({ status: 503, json: { error: 'Settings fixture unavailable' } }) : route.continue());
+  await toggle.click();
+  await dialog.getByRole('button', { name: 'Enable automatic cleanup', exact: true }).click();
+  await expect(dialog).toContainText('Settings fixture unavailable');
+  expect((await (await page.request.get('/api/settings')).json()).empty_trash_enabled).toBe(false);
+  fail = false;
+  await dialog.getByRole('button', { name: 'Enable automatic cleanup', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(toggle).toBeChecked();
+  await page.reload();
+  await expect(toggle).toBeChecked();
+  await page.setViewportSize({ width: 390, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await toggle.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('empty-trash-maintenance-phone.png') });
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  expect((await (await page.request.get('/api/settings')).json()).empty_trash_enabled).toBe(false);
+});
+
+test('empty trash: library menu shares destructive confirmation and retains it for Retry', async ({ page, media }, info) => {
+  const lib = await library(page, media.movies);
+  const items = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items;
+  const gone = await (await page.request.get(`/api/items/${items[0].id}`)).json();
+  const path = gone.files[0].path as string;
+  const rel = relative(media.movies, path);
+  expect(rel && !rel.startsWith('..') && !isAbsolute(rel)).toBeTruthy();
+  await rename(path, path + '.trash-fixture');
+  try {
+  expect((await page.request.post(`/api/libraries/${lib.id}/scan`)).ok()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  await page.goto('/libraries');
+  const row = page.getByRole('region', { name: 'Maintenance library', exact: true });
+  const open = async () => {
+    await row.getByRole('button', { name: 'Library actions for Maintenance library', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Empty trash…', exact: true }).click();
+  };
+  await open();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Maintenance library');
+  await expect(dialog).toContainText('watch history');
+  await expect(dialog).toContainText('A backup is made first');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  let fail = true;
+  await page.route(`**/api/libraries/${lib.id}/empty-trash`, route => fail ? route.fulfill({ status: 500, json: { error: "couldn't back up first, so nothing was removed: fixture disk full" } }) : route.continue());
+  await open();
+  await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(dialog).toContainText('fixture disk full');
+  await page.screenshot({ path: info.outputPath('empty-trash-library-retry.png') });
+  fail = false;
+  await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect((await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.length).toBe(1);
+  expect((await page.request.get(`/api/items/${gone.id}`)).status()).toBe(404);
+  const copies = await (await page.request.get('/api/backups')).json();
+  expect(copies.backups.some((b: { reason: string }) => b.reason === 'before-delete')).toBe(true);
+  const activity = await (await page.request.get('/api/activity')).json();
+  expect(activity.recent.some((t: { kind: string; detail?: string }) => t.kind === 'empty_trash' && t.detail?.includes('Removed 1 missing titles'))).toBe(true);
+  } finally { await rename(path + '.trash-fixture', path); }
 });

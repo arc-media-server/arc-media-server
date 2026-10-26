@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorNotice } from '@/components/Page';
 
 /** One background task: its setting and its live status share a row, so each task is listed once. */
-export type MaintenanceTaskRow = { kind: string; label: string; description: string; control: ReactNode; feedback?: ReactNode };
+export type MaintenanceTaskRow = { kind: string; label: string; description: string; control: ReactNode; feedback?: ReactNode; action?: ReactNode };
 
 const states: Record<string, { label: string; tone: string }> = {
   running: { label: 'Running', tone: 'bg-accent animate-pulse' },
@@ -43,7 +43,7 @@ export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
               </div>
               <div className="flex w-full items-center gap-3 sm:w-auto">
                 {row.control}
-                <Button
+                {row.action ?? <Button
                   size="sm"
                   variant="secondary"
                   className="ml-auto shrink-0 sm:ml-0"
@@ -52,7 +52,7 @@ export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
                   onClick={() => run.mutate(row.kind)}
                 >
                   Run now
-                </Button>
+                </Button>}
               </div>
             </li>
           );

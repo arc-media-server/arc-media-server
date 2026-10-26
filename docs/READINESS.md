@@ -1,5 +1,42 @@
 # Stability and release readiness
 
+## Empty trash (#204, 26 October 2026)
+
+Started clean at main `369388e`; branch `codex/empty-trash-204`, rebased onto `55100d1`
+after Claude’s #202/#201 changes merged. Shared manual confirmation in Health
+and library More now holds the scan lease through the required safety backup and deletion.
+Maintenance adds an opt-in row in #202’s task list, Off by default with confirmation. Automatic cleanup
+requires a complete successful scan since startup, unchanged readable roots with known-file
+anchors, absent missing files and quiet maintenance hours, rechecked after backup. Returned
+files, partial/cancelled scans, empty mount points and unavailable roots retain records.
+Activity reports removal counts and a bounded title sample; media bytes are never deleted.
+Contract and physical filesystem limits: [EMPTY-TRASH.md](EMPTY-TRASH.md).
+
+Actual local checks (prepared Go 1.27.0 and pinned Chromium rev1248, isolated data only):
+
+- Affected scanner/store/settings/background/API packages: **286/286 tests and subtests**
+  (155 top-level), zero failures/skips. Real API checks open the safety backup and verify the
+  removed title was saved before deletion; a failed backup preserves it. Viewer access is denied.
+- Focused race checks: **24/24 tests and subtests** (8 top-level), zero failures/skips, including
+  lease exclusion/cancellation and existing scoped refresh admission. Affected-package Go vet passes.
+- Production/app TypeScript, e2e TypeScript and UI build pass. **2/2 new pinned-browser journeys**
+  pass initially (12.9s), followed by **9/9 maintenance regression journeys** on the merged
+  #202/#201 baseline (47.9s), zero failures/skips/retries. These cover opt-in Cancel/save failure/Retry/persistence,
+  mobile geometry and real library-menu fixture deletion with backup and Activity assertions.
+- An earlier unit assertion incorrectly expected Activity to contain only cleanup, rather than
+  the preceding scans; corrected to inspect its newest cleanup result. The expanded browser test's
+  first run was 1/2 because it read the backup response as an array rather than `{backups}`;
+  corrected to the actual API shape. Earlier results/traces are retained outside the repository.
+  Runtime behavior, timeouts and retry policy were not weakened.
+
+No complete local verification suite, container run, production media, owner-server mount test
+or power-loss test was performed. Full hosted verification runs on the PR; its outcome is recorded
+in the GitHub handoff. No image is published by this PR and no deployment acceptance is claimed.
+The merged #202 layout/task options are preserved. `ScheduledWork.tsx` gains an optional custom
+action slot; the cleanup row uses Choose library instead of an unconfirmed global Run now.
+A rebase conflict was resolved by retaining both agents’ handoff entries and Claude’s task list.
+
+
 ## Fast owner images and ordering form (26 October 2026)
 
 Owner explicitly requested shorter internal testing feedback and a form-native Display order
