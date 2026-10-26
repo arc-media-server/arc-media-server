@@ -31,13 +31,22 @@ export function useActivity(watching = false) {
   return query;
 }
 
+// Background tasks that give way to playback and scans (intro detection, previews, media
+// analysis) can wait without doing anything; like Plex, the menu lists them only while they
+// are working on an item. The Dashboard still shows everything.
+const waitsForTurn = new Set(['markers', 'previews', 'analysis']);
+function working(running: ActivityTask[]) {
+  return running.filter((t) => !waitsForTurn.has(t.kind) || !!t.current?.length || t.stopping);
+}
+
 /** The Activity button: spins while the server is busy, and opens the list of tasks. */
 export function ActivityButton({ className }: { className?: string }) {
   const admin = useIsAdmin();
   const { data, refetch } = useActivity();
   const [open, setOpen] = useState(false);
   if (!admin) return null;
-  const busy = (data?.running.length ?? 0) > 0;
+  const active = working(data?.running ?? []);
+  const busy = active.length > 0;
   return (
     <Popover.Root
       open={open}
@@ -47,7 +56,7 @@ export function ActivityButton({ className }: { className?: string }) {
       }}
     >
       <Popover.Trigger
-        aria-label={busy ? `Activity: ${data!.running.length} running` : 'Activity'}
+        aria-label={busy ? `Activity: ${active.length} running` : 'Activity'}
         className={cn(
           'relative flex size-8 items-center justify-center rounded-full text-muted outline-none transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent',
           busy && 'text-accent',
@@ -55,9 +64,9 @@ export function ActivityButton({ className }: { className?: string }) {
         )}
       >
         {busy ? <Loader2 className="size-[18px] animate-spin" /> : <Zap className="size-[18px]" />}
-        {busy && data!.running.length > 1 && (
+        {active.length > 1 && (
           <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white">
-            {data!.running.length}
+            {active.length}
           </span>
         )}
       </Popover.Trigger>
@@ -87,13 +96,14 @@ function SimpleActivity() {
   const { data } = useActivity(true);
   if (!data) return <div className="h-20 animate-pulse rounded-xl bg-surface-2" />;
   const done = data.recent.slice(0, 4);
+  const active = working(data.running);
   return (
     <div className="space-y-5">
-      {data.running.length === 0 ? (
+      {active.length === 0 ? (
         <p className="text-sm text-muted">Nothing running right now.</p>
       ) : (
         <ul className="space-y-4">
-          {data.running.map((t) => (
+          {active.map((t) => (
             <SimpleTask key={t.id} task={t} />
           ))}
         </ul>
@@ -128,13 +138,14 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
     void qc.invalidateQueries({ queryKey: ['libraries'] });
   } });
   const pct = t.total ? Math.min(100, Math.round(((t.done ?? 0) / t.total) * 100)) : null;
-  // One plain line: for scans, which of the three steps it's on (finding, matching, reading
-  // files), then how far along it is or the title being worked on.
+  // Scans show one line per step that's under way (Scanning, Matching, Analysing), each with the
+  // one item it's on. Other tasks get one plain line: the title being worked on (e.g. "Grey's
+  // Anatomy · Season 4" for intro detection), or N of M.
+  const stopping = t.stopping || stop.isPending;
   const first = t.current?.[0]?.subject;
   const more = (t.current?.length ?? 0) - 1;
-  const step = t.kind === 'scan' ? scanStep(t) : '';
-  const progress = t.total ? `${t.done ?? 0} of ${t.total}` : first ? (more > 0 ? `${first} and ${more} more` : first) : '';
-  const line = t.stopping || stop.isPending ? 'Stopping…' : [step, progress].filter(Boolean).join(' · ');
+  const steps = t.kind === 'scan' && !stopping ? scanSteps(t) : [];
+  const line = stopping ? 'Stopping…' : first ? (more > 0 ? `${first} and ${more} more` : first) : t.total ? `${t.done ?? 0} of ${t.total}` : '';
   return (
     <li>
       <div className="flex items-center gap-2 text-sm">
@@ -153,24 +164,42 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
           </button>
         )}
       </div>
-      {line && <p className="mt-0.5 truncate text-xs text-subtle">{line}</p>}
+      {steps.length > 0 ? (
+        <dl className="mt-1 space-y-0.5 text-xs">
+          {steps.map(([step, item]) => (
+            <div key={step} className="flex min-w-0 gap-1.5">
+              <dt className="shrink-0 text-muted">{step}</dt>
+              {item && <dd className="min-w-0 truncate text-subtle">{item}</dd>}
+            </div>
+          ))}
+        </dl>
+      ) : line && <p className="mt-0.5 truncate text-xs text-subtle">{line}</p>}
       <ProgressBar pct={pct} />
       <ErrorNotice error={stop.error} onRetry={() => stop.mutate()} busy={stop.isPending} />
     </li>
   );
 }
 
-/** The step a scan is on, in the words of scan → match → read files. */
-function scanStep(t: ActivityTask) {
-  const stage = t.current?.[0]?.stage ?? '';
-  if (/^Inspecting/.test(stage)) return 'Reading files';
-  if (stage) return 'Matching';
+/** A scan's steps under way (Scanning, Matching, Analysing), each with the one item it's on. */
+function scanSteps(t: ActivityTask): [string, string][] {
+  const ops = t.current ?? [];
+  const on = (stage: RegExp) => ops.find((o) => stage.test(o.stage))?.subject;
   const phase = (t.detail ?? '').split(' · ')[0];
-  if (phase === 'Reading file details') return 'Reading files';
-  if (/^(Matching|Getting show details|Updating)/.test(phase)) return 'Matching';
-  if (phase === 'Loading alternate episode orders') return 'Getting episode orders';
-  if (phase === 'Adding extras') return 'Adding extras';
-  return 'Finding files';
+  const count = t.total ? `${t.done ?? 0} of ${t.total}` : '';
+  const steps: [string, string][] = [];
+  const file = on(/^Checking file$/);
+  const walking = /^(Opening library|Checking library folders|Checking files and titles|Looking through folders)$/.test(phase) || phase === '';
+  if (file || walking) {
+    const found = /(\d+) files/.exec(t.detail ?? '')?.[1];
+    steps.push(['Scanning', file ? file.replace(/\.[^.]+$/, '') : found ? `${found} files found` : '']);
+  }
+  const title = on(/^(Matching|Fetching|Saving|Linking|Checking episode|Mapping)/);
+  if (title) steps.push(['Matching', title]);
+  else if (/^(Matching|Getting show details|Updating|Loading alternate episode orders)/.test(phase)) steps.push(['Matching', count]);
+  const reading = on(/^Inspecting/);
+  if (reading) steps.push(['Analysing', reading]);
+  else if (phase === 'Reading file details') steps.push(['Analysing', count]);
+  return steps.length ? steps : [['Scanning', '']];
 }
 
 function ProgressBar({ pct }: { pct: number | null }) {

@@ -814,9 +814,16 @@ test('the Activity menu stays simple: task, current title, progress and recent w
       { id: 10, kind: 'scan', title: 'Scanning Movies', detail: 'Checking files and titles · 420 files checked', started_at: now, can_stop: true, current: [
         { id: 1, stage: 'Matching movie', subject: 'Dune (2021)', detail: 'Looking up metadata on TMDB' },
         { id: 2, stage: 'Inspecting file', subject: 'Arrival (2016)', detail: 'Arrival.2016.mkv' },
+        { id: 3, stage: 'Checking file', subject: 'Blade Runner (1982).mkv', detail: 'Checking for changes' },
+        { id: 4, stage: 'Matching movie', subject: 'Heat (1995)', detail: 'Looking up metadata on TMDB' },
       ] },
       { id: 12, kind: 'refresh', title: 'Refreshing metadata in Movies', detail: 'Refreshing metadata in Movies', started_at: now, done: 3, total: 12 },
       { id: 13, kind: 'scan', title: 'Scanning TV Shows', detail: 'Reading file details · 3 of 40', started_at: now, done: 3, total: 40 },
+      // Waiting for its turn (no current item): not listed, as in Plex.
+      { id: 14, kind: 'markers', title: 'Finding intros and credits', started_at: now, done: 2, total: 5 },
+      { id: 15, kind: 'previews', title: 'Making scrubbing previews', started_at: now, done: 3, total: 25, current: [
+        { id: 9, stage: 'Making previews', subject: "Grey's Anatomy · S4 E12", detail: 'greys.s04e12.mkv' },
+      ] },
     ],
     recent: [
       { id: 9, kind: 'scan', title: 'Scanning TV Shows', started_at: now, finished_at: now, detail: '3 files checked · 1 identified' },
@@ -830,8 +837,16 @@ test('the Activity menu stays simple: task, current title, progress and recent w
     await page.getByRole('button', { name: /^Activity/ }).click();
     const panel = page.locator('[data-radix-popper-content-wrapper]');
     await expect(panel.getByText('Scanning Movies', { exact: true })).toBeVisible();
-    await expect(panel.getByText('Matching · Dune (2021) and 1 more', { exact: true })).toBeVisible();
-    await expect(panel.getByText('Reading files · 3 of 40', { exact: true })).toBeVisible();
+    // One line per step under way, each with a single item.
+    const scan = panel.getByRole('listitem').filter({ hasText: 'Scanning Movies' });
+    await expect(scan.getByRole('term')).toHaveText(['Scanning', 'Matching', 'Analysing']);
+    await expect(scan.getByRole('definition')).toHaveText(['Blade Runner (1982)', 'Dune (2021)', 'Arrival (2016)']);
+    await expect(scan.getByText('Heat (1995)')).toHaveCount(0);
+    await expect(panel.getByText('Finding intros and credits')).toHaveCount(0);
+    await expect(panel.getByRole('listitem').filter({ hasText: 'Making scrubbing previews' })).toContainText("Grey's Anatomy · S4 E12");
+    const reading = panel.getByRole('listitem').filter({ hasText: 'Scanning TV Shows' });
+    await expect(reading.getByRole('term')).toHaveText(['Analysing']);
+    await expect(reading.getByRole('definition')).toHaveText(['3 of 40']);
     await expect(panel.getByText('3 of 12', { exact: true })).toBeVisible();
     await expect(panel.getByText('25%', { exact: true })).toBeVisible();
     // Internal steps, file names, scan statistics and scheduled backlogs stay on the Dashboard.

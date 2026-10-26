@@ -217,8 +217,14 @@ func (m *Manager) pass(ctx context.Context) {
 		done++
 		task.Progress(done, max(todo, done))
 		task.Detail(filepath.Base(f.Path))
+		name, _ := m.store.FileActivityLabel(ctx, f.ID)
+		if name == "" {
+			name = filepath.Base(f.Path)
+		}
+		op := task.Work("Making previews", name, filepath.Base(f.Path))
 		start := time.Now()
 		err := m.make(work, f)
+		op.Finish()
 		paused := work.Err() != nil
 		finish(err)
 		if paused {

@@ -144,7 +144,10 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			return ctx.Err()
 		}
 		task.Progress(i+1, len(jobs))
+		title, _ := m.store.FileActivityTitle(ctx, j.FileID)
+		op := task.Work("Looking up intros and credits", title, "Chapters and online databases")
 		_, err := m.find(ctx, j, key, &online)
+		op.Finish()
 		if err != nil {
 			return err
 		}
@@ -209,6 +212,11 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			continue
 		}
 		worked = true
+		show := fmt.Sprintf("Season %d", s.number)
+		if series, _ := m.store.GetItem(ctx, s.series); series != nil {
+			show = series.Title + " · " + show
+		}
+		op := task.Work("Detecting intros", show, "Comparing the season's episodes")
 		found, err := detectSeason(work, ffmpeg, files)
 		if err == nil {
 			for fileID, ms := range found {
@@ -217,6 +225,7 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 				}
 			}
 		}
+		op.Finish()
 		paused := work.Err() != nil
 		finish(err)
 		if paused {
@@ -242,10 +251,13 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			continue
 		}
 		worked = true
+		title, _ := m.store.FileActivityTitle(ctx, j.FileID)
+		op := task.Work("Detecting credits", title, "Looking for the closing credits")
 		found, err := detectCredits(work, ffmpeg, j.Path, j.DurationMS)
 		if err == nil && found != nil {
 			err = m.store.SaveMarkers(work, j.FileID, []store.Marker{*found})
 		}
+		op.Finish()
 		paused := work.Err() != nil
 		finish(err)
 		if paused {
