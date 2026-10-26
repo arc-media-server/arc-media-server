@@ -14,7 +14,7 @@ import { inputClass } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 
 export const orderings: { value: SourceOrdering; label: string; hint: string }[] = [
-  { value: 'tmdb_aired', label: 'TMDB aired order', hint: 'Files numbered the way TMDB lists them; the default, as in Plex' },
+  { value: 'tmdb_aired', label: 'TMDB aired order', hint: 'Files numbered the way TMDB lists them' },
   { value: 'tvdb_aired', label: 'TheTVDB aired order', hint: "Files numbered the way TheTVDB lists them (Sonarr's default)" },
   { value: 'tvdb_dvd', label: 'TheTVDB DVD order', hint: 'Files numbered like the DVD releases' },
   { value: 'tvdb_absolute', label: 'TheTVDB absolute order', hint: 'Episodes numbered 1, 2, 3… across seasons (common for anime)' },
@@ -37,6 +37,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [name, setName] = useState(library?.name ?? '');
   const [nameTouched, setNameTouched] = useState(editing);
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
+  const [detailsProvider,setDetailsProvider]=useState<""|"tvdb">(library?.details_provider??"");
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tmdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
   // Plex's defaults: intros for TV, credits for TV and movies.
@@ -64,8 +65,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
-        : api.createLibrary({ name, kind, source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
+        ? api.updateLibrary(library.id, { name, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
+        : api.createLibrary({ name, kind, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -102,7 +103,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
         step === 'preview'
           ? 'This is what Arc found, before adding anything. Your files are never changed.'
           : editing
-            ? 'Change the name or folders. Arc scans the library again when you save.'
+            ? 'Folder changes scan the library. Metadata changes refresh known titles.'
             : 'Choose a type and folders. Arc finds titles, matches them and loads artwork in the background.'
       }
       footer={footer}
@@ -169,8 +170,12 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
           <details open={editing || undefined} className="rounded-2xl border border-border p-4">
             <summary className="cursor-pointer text-sm font-medium">Advanced</summary>
             <div className="mt-4 space-y-6">
+              {kind === 'shows' && <Field label="Metadata provider" controlId={`${fieldId}-provider`}>
+                <select id={`${fieldId}-provider`} aria-describedby={`${fieldId}-provider-help`} value={detailsProvider} onChange={e=>setDetailsProvider(e.target.value as ''|'tvdb')} className={inputClass}><option value="">TMDB</option><option value="tvdb">TheTVDB</option></select>
+                <p id={`${fieldId}-provider-help`} className="mt-1.5 text-xs text-subtle">Show titles, descriptions, artwork and cast. Episode information follows File episode order.</p>
+              </Field>}
               {kind === 'shows' && (
-                <Field label="Episode numbering in your file names" controlId={`${fieldId}-ordering`}>
+                <Field label="File episode order" controlId={`${fieldId}-ordering`}>
                   <div className="relative">
                     <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={cn(inputClass, 'appearance-none pr-9')}>
                       {orderings.map((o) => (
@@ -182,8 +187,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                     <ChevronDown className="pointer-events-none absolute right-3 top-3 size-4 text-subtle" />
                   </div>
                   <p id={`${fieldId}-ordering-help`} className="mt-1.5 text-xs text-subtle">
-                    {orderings.find((o) => o.value === ordering)?.hint}. This is only how files are named; you can show each series in any
-                    order later.
+                    {orderings.find((o) => o.value === ordering)?.hint}. Also selects the episode metadata provider. Individual shows can override this default; display order is separate.
                   </p>
                 </Field>
               )}

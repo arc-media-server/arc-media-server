@@ -12,7 +12,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | null;
+type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | 'ordering' | null;
 
 /** Versions of a movie that could be split into titles of their own (parts of one version count once). */
 export function splitVersions(item: Item) {
@@ -26,7 +26,7 @@ export function useItemDialogs(item: Item | undefined) {
   const library = libraries?.find((l) => l.id === item?.library_id);
   const dialogs = item && (
     <>
-      <EditDetailsDialog item={item} open={open === 'edit'} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
+      <EditDetailsDialog item={item} open={open === 'edit' || open === 'ordering'} initialTab={open === 'ordering' ? 'ordering' : undefined} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
       <AddToCollectionDialog item={item} library={library} open={open === 'collection'} onOpenChange={(o) => setOpen(o ? 'collection' : null)} />
       <SplitDialog item={item} open={open === 'split'} onOpenChange={(o) => setOpen(o ? 'split' : null)} />

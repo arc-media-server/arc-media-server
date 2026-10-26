@@ -186,6 +186,7 @@ export type LibraryKind = 'movies' | 'shows' | 'videos';
 export type SourceOrdering = 'tvdb_aired' | 'tvdb_dvd' | 'tvdb_absolute' | 'tmdb_aired';
 
 export interface Library {
+  details_provider: "" | "tvdb";
   id: number;
   name: string;
   kind: LibraryKind;
@@ -208,6 +209,7 @@ export interface Library {
 }
 
 export interface LibraryInput {
+  details_provider?: "" | "tvdb";
   name: string;
   kind: LibraryKind;
   source_ordering: SourceOrdering;

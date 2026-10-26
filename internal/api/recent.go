@@ -148,7 +148,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	if limit <= 0 || limit > 100 {
 		limit = 24
 	}
-	eps, err := s.store.RecentEpisodes(ctx, lib, access(r), 400)
+	eps, err := s.store.RecentEpisodes(ctx, lib, access(r), limit)
 	if err != nil {
 		s.fail(w, err)
 		return

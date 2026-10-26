@@ -5,8 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, ChevronDown, GitCompareArrows, Eye, EyeOff, ListOrdered, Loader2, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
-import { api, type Ordering, type SeasonEpisode } from '@/lib/api';
+import { AlertTriangle, Eye, EyeOff, ListOrdered, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
+import { api, type SeasonEpisode } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { EditSeasonDialog } from '@/components/EditSeason';
 import * as fmt from '@/lib/format';
@@ -20,7 +20,6 @@ import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
-import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { CollectionRows } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
 import { AddToPlaylistButton } from '@/components/Playlists';
@@ -35,12 +34,7 @@ import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -51,7 +45,6 @@ export function SeriesPage() {
   const qc = useQueryClient();
   const [showMissing, setShowMissing] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
-  const [comparing, setComparing] = useState(false);
   const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
   const [editingSeason, setEditingSeason] = useState(false);
   const scanning = useLibraries().data?.some((library) => library.scan.running) ?? false;
@@ -72,14 +65,6 @@ export function SeriesPage() {
     refetchInterval: scanning ? 3000 : false,
   });
 
-  const setOrdering = useMutation({
-    mutationFn: (orderingId: number | null) => api.setDisplayOrdering(id!, orderingId),
-    onSuccess: (data) => {
-      qc.setQueryData(['orderings', id], data);
-      setSeason(null);
-      return qc.invalidateQueries({ queryKey: ['seasons', id] });
-    },
-  });
   const refresh = useMutation({
     mutationFn: () => api.refreshSeries(id!),
     onSuccess: (data) => {
@@ -88,14 +73,7 @@ export function SeriesPage() {
     },
   });
 
-  const specials = useMutation({
-    mutationFn: (inline: boolean | null) => api.setInlineSpecials(id!, inline),
-    onSuccess: async (data) => {
-      qc.setQueryData(['orderings', id], data);
-      await qc.invalidateQueries({ queryKey: ['seasons', id] });
-      await Promise.all(['continue', 'next-up'].map(key => qc.invalidateQueries({ queryKey: [key] })));
-    },
-  });
+
 
   const data = seasons.data;
   const series = data?.series;
@@ -186,8 +164,6 @@ export function SeriesPage() {
       </TitleHero>
 
       <div className="space-y-2 px-6 md:px-10">
-        <ErrorNotice error={setOrdering.error} onRetry={() => setOrdering.mutate(setOrdering.variables ?? null)} />
-        <ErrorNotice error={specials.error} onRetry={() => specials.mutate(specials.variables ?? null)} />
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
         <ErrorNotice error={orderings.error} onRetry={() => void orderings.refetch()} />
       </div>
@@ -240,20 +216,7 @@ export function SeriesPage() {
           <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title="Show episodes you don't have">
             {showMissing ? <EyeOff /> : <Eye />} {showMissing ? 'Hide Missing' : 'Show Missing'}
           </Button>
-          {orderings.data && (
-            <OrderingMenu
-              orderings={orderings.data.orderings}
-              selected={orderings.data.display_ordering_id}
-              admin={admin}
-              onReset={() => setOrdering.mutate(null)}
-              pending={setOrdering.isPending}
-              onSelect={(o) => setOrdering.mutate(o)}
-              onCompare={orderings.data.orderings.length > 1 ? () => setComparing(true) : undefined}
-              inlineSpecials={orderings.data.inline_specials}
-              onSpecials={(inline) => specials.mutate(inline)}
-              specialsPending={specials.isPending}
-            />
-          )}
+          <Button variant="secondary" size="sm" onClick={() => openDialog('ordering')}><ListOrdered /> Episode ordering…</Button>
         </div>
       </div>
 
@@ -311,16 +274,7 @@ export function SeriesPage() {
           onOpenChange={setEditingSeason}
         />
       )}
-      {orderings.data && (
-        <CompareOrdersDialog
-          seriesId={id!}
-          orderings={orderings.data.orderings}
-          current={orderings.data.display_ordering_id}
-          open={comparing}
-          onOpenChange={setComparing}
-          onUse={(o) => setOrdering.mutateAsync(o)}
-        />
-      )}
+
     </Page>
   );
 }
@@ -355,92 +309,6 @@ function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTi
       <Play className="fill-current" /> {resume ? 'Resume' : 'Play'} {episodeCode(episode.season_number, episode.episode_number)}
     </Button>
   );
-}
-
-function OrderingMenu({
-  orderings,
-  selected,
-  pending,
-  onSelect,
-  onCompare,
-  admin, onReset,
-  inlineSpecials, onSpecials, specialsPending,
-}: {
-  orderings: Ordering[];
-  selected: number;
-  pending: boolean;
-  onSelect: (id: number) => void;
-  onCompare?: () => void;
-  admin: boolean;
-  onReset: () => void;
-  inlineSpecials: boolean;
-  onSpecials: (inline: boolean | null) => void;
-  specialsPending: boolean;
-}) {
-  const current = orderings.find((o) => o.id === selected);
-  const groups: [string, Ordering[]][] = [
-    ['TheTVDB', orderings.filter((o) => o.source.startsWith('tvdb'))],
-    ['TMDB', orderings.filter((o) => o.source.startsWith('tmdb'))],
-    ['Custom', orderings.filter((o) => o.source === 'custom')],
-    ['From File Names', orderings.filter((o) => o.source === 'file')],
-  ];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="sm" disabled={pending}>
-          {pending ? <Loader2 className="animate-spin" /> : <ListOrdered />}
-          {pending ? 'Matching episodes…' : (current?.name ?? 'Episode Order')}
-          {current && !pending && <span className="text-subtle">{providerLabel(current)}</span>}
-          <ChevronDown className="text-subtle" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuRadioGroup value={String(selected)} onValueChange={(v) => onSelect(Number(v))}>
-          {groups
-            .filter(([, list]) => list.length)
-            .map(([label, list], i) => (
-              <div key={label}>
-                {i > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuLabel>{label}</DropdownMenuLabel>
-                {list.map((o) => (
-                  <DropdownMenuRadioItem key={o.id} value={String(o.id)}>
-                    <div className="min-w-0">
-                      <p className="truncate">{o.name}</p>
-                      <p className="text-xs text-subtle">
-                        {[o.description?.replace(/^(TVDB|TMDB)( · )?/, ''), fmt.plural(o.episode_count, 'episode')].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                  </DropdownMenuRadioItem>
-                ))}
-              </div>
-            ))}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem checked={inlineSpecials} disabled={specialsPending} onCheckedChange={(checked) => onSpecials(checked)}>
-          Show specials in seasons
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuItem disabled={specialsPending} onSelect={() => onSpecials(null)}>{admin ? 'Reset specials to Off' : 'Use server specials setting'}</DropdownMenuItem>
-        <DropdownMenuLabel className="whitespace-normal text-xs font-normal">Uses TheTVDB placement hints from metadata refresh. Unknown specials stay in Specials. Manual/custom orders stay as arranged.</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>{admin ? 'Your choice also sets the server default' : 'Your profile only'}</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={onReset}>{admin ? 'Reset to source order' : 'Use server default'}</DropdownMenuItem>
-        {onCompare && (
-          <DropdownMenuItem onSelect={onCompare}>
-            <GitCompareArrows className="size-4 text-muted" /> Compare Orders…
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem disabled className="text-xs text-subtle">
-          Changes how episodes are shown. Your files aren't touched.
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function providerLabel(o: Ordering) {
-  if (o.source.startsWith('tvdb')) return 'TVDB';
-  if (o.source.startsWith('tmdb')) return 'TMDB';
-  return '';
 }
 
 function EpisodeRow({

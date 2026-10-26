@@ -57,6 +57,9 @@ func (s *Scanner) manualWork(ctx context.Context, libraryID int64, operation str
 					_, e = s.RefreshMovie(ctx, item.ID)
 				} else {
 					e = s.SyncSeriesMetadata(ctx, lib, item.ID, false)
+					if e == nil {
+						e = s.RelinkSeries(ctx, lib, item.ID)
+					}
 				}
 				if e != nil && ctx.Err() != nil {
 					return ctx.Err()

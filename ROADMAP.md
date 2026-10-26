@@ -264,3 +264,12 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Jellyfin-compatible API (was milestone 6): decided in Oct 2026 that Arc is its own thing, with its
   own apps and an open API for anyone to build clients on (milestone 18)
 - Plugin system or third-party extension API
+
+
+### Metadata/order and Home follow-up — 26 October 2026
+
+Owner accepted library-only show metadata provider, file-order-derived episode metadata,
+per-show file/display order in Edit Show, scoped refresh/relink and complete Recently Added
+groups after large imports. Contract/upgrade boundary: docs/METADATA-ORDERING.md. Existing
+provider fallback and single-provider gaps remain; actual live catalogue/owner acceptance is
+separate from isolated regressions. This does not complete native/physical/release gates.

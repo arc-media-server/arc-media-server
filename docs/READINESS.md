@@ -1,5 +1,71 @@
 # Stability and release readiness
 
+## Metadata/order simplification and Recently Added (26 October 2026)
+
+Owner accepted library-only show metadata provider, file-order-derived episode metadata,
+per-show file/display controls together in Edit Show, and the grouped Home cutoff fix.
+Baseline 150b148 matched GitHub main; branch codex/metadata-ordering. Prepared Go 1.27.0,
+Node 24.19.0/npm 11.9.0 and pinned Chromium 1248/dependencies were used without installations.
+Contract and compatibility boundary: [METADATA-ORDERING.md](METADATA-ORDERING.md).
+
+Library Metadata provider selects show information; File episode order selects episode
+information/identity, with a per-show override. Display order/specials are staged in Edit →
+Metadata & ordering, reached through Episode ordering…; ordinary profiles retain display-only
+controls/inheritance. Compare Orders retains its explicit immediate Use/Retry action. Episode
+credits follow the file provider. Per-show Details From is removed. Migration 0053 preserves
+stored metadata/history/files/locks and starts no work; old per-show provider values remain for
+rollback but no longer apply. Existing libraries default to TMDB for show information; choose
+TVDB at library level if desired. Existing provider-availability fallback remains.
+
+Individual show changes/refreshes coordinate with the library lease and relink saved present
+files only, with busy/Stop/shutdown and truthful errors/Retry. No library discovery/probing.
+Library provider/default-order changes refresh known titles; folder changes still discover.
+Library provider updates share the name/folder transaction, including duplicate-name rejection.
+The grouped Home row selects eligible recent show candidates before complete episode groups,
+with stable ties/access filtering and the card limit afterward. No arbitrary episode cutoff;
+show candidate count is bounded, not strict memory for a very large selected show.
+
+Actual local verification:
+
+- Uncached full Go: **387 tests/subtests (235 top-level)**, zero failures/skips. Final full
+  pass includes atomic library-provider edits; the shutdown guard receives a final focused check.
+- Affected store/scanner/API race: **250 tests/subtests (135 top-level)**, zero failures/skips.
+  Final API activity/error supplement: **96 (36 top-level)**; final atomic-library/backup and
+  scoped refresh/shutdown supplements pass **2/2 each**. These overlap the above coverage,
+  not additional distinct test counts.
+- **Nine browser journeys pass together (101.69s)**, zero failures/skips/retries, after final
+  phone-tab and Follow file order refinements. They cover provider create/edit persistence,
+  staged file-order Cancel/Save/failure/Retry, exact files/resume and zero-discovery status,
+  independent display, credits/source switching, specials/traversal and profile inheritance,
+  comparison failure/Retry and ordinary-user controls. Earlier nine-pass run: 118.61s; rerun
+  is not nine extra distinct journeys. Phone captures visually inspected.
+- Real temporary-store endpoint: six shows/600 present episodes produce six complete 100-episode
+  cards instead of four; denied-library filtering remains. Local provider fixture: 16 files /
+  11 TMDB episodes / 16 TVDB episodes retain identity, locked title and resume while file-order
+  switching places all 16 with no discovered/probed files. Upgrade checks schema-52 safety
+  backup read-only, retained metadata and independent provider/default numbering.
+- Provider failure is returned as an error for display/source changes; repeating a failed
+  source choice cannot become a false successful no-op. Legacy per-show field rejection does
+  not apply accompanying metadata edits. Busy and Stop prevent queued discovery escaping;
+  shutdown rejects mutation before acquiring new work.
+- Production/app/e2e TypeScript, UI/embedded build, vet, API-document generator and diff checks
+  pass. New schemas require no tools/dependency installation.
+
+Earlier attempts remain evidence: initial copied-component TypeScript/import errors; first
+browser run 2/6 exposed the new shortcut accidentally using window.open plus an incorrectly
+adapted Cancel assertion; second 7/8 caught ambiguous help-text matching; third 7/9 exposed
+an overly long accessible file-order name and error text concatenated with Retry. The shortcut,
+labels/error markup and exact selectors were corrected without dropping behavior checks,
+changing timeouts or enabling retries. Raw failed reports/traces remain alongside final logs.
+
+Evidence: /workspace/arc-cloud-evidence/metadata-scan-review/. Investigation REVIEW.md predates
+implementation and is preserved as historical diagnosis; later results/logs describe this work.
+No owner data/settings/media/keys, Unraid, production endpoint or persistent server. Live
+Duncanville records, actual owner filenames/pre-change state and real-library performance were
+not checked; unequal synthetic catalogues prove a mechanism, not that exact live mismatch.
+Hosted full-suite/publication results are recorded separately in the GitHub handoff when complete.
+
+
 ## Automatic quality and episode action layout (26 October 2026)
 
 Owner accepted #197 after the earlier deferral. Baseline 4917e48 matched GitHub main; branch

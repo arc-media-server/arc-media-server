@@ -314,16 +314,22 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.reload(); await expect(spoiler).toBeChecked();
   await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Ordering save failed' } }));
   await page.goto('/series/' + item.id);
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await page.getByRole('button', { name: /Aired Order/ }).click();
-  await expect(page.getByText('Your choice also sets the server default')).toBeVisible();
+  await expect(page.getByText('Your choice also sets the server default', {exact:true})).toBeVisible();
   await page.getByRole('menuitemradio', { name: /Story Order/ }).click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByText('Ordering save failed', { exact: true })).toBeVisible();
   await page.unroute('**/display-ordering');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
   await page.reload();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await page.getByRole('button', { name: /Story Order/ }).click();
-  await page.getByRole('menuitem', { name: 'Reset to source order', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Follow file order', exact: true }).click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Aired Order/ })).toBeVisible();
 });
 
@@ -451,6 +457,7 @@ test('playback failures can retry without reopening the title', async ({ page })
 test('comparison keeps selections on failure and profiles can return to inherited order', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await page.getByRole('button', { name: /Aired Order/ }).click();
   await page.getByRole('menuitem', { name: /Compare Orders/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare Episode Orders', exact: true });
@@ -462,15 +469,21 @@ test('comparison keeps selections on failure and profiles can return to inherite
   await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Order viewer', color: 'blue' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
   await page.reload();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await page.getByRole('button', { name: /Story Order/ }).click();
   await expect(page.getByText('Your profile only', { exact: true })).toBeVisible();
   await page.getByRole('menuitemradio', { name: /Aired Order/ }).click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Aired Order/ })).toBeVisible();
   await page.getByRole('button', { name: /Aired Order/ }).click();
   await page.getByRole('menuitem', { name: 'Use server default', exact: true }).click();
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
 });
 

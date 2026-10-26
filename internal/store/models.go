@@ -1,11 +1,12 @@
 package store
 
 type Library struct {
-	ID             int64    `json:"id"`
-	Name           string   `json:"name"`
-	Kind           string   `json:"kind"`
-	SourceOrdering string   `json:"source_ordering"`
-	Paths          []string `json:"paths"`
+	DetailsProvider string   `json:"details_provider"`
+	ID              int64    `json:"id"`
+	Name            string   `json:"name"`
+	Kind            string   `json:"kind"`
+	SourceOrdering  string   `json:"source_ordering"`
+	Paths           []string `json:"paths"`
 	// Make thumbnails for scrubbing along the timeline (off unless turned on).
 	Trickplay bool `json:"trickplay"`
 	// The fewest films a TMDB collection needs before it's shown; 0 for no automatic collections.
@@ -54,7 +55,7 @@ type Item struct {
 	LocalLogo string `json:"-"`
 	// A show's own episode numbering, overriding its library's; "" follows the library.
 	SourceOrdering string `json:"source_ordering,omitempty"`
-	// Where a show's details and artwork come from: "" for TMDB, or "tvdb".
+	// Legacy per-show preference retained for rollback; new refreshes use Library.DetailsProvider.
 	DetailsProvider string `json:"details_provider,omitempty"`
 	// The language it was made in (2-letter code, e.g. "ja").
 	OriginalLanguage string `json:"original_language,omitempty"`
