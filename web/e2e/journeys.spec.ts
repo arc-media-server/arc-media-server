@@ -505,6 +505,7 @@ async function libraryForm(page: Page, name: string, path: string, shows = false
   const dialog = page.getByRole('dialog');
   if (shows) await dialog.getByRole('button', { name: 'TV Shows', exact: true }).click();
   await dialog.getByRole('textbox').first().fill(name);
+  await dialog.getByRole('button', { name: 'Next', exact: true }).click();
   const folder = dialog.getByPlaceholder('Choose a drive, or type a folder path');
   await folder.fill(path);
   const listed = page.waitForResponse(r => r.url().includes('/api/folders?') && r.ok());
@@ -516,7 +517,7 @@ async function libraryForm(page: Page, name: string, path: string, shows = false
 
 async function preview(page: Page, name: string, path: string, shows = false) {
   const dialog = await libraryForm(page, name, path, shows);
-  await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
+  await dialog.getByRole('tab', { name: 'Advanced' }).click();
   const started = page.waitForResponse(r => r.url().endsWith('/api/library-previews') && r.request().method() === 'POST' && r.ok());
   await dialog.getByRole('button', { name: 'Preview folders', exact: true }).click();
   const { id } = await (await started).json();
@@ -588,7 +589,7 @@ test('empty previews and failed preview requests leave the app usable', async ({
   await expect(dialog.getByText('0', { exact: true }).first()).toBeVisible();
   await expect(page.locator('body')).not.toBeEmpty();
   await dialog.getByRole('button', { name: 'Back', exact: true }).click();
-  await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
+  await dialog.getByRole('tab', { name: 'Advanced' }).click();
   await page.route('**/api/library-previews', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Fixture preview unavailable' }) }));
   await dialog.getByRole('button', { name: 'Preview folders', exact: true }).click();
   await expect(dialog.getByText('Fixture preview unavailable', { exact: true })).toBeVisible();
