@@ -1,5 +1,11 @@
 # Episode details and inline specials
 
+The metadata-scope portion of this original contract is superseded by
+[METADATA-ORDERING.md](METADATA-ORDERING.md), 26 October 2026: library provider selects show
+information; episode information/credits follow file numbering, and per-show Details From
+is removed. The traversal, identity, spoiler and provider-availability boundaries remain.
+
+
 Implemented for #106/#109 after the owner's 25 October review. These controls enrich
 episode browsing without changing media files, canonical episode identity or watch history.
 

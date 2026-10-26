@@ -603,12 +603,18 @@ test('alternate episode order persists and unplaced files remain visible', async
   await expect(first).toBeVisible();
   await expect(second).toBeVisible();
   expect((await first.boundingBox())!.y).toBeLessThan((await second.boundingBox())!.y);
+  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
   await page.getByRole('button', { name: /Aired Order/ }).click();
   await page.getByRole('menuitemradio', { name: /Story Order/ }).click();
+  await page.getByRole('button', {name:'Save',exact:true}).click();
+  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
+  await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect.poll(async () => (await second.boundingBox())!.y < (await first.boundingBox())!.y).toBe(true);
   await page.reload();
+  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
   await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
+  await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect(second).toBeVisible();
   expect((await second.boundingBox())!.y).toBeLessThan((await first.boundingBox())!.y);
   await page.getByRole('button', { name: /Not in This Order/ }).click();

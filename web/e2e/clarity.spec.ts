@@ -48,7 +48,7 @@ for (const shows of [false, true]) {
     await listed;
     await dialog.getByRole('button', { name: 'Use This Folder', exact: true }).click();
     await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
-    const labels = [shows ? 'Episode numbering in your file names' : 'Automatic collections', 'Collections in the library', 'Metadata language'];
+    const labels = [shows ? 'File episode order' : 'Automatic collections', 'Collections in the library', 'Metadata language', ...(shows ? ['Metadata provider'] : [])];
     for (const label of labels) {
       const control = dialog.getByRole('combobox', { name: label, exact: true });
       await expect(control).toBeVisible();
@@ -63,16 +63,19 @@ for (const shows of [false, true]) {
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Tab');
     const chosen = await language.inputValue();
+    if(shows) await dialog.getByRole('combobox',{name:'Metadata provider',exact:true}).selectOption('tvdb');
     const saved = page.waitForResponse(r => r.url().endsWith('/api/libraries') && r.request().method() === 'POST' && r.ok());
     await dialog.getByRole('button', { name: 'Add Library', exact: true }).click();
     const lib = await (await saved).json();
     expect(lib.metadata_language).toBe(chosen);
+    if(shows) expect(lib.details_provider).toBe("tvdb");
     await expect(dialog).not.toBeVisible();
     await page.getByRole('region', { name: 'Named library', exact: true }).getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Named library');
     for (const label of labels) await expect(dialog.getByRole('combobox', { name: label, exact: true })).toBeVisible();
     await expect(dialog.getByRole('combobox', { name: 'Metadata language', exact: true })).toHaveValue(chosen);
     if (shows) {
+      await expect(dialog.getByRole("combobox",{name:"Metadata provider",exact:true})).toHaveValue("tvdb");
       await dialog.getByRole('combobox', { name: labels[0], exact: true }).selectOption('tvdb_absolute');
       await expect(dialog.getByText(/Episodes numbered 1, 2, 3/)).toBeVisible();
     }

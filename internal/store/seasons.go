@@ -119,11 +119,16 @@ func (s *Store) SeasonPosters(ctx context.Context, seriesID string) (map[int]Sea
 	return out, rows.Err()
 }
 
-// RecentEpisodes lists a library's episodes with files present, newest first.
+// RecentEpisodes selects recent shows before collecting their episodes. A large show cannot
+// consume an episode sample and starve other cards; complete selected groups retain their counts.
 func (s *Store) RecentEpisodes(ctx context.Context, libraryID int64, acc Access, limit int) ([]Item, error) {
-	q := `SELECT ` + itemCols + ` FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
+	q := `SELECT * FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
 	args := []any{libraryID}
 	q, args = acc.Where("items", q, args)
-	q += ` ORDER BY added_at DESC, release_date DESC LIMIT ?`
+	q = `WITH eligible AS NOT MATERIALIZED (` + q + `), ranked AS (
+ SELECT id,parent_id,added_at,release_date,ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY added_at DESC,release_date DESC,id) AS position FROM eligible
+ ) SELECT ` + itemCols + ` FROM eligible WHERE parent_id IN (
+ SELECT parent_id FROM ranked WHERE position=1 ORDER BY added_at DESC,release_date DESC,id LIMIT ?
+ ) ORDER BY added_at DESC,release_date DESC,id`
 	return s.queryItems(ctx, q, append(args, limit)...)
 }

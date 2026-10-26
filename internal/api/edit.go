@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
 	"strings"
 
+	"ams/internal/activity"
 	"ams/internal/config"
 	"ams/internal/scanner"
 	"ams/internal/store"
@@ -131,34 +133,32 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if err := s.store.EditItem(r.Context(), it.ID, e); err != nil {
+
+	if body.DetailsProvider != nil {
+		writeError(w, 400, "Choose the metadata provider in library settings; episode metadata follows File episode order")
+		return
+	}
+	if body.SourceOrdering != nil {
+		lib, err := s.store.GetLibrary(r.Context(), it.LibraryID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		err = s.scanner.RefreshSeries(r.Context(), lib, it.ID, false, func(ctx context.Context) error {
+			if err := s.store.EditItem(ctx, it.ID, e); err != nil {
+				return err
+			}
+			return s.store.SetSourceOrdering(ctx, it.ID, *body.SourceOrdering)
+		})
+		if err != nil {
+			s.seriesRefreshError(w, err)
+			return
+		}
+	} else if err := s.store.EditItem(r.Context(), it.ID, e); err != nil {
 		s.fail(w, err)
 		return
 	}
-	resync := false
-	if body.DetailsProvider != nil && *body.DetailsProvider != it.DetailsProvider {
-		if err := s.store.SetDetailsProvider(r.Context(), it.ID, *body.DetailsProvider); err != nil {
-			s.fail(w, err)
-			return
-		}
-		resync = true
-	}
-	if body.SourceOrdering != nil && *body.SourceOrdering != it.SourceOrdering {
-		if err := s.store.SetSourceOrdering(r.Context(), it.ID, *body.SourceOrdering); err != nil {
-			s.fail(w, err)
-			return
-		}
-		resync = true
-	}
-	if resync {
-		// Match the files to episodes again with the new numbering.
-		if lib, err := s.store.GetLibrary(r.Context(), it.LibraryID); err == nil && lib != nil {
-			if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, it.ID, false); err != nil {
-				s.log.Warn("re-numbering a show failed", "series", it.Title, "err", err)
-			}
-			s.scanner.Start(lib.ID)
-		}
-	}
+
 	s.getItem(w, r)
 }
 
@@ -171,7 +171,10 @@ func (s *Server) refreshItem(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	var err error
-	task := s.activity.Start("refresh", "Refreshing "+it.Title)
+	var task *activity.Handle
+	if it.Kind == "movie" {
+		task = s.activity.Start("refresh", "Refreshing "+it.Title)
+	}
 	defer func() { task.Finish(err) }()
 	switch it.Kind {
 	case "movie":
@@ -183,11 +186,12 @@ func (s *Server) refreshItem(w http.ResponseWriter, r *http.Request) {
 		}
 		var lib *store.Library
 		if lib, err = s.store.GetLibrary(ctx, it.LibraryID); err == nil && lib != nil {
-			if err = s.scanner.SyncSeriesMetadata(ctx, lib, seriesID, false); err == nil {
-				// Re-link files so episodes known only from file names get their positions back.
-				s.scanner.Start(lib.ID)
-			}
+			err = s.scanner.RefreshSeries(ctx, lib, seriesID, false, nil)
 		}
+	}
+	if errors.Is(err, scanner.ErrLibraryBusy) {
+		s.seriesRefreshError(w, err)
+		return
 	}
 	if errors.Is(err, scanner.ErrNoProvider) {
 		writeError(w, http.StatusConflict, "add a TMDB API key in Settings to fetch metadata")

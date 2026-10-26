@@ -260,3 +260,15 @@ their checkout is clean; never force/reset/stash unknown local work automaticall
 
 Official setup and saved-state behaviour:
 [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments).
+
+
+## Metadata/order follow-up (26 October 2026)
+
+METADATA-ORDERING.md supersedes the earlier per-show Details From/episode-credit contract.
+Library provider selects show information, file numbering selects episode information, and
+Edit Show contains staged file/display/specials controls. Migration 0053 preserves stored
+metadata/history/files and starts no work; legacy per-show provider values are retained only
+for rollback. Scoped show refreshes coordinate with library work and do not discover/probe
+files. Recently Added removes the pre-grouping 400-episode cutoff. READINESS and the GitHub
+handoff record actual checks/failures; live Duncanville/owner-data/provider completeness is
+not established by local fixtures. No production access or persistent server.

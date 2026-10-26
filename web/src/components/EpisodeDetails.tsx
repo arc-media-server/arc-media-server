@@ -23,7 +23,7 @@ export function EpisodeDetailsButton({ episode }: { episode: Item }) {
           {detail.data.overview && <p className="text-sm leading-relaxed text-muted">{detail.data.overview}</p>}
           <CrewLine item={detail.data} />
           <div className="-mx-6"><CastRow credits={detail.data.credits} title="Guest cast" /></div>
-          {!detail.data.credits?.length && <p className="mt-5 text-sm text-subtle">No cast or crew supplied by the selected details provider.</p>}
+          {!detail.data.credits?.length && <p className="mt-5 text-sm text-subtle">No cast or crew supplied by the file episode order provider.</p>}
         </>}
       </>}
     </DialogContent>

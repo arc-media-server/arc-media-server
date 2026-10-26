@@ -315,22 +315,7 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 		if s.OnFinish != nil {
 			s.OnFinish(libraryID)
 		}
-		s.mu.Lock()
-		s.status[libraryID].Running = false
-		delete(s.jobs, libraryID)
-		if s.status[libraryID].Stopped {
-			delete(s.again, libraryID)
-			delete(s.pendingPaths, libraryID)
-		}
-		if s.again[libraryID] {
-			delete(s.again, libraryID)
-			delete(s.pendingPaths, libraryID)
-			s.startLocked(libraryID)
-		} else if next := s.pendingPaths[libraryID]; len(next) > 0 {
-			delete(s.pendingPaths, libraryID)
-			s.startLocked(libraryID, next...)
-		}
-		s.mu.Unlock()
+		s.finishLibraryWork(libraryID)
 	}()
 	return true
 }

@@ -255,7 +255,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return nil
 	}
 
-	if s.tvdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tvdb") || series.DetailsProvider == "tvdb") {
+	if s.tvdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tvdb") || lib.DetailsProvider == "tvdb") {
 		currentWork(ctx).Update("Matching series", "TheTVDB")
 		if tvdbID == 0 {
 			if tvdbID, err = s.tvdb.SearchSeries(ctx, series.Title, series.Year); err != nil {
@@ -268,7 +268,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 			}
 		}
 	}
-	if s.tmdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tmdb") || series.DetailsProvider != "tvdb") {
+	if s.tmdb.Configured() && (!essential || strings.HasPrefix(lib.SourceOrdering, "tmdb") || lib.DetailsProvider != "tvdb") {
 		currentWork(ctx).Update("Matching series", "TMDB")
 		if tmdbID == 0 && tvdbID != 0 {
 			if tmdbID, err = s.tmdb.FindTV(ctx, strconv.FormatInt(tvdbID, 10), "tvdb_id"); err != nil {
@@ -317,10 +317,10 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		log.Warn("series not found on TVDB; reading its file names using TMDB numbering")
 	}
 
-	// Series details come from one provider: TMDB, unless the show is set to TheTVDB (or isn't on
+	// Series details follow the library provider: TMDB, unless the library selects TheTVDB (or the show is not on
 	// TMDB at all). Gaps are left as they are rather than filled from the other provider.
 	primary := tmdbSeries
-	if (series.DetailsProvider == "tvdb" && tvdbSeries != nil) || primary == nil {
+	if (lib.DetailsProvider == "tvdb" && tvdbSeries != nil) || primary == nil {
 		primary = tvdbSeries
 	}
 	it := *series
@@ -448,21 +448,11 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		if err := s.store.UpdateMetadata(ctx, &ep); err != nil {
 			return err
 		}
-		// Credits follow Details From, independently of canonical text/numbering.
-		// Never keep stale TMDB credits when switching to an unsupported/missing source.
-		var people []metadata.Credit
-		if primary == tmdbSeries {
-			creditEpisode := e
-			if canon != "tmdb" {
-				creditEpisode = otherEps[canonToOther[cid]]
-			}
-			if creditEpisode != nil {
-				people = creditEpisode.People
-			}
-		}
-		if err := s.store.SetItemDetails(ctx, itemID, nil, storedCredits(people)); err != nil {
+		// Episode information, including credits, follows the file-numbering provider.
+		if err := s.store.SetItemDetails(ctx, itemID, nil, storedCredits(e.People)); err != nil {
 			return err
 		}
+
 		itemFor[cid] = itemID
 		currentWork(ctx).Progress(index+1, len(canonOrder))
 	}

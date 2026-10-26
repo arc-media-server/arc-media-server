@@ -4,10 +4,12 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"ams/internal/scanner"
 	"ams/internal/store"
 )
 
@@ -145,17 +147,25 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "ordering does not belong to this series")
 		return
 	}
-	for _, u := range users {
-		if err := s.store.SetDisplayOrdering(r.Context(), series.ID, u, o.ID); err != nil {
-			s.fail(w, err)
+
+	apply := func(ctx context.Context) error {
+		for _, u := range users {
+			if err := s.store.SetDisplayOrdering(ctx, series.ID, u, o.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if o.Source != "custom" && o.Source != "file" && !strings.HasPrefix(o.Source, sourceProvider(cmp.Or(series.SourceOrdering, lib.SourceOrdering))) {
+		if err := s.scanner.RefreshSeries(r.Context(), lib, series.ID, true, apply); err != nil {
+			s.seriesRefreshError(w, err)
 			return
 		}
+	} else if err := apply(r.Context()); err != nil {
+		s.fail(w, err)
+		return
 	}
-	if o.Source != "custom" && !strings.HasPrefix(o.Source, sourceProvider(cmp.Or(series.SourceOrdering, lib.SourceOrdering))) {
-		if err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, true); err != nil {
-			s.log.Warn("deep episode mapping failed", "series", series.Title, "err", err)
-		}
-	}
+
 	s.listOrderings(w, r)
 }
 
@@ -467,16 +477,12 @@ func (s *Server) refreshSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	deep := r.URL.Query().Get("deep") == "1"
-	task := s.activity.Start("refresh", "Refreshing "+series.Title)
-	err := s.scanner.SyncSeriesMetadata(r.Context(), lib, series.ID, deep)
-	task.Finish(err)
+	err := s.scanner.RefreshSeries(r.Context(), lib, series.ID, deep, nil)
 	if err != nil {
 		s.log.Warn("series refresh failed", "series", series.Title, "err", err)
 		writeError(w, http.StatusBadGateway, "refresh failed: "+err.Error())
 		return
 	}
-	// Re-link files so episodes known only from file names get their positions back.
-	s.scanner.Start(lib.ID)
 	s.listOrderings(w, r)
 }
 
@@ -581,4 +587,12 @@ func (s *Server) otherAiredSeasons(ctx context.Context, seriesID, source string)
 		}
 	}
 	return nil, nil
+}
+
+func (s *Server) seriesRefreshError(w http.ResponseWriter, err error) {
+	code := http.StatusBadGateway
+	if errors.Is(err, scanner.ErrLibraryBusy) {
+		code = http.StatusConflict
+	}
+	writeError(w, code, err.Error())
 }

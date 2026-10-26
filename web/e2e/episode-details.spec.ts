@@ -35,6 +35,46 @@ async function importShow(page: Page, path: string) {
   return { series, episodes };
 }
 
+test('metadata ordering: staged file order, Retry, scoped refresh and independent display on phone', async ({page,media},info)=>{
+  const {series,episodes}=await importShow(page,media.specials);
+  const first=episodes.find(e=>e.title==='Opening')!;
+  const before=await (await page.request.get(`/api/items/${first.id}`)).json();
+  expect((await page.request.put(`/api/items/${first.id}/progress`,{data:{position_ms:70000,duration_ms:120000,state:'stopped'}})).ok()).toBeTruthy();
+  await page.goto(`/series/${series.id}`);
+  const open=()=>page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Edit',exact:true});
+  await open();
+  await expect(dialog.getByText('Details From',{exact:true})).toHaveCount(0);
+  await expect(dialog.getByText(/Show information follows the library’s TMDB/)).toBeVisible();
+  await dialog.getByRole('combobox',{name:'File episode order',exact:true}).selectOption('tvdb_aired');
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering??'').toBe('');
+  let fail=true;
+  await page.route(`**/api/items/${series.id}`,route=>route.request().method()==='PATCH'&&fail?route.fulfill({status:503,json:{error:'File order unavailable'}}):route.continue());
+  await open();
+  await dialog.getByRole('combobox',{name:'File episode order',exact:true}).selectOption('tvdb_aired');
+  await dialog.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('File order unavailable');
+  fail=false;await dialog.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(dialog).not.toBeVisible();
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
+  const status=await (await page.request.get(`/api/libraries/${series.library_id}/scan`)).json();
+  expect(status).toMatchObject({operation:'refresh',running:false,files_seen:0,files_probed:0});
+  const after=await (await page.request.get(`/api/items/${first.id}`)).json();
+  expect(after.user_data.position_ms).toBe(70000);
+  expect(after.files.map((f:{id:number})=>f.id)).toEqual(before.files.map((f:{id:number})=>f.id));
+  await page.setViewportSize({width:390,height:844});
+  await open();
+  await expect(dialog.getByRole('combobox',{name:'File episode order',exact:true})).toHaveValue('tvdb_aired');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath('show-metadata-ordering-phone.png')});
+  await dialog.getByRole('button',{name:/Aired Order/}).click();
+  await page.getByRole('menuitemradio',{name:'Aired Order (TMDB)',exact:true}).click();
+  await dialog.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(dialog).not.toBeVisible();
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
+});
+
 test('episode details: imported credits/counts, keyboard/phone, provider switching and preserved identity', async ({ page, media }, info) => {
   const { series, episodes } = await importShow(page, media.specials);
   const ep = episodes.find(e => e.title === 'Opening')!;
@@ -71,16 +111,16 @@ test('episode details: imported credits/counts, keyboard/phone, provider switchi
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('episode-details-phone.png') });
   await page.keyboard.press('Escape');
-  expect((await page.request.patch(`/api/items/${series.id}`, { data: { details_provider: 'tvdb' } })).ok()).toBeTruthy();
+  expect((await page.request.patch(`/api/items/${series.id}`, { data: { source_ordering: 'tvdb_aired' } })).ok()).toBeTruthy();
   const changed = await (await page.request.get(`/api/items/${ep.id}`)).json();
   expect(changed.credits ?? []).toEqual([]);
   expect(changed.title).toBe('My opening'); expect(changed.user_data.position_ms).toBe(70000);
   expect(changed.files.map((f: { id: number }) => f.id)).toEqual(before.files.map((f: { id: number }) => f.id));
   await details.click();
-  await expect(dialog).toContainText('No cast or crew supplied by the selected details provider.');
+  await expect(dialog).toContainText('No cast or crew supplied by the file episode order provider.');
   await expect(dialog.getByText('Fixture Guest', { exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
-  expect((await page.request.patch(`/api/items/${series.id}`, { data: { details_provider: '' } })).ok()).toBeTruthy();
+  expect((await page.request.patch(`/api/items/${series.id}`, { data: { source_ordering: 'tmdb_aired' } })).ok()).toBeTruthy();
   const restored = await (await page.request.get(`/api/items/${ep.id}`)).json();
   expect(restored.credits).toHaveLength(3); expect(restored.title).toBe('My opening');
   await details.click();
@@ -115,8 +155,8 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   await page.goto(`/series/${series.id}`);
   let fail = true;
   await page.route('**/api/series/*/specials', route => fail ? route.fulfill({ status: 503, json: { error: 'Specials save unavailable' } }) : route.continue());
-  const menu = async () => page.getByRole('button', { name: /^Aired Order/ }).click();
-  await menu(); await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click();
+  const menu = async () => { await page.getByRole('button', { name: 'Episode ordering…', exact:true }).click(); await page.getByRole('button', {name:/^Aired Order/}).click(); };
+  await menu(); await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Specials save unavailable');
   expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(false);
   fail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click();
@@ -134,8 +174,8 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   expect((await page.request.post('/api/auth/profile', { data: { id: user.id } })).ok()).toBeTruthy();
   await page.reload();
   await menu(); await expect(page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true })).toBeChecked();
-  await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Show specials in seasons', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toHaveCount(0);
-  await menu(); await page.getByRole('menuitem', { name: 'Use server specials setting', exact: true }).click();
+  await menu(); await page.getByRole('menuitem', { name: 'Use server specials setting', exact: true }).click(); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
 });

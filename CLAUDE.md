@@ -37,6 +37,19 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Metadata/order simplification and Recently Added (26 October): library Metadata provider
+  selects show information; File episode order selects filename interpretation and episode
+  information, with per-show override in Edit → Metadata & ordering. Display order/specials
+  live in that dialog too, with a season-area shortcut and profile-only access for viewers.
+  Per-show Details From is removed; legacy values remain for rollback but no longer apply.
+  Migration 0053 defaults existing libraries to TMDB without changing stored metadata or
+  starting work. Scoped show refresh/relink uses the library lease and known present files,
+  with busy/Stop/visible errors/Retry; no folder discovery or probing. Library provider/order
+  changes refresh known titles; folder edits discover files. Recently Added selects candidate
+  shows before complete episode groups, eliminating the 400-episode starvation cutoff.
+  Contract: docs/METADATA-ORDERING.md; actual evidence/limits: READINESS and GitHub handoff.
+
+
 - Automatic browser quality (#197, 26 October): owner accepted implementation after the prior
   deferral. Automatic defaults without a saved choice; manual/explicit Original persist.
   Sustained buffer/delivery pressure lowers quality, fresh buffered headroom raises it, with
@@ -50,7 +63,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 - Episode details/specials (#106/#109, 25 October): episode rows now open stored description,
   guest cast and director/writer credits independently of Play, with spoiler protection/Retry.
-  Series cast cards show provider-reported appearance counts. Credits follow Details From;
+  Series cast cards show provider-reported appearance counts. Credits originally followed Details From (superseded by the current file-provider credit contract);
   canonical episode text/numbering stays separate and unsupported/unmapped sources remain empty.
   Episode Order offers opt-in specials in seasons, with profile/server-default inheritance.
   Stable mapped TVDB aired hints feed one traversal for seasons/Next Up/autoplay/queue/season
@@ -295,8 +308,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   built here (need a Mac / Android Studio). 15-18 were done in one go at the owner's request.
 - After 18 (Oct 2026): profile settings (Auto-Play, Skip intros, Theme music, Hide spoilers, Appearance)
   moved from the profile menu to Settings, which every profile can open (server sections admin-only).
-  Each show's details come from ONE provider: TMDB, or TheTVDB if set in Edit > Details From
-  (items.details_provider); never backfill (owner). Skip Intro/Credits are per library (as Plex);
+  Show details now follow ONE library metadata provider; episode information follows file
+  numbering. Per-show Details From was superseded on 26 October; never backfill gaps (owner). Skip Intro/Credits are per library (as Plex);
   movies get credits too (chapters, TheIntroDB, overnight picture-based detection in markers/credits.go).
 - Milestone 19 done (Oct 2026), from a Plex gap review: home networks (e.g. Tailscale), transcoder temp
   folder + conversions at once, Shuffle, subtitle mode/style per profile, collection mode, smart

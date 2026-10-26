@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -24,10 +25,11 @@ import (
 )
 
 type libraryBody struct {
-	Name           string   `json:"name"`
-	Kind           string   `json:"kind"`
-	SourceOrdering string   `json:"source_ordering"`
-	Paths          []string `json:"paths"`
+	DetailsProvider string   `json:"details_provider"`
+	Name            string   `json:"name"`
+	Kind            string   `json:"kind"`
+	SourceOrdering  string   `json:"source_ordering"`
+	Paths           []string `json:"paths"`
 	// Make timeline thumbnails for scrubbing (off by default).
 	Trickplay bool `json:"trickplay"`
 	// The fewest films a TMDB collection needs to be shown (default 2; 0 for none).
@@ -45,6 +47,9 @@ type libraryBody struct {
 // (its own folders don't conflict with themselves).
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
+	if b.DetailsProvider != "" && (b.DetailsProvider != "tvdb" || b.Kind != "shows") {
+		return errors.New("TVDB metadata provider is only available for TV libraries")
+	}
 	if b.Kind != "movies" && b.Kind != "shows" && b.Kind != "videos" {
 		return errors.New("kind must be movies, shows or videos")
 	}
@@ -151,6 +156,10 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	if err := s.store.SetLibraryDetailsProvider(r.Context(), id, b.DetailsProvider); err != nil {
+		s.fail(w, err)
+		return
+	}
 	s.log.Info("library added", "library", b.Name, "paths", b.Paths)
 	if b.Trickplay {
 		if err := s.setTrickplay(r.Context(), id, true); err != nil {
@@ -230,21 +239,29 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	b := libraryBody{Name: lib.Name, Kind: lib.Kind, SourceOrdering: lib.SourceOrdering, Paths: lib.Paths}
+	b := libraryBody{Name: lib.Name, Kind: lib.Kind, SourceOrdering: lib.SourceOrdering, Paths: lib.Paths, DetailsProvider: lib.DetailsProvider}
 	var patch struct {
-		Name           *string  `json:"name"`
-		SourceOrdering *string  `json:"source_ordering"`
-		Paths          []string `json:"paths"`
-		Trickplay      *bool    `json:"trickplay"`
-		CollectionMin  *int     `json:"collection_min"`
-		Language       *string  `json:"metadata_language"`
-		SkipIntros     *bool    `json:"skip_intros"`
-		SkipCredits    *bool    `json:"skip_credits"`
-		CollectionGrid *string  `json:"collection_grid"`
+		DetailsProvider *string  `json:"details_provider"`
+		Name            *string  `json:"name"`
+		SourceOrdering  *string  `json:"source_ordering"`
+		Paths           []string `json:"paths"`
+		Trickplay       *bool    `json:"trickplay"`
+		CollectionMin   *int     `json:"collection_min"`
+		Language        *string  `json:"metadata_language"`
+		SkipIntros      *bool    `json:"skip_intros"`
+		SkipCredits     *bool    `json:"skip_credits"`
+		CollectionGrid  *string  `json:"collection_grid"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
+	}
+	if patch.DetailsProvider != nil {
+		if *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
+			writeError(w, 400, "TVDB metadata provider is only available for TV libraries")
+			return
+		}
+
 	}
 	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
 		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
@@ -301,6 +318,20 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		s.scanner.Request(lib.ID)
 	}
 	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
+		if patch.DetailsProvider != nil {
+			if s.scanner.Status(lib.ID).Running {
+				writeError(w, 409, "the library is busy; retry when its current work finishes")
+				return
+			}
+			if err := s.store.SetLibraryDetailsProvider(r.Context(), lib.ID, *patch.DetailsProvider); err != nil {
+				s.fail(w, err)
+				return
+			}
+		}
+		// Provider-only changes refresh known metadata, never discover media.
+		if patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider {
+			s.scanner.StartOperation(lib.ID, "refresh")
+		}
 		// Nothing that needs a rescan.
 		updated, err := s.store.GetLibrary(r.Context(), lib.ID)
 		if err != nil {
@@ -331,7 +362,11 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
 		return
 	}
-	err := s.store.UpdateLibrary(r.Context(), lib.ID, b.Name, b.SourceOrdering, b.Paths)
+	var providers []string
+	if patch.DetailsProvider != nil {
+		providers = []string{*patch.DetailsProvider}
+	}
+	err := s.store.UpdateLibrary(r.Context(), lib.ID, b.Name, b.SourceOrdering, b.Paths, providers...)
 	if errors.Is(err, store.ErrDuplicateName) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
@@ -343,7 +378,11 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
-	s.scanner.Request(lib.ID)
+	if !slices.Equal(lib.Paths, b.Paths) {
+		s.scanner.Request(lib.ID)
+	} else if b.SourceOrdering != lib.SourceOrdering || patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider {
+		s.scanner.StartOperation(lib.ID, "refresh")
+	}
 	updated, err := s.store.GetLibrary(r.Context(), lib.ID)
 	if err != nil {
 		s.fail(w, err)

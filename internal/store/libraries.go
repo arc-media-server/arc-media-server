@@ -56,10 +56,15 @@ func (s *Store) CreateLibrary(ctx context.Context, name, kind, sourceOrdering st
 	return s.SyncLibrary(ctx, name, kind, sourceOrdering, paths)
 }
 
-// UpdateLibrary renames a library, replaces its folders and sets how episode files are numbered.
+// UpdateLibrary renames a library, replaces folders and sets file numbering. An optional
+// provider is saved in the same transaction, including duplicate-name validation.
 // Files that were in a folder no longer in the library are forgotten (their titles are kept, so
 // history survives, but no longer listed). It returns ErrDuplicateName if the name is taken.
-func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrdering string, paths []string) error {
+func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrdering string, paths []string, detailsProvider ...string) error {
+	var provider any
+	if len(detailsProvider) > 0 {
+		provider = detailsProvider[0]
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -74,8 +79,8 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 	if exists > 0 {
 		return ErrDuplicateName
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE libraries SET name = ?, source_ordering = ? WHERE id = ?`,
-		name, sourceOrdering, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE libraries SET name = ?, source_ordering = ?, details_provider = COALESCE(?, details_provider) WHERE id = ?`,
+		name, sourceOrdering, provider, id); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM library_paths WHERE library_id = ?`, id); err != nil {
@@ -156,14 +161,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -185,8 +190,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid)
+		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -259,5 +264,14 @@ func (s *Store) SetLibrarySkips(ctx context.Context, id int64, intros, credits b
 // SetLibraryCollectionGrid sets how a library's collections show in its grid by default.
 func (s *Store) SetLibraryCollectionGrid(ctx context.Context, id int64, mode string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE libraries SET collection_grid = ? WHERE id = ?`, mode, id)
+	return err
+}
+
+// SetLibraryDetailsProvider chooses show-level information independently of file numbering.
+func (s *Store) SetLibraryDetailsProvider(ctx context.Context, id int64, provider string) error {
+	if provider != "" && provider != "tvdb" {
+		return errors.New("metadata provider must be TMDB or TVDB")
+	}
+	_, err := s.db.ExecContext(ctx, "UPDATE libraries SET details_provider = ? WHERE id = ?", provider, id)
 	return err
 }
