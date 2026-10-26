@@ -244,6 +244,24 @@ func (h *Handle) Finish(err error) {
 	}
 }
 
+// Discard ends a task that turned out to have nothing to do, without listing it as finished,
+// so routine checks don't crowd out the work people want to see.
+func (h *Handle) Discard() {
+	if h == nil {
+		return
+	}
+	t := h.t
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.cancels, h.task.ID)
+	for i, r := range t.running {
+		if r == h.task {
+			t.running = append(t.running[:i], t.running[i+1:]...)
+			break
+		}
+	}
+}
+
 // Snapshot returns copies of the running tasks (oldest first) and the finished ones (newest first).
 func (t *Tracker) Snapshot() (running, recent []Task) {
 	running, recent = []Task{}, []Task{}

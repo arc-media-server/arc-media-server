@@ -106,3 +106,24 @@ func TestEmptyTrashDefaultsOffAndPersists(t *testing.T) {
 		}
 	}
 }
+
+func TestUpkeepDefaultsOnAndOffPersists(t *testing.T) {
+	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "upkeep.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	cfg, err := Load(t.Context(), st)
+	if err != nil || !cfg.DatabaseUpkeepEnabled || !cfg.CacheCleanupEnabled {
+		t.Fatalf("defaults: %+v %v", cfg, err)
+	}
+	cfg.DatabaseUpkeepEnabled = false
+	cfg.CacheCleanupEnabled = false
+	if err := Save(t.Context(), st, cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = Load(t.Context(), st)
+	if err != nil || cfg.DatabaseUpkeepEnabled || cfg.CacheCleanupEnabled {
+		t.Fatalf("off lost: %+v %v", cfg, err)
+	}
+}
