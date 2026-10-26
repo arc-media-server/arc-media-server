@@ -1,5 +1,44 @@
 # Stability and release readiness
 
+## Weekly database/cache upkeep (#203, 26 October 2026)
+
+Started clean from main `fadb49c` after #204 merged, on `codex/maintenance-upkeep-203`.
+Rebased cleanly onto `dc021f8` after Claude’s Activity #209 merged, preserving that work.
+Optimize database and Clean up cached files default On, with weekly quiet-window scheduling,
+coalesced Run now and persisted last result/error. The shared optional-work slot and existing
+writer queue coordinate work; playback/scanning preempt it. Integrity failures and unavailable
+maintenance state are reported rather than marked complete. VACUUM requires substantial free
+pages and verified headroom on the database/temporary volumes; skipped compaction explains why.
+Cache cleanup retains current/missing-file references and known artifacts, protects recent and
+unidentified legacy caches, rejects symlink roots and never touches library media or backups.
+Contract, exact thresholds, exclusions and Plex references: [MAINTENANCE-UPKEEP.md](MAINTENANCE-UPKEEP.md).
+
+Actual isolated local validation:
+
+- **228/228 Go tests/subtests** (134 top-level) across store/upkeep/background/settings/API/
+  subtitles/artwork/trickplay/optimize/diskspace; zero failures/skips. Includes actual temporary
+  database compaction, low/unknown-space refusal, deliberately corrupt integrity results,
+  cancellation, default-On/explicit-Off, cadence/coalescing/restart, state-error reporting,
+  orphan/live/offline cache ownership, protected files/symlinks and legacy subtitle adoption.
+- **19/19 focused race tests/subtests** (13 top-level), zero failures/skips. Affected-package
+  Go vet passes. A Windows amd64 store-test cross-compile passes; Windows execution is not claimed.
+- Production/app TypeScript, e2e TypeScript and UI build pass. **11/11 Maintenance browser
+  journeys** pass together (59.9s, zero failures/skips/retries), including two new upkeep journeys
+  for real manual execution, persisted results across restart, failure/Retry, switches and phone
+  geometry; existing scan/Stop/clock/Empty trash journeys remain passing. The same 228 Go and
+  19 race checks pass after the #209 rebase; both upkeep journeys also pass against the rebuilt
+  combined UI (28.7s). Pinned Chromium rev1248
+  uses temporary stores, generated media and local provider fixtures. Phone captures inspected.
+- An initial compile check found an unused import in the new worker; removed before tests.
+  No runtime test failures, weakened assertions, timeout increases or retry changes.
+
+Prepared Go 1.27.0, Node 24.19.0 and npm 11.9.0; no dependency installation/change. Raw logs and
+captures: `/workspace/arc-cloud-evidence/maintenance-upkeep-203/`. No full local verification,
+container/deployment run, owner media/settings/keys, Unraid, physical low-space/power-loss test,
+Windows runtime or measured performance claim. Hosted PR verification is left to run; the owner
+explicitly requests stopping after opening the PR. No merge or image publication by this task.
+
+
 ## Empty trash (#204, 26 October 2026)
 
 Started clean at main `369388e`; branch `codex/empty-trash-204`, rebased onto `55100d1`

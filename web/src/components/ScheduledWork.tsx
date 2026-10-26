@@ -68,7 +68,7 @@ function TaskStatus({ task }: { task?: ScheduledTask }) {
   const showDetail = task.state !== 'off' && task.detail;
   const counts = task.pending > 0 || task.completed > 0 || task.failed > 0;
   return (
-    <p role="status" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-subtle">
+    <div><p role="status" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-subtle">
       <span className="flex items-center gap-1.5 font-medium text-muted">
         <span aria-hidden className={cn('size-1.5 rounded-full', state.tone)} />
         {state.label}
@@ -76,5 +76,10 @@ function TaskStatus({ task }: { task?: ScheduledTask }) {
       {showDetail && <span>· {task.detail}</span>}
       {counts && <span>· {task.pending} queued · {task.completed} completed · {task.failed} failed</span>}
     </p>
+    {task.last_run && task.last_run.finished_at > 0 && <p className="mt-1 text-xs leading-relaxed text-muted">
+      Last result · {new Date(task.last_run.finished_at * 1000).toLocaleString()} · {task.last_run.detail}
+      {task.last_run.error && <> · {task.last_run.error}</>}
+    </p>}
+    </div>
   );
 }

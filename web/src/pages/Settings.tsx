@@ -538,6 +538,18 @@ function ServerSettings() {
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
                 },
                 {
+                  kind: 'database', label: 'Optimize database',
+                  description: 'Weekly during maintenance: check database integrity, refresh query statistics and compact substantial unused space when enough disk space is available. Playback and scanning take priority.',
+                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label="Optimize database automatically" />,
+                  feedback: <SaveFeedback settings={['database_upkeep_enabled']} />,
+                },
+                {
+                  kind: 'cache', label: 'Clean up cached files',
+                  description: 'Weekly during maintenance: remove unused cached images, previews and subtitles. Recent cache files and titles on offline drives are kept. Media files, uploaded artwork and backups are untouched.',
+                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label="Clean up cached files automatically" />,
+                  feedback: <SaveFeedback settings={['cache_cleanup_enabled']} />,
+                },
+                {
                   kind: 'empty_trash', label: 'Empty trash automatically',
                   description: 'Off by default. During maintenance after a fresh complete scan, permanently remove missing records and their watch history. Every folder needs a readable known file; otherwise cleanup waits. A safety backup is required. Media files are never deleted.',
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,

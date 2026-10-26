@@ -249,3 +249,62 @@ test('empty trash: library menu shares destructive confirmation and retains it f
   expect(activity.recent.some((t: { kind: string; detail?: string }) => t.kind === 'empty_trash' && t.detail?.includes('Removed 1 missing titles'))).toBe(true);
   } finally { await rename(path + '.trash-fixture', path); }
 });
+
+
+test('upkeep: weekly tasks default On, run once manually and retain last results after restart', async ({ page, media }, info) => {
+  void media;
+  await page.goto('/settings?section=maintenance');
+  const database = page.getByRole('listitem', { name: 'Optimize database', exact: true });
+  const cache = page.getByRole('listitem', { name: 'Clean up cached files', exact: true });
+  await expect(database.getByRole('switch', { name: 'Optimize database automatically', exact: true })).toBeChecked();
+  await expect(cache.getByRole('switch', { name: 'Clean up cached files automatically', exact: true })).toBeChecked();
+  for (const [row, kind] of [[database, 'database'], [cache, 'cache']] as const) {
+    await row.getByRole('button', { name: /^Run .* now$/ }).click();
+    await expect.poll(async () => (await (await page.request.get('/api/maintenance')).json()).find((t: { kind: string }) => t.kind === kind)?.last_run?.finished_at ?? 0).toBeGreaterThan(0);
+    await expect(row).toContainText('Last result');
+  }
+  await expect(database).toContainText('integrity checked');
+  await expect(cache).toContainText('Removed');
+  const before = await (await page.request.get('/api/maintenance')).json();
+  expect((await fetch('http://127.0.0.1:18200/restart', { method: 'POST' })).ok).toBe(true);
+  await page.reload();
+  await expect(database).toContainText('Last result');
+  const after = await (await page.request.get('/api/maintenance')).json();
+  for (const kind of ['database', 'cache']) expect(after.find((t: { kind: string }) => t.kind === kind).last_run).toEqual(before.find((t: { kind: string }) => t.kind === kind).last_run);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await cache.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('upkeep-results-phone.png') });
+  const toggle = cache.getByRole('switch', { name: 'Clean up cached files automatically', exact: true });
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(cache.getByRole('button', { name: /^Run .* now$/ })).toBeDisabled();
+  await page.reload();
+  await expect(toggle).not.toBeChecked();
+});
+
+test('upkeep: failures remain visible and Run now retries without altering other tasks', async ({ page, media }, info) => {
+  void media;
+  await page.route('**/api/maintenance', async route => {
+    const response = await route.fetch();
+    const rows = await response.json();
+    const row = rows.find((t: { kind: string }) => t.kind === 'database');
+    Object.assign(row, { state: 'failed', detail: 'database integrity check failed', last_run: { started_at: 100, finished_at: 200, last_success_at: 0, detail: 'Database upkeep did not complete', error: 'database integrity check failed' } });
+    await route.fulfill({ response, json: rows });
+  });
+  await page.goto('/settings?section=maintenance');
+  const database = page.getByRole('listitem', { name: 'Optimize database', exact: true });
+  await expect(database).toContainText('Needs attention');
+  await expect(database).toContainText('database integrity check failed');
+  let fail = true;
+  await page.route('**/api/maintenance/database/run', route => fail ? route.fulfill({ status: 503, json: { error: 'Maintenance fixture unavailable' } }) : route.continue());
+  await database.getByRole('button', { name: 'Run optimize database now', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Maintenance fixture unavailable' })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('upkeep-failure-retry.png') });
+  fail = false;
+  await page.unroute('**/api/maintenance');
+  await page.getByRole('alert').filter({ hasText: 'Maintenance fixture unavailable' }).getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect.poll(async () => (await (await page.request.get('/api/maintenance')).json()).find((t: { kind: string }) => t.kind === 'database')?.last_run?.last_success_at ?? 0).toBeGreaterThan(0);
+  await expect(database).toContainText('integrity checked');
+  expect((await (await page.request.get('/api/settings')).json()).empty_trash_enabled).toBe(false);
+});

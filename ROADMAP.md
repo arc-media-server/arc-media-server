@@ -204,6 +204,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Refine Settings grouping, persistent navigation, local save feedback and accessibility; lower title headers and tighten the Cast gap (#161; isolated evidence in READINESS)
 - [x] Show evidence-based source HDR and codec/profile audio labels with bounded one-time enrichment (#163; source metadata only, device acceptance remains #135)
 - [x] Unify background analysis and maintenance scheduling, processing modes, resumable work and task controls (#164; isolated evidence in READINESS)
+- [x] Add guarded weekly database/cache upkeep, Run now and persisted results (#203; contract in [MAINTENANCE-UPKEEP](docs/MAINTENANCE-UPKEEP.md), local checks in READINESS; physical storage acceptance remains)
 - [x] Avoid the slow Azure HTTP package mirror in CI media prerequisite installation (#165; hosted verification remains separate)
 - [x] Consolidate management pages under Settings and link Dashboard from Activity (#166; desktop/phone navigation and profile-boundary checks in READINESS)
 - [x] Explain active scan/matching/inspection work by title, preserving concurrent operations and truthful reused/error summaries (#167; isolated backend/browser evidence in READINESS)
