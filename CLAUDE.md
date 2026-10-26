@@ -519,7 +519,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   retaining GitHub. Read docs/CODEX-CLOUD.md for setup, verification and task handoff. Linux setup
   and verification scripts are in tools/codex-cloud; they require the project Go toolchain,
   Node 24, FFmpeg, a C compiler and package access. The original cloud workflow used codex/ branches and PRs;
-  the owner later authorized direct verified main pushes (see current policy below). Do not
+  direct main pushes were later allowed, then replaced by PRs for everything (see current policy below). Do not
   overlap local/cloud agents on the same branch. Account
   sign-in/publication/fresh-task verification are separate from this repository preparation;
   never claim Cloud is active merely because these files were pushed.
@@ -538,7 +538,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Full evidence lives in /workspace/arc-cloud-evidence/FRESH-TASK.md in that chat and GitHub #157.
   e8e315d also passed cloud preflight (39847970913) and all release/publication gates (39847970870).
   Actual reopening from the owner's other PC has not been physically exercised. GitHub stays
-  authoritative; keep handoffs current, follow the current push policy below, and never infer
+  authoritative; keep handoffs current, follow the current workflow policy below, and never infer
   deployment/device readiness from this developer-environment acceptance.
 - Scan responsiveness follow-up (#158): the owner saw matching/reading phases on an existing
   Series library. Investigation showed a repeat scan reused every file's probe details, while
@@ -552,9 +552,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
   browser journeys without retries; final queue/cancellation race checks pass separately.
   Results and limits are recorded in READINESS. PR #159 was merged as 2440fbe; actual
   owner-deployment latency confirmation remains separate. Owner data/media untouched.
-- Current push policy (owner, 22 October): commit and push authorized work directly to main
-  after relevant checks pass; PRs are no longer required by default. This supersedes the earlier
-  PR-only cloud guidance. Preserve unrelated work, never force push, and keep GitHub handoffs current.
+- Current workflow policy (owner, 26 October): ALL additions and fixes go through pull requests,
+  by Claude and Codex alike. This supersedes the 22 October direct-to-main policy. Never push to
+  main. Work on a branch (Claude: the branch the session assigns, `claude/...`; Codex: `codex/...`),
+  open a PR into main, and let the PR workflow run full verification (Linux/Windows checks, race,
+  browser journeys, container acceptance). The owner merges, or tells the agent to. Keep one
+  branch per agent/task and never have two agents on the same branch. Preserve unrelated work,
+  never force push, keep PRs focused, and keep GitHub handoffs and these notes current in the PR.
+  Merging to main publishes the development `latest` image (docs/IMAGE-PUBLISHING.md). Start new
+  work from the latest main, and after a PR merges restart the branch from main rather than
+  stacking commits on merged history.
 - Title-header balance (#160): movie and series pages now share top-aligned 240–256px desktop
   posters, wider metadata/control space, smaller detail headings and expandable synopses with
   Play/Resume above the description. Wide desktops split synopsis and credits into columns;
