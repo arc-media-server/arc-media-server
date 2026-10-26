@@ -52,6 +52,21 @@ seven-width check passes. Hosted publication results are recorded separately. Ev
 remote-network behavior, HDR/Atmos output and owner-server performance remain unverified.
 
 
+First hosted [40302917950](https://github.com/JonzaUK/arc-media-server/actions/runs/40302917950)
+at d17e523 passed **91/92 browser journeys (9.1m)**. The episode action checks and real
+constrained-delivery journey passed. Windows, Linux Go/vet/race, container acceptance and image
+preparation passed; publication was skipped. The held-response journey completed its playback
+assertions but caught an uncaught HLS `loadingPlaylist` timer against a destroyed controller.
+Local repetition reproduced **five failures/three passes**, with full error stacks. An isolated
+browser canary proves late Playwright clock installation leaves an earlier native timer firing
+even after emulated clearTimeout; installing the clock before creating the timer cancels it.
+The test now installs its clock before navigation/playback and retains every pause/source/
+caption/speed/error/Retry/seek/uncaught-error assertion. Product code, dependencies, timeouts and
+retry policy are unchanged. Corrected repetitions pass **8/8 (126.96s)** with no uncaught errors/
+failures/skips/retries; they are repetitions of one journey, not eight distinct tests. Hosted
+results are recorded in #197/#162 and raw
+evidence; this first hosted failure remains failed evidence, not publication acceptance.
+
 ## Episode details and specials (#106/#109, 25 October 2026)
 
 The owner accepted both recommendations after the Web/Server review. Clean baseline ba4fab1
