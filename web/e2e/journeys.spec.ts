@@ -1,5 +1,12 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
+async function chooseDisplay(page: Page, label: RegExp) {
+ const select=page.getByRole('combobox',{name:'Display order',exact:true});
+ const value=await select.locator('option').filter({hasText:label}).first().getAttribute('value');
+ if(!value)throw new Error('Display option missing');
+ await select.selectOption(value);
+}
+
 type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string };
 const password = 'Arc-browser-test-123';
 
@@ -604,16 +611,16 @@ test('alternate episode order persists and unplaced files remain visible', async
   await expect(second).toBeVisible();
   expect((await first.boundingBox())!.y).toBeLessThan((await second.boundingBox())!.y);
   await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
-  await page.getByRole('button', { name: /Aired Order/ }).click();
-  await page.getByRole('menuitemradio', { name: /Story Order/ }).click();
+
+  await chooseDisplay(page, /Story Order/);
   await page.getByRole('button', {name:'Save',exact:true}).click();
   await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
-  await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
   await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect.poll(async () => (await second.boundingBox())!.y < (await first.boundingBox())!.y).toBe(true);
   await page.reload();
   await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
-  await expect(page.getByRole('button', { name: /Story Order/ })).toBeVisible();
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
   await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect(second).toBeVisible();
   expect((await second.boundingBox())!.y).toBeLessThan((await first.boundingBox())!.y);

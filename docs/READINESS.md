@@ -1,5 +1,51 @@
 # Stability and release readiness
 
+## Fast owner images and ordering form (26 October 2026)
+
+Owner explicitly requested shorter internal testing feedback and a form-native Display order
+control. Baseline 2ba97df matched main; branch codex/fast-images-ordering-form. Current policy:
+[IMAGE-PUBLISHING.md](IMAGE-PUBLISHING.md). Normal main pushes now publish development latest/
+SHA after successful multi-architecture compilation/image build, without full verification.
+Full manual verification remains the default; v-prefixed tags require the complete gates.
+PRs retain verification without publication. Main cancels superseded main image runs; manual/
+version runs use SHA/version tags and do not overwrite development latest. Failed/cancelled
+builds or failed/missing release verification cannot publish. The Dockerfile compilation and
+runtime health check remain. Skipped main test jobs are intentionally skipped, not passed.
+Codex Cloud preflight remains separate for changes to its setup helpers and does not gate images.
+
+Display order and Specials in seasons are full-width native form fields matching File episode
+order. Provider/order groups and counts remain, Compare orders is a separate action, and staged
+Save/Cancel/Retry/profile-only controls are retained. Additive display_choice_id distinguishes
+saved overrides from inherited effective order, so Follow file order/Use server default reflect
+actual persistence. No data migration, numbering reinterpretation or provider-policy change.
+
+Actual focused checks:
+
+- Five affected browser journeys pass together (34.18s), zero failures/skips/retries: file-order
+  Save/Cancel/Retry and phone geometry, inline-specials/profile inheritance, alternate ordering,
+  failed preference/order saves and comparison failure/Retry. Same-frame geometry verifies all
+  three controls align; phone capture visually inspected.
+- Two focused Go store/API tests pass, covering saved versus effective/server/profile choice
+  and existing specials traversal/access controls. Production/app/e2e TypeScript and UI build
+  pass. No full Go/race/browser/container suite was rerun for this change.
+- Workflow YAML/event/publication policy: 285 assertions over main/manual/PR/version modes and
+  success/failure/cancellation/skipped combinations pass. Publication shell syntax passes;
+  four local stub cases verify main latest+SHA, version+SHA, manual SHA only and rejection of
+  invalid version tags before invoking Docker. These are local checks, not hosted release proof.
+- First browser attempt 4/5 used an obsolete expectation after explicit profile selection;
+  corrected to verify the explicit order, inherited choice and actual API effective default.
+  Second 4/5 sampled dialog animation between geometry reads; final checks wait for actionability
+  and measure all controls in one frame. Earlier reports/traces remain evidence; timeouts,
+  retries and behavior assertions were not weakened.
+
+Measured previous hosted run 40315984922: image preparation 3.9m, Linux checks 17.1m including
+9.6m browser journeys, publication 0.5m. The new policy removes verification waiting, not build/
+queue/registry time. Actual fresh publication and skipped-job status are recorded separately in
+GitHub handoff/evidence when complete. Prior 93/93 verified acceptance at 2ba97df is historical.
+Evidence: /workspace/arc-cloud-evidence/fast-images-ordering-form/. Only temporary stores/local
+provider fixtures; no owner data/settings/media/keys, Unraid, installation or persistent server.
+
+
 ## Metadata/order simplification and Recently Added (26 October 2026)
 
 Owner accepted library-only show metadata provider, file-order-derived episode metadata,

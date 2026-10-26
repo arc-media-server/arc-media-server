@@ -1,13 +1,22 @@
-# Builds the Docker image on every push to main (and by hand from the Actions tab), for normal PCs
-# and servers (amd64) and ARM boards like the Raspberry Pi (arm64), and pushes it to GitHub's
-# container registry as ghcr.io/<owner>/arc-media-server:latest (and :<commit>).
+# Development pushes publish as soon as compilation/image building succeeds. Full verification
+# gates version tags and explicit manual verification; latest is the owner's development image.
 name: Docker image
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      full_verification:
+        description: Run the full verification suite before publishing
+        type: boolean
+        default: true
+
+concurrency:
+  group: arc-image-${{ github.ref }}-${{ github.event_name }}-${{ inputs.full_verification || false }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -15,6 +24,7 @@ permissions:
 
 jobs:
   checks:
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
     name: Checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -77,6 +87,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
   container-smoke:
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.full_verification)
     name: Container installation and persistence
     env:
       EXPECTED_REVISION: ${{ github.sha }}
@@ -118,10 +129,9 @@ jobs:
         run: |
           docker pull "$PREVIOUS_IMAGE"
           node tools/docker-smoke.mjs arc-readiness:local "$PREVIOUS_IMAGE"
-  # Prepare both architectures while verification runs. Push by digest only: no usable
-  # release tag moves until the publish job has seen every verification gate pass.
+  # Build once for both architectures. The publish job applies the selected verification policy.
   build:
-    name: Prepare release images
+    name: Build images
     outputs:
       image: ${{ steps.name.outputs.image }}
       digest: ${{ steps.build.outputs.digest }}
@@ -150,9 +160,14 @@ jobs:
           cache-to: type=gha,mode=max
 
   publish:
-    name: Publish verified images
+    name: Publish images
     needs: [checks, container-smoke, build]
-    if: github.event_name != 'pull_request'
+    if: >-
+      ${{ always() && !cancelled() && needs.build.result == 'success' && github.event_name != 'pull_request' &&
+          ((needs.checks.result == 'success' && needs.container-smoke.result == 'success') ||
+           (needs.checks.result == 'skipped' && needs.container-smoke.result == 'skipped' &&
+            ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+             (github.event_name == 'workflow_dispatch' && !inputs.full_verification)))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -170,7 +185,16 @@ jobs:
         run: |
           test -n "$IMAGE"
           test -n "$DIGEST"
-          docker buildx imagetools create \
-            --tag "$IMAGE:latest" \
-            --tag "$IMAGE:$REVISION" \
-            "$IMAGE@$DIGEST"
+          tags=(--tag "$IMAGE:$REVISION")
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            tags+=(--tag "$IMAGE:latest")
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/}"
+            if [[ ! "$version" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "Version tag is not a valid container tag" >&2
+              exit 1
+            fi
+            tags+=(--tag "$IMAGE:$version")
+          fi
+          docker buildx imagetools create "${tags[@]}" "$IMAGE@$DIGEST"

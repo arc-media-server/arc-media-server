@@ -7,7 +7,7 @@ import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { ChipInput } from '@/components/ChipInput';
 import { MarkersPanel, type MarkerEdit } from '@/components/MarkersPanel';
-import { OrderingMenu } from '@/components/EpisodeOrdering';
+import { EpisodeOrderingFields } from '@/components/EpisodeOrdering';
 import { CompareOrdersDialog } from '@/components/CompareOrders';
 import { useIsAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -227,10 +227,19 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         )}
 </>}
         {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>Retry</Button></p>}
-        {orders.data && <div className="space-y-2"><p className="text-sm font-medium">Display order</p>
-          <OrderingMenu orderings={orders.data.orderings} selected={display===undefined?orders.data.display_ordering_id:display??0} pending={save.isPending} admin={admin} onSelect={setDisplay} onReset={()=>setDisplay(null)} inlineSpecials={specials===undefined?orders.data.inline_specials:specials??false} onSpecials={setSpecials} specialsPending={save.isPending} onCompare={orders.data.orderings.length>1?()=>setComparing(true):undefined}/>
-          <p className="text-xs text-subtle">{display===null?(admin?'Following file order. ':'Using the server default. '):''}Changes browsing and playback sequence without identifying files again. Saved with this dialog; {admin?'your choice also sets the server default.':'applies to your profile only.'}</p>
-        </div>}
+        {orders.data && <EpisodeOrderingFields
+          orderings={orders.data.orderings}
+          selected={display === undefined ? orders.data.display_choice_id ?? orders.data.display_ordering_id : display ?? 0}
+          pending={save.isPending}
+          admin={admin}
+          onSelect={setDisplay}
+          specials={specials === undefined
+            ? (!admin && !orders.data.specials_overridden ? 'inherit' : orders.data.inline_specials ? 'on' : 'off')
+            : specials === null ? 'inherit' : specials ? 'on' : 'off'}
+          onSpecials={setSpecials}
+          onCompare={orders.data.orderings.length > 1 ? () => setComparing(true) : undefined}
+        />}
+
       </div>}
       {comparing && <CompareOrdersDialog seriesId={item.id} orderings={orders.data?.orderings??[]} current={display??orders.data?.display_ordering_id??0} open onOpenChange={setComparing} onUse={async id=>{const data=await api.setDisplayOrdering(item.id,id);qc.setQueryData(["orderings",item.id],data);setDisplay(undefined);await qc.invalidateQueries({queryKey:["seasons",item.id]});}} />}
       {tab === 'seasons' && (

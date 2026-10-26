@@ -66,6 +66,11 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	choice, err := s.store.DisplayChoice(r.Context(), series.ID, currentUserID(r), currentUser(r) != nil && currentUser(r).IsAdmin)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	inline, overridden, err := s.store.InlineSpecials(r.Context(), series.ID, currentUserID(r))
 	if err != nil {
 		s.fail(w, err)
@@ -73,6 +78,7 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"display_ordering_id": display,
+		"display_choice_id":   choice,
 		"source_ordering":     cmp.Or(series.SourceOrdering, lib.SourceOrdering),
 		"orderings":           orderings,
 		"inline_specials":     inline,

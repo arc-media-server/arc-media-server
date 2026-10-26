@@ -265,6 +265,7 @@ export interface Ordering {
 }
 
 export interface OrderingsResponse {
+  display_choice_id?: number;
 	inline_specials: boolean;
 	specials_overridden: boolean;
   display_ordering_id: number;
