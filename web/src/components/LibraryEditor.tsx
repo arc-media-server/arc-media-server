@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, ChevronDown, Film, FolderPlus, HelpCircle, Loader2, Tv, X, Clapperboard } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Film, Folder, FolderPlus, HelpCircle, Info, Loader2, SlidersHorizontal, Tv, X, Clapperboard } from 'lucide-react';
 import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SourceOrdering } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -55,14 +55,14 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
     if (!nameTouched) setName(kind === 'shows' ? 'TV Shows' : kind === 'videos' ? 'Home Videos' : 'Movies');
   }, [kind, nameTouched]);
 
-  // A one-line reminder of the advanced choices while the section is closed.
-  const features = [trickplay && 'Scrubbing previews', kind === 'shows' && skipIntros && 'Skip intros', kind !== 'videos' && skipCredits && 'Skip credits'].filter(Boolean);
-  const advancedSummary = [
-    kind === 'shows' && (detailsProvider === 'tvdb' ? 'TheTVDB' : 'TMDB'),
-    kind === 'shows' && orderings.find((o) => o.value === ordering)?.label,
-    kind !== 'videos' && metadataLanguages.find(([code]) => code === language)?.[1],
-    features.length ? features.join(', ') : 'No player extras',
-  ].filter(Boolean).join(' · ');
+  const [section, setSection] = useState<Section>('general');
+  const sections: NavSection[] = [
+    { id: 'general', label: 'General', icon: <Info /> },
+    { id: 'folders', label: 'Folders', icon: <Folder />, note: paths.length ? String(paths.length) : undefined, attention: !paths.length },
+    { id: 'advanced', label: 'Advanced', icon: <SlidersHorizontal /> },
+  ];
+  // While adding, lead through the folders before offering Add Library.
+  const needsFolders = !editing && !paths.length && section !== 'folders';
 
   const start = useMutation({
     mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths, metadata_language: language }, library?.id),
@@ -89,9 +89,15 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
         <DialogClose asChild>
           <Button variant="ghost">Cancel</Button>
         </DialogClose>
-        <Button variant="primary" disabled={!paths.length || !name.trim() || save.isPending || start.isPending} onClick={() => save.mutate()}>
-          {save.isPending && <Loader2 className="animate-spin" />} {editing ? 'Save' : 'Add Library'}
-        </Button>
+        {needsFolders ? (
+          <Button variant="primary" disabled={!name.trim()} onClick={() => setSection('folders')}>
+            Next
+          </Button>
+        ) : (
+          <Button variant="primary" disabled={!paths.length || !name.trim() || save.isPending || start.isPending} onClick={() => save.mutate()}>
+            {save.isPending && <Loader2 className="animate-spin" />} {editing ? 'Save' : 'Add Library'}
+          </Button>
+        )}
       </>
     ) : (
       <>
@@ -116,176 +122,185 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
             : 'Choose a type and folders. Arc finds titles, matches them and loads artwork in the background.'
       }
       footer={footer}
-      className="w-[min(680px,calc(100vw-32px))]"
+      className="w-[min(820px,calc(100vw-32px))]"
     >
       {step === 'preview' && previewId ? (
         <PreviewView id={previewId} kind={kind} />
       ) : (
-        <div className="space-y-6 pb-2">
-          {!editing && (
-            <Field label="Type">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <KindCard icon={<Film />} label="Movies" selected={kind === 'movies'} onSelect={() => setKind('movies')} />
-                <KindCard icon={<Tv />} label="TV Shows" selected={kind === 'shows'} onSelect={() => setKind('shows')} />
-                <KindCard icon={<Clapperboard />} label="Other Videos" selected={kind === 'videos'} onSelect={() => setKind('videos')} />
+        <div className="grid gap-5 sm:grid-cols-[168px_minmax(0,1fr)] sm:gap-7">
+          <SectionNav sections={sections} current={section} onSelect={setSection} idBase={fieldId} />
+          <div role="tabpanel" id={`${fieldId}-${section}-panel`} aria-labelledby={`${fieldId}-${section}-tab`} className="min-w-0 pb-2 sm:min-h-[420px]">
+            {section === 'general' && (
+              <div className="space-y-6">
+                <PanelHeading title="General" description={editing ? 'What this library is called in the sidebar and on Home.' : 'What kind of videos this library holds, and what to call it.'} />
+                {editing ? (
+                  <Field label="Type">
+                    <p className="flex items-center gap-2 text-sm text-muted [&_svg]:size-4">{kind === 'shows' ? <Tv /> : kind === 'videos' ? <Clapperboard /> : <Film />} {kind === 'shows' ? 'TV Shows' : kind === 'videos' ? 'Other Videos' : 'Movies'}</p>
+                  </Field>
+                ) : (
+                  <Field label="Type">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <KindCard icon={<Film />} label="Movies" selected={kind === 'movies'} onSelect={() => setKind('movies')} />
+                      <KindCard icon={<Tv />} label="TV Shows" selected={kind === 'shows'} onSelect={() => setKind('shows')} />
+                      <KindCard icon={<Clapperboard />} label="Other Videos" selected={kind === 'videos'} onSelect={() => setKind('videos')} />
+                    </div>
+                    {kind === 'videos' && (
+                      <p className="mt-1.5 text-xs text-subtle">
+                        Home videos and anything else that isn't a film or show: named from their files, dated by them, nothing looked up online.
+                        Each folder becomes a collection.
+                      </p>
+                    )}
+                  </Field>
+                )}
+                <Field label="Name" controlId={`${fieldId}-name`}>
+                  <input
+                    id={`${fieldId}-name`}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setNameTouched(true);
+                    }}
+                    className={inputClass}
+                  />
+                </Field>
               </div>
-              {kind === 'videos' && (
-                <p className="mt-1.5 text-xs text-subtle">
-                  Home videos and anything else that isn't a film or show: named from their files, dated by them, nothing looked up online.
-                  Each folder becomes a collection.
-                </p>
-              )}
-            </Field>
-          )}
-          <Field label="Name" controlId={`${fieldId}-name`}>
-            <input
-              id={`${fieldId}-name`}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setNameTouched(true);
-              }}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Folders">
-            <div className="space-y-2">
-              {paths.map((p) => (
-                <div key={p} className="flex items-center gap-2 rounded-xl bg-surface-2/80 py-1.5 pl-3 pr-1.5 ring-1 ring-border">
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs" title={p}>
-                    {p}
-                  </span>
-                  <Button variant="ghost" size="icon" className="size-7 rounded-lg" aria-label={`Remove ${p}`} onClick={() => setPaths(paths.filter((x) => x !== p))}>
-                    <X />
-                  </Button>
+            )}
+            {section === 'folders' && (
+              <div className="space-y-4">
+                <PanelHeading title="Folders" description="Arc looks in these folders and everything inside them. Your files are never changed." />
+                <div className="space-y-2">
+                  {paths.map((p) => (
+                    <div key={p} className="flex items-center gap-2 rounded-xl bg-surface-2/80 py-1.5 pl-3 pr-1.5 ring-1 ring-border">
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={p}>
+                        {p}
+                      </span>
+                      <Button variant="ghost" size="icon" className="size-7 rounded-lg" aria-label={`Remove ${p}`} onClick={() => setPaths(paths.filter((x) => x !== p))}>
+                        <X />
+                      </Button>
+                    </div>
+                  ))}
+                  {picking ? (
+                    <FolderPicker
+                      start={paths.length ? parentOf(paths[paths.length - 1]) : undefined}
+                      onChoose={(p) => {
+                        if (!paths.includes(p)) setPaths([...paths, p]);
+                        setPicking(false);
+                      }}
+                      onCancel={() => setPicking(false)}
+                    />
+                  ) : (
+                    <Button variant="secondary" size="sm" onClick={() => setPicking(true)}>
+                      <FolderPlus /> Add Folder
+                    </Button>
+                  )}
                 </div>
-              ))}
-              {picking ? (
-                <FolderPicker
-                  start={paths.length ? parentOf(paths[paths.length - 1]) : undefined}
-                  onChoose={(p) => {
-                    if (!paths.includes(p)) setPaths([...paths, p]);
-                    setPicking(false);
-                  }}
-                  onCancel={() => setPicking(false)}
-                />
-              ) : (
-                <Button variant="secondary" size="sm" onClick={() => setPicking(true)}>
-                  <FolderPlus /> Add Folder
-                </Button>
-              )}
-            </div>
-          </Field>
-          <details open={editing || undefined} className="group rounded-2xl bg-surface-2/30 ring-1 ring-border">
-            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Advanced</span>
-                <span className="block truncate text-xs text-subtle group-open:hidden">{advancedSummary}</span>
-              </span>
-              <ChevronDown className="size-4 shrink-0 text-subtle transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="space-y-5 border-t border-border px-3 pb-4 pt-4 sm:px-4">
-              {kind !== 'videos' && (
-                <SettingGroup title="Metadata">
-                  {kind === 'shows' && (
-                    <SelectRow id={`${fieldId}-provider`} label="Metadata provider" help="Where show titles, descriptions, artwork and cast come from.">
-                      <select id={`${fieldId}-provider`} aria-describedby={`${fieldId}-provider-help`} value={detailsProvider} onChange={(e) => setDetailsProvider(e.target.value as '' | 'tvdb')} className={selectClass}>
-                        <option value="">TMDB</option>
-                        <option value="tvdb">TheTVDB</option>
-                      </select>
-                    </SelectRow>
-                  )}
-                  {kind === 'shows' && (
+              </div>
+            )}
+            {section === 'advanced' && (
+              <div className="space-y-5">
+                <PanelHeading title="Advanced" description={editing ? 'Metadata, collections and player features for this library.' : 'Optional. The defaults suit most libraries, and you can change them later.'} />
+                {kind !== 'videos' && (
+                  <SettingGroup title="Metadata">
+                    {kind === 'shows' && (
+                      <SelectRow id={`${fieldId}-provider`} label="Metadata provider" help="Where show titles, descriptions, artwork and cast come from.">
+                        <select id={`${fieldId}-provider`} aria-describedby={`${fieldId}-provider-help`} value={detailsProvider} onChange={(e) => setDetailsProvider(e.target.value as '' | 'tvdb')} className={selectClass}>
+                          <option value="">TMDB</option>
+                          <option value="tvdb">TheTVDB</option>
+                        </select>
+                      </SelectRow>
+                    )}
+                    {kind === 'shows' && (
+                      <SelectRow
+                        id={`${fieldId}-ordering`}
+                        label="File episode order"
+                        help={`${orderings.find((o) => o.value === ordering)?.hint}. Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.`}
+                      >
+                        <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={selectClass}>
+                          {orderings.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </SelectRow>
+                    )}
                     <SelectRow
-                      id={`${fieldId}-ordering`}
-                      label="File episode order"
-                      help={`${orderings.find((o) => o.value === ordering)?.hint}. Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.`}
+                      id={`${fieldId}-language`}
+                      label="Metadata language"
+                      help={
+                        <>
+                          {language && !language.startsWith('en')
+                            ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
+                            : 'The language titles and descriptions are shown in.'}
+                          {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
+                        </>
+                      }
                     >
-                      <select id={`${fieldId}-ordering`} aria-describedby={`${fieldId}-ordering-help`} value={ordering} onChange={(e) => setOrdering(e.target.value as SourceOrdering)} className={selectClass}>
-                        {orderings.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
+                      <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
+                        {metadataLanguages.map(([code, name]) => (
+                          <option key={code} value={code}>
+                            {name}
                           </option>
                         ))}
                       </select>
                     </SelectRow>
-                  )}
-                  <SelectRow
-                    id={`${fieldId}-language`}
-                    label="Metadata language"
-                    help={
-                      <>
-                        {language && !language.startsWith('en')
-                          ? 'Titles and descriptions in this language. Anything not translated yet is shown in English.'
-                          : 'The language titles and descriptions are shown in.'}
-                        {library && language !== (library.metadata_language ?? '') && ' Everything in the library is fetched again after you save.'}
-                      </>
-                    }
-                  >
-                    <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
-                      {metadataLanguages.map(([code, name]) => (
-                        <option key={code} value={code}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </SelectRow>
-                </SettingGroup>
-              )}
-              {kind !== 'videos' && (
-                <SettingGroup title="Collections">
-                  {kind === 'movies' && (
-                    <SelectRow id={`${fieldId}-collection-min`} label="Automatic collections" help="Films TMDB groups together, like a trilogy, become a collection once you have this many.">
-                      <select id={`${fieldId}-collection-min`} aria-describedby={`${fieldId}-collection-min-help`} value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={selectClass}>
-                        <option value={0}>Off</option>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {n === 1 ? 'Any film from a set' : `${n} or more films`}
-                          </option>
-                        ))}
-                      </select>
-                    </SelectRow>
-                  )}
-                  <SelectRow id={`${fieldId}-collection-grid`} label="Collections in the library" help="How collections appear when you browse the whole library. Each collection can choose for itself.">
-                    <select id={`${fieldId}-collection-grid`} aria-describedby={`${fieldId}-collection-grid-help`} value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={selectClass}>
-                      {(['items', 'collection', 'both'] as const).map((m) => (
-                        <option key={m} value={m}>
-                          {gridLabels[m]}
-                        </option>
-                      ))}
-                    </select>
-                  </SelectRow>
-                </SettingGroup>
-              )}
-              <SettingGroup title="Player">
-                <SwitchRow label="Scrubbing previews" help="A picture while dragging along the timeline. Made in the background, about 5 MB per film; turning this off deletes them." checked={trickplay} onChange={setTrickplay} />
-                {kind === 'shows' && (
-                  <SwitchRow label="Skip intros" help="Offer Skip Intro and Skip Recap, found from chapters, online databases or by comparing a season's episodes." checked={skipIntros} onChange={setSkipIntros} />
+                  </SettingGroup>
                 )}
                 {kind !== 'videos' && (
-                  <SwitchRow
-                    label="Skip credits"
-                    help={kind === 'shows' ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.' : 'Offer Skip Credits, found from chapters, TheIntroDB or by spotting the closing credits at night.'}
-                    checked={skipCredits}
-                    onChange={setSkipCredits}
-                  />
+                  <SettingGroup title="Collections">
+                    {kind === 'movies' && (
+                      <SelectRow id={`${fieldId}-collection-min`} label="Automatic collections" help="Films TMDB groups together, like a trilogy, become a collection once you have this many.">
+                        <select id={`${fieldId}-collection-min`} aria-describedby={`${fieldId}-collection-min-help`} value={collectionMin} onChange={(e) => setCollectionMin(Number(e.target.value))} className={selectClass}>
+                          <option value={0}>Off</option>
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>
+                              {n === 1 ? 'Any film from a set' : `${n} or more films`}
+                            </option>
+                          ))}
+                        </select>
+                      </SelectRow>
+                    )}
+                    <SelectRow id={`${fieldId}-collection-grid`} label="Collections in the library" help="How collections appear when you browse the whole library. Each collection can choose for itself.">
+                      <select id={`${fieldId}-collection-grid`} aria-describedby={`${fieldId}-collection-grid-help`} value={collectionGrid || 'items'} onChange={(e) => setCollectionGrid(e.target.value === 'items' ? '' : (e.target.value as Library['collection_grid']))} className={selectClass}>
+                        {(['items', 'collection', 'both'] as const).map((m) => (
+                          <option key={m} value={m}>
+                            {gridLabels[m]}
+                          </option>
+                        ))}
+                      </select>
+                    </SelectRow>
+                  </SettingGroup>
                 )}
-              </SettingGroup>
-              {!editing && (
-                <SettingGroup title="Before adding">
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-                    <div className="min-w-0 flex-1 basis-56">
-                      <p className="text-sm font-medium">Check the folders first</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-subtle">Optional: see what Arc would find before adding the library.</p>
-                    </div>
-                    <Button variant="secondary" size="sm" disabled={!paths.length || !name.trim() || start.isPending || save.isPending} onClick={() => start.mutate()}>
-                      {start.isPending && <Loader2 className="animate-spin" />} Preview folders
-                    </Button>
-                  </div>
+                <SettingGroup title="Player">
+                  <SwitchRow label="Scrubbing previews" help="A picture while dragging along the timeline. Made in the background, about 5 MB per film; turning this off deletes them." checked={trickplay} onChange={setTrickplay} />
+                  {kind === 'shows' && (
+                    <SwitchRow label="Skip intros" help="Offer Skip Intro and Skip Recap, found from chapters, online databases or by comparing a season's episodes." checked={skipIntros} onChange={setSkipIntros} />
+                  )}
+                  {kind !== 'videos' && (
+                    <SwitchRow
+                      label="Skip credits"
+                      help={kind === 'shows' ? 'Offer Skip Credits, and start the Up Next countdown when the credits begin.' : 'Offer Skip Credits, found from chapters, TheIntroDB or by spotting the closing credits at night.'}
+                      checked={skipCredits}
+                      onChange={setSkipCredits}
+                    />
+                  )}
                 </SettingGroup>
-              )}
-            </div>
-          </details>
+                {!editing && (
+                  <SettingGroup title="Before adding">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+                      <div className="min-w-0 flex-1 basis-56">
+                        <p className="text-sm font-medium">Check the folders first</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-subtle">Optional: see what Arc would find before adding the library.</p>
+                      </div>
+                      <Button variant="secondary" size="sm" disabled={!paths.length || !name.trim() || start.isPending || save.isPending} onClick={() => start.mutate()}>
+                        {start.isPending && <Loader2 className="animate-spin" />} Preview folders
+                      </Button>
+                    </div>
+                  </SettingGroup>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </DialogContent>
@@ -312,6 +327,56 @@ function Field({ label, controlId, children }: { label: string; controlId?: stri
 }
 
 const selectClass = cn(inputClass, 'h-9 appearance-none pr-9');
+
+type Section = 'general' | 'folders' | 'advanced';
+type NavSection = { id: Section; label: string; icon: ReactNode; note?: string; attention?: boolean };
+
+/** The editor's sections: a sidebar on wider screens, tabs across the top on phones. */
+function SectionNav({ sections, current, onSelect, idBase }: { sections: NavSection[]; current: Section; onSelect: (s: Section) => void; idBase: string }) {
+  const move = (from: number, by: number) => {
+    const next = sections[(from + by + sections.length) % sections.length];
+    onSelect(next.id);
+    document.getElementById(`${idBase}-${next.id}-tab`)?.focus();
+  };
+  return (
+    <div role="tablist" aria-label="Library settings" className="flex gap-1 rounded-xl bg-surface-2/50 p-1 ring-1 ring-border sm:flex-col sm:self-start sm:bg-transparent sm:p-0 sm:ring-0">
+      {sections.map((s, i) => (
+        <button
+          key={s.id}
+          type="button"
+          role="tab"
+          id={`${idBase}-${s.id}-tab`}
+          aria-selected={current === s.id}
+          aria-controls={`${idBase}-${s.id}-panel`}
+          tabIndex={current === s.id ? 0 : -1}
+          onClick={() => onSelect(s.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); move(i, 1); }
+            if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); move(i, -1); }
+          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent sm:flex-none sm:justify-start sm:px-3 [&_svg]:size-4 max-sm:[&_svg]:hidden',
+            current === s.id ? 'bg-surface-2 text-foreground ring-1 ring-border' : 'text-muted hover:text-foreground',
+          )}
+        >
+          {s.icon}
+          <span>{s.label}</span>
+          {s.note && <span className="ml-auto hidden rounded-full bg-surface px-1.5 text-[11px] text-subtle sm:inline">{s.note}</span>}
+          {s.attention && <span aria-label="needs a folder" className="ml-auto size-1.5 shrink-0 rounded-full bg-accent max-sm:ml-0" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PanelHeading({ title, description }: { title: string; description: string }) {
+  return (
+    <div>
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="mt-0.5 text-sm text-muted">{description}</p>
+    </div>
+  );
+}
 
 /** A titled block of advanced settings rows. */
 function SettingGroup({ title, children }: { title: string; children: ReactNode }) {

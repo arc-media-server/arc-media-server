@@ -37,13 +37,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
-- Library editor Advanced layout (#201, 26 October): Add/Edit Library groups advanced settings
+- Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
+  (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings
   under Metadata, Collections, Player and (adding only) Before adding, with label/help left and
-  consistent drop-downs/switches right (stacked on phones). Collapsed Advanced shows a one-line
-  summary of current choices. Behaviour, labels/aria descriptions, collapsed-when-adding and
-  Preview-inside-Advanced (#146/#181) are unchanged; UI only. Follow-ups tracked separately:
-  unified Maintenance task list (#202), Optimize database/Clean cached files (#203), Empty trash
-  from library management/Maintenance with optional off-by-default automatic mode (#204).
+  consistent drop-downs/switches right. Adding starts on General; the primary button reads Next
+  until a folder is chosen, then Add Library. Labels/aria descriptions and Preview inside
+  Advanced (#146/#181) are unchanged; UI only. Follow-ups: unified Maintenance task list (#202),
+  Optimize database/Clean cached files (#203), Empty trash in library management/Maintenance
+  with an optional off-by-default automatic mode (#204).
 
 - Fast development images and ordering form (26 October): owner explicitly removed full
   verification from the main image feedback loop. Main publishes latest/SHA after compilation

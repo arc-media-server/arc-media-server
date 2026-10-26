@@ -41,13 +41,14 @@ for (const shows of [false, true]) {
     const dialog = page.getByRole('dialog');
     if (shows) await dialog.getByRole('button', { name: 'TV Shows', exact: true }).click();
     await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Named library');
+    await dialog.getByRole('tab', { name: 'Folders' }).click();
     const folder = dialog.getByPlaceholder('Choose a drive, or type a folder path');
     await folder.fill(media.empty);
     const listed = page.waitForResponse(r => r.url().includes('/api/folders?') && r.ok());
     await folder.press('Enter');
     await listed;
     await dialog.getByRole('button', { name: 'Use This Folder', exact: true }).click();
-    await dialog.locator('summary').filter({ hasText: 'Advanced' }).click();
+    await dialog.getByRole('tab', { name: 'Advanced' }).click();
     const labels = [shows ? 'File episode order' : 'Automatic collections', 'Collections in the library', 'Metadata language', ...(shows ? ['Metadata provider'] : [])];
     for (const label of labels) {
       const control = dialog.getByRole('combobox', { name: label, exact: true });
@@ -55,8 +56,10 @@ for (const shows of [false, true]) {
       expect(await control.getAttribute('aria-describedby')).toBeTruthy();
       expect(await control.evaluate(element => document.getElementById(element.getAttribute('aria-describedby')!)?.textContent)).toBeTruthy();
     }
+    await dialog.getByRole('tab', { name: 'General' }).click();
     await dialog.getByText('Name', { exact: true }).click();
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toBeFocused();
+    await dialog.getByRole('tab', { name: 'Advanced' }).click();
     const language = dialog.getByRole('combobox', { name: 'Metadata language', exact: true });
     await language.focus();
     await page.keyboard.press('Home');
@@ -72,6 +75,7 @@ for (const shows of [false, true]) {
     await expect(dialog).not.toBeVisible();
     await page.getByRole('region', { name: 'Named library', exact: true }).getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(dialog.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Named library');
+    await dialog.getByRole('tab', { name: 'Advanced' }).click();
     for (const label of labels) await expect(dialog.getByRole('combobox', { name: label, exact: true })).toBeVisible();
     await expect(dialog.getByRole('combobox', { name: 'Metadata language', exact: true })).toHaveValue(chosen);
     if (shows) {
