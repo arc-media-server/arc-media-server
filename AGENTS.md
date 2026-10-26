@@ -12,3 +12,7 @@ simulations. Track completed work in GitHub and keep the shared notes current.
 For Codex Cloud development, also read `docs/CODEX-CLOUD.md` for environment setup,
 isolated verification, cross-device handoff and the branch/PR workflow. Cloud task
 state does not replace GitHub commits or establish actual deployment validation.
+
+Workflow rule (owner, 26 October): all additions and fixes use pull requests, for Codex and
+Claude alike. Never push to main; use a branch (`codex/...`), open a PR and let its full
+verification run. One agent per branch. See the workflow policy in `CLAUDE.md`.
