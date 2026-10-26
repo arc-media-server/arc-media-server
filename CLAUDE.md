@@ -37,6 +37,16 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Empty trash (#204, 26 October): library More and Health share one destructive confirmation.
+  Cleanup holds the scanner lease through a mandatory safety backup and transactional record
+  removal. Maintenance's EmptyTrashControl is Off by default with enable confirmation, integrated
+  into #202's merged task list with a scoped Choose library action. Automatic work requires a fresh complete
+  scan since startup, unchanged readable roots with known-file anchors, absent missing files,
+  and quiet maintenance hours, checked again after backup. Empty/offline roots require review;
+  media bytes are never deleted. Contract: docs/EMPTY-TRASH.md; actual checks in READINESS.
+  Submitted on a codex branch/PR; no main push or deployment acceptance claim.
+
+
 - Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
   (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings
   under Metadata, Collections, Player and (adding only) Before adding, with label/help left and

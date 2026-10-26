@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import {
   CheckCircle2,
   ChevronRight,
@@ -12,7 +12,6 @@ import {
   ListOrdered,
   ListX,
   Merge,
-  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { api, posterUrl, type FileProblem, type Item, type LibraryHealth, type MissingEpisode } from '@/lib/api';
@@ -25,7 +24,7 @@ import { PlaybackReport } from '@/components/PlaybackReport';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyTrashButton } from '@/components/EmptyTrash';
 import { MergeDialog } from '@/components/BulkEdit';
 
 export function HealthPage() {
@@ -211,43 +210,6 @@ function Category<T>({
 }
 
 /** Removes everything in a library whose files are gone, after asking. */
-function EmptyTrashButton({ libraryId, libraryName }: { libraryId: number; libraryName: string }) {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const empty = useMutation({
-    mutationFn: () => api.emptyTrash(libraryId),
-    onSuccess: () => {
-      setOpen(false);
-      qc.invalidateQueries();
-    },
-  });
-  return (
-    <>
-      <Button variant="secondary" size="sm" className="shrink-0" onClick={() => setOpen(true)}>
-        <Trash2 /> Remove All…
-      </Button>
-      <ConfirmDialog
-        open={open}
-        onOpenChange={(o) => {
-          setOpen(o);
-          if (!o) empty.reset();
-        }}
-        title="Remove titles whose files are gone?"
-        confirmLabel="Remove"
-        destructive
-        busy={empty.isPending}
-        error={empty.error?.message}
-        onConfirm={() => empty.mutate()}
-      >
-        <p>
-          Arc forgets the missing files in {libraryName}, and any movie, episode or show left with no files at all, including their
-          watch history. Titles that still have a file are kept.
-        </p>
-        <p>Only do this if the files are gone for good, not on a disconnected drive. A backup is made first.</p>
-      </ConfirmDialog>
-    </>
-  );
-}
 
 function UnidentifiedRow({ item, onIdentify }: { item: Item; onIdentify: () => void }) {
   if (item.kind === 'episode') {

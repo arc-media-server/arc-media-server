@@ -237,6 +237,33 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
 	sc.Activity = tasks
 	sc.Window = window
+	// Automatic trash never uses Run now's outside-window override. It is independent of
+	// metadata refresh and ordinary automatic backup settings, but always takes a safety backup.
+	go func() {
+		tick := time.NewTicker(time.Minute)
+		defer tick.Stop()
+		allowed := func() bool { return window.OpenAt(time.Now()) && bg.Ready("empty_trash") }
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				if !allowed() {
+					continue
+				}
+				for _, id := range sc.TrashCandidates() {
+					_, err := sc.EmptyTrash(ctx, id, true, func(ctx context.Context) error {
+						_, err := backups.Create(ctx, backup.ReasonBeforeDelete)
+						return err
+					}, allowed)
+					if err != nil && !errors.Is(err, scanner.ErrTrashUnsafe) && !errors.Is(err, scanner.ErrLibraryBusy) && ctx.Err() == nil {
+						log.Warn("automatic empty trash failed", "library", id, "err", err)
+					}
+				}
+			}
+		}
+	}()
+
 	sc.ThumbDir = filepath.Join(dataDir, "videothumbs")
 	sc.FFmpeg = func() string {
 		ffMu.Lock()

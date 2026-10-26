@@ -84,3 +84,25 @@ func TestSchedulingModesLegacyMigrationAndMinuteIntervals(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyTrashDefaultsOffAndPersists(t *testing.T) {
+	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "trash.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	cfg, err := Load(t.Context(), st)
+	if err != nil || cfg.EmptyTrashEnabled {
+		t.Fatalf("unsafe default: %+v %v", cfg, err)
+	}
+	for _, v := range []bool{true, false} {
+		cfg.EmptyTrashEnabled = v
+		if err := Save(t.Context(), st, cfg); err != nil {
+			t.Fatal(err)
+		}
+		loaded, err := Load(t.Context(), st)
+		if err != nil || loaded.EmptyTrashEnabled != v {
+			t.Fatalf("persist=%v %v", loaded.EmptyTrashEnabled, err)
+		}
+	}
+}

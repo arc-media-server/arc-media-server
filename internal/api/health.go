@@ -1,6 +1,9 @@
 package api
 
 import (
+	"ams/internal/scanner"
+	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -133,15 +136,18 @@ func (s *Server) emptyTrash(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if s.scanner.Status(lib.ID).Running {
-		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
+	n, err := s.scanner.EmptyTrash(r.Context(), lib.ID, false, func(ctx context.Context) error {
+		_, err := s.backups.Create(ctx, backup.ReasonBeforeDelete)
+		return err
+	}, nil)
+	if errors.Is(err, scanner.ErrLibraryBusy) {
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
-		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
+	if errors.Is(err, scanner.ErrTrashBackup) {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	n, err := s.store.EmptyTrash(r.Context(), lib.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
