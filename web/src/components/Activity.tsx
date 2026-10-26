@@ -129,12 +129,13 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
   } });
   const pct = t.total ? Math.min(100, Math.round(((t.done ?? 0) / t.total) * 100)) : null;
   // Scans show one line per step that's under way (Scanning, Matching, Analysing), each with the
-  // one item it's on. Other tasks get one plain line: the title being worked on, or N of M.
+  // one item it's on. Other tasks get one plain line: the title being worked on (e.g. "Grey's
+  // Anatomy · Season 4" for intro detection), or N of M.
   const stopping = t.stopping || stop.isPending;
   const first = t.current?.[0]?.subject;
   const more = (t.current?.length ?? 0) - 1;
   const steps = t.kind === 'scan' && !stopping ? scanSteps(t) : [];
-  const line = stopping ? 'Stopping…' : t.total ? `${t.done ?? 0} of ${t.total}` : first ? (more > 0 ? `${first} and ${more} more` : first) : '';
+  const line = stopping ? 'Stopping…' : first ? (more > 0 ? `${first} and ${more} more` : first) : t.total ? `${t.done ?? 0} of ${t.total}` : '';
   return (
     <li>
       <div className="flex items-center gap-2 text-sm">
