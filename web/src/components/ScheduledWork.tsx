@@ -12,7 +12,7 @@ export type MaintenanceTaskRow = { kind: string; label: string; description: str
 const states: Record<string, { label: string; tone: string }> = {
   running: { label: 'Running', tone: 'bg-accent animate-pulse' },
   paused: { label: 'Paused while something plays or scans', tone: 'bg-warning' },
-  failed: { label: 'Some items failed and will be tried again', tone: 'bg-warning' },
+  failed: { label: 'Needs attention', tone: 'bg-warning' },
 };
 
 export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
@@ -60,14 +60,21 @@ export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
 
 function TaskStatus({ task }: { task?: ScheduledTask }) {
   const state = task && states[task.state];
-  if (!task || !state) return null;
+  const last = task?.last_run && task.last_run.finished_at > 0 ? task.last_run : undefined;
+  if (!task || (!state && !last)) return null;
   return (
-    <p role="status" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-subtle">
-      <span className="flex items-center gap-1.5 font-medium text-muted">
-        <span aria-hidden className={cn('size-1.5 rounded-full', state.tone)} />
-        {state.label}
-      </span>
-      {task.state === 'running' && task.detail && <span>· {task.detail}</span>}
-    </p>
+    <div>
+      {state && <p role="status" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-subtle">
+        <span className="flex items-center gap-1.5 font-medium text-muted">
+          <span aria-hidden className={cn('size-1.5 rounded-full', state.tone)} />
+          {state.label}
+        </span>
+        {task.state === 'running' && task.detail && <span>· {task.detail}</span>}
+      </p>}
+      {last && <p className="mt-1 text-xs leading-relaxed text-muted">
+        Last result · {new Date(last.finished_at * 1000).toLocaleString()} · {last.detail}
+        {last.error && <> · {last.error}</>}
+      </p>}
+    </div>
   );
 }

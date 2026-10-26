@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"ams/internal/metadata"
@@ -55,8 +56,10 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 	if lib.Kind == "videos" {
 		return nil
 	}
-	task := s.Activity.Start("refresh", "Updating known titles in "+lib.Name)
+	task := s.Activity.Start("refresh", "Updating details in "+lib.Name)
 	s.registerTask(libraryID, task)
+	// Titles matched, refreshed or attempted; a run with none isn't listed as finished.
+	var worked atomic.Int64
 	defer func() {
 		s.mu.Lock()
 		delete(s.tasks, libraryID)
@@ -65,9 +68,11 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 			err = nil
 			s.update(libraryID, func(st *Status) { st.Phase = "Metadata refresh paused" })
 			task.Detail("Paused until maintenance can continue")
+		} else if status := s.Status(libraryID); err == nil && worked.Load() == 0 && status.MetadataErrors == 0 {
+			task.Discard()
+			return
 		} else {
-			status := s.Status(libraryID)
-			parts := []string{"Known-title metadata checked"}
+			parts := []string{"Details checked"}
 			if status.Matched > 0 {
 				parts = append(parts, fmt.Sprintf("%d identified", status.Matched))
 			}
@@ -88,7 +93,10 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		if err := s.matchMovies(ctx, libraryID); err != nil {
 			return err
 		}
-		return s.refreshMovies(ctx, libraryID)
+		worked.Add(int64(s.Status(libraryID).Done))
+		err := s.refreshMovies(ctx, libraryID)
+		worked.Add(int64(s.Status(libraryID).Done))
+		return err
 	}
 	if !s.hasProviders() {
 		return nil
@@ -125,6 +133,7 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 			return nil
 		}
 		// This updates metadata/order mappings using existing identity, not a file scan.
+		worked.Add(1)
 		if err := s.SyncSeriesMetadata(ctx, lib, it.ID, false); err != nil {
 			s.log.Warn("known show refresh failed", "title", it.Title, "err", err)
 			return err

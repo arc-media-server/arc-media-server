@@ -539,6 +539,18 @@ function ServerSettings() {
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
                 },
                 {
+                  kind: 'database', label: 'Optimize database',
+                  description: 'A weekly check and tidy-up that keeps Arc’s database fast and compact.',
+                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label="Optimize database automatically" />,
+                  feedback: <SaveFeedback settings={['database_upkeep_enabled']} />,
+                },
+                {
+                  kind: 'cache', label: 'Clean up cached files',
+                  description: 'Weekly removal of cached images, previews and subtitles nothing uses any more. Your media files are never touched.',
+                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label="Clean up cached files automatically" />,
+                  feedback: <SaveFeedback settings={['cache_cleanup_enabled']} />,
+                },
+                {
                   kind: 'empty_trash', label: 'Empty trash automatically',
                   description: 'After a complete scan, removes titles whose files are gone, with their watch history. Leave it off if you sometimes disconnect drives. Your files are never deleted.',
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,

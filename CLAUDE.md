@@ -37,6 +37,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Maintenance upkeep (#203, 26 October): Optimize database and Clean up cached files default On
+  in the unified task list, run weekly in the quiet maintenance window and offer coalesced Run now
+  plus persisted last results. Database work joins the writer queue, checks integrity, updates
+  query statistics and conditionally VACUUMs only substantial free pages with verified disk
+  headroom. Cache cleanup recognizes generated formats, retains missing/offline references,
+  recent files and unknown legacy subtitle hashes, and excludes media/backups/uploaded originals.
+  Cue caches now carry file-ID ownership, adopting identifiable legacy entries on use. No schema
+  migration or dependency changes. Contract: docs/MAINTENANCE-UPKEEP.md; actual local checks and
+  remaining physical-storage/Windows-runtime limits in READINESS. Work submitted via PR only;
+  owner requests stopping at PR creation rather than waiting for hosted verification.
+
+
 - Empty trash (#204, 26 October): library More and Health share one destructive confirmation.
   Cleanup holds the scanner lease through a mandatory safety backup and transactional record
   removal. Maintenance's EmptyTrashControl is Off by default with enable confirmation, integrated
@@ -44,7 +56,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   scan since startup, unchanged readable roots with known-file anchors, absent missing files,
   and quiet maintenance hours, checked again after backup. Empty/offline roots require review;
   media bytes are never deleted. Contract: docs/EMPTY-TRASH.md; actual checks in READINESS.
-  Submitted on a codex branch/PR; no main push or deployment acceptance claim.
+  Merged via PR #207; no direct main push or deployment acceptance claim.
 
 
 - Settings copy review (#210, 26 October): every Settings description rewritten as one short,
@@ -54,6 +66,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
   date, currently DV/HDR10+/Atmos), Metadata refresh, Database backups, Empty trash automatically. Tasks show status
   only when Running/Paused/failed. The clock is one "Server time: HH:MM zone" line under
   Maintenance time (owner asked to drop next-window detail; hours follow the server's clock).
+
+- Simple Activity menu (#208, 26 October): owner asked for Plex-like simplicity. The Activity
+  menu shows each running task with one plain line (current title, or N of M), a progress bar
+  and a small Stop, then up to four past-tense Recent entries with time/errors. Steps, file
+  names, scan statistics and scheduled backlogs moved to Dashboard → Activity (unchanged detail).
+  activity.Handle.Discard drops runs that did nothing: the intro/credits pass and the scheduled
+  metadata refresh (now "Updating details in …") no longer list empty entries.
+  Scans also name their step in the menu (Finding files / Matching / Reading files, #214).
 
 - Library editor layout (#201, 26 October): Add/Edit Library uses a Plex-style section sidebar
   (General: type/name; Folders; Advanced), shown as tabs on phones. Advanced groups settings

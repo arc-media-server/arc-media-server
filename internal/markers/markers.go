@@ -122,7 +122,15 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 	key, detect := m.key, m.detect
 	m.mu.Unlock()
 	task := m.Activity.Start("markers", "Finding intros and credits")
-	defer func() { task.Finish(err) }()
+	// Most passes find nothing to look up; only passes that did something are listed.
+	worked := len(jobs) > 0
+	defer func() {
+		if err == nil && !worked {
+			task.Discard()
+			return
+		}
+		task.Finish(err)
+	}()
 
 	online := true
 	type season struct {
@@ -200,6 +208,7 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			}
 			continue
 		}
+		worked = true
 		found, err := detectSeason(work, ffmpeg, files)
 		if err == nil {
 			for fileID, ms := range found {
@@ -232,6 +241,7 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			}
 			continue
 		}
+		worked = true
 		found, err := detectCredits(work, ffmpeg, j.Path, j.DurationMS)
 		if err == nil && found != nil {
 			err = m.store.SaveMarkers(work, j.FileID, []store.Marker{*found})

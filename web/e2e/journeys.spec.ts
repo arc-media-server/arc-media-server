@@ -73,7 +73,7 @@ test('unchanged series scans report checks without rereading file details', asyn
   expect(second.files_seen).toBe(3);
   expect(second.files_probed).toBe(0);
   expect(second.matched).toBe(0);
-  await page.getByRole('button', { name: /^Activity/ }).first().click();
+  await page.goto('/dashboard');
   await expect(page.getByText('3 files checked · 0 file details read', { exact: false })).toBeVisible();
   await page.screenshot({ path: info.outputPath('unchanged-series-activity.png') });
   await page.setViewportSize({ width: 390, height: 900 });
