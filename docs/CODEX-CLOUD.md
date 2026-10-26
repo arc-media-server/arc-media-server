@@ -209,15 +209,16 @@ Start a task with:
 > retained diagnostics and poster-only saves are implemented; inspect newer commits
 > before assuming they are still pending. Real-library/device/sustained-use evidence
 > remains open on #134–#138. Confirm the present baseline and outstanding issue evidence
-> before choosing more work. Use isolated test data. Commit and push completed work,
+> before choosing more work. Use isolated test data. Commit completed work to a branch and open a PR,
 > update shared notes and GitHub, and report checks with their limitations.
 
-The owner updated the workflow on 22 October: authorized changes can be committed
-and pushed directly to main after the relevant checks pass; a PR is no longer required.
-Use a separate working branch when useful, then push the verified commit without force.
-Main publishes Docker images after its CI gates. Do not run a local and a cloud
-agent on the same branch at the same time. Local PCs can pull completed changes with `git pull --ff-only` when
-their checkout is clean; never force/reset/stash unknown local work automatically.
+The owner updated the workflow on 26 October: every change, by Codex or Claude, goes through a
+pull request. Do not push to main. Work on a `codex/` branch, open a PR into main and let the PR
+workflow run full verification; the owner merges. Claude cloud sessions use their assigned
+`claude/` branches and follow the same rule. Never have two agents on the same branch, never
+force push, and after a PR merges start the next branch from the latest main. Merging to main
+publishes the development image after its gates. Local PCs can pull completed changes with
+`git pull --ff-only` when their checkout is clean; never force/reset/stash unknown local work.
 
 ## Saved context and present baseline
 
