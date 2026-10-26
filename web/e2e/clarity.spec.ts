@@ -107,9 +107,9 @@ test('clarity: backup policy reflects live Off/On, windows, failures and manual 
   expect((await (await page.request.get('/api/backups')).json()).backups[0].reason).toBe('manual');
   await status.getByRole('link', { name: 'Manage automatic backups' }).click();
   await expect(page).toHaveURL(/section=maintenance#scheduled-tasks/);
-  await expect(page.getByRole('switch', { name: 'Automatic database backups', exact: true })).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByRole('switch', { name: 'Database backups', exact: true })).toHaveAttribute('aria-checked', 'false');
   // Use the actual Settings control, then revisit through the SPA (same query cache).
-  await page.getByRole('switch', { name: 'Automatic database backups', exact: true }).click();
+  await page.getByRole('switch', { name: 'Database backups', exact: true }).click();
   await expect.poll(async () => (await (await page.request.get('/api/settings')).json()).auto_backups_enabled).toBe(true);
   await page.getByRole('link', { name: 'Backups & restore', exact: true }).click();
   await expect(status.getByText('Automatic backups: On', { exact: true })).toBeVisible();

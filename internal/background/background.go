@@ -27,7 +27,7 @@ type Status struct {
 	LastRun   *store.MaintenanceRun `json:"last_run,omitempty"`
 }
 
-var titles = map[string]string{"analysis": "Update media analysis", "previews": "Scrubbing previews", "markers": "Local intro and credits detection", "metadata": "Refresh known-title metadata", "backup": "Automatic database backups", "empty_trash": "Empty trash automatically", "database": "Optimize database", "cache": "Clean up cached files"}
+var titles = map[string]string{"analysis": "Media analysis", "previews": "Scrubbing previews", "markers": "Intro & credit detection", "metadata": "Metadata refresh", "backup": "Database backups", "empty_trash": "Empty trash automatically", "database": "Optimize database", "cache": "Clean up cached files"}
 
 type waiter struct {
 	ticket  uint64

@@ -18,8 +18,8 @@ export function EmptyTrashControl({ enabled, busy, onChange }: {
     {!confirm && error && <p role="alert" className="text-sm text-red-400">{error}</p>}
     <ConfirmDialog open={confirm} onOpenChange={v => { if (!busy) { setConfirm(v); setError(undefined); } }}
       title="Enable automatic empty trash?" confirmLabel="Enable automatic cleanup" destructive busy={busy} error={error} onConfirm={() => void save(true)}>
-      <p>This permanently removes missing titles and their watch history after eligible scans, during maintenance. Leave it Off if you disconnect media drives.</p>
-      <p>Arc checks every root and saves a safety backup first. An empty or unavailable root is skipped automatically; you can review and confirm a manual cleanup instead. After restarting Arc, a fresh complete scan is required.</p>
+      <p>After each complete scan, Arc permanently removes titles whose files are gone, along with their watch history. Leave this off if you sometimes disconnect drives.</p>
+      <p>It only runs when every library folder could be read, and saves a backup first. Your media files are never deleted.</p>
     </ConfirmDialog>
   </>;
 }

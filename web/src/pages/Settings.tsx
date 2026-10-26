@@ -56,13 +56,13 @@ function ProfileSettings() {
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
       <Section title="Playback" hint="For your profile only.">
-        <Row setting="watched_percent" label="Mark as watched at" description="Applies to future playback progress for your profile. It does not skip credits, stop playback or change earlier watch history.">
+        <Row setting="watched_percent" label="Mark as watched at" description="How far through a movie or episode counts as watched.">
           <select aria-label="Mark as watched at" value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
             {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent}%{percent === 90 ? ' (default)' : ''}</option>)}
             {!!p.watched_percent && ![75, 90, 95, 100].includes(p.watched_percent) && <option value={p.watched_percent}>{p.watched_percent}%</option>}
           </select>
         </Row>
-        <Row setting="audio_language" label="Preferred audio language" description="Used when a matching track is available. Choosing a language in the player also updates this preference.">
+        <Row setting="audio_language" label="Preferred audio language" description="Played when a video has it. Choosing a language in the player changes this too.">
           <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
             <option value="">Use the file's default</option>
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
@@ -77,22 +77,22 @@ function ProfileSettings() {
         />
         <ToggleRow
           setting="auto_skip" label="Skip intros automatically"
-          description="Use existing intro and recap markers to skip without pressing Skip. Marker detection is managed in Playback & transcoding."
+          description="Skip intros and recaps without pressing Skip."
           checked={!!p.auto_skip}
           busy={busy}
           onChange={(v) => update.mutate({ auto_skip: v })}
         />
         <ToggleRow
           setting="theme_music" label="Theme music"
-          description="Play a show's or movie's theme quietly on its page, when there's one."
+          description="Play a show's or movie's theme quietly on its page."
           checked={p.theme_music !== false}
           busy={busy}
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
-      <Section title="Subtitles" hint="Also in the player's Subtitles menu, where choosing a track sets your language.">
-        <Row setting="subtitle_mode" label="Turn on by themselves" description={subtitleModeHints[p.subtitle_mode ?? '']}>
+      <Section title="Subtitles" hint="Choosing subtitles in the player updates these too.">
+        <Row setting="subtitle_mode" label="Show subtitles" description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
             aria-label="Subtitle mode"
             value={p.subtitle_mode ?? ''}
@@ -106,7 +106,7 @@ function ProfileSettings() {
             <option value="manual">Only when I choose them</option>
           </select>
         </Row>
-        <Row setting="subtitle_language" label="Language" description="The subtitles to turn on. Forced subtitles (for foreign lines) show whatever is chosen here.">
+        <Row setting="subtitle_language" label="Language" description="The language of subtitles that turn on, including forced subtitles for foreign-language lines.">
           <select
             aria-label="Subtitle language"
             value={p.subtitle_language}
@@ -132,7 +132,7 @@ function ProfileSettings() {
           busy={busy}
           onChange={(v) => update.mutate({ hide_spoilers: v })}
         />
-        <Row setting="theme" label="Appearance" description="Automatic follows this device's light or dark setting.">
+        <Row setting="theme" label="Appearance" description="Automatic follows this device's light or dark mode.">
           <select
             aria-label="Appearance"
             value={p.theme ?? ''}
@@ -151,10 +151,10 @@ function ProfileSettings() {
 }
 
 const subtitleModeHints: Record<SubtitleMode, string> = {
-  '': 'Subtitles come on in the language you last picked in the player, until you turn them off.',
-  foreign: "Subtitles come on in your language when a film or episode's audio is in a different one (Plex's \"Shown with foreign audio\").",
-  always: 'Subtitles come on in your language whenever there are some.',
-  manual: 'Subtitles stay off unless you pick them in the player (forced subtitles still show).',
+  '': 'In the language you last picked in the player, until you turn them off.',
+  foreign: 'In your language when the audio is in another language.',
+  always: 'In your language whenever there are some.',
+  manual: 'Only when you pick them in the player. Forced subtitles still show.',
 };
 
 /** Common subtitle languages (ISO 639-2), with the profile's current one if it isn't among them. */
@@ -186,7 +186,7 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-64">
           <p className="text-sm font-medium">Style</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">Size, colour, background and where they sit. For subtitles drawn as text; picture subtitles (from Blu-rays and DVDs) look as they were made.</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">Size, colour, background and position. Picture subtitles from Blu-rays and DVDs can't be restyled.</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -228,7 +228,7 @@ function ServerSettings() {
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
-          <Section title="Online metadata" hint="Arc identifies movies and shows and fetches their details and artwork from these services.">
+          <Section title="Online metadata" hint="Where Arc gets details and artwork for movies and shows.">
             <KeyRow
               label="TMDB"
               description="Movies and shows."
@@ -245,7 +245,7 @@ function ServerSettings() {
               link="https://thetvdb.com/api-information"
               onSave={(v) => update.mutateAsync({ tvdb_api_key: v })}
             />
-            <Row setting="region" label="Region" description="Age ratings (like 12A or PG-13) are shown for this country and used by parental controls.">
+            <Row setting="region" label="Region" description="Which country's age ratings (like 12A or PG-13) to show and use for parental controls.">
               <select
                 aria-label="Region"
             value={s.region}
@@ -261,14 +261,14 @@ function ServerSettings() {
               </select>
             </Row>
           </Section>
-          <Section title="Ratings" hint="Other sites' scores on title pages, and to sort by.">
+          <Section title="Ratings" hint="Scores from other sites, shown on title pages and available as sorts.">
             <Row
               label="IMDb"
-              description="Downloaded from IMDb's free ratings file once a week, in the maintenance time. No key needed."
+              description="Updated weekly from IMDb's free ratings file. No key needed."
             />
             <KeyRow
               label="Rotten Tomatoes and Metacritic"
-              description="Critics' scores, through OMDb (a free key allows 1,000 titles a day; Arc fetches a few each hour)."
+              description="Critics' scores from OMDb. A free key covers 1,000 titles a day."
               current={s.omdb_api_key}
               fixed={s.from_env.omdb_api_key}
               link="https://www.omdbapi.com/apikey.aspx"
@@ -276,17 +276,17 @@ function ServerSettings() {
             />
           </Section>
 
-          <Section title="Library scanning" hint="Keep all your libraries up to date. Applies to every library.">
+          <Section title="Library scanning" hint="How Arc finds new and changed files. Applies to every library.">
             <ToggleRow
               setting="scan_automatic" label="Scan automatically when files change"
-              description="Find new or changed media when your folders report a change."
+              description="Pick up new and changed files as soon as they appear."
               checked={s.scan_automatic}
               busy={update.isPending}
               onChange={(v) => update.mutate({ scan_automatic: v })}
             />
             <Row
               setting="scan_interval_minutes" label="Full library scan"
-              description="Check all library folders for changes, including changes your drives may not report. Intervals run from server start or when this setting changes."
+              description="Regularly check every folder. Catches changes that network drives don't report."
             >
               <select
                 aria-label="Full library scan"
@@ -305,30 +305,29 @@ function ServerSettings() {
                 <option value={1440}>Every 24 hours</option>
               </select>
             </Row>
-            <p className="px-5 py-3 text-sm text-muted">Some network drives do not report changes. Keep a scheduled scan enabled to catch them.</p>
             {s.scan_interval_minutes === 0 && (
               <p className="px-5 pb-3 text-sm text-muted" role="status">
                 {!s.scan_automatic && !s.scan_on_start
                   ? 'Libraries update when you scan them or change their folders.'
                   : s.scan_automatic && s.scan_on_start
-                    ? 'Full scans are off. Arc still scans detected changes and checks libraries at startup.'
+                    ? 'Full scans are off. Arc still picks up detected changes and checks at startup.'
                     : s.scan_automatic
-                      ? 'Full scans are off. Arc still scans detected changes.'
-                      : 'Full scans are off. Arc still checks libraries at startup.'} Running scans finish normally.
+                      ? 'Full scans are off. Arc still picks up detected changes.'
+                      : 'Full scans are off. Arc still checks at startup.'}
               </p>
             )}
             <details className="px-5 py-3">
               <summary className="cursor-pointer text-sm font-medium">Advanced scanning options</summary>
               <ToggleRow
                 setting="scan_partial" label="Scan only changed folders"
-                description="For detected changes, check the affected folders instead of the whole library."
+                description="When a change is detected, check just that folder instead of the whole library."
                 checked={s.scan_partial}
                 busy={update.isPending || !s.scan_automatic}
                 onChange={(v) => update.mutate({ scan_partial: v })}
               />
               <ToggleRow
                 setting="scan_on_start" label="Scan when Arc starts"
-                description="Check all libraries for changes when the server starts."
+                description="Check every library for changes when Arc starts."
                 checked={s.scan_on_start}
                 busy={update.isPending}
                 onChange={(v) => update.mutate({ scan_on_start: v })}
@@ -336,51 +335,51 @@ function ServerSettings() {
             </details>
           </Section>
 
-          <Section title="Moving in" hint="Coming from another media server? Bring everyone's watch history with you.">
-            <Row label="Plex" description="Watched titles, resume points, ratings and Plex's watch history, for everyone on the server.">
+          <Section title="Moving in" hint="Bring everyone's watch history from another media server.">
+            <Row label="Plex" description="Watched status, resume points, ratings and history for everyone.">
               <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
                 Import…
               </Button>
             </Row>
-            <Row label="Jellyfin" description="Watched titles and resume points, for every user (sign in as an administrator).">
+            <Row label="Jellyfin" description="Watched status and resume points for every user. Needs an administrator sign-in.">
               <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
                 Import…
               </Button>
             </Row>
           </Section>
 
-          <Section title="Notifications" hint="Send library and playback events to Discord, Slack or another webhook destination.">
+          <Section title="Notifications" hint="Send messages to Discord, Slack or any webhook when things happen.">
             <Webhooks />
           </Section>
 
-          <Section title="Media tools" hint="Arc uses ffprobe (part of FFmpeg) to read what's inside your video files, and FFmpeg to convert them for players that need it.">
+          <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>
 
-          <Section title="Intro & credit detection" hint="Where the markers for Skip Intro, Recap and Credits come from. Each library chooses whether to offer them (Manage libraries › Edit), and automatic skipping is a preference in Your profile.">
+          <Section title="Intro & credit detection" hint="Where Skip Intro, Recap and Credits come from. Each library chooses whether to offer them.">
             <Row
               label="Chapters and IntroDB"
-              description="Files with chapters named Opening or Ending are used as they are; otherwise episodes are looked up on IntroDB, a free community database. No key needed."
+              description="Chapters named Opening or Ending, then IntroDB, a free community database. No key needed."
             />
             <KeyRow
               label="TheIntroDB"
-              description="A bigger community database, looked up first when you add a free key."
+              description="A larger community database, checked first. Needs a free key."
               current={s.theintrodb_api_key}
               fixed={s.from_env.theintrodb_api_key}
               link="https://theintrodb.org"
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
-            <Row label="Find intros and credits on this computer" description={<>When there are no chapters or online markers, Arc compares a season&apos;s episodes or looks for movie credits itself. It is a scheduled task: choose when it runs in Maintenance &amp; diagnostics. Currently: {processingLabels[s.detection_mode]}.</>}>
+            <Row label="Detect intros and credits" description={<>When nothing is found online, Arc compares a season&apos;s episodes or spots a movie&apos;s end credits. Runs: {processingLabels[s.detection_mode].toLowerCase()}.</>}>
               <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">Scheduled tasks</Link>
             </Row>
           </Section>
 
-          <Section title="Pre-roll" hint="A short clip before movies, like a cinema intro or a trailer, as Plex does.">
+          <Section title="Pre-roll" hint="A short clip played before movies, like a cinema intro or a trailer.">
             <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
-          <Section title="Subtitle downloads" hint="Server download services; subtitle language and appearance are in Your profile. Find subtitles online from the player when a film or episode doesn't have the ones you want.">
+          <Section title="Subtitle downloads" hint="Find subtitles online from the player when a video doesn't have the ones you want.">
             <KeyRow
               label="OpenSubtitles"
               description="Search and download subtitles."
@@ -394,15 +393,15 @@ function ServerSettings() {
             )}
           </Section>
 
-          <Section title="Converting" hint="For players that can't play a file as it is, Arc converts it while it's watched.">
+          <Section title="Converting" hint="When a device can't play a file as it is, Arc converts it while it's watched.">
             <ToggleRow
               setting="hw_accel" label="Use hardware acceleration"
               description={
                 !s.transcoder.checked
                   ? 'Checking this computer…'
                   : s.transcoder.hw_encoder
-                    ? `Convert with the graphics card (${s.transcoder.hw_label}): faster, and leaves the processor free. Arc falls back to the processor if the card can't handle a file.`
-                    : 'No supported graphics card was found (NVIDIA, Intel, AMD or Apple), so Arc converts with the processor.'
+                    ? `Convert with the graphics card (${s.transcoder.hw_label}). Faster, and falls back to the processor when needed.`
+                    : 'No supported graphics card (NVIDIA, Intel, AMD or Apple) was found, so Arc uses the processor.'
               }
               checked={s.hw_accel && !!s.transcoder.hw_encoder}
               busy={update.isPending || !s.transcoder.hw_encoder}
@@ -412,14 +411,14 @@ function ServerSettings() {
               setting="tone_mapping" label="HDR tone mapping"
               description={
                 s.transcoder.checked && !s.transcoder.tone_mapping
-                  ? "This FFmpeg can't map HDR to SDR (it needs the zscale filter), so converted HDR video looks washed out."
-                  : 'When converting HDR video, map its colours to SDR so it looks right on ordinary screens and in browsers.'
+                  ? "This FFmpeg can't convert HDR colours (it needs the zscale filter), so converted HDR video looks washed out."
+                  : 'Keep converted HDR video looking right on ordinary screens.'
               }
               checked={s.tone_mapping && s.transcoder.tone_mapping}
               busy={update.isPending || !s.transcoder.tone_mapping}
               onChange={(v) => update.mutate({ tone_mapping: v })}
             />
-            <Row setting="max_transcodes" label="Videos converted at once" description="More at once needs a faster computer. Anyone over the limit is told to try again shortly; files that play as they are, or only need repackaging, don't count.">
+            <Row setting="max_transcodes" label="Videos converted at once" description="How many videos Arc converts at the same time. Videos that play as they are don't count.">
               <select
                 aria-label="Videos converted at once"
             value={s.max_transcodes}
@@ -438,14 +437,14 @@ function ServerSettings() {
             <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
           </Section>
 
-          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, played instead of converting live when a player needs them.">
+          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, used instead of converting while you watch.">
             <OptimizedList />
           </Section>
 
           <Section title="Sign-in" hint="Away from home, the password is always needed.">
             <ToggleRow
               setting="local_bypass" label="Skip the password at home"
-              description="On this computer and your home network, people just pick a profile. The admin profile still asks for the password or its PIN."
+              description="At home, people just pick a profile. The admin profile still needs the password or its PIN."
               checked={s.local_bypass}
               busy={update.isPending}
               onChange={(v) => update.mutate({ local_bypass: v })}
@@ -456,7 +455,7 @@ function ServerSettings() {
           <Section title="Network">
             <ToggleRow
               setting="allow_network" label="Allow other devices"
-              description="Let phones, TVs and other computers on your network use Arc. When off, only this computer can."
+              description="Let phones, TVs and other computers on your network use Arc."
               checked={s.allow_network}
               busy={update.isPending}
               onChange={(v) => update.mutate({ allow_network: v })}
@@ -465,9 +464,9 @@ function ServerSettings() {
             <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
           </Section>
 
-          <Section title="Remote Access" hint="Watching away from home. The password is always needed there.">
+          <Section title="Remote Access" hint="Watch away from home. Signing in always needs a password there.">
             <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
-            <Row setting="remote_kbps" label="Limit each remote stream" description="Videos are converted down to this when they're bigger, so they play smoothly on slower connections.">
+            <Row setting="remote_kbps" label="Limit each remote stream" description="Bigger videos are converted down to this so they play smoothly away from home.">
               <select
                 aria-label="Limit each remote stream"
             value={s.remote_kbps}
@@ -486,17 +485,20 @@ function ServerSettings() {
             <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
           </Section>
 
-          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise; changing the password signs out everything that used it.">
+          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise.">
             <DevicesList />
           </Section>
 
           <Section
             title="Scheduled tasks"
-            hint="Heavy background work waits for a quiet time of night, so it doesn't slow anyone watching."
+            hint="Heavy work waits for a quiet time of night, so it doesn't slow anyone watching."
           >
             <Row
               setting={['maintenance_start', 'maintenance_end']} label="Maintenance time"
-              description="Enabled tasks run in these hours, using the server’s local time. Work resumes next time if it cannot finish. New-file discovery follows Library scanning settings."
+              description={<>
+                {s.maintenance_start === s.maintenance_end ? 'Tasks can run at any time.' : 'Tasks run between these hours, and carry on the next night if they don’t finish.'}
+                <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
+              </>}
             >
               <div className="flex items-center gap-2 text-sm">
                 <HourSelect label="Maintenance start" value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
@@ -504,54 +506,53 @@ function ServerSettings() {
                 <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
-            <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
             <MaintenanceTasks
               rows={[
                 {
                   kind: 'previews', label: 'Scrubbing previews',
-                  description: 'Timeline pictures for libraries with previews turned on (Manage libraries › Edit › Advanced).',
-                  control: <ProcessingSelect label="Scrubbing preview processing" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
+                  description: 'Pictures shown while dragging along the timeline, for libraries that have them turned on.',
+                  control: <ProcessingSelect label="Scrubbing previews" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
                   feedback: <SaveFeedback settings={['preview_mode']} />,
                 },
                 {
                   kind: 'markers', label: 'Intro & credit detection',
-                  description: 'Compare episodes or analyse movie credits on this computer when chapters and online databases have no markers.',
-                  control: <ProcessingSelect label="Local intro and credits detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
+                  description: 'Finds intros by comparing a season’s episodes, and movie end credits, when nothing is found online.',
+                  control: <ProcessingSelect label="Intro & credit detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
                   feedback: <SaveFeedback settings={['detection_mode']} />,
                 },
                 {
                   kind: 'analysis', label: 'Media analysis',
-                  description: 'Fill in missing HDR and audio format details for existing files. New files are analysed when added.',
-                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Update existing media analysis" />,
+                  description: 'Brings older files up to date when Arc learns to read more from them, such as Dolby Vision, HDR10+ and Atmos. New files are analysed when added.',
+                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Media analysis" />,
                   feedback: <SaveFeedback settings={['analysis_enabled']} />,
                 },
                 {
                   kind: 'metadata', label: 'Metadata refresh',
-                  description: 'Refresh ageing title details and airing shows, without scanning media folders.',
-                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label="Refresh known-title metadata" />,
+                  description: 'Keeps titles’ details and artwork up to date, more often for shows that are still airing.',
+                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label="Metadata refresh" />,
                   feedback: <SaveFeedback settings={['metadata_refresh_enabled']} />,
                 },
                 {
                   kind: 'backup', label: 'Database backups',
-                  description: 'A daily database backup. Manual and safety backups are always available in Backups & restore.',
-                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Automatic database backups" />,
+                  description: 'A daily backup of Arc’s database. You can also back up any time in Backups & restore.',
+                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Database backups" />,
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
                 },
                 {
                   kind: 'database', label: 'Optimize database',
-                  description: 'Weekly during maintenance: check database integrity, refresh query statistics and compact substantial unused space when enough disk space is available. Playback and scanning take priority.',
+                  description: 'A weekly check and tidy-up that keeps Arc’s database fast and compact.',
                   control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label="Optimize database automatically" />,
                   feedback: <SaveFeedback settings={['database_upkeep_enabled']} />,
                 },
                 {
                   kind: 'cache', label: 'Clean up cached files',
-                  description: 'Weekly during maintenance: remove unused cached images, previews and subtitles. Recent cache files and titles on offline drives are kept. Media files, uploaded artwork and backups are untouched.',
+                  description: 'Weekly removal of cached images, previews and subtitles nothing uses any more. Your media files are never touched.',
                   control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label="Clean up cached files automatically" />,
                   feedback: <SaveFeedback settings={['cache_cleanup_enabled']} />,
                 },
                 {
                   kind: 'empty_trash', label: 'Empty trash automatically',
-                  description: 'Off by default. During maintenance after a fresh complete scan, permanently remove missing records and their watch history. Every folder needs a readable known file; otherwise cleanup waits. A safety backup is required. Media files are never deleted.',
+                  description: 'After a complete scan, removes titles whose files are gone, with their watch history. Leave it off if you sometimes disconnect drives. Your files are never deleted.',
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
                   feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
                   action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">Choose library…</Link>,
@@ -560,7 +561,7 @@ function ServerSettings() {
             />
           </Section>
 
-          <Section title="Diagnostics" hint="Capture useful information when something is slow or fails."><Diagnostics /></Section>
+          <Section title="Diagnostics" hint="Information to help when something is slow or goes wrong."><Diagnostics /></Section>
 
         </>
       )}
@@ -590,7 +591,7 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
   return (
     <Row
       setting="upload_kbps" label="Internet upload speed"
-      description="Your connection's upload speed (a speed test shows it). Remote streams share 80% of it, so several at once still play."
+      description="From a speed test. Remote streams share 80% of it."
     >
       <div className="flex items-center gap-2">
         <input aria-label="Internet upload speed" disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
@@ -627,7 +628,7 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
         compact setting="remote_access" label="Remote access"
         description={
           <>
-            Let people sign in from outside your home, like Plex&apos;s remote access. Your household signs in with the password, friends with their own.
+            Let your household and friends sign in from outside your home.
           </>
         }
       >
@@ -824,8 +825,7 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
       <div>
         <p className="text-sm font-medium">Videos</p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          Files or folders of them, one per line. MP4 (H.264) plays everywhere. They play when a movie starts from the beginning, not when you
-          carry on.
+          Files or folders, one per line. Played when a movie starts from the beginning, not when resuming. MP4 (H.264) plays everywhere.
         </p>
       </div>
       <textarea
@@ -1083,7 +1083,7 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
         label="Temporary folder"
         description={
           <>
-            Where converted video is kept while it&apos;s watched (deleted afterwards). A fast drive with free space is best.{' '}
+            Where video is kept while it&apos;s converted. A fast drive with free space works best.{' '}
             <span className="font-mono text-foreground/80">{value || "Arc's data folder"}</span>
             {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
@@ -1127,8 +1127,7 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
       label="Home networks"
       description={
         <>
-          Other networks to treat as home, as well as this one: for skipping the password and for remote quality limits. For example a VPN, or
-          Tailscale ({tailscale}).
+          Extra networks to treat as home, like a VPN or Tailscale ({tailscale}).
           {!value.includes(tailscale) && (
             <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>
               Add Tailscale

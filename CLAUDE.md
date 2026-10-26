@@ -59,6 +59,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Merged via PR #207; no direct main push or deployment acceptance claim.
 
 
+- Settings copy review (#210, 26 October): every Settings description rewritten as one short,
+  plain sentence; implementation detail and cross-references removed. Maintenance tasks are named
+  the same everywhere (visible, aria, Run now, server titles): Scrubbing previews, Intro & credit
+  detection, Media analysis (Plex's "Upgrade media analysis": brings older files' analysis up to
+  date, currently DV/HDR10+/Atmos), Metadata refresh, Database backups, Empty trash automatically. Tasks show status
+  only when Running/Paused/failed. The clock is one "Server time: HH:MM zone" line under
+  Maintenance time (owner asked to drop next-window detail; hours follow the server's clock).
+
 - Simple Activity menu (#208, 26 October): owner asked for Plex-like simplicity. The Activity
   menu shows each running task with one plain line (current title, or N of M), a progress bar
   and a small Stop, then up to four past-tense Recent entries with time/errors. Steps, file
