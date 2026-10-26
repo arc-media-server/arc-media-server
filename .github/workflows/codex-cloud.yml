@@ -1,18 +1,8 @@
 name: Codex Cloud preflight
 
 on:
+  # Manual only (owner, 26 October): no automatic test runs on pushes or pull requests.
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'tools/codex-cloud/**'
-      - 'tools/ci/install-media-deps.sh'
-      - '.github/workflows/codex-cloud.yml'
-  pull_request:
-    paths:
-      - 'tools/codex-cloud/**'
-      - 'tools/ci/install-media-deps.sh'
-      - '.github/workflows/codex-cloud.yml'
 
 permissions:
   contents: read
