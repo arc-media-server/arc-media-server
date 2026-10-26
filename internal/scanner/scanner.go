@@ -1032,6 +1032,7 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 		return nil
 	}
 	if m == nil {
+		s.log.Info("no match found for movie", "title", it.Title, "year", it.Year)
 		s.update(libraryID, func(st *Status) { st.Unmatched++ })
 		return s.store.SetMetadataState(ctx, it.ID, "unmatched")
 	}
@@ -1039,6 +1040,7 @@ func (s *Scanner) matchMovie(ctx context.Context, libraryID int64, id string) er
 	if err := s.saveMovie(ctx, *it, m); err != nil {
 		return err
 	}
+	s.log.Info("matched movie", "file_title", activityTitle(it.Title, it.Year), "title", activityTitle(m.Title, m.Year), "tmdb", m.TMDBID)
 	s.update(libraryID, func(st *Status) { st.Matched++ })
 	return nil
 }

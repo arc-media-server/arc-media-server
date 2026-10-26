@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
@@ -36,12 +37,14 @@ type waiter struct {
 }
 
 type Manager struct {
-	waiting    map[string]waiter
-	ticket     uint64
-	completed  map[string]bool
-	store      *store.Store
-	Window     *schedule.Window
-	Activity   *activity.Tracker
+	waiting   map[string]waiter
+	ticket    uint64
+	completed map[string]bool
+	store     *store.Store
+	Window    *schedule.Window
+	Activity  *activity.Tracker
+	// Log receives task summaries; nil discards them.
+	Log        *slog.Logger
 	mu         sync.Mutex
 	generation int64
 	cfg        settings.Settings
@@ -350,50 +353,77 @@ func (m *Manager) analysisPass(ctx context.Context, analyze func(context.Context
 		return
 	}
 	for _, lib := range libs {
-		var after int64
-		for ctx.Err() == nil {
-			files, err := m.store.PendingFormatPage(ctx, lib.ID, after)
-			if err != nil {
-				return
-			}
-			if len(files) == 0 {
-				break
-			}
-			for _, f := range files {
-				after = f.ID
-				work, finish, ok := m.Begin(ctx, "analysis", fmt.Sprint(f.ID), f.ID)
-				if !ok {
-					if m.outsideBacklog("analysis", f.ID) {
-						continue
-					}
-					if m.Deferred("analysis") {
-						return
-					}
-					if !m.allowed("analysis", false, f.ID) {
-						return
-					}
-					continue
-				}
-				title, _ := m.store.FileActivityTitle(work, f.ID)
-				if title == "" {
-					title = filepath.Base(f.Path)
-				}
-				task := m.Activity.Start("analysis", "Analyzing formats in "+lib.Name)
-				task.Detail("Background video, audio and HDR inspection")
-				operation := task.Work("Inspecting source formats", title, filepath.Base(f.Path))
-				err := analyze(work, f)
-				operation.Finish()
-				task.Detail("Video, audio and HDR inspection · " + title)
-				paused := work.Err() != nil
-				finish(err)
-				task.Finish(err)
-				if paused {
-					return
-				}
-			}
+		if !m.analyseLibrary(ctx, lib, analyze) {
+			return
 		}
 	}
 	m.CompletePass("analysis")
+}
+
+// analyseLibrary works through one library's backlog as a single Activity entry, started only
+// once a file is actually analysed. It reports false when the pass should stop (paused,
+// deferred or cancelled).
+func (m *Manager) analyseLibrary(ctx context.Context, lib store.Library, analyze func(context.Context, store.MediaFile) error) bool {
+	var task *activity.Handle
+	analysed, failed := 0, 0
+	defer func() {
+		if task == nil {
+			return
+		}
+		task.Detail(fmt.Sprintf("%d analysed · %d failed", analysed, failed))
+		task.Finish(nil)
+		m.logger().Info("media analysis", "library", lib.Name, "analysed", analysed, "failed", failed)
+	}()
+	var after int64
+	for ctx.Err() == nil {
+		files, err := m.store.PendingFormatPage(ctx, lib.ID, after)
+		if err != nil || len(files) == 0 {
+			return err == nil
+		}
+		for _, f := range files {
+			after = f.ID
+			work, finish, ok := m.Begin(ctx, "analysis", fmt.Sprint(f.ID), f.ID)
+			if !ok {
+				if m.outsideBacklog("analysis", f.ID) {
+					continue
+				}
+				if m.Deferred("analysis") || !m.allowed("analysis", false, f.ID) {
+					return false
+				}
+				continue
+			}
+			title, _ := m.store.FileActivityTitle(work, f.ID)
+			if title == "" {
+				title = filepath.Base(f.Path)
+			}
+			if task == nil {
+				task = m.Activity.Start("analysis", "Analyzing media in "+lib.Name)
+			}
+			operation := task.Work("Inspecting source formats", title, filepath.Base(f.Path))
+			err := analyze(work, f)
+			operation.Finish()
+			paused := work.Err() != nil
+			finish(err)
+			if paused {
+				return false
+			}
+			if err != nil {
+				failed++
+				m.logger().Warn("media analysis failed", "title", title, "file", filepath.Base(f.Path), "err", err)
+			} else {
+				analysed++
+				task.Progress(analysed+failed, 0)
+			}
+		}
+	}
+	return false
+}
+
+func (m *Manager) logger() *slog.Logger {
+	if m.Log != nil {
+		return m.Log
+	}
+	return slog.New(slog.DiscardHandler)
 }
 
 func (m *Manager) Ready(kind string) bool { return m.allowed(kind, false, 0) }

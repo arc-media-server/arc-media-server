@@ -80,6 +80,7 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 				parts = append(parts, fmt.Sprintf("%d update%s deferred", status.MetadataErrors, pluralSuffix(status.MetadataErrors)))
 			}
 			task.Detail(strings.Join(parts, " · "))
+			s.log.Info("metadata refresh finished", "library", lib.Name, "titles_checked", worked.Load(), "identified", status.Matched, "deferred", status.MetadataErrors)
 		}
 		task.Finish(err)
 	}()

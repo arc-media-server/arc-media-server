@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -117,7 +118,9 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 	if err != nil {
 		return err
 	}
-	m.log.Info("looking for intros and credits", "files", len(jobs))
+	if len(jobs) > 0 {
+		m.log.Info("looking for intros and credits", "files", len(jobs))
+	}
 	m.mu.Lock()
 	key, detect := m.key, m.detect
 	m.mu.Unlock()
@@ -133,6 +136,13 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 	}()
 
 	online := true
+	found := map[string]int{} // files by where their markers came from ("" = none)
+	defer func() {
+		if len(jobs) > 0 && err == nil {
+			m.log.Info("intro and credit lookup finished", "files", len(jobs), "chapters", found["chapters"],
+				"theintrodb", found["TheIntroDB"], "introdb", found["IntroDB"], "already_had", found["existing"], "none", found[""])
+		}
+	}()
 	type season struct {
 		series string
 		number int
@@ -144,13 +154,15 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			return ctx.Err()
 		}
 		task.Progress(i+1, len(jobs))
-		title, _ := m.store.FileActivityTitle(ctx, j.FileID)
+		title, _ := m.store.FileActivityLabel(ctx, j.FileID)
 		op := task.Work("Looking up intros and credits", title, "Chapters and online databases")
-		_, err := m.find(ctx, j, key, &online)
+		res, err := m.find(ctx, j, key, &online)
 		op.Finish()
 		if err != nil {
 			return err
 		}
+		found[res.source]++
+		m.log.Debug("intro and credit lookup", "title", title, "file", filepath.Base(j.Path), "found", or(res.source, "nothing"), "reason", res.reason)
 		if err := m.store.MarkersChecked(ctx, j.FileID); err != nil {
 			return err
 		}
@@ -161,6 +173,13 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 		ffmpeg = m.FFmpeg()
 	}
 	if !detect || ffmpeg == "" || m.Background == nil && !m.Window.Open() || m.Background != nil && m.Background.Mode("markers") == "off" {
+		reason := "turned off in Maintenance"
+		if ffmpeg == "" {
+			reason = "FFmpeg not found"
+		} else if m.Background == nil && !m.Window.Open() {
+			reason = "waiting for maintenance hours"
+		}
+		m.log.Debug("intro and credit detection on this server skipped", "reason", reason)
 		m.Background.AbandonTurn("markers")
 		return nil
 	}
@@ -168,8 +187,10 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 	if err != nil {
 		return err
 	}
+	waiting, unnumbered := 0, 0
 	for _, j := range localJobs {
 		if !m.Background.CanStart("markers", j.FileID, j.ProbedAt) {
+			waiting++
 			continue
 		}
 		have, err := m.store.FileMarkers(ctx, j.FileID)
@@ -187,6 +208,13 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 		if !j.Movie && !intro && j.Season >= 0 {
 			missing[season{j.SeriesID, j.Season}] = true
 		}
+		if !j.Movie && !intro && j.Season < 0 {
+			unnumbered++
+		}
+	}
+	if waiting > 0 || unnumbered > 0 || len(missing) > 0 || len(movies) > 0 {
+		m.log.Debug("intro and credit detection", "seasons", len(missing), "movies", len(movies),
+			"files_waiting_for_maintenance", waiting, "episodes_without_aired_number", unnumbered)
 	}
 	n := 0
 	for s := range missing {
@@ -232,9 +260,10 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			return ctx.Err()
 		}
 		if err != nil {
-			m.log.Warn("detecting intros failed", "err", err)
+			m.log.Warn("detecting intros failed", "show", show, "err", err)
 			continue
 		}
+		m.log.Info("compared a season's episodes for intros", "show", show, "episodes", len(files), "intros_found", len(found))
 
 	}
 	for i, j := range movies {
@@ -264,9 +293,10 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			return ctx.Err()
 		}
 		if err != nil {
-			m.log.Warn("detecting credits failed", "file", j.Path, "err", err)
+			m.log.Warn("detecting credits failed", "title", title, "file", j.Path, "err", err)
 			continue
 		}
+		m.log.Info("looked for a movie's end credits", "title", title, "found", found != nil)
 
 	}
 	if m.Background != nil {
@@ -275,39 +305,47 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 	return nil
 }
 
-// find looks one file's markers up in its chapters and online, saving what fits, and returns the
-// kinds it now has. online is cleared when a service says to slow down.
-func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, online *bool) ([]string, error) {
+// lookup is what find did for one file: where its wanted marker came from ("chapters",
+// "TheIntroDB", "IntroDB", "existing", or "" for none) and, when none, why nothing was found.
+type lookup struct {
+	source, reason string
+}
+
+// find looks one file's markers up in its chapters and online, saving what fits. online is
+// cleared when a service says to slow down.
+func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, online *bool) (lookup, error) {
 	chapters, err := m.store.FileChapters(ctx, j.FileID)
 	if err != nil {
-		return nil, err
+		return lookup{}, err
 	}
 	fromFile := fromChapters(chapters)
 	if j.Movie {
 		fromFile = movieCredits(fromFile, chapters)
 	}
-	if found := fits(fromFile, j.DurationMS, 0); len(found) > 0 {
-		if err := m.store.SaveMarkers(ctx, j.FileID, found); err != nil {
-			return nil, err
-		}
-	}
-	have := func() ([]string, error) {
-		ms, err := m.store.FileMarkers(ctx, j.FileID)
-		var kinds []string
-		for _, mk := range ms {
-			kinds = append(kinds, mk.Kind)
-		}
-		return kinds, err
-	}
-	kinds, err := have()
 	wanted := "intro"
 	if j.Movie {
 		wanted = "credits"
 	}
-	if err != nil || slices.Contains(kinds, wanted) || !*online {
-		return kinds, err
+	if found := fits(fromFile, j.DurationMS, 0); len(found) > 0 {
+		if err := m.store.SaveMarkers(ctx, j.FileID, found); err != nil {
+			return lookup{}, err
+		}
+		if slices.ContainsFunc(found, func(mk store.Marker) bool { return mk.Kind == wanted }) {
+			return lookup{source: "chapters"}, nil
+		}
+	}
+	have, err := m.store.FileMarkers(ctx, j.FileID)
+	if err != nil {
+		return lookup{}, err
+	}
+	if slices.ContainsFunc(have, func(mk store.Marker) bool { return mk.Kind == wanted }) {
+		return lookup{source: "existing"}, nil
+	}
+	if !*online {
+		return lookup{reason: "online lookups paused: a service asked Arc to slow down"}, nil
 	}
 	var found []store.Marker
+	source, reason := "", ""
 	if key != "" {
 		var ms []store.Marker
 		var dur int64
@@ -319,25 +357,56 @@ func (m *Manager) find(ctx context.Context, j store.MarkerJob, key string, onlin
 		}
 		if errors.Is(err, errLimited) {
 			*online = false
+			reason = "TheIntroDB asked Arc to slow down"
 		} else if err != nil {
 			m.log.Debug("TheIntroDB lookup failed", "err", err)
+			reason = "TheIntroDB lookup failed"
 		}
-		found = fits(ms, j.DurationMS, dur)
+		if found = fits(ms, j.DurationMS, dur); len(found) > 0 {
+			source = "TheIntroDB"
+		}
 	}
 	if len(found) == 0 && *online && !j.Movie {
 		ms, err := introDB(ctx, m.http, j.SeriesIMDB, j.Season, j.Episode)
 		if errors.Is(err, errLimited) {
 			*online = false
+			reason = "IntroDB asked Arc to slow down"
 		} else if err != nil {
 			m.log.Debug("IntroDB lookup failed", "err", err)
+			reason = "IntroDB lookup failed"
 		}
-		found = fits(ms, j.DurationMS, 0)
+		if found = fits(ms, j.DurationMS, 0); len(found) > 0 {
+			source = "IntroDB"
+		}
 		time.Sleep(500 * time.Millisecond) // keep well within the free service's limits
 	}
 	if len(found) > 0 {
 		if err := m.store.SaveMarkers(ctx, j.FileID, found); err != nil {
-			return nil, err
+			return lookup{}, err
+		}
+		if slices.ContainsFunc(found, func(mk store.Marker) bool { return mk.Kind == wanted }) {
+			return lookup{source: source}, nil
 		}
 	}
-	return have()
+	if reason == "" {
+		switch {
+		case j.Movie && key == "":
+			reason = "movie credits online need a TheIntroDB key"
+		case !j.Movie && (j.Season < 0 || j.Episode <= 0):
+			reason = "no aired season and episode number"
+		case !j.Movie && key == "" && j.SeriesIMDB == "":
+			reason = "show has no IMDb ID, which IntroDB needs"
+		default:
+			reason = "not in the online databases"
+		}
+	}
+	return lookup{reason: reason}, nil
+}
+
+// or is a, or b when a is empty.
+func or(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }

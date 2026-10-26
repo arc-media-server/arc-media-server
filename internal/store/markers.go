@@ -194,3 +194,43 @@ func (s *Store) SeasonFiles(ctx context.Context, seriesID string, season int) ([
 	}
 	return out, rows.Err()
 }
+
+// MarkerCoverage is how many of a title's present files have intro and credits markers, and how
+// many have been looked at, so the owner can see where Skip Intro/Credits will appear.
+type MarkerCoverage struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Kind    string `json:"kind"`
+	Files   int    `json:"files"`
+	Intros  int    `json:"intros"`
+	Credits int    `json:"credits"`
+	Checked int    `json:"checked"`
+}
+
+// MarkerCoverage lists a library's shows (counting their episode files) and movies.
+func (s *Store) MarkerCoverage(ctx context.Context, libraryID int64) ([]MarkerCoverage, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT t.id, t.title, t.kind, COUNT(DISTINCT m.id),
+			COUNT(DISTINCT CASE WHEN EXISTS (SELECT 1 FROM media_markers k WHERE k.file_id = m.id AND k.kind = 'intro') THEN m.id END),
+			COUNT(DISTINCT CASE WHEN EXISTS (SELECT 1 FROM media_markers k WHERE k.file_id = m.id AND k.kind = 'credits') THEN m.id END),
+			COUNT(DISTINCT CASE WHEN m.markers_checked_at > 0 THEN m.id END)
+		FROM items t
+		JOIN items i ON (t.kind = 'series' AND i.parent_id = t.id AND i.kind = 'episode') OR (t.kind = 'movie' AND i.id = t.id)
+		JOIN item_files f ON f.item_id = i.id
+		JOIN media_files m ON m.id = f.file_id AND m.missing_since IS NULL
+		WHERE t.library_id = ? AND t.kind IN ('series', 'movie')
+		GROUP BY t.id ORDER BY t.sort_title`, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []MarkerCoverage{}
+	for rows.Next() {
+		var c MarkerCoverage
+		if err := rows.Scan(&c.ID, &c.Title, &c.Kind, &c.Files, &c.Intros, &c.Credits, &c.Checked); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}

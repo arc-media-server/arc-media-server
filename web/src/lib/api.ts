@@ -392,6 +392,9 @@ export type PlaybackState = 'playing' | 'paused' | 'buffering';
 /** Something being watched right now (Dashboard). */
 /** A piece of background work on the server (a scan, scrubbing previews, a backup). */
 export type ProcessingMode = 'off' | 'scheduled' | 'added';
+/** How many of a title's files have intro/credits markers, and how many were checked (Library Health). */
+export interface MarkerCoverage { id: string; title: string; kind: 'series' | 'movie'; files: number; intros: number; credits: number; checked: number }
+
 export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean; last_run?: { started_at: number; finished_at: number; last_success_at: number; detail: string; error?: string } }
 
 export interface ActivityTask {
@@ -1007,6 +1010,7 @@ export const api = {
   scanLibrary: (id: number) => request<ScanStatus>('POST', `/api/libraries/${id}/scan`),
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
+  markerCoverage: (libraryId: number) => request<{ skip_intros: boolean; skip_credits: boolean; titles: MarkerCoverage[] }>('GET', `/api/libraries/${libraryId}/markers`),
   compatibility: (libraryId: number, caps: PlayerCaps) => request<Compatibility>('POST', `/api/libraries/${libraryId}/compatibility`, { caps }),
   collections: (libraryId: number) => request<Collection[]>('GET', `/api/libraries/${libraryId}/collections`),
   collection: (id: string) => request<{ collection: Collection; items: Item[] }>('GET', `/api/collections/${id}`),
