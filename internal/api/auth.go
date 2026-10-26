@@ -761,7 +761,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"scan_partial":           st.ScanPartial,
 		"scan_on_start":          st.ScanOnStart,
 		"scan_interval_hours":    float64(st.ScanMinutes()) / 60,
-		"scan_interval_minutes":  st.ScanMinutes(), "analysis_enabled": st.AnalysisEnabled, "metadata_refresh_enabled": st.MetadataRefreshEnabled, "auto_backups_enabled": st.AutoBackupsEnabled, "preview_mode": st.PreviewMode, "detection_mode": st.DetectionMode,
+		"scan_interval_minutes":  st.ScanMinutes(), "analysis_enabled": st.AnalysisEnabled, "metadata_refresh_enabled": st.MetadataRefreshEnabled, "auto_backups_enabled": st.AutoBackupsEnabled, "empty_trash_enabled": st.EmptyTrashEnabled, "preview_mode": st.PreviewMode, "detection_mode": st.DetectionMode,
 		"maintenance_start":  st.MaintenanceStart,
 		"maintenance_end":    st.MaintenanceEnd,
 		"previews_at_night":  st.PreviewsAtNight,
@@ -850,6 +850,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		AnalysisEnabled        *bool    `json:"analysis_enabled"`
 		MetadataRefreshEnabled *bool    `json:"metadata_refresh_enabled"`
 		AutoBackupsEnabled     *bool    `json:"auto_backups_enabled"`
+		EmptyTrashEnabled      *bool    `json:"empty_trash_enabled"`
 		PreviewMode            *string  `json:"preview_mode"`
 		DetectionMode          *string  `json:"detection_mode"`
 		MaintStart             *int     `json:"maintenance_start"`
@@ -883,7 +884,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours", "scan_interval_minutes", "preview_mode", "detection_mode", "analysis_enabled", "metadata_refresh_enabled", "auto_backups_enabled"} {
+	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours", "scan_interval_minutes", "preview_mode", "detection_mode", "analysis_enabled", "metadata_refresh_enabled", "auto_backups_enabled", "empty_trash_enabled"} {
 		if v, ok := fields[key]; ok && string(v) == "null" {
 			writeError(w, http.StatusBadRequest, key+" cannot be null")
 			return
@@ -937,6 +938,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.MetadataRefreshEnabled != nil {
 		next.MetadataRefreshEnabled = *body.MetadataRefreshEnabled
+	}
+	if body.EmptyTrashEnabled != nil {
+		next.EmptyTrashEnabled = *body.EmptyTrashEnabled
 	}
 	if body.AutoBackupsEnabled != nil {
 		next.AutoBackupsEnabled = *body.AutoBackupsEnabled

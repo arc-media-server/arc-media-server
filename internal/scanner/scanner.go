@@ -174,13 +174,15 @@ type Scanner struct {
 	FFmpeg   func() string
 	ThumbDir string
 
-	wg        sync.WaitGroup
-	mu        sync.Mutex
-	status    map[int64]*Status
-	jobs      map[int64]*jobControl
-	nextJob   int64
-	stopEpoch map[int64]int64
-	tasks     map[int64]*activity.Handle
+	wg     sync.WaitGroup
+	mu     sync.Mutex
+	status map[int64]*Status
+	// Full discovery proofs are deliberately memory-only: a restart requires a fresh scan.
+	trashReady map[int64][]string
+	jobs       map[int64]*jobControl
+	nextJob    int64
+	stopEpoch  map[int64]int64
+	tasks      map[int64]*activity.Handle
 	// Libraries that changed during their scan and need scanning again when it ends.
 	again         map[int64]bool
 	pendingPaths  map[int64][]string
@@ -374,6 +376,9 @@ func (s *Scanner) scan(ctx context.Context, libraryID int64) (err error) {
 }
 
 func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string) (err error) {
+	s.mu.Lock()
+	delete(s.trashReady, libraryID)
+	s.mu.Unlock()
 	lib, err := s.store.GetLibrary(ctx, libraryID)
 	if err != nil {
 		return err
@@ -605,6 +610,16 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	}
 	if err := s.finishSecondary(ctx, lib, secondary); err != nil {
 		return err
+	}
+	if allRootsOK && len(paths) == 0 && ctx.Err() == nil {
+		s.mu.Lock()
+		if s.trashReady == nil {
+			s.trashReady = map[int64][]string{}
+		}
+		if st := s.status[lib.ID]; st == nil || !st.Stopping {
+			s.trashReady[lib.ID] = append([]string(nil), lib.Paths...)
+		}
+		s.mu.Unlock()
 	}
 
 	st := s.Status(lib.ID)
@@ -1204,6 +1219,7 @@ func (s *Scanner) Stop(libraryID, jobID int64) bool {
 		return false
 	}
 	st.Stopping = true
+	delete(s.trashReady, libraryID)
 	s.stopEpoch[libraryID]++
 	delete(s.retryPending, libraryID)
 	if wake := s.retryWake[libraryID]; wake != nil {

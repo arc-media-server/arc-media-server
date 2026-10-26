@@ -26,7 +26,7 @@ type Status struct {
 	Enabled   bool   `json:"enabled"`
 }
 
-var titles = map[string]string{"analysis": "Update media analysis", "previews": "Scrubbing previews", "markers": "Local intro and credits detection", "metadata": "Refresh known-title metadata", "backup": "Automatic database backups"}
+var titles = map[string]string{"analysis": "Update media analysis", "previews": "Scrubbing previews", "markers": "Local intro and credits detection", "metadata": "Refresh known-title metadata", "backup": "Automatic database backups", "empty_trash": "Empty trash automatically"}
 
 type waiter struct {
 	ticket  uint64
@@ -90,6 +90,10 @@ func (m *Manager) modeLocked(k string) string {
 		if m.cfg.MetadataRefreshEnabled {
 			return "scheduled"
 		}
+	case "empty_trash":
+		if m.cfg.EmptyTrashEnabled {
+			return "scheduled"
+		}
 	case "backup":
 		if m.cfg.AutoBackupsEnabled {
 			return "scheduled"
@@ -129,6 +133,9 @@ func (m *Manager) Mode(kind string) string {
 	return m.modeLocked(kind)
 }
 func (m *Manager) RunNow(ctx context.Context, kind string) error {
+	if kind == "empty_trash" {
+		return errors.New("choose a library and confirm Empty trash for manual cleanup")
+	}
 	if _, ok := titles[kind]; !ok {
 		return fmt.Errorf("unknown scheduled task")
 	}
@@ -256,7 +263,7 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 }
 func (m *Manager) Snapshot(ctx context.Context) []Status {
 	out := []Status{}
-	for _, kind := range []string{"analysis", "previews", "markers", "metadata", "backup"} {
+	for _, kind := range []string{"analysis", "previews", "markers", "metadata", "backup", "empty_trash"} {
 		mode := m.Mode(kind)
 		state, detail := "scheduled", "Waiting for maintenance"
 		if mode == "off" {
@@ -265,6 +272,9 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 			state, detail = "paused", "Waiting for playback or scanning"
 		} else if m.Window.OpenAt(m.now()) {
 			state, detail = "queued", "Ready for eligible work"
+		}
+		if kind == "empty_trash" && mode != "off" {
+			detail = "Checks complete scans; empty or unavailable folders are retained"
 		}
 		pending, done, failed, _ := m.store.BackgroundCounts(ctx, kind)
 		running, _ := m.Activity.Snapshot()

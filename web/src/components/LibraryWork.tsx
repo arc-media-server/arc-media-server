@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, RefreshCw, ScanSearch } from 'lucide-react';
+import { MoreHorizontal, RefreshCw, ScanSearch, Trash2 } from 'lucide-react';
 import { api, type Library, type ScanStatus } from '@/lib/api';
+import { EmptyTrashDialog } from '@/components/EmptyTrash';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorNotice } from '@/components/Page';
@@ -10,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 /** Explicit costly repairs stay separate from efficient discovery scans. */
 export function LibraryWorkControls({ library }: { library: Library }) {
   const [operation, setOperation] = useState<'refresh' | 'analyze' | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const qc = useQueryClient();
   const updated = (scan: ScanStatus) => {
     qc.setQueryData<Library[]>(['libraries'], prior => prior?.map(lib => lib.id === library.id ? { ...lib, scan } : lib));
@@ -27,8 +29,10 @@ export function LibraryWorkControls({ library }: { library: Library }) {
       <DropdownMenuContent align="end">
         {library.kind !== 'videos' && <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('refresh'); }}><RefreshCw /> Refresh all metadata…</DropdownMenuItem>}
         <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('analyze'); }}><ScanSearch /> Reanalyze files…</DropdownMenuItem>
+        <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => setTrashOpen(true)}><Trash2 /> Empty trash…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <EmptyTrashDialog libraryId={library.id} libraryName={library.name} open={trashOpen} onOpenChange={setTrashOpen} />
     <ConfirmDialog open={!!operation} onOpenChange={open => { if (!open && !start.isPending) { setOperation(null); start.reset(); } }}
       title={operation === 'refresh' ? 'Refresh all metadata?' : 'Reanalyze library files?'}
       confirmLabel={operation === 'refresh' ? 'Refresh all metadata' : 'Reanalyze files'} busy={start.isPending} error={start.error?.message}
