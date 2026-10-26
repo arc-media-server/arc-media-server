@@ -166,7 +166,18 @@ func (c *Cache) Cues(ctx context.Context, f *store.MediaFile, t Track) ([]Cue, e
 	}
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d|%s", src, info.Size(), info.ModTime().Unix(), t.ID)))
 	key := hex.EncodeToString(sum[:12])
-	path := filepath.Join(c.dir, key+".json")
+	dir := filepath.Join(c.dir, strconv.FormatInt(f.ID, 10))
+	path := filepath.Join(dir, key+".json")
+	legacy := filepath.Join(c.dir, key+".json")
+	// Adopt identifiable legacy entries on use; unknown hashes remain protected while offline.
+	if b, err := os.ReadFile(legacy); err == nil {
+		var cues []Cue
+		if json.Unmarshal(b, &cues) == nil && os.MkdirAll(dir, 0o755) == nil {
+			if os.WriteFile(path, b, 0o644) == nil {
+				os.Remove(legacy)
+			}
+		}
+	}
 
 	for {
 		if b, err := os.ReadFile(path); err == nil {
@@ -201,7 +212,7 @@ func (c *Cache) Cues(ctx context.Context, f *store.MediaFile, t Track) ([]Cue, e
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(c.dir, 0o755); err == nil {
+	if err := os.MkdirAll(dir, 0o755); err == nil {
 		b, _ := json.Marshal(cues)
 		os.WriteFile(path, b, 0o644)
 	}

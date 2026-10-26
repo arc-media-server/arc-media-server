@@ -44,6 +44,7 @@ import (
 	"ams/internal/sysstats"
 	"ams/internal/transcode"
 	"ams/internal/trickplay"
+	"ams/internal/upkeep"
 	"ams/internal/watcher"
 )
 
@@ -150,6 +151,30 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	bg.Configure(cfg)
 	go bg.Monitor(ctx)
+	go bg.RunUpkeep(ctx, "database", func(ctx context.Context, allowed func() bool) (string, error) {
+		result, err := st.OptimizeDatabase(ctx, allowed)
+		detail := fmt.Sprintf("Database size %s → %s; integrity checked; query statistics updated", upkeep.FormatBytes(result.BeforeBytes), upkeep.FormatBytes(result.AfterBytes))
+		if result.Vacuumed {
+			detail += "; compacted"
+		} else if result.VacuumSkipped != "" {
+			detail += "; " + result.VacuumSkipped
+		}
+		if result.CheckpointBusy {
+			detail += "; active readers delayed final disk reclamation"
+		}
+		if err != nil {
+			detail = "Database upkeep did not complete"
+			log.Warn("database upkeep failed", "err", err)
+		}
+		return detail, err
+	})
+	go bg.RunUpkeep(ctx, "cache", func(ctx context.Context, allowed func() bool) (string, error) {
+		result, err := upkeep.CleanCaches(ctx, st, dataDir, allowed)
+		if err != nil {
+			log.Warn("cache cleanup failed", "err", err)
+		}
+		return result.String(), err
+	})
 	backups.Allowed = func() bool { return bg.Ready("backup") && !bg.Forced("backup") }
 	bg.Register("backup", func() {
 		go func() {

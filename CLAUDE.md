@@ -37,6 +37,18 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Maintenance upkeep (#203, 26 October): Optimize database and Clean up cached files default On
+  in the unified task list, run weekly in the quiet maintenance window and offer coalesced Run now
+  plus persisted last results. Database work joins the writer queue, checks integrity, updates
+  query statistics and conditionally VACUUMs only substantial free pages with verified disk
+  headroom. Cache cleanup recognizes generated formats, retains missing/offline references,
+  recent files and unknown legacy subtitle hashes, and excludes media/backups/uploaded originals.
+  Cue caches now carry file-ID ownership, adopting identifiable legacy entries on use. No schema
+  migration or dependency changes. Contract: docs/MAINTENANCE-UPKEEP.md; actual local checks and
+  remaining physical-storage/Windows-runtime limits in READINESS. Work submitted via PR only;
+  owner requests stopping at PR creation rather than waiting for hosted verification.
+
+
 - Empty trash (#204, 26 October): library More and Health share one destructive confirmation.
   Cleanup holds the scanner lease through a mandatory safety backup and transactional record
   removal. Maintenance's EmptyTrashControl is Off by default with enable confirmation, integrated
@@ -44,7 +56,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   scan since startup, unchanged readable roots with known-file anchors, absent missing files,
   and quiet maintenance hours, checked again after backup. Empty/offline roots require review;
   media bytes are never deleted. Contract: docs/EMPTY-TRASH.md; actual checks in READINESS.
-  Submitted on a codex branch/PR; no main push or deployment acceptance claim.
+  Merged via PR #207; no direct main push or deployment acceptance claim.
 
 
 - Simple Activity menu (#208, 26 October): owner asked for Plex-like simplicity. The Activity
