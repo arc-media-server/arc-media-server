@@ -42,9 +42,17 @@ The owner works from more than one PC (Windows). On a fresh clone:
   under Metadata, Collections, Player and (adding only) Before adding, with label/help left and
   consistent drop-downs/switches right. Adding starts on General; the primary button reads Next
   until a folder is chosen, then Add Library. Labels/aria descriptions and Preview inside
-  Advanced (#146/#181) are unchanged; UI only. Follow-ups: unified Maintenance task list (#202),
+  Advanced (#146/#181) are unchanged; UI only. Follow-ups: Maintenance task list (#202, done);
   Optimize database/Clean cached files (#203), Empty trash in library management/Maintenance
   with an optional off-by-default automatic mode (#204).
+
+- Maintenance task list (#202, 26 October): Settings › Maintenance & diagnostics › Scheduled
+  tasks shows the maintenance window/clock, then each task once (Scrubbing previews, Intro &
+  credit detection, Media analysis, Metadata refresh, Database backups) with its Off / During
+  maintenance / When added choice or switch, a readable live status and Run now in one row.
+  Intro detection timing moved there from Playback, which keeps marker sources and links to it.
+  Accessible control/Run-now names, settings, API and defaults are unchanged (detection still
+  defaults to During maintenance; changing it is an owner decision on #80). UI only.
 
 - Fast development images and ordering form (26 October): owner explicitly removed full
   verification from the main image feedback loop. Main publishes latest/SHA after compilation
