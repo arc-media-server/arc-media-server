@@ -128,13 +128,13 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
     void qc.invalidateQueries({ queryKey: ['libraries'] });
   } });
   const pct = t.total ? Math.min(100, Math.round(((t.done ?? 0) / t.total) * 100)) : null;
-  // One plain line: for scans, which of the three steps it's on (finding, matching, reading
-  // files), then how far along it is or the title being worked on.
+  // Scans show one line per step that's under way (Scanning, Matching, Analysing), each with the
+  // one item it's on. Other tasks get one plain line: the title being worked on, or N of M.
+  const stopping = t.stopping || stop.isPending;
   const first = t.current?.[0]?.subject;
   const more = (t.current?.length ?? 0) - 1;
-  const step = t.kind === 'scan' ? scanStep(t) : '';
-  const progress = t.total ? `${t.done ?? 0} of ${t.total}` : first ? (more > 0 ? `${first} and ${more} more` : first) : '';
-  const line = t.stopping || stop.isPending ? 'Stopping…' : [step, progress].filter(Boolean).join(' · ');
+  const steps = t.kind === 'scan' && !stopping ? scanSteps(t) : [];
+  const line = stopping ? 'Stopping…' : t.total ? `${t.done ?? 0} of ${t.total}` : first ? (more > 0 ? `${first} and ${more} more` : first) : '';
   return (
     <li>
       <div className="flex items-center gap-2 text-sm">
@@ -153,24 +153,42 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
           </button>
         )}
       </div>
-      {line && <p className="mt-0.5 truncate text-xs text-subtle">{line}</p>}
+      {steps.length > 0 ? (
+        <dl className="mt-1 space-y-0.5 text-xs">
+          {steps.map(([step, item]) => (
+            <div key={step} className="flex min-w-0 gap-1.5">
+              <dt className="shrink-0 text-muted">{step}</dt>
+              {item && <dd className="min-w-0 truncate text-subtle">{item}</dd>}
+            </div>
+          ))}
+        </dl>
+      ) : line && <p className="mt-0.5 truncate text-xs text-subtle">{line}</p>}
       <ProgressBar pct={pct} />
       <ErrorNotice error={stop.error} onRetry={() => stop.mutate()} busy={stop.isPending} />
     </li>
   );
 }
 
-/** The step a scan is on, in the words of scan → match → read files. */
-function scanStep(t: ActivityTask) {
-  const stage = t.current?.[0]?.stage ?? '';
-  if (/^Inspecting/.test(stage)) return 'Reading files';
-  if (stage) return 'Matching';
+/** A scan's steps under way (Scanning, Matching, Analysing), each with the one item it's on. */
+function scanSteps(t: ActivityTask): [string, string][] {
+  const ops = t.current ?? [];
+  const on = (stage: RegExp) => ops.find((o) => stage.test(o.stage))?.subject;
   const phase = (t.detail ?? '').split(' · ')[0];
-  if (phase === 'Reading file details') return 'Reading files';
-  if (/^(Matching|Getting show details|Updating)/.test(phase)) return 'Matching';
-  if (phase === 'Loading alternate episode orders') return 'Getting episode orders';
-  if (phase === 'Adding extras') return 'Adding extras';
-  return 'Finding files';
+  const count = t.total ? `${t.done ?? 0} of ${t.total}` : '';
+  const steps: [string, string][] = [];
+  const file = on(/^Checking file$/);
+  const walking = /^(Opening library|Checking library folders|Checking files and titles|Looking through folders)$/.test(phase) || phase === '';
+  if (file || walking) {
+    const found = /(\d+) files/.exec(t.detail ?? '')?.[1];
+    steps.push(['Scanning', file ? file.replace(/\.[^.]+$/, '') : found ? `${found} files found` : '']);
+  }
+  const title = on(/^(Matching|Fetching|Saving|Linking|Checking episode|Mapping)/);
+  if (title) steps.push(['Matching', title]);
+  else if (/^(Matching|Getting show details|Updating|Loading alternate episode orders)/.test(phase)) steps.push(['Matching', count]);
+  const reading = on(/^Inspecting/);
+  if (reading) steps.push(['Analysing', reading]);
+  else if (phase === 'Reading file details') steps.push(['Analysing', count]);
+  return steps.length ? steps : [['Scanning', '']];
 }
 
 function ProgressBar({ pct }: { pct: number | null }) {
