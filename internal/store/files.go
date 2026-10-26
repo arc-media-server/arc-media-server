@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -282,6 +283,25 @@ func (s *Store) FileActivityTitle(ctx context.Context, fileID int64) (string, er
 		LEFT JOIN items p ON p.id = i.parent_id
 		WHERE f.file_id = ? ORDER BY i.id LIMIT 1`, fileID).Scan(&title)
 	return title, err
+}
+
+// FileActivityLabel is FileActivityTitle with an episode's place in its show's aired order
+// (TheTVDB's, else TMDB's), e.g. "Grey's Anatomy · S4 E12", for work that goes episode by episode.
+func (s *Store) FileActivityLabel(ctx context.Context, fileID int64) (string, error) {
+	var title string
+	var season, episode int
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(p.title, ''), i.title),
+			COALESCE((SELECT oe.season_number FROM ordering_entries oe JOIN orderings o ON o.id = oe.ordering_id
+				WHERE oe.episode_id = i.id AND o.source IN ('tvdb_aired', 'tmdb_aired') ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1), -1),
+			COALESCE((SELECT oe.episode_number FROM ordering_entries oe JOIN orderings o ON o.id = oe.ordering_id
+				WHERE oe.episode_id = i.id AND o.source IN ('tvdb_aired', 'tmdb_aired') ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1), -1)
+		FROM item_files f JOIN items i ON i.id = f.item_id
+		LEFT JOIN items p ON p.id = i.parent_id
+		WHERE f.file_id = ? ORDER BY i.id LIMIT 1`, fileID).Scan(&title, &season, &episode)
+	if err != nil || season < 0 || episode < 0 {
+		return title, err
+	}
+	return fmt.Sprintf("%s · S%d E%d", title, season, episode), nil
 }
 
 // ItemFiles returns an item's files (including missing ones) with their streams, ordered by part.

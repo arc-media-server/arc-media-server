@@ -31,13 +31,22 @@ export function useActivity(watching = false) {
   return query;
 }
 
+// Background tasks that give way to playback and scans (intro detection, previews, media
+// analysis) can wait without doing anything; like Plex, the menu lists them only while they
+// are working on an item. The Dashboard still shows everything.
+const waitsForTurn = new Set(['markers', 'previews', 'analysis']);
+function working(running: ActivityTask[]) {
+  return running.filter((t) => !waitsForTurn.has(t.kind) || !!t.current?.length || t.stopping);
+}
+
 /** The Activity button: spins while the server is busy, and opens the list of tasks. */
 export function ActivityButton({ className }: { className?: string }) {
   const admin = useIsAdmin();
   const { data, refetch } = useActivity();
   const [open, setOpen] = useState(false);
   if (!admin) return null;
-  const busy = (data?.running.length ?? 0) > 0;
+  const active = working(data?.running ?? []);
+  const busy = active.length > 0;
   return (
     <Popover.Root
       open={open}
@@ -47,7 +56,7 @@ export function ActivityButton({ className }: { className?: string }) {
       }}
     >
       <Popover.Trigger
-        aria-label={busy ? `Activity: ${data!.running.length} running` : 'Activity'}
+        aria-label={busy ? `Activity: ${active.length} running` : 'Activity'}
         className={cn(
           'relative flex size-8 items-center justify-center rounded-full text-muted outline-none transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent',
           busy && 'text-accent',
@@ -55,9 +64,9 @@ export function ActivityButton({ className }: { className?: string }) {
         )}
       >
         {busy ? <Loader2 className="size-[18px] animate-spin" /> : <Zap className="size-[18px]" />}
-        {busy && data!.running.length > 1 && (
+        {active.length > 1 && (
           <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white">
-            {data!.running.length}
+            {active.length}
           </span>
         )}
       </Popover.Trigger>
@@ -87,13 +96,14 @@ function SimpleActivity() {
   const { data } = useActivity(true);
   if (!data) return <div className="h-20 animate-pulse rounded-xl bg-surface-2" />;
   const done = data.recent.slice(0, 4);
+  const active = working(data.running);
   return (
     <div className="space-y-5">
-      {data.running.length === 0 ? (
+      {active.length === 0 ? (
         <p className="text-sm text-muted">Nothing running right now.</p>
       ) : (
         <ul className="space-y-4">
-          {data.running.map((t) => (
+          {active.map((t) => (
             <SimpleTask key={t.id} task={t} />
           ))}
         </ul>
