@@ -16,17 +16,18 @@ import (
 )
 
 type Status struct {
-	Kind      string `json:"kind"`
-	Title     string `json:"title"`
-	State     string `json:"state"`
-	Detail    string `json:"detail"`
-	Pending   int    `json:"pending"`
-	Completed int    `json:"completed"`
-	Failed    int    `json:"failed"`
-	Enabled   bool   `json:"enabled"`
+	Kind      string                `json:"kind"`
+	Title     string                `json:"title"`
+	State     string                `json:"state"`
+	Detail    string                `json:"detail"`
+	Pending   int                   `json:"pending"`
+	Completed int                   `json:"completed"`
+	Failed    int                   `json:"failed"`
+	Enabled   bool                  `json:"enabled"`
+	LastRun   *store.MaintenanceRun `json:"last_run,omitempty"`
 }
 
-var titles = map[string]string{"analysis": "Update media analysis", "previews": "Scrubbing previews", "markers": "Local intro and credits detection", "metadata": "Refresh known-title metadata", "backup": "Automatic database backups", "empty_trash": "Empty trash automatically"}
+var titles = map[string]string{"analysis": "Update media analysis", "previews": "Scrubbing previews", "markers": "Local intro and credits detection", "metadata": "Refresh known-title metadata", "backup": "Automatic database backups", "empty_trash": "Empty trash automatically", "database": "Optimize database", "cache": "Clean up cached files"}
 
 type waiter struct {
 	ticket  uint64
@@ -88,6 +89,14 @@ func (m *Manager) modeLocked(k string) string {
 		}
 	case "metadata":
 		if m.cfg.MetadataRefreshEnabled {
+			return "scheduled"
+		}
+	case "database":
+		if m.cfg.DatabaseUpkeepEnabled {
+			return "scheduled"
+		}
+	case "cache":
+		if m.cfg.CacheCleanupEnabled {
 			return "scheduled"
 		}
 	case "empty_trash":
@@ -263,7 +272,7 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 }
 func (m *Manager) Snapshot(ctx context.Context) []Status {
 	out := []Status{}
-	for _, kind := range []string{"analysis", "previews", "markers", "metadata", "backup", "empty_trash"} {
+	for _, kind := range []string{"analysis", "previews", "markers", "metadata", "backup", "empty_trash", "database", "cache"} {
 		mode := m.Mode(kind)
 		state, detail := "scheduled", "Waiting for maintenance"
 		if mode == "off" {
@@ -292,7 +301,23 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 		if mode != "off" && failed > 0 && pending == 0 {
 			state, detail = "failed", "Some work will retry later"
 		}
-		out = append(out, Status{kind, titles[kind], state, detail, pending, done, failed, mode != "off"})
+		var lastRun *store.MaintenanceRun
+		if upkeepKind(kind) {
+			last, err := m.store.MaintenanceRun(ctx, kind)
+			if err != nil {
+				state, detail = "failed", "Could not read the last maintenance result"
+			} else if last.StartedAt > 0 {
+				lastRun = &last
+				if mode != "off" && state != "running" {
+					if last.Error != "" {
+						state, detail = "failed", last.Error
+					} else if last.FinishedAt > 0 && last.LastSuccessAt > m.now().Add(-7*24*time.Hour).Unix() {
+						state, detail = "completed", "Next automatic run is weekly"
+					}
+				}
+			}
+		}
+		out = append(out, Status{Kind: kind, Title: titles[kind], State: state, Detail: detail, Pending: pending, Completed: done, Failed: failed, Enabled: mode != "off", LastRun: lastRun})
 	}
 	return out
 }
