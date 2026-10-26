@@ -37,6 +37,14 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Library editor Advanced layout (#201, 26 October): Add/Edit Library groups advanced settings
+  under Metadata, Collections, Player and (adding only) Before adding, with label/help left and
+  consistent drop-downs/switches right (stacked on phones). Collapsed Advanced shows a one-line
+  summary of current choices. Behaviour, labels/aria descriptions, collapsed-when-adding and
+  Preview-inside-Advanced (#146/#181) are unchanged; UI only. Follow-ups tracked separately:
+  unified Maintenance task list (#202), Optimize database/Clean cached files (#203), Empty trash
+  from library management/Maintenance with optional off-by-default automatic mode (#204).
+
 - Fast development images and ordering form (26 October): owner explicitly removed full
   verification from the main image feedback loop. Main publishes latest/SHA after compilation
   and image building; tests/race/browser/container jobs are intentionally skipped, not passed.
