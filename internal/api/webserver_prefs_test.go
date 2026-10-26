@@ -109,3 +109,66 @@ func TestProgressUsesProfileThresholdForWatchStateAndHistory(t *testing.T) {
 }
 
 func jsonNumber(n int64) string { b, _ := json.Marshal(n); return string(b) }
+
+func TestHomeHeroPreferenceIsPersistedAndProfileScoped(t *testing.T) {
+	s, first := securityServer(t)
+	ctx := t.Context()
+	second, err := s.store.CreateUser(ctx, "Other viewer", false, "blue", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for token, id := range map[string]string{"hero-first": first.ID, "hero-second": second.ID} {
+		if err := s.store.CreateSession(ctx, auth.HashToken(token), id, "password", "fixture"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	call := func(token, method, body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, "/api/me/prefs", strings.NewReader(body))
+		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+		w := httptest.NewRecorder()
+		handler := s.getPrefs
+		if method == "PATCH" {
+			handler = s.updatePrefs
+		}
+		s.signedIn(handler)(w, r)
+		return w
+	}
+	read := func(token string) prefs {
+		t.Helper()
+		w := call(token, "GET", "")
+		if w.Code != 200 {
+			t.Fatalf("get: %d %s", w.Code, w.Body.String())
+		}
+		var p prefs
+		if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	if read("hero-first").ShowHomeHero != nil {
+		t.Fatal("existing default rewritten")
+	}
+	for _, body := range []string{`{"show_home_hero":false}`, `{"theme":"dark"}`, `{"show_home_hero":null}`} {
+		w := call("hero-first", "PATCH", body)
+		if w.Code != 200 {
+			t.Fatalf("patch %s: %d %s", body, w.Code, w.Body.String())
+		}
+	}
+	if p := read("hero-first"); p.ShowHomeHero == nil || *p.ShowHomeHero || p.Theme != "dark" {
+		t.Fatalf("hidden preference lost: %+v", p)
+	}
+	if read("hero-second").ShowHomeHero != nil {
+		t.Fatal("another profile inherited the hidden hero")
+	}
+	for _, body := range []string{`{"show_home_hero":"false"}`, `{"show_home_hero":0}`} {
+		if w := call("hero-first", "PATCH", body); w.Code != 400 {
+			t.Fatalf("accepted invalid boolean: %s", body)
+		}
+	}
+	if w := call("hero-first", "PATCH", `{"show_home_hero":true}`); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	if p := read("hero-first"); p.ShowHomeHero == nil || !*p.ShowHomeHero {
+		t.Fatal("could not restore hero")
+	}
+}

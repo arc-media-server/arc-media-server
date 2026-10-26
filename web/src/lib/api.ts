@@ -696,6 +696,8 @@ export interface SubtitleStyle {
 
 /** The current profile's own preferences. */
 export interface Prefs {
+  /** Large featured Home banner; visible unless explicitly false. */
+  show_home_hero?: boolean;
   /** Navigation order only; unavailable/unknown IDs never grant access. */
   library_order?: number[];
   /** Future progress threshold; absent/zero retains 90%. */
