@@ -6,8 +6,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "test:e2e": "npm run build && tsc -p e2e/tsconfig.json && playwright test",
-    "test:e2e:only": "playwright test"
+    "test:adaptive": "node e2e/adaptive-policy.test.mjs",
+    "test:e2e": "npm run build && tsc -p e2e/tsconfig.json && npm run test:e2e:only",
+    "test:e2e:only": "npm run test:adaptive && playwright test"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

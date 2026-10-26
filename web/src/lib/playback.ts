@@ -119,20 +119,21 @@ export function qualityName(kbps: number) {
   return `${kbps >= 1000 ? `${kbps / 1000} Mbps` : `${kbps} kbps`} ${height}p`;
 }
 
-/** The quality chosen on this device (0 for the original); kept per device, as in Plex. */
+/** Device choice: -1 Automatic, 0 explicit Original, or a saved manual limit. */
 export function readQuality(): number {
   try {
-    const v = Number(localStorage.getItem('arc-quality'));
-    return qualities.includes(v) ? v : 0;
+    const saved = localStorage.getItem('arc-quality');
+    if (saved === null || saved === 'auto') return -1;
+    const v = Number(saved);
+    return v === 0 || qualities.includes(v) ? v : -1;
   } catch {
-    return 0;
+    return -1;
   }
 }
 
 export function saveQuality(kbps: number) {
   try {
-    if (kbps) localStorage.setItem('arc-quality', String(kbps));
-    else localStorage.removeItem('arc-quality');
+    localStorage.setItem('arc-quality', kbps === -1 ? 'auto' : String(kbps));
   } catch {
     // Private browsing: the choice lasts for this playback only.
   }

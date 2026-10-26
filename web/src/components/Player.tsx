@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import type HlsType from 'hls.js';
+import { AdaptiveQuality } from '@/lib/adaptive-quality';
 import {
   ListVideo, ArrowUp, ArrowDown, Trash2,
   AlertCircle,
@@ -257,8 +258,16 @@ function PlayerOverlay({
   // A picture subtitle track being burned into the video; restarts keep it.
   const burn = useRef<string | undefined>(item.selection?.burnSubtitle);
   // The quality limit chosen on this device (0 for the original); restarts keep it.
-  const quality = useRef(readQuality());
-  const [qualityState, setQualityState] = useState(quality.current);
+  const qualityMode = useRef(readQuality());
+  const quality = useRef(Math.max(0, qualityMode.current));
+  const [qualityState, setQualityState] = useState(qualityMode.current);
+  const [automaticLimit, setAutomaticLimit] = useState(0);
+  const adaptive = useRef(new AdaptiveQuality(qualities));
+  const originalRate = useRef(8000);
+  const adaptiveBusy = useRef(false);
+  const adaptiveLoading = useRef(false);
+  const playIntent = useRef(true);
+  const [qualityNotice, setQualityNotice] = useState('');
   const prefs = usePrefs();
   const updatePrefs = useUpdatePrefs();
 
@@ -339,8 +348,10 @@ function PlayerOverlay({
 
   // Start (or restart) playback at a point in the file, optionally with another audio track.
   const load = useCallback(
-    async (startMS: number, audioStream?: number, withCaps: PlayerCaps = caps.current) => {
+    async (startMS: number, audioStream?: number, withCaps: PlayerCaps = caps.current, automatic = false) => {
       const generation = ++loadGeneration.current;
+      adaptiveLoading.current = automatic;
+      adaptive.current.reset(Date.now());
       requestedPosition.current = startMS;
       installedGeneration.current = 0;
       setPositionMS(startMS);
@@ -357,6 +368,8 @@ function PlayerOverlay({
         caps.current = withCaps;
         const v = video.current;
         if (!v) return;
+        v.autoplay = !automatic || playIntent.current;
+        const startVideo = () => { if (!automatic || playIntent.current) v.play().catch(() => {}); };
         setError(null);
         detach();
         const oldSession = plan.current?.session_id;
@@ -387,6 +400,11 @@ function PlayerOverlay({
           return;
         }
         plan.current = p;
+        if (qualityMode.current === -1) {
+          const effective = quality.current ? Math.min(quality.current, p.server_limit_kbps || Infinity) : p.server_limit_kbps;
+          setQualityNotice(effective ? `Automatic quality: limit ${qualityName(effective)}.` : 'Automatic quality: original allowed by server limits.');
+        }
+        if (!quality.current) originalRate.current = p.optimized?.bitrate ? p.optimized.bitrate / 1000 : p.source_kbps || 8000;
         setPlanState(p);
         setDurationMS(p.duration_ms);
         offset.current = p.hls ? p.offset_ms : 0;
@@ -403,7 +421,7 @@ function PlayerOverlay({
           if (generation !== loadGeneration.current) return;
           installedGeneration.current = generation;
           v.src = source;
-          v.play().catch(() => {});
+          startVideo();
           return;
         }
         if (!p.hls) {
@@ -416,10 +434,16 @@ function PlayerOverlay({
           if (!Hls.isSupported()) {
             // No Media Source Extensions (iPhone): the browser plays HLS itself.
             v.src = p.url;
-            v.play().catch(() => {});
+            startVideo();
             return;
           }
           const h = new Hls({ startPosition: Math.max(0, (startMS - p.offset_ms) / 1000), maxBufferLength: 60, backBufferLength: 120 });
+          h.on(Hls.Events.FRAG_LOADED, (_e, data) => {
+            if (generation !== loadGeneration.current || data.frag.type !== 'main') return;
+            const { stats } = data.frag;
+            adaptive.current.observe(Date.now(), stats.loaded, stats.loading.end - stats.loading.start, data.frag.duration);
+            if (!quality.current && adaptive.current.mediaKbps) originalRate.current = adaptive.current.mediaKbps;
+          });
           h.on(Hls.Events.ERROR, (_e, data) => {
             if (data.fatal) void onStreamError(generation);
           });
@@ -427,12 +451,12 @@ function PlayerOverlay({
           h.attachMedia(v);
           hls.current = h;
         }
-        v.play().catch(() => {});
+        startVideo();
         // Some browsers accept a format and then never show a frame: give up on it after a while.
         window.clearTimeout(watchdog.current);
         watchdog.current = window.setTimeout(() => {
           if (video.current && video.current.readyState < 2) void onStreamError(generation);
-        }, 15_000);
+        }, qualityMode.current === -1 ? 25_000 : 15_000);
       } finally {
         release();
       }
@@ -441,6 +465,31 @@ function PlayerOverlay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [item.itemId, item.src, detach],
   );
+
+  const adaptiveState = useRef({ error, stopped });
+  adaptiveState.current = { error, stopped };
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const v = video.current, p = plan.current;
+      if (!v || !p || qualityMode.current !== -1) return;
+      let buffer = 0;
+      for (let i = 0; i < v.buffered.length; i++) {
+        if (v.buffered.start(i) <= v.currentTime + 0.1 && v.buffered.end(i) >= v.currentTime) buffer = v.buffered.end(i) - v.currentTime;
+      }
+      const active = !v.paused && !v.ended && !v.seeking && !document.hidden && !castOn.current && !airplay.current &&
+        !adaptiveBusy.current && installedGeneration.current === loadGeneration.current &&
+        !adaptiveState.current.error && adaptiveState.current.stopped === null && !!item.itemId && !item.preroll;
+      const target = adaptive.current.decide({ now: Date.now(), active, bufferSeconds: buffer, waiting: v.readyState < 3,
+        remainingSeconds: (p.duration_ms - absMS()) / 1000, playbackRate: v.playbackRate,
+        currentLimit: quality.current, originalKbps: originalRate.current, ceilingKbps: p.server_limit_kbps || 0 });
+      if (target === null) return;
+      quality.current = target; setAutomaticLimit(target);
+      setQualityNotice(target ? `Automatic quality: limit ${qualityName(target)}.` : 'Automatic quality: original allowed by server limits.');
+      adaptiveBusy.current = true;
+      void load(absMS(), p.audio_stream, caps.current, true).finally(() => { adaptiveBusy.current = false; });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [item.itemId, item.preroll, absMS, load]);
 
   // Something went wrong mid-stream: the admin stopped it, the session expired, or the browser
   // couldn't decode what it said it could.
@@ -523,6 +572,8 @@ function PlayerOverlay({
       const p = plan.current;
       if (!p || p.file_id === fileId) return;
       const at = absMS();
+      adaptive.current = new AdaptiveQuality(qualities);
+      if (qualityMode.current === -1) { quality.current = 0; setAutomaticLimit(0); }
       subtitleGeneration.current++;
       plan.current = { ...p, file_id: fileId };
       burn.current = undefined;
@@ -684,6 +735,7 @@ function PlayerOverlay({
       const v = video.current;
       const p = plan.current;
       if (!v) return;
+      adaptive.current.reset(Date.now());
       const dur = durationMS || (v.duration || 0) * 1000;
       const t = Math.max(0, dur ? Math.min(target, dur - 500) : target);
       setPositionMS(t);
@@ -711,6 +763,15 @@ function PlayerOverlay({
   const togglePlay = useCallback(() => {
     const v = video.current;
     if (!v) return;
+    if (adaptiveLoading.current && requestedPosition.current !== null) {
+      playIntent.current = !playIntent.current;
+      setPaused(!playIntent.current);
+      v.autoplay = playIntent.current;
+      if (!playIntent.current) v.pause();
+      else if (installedGeneration.current === loadGeneration.current) v.play().catch(() => {});
+      return;
+    }
+    playIntent.current = v.paused;
     if (v.paused) v.play().catch(() => {});
     else v.pause();
   }, []);
@@ -982,15 +1043,20 @@ function PlayerOverlay({
               if (!plan.current) setDurationMS((v.duration || 0) * 1000);
               if (pendingSeek.current) v.currentTime = pendingSeek.current;
               pendingSeek.current = null;
+              if (adaptiveLoading.current && !playIntent.current) v.pause();
+              v.playbackRate = rate;
             }}
             onError={() => {
               if (installedGeneration.current === loadGeneration.current) void onStreamError();
             }}
             onTimeUpdate={onTimeUpdate}
+            onSeeking={() => adaptive.current.reset(Date.now())}
             onWaiting={() => setLoading(true)}
             onPlaying={() => {
               if (installedGeneration.current !== loadGeneration.current) return;
+              if (adaptiveLoading.current && !playIntent.current) { video.current?.pause(); setPaused(true); return; }
               requestedPosition.current = null;
+              adaptiveLoading.current = false;
               setLoading(false);
               setPaused(false);
               report('playing');
@@ -998,9 +1064,10 @@ function PlayerOverlay({
             onCanPlay={() => {
               if (installedGeneration.current === loadGeneration.current) setLoading(false);
             }}
-            onPlay={() => setPaused(false)}
+            onPlay={() => { if (!adaptiveLoading.current) playIntent.current = true; setPaused(false); }}
             onPause={() => {
               if (installedGeneration.current !== loadGeneration.current) return;
+              if (requestedPosition.current === null) playIntent.current = false;
               setPaused(true);
               report('paused');
             }}
@@ -1242,21 +1309,34 @@ function PlayerOverlay({
             {planState && item.itemId && (
               <PlayerMenu icon={<SlidersHorizontal />} label="Quality" onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>Quality</DropdownMenuLabel>
-                {[0, ...qualities.filter((q) => !planState.source_kbps || q < planState.source_kbps)].map((q) => (
+                {[-1, 0, ...qualities.filter((q) => !planState.source_kbps || q < planState.source_kbps)].map((q) => (
                   <DropdownMenuItem
                     key={q}
+                    role="menuitemradio"
+                    aria-checked={q === qualityState}
                     onSelect={() => {
-                      if (q === quality.current) return;
-                      quality.current = q;
+                      if (q === qualityMode.current) return;
+                      const previousLimit = quality.current;
+                      qualityMode.current = q;
+                      quality.current = Math.max(0, q);
+                      adaptive.current = new AdaptiveQuality(qualities);
+                      adaptive.current.reset(Date.now());
+                      setAutomaticLimit(0); setQualityNotice('');
                       setQualityState(q);
                       saveQuality(q);
-                      void load(absMS(), planState.audio_stream);
+                      if (quality.current === previousLimit && installedGeneration.current === loadGeneration.current) return;
+                      void load(absMS(), planState.audio_stream, caps.current, true);
                     }}
                   >
                     <span className="w-4">{q === qualityState && <Check className="size-4 text-accent" />}</span>
-                    {q ? qualityName(q) : 'Original'}
+                    {q === -1 ? 'Automatic' : q ? qualityName(q) : 'Original'}
                   </DropdownMenuItem>
                 ))}
+                {qualityState === -1 && <DropdownMenuLabel className="max-w-64 whitespace-normal normal-case font-normal">
+                  Adapts to playback delivery. Changes may briefly rebuffer.
+                  {automaticLimit > 0 && ` Current limit: ${qualityName(Math.min(automaticLimit, planState.server_limit_kbps || Infinity))}.`}
+                </DropdownMenuLabel>}
+                {qualityNotice && <p role="status" className="max-w-64 px-2.5 py-2 text-xs text-subtle">{qualityNotice}</p>}
               </PlayerMenu>
             )}
             {planState && planState.chapters.length > 1 && (

@@ -29,6 +29,7 @@ func TestOptimizedEffectiveBitrateBudgets(t *testing.T) {
 		{name: "remote limit overrides original", quality: 720, away: true, remote: 2000, bitrate: 4560009, duration: 6000},
 		{name: "remote limit tightens larger manual", quality: 720, away: true, manual: 8000, remote: 2000, bitrate: 3000000, duration: 6000},
 		{name: "manual tighter than remote", quality: 720, away: true, manual: 2000, remote: 8000, bitrate: 3000000, duration: 6000},
+		{name: "manual tighter than independent ceiling", quality: 720, away: true, manual: 2000, remote: 8000, bitrate: 1500000, duration: 6000, wantCopy: true},
 		{name: "remote under budget", quality: 720, away: true, remote: 2000, bitrate: 1500000, duration: 6000, wantCopy: true},
 		{name: "upload share over budget", quality: 720, away: true, upload: 5000, others: 1, bitrate: 3000000, duration: 6000},
 		{name: "upload share under budget", quality: 720, away: true, upload: 5000, others: 1, bitrate: 1500000, duration: 6000, wantCopy: true},
@@ -71,6 +72,10 @@ func TestOptimizedEffectiveBitrateBudgets(t *testing.T) {
 			}
 			if plan.Optimized == nil || plan.Optimized.Bitrate != tc.bitrate || plan.Optimized.DurationMS != tc.duration {
 				t.Fatalf("wrong served metadata: %+v", plan)
+			}
+			wantCeiling := s.remoteLimit(r, item)
+			if plan.ServerLimitKbps != wantCeiling {
+				t.Fatalf("server ceiling=%d want independent policy %d (manual %d)", plan.ServerLimitKbps, wantCeiling, tc.manual)
 			}
 		})
 	}

@@ -17,7 +17,7 @@ plans for larger optional projects. It does not equate a review decision with fe
 | F27 | #192 | Correct sender file/audio/position ownership, failure cleanup and subtitle-limit feedback; keep open for receiver validation/full subtitle transport |
 | F28 | #193 | Defer pacing/budgets until measured resource pressure; preserve existing controls |
 | F29 | #138 | Review and consolidate alpha acceptance checklist; keep release gate open |
-| F34 | #197 | Defer adaptive quality; no managed relay/discovery infrastructure accepted |
+| F34 | #197 | Owner subsequently accepted Automatic browser quality; implemented via bounded replanning, no managed relay/discovery |
 | F35 | #198 | Defer audio processing until representative content/device examples define its benefit |
 | F36 | #199 | Implement session-local text-subtitle timing; no automatic analysis or source edits |
 
@@ -127,13 +127,18 @@ full-storage recovery, not an arbitrary default buffer or simulated-card perform
 
 ### Remote quality/discovery (#197)
 
-Manual remote setup, per-stream/upload caps and measured optimized-bitrate eligibility already
-exist. Adaptive quality and managed discovery/relay are distinct projects. No central relay
-is accepted for a single-owner server. For adaptive playback, first record a real remote
-session and constrained local-network fixture; define throughput/buffer hysteresis, conservative
-starting quality, variant/seek compatibility, retry and override persistence. Test fluctuating
-bandwidth without restart thrashing, stale-source/track changes or exceeding existing budgets.
-No real remote route, router or production endpoint is configured or tested here.
+The owner subsequently accepted adaptive browser playback. Automatic is now the default without
+a saved choice, with persistent manual/Original override. Actual HLS delivery and buffer pressure
+feed conservative downward/upward hysteresis, grace/cooldowns and bounded single-rendition
+replanning. Exact source/audio/burn, absolute position, captions/timing, playback speed and pause
+intent survive; serialized admission and current server ceilings remain authoritative. Replans
+can briefly rebuffer. Contract: [ADAPTIVE-QUALITY.md](ADAPTIVE-QUALITY.md).
+
+The previous recommendation to defer pending a blocked remote task was superseded by the owner's
+explicit choice to have this from the outset. No managed discovery/relay was accepted. Generated
+media/local provider tests include real constrained Chromium delivery; upgrade policy tests do
+not establish measured remote-network improvement. Actual remote routes, Safari native HLS,
+physical receivers and owner-server performance remain unverified. Actual checks: READINESS.
 
 ### Dialogue boost/normalization (#198)
 

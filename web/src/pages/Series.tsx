@@ -462,7 +462,7 @@ function EpisodeRow({
 
   return (
     <div
-      className={cn('group flex flex-col gap-3 py-4 sm:flex-row sm:gap-5', !playable && 'opacity-45')}
+      className={cn('group flex flex-col gap-3 py-4 xl:flex-row xl:gap-5', !playable && 'opacity-45')}
     >
       <div className="relative grid min-w-0 flex-1 grid-cols-[96px_minmax(0,1fr)] gap-3 sm:flex sm:gap-5">
       <div className="relative w-24 shrink-0 overflow-hidden rounded-xl ring-1 ring-border sm:w-56">
@@ -496,7 +496,7 @@ function EpisodeRow({
       {playable && <button type="button" aria-label={`Play ${ep.title}`} onClick={onPlay}
         className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent" />}
       </div>
-      <div className="flex flex-wrap justify-end gap-2 sm:shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+      <div className="flex max-w-full flex-none flex-wrap content-start items-center justify-end gap-2 self-end xl:self-start xl:flex-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       <EpisodeDetailsButton episode={ep} />
       {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
       {playable && <PlaybackOptionsButton compact item={nowPlayingFor({ ...ep, series_title: seriesTitle })} />}

@@ -37,6 +37,17 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Automatic browser quality (#197, 26 October): owner accepted implementation after the prior
+  deferral. Automatic defaults without a saved choice; manual/explicit Original persist.
+  Sustained buffer/delivery pressure lowers quality, fresh buffered headroom raises it, with
+  grace/cooldowns and bounded switches through existing serialized single-rendition admission.
+  Exact file/audio/burn, position, captions/timing, speed and pause intent are preserved; server
+  ceilings remain authoritative. Replans can briefly rebuffer. No managed relay/discovery.
+  Contract: docs/ADAPTIVE-QUALITY.md; actual validation/limitations: READINESS and #197/#162.
+  Episode-row actions also stay together rather than stretching/wrapping across the description;
+  narrow layouts place the action group below the text. No hero geometry changes.
+
+
 - Episode details/specials (#106/#109, 25 October): episode rows now open stored description,
   guest cast and director/writer credits independently of Play, with spoiler protection/Retry.
   Series cast cards show provider-reported appearance counts. Credits follow Details From;
@@ -58,7 +69,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   browser handback. App Chromecast/AirPlay buttons explain text-caption limits rather than
   silently dropping them. Receiver compatibility/full transport remains on #192/#135.
   WEB-SERVER-REVIEW.md records all nine decisions: #106/#109 have concrete metadata/order plans;
-  #193/#197/#198 remain deferred pending resource/remote/listening tasks; #138 remains a release
+  #193/#198 remain deferred pending resource/listening tasks; #197 was subsequently accepted; #138 remains a release
   gate with ALPHA-CHECKLIST.md. These planned/deferred features are not implemented. Native and
   physical HDR/Atmos findings remain outside this pass. Actual checks/limits: READINESS and #162.
 

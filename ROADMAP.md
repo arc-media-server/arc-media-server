@@ -257,7 +257,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
 - Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
 - Keep every country's age rating (#105)
-- Conversion pacing/storage budgets (#193), adaptive remote quality (#197), optional dialogue/normalization (#198): reviewed/deferred with task/evidence and acceptance criteria in docs/WEB-SERVER-REVIEW.md
+- Conversion pacing/storage budgets (#193), optional dialogue/normalization (#198): reviewed/deferred with task/evidence and acceptance criteria in docs/WEB-SERVER-REVIEW.md. Automatic browser quality (#197) subsequently accepted/implemented: docs/ADAPTIVE-QUALITY.md; physical remote-network acceptance remains separate.
 
 ## Explicitly not planned
 

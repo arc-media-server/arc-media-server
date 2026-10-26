@@ -129,7 +129,9 @@ conversion ownership during sender handoff/retry/seek/handback, and explains app
 text-caption limits. SDK/native-event fixtures are not physical receiver/Safari acceptance;
 #192 remains open for the remaining contract. No schema/dependency/source-media changes.
 [WEB-SERVER-REVIEW.md](WEB-SERVER-REVIEW.md) contains all nine review outcomes and concrete
-plans for #106/#109; #193/#197/#198 remain deferred. #138 retains the release gate with
+plans for #106/#109; #193/#198 remain deferred. #197 was subsequently accepted by the owner;
+Automatic browser quality is implemented with explicit manual override and bounded replanning
+(ADAPTIVE-QUALITY.md). Real remote/Safari/receiver checks remain separate. #138 retains the release gate with
 [ALPHA-CHECKLIST.md](ALPHA-CHECKLIST.md). READINESS/issues/#162 record actual checks and
 hosted verification/publication separately. No native app, owner-server or HDR/Atmos output
 work was performed; keep those remaining acceptance boundaries explicit.
