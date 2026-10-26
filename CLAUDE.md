@@ -49,6 +49,17 @@ The owner works from more than one PC (Windows). On a fresh clone:
   policy, and the owner asks agents to stop after opening the PR.
 
 
+- Logging pass (#219, 26 October): owner said logs showed almost nothing and they couldn't tell whether
+  intro/credit detection works. Normal (Info) logs now record sign-ins and failures (address/device),
+  settings changes (keys/passwords shown only as "(changed)"), playback decisions with reasons,
+  movie matches/no-match, metadata refresh/library work/previews/media analysis summaries, and an
+  intro/credit lookup summary per pass (chapters/TheIntroDB/IntroDB/none). Detailed logging adds
+  one line per file with the source found or the reason nothing was (no IMDb ID, no aired number,
+  no TheIntroDB key for movies, rate limited, failed) and why local detection was skipped.
+  Media analysis now shows one Activity task per library instead of one per file. Library Health
+  has a Skip Intro & Credits section (GET /api/libraries/{id}/markers): per library counts and a
+  By title list. No schema/migration changes.
+
 - Maintenance upkeep (#203, 26 October): Optimize database and Clean up cached files default On
   in the unified task list, run weekly in the quiet maintenance window and offer coalesced Run now
   plus persisted last results. Database work joins the writer queue, checks integrity, updates

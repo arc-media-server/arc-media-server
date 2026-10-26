@@ -1,14 +1,17 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -319,6 +322,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	key := "login:" + clientIP(r)
 	if !s.limiter.Allow(key) {
+		s.log.Warn("sign-in blocked after too many attempts", "address", clientIP(r))
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -329,10 +333,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	if admin == nil || !auth.Check(admin.PasswordHash, body.Password) {
 		s.limiter.Fail(key)
+		s.log.Warn("sign-in failed: wrong password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
 		writeError(w, http.StatusUnauthorized, "that password isn't right")
 		return
 	}
 	s.limiter.Succeed(key)
+	s.log.Info("signed in with the password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
 	if old := s.session(r); old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
@@ -381,6 +387,7 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	case u.HasPIN:
 		if !auth.Check(u.PINHash, body.PIN) {
 			s.limiter.Fail(key)
+			s.log.Warn("profile sign-in failed: wrong PIN", "profile", u.Name, "address", clientIP(r))
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "wrong PIN", "needs": "pin"})
 			return
 		}
@@ -388,6 +395,7 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		if !auth.Check(u.PasswordHash, body.Password) {
 			if body.Password != "" {
 				s.limiter.Fail(key)
+				s.log.Warn("profile sign-in failed: wrong password", "profile", u.Name, "address", clientIP(r))
 			}
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "enter the password", "needs": "password"})
 			return
@@ -828,6 +836,49 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // "scan_interval_minutes" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy
 // "scan_interval_hours", processing modes (off/scheduled/added) and task enable switches.
 // Changes apply without restarting.
+// logSettingChanges records which server settings a successful save changed, and by whom.
+// Keys and passwords are logged only as "(changed)".
+func (s *Server) logSettingChanges(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid body")
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		rec := &settingsRecorder{ResponseWriter: w, status: http.StatusOK}
+		next(rec, r)
+		var changed map[string]json.RawMessage
+		if rec.status >= 300 || json.Unmarshal(body, &changed) != nil || len(changed) == 0 {
+			return
+		}
+		parts := make([]string, 0, len(changed))
+		for k, v := range changed {
+			value := string(v)
+			if strings.Contains(k, "key") || strings.Contains(k, "password") || len(value) > 80 {
+				value = "(changed)"
+			}
+			parts = append(parts, k+"="+value)
+		}
+		slices.Sort(parts)
+		name := ""
+		if u := currentUser(r); u != nil {
+			name = u.Name
+		}
+		s.log.Info("settings changed", "by", name, "settings", strings.Join(parts, ", "))
+	}
+}
+
+type settingsRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *settingsRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		TMDBKey                *string  `json:"tmdb_api_key"`

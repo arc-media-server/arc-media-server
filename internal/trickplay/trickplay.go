@@ -188,8 +188,13 @@ func (m *Manager) pass(ctx context.Context) {
 		return store.VideoFile{}, false
 	}
 	var task *activity.Handle
-	done, todo := 0, 0
-	defer func() { task.Finish(nil) }()
+	done, todo, failed := 0, 0, 0
+	defer func() {
+		if task != nil {
+			m.log.Info("scrubbing previews", "made", done-failed, "failed", failed)
+		}
+		task.Finish(nil)
+	}()
 	for ctx.Err() == nil {
 		f, ok := next()
 		if !ok {
@@ -239,7 +244,8 @@ func (m *Manager) pass(ctx context.Context) {
 				m.failed[f.ID] = true
 			}
 			m.mu.Unlock()
-			m.log.Warn("couldn't make scrubbing previews", "file", filepath.Base(f.Path), "err", err)
+			failed++
+			m.log.Warn("couldn't make scrubbing previews", "title", name, "file", filepath.Base(f.Path), "err", err)
 			continue
 		}
 		m.log.Debug("made scrubbing previews", "file", filepath.Base(f.Path), "took", time.Since(start).Round(time.Millisecond))

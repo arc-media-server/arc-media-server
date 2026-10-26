@@ -113,6 +113,21 @@ test('review: desktop and narrow layouts open the main everyday pages', async ({
   }
 });
 
+test('Library Health lists which titles have intro and credits markers', async ({ page, media }, info) => {
+  await setup(page);
+  await addLibrary(page, 'Marker shows', media.shows, true);
+  await page.goto('/health');
+  const section = page.getByRole('region', { name: 'Skip Intro and Credits' });
+  await expect(section.getByRole('heading', { name: 'Marker shows' })).toBeVisible();
+  await expect(section.getByText(/\d+ of \d+ episodes have an intro · \d+ of \d+ have credits/)).toBeVisible();
+  await section.getByText('By title', { exact: true }).click();
+  const show = section.getByRole('listitem').first();
+  await expect(show.getByText(/Intro \d+\/\d+ · Credits \d+\/\d+/)).toBeVisible();
+  await page.screenshot({ path: info.outputPath('marker-coverage.png'), fullPage: true });
+  await show.getByRole('link').click();
+  await expect(page).toHaveURL(/\/series\//);
+});
+
 test('review: library browse can reach title 501', async ({ page, media }, info) => {
   await setup(page);
   const lib = await addLibrary(page, 'Large library', media.movies);

@@ -346,10 +346,12 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 				out.Optimized.Audio = &audioTrackDTO{Index: 1, Language: o.AudioLanguage, Title: o.AudioTitle, Codec: "aac", Channels: 2, Default: true}
 			}
 			s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
+			s.logPlayback(r, f.ID, out.Method, out.Reasons)
 			writeJSON(w, http.StatusOK, out)
 			return
 		}
 	}
+	s.logPlayback(r, f.ID, d.Method, d.Reasons)
 	if d.Method == "direct" {
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0
@@ -895,4 +897,19 @@ func (s *Server) playbackOptions(w http.ResponseWriter, r *http.Request) {
 		SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
 		Versions       []versionDTO      `json:"versions"`
 	}{f.ID, index, audioTracks(f), s.subtitleTracks(f), versions(files)})
+}
+
+// logPlayback records who started what, on which device, and how it plays (and why), so a
+// conversion or a refused format can be traced from the log.
+func (s *Server) logPlayback(r *http.Request, fileID int64, method string, reasons []string) {
+	title, _ := s.store.FileActivityLabel(r.Context(), fileID)
+	name := ""
+	if u := currentUser(r); u != nil {
+		name = u.Name
+	}
+	how, ok := map[string]string{"direct": "direct play", "remux": "repackaged", "transcode": "converted"}[method]
+	if !ok {
+		how = method
+	}
+	s.log.Info("playback", "title", title, "profile", name, "device", deviceName(r.UserAgent()), "method", how, "because", strings.Join(reasons, ", "))
 }

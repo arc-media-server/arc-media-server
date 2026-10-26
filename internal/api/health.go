@@ -186,3 +186,18 @@ func toDTOs(items []store.Item) []itemDTO {
 	}
 	return out
 }
+
+// markerCoverage: GET /api/libraries/{id}/markers lists the library's shows and movies with how many
+// of their files have intro and credits markers and how many have been checked, for Library Health.
+func (s *Server) markerCoverage(w http.ResponseWriter, r *http.Request) {
+	lib, ok := s.libraryFromPath(w, r)
+	if !ok {
+		return
+	}
+	titles, err := s.store.MarkerCoverage(r.Context(), lib.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"skip_intros": lib.SkipIntros, "skip_credits": lib.SkipCredits, "titles": titles})
+}

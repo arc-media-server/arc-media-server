@@ -149,6 +149,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	bg.Log = log
 	bg.Configure(cfg)
 	go bg.Monitor(ctx)
 	go bg.RunUpkeep(ctx, "database", func(ctx context.Context, allowed func() bool) (string, error) {

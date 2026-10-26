@@ -132,10 +132,12 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if u == nil || u.PasswordHash == "" || !auth.Check(u.PasswordHash, body.Password) {
 		s.limiter.Fail(key)
+		s.log.Warn("friend sign-in failed", "name", body.Name, "address", clientIP(r))
 		writeError(w, http.StatusUnauthorized, "that name and password don't match")
 		return
 	}
 	s.limiter.Succeed(key)
+	s.log.Info("friend signed in", "name", u.Name, "address", clientIP(r), "device", deviceName(r.UserAgent()))
 	if old := s.session(r); old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
