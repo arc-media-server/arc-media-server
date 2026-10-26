@@ -1,5 +1,57 @@
 # Stability and release readiness
 
+## Automatic quality and episode action layout (26 October 2026)
+
+Owner accepted #197 after the earlier deferral. Baseline 4917e48 matched GitHub main; branch
+codex/adaptive-quality. Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5, dependencies
+and pinned Chromium revision 1248 were used without installations. No owner data/settings/keys/
+media, Unraid, remote production route or persistent server. Contract: ADAPTIVE-QUALITY.md.
+
+Automatic is the default without a saved choice; existing numeric manual choices and explicit
+Original persist. Delivery/buffer evidence drives conservative lower/raise decisions, startup/
+seek grace, cooldowns and a bounded switch window. Single-rendition replanning preserves exact
+file/audio/burn, position, text captions/timing, speed and pause intent. Independent server
+ceilings remain authoritative. Replans can briefly rebuffer; no managed relay/discovery or
+seamless multi-rendition claim. #193 pacing/storage and #198 audio processing stay deferred.
+
+The owner also reported episode actions split across stretched rows. The group now aligns at
+the start without wrapping on desktop; narrower layouts place it below the episode text.
+All seven actions remain together at 390/640/900/1024/1100/1280/1440px without horizontal overflow.
+Existing hover/focus visibility and keyboard access remain. Approved hero geometry is unchanged.
+
+Actual local checks:
+
+- Uncached Go: **382 tests/subtests (230 top-level)**, zero failures/skips.
+- Uncached affected API race: **94 tests/subtests (34 top-level)**, zero failures/skips.
+- **Six policy checks** pass through the direct Node test API. The prepared runtime
+  `node --test file.mjs` wrapper reported a single file without registering the six cases;
+  direct invocation reports all six, and an intentional failure canary exits 1. CI uses
+  the verified direct invocation. No runtime was replaced or repaired.
+- **Six browser journeys pass together (106.90s)**, zero failures/skips/retries: three
+  adaptive journeys plus three existing episode details/specials journeys. Real generated
+  noisy media with English/French audio and French captions uses actual planner/conversion
+  playback under Chromium CDP throttling for the downward adaptation. A held actual planner
+  response plus explicitly simulated buffer/time pressure verifies pause intent, exact tracks,
+  1.25x speed, caption timing, failed readmission/Retry and seeking. Phone checks cover saved
+  manual/Original/Automatic. Policy checks verify upgrades; no measured remote upgrade claim.
+- Production/app/e2e TypeScript, UI build, Go vet, API-document generator, embedded build and
+  diff checks pass. Desktop and phone captures inspected; raw screenshots retained.
+- Initial TS validation caught an incorrect HLS event stats location; corrected to fragment
+  stats. First browser run: one pass/one failure from an incorrect existing error selector;
+  follow-up: one pass/one failure from an incorrect Forward button name. Corrected test
+  selectors retain error/Retry/seek assertions; final six pass above. Earlier failed logs and
+  traces remain evidence, not counted as acceptance.
+
+A further **seven existing playback/episode/cast journeys pass (53.05s)** with zero failures/
+skips/retries. One overlaps the six above, for **12 distinct local journeys**. Screenshot review
+also caught cramped text at 1024px; the final breakpoint moves actions below text until 1280px,
+with a readable text-width assertion using a representative full-length description. The first
+width assertion used intrinsically short fixture text; its failure is retained, and the final
+seven-width check passes. Hosted publication results are recorded separately. Evidence: /workspace/arc-cloud-evidence/adaptive-quality/ and
+/workspace/arc-cloud-evidence/episode-actions/. Physical Safari/native HLS/receivers, actual
+remote-network behavior, HDR/Atmos output and owner-server performance remain unverified.
+
+
 ## Episode details and specials (#106/#109, 25 October 2026)
 
 The owner accepted both recommendations after the Web/Server review. Clean baseline ba4fab1
@@ -90,7 +142,7 @@ receiver/native-Safari/full-subtitle/capability acceptance remains on #192/#135.
 
 Plan, do not claim implementation of #106 episode credits/counts and #109 inline specials:
 provenance, stable identity, existing locks/orders and shared playback traversal are explicit.
-Defer #193 pacing/budgets, #197 adaptive quality and #198 audio processing pending their
+At that review, defer #193 pacing/budgets, #197 adaptive quality and #198 audio processing pending their
 representative tasks/measurements. No managed relay is accepted. #138 retains the public
 readiness gate with [ALPHA-CHECKLIST.md](ALPHA-CHECKLIST.md), not a cloud-based alpha declaration.
 No new native-client requirement, schema/dependency change, source edit or history rewrite.

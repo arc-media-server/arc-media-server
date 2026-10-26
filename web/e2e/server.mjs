@@ -129,6 +129,7 @@ function metadata(url) {
   if (p === '/search/movie') return { results: query === 'arc movie' ? [movie(101, 'Arc Movie')] : query === 'resolved movie' ? [movie(202, 'Resolved Movie')] : [] };
   if (p === '/movie/404') return movie(404, 'Remux Movie');
   if (p === '/movie/707') return movie(707, 'Budget Movie');
+  if (p === '/movie/808') return movie(808, 'Adaptive Movie');
   if (p === '/movie/606') return movie(606, 'Audio Movie');
   if (p === '/movie/505') return movie(505, 'Transcode Movie');
   if (p === '/movie/101') return movie(101, 'Arc Movie');
@@ -148,6 +149,18 @@ const server = createServer(async (req, res) => {
   try {
     if (url.pathname === '/health') return json(200, { ready: true });
     if (url.pathname === '/fixtures') return json(200, fixtures);
+    if (url.pathname === '/adaptive-media' && req.method === 'POST') {
+      const folder = join(root, 'adaptive-media');
+      await mkdir(folder, { recursive: true });
+      if (!(await readdir(folder)).some(name => name.endsWith('.mkv'))) {
+        run(ffmpegForAdaptive, ['-v','error','-y','-f','lavfi','-i','testsrc2=duration=90:size=320x180:rate=24',
+          '-i',join(fixtures.audio,'Audio Movie (2020) {tmdb-606}.mkv'),'-map','0:v:0','-map','1:a:0','-map','1:a:1',
+          '-vf','noise=alls=100:allf=t+u','-c:v','libx264','-threads','2','-preset','ultrafast','-crf','23','-c:a','copy','-t','90',
+          join(folder,'Adaptive Movie (2020) {tmdb-808}.mkv')]);
+        await writeFile(join(folder,'Adaptive Movie (2020) {tmdb-808}.fre.srt'),'1\n00:00:00,000 --> 00:01:30,000\nAdaptive French subtitle\n');
+      }
+      return json(200, { path: folder });
+    }
     if (url.pathname === '/metadata-hold' && req.method === 'POST') { holdMetadata(url.searchParams.get('hold') === '1'); return json(200, { held: !!releaseMetadata }); }
     if (url.pathname === '/metadata-delay' && req.method === 'POST') {
       const ms = Number(url.searchParams.get('ms'));
@@ -190,8 +203,10 @@ async function cleanup() {
 }
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { void cleanup().then(() => process.exit(0)); });
 
+let ffmpegForAdaptive;
 try {
   const ffmpeg = await ffmpegPath();
+  ffmpegForAdaptive = ffmpeg;
   if (ffmpeg !== 'ffmpeg') env.PATH = dirname(ffmpeg) + ';' + (env.PATH ?? env.Path ?? '');
   run('go', ['build', '-o', binary, './cmd/ams']);
   const media = join(root, 'media');

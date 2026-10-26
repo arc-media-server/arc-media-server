@@ -218,6 +218,8 @@ type playbackPlan struct {
 	// The file's overall bitrate and picture height, so the player offers only lower qualities.
 	SourceKbps   int `json:"source_kbps"`
 	SourceHeight int `json:"source_height"`
+	// Independent server bandwidth ceiling, not the player's current requested quality.
+	ServerLimitKbps int `json:"server_limit_kbps"`
 	// The file's chapter marks (times in the file).
 	Chapters []store.Chapter `json:"chapters"`
 	// Where the intro, recap and credits are, for Skip Intro and Skip Credits (times in the file).
@@ -288,7 +290,8 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		d.Reasons = append(d.Reasons, "picture subtitles shown")
 	}
 	// Away from home, streams keep within the remote limits (Settings > Remote Access).
-	if limit := s.remoteLimit(r, it.ID); limit > 0 && (body.MaxKbps == 0 || body.MaxKbps > limit) {
+	serverLimit := s.remoteLimit(r, it.ID)
+	if limit := serverLimit; limit > 0 && (body.MaxKbps == 0 || body.MaxKbps > limit) {
 		body.MaxKbps = limit
 	}
 	limitHeight := 0
@@ -304,7 +307,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 
 	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
 		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: s.subtitleTracks(f), BurnSubtitle: body.BurnSubtitle,
-		Versions: versions(files), SourceKbps: int(f.Bitrate / 1000)}
+		Versions: versions(files), SourceKbps: int(f.Bitrate / 1000), ServerLimitKbps: serverLimit}
 	if video != nil {
 		out.SourceHeight = video.Height
 	}

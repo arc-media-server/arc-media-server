@@ -40,11 +40,26 @@ test('episode details: imported credits/counts, keyboard/phone, provider switchi
   const ep = episodes.find(e => e.title === 'Opening')!;
   const before = await (await page.request.get(`/api/items/${ep.id}`)).json();
   expect(before.credits.map((c: { name: string }) => c.name)).toEqual(['Fixture Guest', 'Fixture Director', 'Fixture Writer']);
-  expect((await page.request.patch(`/api/items/${ep.id}`, { data: { title: 'My opening' } })).ok()).toBeTruthy();
+  expect((await page.request.patch(`/api/items/${ep.id}`, { data: { title: 'My opening', overview: 'The opening episode follows the visitors as they arrive in town and discover an unexpected mystery. Their search brings old friends together and starts a journey with consequences for everyone.' } })).ok()).toBeTruthy();
   expect((await page.request.put(`/api/items/${ep.id}/progress`, { data: { position_ms: 70000, duration_ms: 120000, state: 'stopped' } })).ok()).toBeTruthy();
   await page.goto(`/series/${series.id}`);
   await expect(page.getByText('14 episodes', { exact: true })).toBeVisible();
   const details = page.getByRole('button', { name: 'Details for My opening', exact: true });
+  const actions = details.locator('..');
+  for (const width of [1440, 1280, 1100, 1024, 900, 640, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await details.scrollIntoViewIfNeeded();
+    await details.hover();
+    const boxes = await actions.getByRole('button').evaluateAll(buttons => buttons.map(button => {
+      const r = button.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
+    }));
+    expect(boxes).toHaveLength(7);
+    expect(Math.max(...boxes.map(b => b.y)) - Math.min(...boxes.map(b => b.y)), `single action row at ${width}px`).toBeLessThan(6);
+    expect((await page.getByRole('heading', { name: 'My opening', exact: true }).locator('..').boundingBox())!.width, `readable episode text at ${width}px`).toBeGreaterThanOrEqual(180);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`episode-actions-${width}.png`) });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await details.focus(); await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'My opening', exact: true });
   await expect(dialog.getByText('Fixture Director', { exact: true })).toBeVisible();

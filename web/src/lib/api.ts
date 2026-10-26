@@ -492,6 +492,8 @@ export type PlaybackOptions = Pick<PlaybackPlan, 'file_id' | 'audio_stream' | 'a
 
 /** How the server will send a movie or episode to this player. */
 export interface PlaybackPlan {
+  /** Current server policy, independent of the player's requested cap; 0 is unlimited. */
+  server_limit_kbps: number;
   /** A generated MP4; source track indices remain in audio_stream/audio_tracks for choices. */
   optimized?: { quality: number; source_audio_stream: number; audio?: AudioTrack; duration_ms?: number; bitrate?: number };
   method: PlaybackMethod;
