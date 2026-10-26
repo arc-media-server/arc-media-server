@@ -5,7 +5,7 @@ type Admission = { request: { file_id?: number; audio_stream?: number; start_ms:
 const test = base.extend<{ movie: string }>({
   movie: async ({ page }, use) => {
     expect((await fetch('http://127.0.0.1:18200/reset', { method: 'POST' })).ok).toBe(true);
-    const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+    const errors: string[] = []; page.on('pageerror', e => errors.push(e.stack ?? e.message));
     await page.context().route('**/*', route => {
       const url = new URL(route.request().url());
       return url.hostname === '127.0.0.1' || url.protocol === 'data:' ? route.continue() : route.abort();
@@ -74,6 +74,9 @@ test('adaptive: constrained real delivery lowers quality, preserves source/audio
 
 test('adaptive: pause during replan, exact tracks, seeking and readmission failure remain recoverable', async ({ page, movie }) => {
   test.setTimeout(90000);
+  // Install before playback creates timers. Installing the clock mid-playback leaves
+  // native HLS reload timers outside the emulated clearTimeout during teardown.
+  await page.clock.install();
   let hold = false, fail = false; let release!: () => void;
   let held!: () => void; const entered = new Promise<void>(resolve => { held = resolve; });
   const gate = new Promise<void>(resolve => { release = resolve; });
