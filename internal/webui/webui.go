@@ -45,6 +45,9 @@ func Handler() http.Handler {
 		}
 		if strings.HasPrefix(p, "assets/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else if p == "docs" {
+			// The API documentation page (docs/index.html), like index.html never cached.
+			w.Header().Set("Cache-Control", "no-cache")
 		}
 		fileServer.ServeHTTP(w, r)
 	})

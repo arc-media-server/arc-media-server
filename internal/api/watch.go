@@ -270,7 +270,7 @@ type homeEntry struct {
 
 // continueWatching: GET /api/home/continue lists what the profile is part-way through, most
 // recent first. With ?with_up_next=1 it also has the next episode of each show they're watching,
-// as Plex's Continue Watching does, one entry per show.
+// one entry per show.
 func (s *Server) continueWatching(w http.ResponseWriter, r *http.Request) {
 	entries, err := s.inProgress(r)
 	if err != nil {

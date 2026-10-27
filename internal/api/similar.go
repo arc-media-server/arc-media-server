@@ -38,7 +38,7 @@ type recommendedRow struct {
 }
 
 // recommended: GET /api/libraries/{id}/recommended is a library's Recommended view for the
-// profile, as Plex's: "Because you watched" rows for its recent titles, the best rated it hasn't
+// profile: "Because you watched" rows for its recent titles, the best rated it hasn't
 // seen, and its favourite genres. Rows without anything are left out.
 func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
