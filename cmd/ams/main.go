@@ -558,12 +558,6 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 			return err
 		}
-		if next.Region != current.Region {
-			// Age ratings are per region: fetch everything again, a batch per scan.
-			if err := st.MarkAllUnsynced(ctx); err != nil {
-				return err
-			}
-		}
 		useSettings(next)
 		if ln != nil {
 			listeners <- ln

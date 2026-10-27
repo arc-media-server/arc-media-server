@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, ChevronDown, Film, Folder, FolderPlus, HelpCircle, Info, Loader2, SlidersHorizontal, Tv, X, Clapperboard } from 'lucide-react';
+import { regionOptions } from '@/lib/regions';
 import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SourceOrdering } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,11 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const [collectionMin, setCollectionMin] = useState(library?.collection_min ?? 2);
   const [collectionGrid, setCollectionGrid] = useState<Library['collection_grid']>(library?.collection_grid ?? '');
   const [language, setLanguage] = useState(library?.metadata_language ?? '');
+  // New libraries start with the server's country (set from the browser at setup), as Plex's
+  // per-library Certification Country.
+  const serverRegion = useQuery({ queryKey: ['settings'], queryFn: api.settings }).data?.region;
+  const [ratingRegion, setRatingRegion] = useState(library?.rating_region ?? '');
+  const region = ratingRegion || serverRegion || 'US';
   const [picking, setPicking] = useState(!editing);
   const [step, setStep] = useState<'details' | 'preview'>('details');
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -65,7 +71,7 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const needsFolders = !editing && !paths.length && section !== 'folders';
 
   const start = useMutation({
-    mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths, metadata_language: language }, library?.id),
+    mutationFn: () => api.startPreview({ kind, source_ordering: ordering, paths, metadata_language: language, rating_region: region }, library?.id),
     onSuccess: (res) => {
       setPreviewId(res.id);
       setStep('preview');
@@ -74,8 +80,8 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
-        : api.createLibrary({ name, kind, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
+        ? api.updateLibrary(library.id, { name, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
+        : api.createLibrary({ name, kind, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
     onSuccess: () => {
       qc.invalidateQueries();
       onDone();
@@ -238,6 +244,24 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
                     >
                       <select id={`${fieldId}-language`} aria-describedby={`${fieldId}-language-help`} value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
                         {metadataLanguages.map(([code, name]) => (
+                          <option key={code} value={code}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </SelectRow>
+                    <SelectRow
+                      id={`${fieldId}-ratings`}
+                      label="Age ratings"
+                      help={
+                        <>
+                          Which country's age ratings (like 12A or PG-13) to show and use for parental controls.
+                          {library && region !== library.rating_region && ' Details are fetched again after you save.'}
+                        </>
+                      }
+                    >
+                      <select id={`${fieldId}-ratings`} aria-describedby={`${fieldId}-ratings-help`} value={region} onChange={(e) => setRatingRegion(e.target.value)} className={selectClass}>
+                        {regionOptions(region).map(([code, name]) => (
                           <option key={code} value={code}>
                             {name}
                           </option>

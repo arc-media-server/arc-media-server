@@ -161,14 +161,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -190,8 +190,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider)
+		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -252,6 +252,16 @@ func (s *Store) SetLibraryLanguage(ctx context.Context, id int64, lang string) e
 		return err
 	}
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0, metadata_state = 'pending' WHERE library_id = ? AND kind IN ('movie', 'series') AND metadata_state <> 'locked'`, id)
+	return err
+}
+
+// SetLibraryRatingRegion changes the country whose age ratings a library uses, and has its
+// movies and shows fetched again so their ratings follow.
+func (s *Store) SetLibraryRatingRegion(ctx context.Context, id int64, region string) error {
+	if _, err := s.db.ExecContext(ctx, `UPDATE libraries SET rating_region = ? WHERE id = ?`, region, id); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE library_id = ? AND kind IN ('movie', 'series')`, id)
 	return err
 }
 

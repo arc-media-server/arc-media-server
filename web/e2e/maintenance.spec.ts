@@ -373,3 +373,25 @@ test('attribution: About credits TMDB with its required notice and TheTVDB', asy
   await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
   await about.screenshot({ path: info.outputPath('about.png') });
 });
+
+test('age ratings: each library uses its own country, chosen in Advanced', async ({ page, media }) => {
+  // New libraries start with the server's country (GB from setup) and get the BBFC rating.
+  const lib = await library(page, media.movies);
+  expect(lib.rating_region).toBe('GB');
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.find((i: { title: string }) => i.title === 'Arc Movie');
+  expect((await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating).toBe('PG');
+  await page.goto('/libraries');
+  await page.getByRole('region', { name: 'Maintenance library', exact: true }).getByRole('button', { name: 'Edit', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('tab', { name: 'Advanced' }).click();
+  const ratings = dialog.getByRole('combobox', { name: 'Age ratings', exact: true });
+  await expect(ratings).toHaveValue('GB');
+  await ratings.selectOption('US');
+  await expect(dialog.getByText('Details are fetched again after you save.', { exact: false })).toBeVisible();
+  const saved = page.waitForResponse(r => r.url().endsWith(`/api/libraries/${lib.id}`) && r.request().method() === 'PATCH' && r.ok());
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await saved;
+  // Saving refetches the library's titles, so the rating follows without a manual refresh.
+  await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
+  expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
+});

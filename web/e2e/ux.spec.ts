@@ -188,7 +188,8 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toBeVisible();
+  // Age-rating country is chosen per library (Edit library → Advanced), as Plex does.
+  await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toHaveCount(0);
   // Native links work with the keyboard and retain ordinary browser navigation semantics.
   const playback = nav.getByRole('link', { name: 'Playback & transcoding', exact: true });
   await playback.focus(); await page.keyboard.press('Enter');
