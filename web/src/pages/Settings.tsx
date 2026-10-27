@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -30,14 +31,15 @@ type Patch = Parameters<typeof api.updateSettings>[0];
 const SettingsSection = createContext<SettingsGroup>('profile');
 
 export function SettingsPage() {
+  const { t } = useTranslation('profileSettings');
   const admin = useIsAdmin();
   const [params] = useSearchParams();
   const selected = admin ? selectedSettingsSection(params.get('section')) : 'profile';
   return (
     <Page className="pb-16">
-      <PageHeader title="Settings" subtitle={selected === 'profile' ? 'Your preferences follow your profile.' : 'Server settings apply to everyone. Only admins can change these.'} />
+      <PageHeader title={t("profileSettings:settings.settings")} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
       <div className="max-w-[848px] space-y-8 px-6 md:px-10">
-        <p className="text-sm text-muted">Switches and menus save immediately. Text fields use Save.</p>
+        <p className="text-sm text-muted">{t("profileSettings:settings.switchesAndMenusSave")}</p>
         <SettingsSection.Provider value={selected}>
           {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
         </SettingsSection.Provider>
@@ -49,13 +51,14 @@ export function SettingsPage() {
 
 /** About Arc, on every profile's Settings: the version, and the credits metadata providers require. */
 function AboutArc() {
+  const { t } = useTranslation('profileSettings');
   const info = useQuery({ queryKey: ['server-info'], queryFn: api.serverInfo, staleTime: Infinity });
   return (
     <section aria-labelledby="about-arc">
-      <h2 id="about-arc" className="text-lg font-semibold">About Arc</h2>
-      <p className="mt-1 text-sm text-muted">Arc Media Server{info.data?.version ? ` ${info.data.version}` : ''}</p>
+      <h2 id="about-arc" className="text-lg font-semibold">{t("profileSettings:settings.aboutArc")}</h2>
+      <p className="mt-1 text-sm text-muted">{t("profileSettings:settings.arcMediaServer")}{info.data?.version ? ` ${info.data.version}` : ''}</p>
       <div className="mt-4 rounded-2xl bg-surface p-4 ring-1 ring-border">
-        <h3 className="mb-3 text-sm font-medium">Credits</h3>
+        <h3 className="mb-3 text-sm font-medium">{t("profileSettings:settings.credits")}</h3>
         <ProviderCredits />
       </div>
     </section>
@@ -64,6 +67,8 @@ function AboutArc() {
 
 /** The current profile's own settings (each profile has its own, as in Plex). */
 function ProfileSettings() {
+  const { t } = useTranslation('profileSettings');
+  const subtitleModeHints: Record<SubtitleMode, string> = { '': t('profileSettings:subtitleHints.last'), foreign: t('profileSettings:subtitleHints.foreign'), always: t('profileSettings:subtitleHints.always'), manual: t('profileSettings:subtitleHints.manual') };
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const p = prefs.data;
@@ -72,70 +77,70 @@ function ProfileSettings() {
   const busy = update.isPending;
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <Section title="Playback" hint="For your profile only.">
-        <Row setting="watched_percent" label="Mark as watched at" description="How far through a movie or episode counts as watched.">
-          <select aria-label="Mark as watched at" value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
-            {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent}%{percent === 90 ? ' (default)' : ''}</option>)}
+      <Section sectionKey="Playback" title={t("profileSettings:settings.playback")} hint={t("profileSettings:settings.forYourProfileOnly")}>
+        <Row setting="watched_percent" label={t("profileSettings:settings.markAsWatchedAt")} description={t("profileSettings:settings.howFarThroughA")}>
+          <select aria-label={t("profileSettings:settings.markAsWatchedAt")} value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent === 90 ? t('profileSettings:settings.defaultPercent', { percent }) : `${percent}%`}</option>)}
             {!!p.watched_percent && ![75, 90, 95, 100].includes(p.watched_percent) && <option value={p.watched_percent}>{p.watched_percent}%</option>}
           </select>
         </Row>
-        <Row setting="audio_language" label="Preferred audio language" description="Played when a video has it. Choosing a language in the player changes this too.">
-          <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
-            <option value="">Use the file's default</option>
+        <Row setting="audio_language" label={t("profileSettings:settings.preferredAudioLanguage")} description={t("profileSettings:settings.playedWhenAVideo")}>
+          <select aria-label={t("profileSettings:settings.preferredAudioLanguage")} value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            <option value="">{t("profileSettings:settings.useTheFileS")}</option>
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </Row>
         <ToggleRow
-          setting="auto_play" label="Auto-Play"
-          description="Play the next episode after a short countdown."
+          setting="auto_play" label={t("profileSettings:settings.autoPlay")}
+          description={t("profileSettings:settings.playTheNextEpisode")}
           checked={p.auto_play !== false}
           busy={busy}
           onChange={(v) => update.mutate({ auto_play: v })}
         />
         <ToggleRow
-          setting="auto_skip" label="Skip intros automatically"
-          description="Skip intros and recaps without pressing Skip."
+          setting="auto_skip" label={t("profileSettings:settings.skipIntrosAutomatically")}
+          description={t("profileSettings:settings.skipIntrosAndRecaps")}
           checked={!!p.auto_skip}
           busy={busy}
           onChange={(v) => update.mutate({ auto_skip: v })}
         />
         <ToggleRow
-          setting="theme_music" label="Theme music"
-          description="Play a show's or movie's theme quietly on its page."
+          setting="theme_music" label={t("profileSettings:settings.themeMusic")}
+          description={t("profileSettings:settings.playAShowS")}
           checked={p.theme_music !== false}
           busy={busy}
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
-      <Section title="Home" hint="For your profile only.">
-        <ToggleRow setting="show_home_hero" label="Show home hero" description="Show the large featured title banner at the top of Home. Hide it to go straight to your rows."
+      <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
+        <ToggleRow setting="show_home_hero" label={t("profileSettings:settings.showHomeHero")} description={t("profileSettings:settings.showTheLargeFeatured")}
           checked={p.show_home_hero !== false} busy={busy} onChange={v => update.mutate({ show_home_hero: v })} />
       </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
-      <Section title="Subtitles" hint="Choosing subtitles in the player updates these too.">
-        <Row setting="subtitle_mode" label="Show subtitles" description={subtitleModeHints[p.subtitle_mode ?? '']}>
+      <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>
+        <Row setting="subtitle_mode" label={t("profileSettings:settings.showSubtitles")} description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
-            aria-label="Subtitle mode"
+            aria-label={t("profileSettings:settings.subtitleMode")}
             value={p.subtitle_mode ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_mode: e.target.value as SubtitleMode })}
             className={`${inputClass} w-56 [&>option]:bg-surface`}
           >
-            <option value="">In the language I last chose</option>
-            <option value="foreign">When the audio is in another language</option>
-            <option value="always">Always</option>
-            <option value="manual">Only when I choose them</option>
+            <option value="">{t("profileSettings:settings.inTheLanguageI")}</option>
+            <option value="foreign">{t("profileSettings:settings.whenTheAudioIs")}</option>
+            <option value="always">{t("profileSettings:settings.always")}</option>
+            <option value="manual">{t("profileSettings:settings.onlyWhenIChoose")}</option>
           </select>
         </Row>
-        <Row setting="subtitle_language" label="Language" description="The language of subtitles that turn on, including forced subtitles for foreign-language lines.">
+        <Row setting="subtitle_language" label={t("profileSettings:settings.language")} description={t("profileSettings:settings.theLanguageOfSubtitles")}>
           <select
-            aria-label="Subtitle language"
+            aria-label={t("profileSettings:settings.subtitleLanguage")}
             value={p.subtitle_language}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_language: e.target.value })}
             className={`${inputClass} w-56 [&>option]:bg-surface`}
           >
-            <option value="">None</option>
+            <option value="">{t("profileSettings:settings.none")}</option>
             {subtitleLanguages(p.subtitle_language).map(([code, name]) => (
               <option key={code} value={code}>
                 {name}
@@ -145,25 +150,25 @@ function ProfileSettings() {
         </Row>
         <SubtitleStyleRows style={p.subtitle_style ?? {}} busy={busy} onChange={(subtitle_style) => update.mutate({ subtitle_style })} />
       </Section>
-      <Section title="Display">
+      <Section sectionKey="Display" title={t("profileSettings:settings.display")}>
         <ToggleRow
-          setting="hide_spoilers" label="Hide spoilers"
-          description="Blur stills and hide descriptions of episodes you haven't seen."
+          setting="hide_spoilers" label={t("profileSettings:settings.hideSpoilers")}
+          description={t("profileSettings:settings.blurStillsAndHide")}
           checked={!!p.hide_spoilers}
           busy={busy}
           onChange={(v) => update.mutate({ hide_spoilers: v })}
         />
-        <Row setting="theme" label="Appearance" description="Automatic follows this device's light or dark mode.">
+        <Row setting="theme" label={t("profileSettings:settings.appearance")} description={t("profileSettings:settings.automaticFollowsThisDevice")}>
           <select
-            aria-label="Appearance"
+            aria-label={t("profileSettings:settings.appearance")}
             value={p.theme ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ theme: e.target.value as Theme })}
             className={`${inputClass} w-40 [&>option]:bg-surface`}
           >
-            <option value="">Automatic</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="">{t("profileSettings:settings.automatic")}</option>
+            <option value="dark">{t("profileSettings:settings.dark")}</option>
+            <option value="light">{t("profileSettings:settings.light")}</option>
           </select>
         </Row>
       </Section>
@@ -171,12 +176,7 @@ function ProfileSettings() {
   );
 }
 
-const subtitleModeHints: Record<SubtitleMode, string> = {
-  '': 'In the language you last picked in the player, until you turn them off.',
-  foreign: 'In your language when the audio is in another language.',
-  always: 'In your language whenever there are some.',
-  manual: 'Only when you pick them in the player. Forced subtitles still show.',
-};
+
 
 /** Common subtitle languages (ISO 639-2), with the profile's current one if it isn't among them. */
 function subtitleLanguages(current: string): [string, string][] {
@@ -187,13 +187,14 @@ function subtitleLanguages(current: string): [string, string][] {
 
 /** How subtitles look, with a sample. */
 function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; busy: boolean; onChange: (s: SubtitleStyle) => void }) {
+  const { t } = useTranslation('profileSettings');
   const pick = <K extends keyof SubtitleStyle>(key: K, options: [NonNullable<SubtitleStyle[K]>, string][], def: NonNullable<SubtitleStyle[K]>) => (
     <select
       value={style[key] ?? def}
       disabled={busy}
       onChange={(e) => onChange({ ...style, [key]: e.target.value })}
       className={`${inputClass} w-32 [&>option]:bg-surface`}
-      aria-label={`Subtitle ${key}`}
+      aria-label={{ size: t('profileSettings:styleLabels.size'), color: t('profileSettings:styleLabels.color'), background: t('profileSettings:styleLabels.background'), position: t('profileSettings:styleLabels.position') }[key]}
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>
@@ -206,21 +207,19 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
     <div className="space-y-3 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-64">
-          <p className="text-sm font-medium">Style</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">Size, colour, background and position. Picture subtitles from Blu-rays and DVDs can't be restyled.</p>
+          <p className="text-sm font-medium">{t("profileSettings:settings.style")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">{t("profileSettings:settings.sizeColourBackgroundAnd")}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {pick('size', [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large'], ['huge', 'Huge']], 'medium')}
-        {pick('color', [['white', 'White'], ['yellow', 'Yellow']], 'white')}
-        {pick('background', [['box', 'Shaded box'], ['solid', 'Black box'], ['none', 'Outline only']], 'box')}
-        {pick('position', [['bottom', 'Bottom'], ['top', 'Top']], 'bottom')}
+        {pick('size', [['small', t('profileSettings:styleOptions.small')], ['medium', t('profileSettings:styleOptions.medium')], ['large', t('profileSettings:styleOptions.large')], ['huge', t('profileSettings:styleOptions.huge')]], 'medium')}
+        {pick('color', [['white', t('profileSettings:styleOptions.white')], ['yellow', t('profileSettings:styleOptions.yellow')]], 'white')}
+        {pick('background', [['box', t('profileSettings:styleOptions.box')], ['solid', t('profileSettings:styleOptions.solid')], ['none', t('profileSettings:styleOptions.outline')]], 'box')}
+        {pick('position', [['bottom', t('profileSettings:styleOptions.bottom')], ['top', t('profileSettings:styleOptions.top')]], 'bottom')}
       </div>
       <SaveFeedback settings={['subtitle_style']} />
       <div className="flex h-24 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-500 via-sky-800 to-amber-700 p-3" aria-hidden>
-        <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>
-          Where are we going?
-        </span>
+        <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>{t("profileSettings:settings.whereAreWeGoing")}</span>
       </div>
     </div>
   );
@@ -871,11 +870,12 @@ function HourSelect({ value, disabled, onChange, label }: { label: string; value
 
 function sectionId(title: string) { return 'settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ sectionKey, title, hint, children }: { sectionKey?: string; title: string; hint?: string; children: ReactNode }) {
+  const key = sectionKey ?? title;
   const group = useContext(SettingsSection);
-  if (group !== 'profile' && sectionGroups[title] !== group) return null;
+  if (group !== 'profile' && sectionGroups[key] !== group) return null;
   return (
-    <section id={sectionId(title)} className="scroll-mt-24 lg:scroll-mt-6">
+    <section id={sectionId(key)} className="scroll-mt-24 lg:scroll-mt-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
       <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">{children}</div>
@@ -1257,6 +1257,7 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
 }
 
 function PasswordRow() {
+  const { t } = useTranslation('profileSettings');
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -1272,11 +1273,9 @@ function PasswordRow() {
   });
   return (
     <Row
-      label="Password"
+      label={t("profileSettings:settings.password")}
       description={
-        <>
-          Used to sign in away from home, and for the admin profile.
-          {done && <span className="mt-1 block text-foreground">Password changed. Other devices signed in with the old one were signed out.</span>}
+        <>{t("profileSettings:settings.usedToSignIn")}{done && <span className="mt-1 block text-foreground">{t("profileSettings:settings.passwordChangedOtherDevices")}</span>}
           {change.error && <span role="alert" className="mt-1 block text-warning">{change.error.message}</span>}
         </>
       }
@@ -1289,16 +1288,12 @@ function PasswordRow() {
             change.mutate();
           }}
         >
-          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current" className={`${inputClass} w-36`} autoComplete="current-password" />
-          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New (8+ characters)" className={`${inputClass} w-44`} autoComplete="new-password" />
-          <Button size="sm" variant="primary" type="submit" disabled={!current || next.length < 8 || change.isPending}>
-            Change
-          </Button>
+          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder={t("profileSettings:settings.current")} className={`${inputClass} w-36`} autoComplete="current-password" />
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("profileSettings:settings.new8Characters")} className={`${inputClass} w-44`} autoComplete="new-password" />
+          <Button size="sm" variant="primary" type="submit" disabled={!current || next.length < 8 || change.isPending}>{t("profileSettings:settings.change")}</Button>
         </form>
       ) : (
-        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-          Change Password
-        </Button>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>{t("profileSettings:settings.changePassword")}</Button>
       )}
     </Row>
   );
