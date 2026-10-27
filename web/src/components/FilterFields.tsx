@@ -1,20 +1,25 @@
+import { sortLabels } from '@/lib/filter-labels';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { api, type ItemSort, type Library, type Resolution, type RowFilter } from '@/lib/api';
 import { rowQuery } from '@/lib/home';
 import * as fmt from '@/lib/format';
-import { resolutions, sorts } from '@/pages/Library';
+import { resolutions } from '@/pages/Library';
 import { ErrorNotice } from './Page';
 import { Artwork } from '@/components/Artwork';
 import { Field, inputClass } from '@/components/ui/field';
 
 const addedOptions = [0, 7, 30, 90, 365];
-const lengthOptions: { label: string; min?: number; max?: number }[] = [
-  { label: 'Any length' },
-  { label: 'Under 90 minutes', max: 90 },
-  { label: 'Under 2 hours', max: 120 },
-  { label: 'Over 2 hours', min: 120 },
-  { label: 'Over 2½ hours', min: 150 },
-];
+function getLengthOptions(): { label: string; min?: number; max?: number }[] {
+  return [
+  { label: i18n.t('filters:length.any') },
+  { label: i18n.t('filters:length.underNinety'), max: 90 },
+  { label: i18n.t('filters:length.underTwoHours'), max: 120 },
+  { label: i18n.t('filters:length.overTwoHours'), min: 120 },
+  { label: i18n.t('filters:length.overTwoAndHalfHours'), min: 150 },
+  ];
+}
 const ratingOptions = [0, 6, 7, 8];
 
 /**
@@ -25,13 +30,14 @@ export function FilterFields({
   filter: f,
   onChange,
   libraries,
-  unwatchedLabel = "Only things I haven't watched",
+  unwatchedLabel,
 }: {
   filter: RowFilter;
   onChange: (f: RowFilter) => void;
   libraries?: Library[];
   unwatchedLabel?: string;
 }) {
+  const { t } = useTranslation('filters');
   const facets = useQuery({ queryKey: ['facets', f.library_id], queryFn: () => api.facets(f.library_id), enabled: !!f.library_id });
   const library = libraries?.find((l) => l.id === f.library_id);
   const movies = library ? library.kind !== 'shows' : true;
@@ -42,7 +48,7 @@ export function FilterFields({
       <ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} />
       <div className="grid gap-3 sm:grid-cols-2">
         {libraries && (
-          <Field label="Library">
+          <Field label={t('library')}>
             <select
               value={f.library_id}
               onChange={(e) => onChange({ library_id: Number(e.target.value), sort: f.sort, unwatched: f.unwatched })}
@@ -56,18 +62,18 @@ export function FilterFields({
             </select>
           </Field>
         )}
-        <Field label="Order">
+        <Field label={t('order')}>
           <select value={f.sort ?? 'title'} onChange={(e) => set({ sort: e.target.value as ItemSort })} className={inputClass}>
-            {Object.entries(sorts).map(([k, label]) => (
+            {Object.entries(sortLabels()).map(([k, label]) => (
               <option key={k} value={k}>
                 {label}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Genre">
+        <Field label={t('genre.label')}>
           <select value={f.genre ?? ''} onChange={(e) => set({ genre: e.target.value || undefined })} className={inputClass}>
-            <option value="">Any genre</option>
+            <option value="">{t('genre.any')}</option>
             {facets.data?.genres.map((g) => (
               <option key={g.value} value={g.value}>
                 {g.value}
@@ -76,9 +82,9 @@ export function FilterFields({
           </select>
         </Field>
         {(facets.data?.labels.length ?? 0) > 0 && (
-          <Field label="Label">
+          <Field label={t('label.label')}>
             <select value={f.label ?? ''} onChange={(e) => set({ label: e.target.value || undefined })} className={inputClass}>
-              <option value="">Any label</option>
+              <option value="">{t('label.any')}</option>
               {facets.data?.labels.map((l) => (
                 <option key={l.value} value={l.value}>
                   {l.value}
@@ -88,9 +94,9 @@ export function FilterFields({
           </Field>
         )}
         {(facets.data?.languages.length ?? 0) > 1 && (
-          <Field label="Original language">
+          <Field label={t('language.label')}>
             <select value={f.language ?? ''} onChange={(e) => set({ language: e.target.value || undefined })} className={inputClass}>
-              <option value="">Any language</option>
+              <option value="">{t('language.any')}</option>
               {facets.data?.languages.map((l) => (
                 <option key={l.value} value={l.value}>
                   {fmt.language(l.value)}
@@ -99,21 +105,21 @@ export function FilterFields({
             </select>
           </Field>
         )}
-        <Field label="Decade">
+        <Field label={t('decade.label')}>
           <select value={f.decade ?? ''} onChange={(e) => set({ decade: Number(e.target.value) || undefined })} className={inputClass}>
-            <option value="">Any decade</option>
+            <option value="">{t('decade.any')}</option>
             {facets.data?.decades.map((d) => (
               <option key={d.value} value={d.value}>
-                {d.value}s
+                {t('decade.value', { year: d.value })}
               </option>
             ))}
           </select>
         </Field>
         <AdvancedFilterFields filter={f} onChange={onChange} />
         {movies && (
-          <Field label="Quality">
+          <Field label={t('quality.label')}>
             <select value={f.resolution ?? ''} onChange={(e) => set({ resolution: (e.target.value as Resolution) || undefined })} className={inputClass}>
-              <option value="">Any quality</option>
+              <option value="">{t('quality.any')}</option>
               {Object.entries(resolutions).map(([k, label]) => (
                 <option key={k} value={k}>
                   {label}
@@ -125,7 +131,7 @@ export function FilterFields({
       </div>
       <label className="flex cursor-pointer items-center gap-2.5 text-sm">
         <input type="checkbox" checked={!!f.unwatched} onChange={(e) => set({ unwatched: e.target.checked || undefined })} className="size-4 accent-[var(--color-accent)]" />
-        {unwatchedLabel}
+        {unwatchedLabel ?? t('unwatched')}
       </label>
     </>
   );
@@ -133,6 +139,7 @@ export function FilterFields({
 
 /** How many titles a filter matches right now, with the first few posters. */
 export function FilterPreview({ filter: f, library, emptyText }: { filter: RowFilter; library?: Library; emptyText: string }) {
+  const { t } = useTranslation('filters');
   const movies = library?.kind !== 'shows';
   const preview = useQuery({
     queryKey: ['items', 'filter-preview', f],
@@ -146,8 +153,8 @@ export function FilterPreview({ filter: f, library, emptyText }: { filter: RowFi
         {preview.data
           ? preview.data.total === 0
             ? emptyText
-            : `${fmt.plural(preview.data.total, movies ? 'movie' : 'show')} ${preview.data.total === 1 ? 'matches' : 'match'}`
-          : preview.error ? 'Preview unavailable' : 'Looking…'}
+            : movies ? t('preview.movies', { count: preview.data.total }) : t('preview.shows', { count: preview.data.total })
+          : preview.error ? t('preview.unavailable') : t('preview.loading')}
       </p>
       <ErrorNotice error={preview.error} onRetry={() => void preview.refetch()} />
       <div className="grid grid-cols-8 gap-1.5">
@@ -161,18 +168,20 @@ export function FilterPreview({ filter: f, library, emptyText }: { filter: RowFi
 
 /** Shared date, runtime and rating filters for browsing and saved rules. */
 export function AdvancedFilterFields({ filter: f, onChange }: { filter: RowFilter; onChange: (f: RowFilter) => void }) {
+  const { t } = useTranslation('filters');
   const set = (patch: Partial<RowFilter>) => onChange({ ...f, ...patch });
+  const lengthOptions = getLengthOptions();
   const length = lengthOptions.findIndex((o) => o.min === f.min_runtime && o.max === f.max_runtime);
-  return <>        <Field label="Added">
+  return <>        <Field label={t('added.label')}>
           <select value={f.added_within ?? 0} onChange={(e) => set({ added_within: Number(e.target.value) || undefined })} className={inputClass}>
             {addedOptions.map((d) => (
               <option key={d} value={d}>
-                {d === 0 ? 'Any time' : d === 7 ? 'This week' : d === 365 ? 'This year' : `In the last ${d} days`}
+                {d === 0 ? t('added.any') : d === 7 ? t('added.week') : d === 365 ? t('added.year') : t('added.lastDays', { count: d })}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Length">
+        <Field label={t('length.label')}>
           <select
             value={Math.max(0, length)}
             onChange={(e) => {
@@ -188,11 +197,11 @@ export function AdvancedFilterFields({ filter: f, onChange }: { filter: RowFilte
             ))}
           </select>
         </Field>
-        <Field label="Rating">
+        <Field label={t('rating.label')}>
           <select value={f.min_rating ?? 0} onChange={(e) => set({ min_rating: Number(e.target.value) || undefined })} className={inputClass}>
             {ratingOptions.map((r) => (
               <option key={r} value={r}>
-                {r === 0 ? 'Any rating' : `★ ${r} or more`}
+                {r === 0 ? t('rating.any') : t('rating.atLeast', { rating: r })}
               </option>
             ))}
           </select>

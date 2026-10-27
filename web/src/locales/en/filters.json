@@ -1,0 +1,93 @@
+{
+  "length": {
+    "any": "Any length",
+    "underNinety": "Under 90 minutes",
+    "underTwoHours": "Under 2 hours",
+    "overTwoHours": "Over 2 hours",
+    "overTwoAndHalfHours": "Over 2½ hours",
+    "label": "Length"
+  },
+  "unwatched": "Only things I haven't watched",
+  "library": "Library",
+  "order": "Order",
+  "genre": {
+    "label": "Genre",
+    "any": "Any genre"
+  },
+  "label": {
+    "label": "Label",
+    "any": "Any label"
+  },
+  "language": {
+    "label": "Original language",
+    "any": "Any language"
+  },
+  "decade": {
+    "label": "Decade",
+    "any": "Any decade",
+    "value": "{{year}}s"
+  },
+  "quality": {
+    "label": "Quality",
+    "any": "Any quality"
+  },
+  "preview": {
+    "unavailable": "Preview unavailable",
+    "loading": "Looking…",
+    "movies_one": "{{count}} movie matches",
+    "movies_other": "{{count}} movies match",
+    "shows_one": "{{count}} show matches",
+    "shows_other": "{{count}} shows match"
+  },
+  "added": {
+    "label": "Added",
+    "any": "Any time",
+    "week": "This week",
+    "year": "This year",
+    "lastDays_one": "In the last {{count}} days",
+    "lastDays_other": "In the last {{count}} days"
+  },
+  "rating": {
+    "label": "Rating",
+    "any": "Any rating",
+    "atLeast": "★ {{rating}} or more"
+  },
+  "summary": {
+    "unwatched": "unwatched",
+    "label": "labelled “{{label}}”",
+    "language": "in {{language}}",
+    "addedDays_one": "added in the last {{count}} day",
+    "addedDays_other": "added in the last {{count}} days",
+    "under": "under {{duration}}",
+    "over": "over {{duration}}",
+    "rated": "rated {{rating}}+",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min"
+  },
+  "sort": {
+    "title": "Title",
+    "added": "Recently Added",
+    "watched": "Recently Watched",
+    "release": "Release Date",
+    "year": "Year",
+    "rating": "Rating",
+    "imdb": "IMDb Rating",
+    "critics": "Rotten Tomatoes",
+    "runtime": "Length",
+    "shuffle": "Shuffle"
+  },
+  "sortSummary": {
+    "title": "by title",
+    "added": "by recently added",
+    "watched": "by recently watched",
+    "release": "by release date",
+    "year": "by year",
+    "rating": "by rating",
+    "imdb": "by imdb rating",
+    "critics": "by rotten tomatoes",
+    "runtime": "by length",
+    "shuffle": "shuffled"
+  }
+}

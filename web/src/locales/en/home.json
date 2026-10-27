@@ -1,0 +1,96 @@
+{
+  "empty": {
+    "heading": "Welcome to Arc",
+    "admin": "Add a folder of movies or TV shows to get started. Arc scans it in the background.",
+    "viewer": "No libraries have been shared with this profile. Ask the server owner for access.",
+    "addLibrary": "Add a Library"
+  },
+  "editor": {
+    "title": "Edit Home",
+    "defaultTitle": "Default Home",
+    "defaultDescription": "The home page for profiles that haven't arranged their own, including new ones.",
+    "description": "Drag rows or use the move buttons to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
+    "resetOrder": "Reset Order",
+    "addRow": "Add Row",
+    "splitLabel": "Show Up Next separately",
+    "splitOn": "Next episodes have their own row, apart from what you're part-way through.",
+    "splitOff": "Next episodes of your shows are in Continue Watching, as in Plex.",
+    "otherTitle": "{{name}}'s Home",
+    "otherTitleEndsS": "{{name}}' Home",
+    "otherDescription": "Arrange {{name}}'s home page. They can still change it themselves.",
+    "otherDescriptionEndsS": "Arrange {{name}}' home page. They can still change it themselves.",
+    "position": "{{title}}, position {{position}} of {{total}}"
+  },
+  "featured": {
+    "label": "Featured titles",
+    "tvSeries": "TV Series",
+    "recent": "Recently Added",
+    "episodes": "Episodes",
+    "moreInfo": "More Info"
+  },
+  "rows": {
+    "specials": "Specials",
+    "seasonal": "Seasonal Picks",
+    "continue": "Continue Watching",
+    "next": "Up Next",
+    "recent": "Recently Added in {{name}}",
+    "newEpisodes_one": "{{count}} new episode",
+    "newEpisodes_other": "{{count}} new episodes",
+    "season": "Season {{season}}",
+    "seasonEpisodes_one": "{{season}} · {{count}} new episodes",
+    "seasonEpisodes_other": "{{season}} · {{count}} new episodes"
+  },
+  "rowDescription": {
+    "continueMerged": "What you're part-way through, and the next episode of each show",
+    "continue": "What you're part-way through",
+    "next": "The next episode of each show you watch",
+    "watchlist": "Movies and shows you've saved for later",
+    "collection": "A collection",
+    "playlist": "Your playlist, in its order",
+    "recentSeasons": "Newest in {{name}}, new episodes grouped by season",
+    "recent": "Newest in {{name}}"
+  },
+  "look": {
+    "series": "Show posters",
+    "season": "Season posters",
+    "thumb": "Thumbnails",
+    "poster": "Posters",
+    "showAs": "Show as",
+    "groupSeasons": "Group new episodes by season",
+    "groupShows": "Show one card per show",
+    "groupSeasonsHint": "One card per show. Click to group new episodes by season, with season posters.",
+    "groupShowsHint": "New episodes grouped by season, with season posters. Click for one card per show.",
+    "label": "Card style: {{style}}"
+  },
+  "rowEditor": {
+    "edit": "Edit Row",
+    "add": "Add a Row",
+    "description": "Choose what the row shows. It updates by itself as your library changes.",
+    "save": "Save Row",
+    "show": "Show",
+    "filters": "Titles that match filters",
+    "playlist": "One of your playlists",
+    "collection": "Collection",
+    "choose": "Choose…",
+    "noCollections": "No collections yet",
+    "nameHint": "e.g. Unwatched 90s Action",
+    "emptyPreview": "Nothing matches yet. The row stays hidden until something does.",
+    "groupedOption": "{{title}} ({{group}})"
+  },
+  "seasonal": {
+    "romance": "Romance for Valentine's Day",
+    "horror": "Horror for Halloween",
+    "christmas": "Christmas Films",
+    "range": "{{start}}–{{end}} {{month}}",
+    "summary": "{{title}} ({{when}})"
+  },
+  "rowActions": {
+    "drag": "Drag {{title}}",
+    "moveUp": "Move {{title}} up",
+    "moveDown": "Move {{title}} down",
+    "edit": "Edit {{title}}",
+    "remove": "Remove {{title}}",
+    "show": "Show {{title}}",
+    "hide": "Hide {{title}}"
+  }
+}
