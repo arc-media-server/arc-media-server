@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -577,6 +578,7 @@ function ServerSettings() {
 
 /** The home's internet upload speed, shared between remote streams. */
 function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const pending = useContext(SaveFeedbackContext)?.status === 'pending';
   const save = async () => {
     try { await onSave(value); } catch { /* Row feedback provides the error and retry. */ }
@@ -586,16 +588,14 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
   const valid = mbps.trim() === '' || (Number.isFinite(value) && value >= 0);
   return (
     <Row
-      setting="upload_kbps" label="Internet upload speed"
-      description="From a speed test. Remote streams share 80% of it."
+      setting="upload_kbps" label={t("accessSettings:settings.internetUploadSpeed")}
+      description={t("accessSettings:settings.fromASpeedTest")}
     >
       <div className="flex items-center gap-2">
-        <input aria-label="Internet upload speed" disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
-        <span className="text-sm text-muted">Mbps</span>
+        <input aria-label={t("accessSettings:settings.internetUploadSpeed")} disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder={t("accessSettings:settings.notSet")} className={`${inputClass} w-24 text-right`} />
+        <span className="text-sm text-muted">{t("accessSettings:settings.mbps")}</span>
         {valid && value !== kbps && (
-          <Button variant="secondary" size="sm" disabled={pending} onClick={() => void save()}>
-            Save
-          </Button>
+          <Button variant="secondary" size="sm" disabled={pending} onClick={() => void save()}>{t("accessSettings:settings.save")}</Button>
         )}
       </div>
     </Row>
@@ -604,6 +604,7 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
 
 /** Remote access: on or off, the outside address and a check, the router, and HTTPS. */
 function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown>; busy: boolean }) {
+  const { t } = useTranslation('accessSettings');
   const status = useQuery({
     queryKey: ['remote', s.remote_access, s.upnp, s.remote_port, s.https_mode, s.https_domain, s.https_cert],
     queryFn: api.remote,
@@ -621,75 +622,68 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
   return (
     <>
       <Row
-        compact setting="remote_access" label="Remote access"
+        compact setting="remote_access" label={t("accessSettings:settings.remoteAccess")}
         description={
-          <>
-            Let your household and friends sign in from outside your home.
-          </>
+          <>{t("accessSettings:settings.letYourHouseholdAnd")}</>
         }
       >
-        <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label="Remote access" />
+        <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label={t("accessSettings:settings.remoteAccess")} />
       </Row>
       {s.remote_access && (
         <>
           <Row
-            label="Outside address"
+            label={t("accessSettings:settings.outsideAddress")}
             description={
               !r ? (
-                'Finding it…'
+                t("accessSettings:settings.findingIt")
               ) : r.url ? (
                 <>
                   <span className="font-mono text-foreground/80">{r.url}</span>
                   {r.double_nat && (
                     <span className="mt-1 flex items-start gap-1.5 text-warning">
-                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                      Your router is behind another router or your provider shares addresses, so people outside may not reach Arc even with the port forwarded.
-                    </span>
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.yourRouterIsBehind")}</span>
                   )}
                   {check.data && (
                     <span className={`mt-1 flex items-start gap-1.5 ${check.data.reachable ? 'text-foreground' : 'text-warning'}`}>
                       {check.data.reachable ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-accent" /> : <XCircle className="mt-0.5 size-3.5 shrink-0" />}
                       {check.data.reachable
-                        ? 'Arc answered at its outside address.'
-                        : `${check.data.error}. Many routers can't reach their own outside address from inside the home, so try it on a phone with Wi-Fi off.`}
+                        ? t("accessSettings:settings.arcAnsweredAtIts")
+                        : t('accessSettings:settings.checkError', { error: check.data.error })}
                     </span>
                   )}
                 </>
               ) : (
-                "Your home's outside address couldn't be found."
+                t("accessSettings:settings.yourHomeSOutside")
               )
             }
           >
             {r?.url && (
               <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(r.url!)} aria-label="Copy address">
+                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(r.url!)} aria-label={t("accessSettings:settings.copyAddress")}>
                   <Copy />
                 </Button>
                 <Button size="sm" variant="secondary" disabled={check.isPending} onClick={() => check.mutate()}>
-                  {check.isPending && <Loader2 className="animate-spin" />} Check
-                </Button>
+                  {check.isPending && <Loader2 className="animate-spin" />} {t("accessSettings:settings.check")}</Button>
               </div>
             )}
           </Row>
           <Row
-            compact setting="upnp" label="Open the port on the router"
+            compact setting="upnp" label={t("accessSettings:settings.openThePortOn")}
             description={
               !s.upnp ? (
-                <>
-                  Forward port {s.remote_port} on your router to port {s.port} on this computer, in the router&apos;s settings.
-                </>
+                <>{t('accessSettings:settings.forwardDescription', { outside: s.remote_port, inside: s.port })}</>
               ) : r?.upnp.state === 'mapped' ? (
                 <span className="inline-flex items-center gap-1 text-foreground/80">
-                  <CheckCircle2 className="size-3.5 text-accent" /> Port {r.port} is forwarded{r.upnp.router ? ` by ${r.upnp.router}` : ''}
+                  <CheckCircle2 className="size-3.5 text-accent" /> {r.upnp.router ? t('accessSettings:settings.forwardedRouter', { port: r.port, router: r.upnp.router }) : t('accessSettings:settings.forwarded', { port: r.port })}
                 </span>
               ) : r?.upnp.state === 'failed' ? (
                 <span className="text-warning">{r.upnp.error}</span>
               ) : (
-                'Asking the router (UPnP)…'
+                t("accessSettings:settings.askingTheRouterUpnp")
               )
             }
           >
-            <Switch checked={s.upnp} disabled={busy} onCheckedChange={(v) => save({ upnp: v })} aria-label="Open the port with UPnP" />
+            <Switch checked={s.upnp} disabled={busy} onCheckedChange={(v) => save({ upnp: v })} aria-label={t("accessSettings:settings.openThePortWith")} />
           </Row>
           <OutsidePortRow settings={s} onSave={save} />
           <HTTPSRows settings={s} status={r?.https} onSave={save} />
@@ -700,12 +694,13 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
 }
 
 function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [port, setPort] = useState(String(s.remote_port));
   const n = Number(port);
   return (
     <Row
-      setting="remote_port" label="Outside port"
-      description={`The port people away from home connect to. Usually the same as Arc's port (${s.port}); Let's Encrypt needs 443.`}
+      setting="remote_port" label={t("accessSettings:settings.outsidePort")}
+      description={t('accessSettings:settings.outsidePortDescription', { port: s.port })}
     >
       <form
         className="flex gap-2"
@@ -716,9 +711,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
       >
         <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" className={`${inputClass} w-24`} />
         {n !== s.remote_port && n > 0 && n < 65536 && (
-          <Button size="sm" variant="primary" type="submit">
-            Change
-          </Button>
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.change")}</Button>
         )}
       </form>
     </Row>
@@ -727,6 +720,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
 
 /** HTTPS: off, your own certificate, or Let's Encrypt; and how the certificate stands. */
 function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; status?: RemoteStatus['https']; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [mode, setMode] = useState(s.https_mode);
   const [cert, setCert] = useState(s.https_cert);
   const [key, setKey] = useState(s.https_key);
@@ -746,54 +740,48 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
     <div className="space-y-3 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-64">
-          <p className="text-sm font-medium">HTTPS</p>
+          <p className="text-sm font-medium">{t("accessSettings:settings.https")}</p>
           <div className="mt-0.5 text-xs leading-relaxed text-muted">
             {s.https_mode === '' ? (
               <span className="flex items-start gap-1.5 text-warning">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                Off: away from home, passwords and what you watch travel unencrypted. Turn it on before sharing your address.
-              </span>
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.offAwayFromHome")}</span>
             ) : status?.error ? (
               <span className="text-warning">{status.error}</span>
             ) : status?.fetching ? (
-              "Asking Let's Encrypt for a certificate…"
+              t("accessSettings:settings.askingLetSEncrypt")
             ) : expires ? (
               <span className="inline-flex items-center gap-1 text-foreground/80">
-                <CheckCircle2 className="size-3.5 text-accent" /> Certificate for {status?.names?.join(', ')}, until {expires.toLocaleDateString()}
-                {s.https_mode === 'letsencrypt' && ' (renewed automatically)'}
+                <CheckCircle2 className="size-3.5 text-accent" /> {s.https_mode === 'letsencrypt' ? t('accessSettings:settings.automaticCertificate', { names: status?.names?.join(', '), date: expires.toLocaleDateString() }) : t('accessSettings:settings.certificate', { names: status?.names?.join(', '), date: expires.toLocaleDateString() })}
               </span>
             ) : s.https_mode === 'letsencrypt' ? (
-              'The certificate is fetched on the first visit to the domain.'
+              t("accessSettings:settings.theCertificateIsFetched")
             ) : null}
-            <span className="mt-1 block">On the same port as plain HTTP. At home both work; people away from home are sent to HTTPS.</span>
+            <span className="mt-1 block">{t("accessSettings:settings.onTheSamePort")}</span>
           </div>
         </div>
-        <select aria-label="HTTPS mode" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
-          <option value="">Off</option>
-          <option value="letsencrypt">Let&apos;s Encrypt (free)</option>
-          <option value="files">My own certificate</option>
+        <select aria-label={t("accessSettings:settings.httpsMode")} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
+          <option value="">{t("accessSettings:settings.off")}</option>
+          <option value="letsencrypt">{t("accessSettings:settings.letSEncryptFree")}</option>
+          <option value="files">{t("accessSettings:settings.myOwnCertificate")}</option>
         </select>
       </div>
       {mode === 'letsencrypt' && (
         <div>
-          <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="arc.example.com" spellCheck={false} className={`${inputClass} w-full`} />
-          <p className="mt-1.5 text-xs text-subtle">
-            A domain name pointing at your home&apos;s address (a free dynamic DNS name works). Let&apos;s Encrypt checks it on port 443, so set the outside port to 443.
-          </p>
+          <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("accessSettings:settings.arcExampleCom")} spellCheck={false} className={`${inputClass} w-full`} />
+          <p className="mt-1.5 text-xs text-subtle">{t("accessSettings:settings.aDomainNamePointing")}</p>
         </div>
       )}
       {mode === 'files' && (
         <div className="grid gap-2">
-          <input value={cert} onChange={(e) => setCert(e.target.value)} placeholder="Certificate file (.pem or .crt), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
-          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Private key file (.pem or .key), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
-          <p className="text-xs text-subtle">PEM files, read again whenever they change, so another tool can renew them.</p>
+          <input value={cert} onChange={(e) => setCert(e.target.value)} placeholder={t("accessSettings:settings.certificateFilePemOr")} spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={t("accessSettings:settings.privateKeyFilePem")} spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <p className="text-xs text-subtle">{t("accessSettings:settings.pemFilesReadAgain")}</p>
         </div>
       )}
       {changed && (
         <div className="flex justify-end">
           <Button size="sm" variant="primary" disabled={busy} onClick={apply}>
-            {busy && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("accessSettings:settings.save")}</Button>
         </div>
       )}
       <SaveFeedback settings={['https_mode', 'https_domain', 'https_cert', 'https_key']} />
@@ -1107,6 +1095,7 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
 
 /** Networks that count as home besides the usual private ones (Plex's "LAN networks"). */
 function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [text, setText] = useState(value);
   const [error, setError] = useState('');
   const save = async (v: string) => {
@@ -1120,14 +1109,11 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
   const tailscale = '100.64.0.0/10';
   return (
     <Row
-      label="Home networks"
+      label={t("accessSettings:settings.homeNetworks")}
       description={
-        <>
-          Extra networks to treat as home, like a VPN or Tailscale ({tailscale}).
+        <>{t('accessSettings:settings.networksDescription', { network: tailscale })}
           {!value.includes(tailscale) && (
-            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>
-              Add Tailscale
-            </button>
+            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>{t("accessSettings:settings.addTailscale")}</button>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
@@ -1140,11 +1126,9 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
           void save(text);
         }}
       >
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="None" spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("accessSettings:settings.none")} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
         {text.trim() !== value && (
-          <Button size="sm" variant="primary" type="submit">
-            Save
-          </Button>
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.save")}</Button>
         )}
       </form>
     </Row>
@@ -1152,6 +1136,7 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
 }
 
 function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (port: number) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [port, setPort] = useState(String(s.port));
   const [error, setError] = useState('');
   const [moved, setMoved] = useState('');
@@ -1159,17 +1144,11 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
   const host = s.allow_network ? window.location.hostname : 'localhost';
   return (
     <Row
-      label="Port"
+      label={t("accessSettings:settings.port")}
       description={
-        <>
-          Arc is at <span className="font-mono text-foreground/80">http://{host}:{s.port}</span>
+        <><Trans ns="accessSettings" i18nKey="settings.localAddress" values={{ address: `http://${host}:${s.port}` }} components={{ address: <span className="font-mono text-foreground/80" /> }} />
           {moved && (
-            <span className="mt-1 block text-foreground">
-              Arc has moved.{' '}
-              <a className="text-accent hover:underline" href={moved}>
-                Open it at its new address
-              </a>
-              .
+            <span className="mt-1 block text-foreground"><Trans ns="accessSettings" i18nKey="settings.movedAddress" components={{ address: <a className="text-accent hover:underline" href={moved} /> }} />
             </span>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -1193,9 +1172,7 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
       >
         <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" className={`${inputClass} w-24`} />
         {changed && (
-          <Button size="sm" variant="primary" type="submit">
-            Change
-          </Button>
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.change")}</Button>
         )}
       </form>
     </Row>

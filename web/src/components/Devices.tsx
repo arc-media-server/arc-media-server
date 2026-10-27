@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Globe, Loader2, MonitorSmartphone, Tv } from 'lucide-react';
@@ -8,18 +10,18 @@ import { ErrorNotice, Page, PageHeader } from '@/components/Page';
 
 /** Link a Device: enter the code a TV shows to sign it in, as plex.tv/link does. */
 export function LinkDevicePage() {
+  const { t } = useTranslation('accessSettings');
   const [code, setCode] = useState('');
   const link = useMutation({ mutationFn: () => api.approveLink(code) });
   return (
     <Page className="pb-16">
-      <PageHeader title="Link a Device" subtitle="Signing in an Arc app on a TV or another device? Enter the code it shows." />
+      <PageHeader title={t("accessSettings:devices.linkADevice")} subtitle={t('accessSettings:devices.description')} />
       <div className="max-w-md px-6 md:px-10">
         {link.isSuccess ? (
           <div className="rounded-2xl bg-surface p-6 ring-1 ring-border">
             <p className="flex items-center gap-2 font-semibold">
-              <CheckCircle2 className="size-5 text-accent" /> {link.data.device} is signed in
-            </p>
-            <p className="mt-1 text-sm text-muted">It can be signed out again in Settings &gt; Devices.</p>
+              <CheckCircle2 className="size-5 text-accent" /> {t('accessSettings:devices.signedIn', { device: link.data.device })}</p>
+            <p className="mt-1 text-sm text-muted">{t("accessSettings:devices.itCanBeSigned")}</p>
             <Button
               variant="secondary"
               className="mt-4"
@@ -27,9 +29,7 @@ export function LinkDevicePage() {
                 setCode('');
                 link.reset();
               }}
-            >
-              Link Another
-            </Button>
+            >{t("accessSettings:devices.linkAnother")}</Button>
           </div>
         ) : (
           <form
@@ -43,16 +43,15 @@ export function LinkDevicePage() {
               autoFocus
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
-              placeholder="ABCD"
-              aria-label="Code"
+              placeholder={t("accessSettings:devices.abcd")}
+              aria-label={t("accessSettings:devices.code")}
               autoComplete="off"
               spellCheck={false}
               className="h-16 w-full rounded-xl bg-surface-2/80 text-center font-mono text-3xl tracking-[0.5em] ring-1 ring-border outline-none placeholder:text-subtle focus:ring-2 focus:ring-accent"
             />
             {link.error && <p className="mt-3 text-sm text-warning">{link.error.message}</p>}
             <Button type="submit" variant="primary" size="lg" className="mt-4 w-full" disabled={code.length < 4 || link.isPending}>
-              {link.isPending && <Loader2 className="animate-spin" />} Link
-            </Button>
+              {link.isPending && <Loader2 className="animate-spin" />} {t("accessSettings:devices.link")}</Button>
           </form>
         )}
       </div>
@@ -62,22 +61,22 @@ export function LinkDevicePage() {
 
 /** Settings: every signed-in browser and app, to sign out ones that shouldn't be. */
 export function DevicesList() {
+  const { t } = useTranslation('accessSettings');
   const devices = useQuery({ queryKey: ['devices'], queryFn: api.devices });
   const { data } = devices;
   const [all, setAll] = useState(false);
   const feedback = devices.error && <div className="m-4 space-y-2">
-    {data && <p className="text-xs text-muted">Showing the last loaded devices. They may be out of date.</p>}
+    {data && <p className="text-xs text-muted">{t("accessSettings:devices.showingTheLastLoaded")}</p>}
     <ErrorNotice error={devices.error} onRetry={() => void devices.refetch()} busy={devices.isFetching} />
   </div>;
-  if (!data) return feedback || <div role="status" className="m-4 h-12 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">Loading devices…</span></div>;
+  if (!data) return feedback || <div role="status" className="m-4 h-12 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">{t("accessSettings:devices.loadingDevices")}</span></div>;
   return (
     <>
       {feedback}
-      {data.length === 0 && <p className="px-4 py-3 text-sm text-muted">No devices are signed in.</p>}
+      {data.length === 0 && <p className="px-4 py-3 text-sm text-muted">{t("accessSettings:devices.noDevicesAreSigned")}</p>}
       {(all ? data : data.slice(0, 8)).map(d => <DeviceRow key={d.id} device={d} />)}
       {!all && data.length > 8 && (
-        <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-3 text-left text-sm text-accent">
-          Show all {data.length}
+        <button type="button" onClick={() => setAll(true)} className="w-full px-4 py-3 text-left text-sm text-accent">{t('accessSettings:devices.showCount', { count: data.length })}
         </button>
       )}
     </>
@@ -86,6 +85,7 @@ export function DevicesList() {
 
 // Each row owns its request/error so one device's retry cannot clear another's failure.
 function DeviceRow({ device: d }: { device: Device }) {
+  const { t } = useTranslation('accessSettings');
   const qc = useQueryClient();
   const signOut = useMutation({
     mutationFn: () => api.signOutDevice(d.id),
@@ -97,31 +97,31 @@ function DeviceRow({ device: d }: { device: Device }) {
   });
   const name = d.device || browserName(d.user_agent);
   return (
-    <div role="group" aria-label={`Device: ${name}`} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+    <div role="group" aria-label={t('accessSettings:devices.deviceName', { name })} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted [&_svg]:size-4">
         {d.device ? <Tv /> : d.via === 'local' ? <Globe /> : <MonitorSmartphone />}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">
-          {name}{d.this_device && <span className="font-normal text-muted"> · this browser</span>}
+          {name}{d.this_device && <span className="font-normal text-muted"> {t("accessSettings:devices.thisBrowser")}</span>}
         </p>
         <p className="truncate text-xs text-subtle">
-          {[d.profile || (d.via === 'friend' ? 'Friend' : 'Choosing a profile'), viaLabel[d.via], `used ${fmt.ago(d.last_seen_at)}`].filter(Boolean).join(' · ')}
+          {[d.profile || (d.via === 'friend' ? t('accessSettings:devices.friendName') : t('accessSettings:devices.choosingProfile')), viaLabel[d.via], t('accessSettings:devices.used', { when: fmt.ago(d.last_seen_at) })].filter(Boolean).join(' · ')}
         </p>
       </div>
       {!d.this_device && <Button variant="ghost" size="sm" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
-        {signOut.isPending && <Loader2 className="animate-spin" />}{signOut.error ? 'Retry' : 'Sign Out'}
+        {signOut.isPending && <Loader2 className="animate-spin" />}{signOut.error ? t("accessSettings:devices.retry") : t("accessSettings:devices.signOut")}
       </Button>}
       {signOut.error && <div className="w-full"><ErrorNotice error={signOut.error} /></div>}
     </div>
   );
 }
 
-const viaLabel: Record<Device['via'], string> = { password: 'with the password', local: 'at home without the password', friend: 'friend' };
+const viaLabel: Record<Device['via'], string> = { get password() { return i18n.t('accessSettings:devices.viaPassword'); }, get local() { return i18n.t('accessSettings:devices.viaLocal'); }, get friend() { return i18n.t('accessSettings:devices.viaFriend'); } };
 
 /** "Chrome on Windows" from a user agent. */
 function browserName(ua: string) {
   const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /CrKey/.test(ua) ? 'Chromecast' : '';
   const os = /Windows/.test(ua) ? 'Windows' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'Mac' : /Android/.test(ua) ? 'Android' : /Linux/.test(ua) ? 'Linux' : '';
-  return browser && os ? `${browser} on ${os}` : browser || os || 'A browser or app';
+  return browser && os ? i18n.t('accessSettings:devices.browserOnOs', { browser, os }) : browser || os || i18n.t('accessSettings:devices.browserFallback');
 }
