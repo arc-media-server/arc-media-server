@@ -744,7 +744,7 @@ go vet ./... && go test ./...
 go run ./cmd/ams                                    # data in ./data, serves http://127.0.0.1:8099
 cd web && npm run dev                               # UI hot reload; proxies /api to :8099
 cd web && npx tsc -b                                # type-check the UI
-go run ./tools/apidoc                               # after changing API routes or handler comments
+go run ./tools/apidoc                               # after API changes: rewrites docs/API.md + docs/openapi.json
 ```
 
 - Settings (incl. API keys) live in the database; this PC's `data/ams.db` already has the owner's keys.

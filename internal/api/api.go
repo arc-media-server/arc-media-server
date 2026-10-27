@@ -161,6 +161,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/libraries/{id}/work", admin(s.startLibraryWork))
 	mux.HandleFunc("POST /api/libraries/{id}/stop", admin(s.stopLibraryWork))
 	mux.HandleFunc("GET /api/labels", admin(s.listLabels))
+	mux.HandleFunc("GET /api/openapi.json", s.openAPI)
 	mux.HandleFunc("GET /api/activity", admin(s.getActivity))
 	mux.HandleFunc("POST /api/activity/{id}/stop", admin(s.stopActivity))
 	mux.HandleFunc("GET /api/maintenance", admin(s.getMaintenance))
