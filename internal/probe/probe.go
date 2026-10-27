@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -131,6 +132,9 @@ type Stream struct {
 	ColorPrimaries string
 	FrameRate      float64
 	Bitrate        int64
+	// AspectRatio is how wide the picture is shown relative to its height (1.78 for 16:9,
+	// 2.39 for scope), with anamorphic pixels taken into account; 0 if unknown.
+	AspectRatio float64
 }
 
 type ffprobeOutput struct {
@@ -148,6 +152,8 @@ type ffprobeOutput struct {
 		Height        int               `json:"height"`
 		Channels      int               `json:"channels"`
 		ChannelLayout string            `json:"channel_layout"`
+		SampleAspect  string            `json:"sample_aspect_ratio"`
+		DisplayAspect string            `json:"display_aspect_ratio"`
 		SideData      []formatSideData  `json:"side_data_list"`
 		PixFmt        string            `json:"pix_fmt"`
 		BitsRaw       string            `json:"bits_per_raw_sample"`
@@ -233,7 +239,7 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 			IsForced:      s.Disposition["forced"] == 1,
 			PixFmt:        s.PixFmt, BitDepth: bitDepth(s.BitsRaw, s.PixFmt),
 			ColorTransfer: s.Transfer, ColorPrimaries: s.Primaries, FrameRate: frameRate(s.AvgRate),
-			Bitrate: parseInt(s.BitRate),
+			Bitrate: parseInt(s.BitRate), AspectRatio: aspectRatio(s.CodecType, s.Width, s.Height, s.SampleAspect, s.DisplayAspect),
 		})
 		applyFormatSideData(&res.Streams[len(res.Streams)-1], s.SideData)
 	}
@@ -255,6 +261,37 @@ func (p *Prober) Probe(ctx context.Context, path string) (*Result, error) {
 		res.Chapters = append(res.Chapters, Chapter{StartMS: int64(start * 1000), EndMS: int64(end * 1000), Title: title})
 	}
 	return res, nil
+}
+
+// aspectRatio works out a video's display aspect ratio, rounded to two decimals. ffprobe's
+// display ratio already allows for non-square pixels; without it, the pixel shape (sample
+// ratio) corrects the frame size, so a 720x480 DVD with 32:27 pixels is 16:9 (1.78).
+func aspectRatio(kind string, width, height int, sample, display string) float64 {
+	if kind != "video" || width <= 0 || height <= 0 {
+		return 0
+	}
+	r := ratio(display)
+	if r == 0 {
+		r = float64(width) / float64(height)
+		if sar := ratio(sample); sar > 0 {
+			r *= sar
+		}
+	}
+	return math.Round(r*100) / 100
+}
+
+// ratio reads "16:9" as 1.777…; "0:1", "N/A" and nonsense read as 0.
+func ratio(s string) float64 {
+	a, b, ok := strings.Cut(s, ":")
+	if !ok {
+		return 0
+	}
+	n, err1 := strconv.ParseFloat(a, 64)
+	d, err2 := strconv.ParseFloat(b, 64)
+	if err1 != nil || err2 != nil || n <= 0 || d <= 0 {
+		return 0
+	}
+	return n / d
 }
 
 var demuxerPrefixRe = regexp.MustCompile(`^\[[^\]]*@ 0x[0-9a-f]+\]\s*`)
