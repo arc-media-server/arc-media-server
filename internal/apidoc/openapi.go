@@ -451,8 +451,8 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		}
 		path := strings.TrimPrefix(r.path, "/api")
 		op := map[string]any{
-			"tags":         []string{strings.Split(strings.TrimPrefix(r.path, "/api/"), "/")[0]},
-			"summary":      summary(desc),
+			"tags":         []string{tagName(r.path)},
+			"summary":      summary(desc, r.handler),
 			"description":  desc + "\n\nWho may call it: **" + r.access + "**.",
 			"x-arc-access": r.access,
 		}
@@ -555,6 +555,17 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// tagName groups a route by the first part of its path: /api/library-previews/{id} is
+// "Library previews".
+func tagName(path string) string {
+	seg := strings.Split(strings.TrimPrefix(path, "/api/"), "/")[0]
+	if seg == "openapi.json" {
+		return "API description"
+	}
+	seg = strings.ReplaceAll(seg, "-", " ")
+	return strings.ToUpper(seg[:1]) + seg[1:]
+}
+
 func hasSuccess(responses map[string]any) bool {
 	for status := range responses {
 		if status[0] == '2' || status[0] == '3' {
@@ -564,10 +575,49 @@ func hasSuccess(responses map[string]any) bool {
 	return false
 }
 
-// summary is a description's first sentence.
-func summary(desc string) string {
-	if i := strings.Index(desc, ". "); i > 0 {
-		desc = desc[:i]
+// summary is a description's first sentence, without the request shapes some descriptions
+// begin with or quote inline ({"name", ...}), which read badly in a sidebar.
+func summary(desc, handler string) string {
+	// A leading query string ("?file=<id> lists ...") or aside ("(custom orderings only) ...").
+	if strings.HasPrefix(desc, "?") {
+		_, desc, _ = strings.Cut(desc, " ")
+	}
+	if strings.HasPrefix(desc, "(") {
+		if i := strings.Index(desc, ") "); i > 0 {
+			desc = desc[i+2:]
+		} else {
+			desc = "" // only an aside: fall back to the handler's name below
+		}
+	}
+	if strings.HasPrefix(desc, "{") || strings.HasPrefix(desc, "[") {
+		depth := 0
+		for i, c := range desc {
+			if c == '{' || c == '[' {
+				depth++
+			} else if c == '}' || c == ']' {
+				if depth--; depth == 0 {
+					desc = strings.TrimLeft(desc[i+1:], " :,")
+					break
+				}
+			}
+		}
+	}
+	for _, cut := range []string{". ", ": {", " {", " (", ", e.g"} {
+		if i := strings.Index(desc, cut); i > 0 {
+			desc = desc[:i]
+		}
+	}
+	desc = strings.TrimRight(desc, " ,;:")
+	// "Is the profile's own rating ..." reads better as "The profile's own rating ...".
+	for _, verb := range []string{"Is ", "is ", "Are ", "are "} {
+		desc = strings.TrimPrefix(desc, verb)
+	}
+	// Too little left: say what the handler is called ("stopActivity" -> "Stop activity").
+	if len(strings.Fields(desc)) < 3 {
+		desc = strings.ToLower(regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllString(handler, "$1 $2"))
+	}
+	if desc != "" {
+		desc = strings.ToUpper(desc[:1]) + desc[1:]
 	}
 	desc = strings.TrimSuffix(desc, ".")
 	if len(desc) > 120 {

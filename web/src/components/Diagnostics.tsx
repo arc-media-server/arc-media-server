@@ -24,5 +24,9 @@ export function Diagnostics() {
     {status.data?.storage_error && <ErrorNotice error={'Could not retain logs: ' + status.data.storage_error} />}
     <Button variant="secondary" disabled={!status.data || download.isPending} onClick={() => download.mutate()}>{download.isPending ? 'Preparing diagnostics…' : 'Download diagnostics'}</Button>
     <p className="text-xs text-muted">Recent logs and build details, with passwords and keys removed. Names and file paths may be included.</p>
+    <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+      <span><span className="block text-sm font-medium">API documentation</span><span className="mt-1 block text-xs text-muted">Every request this server answers, for building apps and scripts.</span></span>
+      <a href="/docs/" target="_blank" rel="noopener" className="inline-flex h-10 shrink-0 items-center rounded-xl bg-surface-2 px-4 text-sm font-medium hover:bg-surface-3">Open API docs</a>
+    </div>
   </div>;
 }

@@ -135,7 +135,7 @@ type recentCard struct {
 }
 
 // recentlyAddedShows: GET /api/libraries/{id}/recent-shows?limit=24 is a TV library's newest
-// additions as Plex shows them: a show that's new appears once; several new episodes of a season
+// additions, grouped by show: a show that's new appears once; several new episodes of a season
 // appear as that season; a single new episode appears as itself.
 func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

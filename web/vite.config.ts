@@ -13,6 +13,10 @@ export default defineConfig({
   build: {
     outDir: '../internal/webui/dist',
     emptyOutDir: true,
+    // The app, and the API documentation page served at /docs/.
+    rollupOptions: {
+      input: { app: path.resolve(__dirname, 'index.html'), docs: path.resolve(__dirname, 'docs/index.html') },
+    },
     chunkSizeWarningLimit: 1000,
   },
   server: {

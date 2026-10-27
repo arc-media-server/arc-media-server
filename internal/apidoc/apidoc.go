@@ -194,7 +194,7 @@ The web app uses a cookie. Apps send a token instead: ` + "`Authorization: Beare
   ` + "`POST /api/v1/auth/profile {\"id\", \"pin\"}`" + ` uses one.
 - **A friend**: ` + "`POST /api/v1/auth/friend {\"name\", \"password\", \"device\"}`" + ` → ` + "`{\"token\"}`" + `, already
   using their profile.
-- **On a TV, with a code** (like plex.tv/link): ` + "`POST /api/v1/auth/link {\"device\"}`" + ` →
+- **On a TV, with a code**: ` + "`POST /api/v1/auth/link {\"device\"}`" + ` →
   ` + "`{\"code\", \"poll\", \"expires_in\"}`" + `. Show the code and ask the person to enter it in Arc (the profile
   menu's *Link a Device*, or ` + "`/link`" + `). Meanwhile ask ` + "`GET /api/v1/auth/link/{poll}`" + ` every few
   seconds: 202 while waiting, then 200 with ` + "`{\"token\"}`" + ` once; 404 when the code has run out (10

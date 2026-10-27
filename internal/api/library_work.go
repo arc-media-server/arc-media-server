@@ -36,7 +36,7 @@ func (s *Server) startLibraryWork(w http.ResponseWriter, r *http.Request) {
 }
 
 // analyzeItem: POST /api/items/{id}/analyze (admin) rereads a movie's or episode's files, or every
-// episode of a show, like Plex's Analyze. It runs in the background under the library's lease
+// episode of a show. It runs in the background under the library's lease
 // (stoppable from Activity) and keeps watch history, markers and edits.
 func (s *Server) analyzeItem(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
