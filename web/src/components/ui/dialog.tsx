@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { Dialog as D } from 'radix-ui';
 import { X } from 'lucide-react';
@@ -23,6 +24,7 @@ export function DialogContent({
   className?: string;
   overlayClassName?: string;
 }) {
+  const { t: tr } = useTranslation('common');
   return (
     <D.Portal>
       <D.Overlay className={cn("animate-fade-in fixed inset-0 z-50 bg-black/50 backdrop-blur-sm", overlayClassName)} />
@@ -41,7 +43,7 @@ export function DialogContent({
               <D.Description className="sr-only">{title}</D.Description>
             )}
           </div>
-          <D.Close className="-mr-2 -mt-1 rounded-full p-2 text-subtle transition-colors hover:bg-surface-3 hover:text-foreground" aria-label="Close">
+          <D.Close className="-mr-2 -mt-1 rounded-full p-2 text-subtle transition-colors hover:bg-surface-3 hover:text-foreground" aria-label={tr('actions.close')}>
             <X className="size-4" />
           </D.Close>
         </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Compass } from 'lucide-react';
@@ -27,6 +28,7 @@ import { AuthGate } from './components/auth/AuthGate';
 import { useProfileTheme } from './lib/theme';
 
 export function App() {
+  const { t: tr } = useTranslation('common');
   const { pathname } = useLocation();
   // Braces matter: scrollTo returns a promise in newer browsers, which React would take as a cleanup.
   useEffect(() => {
@@ -67,9 +69,7 @@ export function App() {
               path="*"
               element={
                 <Page>
-                  <EmptyState icon={<Compass />} title="Nothing here">
-                    This page doesn't exist.
-                  </EmptyState>
+                  <EmptyState icon={<Compass />} title={tr('errors.notFoundHeading')}>{tr('errors.notFound')}</EmptyState>
                 </Page>
               }
             />
