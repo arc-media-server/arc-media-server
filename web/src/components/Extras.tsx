@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Clapperboard, Film, Play } from 'lucide-react';
 import type { Extra } from '@/lib/api';
 import * as fmt from '@/lib/format';
@@ -5,25 +6,17 @@ import { usePlayer } from './Player';
 import { RowShell } from './RowShell';
 import { Button } from './ui/button';
 
-const kindNames: Record<Extra['kind'], string> = {
-  trailer: 'Trailer',
-  featurette: 'Featurette',
-  behind_the_scenes: 'Behind the Scenes',
-  deleted_scene: 'Deleted Scene',
-  interview: 'Interview',
-  scene: 'Scene',
-  short: 'Short',
-  other: 'Extra',
-};
+
 
 /** The hero's "Trailer" button, when there's a trailer. */
 export function TrailerButton({ extras, title }: { extras?: Extra[]; title: string }) {
+  const { t } = useTranslation('titles');
   const play = usePlayer();
   const trailer = extras?.find((e) => e.kind === 'trailer');
   if (!trailer) return null;
   return (
-    <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" title="Play the trailer" aria-label="Trailer"
-      onClick={() => play({ title: trailer.title, subtitle: `${title} · Trailer`, src: trailer.stream_url })}>
+    <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" title={t("titles:extras.playTheTrailer")} aria-label={t("titles:extras.trailer")}
+      onClick={() => play({ title: trailer.title, subtitle: t('titles:extras.trailerSubtitle', { title }), src: trailer.stream_url })}>
       <Clapperboard />
     </Button>
   );
@@ -31,15 +24,26 @@ export function TrailerButton({ extras, title }: { extras?: Extra[]; title: stri
 
 /** A row of a movie or show's extras. */
 export function ExtrasRow({ extras, title }: { extras?: Extra[]; title: string }) {
+  const { t } = useTranslation('titles');
+  const kindNames: Record<Extra['kind'], string> = {
+    trailer: t('titles:extras.trailer'),
+    featurette: t('titles:extras.featurette'),
+    behind_the_scenes: t('titles:extras.behind_the_scenes'),
+    deleted_scene: t('titles:extras.deleted_scene'),
+    interview: t('titles:extras.interview'),
+    scene: t('titles:extras.scene'),
+    short: t('titles:extras.short'),
+    other: t('titles:extras.other'),
+  };
   const play = usePlayer();
   if (!extras?.length) return null;
   return (
-    <RowShell title="Extras" className="mt-10">
+    <RowShell title={t("titles:extras.extras")} className="mt-10">
         {extras.map((e) => (
           <button
             key={e.id}
             type="button"
-            onClick={() => play({ title: e.title, subtitle: `${title} · ${kindNames[e.kind]}`, src: e.stream_url })}
+            onClick={() => play({ title: e.title, subtitle: t('titles:extras.subtitle', { title, kind: kindNames[e.kind] }), src: e.stream_url })}
             className="group w-60 shrink-0 snap-start text-left outline-none"
           >
             <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-surface-3 ring-1 ring-border transition-all duration-300 group-hover:-translate-y-1 group-focus-visible:ring-2 group-focus-visible:ring-accent">

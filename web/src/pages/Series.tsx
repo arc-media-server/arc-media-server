@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { SourceFilesButton } from '@/components/SourceFormats';
 import { EpisodeDetailsButton } from '@/components/EpisodeDetails';
 import { QueueActions } from '@/components/QueueActions';
@@ -42,6 +43,7 @@ import {
 const UNPLACED = -1;
 
 export function SeriesPage() {
+  const { t } = useTranslation('titles');
   const { id } = useParams();
   const qc = useQueryClient();
   const [showMissing, setShowMissing] = useState(false);
@@ -85,10 +87,10 @@ export function SeriesPage() {
   const play = usePlayer();
   const tabs = useMemo(() => {
     if (!data) return [];
-    const t = data.seasons.map((s) => ({ number: s.season_number, name: s.name, count: s.episodes.length }));
-    if (data.unplaced.length) t.push({ number: UNPLACED, name: 'Not in This Order', count: data.unplaced.length });
-    return t;
-  }, [data]);
+    const seasonTabs = data.seasons.map((s) => ({ number: s.season_number, name: s.name, count: s.episodes.length }));
+    if (data.unplaced.length) seasonTabs.push({ number: UNPLACED, name: t('titles:series.notInOrder'), count: data.unplaced.length });
+    return seasonTabs;
+  }, [data, t]);
 
   // Default to the first season whenever the available seasons change.
   useEffect(() => {
@@ -118,8 +120,8 @@ export function SeriesPage() {
           <MetaLine
             parts={[
               series.year,
-              fmt.plural(data.seasons.filter((s) => s.season_number > 0).length, 'Season'),
-              fmt.plural(available, 'Episode'),
+              t('titles:series.seasons', { count: data.seasons.filter((s) => s.season_number > 0).length }),
+              t('titles:series.episodes', { count: available }),
               details.genres,
               details.rating,
               details.contentRating && <Badge>{details.contentRating}</Badge>,
@@ -128,10 +130,7 @@ export function SeriesPage() {
         </div>
         {series.metadata_state === 'unmatched' && admin && (
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
-            <AlertTriangle className="size-4" /> Arc couldn't identify this show online. Episodes are shown from their file names.
-            <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
-              Identify it…
-            </button>
+            <AlertTriangle className="size-4" /> {t("titles:series.unmatched")}<button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>{t("titles:series.identifyIt")}</button>
           </p>
         )}
         <div className="mt-7 flex flex-wrap gap-3">
@@ -142,8 +141,8 @@ export function SeriesPage() {
               variant="secondary"
               size="lg"
               className="size-12 rounded-2xl px-0"
-              title="Shuffle the episodes"
-              aria-label="Shuffle"
+              title={t("titles:series.shuffleTheEpisodes")}
+              aria-label={t("titles:series.shuffle")}
               onClick={() => {
                 const q = shuffled(episodeQueue(data.seasons.filter((s) => s.season_number !== 0).flatMap((s) => s.episodes), series.title));
                 if (q.length) play(q[0], q);
@@ -209,21 +208,19 @@ export function SeriesPage() {
                 if (q.length) play(q[0], q);
               }}
             >
-              <Shuffle /> Shuffle Season
-            </Button>
+              <Shuffle /> {t("titles:series.shuffleSeason")}</Button>
           )}
           {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
             <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
           )}
           {admin && currentSeason && (
             <Button variant="ghost" size="sm" onClick={() => setEditingSeason(true)}>
-              <Pencil /> Edit Season
-            </Button>
+              <Pencil /> {t("titles:series.editSeason")}</Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title="Show episodes you don't have">
-            {showMissing ? <EyeOff /> : <Eye />} {showMissing ? 'Hide Missing' : 'Show Missing'}
+          <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title={t("titles:series.missingTooltip")}>
+            {showMissing ? <EyeOff /> : <Eye />} {showMissing ? t("titles:series.hideMissing") : t("titles:series.showMissing")}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => openDialog('ordering')}><ListOrdered /> Episode ordering…</Button>
+          <Button variant="secondary" size="sm" onClick={() => openDialog('ordering')}><ListOrdered /> {t("titles:series.episodeOrdering")}</Button>
         </div>
       </div>
 
@@ -235,16 +232,14 @@ export function SeriesPage() {
             )}
             <div className="min-w-0 max-w-3xl pt-1">
               <h2 className="text-lg font-semibold">{currentSeason.name}</h2>
-              <p className="mt-0.5 text-xs text-subtle">{fmt.plural(currentSeason.episodes.filter((e) => e.available).length, 'episode')}</p>
+              <p className="mt-0.5 text-xs text-subtle">{t('titles:series.availableEpisodes', { count: currentSeason.episodes.filter((e) => e.available).length })}</p>
               {currentSeason.overview && <p className="mt-2 line-clamp-5 text-sm leading-relaxed text-muted">{currentSeason.overview}</p>}
             </div>
           </div>
         )}
         {season === UNPLACED && (
-          <p className="mb-5 max-w-2xl text-sm text-muted">
-            You have these episodes, but <span className="text-foreground">{data.ordering?.name}</span> doesn't include them.
-            They're still here so nothing goes missing.
-          </p>
+          <p className="mb-5 max-w-2xl text-sm text-muted">            <Trans ns="titles" i18nKey="series.unplacedExplanation" values={{ order: data.ordering?.name }}
+              components={{ order: <span className="text-foreground" /> }} /></p>
         )}
         <motion.div
           key={`${season}-${data.ordering?.id}`}
@@ -310,11 +305,12 @@ function playEpisode(play: ReturnType<typeof usePlayer>, ep: SeasonEpisode, seri
 }
 
 function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTitle: string }) {
+  const { t } = useTranslation('titles');
   const play = usePlayer();
   const resume = episode.user_data?.position_ms;
   return (
     <Button variant="primary" size="lg" onClick={() => playEpisode(play, episode, seriesTitle)}>
-      <Play className="fill-current" /> {resume ? 'Resume' : 'Play'} {episodeCode(episode.season_number, episode.episode_number)}
+      <Play className="fill-current" /> {resume ? t('titles:series.resumeEpisode', { code: episodeCode(episode.season_number, episode.episode_number) }) : t('titles:series.startEpisode', { code: episodeCode(episode.season_number, episode.episode_number) })}
     </Button>
   );
 }
@@ -330,6 +326,7 @@ function EpisodeRow({
   unplaced: boolean;
   onEdit?: () => void;
 }) {
+  const { t } = useTranslation('titles');
   const play = usePlayer();
   const playable = ep.available && ep.stream_url;
   const onPlay = () => playable && playEpisode(play, ep, seriesTitle);
@@ -358,18 +355,18 @@ function EpisodeRow({
           <div className="min-w-0">
             <h3 className="truncate text-[15px] font-semibold">{ep.title}</h3>
             <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-subtle">
-              {[fmt.date(ep.release_date), fmt.runtime(ep.runtime_min), !ep.available && 'Not in library', ep.metadata_state === 'unmatched' && 'Not found online', ep.locked && 'Placed manually']
+              {[fmt.date(ep.release_date), fmt.runtime(ep.runtime_min), !ep.available && t('titles:series.notInLibrary'), ep.metadata_state === 'unmatched' && t('titles:series.notFoundOnline'), ep.locked && t('titles:series.placedManually')]
                 .filter(Boolean)
                 .map((p, i) => (
                   <span key={i}>{p}</span>
                 ))}
             </div>
             {ep.overview && !hideSpoilers && <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted">{ep.overview}</p>}
-            {ep.overview && hideSpoilers && <p className="mt-2 text-sm italic text-subtle">Description hidden until you watch it.</p>}
+            {ep.overview && hideSpoilers && <p className="mt-2 text-sm italic text-subtle">{t("titles:series.hiddenDescription")}</p>}
           </div>
         </div>
       </div>
-      {playable && <button type="button" aria-label={`Play ${ep.title}`} onClick={onPlay}
+      {playable && <button type="button" aria-label={t('titles:series.playEpisode', { title: ep.title })} onClick={onPlay}
         className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent" />}
       </div>
       <div className="flex max-w-full flex-none flex-wrap content-start items-center justify-end gap-2 self-end xl:self-start xl:flex-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
@@ -400,7 +397,7 @@ function EpisodeRow({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`More for ${ep.title}`}
+                aria-label={t('titles:series.moreEpisode', { title: ep.title })}
                 className="mt-0.5 size-8 shrink-0 opacity-100 md:opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-4"
               >
                 <MoreHorizontal />
@@ -408,8 +405,7 @@ function EpisodeRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onEdit}>
-                <Pencil className="size-4 text-muted" /> Edit…
-              </DropdownMenuItem>
+                <Pencil className="size-4 text-muted" /> {t("titles:series.edit")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

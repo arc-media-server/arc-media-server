@@ -1,0 +1,171 @@
+{
+  "movie": {
+    "identifyIt": "Identify it…",
+    "edition": "Edition",
+    "standardEdition": "Standard Edition",
+    "fileMissing": "File missing",
+    "play": "Play",
+    "playFromTheBeginning": "Play from the beginning",
+    "versionCount_one": "{{count}} versions",
+    "versionCount_other": "{{count}} versions",
+    "resumeAt": "Resume · {{time}}",
+    "unmatched": "Arc couldn't identify this movie online."
+  },
+  "series": {
+    "identifyIt": "Identify it…",
+    "shuffleTheEpisodes": "Shuffle the episodes",
+    "shuffle": "Shuffle",
+    "shuffleSeason": "Shuffle Season",
+    "editSeason": "Edit Season",
+    "hideMissing": "Hide Missing",
+    "showMissing": "Show Missing",
+    "episodeOrdering": "Episode ordering…",
+    "edit": "Edit…",
+    "notInOrder": "Not in This Order",
+    "seasons_one": "{{count}} Season",
+    "seasons_other": "{{count}} Seasons",
+    "episodes_one": "{{count}} Episode",
+    "episodes_other": "{{count}} Episodes",
+    "availableEpisodes_one": "{{count}} episode",
+    "availableEpisodes_other": "{{count}} episodes",
+    "unplacedExplanation": "You have these episodes, but <order>{{order}}</order> doesn't include them. They're still here so nothing goes missing.",
+    "notInLibrary": "Not in library",
+    "notFoundOnline": "Not found online",
+    "placedManually": "Placed manually",
+    "playEpisode": "Play {{title}}",
+    "moreEpisode": "More for {{title}}",
+    "resumeEpisode": "Resume {{code}}",
+    "startEpisode": "Play {{code}}",
+    "unmatched": "Arc couldn't identify this show online. Episodes are shown from their file names.",
+    "missingTooltip": "Show episodes you don't have",
+    "hiddenDescription": "Description hidden until you watch it."
+  },
+  "hero": {
+    "showLess": "Show less",
+    "showMore": "Show more"
+  },
+  "episodeDetails": {
+    "episodeDetails": "Episode details",
+    "descriptionAndGuestAppearances": "Description and guest appearances hidden until you watch it.",
+    "loadingEpisodeDetails": "Loading episode details…",
+    "guestCast": "Guest cast",
+    "noCastOrCrew": "No cast or crew supplied by the file episode order provider.",
+    "forTitle": "Details for {{title}}"
+  },
+  "extras": {
+    "playTheTrailer": "Play the trailer",
+    "trailer": "Trailer",
+    "extras": "Extras",
+    "featurette": "Featurette",
+    "behind_the_scenes": "Behind the Scenes",
+    "deleted_scene": "Deleted Scene",
+    "interview": "Interview",
+    "scene": "Scene",
+    "short": "Short",
+    "other": "Extra",
+    "trailerSubtitle": "{{title}} · Trailer",
+    "subtitle": "{{title}} · {{kind}}"
+  },
+  "itemActions": {
+    "more": "More",
+    "refreshingMetadata": "Refreshing metadata…",
+    "refreshMetadata": "Refresh metadata",
+    "startingAnalysis": "Starting analysis…",
+    "analyze": "Analyze",
+    "edit": "Edit…",
+    "addToCollection": "Add to Collection…",
+    "fixMatch": "Fix Match…",
+    "optimize": "Optimize…",
+    "splitApart": "Split Apart…",
+    "analyzingEpisodes": "Analyzing every episode. Progress shows in Activity.",
+    "analyzingFiles": "Analyzing its files. Progress shows in Activity.",
+    "splitExplanation_one": "{{title}} has {{versions}} versions. Splitting gives the other one a title of its own, identified online from the file name. Use this when different films were grouped together by mistake. Watch history stays with {{title}}.",
+    "splitExplanation_other": "{{title}} has {{versions}} versions. Splitting gives the other {{count}} a title of their own, identified online from the file name. Use this when different films were grouped together by mistake. Watch history stays with {{title}}.",
+    "splitTitle": "Split Apart"
+  },
+  "cardMenu": {
+    "removeFromContinueWatching": "Remove from Continue Watching",
+    "moreTitle": "More for {{title}}"
+  },
+  "queueActions": {
+    "playbackQueueWhatPlays": "Playback queue: what plays next, rather than a saved playlist",
+    "playNext": "Play next",
+    "addToQueue": "Add to queue"
+  },
+  "rating": {
+    "yourRating": "Your rating",
+    "rateIt": "Rate it",
+    "current": "Your rating: {{value}} of 5. Click it again to clear.",
+    "stars_one": "{{count}} star",
+    "stars_other": "{{count}} stars",
+    "onWatchlist": "On your watchlist",
+    "addWatchlist": "Add to Watchlist"
+  },
+  "sourceFormats": {
+    "loadingFileDetails": "Loading file details…",
+    "aboutThisFile": "About This File",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "none": "None",
+    "file": "File",
+    "missingFromDisk": "Missing from disk",
+    "forTitle": "File details for {{title}}",
+    "title": "File details: {{title}}",
+    "version": "About This Version:{{details}}",
+    "part": "Part {{number}}",
+    "unknown": "Unknown",
+    "forced": "Forced",
+    "probeError": "Couldn't read this file: {{error}}",
+    "description": "Formats of each source file and its tracks.",
+    "sourceDisclaimer": "Source formats; playback output depends on your device and conversion."
+  },
+  "similar": {
+    "moreLikeThis": "More Like This"
+  },
+  "watchedButton": {
+    "watched": "Watched",
+    "markWatched": "Mark Watched",
+    "seasonUnwatched": "Mark Season as Unwatched",
+    "seasonWatched": "Mark Season as Watched",
+    "markUnwatched": "Mark as Unwatched",
+    "markAsWatched": "Mark as Watched"
+  },
+  "episodeCard": {
+    "playTitle": "Play {{title}}",
+    "hoursLeft": "{{hours}}h {{minutes}}m left",
+    "minutesLeft": "{{count}}m left"
+  },
+  "credits": {
+    "createdBy": "Created by",
+    "directedBy": "Directed by",
+    "writtenBy": "Written by",
+    "network": "Network",
+    "studio": "Studio",
+    "language": "Language",
+    "status": "Status",
+    "endedYear": "Ended in {{year}}",
+    "ended": "Ended",
+    "cancelledYear": "Cancelled in {{year}}",
+    "cancelled": "Cancelled",
+    "premieres": "Premieres {{date}}",
+    "comingSoon": "Coming soon",
+    "nextEpisode": "Continuing · next episode {{date}}",
+    "continuing": "Continuing",
+    "cast": "Cast",
+    "episodes_one": "{{count}} episode",
+    "episodes_other": "{{count}} episodes"
+  },
+  "watchState": {
+    "watched": "Watched",
+    "unwatched_one": "{{count}} unwatched",
+    "unwatched_other": "{{count}} unwatched"
+  },
+  "scores": {
+    "audience": "TMDB audience score",
+    "votes_one": "IMDb, {{value}} votes",
+    "votes_other": "IMDb, {{value}} votes",
+    "fresh": "Rotten Tomatoes critics: fresh",
+    "rotten": "Rotten Tomatoes critics: rotten"
+  }
+}
