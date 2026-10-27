@@ -469,6 +469,8 @@ export interface Playback {
   device: string;
   address: string;
   method: 'direct' | 'transcode';
+  /** The conversion is far enough ahead and waits for the viewer. */
+  throttled?: boolean;
   position_ms: number;
   duration_ms: number;
   state: PlaybackState;
