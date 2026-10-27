@@ -1173,7 +1173,7 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 
 func applyProbe(f *store.MediaFile, res *probe.Result) {
 	f.Container, f.DurationMS, f.Bitrate = res.Container, res.DurationMS, res.Bitrate
-	f.FormatProbeVersion = 1
+	f.FormatProbeVersion = store.FormatVersion
 	for _, c := range res.Chapters {
 		f.Chapters = append(f.Chapters, store.Chapter{StartMS: c.StartMS, EndMS: c.EndMS, Title: c.Title})
 	}
@@ -1185,6 +1185,7 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 			ColorTransfer: ps.ColorTransfer, ColorPrimaries: ps.ColorPrimaries, FrameRate: ps.FrameRate,
 			Bitrate: ps.Bitrate, ChannelLayout: ps.ChannelLayout, DolbyVision: ps.DolbyVision,
 			DolbyVisionProfile: ps.DolbyVisionProfile, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
+			AspectRatio: ps.AspectRatio,
 		})
 	}
 }

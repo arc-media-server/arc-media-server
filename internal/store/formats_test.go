@@ -139,6 +139,52 @@ func TestPendingFormatPagesIncludePreviouslySeenFiles(t *testing.T) {
 	}
 }
 
+// Version 2 added aspect ratios: every video read before it, HDR or not, is brought up to date
+// once; current reads and files without video are left alone.
+func TestPendingFormatPagesBackfillAspectRatios(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(ctx, filepath.Join(t.TempDir(), "formats.db"), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lib, err := st.SyncLibrary(ctx, "Formats", "movies", "tmdb_aired", []string{t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	save := func(path string, version int, streams ...Stream) MediaFile {
+		f := MediaFile{LibraryID: lib, Path: path, Size: 1, ModTime: 1, FormatProbeVersion: version, Streams: streams}
+		if f.ID, err = st.SaveFile(ctx, &f, 1, 1); err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	old := save("sdr-v1.mkv", 1, Stream{Index: 0, Kind: "video", Codec: "h264", Width: 720, Height: 480},
+		Stream{Index: 1, Kind: "audio", Codec: "aac"})
+	hdr := save("hdr-v1.mkv", 1, Stream{Index: 0, Kind: "video", Codec: "hevc", DolbyVision: true, DolbyVisionProfile: 8, HDRProbeStatus: "sampled"})
+	save("current.mkv", FormatVersion, Stream{Index: 0, Kind: "video", Codec: "h264", AspectRatio: 1.78})
+	save("audio-only.mka", 0, Stream{Index: 0, Kind: "audio", Codec: "flac"})
+
+	files, err := st.PendingFormatPage(ctx, lib, 0)
+	if err != nil || len(files) != 2 || files[0].ID != old.ID || files[1].ID != hdr.ID {
+		t.Fatalf("pending: %+v %v", files, err)
+	}
+	if !files[1].Streams[0].DolbyVision || files[1].Streams[0].DolbyVisionProfile != 8 {
+		t.Fatalf("pending page lost saved HDR details: %+v", files[1].Streams)
+	}
+	files[0].Streams[0].AspectRatio = 1.78
+	if err := st.SaveFormats(ctx, files[0]); err != nil {
+		t.Fatal(err)
+	}
+	streams, err := st.fileStreams(ctx, old.ID)
+	if err != nil || streams[0].AspectRatio != 1.78 {
+		t.Fatalf("aspect ratio not saved: %+v %v", streams, err)
+	}
+	if files, err = st.PendingFormatPage(ctx, lib, 0); err != nil || len(files) != 1 || files[0].ID != hdr.ID {
+		t.Fatalf("after backfill: %+v %v", files, err)
+	}
+}
+
 func TestFormatEnrichmentRejectsDifferentRestoredPath(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(ctx, filepath.Join(t.TempDir(), "formats.db"), Options{})

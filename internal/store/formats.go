@@ -2,6 +2,11 @@ package store
 
 import "context"
 
+// FormatVersion is how complete a file's analysis is. 1 added HDR10+/Dolby Vision/Atmos
+// details; 2 added each video's aspect ratio. Files read before the current version are
+// brought up to date by the Media analysis task.
+const FormatVersion = 2
+
 // SaveFormats protects against a concurrent regular probe/change: only the old pending
 // revision can be enriched. A failed optional sample is recorded as attempted too.
 func (s *Store) SaveFormats(ctx context.Context, f MediaFile) error {
@@ -10,7 +15,7 @@ func (s *Store) SaveFormats(ctx context.Context, f MediaFile) error {
 		return err
 	}
 	defer tx.Rollback()
-	r, err := tx.ExecContext(ctx, `UPDATE media_files SET format_probe_version=1 WHERE id=? AND path=? AND size=? AND mtime=? AND format_probe_version=0`, f.ID, f.Path, f.Size, f.ModTime)
+	r, err := tx.ExecContext(ctx, `UPDATE media_files SET format_probe_version=? WHERE id=? AND path=? AND size=? AND mtime=? AND format_probe_version<?`, FormatVersion, f.ID, f.Path, f.Size, f.ModTime, FormatVersion)
 	if err != nil {
 		return err
 	}
@@ -22,7 +27,7 @@ func (s *Store) SaveFormats(ctx context.Context, f MediaFile) error {
 		return nil
 	}
 	for _, st := range f.Streams {
-		_, err = tx.ExecContext(ctx, `UPDATE media_streams SET profile=?,channel_layout=?,dolby_vision=?,dolby_vision_profile=?,hdr10_plus=?,hdr_probe_status=? WHERE file_id=? AND idx=? AND kind=? AND codec=?`, st.Profile, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus, f.ID, st.Index, st.Kind, st.Codec)
+		_, err = tx.ExecContext(ctx, `UPDATE media_streams SET profile=?,channel_layout=?,dolby_vision=?,dolby_vision_profile=?,hdr10_plus=?,hdr_probe_status=?,aspect_ratio=? WHERE file_id=? AND idx=? AND kind=? AND codec=?`, st.Profile, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus, st.AspectRatio, f.ID, st.Index, st.Kind, st.Codec)
 		if err != nil {
 			return err
 		}

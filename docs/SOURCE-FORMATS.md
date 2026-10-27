@@ -61,6 +61,18 @@ An optional sample saved as unavailable is not repeatedly read on unchanged scan
 files are probed normally. Runtime job failures such as unavailable files remain pending and
 retry later. Real network-drive throughput and CPU/I/O costs still need deployment evidence.
 
+## Aspect ratio (format version 2, #212)
+
+Every video track also records its display aspect ratio (migration 0055, `aspect_ratio`, e.g.
+1.78 or 2.39). It comes from the same FFprobe read: FFprobe's display ratio when present, else
+the frame size corrected by the pixel shape, so anamorphic DVDs (720x480 with 32:27 pixels)
+read as 16:9 rather than 1.5. File details show it beside the frame size: 4:3 and 16:9 by
+name, wider films as e.g. 2.39:1. New and changed files get it when a scan reads them.
+Files read before version 2 (any video, HDR or not) are brought up to date once by the
+Media analysis task with the compact stream read; the frame sample still only runs on likely
+HDR streams, and HDR details already saved are kept if a new sample fails. Nothing uses the
+ratio for playback decisions yet.
+
 ## Verification boundary
 
 See READINESS.md for actual checks. Synthetic profile/UI regressions and encoded DV/HDR10+

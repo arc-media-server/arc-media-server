@@ -71,9 +71,11 @@ func (s *Store) MaxFileID(ctx context.Context) (id int64, err error) {
 
 // PendingFormatPage is a cursor page, never a run limit. Completed attempts remain excluded
 // by their persistent version; offline entries cannot keep later IDs out of the next page.
+// Every video file read before FormatVersion qualifies (aspect ratios came with version 2);
+// the frame sample for HDR10+/Dolby Vision still only runs on likely HDR streams.
 func (s *Store) PendingFormatPage(ctx context.Context, libraryID, after int64) ([]MediaFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,path,size,mtime FROM media_files m WHERE library_id=? AND id>? AND format_probe_version=0 AND probed_at IS NOT NULL AND probe_error='' AND missing_since IS NULL
- AND EXISTS(SELECT 1 FROM media_streams st WHERE st.file_id=m.id AND st.kind='video' AND (st.codec IN ('hevc','h265','av1') OR st.color_transfer IN ('smpte2084','arib-std-b67'))) ORDER BY id LIMIT 32`, libraryID, after)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,path,size,mtime FROM media_files m WHERE library_id=? AND id>? AND format_probe_version<? AND probed_at IS NOT NULL AND probe_error='' AND missing_since IS NULL
+ AND EXISTS(SELECT 1 FROM media_streams st WHERE st.file_id=m.id AND st.kind='video') ORDER BY id LIMIT 32`, libraryID, after, FormatVersion)
 	if err != nil {
 		return nil, err
 	}
