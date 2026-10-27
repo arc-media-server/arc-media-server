@@ -13,6 +13,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { episodeQueue, shuffled } from '@/lib/shuffle';
 import { Artwork } from '@/components/Artwork';
+import { ProviderCredit } from '@/components/ProviderCredits';
 import { MoreMenu, useAnalyzeItem, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
 import { useSpoilerGuard } from '@/lib/home';
@@ -47,7 +48,8 @@ export function SeriesPage() {
   const [season, setSeason] = useState<number | null>(null);
   const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
   const [editingSeason, setEditingSeason] = useState(false);
-  const scanning = useLibraries().data?.some((library) => library.scan.running) ?? false;
+  const libraries = useLibraries().data;
+  const scanning = libraries?.some((library) => library.scan.running) ?? false;
   const wasScanning = useRef(scanning);
 
   useEffect(() => {
@@ -265,6 +267,7 @@ export function SeriesPage() {
       <CollectionRows item={series} />
       <SimilarRow item={series} />
       <ExtrasRow extras={series.extras} title={series.title} />
+      <ProviderCredit item={series} library={libraries?.find((l) => l.id === series.library_id)} />
       {dialogs}
       {editingEpisode && (
         <EditDetailsDialog item={editingEpisode} open onOpenChange={(o) => !o && setEditingEpisode(null)} />
