@@ -15,7 +15,9 @@
     "shuffle": "Shuffle",
     "delete": "Delete",
     "rename": "Rename",
-    "create": "Create"
+    "create": "Create",
+    "edit": "Edit",
+    "remove": "Remove"
   },
   "activity": {
     "analysing": "Analysing",

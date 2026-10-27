@@ -4,8 +4,9 @@ Issue [#122](https://github.com/JonzaUK/arc-media-server/issues/122) is being de
 separate PRs. Phase 1 provides infrastructure and the shell, sidebar/profile menu, Settings
 navigation, Activity/News menus, shared errors/dialog primitives, row navigation and account
 screens. Phase 2 converts Home, Watchlist and Playlists, including Home row editing, the playlist
-picker/rules and their shared filters. Other page-specific text and feature dialogs follow
-in the later area PRs.
+picker/rules and their shared filters. Phase 3 converts Library, Collection, Search and Person
+pages, plus collection-card counts.
+Other page-specific text and feature dialogs follow in the later area PRs.
 English wording, punctuation, capitalization, accessible names and layout must stay identical.
 
 ## Adding UI text
@@ -20,7 +21,8 @@ const { t } = useTranslation('library');
 
 English files live at `web/src/locales/en/<namespace>.json`. `common.json` contains shared
 navigation/actions/formatting; `auth.json` contains account and setup text. `home.json`,
-`watchlist.json`, `playlists.json` and `filters.json` cover Phase 2. Add `library`, `player`,
+`watchlist.json`, `playlists.json` and `filters.json` cover Phase 2. `library.json`,
+`collection.json`, `search.json` and `person.json` cover browsing in Phase 3. Add `player`,
 `settings`, etc. as their areas are converted. Namespaces are discovered at build
 time, and all English namespaces are bundled. Use readable nested keys (`maintenance.runNow`
 in `settings.json`, used as `t('settings:maintenance.runNow')`), never English sentences as keys.
@@ -88,11 +90,17 @@ property destructured from `useTranslation` (including legacy aliases), explicit
 is rejected. Compound key segments use camelCase; long lowercase segments are rejected unless
 explicitly documented as genuine single words. Counted words require one/other forms; attached
 unit abbreviations can remain invariant. Use an explicit lookup of literal translation calls for enum-to-label mappings.
+Browsing uses stable internal unit identifiers (`movie`, `show`, `video`, `title`) with complete
+noun-specific count keys; never pass translated nouns or metadata through that lookup.
+Person credit grouping uses the role data, never the translated heading. Filter menus use full
+“Any …” phrases rather than lowercasing translated field labels.
 Use explicit namespace-qualified keys outside a hook. Keep `Trans` namespaces explicit.
 
 The same tests check English formatting, browser-language selection, on-demand loading and
 failed/missing translation fallback. Phase 2 also checks dynamic built-in row/season labels,
 filter labels and preservation of literal custom/provider names, saved IDs and genre filters.
+Phase 3 checks noun-specific browsing counts and unchanged internal unit identifiers, plus
+desktop/phone browsing, collection actions, Search and Person credits with literal metadata.
 Use `rowTitle()` when showing a built-in Home row; never translate custom titles by matching
 their English text. Seasonal dates use the shared `month()` helper. They run as part of `npm run build`, requiring no new
 test dependency. For each area PR also run production and e2e TypeScript, production build,
@@ -118,10 +126,13 @@ language picker and right-to-left layout work are deferred until a first transla
 
 ## What stays English for now
 
-- Areas not yet converted: browsing, title pages and their remaining feature dialogs, Player,
+- Areas not yet converted: title pages and their feature dialogs, Player,
   Settings page contents and management tools. Convert in #122's order,
   about 2–4 pages/components per PR; split Settings into several PRs.
-- Server API errors (`writeError`), Activity task titles/stages/details and logs. Existing
+- Collection creation/editing, Add to Collection, bulk editing and artwork-panel text follow in
+  the title-page/dialog phase; translating the Collection page does not claim those dialogs are done.
+- Server API errors (`writeError`), Activity task titles/stages/details and logs. Server-provided
+  recommendation-row titles also remain server text. Existing
   English task-title past-tense conversion and protocol-token matching stay unchanged. A
   later server error-code contract could support client-side localized errors without
   attempting to translate arbitrary server text.

@@ -1,0 +1,13 @@
+{
+  "libraryTitles_one": "{{count}} title in your libraries",
+  "libraryTitles_other": "{{count}} titles in your libraries",
+  "acting": "Acting",
+  "crew": "Behind the camera",
+  "roles": {
+    "actor": "Acting",
+    "director": "Directing",
+    "writer": "Writing",
+    "creator": "Created"
+  },
+  "cast": "Cast"
+}
