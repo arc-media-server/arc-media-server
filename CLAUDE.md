@@ -37,6 +37,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Faster HDR sample (27 October): the DV/HDR10+ frame sample decodes keyframes only
+  (`-skip_frame nokey`, same 64 packets), falling back to the full decode if ffprobe rejects
+  it. Generated DV 8.1/HDR10+ clips (dolby_vision/hdr10plus crates, metadata every/key/first/
+  between-key frames) gave identical detection at ~85ms vs ~415ms per 1080p file. Tiny real
+  fixtures live in internal/probe/testdata (README explains how they were made).
+
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
   overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data
