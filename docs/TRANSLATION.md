@@ -29,6 +29,10 @@ everywhere; rename local task/item variables instead of aliasing the translation
 
 Keep whole sentences together. Use `{{title}}` placeholders with values passed to `t()`;
 do not concatenate translated fragments or interpolate the English sentence in JavaScript.
+The Home editor has separate `editor.otherTitle` / `otherTitleEndsS` and description keys
+for the existing English possessive spelling (Sam's / James'). Other languages may translate
+each pair identically when that distinction does not apply; leave the inserted name unchanged.
+
 React handles escaping; i18next's additional HTML escaping is disabled. Never render a
 translation or inserted value through `dangerouslySetInnerHTML`.
 
@@ -129,3 +133,11 @@ After every area is converted, add the agreed rule to CLAUDE.md's Principles or 
 “All new UI text goes through `t()` and `en.json`.” Here `en.json` means the English namespace
 catalogs above. Do not claim the whole app is translated or ready for another language until
 that conversion and translation review are complete.
+
+## Deferred metadata-language follow-up
+
+Seasonal rows still filter using English genre display names (`Romance`, `Horror`). A library
+whose provider stores localized genre names can miss those rows. In Phase 5 or a separate
+metadata follow-up, use TMDB genre IDs or another language-independent key rather than UI or
+provider display names. This predates translation extraction and is not fixed here. Tracked
+in [Claude's #236 review](https://github.com/JonzaUK/arc-media-server/pull/236#issuecomment-6449183950).
