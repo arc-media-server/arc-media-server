@@ -1,13 +1,16 @@
+import { sortSummary } from '@/lib/filter-labels';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUp, ArrowDown, CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
 import { useLibraries } from '@/components/Sidebar';
-import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
+import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { resolutions, sorts } from '@/pages/Library';
+import { resolutions } from '@/pages/Library';
 import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -57,6 +60,7 @@ export type HomeTarget = { kind: 'profile'; id: string; name: string } | { kind:
 
 /** The admin arranging another profile's home page, or the default home. */
 export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: HomeTarget | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation('home');
   const qc = useQueryClient();
   const { data: libraries } = useLibraries();
   const key = target?.kind === 'profile' ? ['prefs', 'profile', target.id] : ['prefs', 'default'];
@@ -76,11 +80,11 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
           libraries={libraries!}
           initialSplit={!!prefs.data!.split_up_next}
           showSplit={target!.kind === 'profile'}
-          title={target!.kind === 'profile' ? `${possessive(target!.name)} Home` : 'Default Home'}
+          title={target!.kind === 'profile' ? target!.name.endsWith('s') ? t('editor.otherTitleEndsS', { name: target!.name }) : t('editor.otherTitle', { name: target!.name }) : t('editor.defaultTitle')}
           description={
             target!.kind === 'profile'
-              ? `Arrange ${possessive(target!.name)} home page. They can still change it themselves.`
-              : "The home page for profiles that haven't arranged their own, including new ones."
+              ? target!.name.endsWith('s') ? t('editor.otherDescriptionEndsS', { name: target!.name }) : t('editor.otherDescription', { name: target!.name })
+              : t('editor.defaultDescription')
           }
           onSave={async (patch) => {
             if (target!.kind === 'profile') await api.updateProfilePrefs(target!.id, patch);
@@ -94,18 +98,14 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
   );
 }
 
-/** "Sam's", "Kids'". */
-function possessive(name: string) {
-  return name.endsWith('s') ? `${name}'` : `${name}'s`;
-}
 
 function Editor({
   initial,
   libraries,
   initialSplit,
   showSplit = true,
-  title = 'Edit Home',
-  description = "Drag rows or use the move buttons to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
+  title,
+  description,
   onSave,
   onDone,
 }: {
@@ -118,6 +118,7 @@ function Editor({
   onSave: (patch: Partial<Prefs>) => Promise<unknown>;
   onDone: () => void;
 }) {
+  const { t } = useTranslation('home');
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
   const [split, setSplit] = useState(initialSplit);
@@ -138,7 +139,7 @@ function Editor({
     if (from < 0 || to < 0 || to >= shown.length) return;
     [shown[from], shown[to]] = [shown[to], shown[from]];
     reorder(shown);
-    announce(shown[to].title + ', position ' + (to + 1) + ' of ' + shown.length);
+    announce(t('editor.position', { title: rowTitle(shown[to]), position: to + 1, total: shown.length }));
   };
   if (editing) {
     const existing = editing === 'new' ? undefined : (editing as Extract<ResolvedRow, { type: 'custom' }>);
@@ -180,18 +181,15 @@ function Editor({
 
   return (
     <DialogContent
-      title={title}
-      description={description}
+      title={title ?? t('editor.title')}
+      description={description ?? t('editor.description')}
       className="w-[min(600px,calc(100vw-32px))]"
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
-          <Button variant="ghost" className="mr-auto" onClick={() => setRows(resolveRows([], libraries).map(base => rows.find(r => r.id === base.id) ?? base).concat(rows.filter(r => r.type === 'custom' || r.type === 'collection' || r.type === 'playlist')))}>
-            Reset Order
-          </Button>
+          <Button variant="ghost" className="mr-auto" onClick={() => setRows(resolveRows([], libraries).map(base => rows.find(r => r.id === base.id) ?? base).concat(rows.filter(r => r.type === 'custom' || r.type === 'collection' || r.type === 'playlist')))}>{t('editor.resetOrder')}</Button>
           <Button variant="secondary" onClick={() => setEditing('new')}>
-            <Plus /> Add Row
-          </Button>
+            <Plus />{' '}{t('editor.addRow')}</Button>
           <Button
             variant="primary"
             disabled={save.isPending}
@@ -202,19 +200,17 @@ function Editor({
                 rows.every((r) => !r.hidden && r.type !== 'custom' && isDefaultLook(r)) && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
               save.mutate(showSplit ? { home: isDefault ? [] : saved, split_up_next: split } : { home: isDefault ? [] : saved });
             }}
-          >
-            Done
-          </Button>
+          >{t('common:actions.done')}</Button>
         </>
       }
     >
       <label className={cn('mb-4 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border', !showSplit && 'hidden')}>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium">Show Up Next separately</span>
+          <span className="block text-sm font-medium">{t('editor.splitLabel')}</span>
           <span className="block text-xs text-subtle">
             {split
-              ? 'Next episodes have their own row, apart from what you\'re part-way through.'
-              : 'Next episodes of your shows are in Continue Watching, as in Plex.'}
+              ? t('editor.splitOn')
+              : t('editor.splitOff')}
           </span>
         </span>
         <Switch
@@ -249,70 +245,71 @@ function Editor({
 function describe(r: ResolvedRow, merged: boolean): string {
   switch (r.type) {
     case 'continue':
-      return merged ? "What you're part-way through, and the next episode of each show" : "What you're part-way through";
+      return merged ? i18n.t('home:rowDescription.continueMerged') : i18n.t('home:rowDescription.continue');
     case 'next-up':
-      return 'The next episode of each show you watch';
+      return i18n.t('home:rowDescription.next');
     case 'recent':
-      return r.library.kind === 'shows' && !r.showsOnly ? `Newest in ${r.library.name}, new episodes grouped by season` : `Newest in ${r.library.name}`;
+      return r.library.kind === 'shows' && !r.showsOnly ? i18n.t('home:rowDescription.recentSeasons', { name: r.library.name }) : i18n.t('home:rowDescription.recent', { name: r.library.name });
     case 'seasonal':
-      return seasonsSummary;
+      return seasonsSummary();
     case 'custom':
       return filterSummary(r.filter, r.library);
     case 'watchlist':
-      return "Movies and shows you've saved for later";
+      return i18n.t('home:rowDescription.watchlist');
     case 'collection':
-      return 'A collection';
+      return i18n.t('home:rowDescription.collection');
     case 'playlist':
-      return 'Your playlist, in its order';
+      return i18n.t('home:rowDescription.playlist');
   }
 }
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // e.g. "Romance for Valentine's Day (1–14 Feb) · Horror for Halloween (Oct) · …"
-const seasonsSummary = seasons
-  .map((s) => {
-    const whole = s.from[1] === 1 && s.from[0] === s.to[0] && s.to[1] >= 28;
-    const when = whole ? months[s.from[0] - 1] : `${s.from[1]}–${s.to[1]} ${months[s.to[0] - 1]}`;
-    return `${s.title} (${when})`;
-  })
-  .join(' · ');
+function seasonsSummary() {
+  return seasons.map((season) => {
+    const whole = season.from[1] === 1 && season.from[0] === season.to[0] && season.to[1] >= 28;
+    const when = whole ? fmt.month(season.from[0]) : i18n.t('home:seasonal.range', { start: season.from[1], end: season.to[1], month: fmt.month(season.to[0]) });
+    return i18n.t('home:seasonal.summary', { title: season.title, when });
+  }).join(' · ');
+}
 
 function filterSummary(f: RowFilter, library?: Library) {
-  const parts = [library?.name ?? 'Library'];
-  if (f.unwatched) parts.push('unwatched');
+  const parts = [library?.name ?? i18n.t('filters:library')];
+  if (f.unwatched) parts.push(i18n.t('filters:summary.unwatched'));
   if (f.genre) parts.push(f.genre);
-  if (f.label) parts.push(`labelled “${f.label}”`);
-  if (f.language) parts.push(`in ${fmt.language(f.language)}`);
-  if (f.decade) parts.push(`${f.decade}s`);
+  if (f.label) parts.push(i18n.t('filters:summary.label', { label: f.label }));
+  if (f.language) parts.push(i18n.t('filters:summary.language', { language: fmt.language(f.language) }));
+  if (f.decade) parts.push(i18n.t('filters:decade.value', { year: f.decade }));
   if (f.resolution) parts.push(resolutions[f.resolution]);
-  if (f.added_within) parts.push(`added in the last ${fmt.plural(f.added_within, 'day')}`);
-  if (f.max_runtime) parts.push(`under ${runtimeLabel(f.max_runtime)}`);
-  if (f.min_runtime) parts.push(`over ${runtimeLabel(f.min_runtime)}`);
-  if (f.min_rating) parts.push(`rated ${f.min_rating}+`);
-  if (f.sort) parts.push(f.sort === 'shuffle' ? 'shuffled' : `by ${sorts[f.sort].toLowerCase()}`);
+  if (f.added_within) parts.push(i18n.t('filters:summary.addedDays', { count: f.added_within }));
+  if (f.max_runtime) parts.push(i18n.t('filters:summary.under', { duration: runtimeLabel(f.max_runtime) }));
+  if (f.min_runtime) parts.push(i18n.t('filters:summary.over', { duration: runtimeLabel(f.min_runtime) }));
+  if (f.min_rating) parts.push(i18n.t('filters:summary.rated', { rating: f.min_rating }));
+  if (f.sort) parts.push(sortSummary(f.sort));
   return parts.join(' · ');
 }
 
 function runtimeLabel(min: number) {
-  return min % 60 === 0 ? fmt.plural(min / 60, 'hour') : `${min} min`;
+  return min % 60 === 0 ? i18n.t('filters:summary.hours', { count: min / 60 }) : i18n.t('filters:summary.minutes', { count: min });
 }
 
-const lookLabels = { series: 'Show posters', season: 'Season posters', thumb: 'Thumbnails', poster: 'Posters' };
+function lookLabels() { return { series: i18n.t('home:look.series'), season: i18n.t('home:look.season'), thumb: i18n.t('home:look.thumb'), poster: i18n.t('home:look.poster') }; }
 
 /** How a row's cards look: posters (the show's or the season's, for rows with episodes) or thumbnails. */
 function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Partial<RowLook>) => void }) {
+  const { t } = useTranslation('home');
+  const labels = lookLabels();
   const episodes = hasEpisodes(row);
   const value = row.style === 'thumb' ? 'thumb' : episodes ? row.posters : 'poster';
   const options = episodes ? (['series', 'season', 'thumb'] as const) : (['poster', 'thumb'] as const);
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Card style: ${lookLabels[value]}`} title={`Card style: ${lookLabels[value]}`}>
+        <Button variant="ghost" size="icon" aria-label={t('look.label', { style: labels[value] })} title={t('look.label', { style: labels[value] })}>
           {value === 'thumb' ? <RectangleHorizontal /> : <RectangleVertical />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Show as</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('look.showAs')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(v) =>
@@ -321,7 +318,7 @@ function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Parti
         >
           {options.map((o) => (
             <DropdownMenuRadioItem key={o} value={o}>
-              {lookLabels[o]}
+              {labels[o]}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -348,6 +345,7 @@ function RowItem({
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  const { t } = useTranslation('home');
   const drag = useDragControls();
   const icon =
     row.type === 'custom' ? (
@@ -369,20 +367,20 @@ function RowItem({
     >
       <button
         type="button"
-        aria-label={`Drag ${row.title}`}
+        aria-label={t('rowActions.drag', { title: rowTitle(row) })}
         onPointerDown={(e) => drag.start(e)}
         className="cursor-grab touch-none rounded-lg p-1.5 text-subtle hover:text-foreground active:cursor-grabbing"
       >
         <GripVertical className="size-4" />
       </button>
       <div className="flex shrink-0 flex-col">
-        <button type="button" aria-label={'Move ' + row.title + ' up'} disabled={!onMoveUp} onClick={onMoveUp} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowUp className="size-4" /></button>
-        <button type="button" aria-label={'Move ' + row.title + ' down'} disabled={!onMoveDown} onClick={onMoveDown} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowDown className="size-4" /></button>
+        <button type="button" aria-label={t('rowActions.moveUp', { title: rowTitle(row) })} disabled={!onMoveUp} onClick={onMoveUp} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowUp className="size-4" /></button>
+        <button type="button" aria-label={t('rowActions.moveDown', { title: rowTitle(row) })} disabled={!onMoveDown} onClick={onMoveDown} className="rounded p-1 text-muted hover:bg-surface-3 disabled:opacity-25"><ArrowDown className="size-4" /></button>
       </div>
       <div className={cn('min-w-0 flex-1', row.hidden && 'opacity-45')}>
         <p className="flex items-center gap-1.5 truncate text-sm font-medium">
           {icon && <span className="text-accent">{icon}</span>}
-          {row.type === 'seasonal' ? 'Seasonal Picks' : row.title}
+          {row.type === 'seasonal' ? t('rows.seasonal') : rowTitle(row)}
         </p>
         <p className="truncate text-xs text-subtle">{describe(row, merged)}</p>
       </div>
@@ -391,8 +389,8 @@ function RowItem({
           variant="ghost"
           size="icon"
           aria-pressed={!row.showsOnly}
-          aria-label={row.showsOnly ? 'Group new episodes by season' : 'Show one card per show'}
-          title={row.showsOnly ? 'One card per show. Click to group new episodes by season, with season posters.' : 'New episodes grouped by season, with season posters. Click for one card per show.'}
+          aria-label={row.showsOnly ? t('look.groupSeasons') : t('look.groupShows')}
+          title={row.showsOnly ? t('look.groupSeasonsHint') : t('look.groupShowsHint')}
           onClick={() => onChange({ showsOnly: !row.showsOnly })}
           className={cn(!row.showsOnly && 'text-accent')}
         >
@@ -401,16 +399,16 @@ function RowItem({
       )}
       <LookMenu row={row} onChange={onChange} />
       {onEdit && (
-        <Button variant="ghost" size="icon" aria-label={`Edit ${row.title}`} onClick={onEdit}>
+        <Button variant="ghost" size="icon" aria-label={t('rowActions.edit', { title: rowTitle(row) })} onClick={onEdit}>
           <Pencil />
         </Button>
       )}
       {onDelete && (
-        <Button variant="ghost" size="icon" aria-label={`Remove ${row.title}`} onClick={onDelete}>
+        <Button variant="ghost" size="icon" aria-label={t('rowActions.remove', { title: rowTitle(row) })} onClick={onDelete}>
           <Trash2 />
         </Button>
       )}
-      <Button variant="ghost" size="icon" aria-label={row.hidden ? `Show ${row.title}` : `Hide ${row.title}`} onClick={onToggle}>
+      <Button variant="ghost" size="icon" aria-label={row.hidden ? t('rowActions.show', { title: rowTitle(row) }) : t('rowActions.hide', { title: rowTitle(row) })} onClick={onToggle}>
         {row.hidden ? <EyeOff className="text-subtle" /> : <Eye />}
       </Button>
     </Reorder.Item>
@@ -431,6 +429,7 @@ function RowEditor({
   /** A collection or playlist was chosen instead of filters. */
   onPick: (kind: 'collection' | 'playlist', ref: string, title: string) => void;
 }) {
+  const { t } = useTranslation('home');
   // What the new row shows: titles matching filters, a collection, or a playlist.
   const [source, setSource] = useState<'filter' | 'collection' | 'playlist'>('filter');
   const [picked, setPicked] = useState('');
@@ -448,26 +447,23 @@ function RowEditor({
 
   return (
     <DialogContent
-      title={initial ? 'Edit Row' : 'Add a Row'}
-      description="Choose what the row shows. It updates by itself as your library changes."
+      title={initial ? t('rowEditor.edit') : t('rowEditor.add')}
+      description={t('rowEditor.description')}
       className="w-[min(600px,calc(100vw-32px))]"
       footer={
         <>
           <Button variant="ghost" className="mr-auto" onClick={onCancel}>
-            <ChevronLeft /> Back
-          </Button>
+            <ChevronLeft />{' '}{t('common:actions.back')}</Button>
           {source === 'filter' ? (
             <Button variant="primary" disabled={!title.trim() || !f.library_id} onClick={() => onSave(title.trim(), f)}>
-              {initial ? 'Save Row' : 'Add Row'}
+              {initial ? t('rowEditor.save') : t('editor.addRow')}
             </Button>
           ) : (
             <Button
               variant="primary"
               disabled={!picked}
               onClick={() => onPick(source, picked, options.find((o) => o.id === picked)?.title ?? '')}
-            >
-              Add Row
-            </Button>
+            >{t('editor.addRow')}</Button>
           )}
         </>
       }
@@ -475,7 +471,7 @@ function RowEditor({
       <div className="space-y-4">
         <ErrorNotice error={source === 'playlist' ? playlists.error : source === 'collection' ? collections.find(c => c.error)?.error : null} onRetry={() => { if (source === 'playlist') void playlists.refetch(); else for (const c of collections) if (c.error) void c.refetch(); }} />
         {!initial && (
-          <Field label="Show">
+          <Field label={t('rowEditor.show')}>
             <select
               value={source}
               onChange={(e) => {
@@ -484,37 +480,37 @@ function RowEditor({
               }}
               className={inputClass}
             >
-              <option value="filter">Titles that match filters</option>
-              <option value="collection">A collection</option>
-              <option value="playlist">One of your playlists</option>
+              <option value="filter">{t('rowEditor.filters')}</option>
+              <option value="collection">{t('rowDescription.collection')}</option>
+              <option value="playlist">{t('rowEditor.playlist')}</option>
             </select>
           </Field>
         )}
         {source !== 'filter' ? (
-          <Field label={source === 'collection' ? 'Collection' : 'Playlist'}>
+          <Field label={source === 'collection' ? t('rowEditor.collection') : t('playlists:kind.manual')}>
             <select value={picked} onChange={(e) => setPicked(e.target.value)} className={inputClass}>
-              <option value="">{options.length ? 'Choose…' : source === 'collection' ? 'No collections yet' : 'No playlists yet'}</option>
+              <option value="">{options.length ? t('rowEditor.choose') : source === 'collection' ? t('rowEditor.noCollections') : t('playlists:empty.heading')}</option>
               {options.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.group ? `${o.title} (${o.group})` : o.title}
+                  {o.group ? t('rowEditor.groupedOption', { title: o.title, group: o.group }) : o.title}
                 </option>
               ))}
             </select>
           </Field>
         ) : (
           <>
-            <Field label="Name">
+            <Field label={t('common:fields.name')}>
               <input
                 autoFocus
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={60}
-                placeholder="e.g. Unwatched 90s Action"
+                placeholder={t('rowEditor.nameHint')}
                 className={inputClass}
               />
             </Field>
             <FilterFields filter={f} onChange={setF} libraries={libraries} />
-            <FilterPreview filter={f} library={library} emptyText="Nothing matches yet. The row stays hidden until something does." />
+            <FilterPreview filter={f} library={library} emptyText={t('rowEditor.emptyPreview')} />
           </>
         )}
       </div>

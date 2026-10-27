@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -5,7 +7,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
 import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library, type RecentCard } from '@/lib/api';
-import { resolveRows, rowHref, rowQuery, usePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
+import { resolveRows, rowTitle, rowHref, rowQuery, usePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
 import { runtime } from '@/lib/format';
 import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { cardClass, MediaRow, RowShell, type CardStyle } from '@/components/MediaRow';
@@ -19,6 +21,7 @@ import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 
 function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; style: CardStyle; showsOnly: boolean; seasonPosters: boolean }) {
+  const { t } = useTranslation('home');
   const grouped = lib.kind === 'shows' && !showsOnly;
   const titles = useQuery({
     queryKey: ['items', { library_id: lib.id, sort: 'added', limit: 24 }],
@@ -26,7 +29,7 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
     enabled: !grouped,
   });
   const cards = useQuery({ queryKey: ['items', 'recent-shows', lib.id], queryFn: () => api.recentShows(lib.id), enabled: grouped });
-  const title = `Recently Added in ${lib.name}`;
+  const title = t('rows.recent', { name: lib.name });
   const href = `/library/${lib.id}`;
   if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} loading={titles.isPending} error={titles.error} onRetry={() => void titles.refetch()} href={href} style={style} />;
   return (
@@ -44,12 +47,12 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
   const n = c.episodes;
   switch (c.type) {
     case 'series':
-      return { subtitle: n > 1 ? `${n} new episodes` : '1 new episode' };
+      return { subtitle: i18n.t('home:rows.newEpisodes', { count: Math.max(1, n) }) };
     case 'season': {
-      const name = c.season_number === 0 ? 'Specials' : `Season ${c.season_number}`;
+      const name = c.season_number === 0 ? i18n.t('home:rows.specials') : i18n.t('home:rows.season', { season: c.season_number });
       return {
         image: style === 'poster' && seasonPosters ? (c.season_poster ?? c.item.images?.primary) : undefined,
-        subtitle: `${name} · ${n} new episodes`,
+        subtitle: i18n.t('home:rows.seasonEpisodes', { season: name, count: n }),
         noBadge: true,
       };
     }
@@ -60,9 +63,10 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
 
 /** The profile's watchlist (hidden while it's empty). */
 function WatchlistRow({ style }: { style: CardStyle }) {
+  const { t } = useTranslation('home');
   const result = useQuery({ queryKey: ['watchlist'], queryFn: api.watchlist });
   const { data } = result;
-  return <MediaRow title="Watchlist" items={data ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href="/watchlist" style={style} />;
+  return <MediaRow title={t('common:navigation.watchlist')} items={data ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href="/watchlist" style={style} />;
 }
 
 /** A collection on the home page, as it is now. */
@@ -104,9 +108,9 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
   const nextUp = useQuery({ queryKey: ['next-up'], queryFn: api.nextUp, enabled: row.type === 'next-up' });
   switch (row.type) {
     case 'continue':
-      return <MediaRow title={row.title} items={continueWatching.data ?? []} loading={continueWatching.isPending} error={continueWatching.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void continueWatching.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
+      return <MediaRow title={rowTitle(row)} items={continueWatching.data ?? []} loading={continueWatching.isPending} error={continueWatching.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void continueWatching.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'next-up':
-      return <MediaRow title={row.title} items={nextUp.data ?? []} loading={nextUp.isPending} error={nextUp.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void nextUp.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
+      return <MediaRow title={rowTitle(row)} items={nextUp.data ?? []} loading={nextUp.isPending} error={nextUp.error || remove.error} onRetry={() => { if (remove.error && remove.variables) remove.mutate(remove.variables); else void nextUp.refetch(); }} style={row.style} seasonPosters={row.posters === 'season'} play onRemove={(i) => remove.mutate(i)} />;
     case 'recent':
       return <LibraryRow lib={row.library} style={row.style} showsOnly={row.showsOnly} seasonPosters={row.posters === 'season'} />;
     case 'seasonal':
@@ -114,18 +118,19 @@ function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolea
     case 'watchlist':
       return <WatchlistRow style={row.style} />;
     case 'collection':
-      return <CollectionRow id={row.ref} fallback={row.title} style={row.style} />;
+      return <CollectionRow id={row.ref} fallback={rowTitle(row)} style={row.style} />;
     case 'playlist':
-      return <PlaylistRow id={row.ref} fallback={row.title} style={row.style} seasonPosters={row.posters === 'season'} />;
+      return <PlaylistRow id={row.ref} fallback={rowTitle(row)} style={row.style} seasonPosters={row.posters === 'season'} />;
     case 'custom': {
       const f = row.filter;
       // The library page can show the same list unless the row uses filters only rows have.
-      return <QueryRow title={row.title} query={rowQuery(f, row.library)} href={rowHref(f)} style={row.style} />;
+      return <QueryRow title={rowTitle(row)} query={rowQuery(f, row.library)} href={rowHref(f)} style={row.style} />;
     }
   }
 }
 
 export function Home() {
+  const { t } = useTranslation('home');
   const libraryQuery = useLibraries();
   const { data: libraries, isLoading } = libraryQuery;
   const admin = useIsAdmin();
@@ -136,7 +141,7 @@ export function Home() {
   const setEditing = (open: boolean) => setParams(open ? { edit: '1' } : {}, { replace: true });
   const split = !!prefs.data?.split_up_next;
   const showHero = !!prefs.data && prefs.data.show_home_hero !== false;
-  const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data]);
+  const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, libraries) : []), [libraries, prefs.data, t]);
   // The banner: the most recently added titles with a backdrop, taking turns.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
@@ -160,12 +165,11 @@ export function Home() {
   if (!libraries?.length) {
     return (
       <Page>
-        <EmptyState icon={<FolderPlus />} title="Welcome to Arc">
-          <p>{admin ? "Add a folder of movies or TV shows to get started. Arc scans it in the background." : "No libraries have been shared with this profile. Ask the server owner for access."}</p>
+        <EmptyState icon={<FolderPlus />} title={t('empty.heading')}>
+          <p>{admin ? t('empty.admin') : t('empty.viewer')}</p>
           {admin && <Link to="/libraries?add=1" className="mt-5 inline-block">
             <Button variant="primary">
-              <FolderPlus /> Add a Library
-            </Button>
+              <FolderPlus />{' '}{t('empty.addLibrary')}</Button>
           </Link>}
         </EmptyState>
       </Page>
@@ -179,11 +183,10 @@ export function Home() {
       {prefs.data && (
         <div className={hasFeatured ? 'absolute right-6 top-5 z-20 md:right-10' : 'flex justify-end px-6 py-5 md:px-10'}>
           <Button size="sm" onClick={() => setEditing(true)} className={hasFeatured ? 'bg-black/30 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/45' : undefined}>
-            <SlidersHorizontal /> Edit Home
-          </Button>
+            <SlidersHorizontal />{' '}{t('editor.title')}</Button>
         </div>
       )}
-      {hasFeatured && <section aria-label="Featured titles"><Featured items={featuredQuery.data!} /></section>}
+      {hasFeatured && <section aria-label={t('featured.label')}><Featured items={featuredQuery.data!} /></section>}
       <div className={cn('relative z-10 space-y-10', hasFeatured && '-mt-6')}>
         {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
         {showHero && !!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
@@ -196,8 +199,7 @@ export function Home() {
       {prefs.data && (
         <div className="mt-12 flex justify-center">
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            <SlidersHorizontal /> Edit Home
-          </Button>
+            <SlidersHorizontal />{' '}{t('editor.title')}</Button>
         </div>
       )}
       <EditHomeDialog rows={rows} libraries={libraries} open={editing} onOpenChange={setEditing} />
@@ -210,20 +212,21 @@ const featuredCount = 6;
 const featuredMS = 8000;
 
 function Featured({ items }: { items: Item[] }) {
+  const { t } = useTranslation('home');
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const item = items[index % items.length];
   // Move on every few seconds, unless the pointer is over it or the device asks for less motion.
   useEffect(() => {
     if (items.length < 2 || paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const t = window.setTimeout(() => setIndex((i) => (i + 1) % items.length), featuredMS);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % items.length), featuredMS);
+    return () => window.clearTimeout(timer);
   }, [index, items.length, paused]);
   return (
     <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="relative">
       <FeaturedItem item={item} />
       {items.length > 1 && (
-        <div className="absolute bottom-16 right-6 z-10 flex gap-1.5 md:right-10" role="tablist" aria-label="Featured titles">
+        <div className="absolute bottom-16 right-6 z-10 flex gap-1.5 md:right-10" role="tablist" aria-label={t('featured.label')}>
           {items.map((it, i) => (
             <button
               key={it.id}
@@ -242,9 +245,10 @@ function Featured({ items }: { items: Item[] }) {
 }
 
 function FeaturedItem({ item }: { item: Item }) {
+  const { t } = useTranslation('home');
   const play = usePlayer();
   const canPlay = item.kind === 'movie' && item.stream_url;
-  const meta = useMemo(() => [item.year, runtime(item.runtime_min), item.kind === 'series' && 'TV Series'], [item]);
+  const meta = useMemo(() => [item.year, runtime(item.runtime_min), item.kind === 'series' && t('featured.tvSeries')], [item, t]);
   return (
     <Hero backdrop={backdropUrl(item)} className="h-[62vh] min-h-[420px] max-h-[720px]">
       <motion.div
@@ -254,7 +258,7 @@ function FeaturedItem({ item }: { item: Item }) {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="flex h-full max-w-2xl flex-col justify-end px-6 pb-16 md:px-10"
       >
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Recently Added</p>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">{t('featured.recent')}</p>
         <TitleHeading item={item} />
         <div className="mt-3">
           <MetaLine parts={meta} />
@@ -263,12 +267,11 @@ function FeaturedItem({ item }: { item: Item }) {
         <div className="mt-6 flex gap-3">
           {canPlay && (
             <Button variant="primary" size="lg" onClick={() => play({ title: item.title, src: item.stream_url!, itemId: item.id, startMS: item.user_data?.position_ms })}>
-              <Play className="fill-current" /> Play
-            </Button>
+              <Play className="fill-current" />{' '}{t('common:actions.play')}</Button>
           )}
           <Link to={itemHref(item)}>
             <Button variant="secondary" size="lg">
-              <Info /> {item.kind === 'series' ? 'Episodes' : 'More Info'}
+              <Info /> {item.kind === 'series' ? t('featured.episodes') : t('featured.moreInfo')}
             </Button>
           </Link>
         </div>

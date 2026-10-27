@@ -1,8 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ListMusic, ListVideo, Loader2, Plus } from 'lucide-react';
 import { api, type Item, type Playlist } from '@/lib/api';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ErrorNotice } from '@/components/Page';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ export function PlaylistCover({ playlist, className }: { playlist: Playlist; cla
 
 /** An "Add to Playlist" button that opens the picker. */
 export function AddToPlaylistButton({ item, label, className, size = 'lg' }: { item: Item; label?: boolean; className?: string; size?: 'sm' | 'lg' | 'icon' }) {
+  const { t } = useTranslation('playlists');
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -40,14 +41,14 @@ export function AddToPlaylistButton({ item, label, className, size = 'lg' }: { i
         variant="secondary"
         size={size}
         className={cn(!label && size === 'lg' && 'size-12 rounded-2xl px-0', className)}
-        title="Save to a playlist"
-        aria-label="Add to Playlist"
+        title={t('picker.hint')}
+        aria-label={t('picker.title')}
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
         }}
       >
-        <ListMusic /> {label && 'Add to Playlist'}
+        <ListMusic /> {label && t('picker.title')}
       </Button>
       {/* React events bubble out of the dialog's portal: keep them from the row it sits in (an episode row plays on click). */}
       <span className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -66,6 +67,7 @@ export function AddToPlaylistDialog({ item, open, onOpenChange }: { item: Item; 
 }
 
 function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
+  const { t } = useTranslation('playlists');
   const qc = useQueryClient();
   const playlists = useQuery({ queryKey: ['playlists'], queryFn: api.playlists });
   const editable = playlists.data?.filter((p) => !p.smart_filter) ?? [];
@@ -82,19 +84,19 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
   const error = add.error ?? create.error;
   const busy = add.isPending || create.isPending || added !== null;
   const canCreate = !!playlists.data && !playlists.error;
-  const what = item.kind === 'series' ? `every episode of ${item.title} you have` : item.title;
+
 
   return (
-    <DialogContent title="Add to Playlist" description={`Add ${what} to one of your playlists.`} className="w-[min(480px,calc(100vw-32px))]">
+    <DialogContent title={t('picker.title')} description={item.kind === 'series' ? t('picker.addSeriesDescription', { title: item.title }) : t('picker.addDescription', { title: item.title })} className="w-[min(480px,calc(100vw-32px))]">
       <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
         {error && <ErrorNotice error={error} />}
         {playlists.error && <div className="space-y-2">
-          {playlists.data && <p className="text-xs text-muted">Showing the last loaded playlists. They may be out of date.</p>}
+          {playlists.data && <p className="text-xs text-muted">{t('picker.stale')}</p>}
           <ErrorNotice error={playlists.error} onRetry={() => void playlists.refetch()} busy={playlists.isFetching} />
         </div>}
-        {!playlists.data && !playlists.error && <p role="status" className="text-sm text-muted">Loading playlists…</p>}
-        {playlists.data && !playlists.error && editable.length === 0 && <p className="text-sm text-muted">No editable playlists yet. Create one below.</p>}
-        {!canCreate && <p className="text-xs text-muted">{playlists.error ? 'Refresh your playlists before creating another.' : 'Load your playlists before creating another.'}</p>}
+        {!playlists.data && !playlists.error && <p role="status" className="text-sm text-muted">{t('picker.loading')}</p>}
+        {playlists.data && !playlists.error && editable.length === 0 && <p className="text-sm text-muted">{t('picker.empty')}</p>}
+        {!canCreate && <p className="text-xs text-muted">{playlists.error ? t('picker.refreshFirst') : t('picker.loadFirst')}</p>}
         {editable.length > 0 && (
           <div className="max-h-72 divide-y divide-border overflow-y-auto rounded-2xl ring-1 ring-border">
             {editable.map((p) => (
@@ -108,7 +110,7 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
                 <PlaylistCover playlist={p} className="w-10 rounded-lg" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{p.title}</span>
-                  <span className="block text-xs text-subtle">{fmt.plural(p.count, 'title')}</span>
+                  <span className="block text-xs text-subtle">{t('titleCount', { count: p.count })}</span>
                 </span>
                 {added === p.id ? <Check className="size-4 text-accent" /> : add.isPending && add.variables === p.id && <Loader2 className="size-4 animate-spin" />}
               </button>
@@ -122,10 +124,9 @@ function AddToPlaylist({ item, onDone }: { item: Item; onDone: () => void }) {
             if (canCreate && !busy && name.trim()) create.mutate();
           }}
         >
-          <input autoFocus={!editable.length} value={name} onChange={(e) => setName(e.target.value)} placeholder="New playlist" aria-label="New playlist" maxLength={100} className={inputClass} />
+          <input autoFocus={!editable.length} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('picker.new')} aria-label={t('picker.new')} maxLength={100} className={inputClass} />
           <Button type="submit" variant="secondary" disabled={!canCreate || !name.trim() || busy}>
-            {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Create
-          </Button>
+            {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />}{' '}{t('common:actions.create')}</Button>
         </form>
       </div>
     </DialogContent>
