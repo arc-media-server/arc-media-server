@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -228,6 +230,7 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
 
 /** The server's settings (admin). */
 function ServerSettings() {
+  const { t } = useTranslation('serverSettings');
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
@@ -244,37 +247,37 @@ function ServerSettings() {
 
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">Server</h2>
+      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:settings.server")}</h2>
       {!s ? (
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
-          <Section title="Online metadata" hint="Where Arc gets details and artwork for movies and shows.">
+          <Section sectionKey="Online metadata" title={t("serverSettings:settings.onlineMetadata")} hint={t("serverSettings:settings.whereArcGetsDetails")}>
             <KeyRow
-              label="TMDB"
-              description="Movies and shows."
+              label={t("serverSettings:settings.tmdb")}
+              description={t("serverSettings:settings.moviesAndShows")}
               current={s.tmdb_api_key}
               fixed={s.from_env.tmdb_api_key}
               link="https://www.themoviedb.org/settings/api"
               onSave={(v) => update.mutateAsync({ tmdb_api_key: v })}
             />
             <KeyRow
-              label="TheTVDB"
-              description="Shows and their episode orders."
+              label={t("serverSettings:settings.thetvdb")}
+              description={t("serverSettings:settings.showsAndTheirEpisode")}
               current={s.tvdb_api_key}
               fixed={s.from_env.tvdb_api_key}
               link="https://thetvdb.com/api-information"
               onSave={(v) => update.mutateAsync({ tvdb_api_key: v })}
             />
           </Section>
-          <Section title="Ratings" hint="Scores from other sites, shown on title pages and available as sorts.">
+          <Section sectionKey="Ratings" title={t("serverSettings:settings.ratings")} hint={t("serverSettings:settings.scoresFromOtherSites")}>
             <Row
-              label="IMDb"
-              description="Updated weekly from IMDb's free ratings file. No key needed."
+              label={t("serverSettings:settings.imdb")}
+              description={t("serverSettings:settings.updatedWeeklyFromImdb")}
             />
             <KeyRow
-              label="Rotten Tomatoes and Metacritic"
-              description="Critics' scores from OMDb. A free key covers 1,000 titles a day."
+              label={t("serverSettings:settings.rottenTomatoesAndMetacritic")}
+              description={t("serverSettings:settings.criticsScoresFromOmdb")}
               current={s.omdb_api_key}
               fixed={s.from_env.omdb_api_key}
               link="https://www.omdbapi.com/apikey.aspx"
@@ -282,58 +285,58 @@ function ServerSettings() {
             />
           </Section>
 
-          <Section title="Library scanning" hint="How Arc finds new and changed files. Applies to every library.">
+          <Section sectionKey="Library scanning" title={t("serverSettings:settings.libraryScanning")} hint={t("serverSettings:settings.howArcFindsNew")}>
             <ToggleRow
-              setting="scan_automatic" label="Scan automatically when files change"
-              description="Pick up new and changed files as soon as they appear."
+              setting="scan_automatic" label={t("serverSettings:settings.scanAutomaticallyWhenFiles")}
+              description={t("serverSettings:settings.pickUpNewAnd")}
               checked={s.scan_automatic}
               busy={update.isPending}
               onChange={(v) => update.mutate({ scan_automatic: v })}
             />
             <Row
-              setting="scan_interval_minutes" label="Full library scan"
-              description="Regularly check every folder. Catches changes that network drives don't report."
+              setting="scan_interval_minutes" label={t("serverSettings:settings.fullLibraryScan")}
+              description={t("serverSettings:settings.regularlyCheckEveryFolder")}
             >
               <select
-                aria-label="Full library scan"
+                aria-label={t("serverSettings:settings.fullLibraryScan")}
                 value={s.scan_interval_minutes}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ scan_interval_minutes: Number(e.target.value) })}
                 className={inputClass + ' w-44 [&>option]:bg-surface'}
               >
-                <option value={0}>Off</option>
-                <option value={15}>Every 15 minutes</option>
-                <option value={30}>Every 30 minutes</option>
-                <option value={60}>Every hour</option>
-                <option value={120}>Every 2 hours</option>
-                <option value={360}>Every 6 hours</option>
-                <option value={720}>Every 12 hours</option>
-                <option value={1440}>Every 24 hours</option>
+                <option value={0}>{t("serverSettings:settings.off")}</option>
+                <option value={15}>{t("serverSettings:settings.every15Minutes")}</option>
+                <option value={30}>{t("serverSettings:settings.every30Minutes")}</option>
+                <option value={60}>{t("serverSettings:settings.everyHour")}</option>
+                <option value={120}>{t("serverSettings:settings.every2Hours")}</option>
+                <option value={360}>{t("serverSettings:settings.every6Hours")}</option>
+                <option value={720}>{t("serverSettings:settings.every12Hours")}</option>
+                <option value={1440}>{t("serverSettings:settings.every24Hours")}</option>
               </select>
             </Row>
             {s.scan_interval_minutes === 0 && (
               <p className="px-5 pb-3 text-sm text-muted" role="status">
                 {!s.scan_automatic && !s.scan_on_start
-                  ? 'Libraries update when you scan them or change their folders.'
+                  ? t("serverSettings:settings.librariesUpdateWhenYou")
                   : s.scan_automatic && s.scan_on_start
-                    ? 'Full scans are off. Arc still picks up detected changes and checks at startup.'
+                    ? t("serverSettings:settings.fullScansAreOff")
                     : s.scan_automatic
-                      ? 'Full scans are off. Arc still picks up detected changes.'
-                      : 'Full scans are off. Arc still checks at startup.'}
+                      ? t("serverSettings:settings.fullScansAreOff2")
+                      : t("serverSettings:settings.fullScansAreOff3")}
               </p>
             )}
             <details className="px-5 py-3">
-              <summary className="cursor-pointer text-sm font-medium">Advanced scanning options</summary>
+              <summary className="cursor-pointer text-sm font-medium">{t("serverSettings:settings.advancedScanningOptions")}</summary>
               <ToggleRow
-                setting="scan_partial" label="Scan only changed folders"
-                description="When a change is detected, check just that folder instead of the whole library."
+                setting="scan_partial" label={t("serverSettings:settings.scanOnlyChangedFolders")}
+                description={t("serverSettings:settings.whenAChangeIs")}
                 checked={s.scan_partial}
                 busy={update.isPending || !s.scan_automatic}
                 onChange={(v) => update.mutate({ scan_partial: v })}
               />
               <ToggleRow
-                setting="scan_on_start" label="Scan when Arc starts"
-                description="Check every library for changes when Arc starts."
+                setting="scan_on_start" label={t("serverSettings:settings.scanWhenArcStarts")}
+                description={t("serverSettings:settings.checkEveryLibraryFor")}
                 checked={s.scan_on_start}
                 busy={update.isPending}
                 onChange={(v) => update.mutate({ scan_on_start: v })}
@@ -341,54 +344,50 @@ function ServerSettings() {
             </details>
           </Section>
 
-          <Section title="Moving in" hint="Bring everyone's watch history from another media server.">
-            <Row label="Plex" description="Watched status, resume points, ratings and history for everyone.">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
-                Import…
-              </Button>
+          <Section sectionKey="Moving in" title={t("serverSettings:settings.movingIn")} hint={t("serverSettings:settings.bringEveryoneSWatch")}>
+            <Row label={t("serverSettings:settings.plex")} description={t("serverSettings:settings.watchedStatusResumePoints")}>
+              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>{t("serverSettings:settings.import")}</Button>
             </Row>
-            <Row label="Jellyfin" description="Watched status and resume points for every user. Needs an administrator sign-in.">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
-                Import…
-              </Button>
+            <Row label={t("serverSettings:settings.jellyfin")} description={t("serverSettings:settings.watchedStatusAndResume")}>
+              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>{t("serverSettings:settings.import")}</Button>
             </Row>
           </Section>
 
-          <Section title="Notifications" hint="Send messages to Discord, Slack or any webhook when things happen.">
+          <Section sectionKey="Notifications" title={t("serverSettings:settings.notifiLabel")} hint={t("serverSettings:settings.sendMessagesToDiscord")}>
             <Webhooks />
           </Section>
 
-          {mediaToolsNeeded(s) && <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
+          {mediaToolsNeeded(s) && <Section sectionKey="Media tools" title={t("serverSettings:settings.mediaTools")} hint={t("serverSettings:settings.ffmpegReadsYourVideo")}>
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>}
 
-          <Section title="Intro & credit detection" hint="Where Skip Intro, Recap and Credits come from. Each library chooses whether to offer them.">
+          <Section sectionKey="Intro & credit detection" title={t("serverSettings:settings.introCreditDetection")} hint={t("serverSettings:settings.whereSkipIntroRecap")}>
             <Row
-              label="Chapters and IntroDB"
-              description="Chapters named Opening or Ending, then IntroDB, a free community database. No key needed."
+              label={t("serverSettings:settings.chaptersAndIntrodb")}
+              description={t("serverSettings:settings.chaptersNamedOpeningOr")}
             />
             <KeyRow
-              label="TheIntroDB"
-              description="A larger community database, checked first. Needs a free key."
+              label={t("serverSettings:settings.theintrodb")}
+              description={t("serverSettings:settings.aLargerCommunityDatabase")}
               current={s.theintrodb_api_key}
               fixed={s.from_env.theintrodb_api_key}
               link="https://theintrodb.org"
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
-            <Row label="Detect intros and credits" description={<>When nothing is found online, Arc compares a season&apos;s episodes or spots a movie&apos;s end credits. Runs: {processingLabels[s.detection_mode].toLowerCase()}.</>}>
-              <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">Scheduled tasks</Link>
+            <Row label={t("serverSettings:settings.detectIntrosAndCredits")} description={<>{t("serverSettings:settings.whenNothingIsFound")} {processingLabels()[s.detection_mode].toLowerCase()}.</>}>
+              <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">{t("serverSettings:settings.scheduledTasks")}</Link>
             </Row>
           </Section>
 
-          <Section title="Pre-roll" hint="A short clip played before movies, like a cinema intro or a trailer.">
+          <Section sectionKey="Pre-roll" title={t("serverSettings:settings.preRoll")} hint={t("serverSettings:settings.aShortClipPlayed")}>
             <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
-          <Section title="Subtitle downloads" hint="Find subtitles online from the player when a video doesn't have the ones you want.">
+          <Section sectionKey="Subtitle downloads" title={t("serverSettings:settings.subtitleDownloads")} hint={t("serverSettings:settings.findSubtitlesOnlineFrom")}>
             <KeyRow
-              label="OpenSubtitles"
-              description="Search and download subtitles."
+              label={t("serverSettings:settings.opensuLabel")}
+              description={t("serverSettings:settings.searchAndDownloadSubtitles")}
               current={s.opensubtitles_api_key}
               fixed={s.from_env.opensubtitles_api_key}
               link="https://www.opensubtitles.com/en/consumers"
@@ -399,40 +398,40 @@ function ServerSettings() {
             )}
           </Section>
 
-          <Section title="Converting" hint="When a device can't play a file as it is, Arc converts it while it's watched.">
+          <Section sectionKey="Converting" title={t("serverSettings:settings.converting")} hint={t("serverSettings:settings.whenADeviceCan")}>
             <ToggleRow
-              setting="hw_accel" label="Use hardware acceleration"
+              setting="hw_accel" label={t("serverSettings:settings.useHardwareAcceleration")}
               description={
                 !s.transcoder.checked
-                  ? 'Checking this computer…'
+                  ? t("serverSettings:settings.checkingThisComputer")
                   : s.transcoder.hw_encoder
-                    ? `Convert with the graphics card (${s.transcoder.hw_label}). Faster, and falls back to the processor when needed.`
-                    : 'No supported graphics card (NVIDIA, Intel, AMD or Apple) was found, so Arc uses the processor.'
+                    ? t('serverSettings:settings.hardwareDescription', { hardware: s.transcoder.hw_label })
+                    : t("serverSettings:settings.noSupportedGraphicsCard")
               }
               checked={s.hw_accel && !!s.transcoder.hw_encoder}
               busy={update.isPending || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
             <ToggleRow
-              setting="tone_mapping" label="HDR tone mapping"
+              setting="tone_mapping" label={t("serverSettings:settings.hdrToneMapping")}
               description={
                 s.transcoder.checked && !s.transcoder.tone_mapping
-                  ? "This FFmpeg can't convert HDR colours (it needs the zscale filter), so converted HDR video looks washed out."
-                  : 'Keep converted HDR video looking right on ordinary screens.'
+                  ? t("serverSettings:settings.thisFfmpegCanT")
+                  : t("serverSettings:settings.keepConvertedHdrVideo")
               }
               checked={s.tone_mapping && s.transcoder.tone_mapping}
               busy={update.isPending || !s.transcoder.tone_mapping}
               onChange={(v) => update.mutate({ tone_mapping: v })}
             />
-            <Row setting="max_transcodes" label="Videos converted at once" description="How many videos Arc converts at the same time. Videos that play as they are don't count.">
+            <Row setting="max_transcodes" label={t("serverSettings:settings.videosConvertedAtOnce")} description={t("serverSettings:settings.howManyVideosArc")}>
               <select
-                aria-label="Videos converted at once"
+                aria-label={t("serverSettings:settings.videosConvertedAtOnce")}
             value={s.max_transcodes}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ max_transcodes: Number(e.target.value) })}
                 className={`${inputClass} w-40 [&>option]:bg-surface`}
               >
-                <option value={0}>No limit</option>
+                <option value={0}>{t("serverSettings:settings.noLimit")}</option>
                 {[1, 2, 3, 4, 6, 8, 10].map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -443,14 +442,14 @@ function ServerSettings() {
             <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
           </Section>
 
-          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, used instead of converting while you watch.">
+          <Section sectionKey="Optimized Versions" title={t("serverSettings:settings.optimizedVersions")} hint={t("serverSettings:settings.easyToPlayCopies")}>
             <OptimizedList />
           </Section>
 
-          <Section title="Sign-in" hint="Away from home, the password is always needed.">
+          <Section sectionKey="Sign-in" title={t("serverSettings:settings.signIn")} hint={t("serverSettings:settings.awayFromHomeThe")}>
             <ToggleRow
-              setting="local_bypass" label="Skip the password at home"
-              description="At home, people just pick a profile. The admin profile still needs the password or its PIN."
+              setting="local_bypass" label={t("serverSettings:settings.skipThePasswordAt")}
+              description={t("serverSettings:settings.atHomePeopleJust")}
               checked={s.local_bypass}
               busy={update.isPending}
               onChange={(v) => update.mutate({ local_bypass: v })}
@@ -458,10 +457,10 @@ function ServerSettings() {
             <PasswordRow />
           </Section>
 
-          <Section title="Network">
+          <Section sectionKey="Network" title={t("serverSettings:settings.network")}>
             <ToggleRow
-              setting="allow_network" label="Allow other devices"
-              description="Let phones, TVs and other computers on your network use Arc."
+              setting="allow_network" label={t("serverSettings:settings.allowOtherDevices")}
+              description={t("serverSettings:settings.letPhonesTvsAnd")}
               checked={s.allow_network}
               busy={update.isPending}
               onChange={(v) => update.mutate({ allow_network: v })}
@@ -470,17 +469,17 @@ function ServerSettings() {
             <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
           </Section>
 
-          <Section title="Remote Access" hint="Watch away from home. Signing in always needs a password there.">
+          <Section sectionKey="Remote Access" title={t("serverSettings:settings.remoteAccess")} hint={t("serverSettings:settings.watchAwayFromHome")}>
             <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
-            <Row setting="remote_kbps" label="Limit each remote stream" description="Bigger videos are converted down to this so they play smoothly away from home.">
+            <Row setting="remote_kbps" label={t("serverSettings:settings.limitEachRemoteStream")} description={t("serverSettings:settings.biggerVideosAreConverted")}>
               <select
-                aria-label="Limit each remote stream"
+                aria-label={t("serverSettings:settings.limitEachRemoteStream")}
             value={s.remote_kbps}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ remote_kbps: Number(e.target.value) })}
                 className={`${inputClass} w-48 [&>option]:bg-surface`}
               >
-                <option value={0}>Original (no limit)</option>
+                <option value={0}>{t("serverSettings:settings.originalNoLimit")}</option>
                 {qualities.map((q) => (
                   <option key={q} value={q}>
                     {qualityName(q)}
@@ -491,83 +490,82 @@ function ServerSettings() {
             <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
           </Section>
 
-          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise.">
+          <Section sectionKey="Devices" title={t("serverSettings:settings.devices")} hint={t("serverSettings:settings.browsersAndAppsSigned")}>
             <DevicesList />
           </Section>
 
-          <Section
-            title="Scheduled tasks"
-            hint="Heavy work waits for a quiet time of night, so it doesn't slow anyone watching."
+          <Section sectionKey="Scheduled tasks" title={t("serverSettings:settings.scheduledTasks")}
+            hint={t("serverSettings:settings.heavyWorkWaitsFor")}
           >
             <Row
-              setting={['maintenance_start', 'maintenance_end']} label="Maintenance time"
+              setting={['maintenance_start', 'maintenance_end']} label={t("serverSettings:settings.maintenanceTime")}
               description={<>
-                {s.maintenance_start === s.maintenance_end ? 'Tasks can run at any time.' : 'Tasks run between these hours, and carry on the next night if they don’t finish.'}
+                {s.maintenance_start === s.maintenance_end ? t("serverSettings:settings.tasksCanRunAt") : t("serverSettings:settings.tasksRunBetweenThese")}
                 <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
               </>}
             >
               <div className="flex items-center gap-2 text-sm">
-                <HourSelect label="Maintenance start" value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
-                <span className="text-muted">to</span>
-                <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
+                <HourSelect label={t("serverSettings:settings.maintenanceStart")} value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
+                <span className="text-muted">{t("serverSettings:settings.to")}</span>
+                <HourSelect label={t("serverSettings:settings.maintenanceEnd")} value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
             <MaintenanceTasks
               rows={[
                 {
-                  kind: 'previews', label: 'Scrubbing previews',
-                  description: 'Pictures shown while dragging along the timeline, for libraries that have them turned on.',
-                  control: <ProcessingSelect label="Scrubbing previews" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
+                  kind: 'previews', label: t('serverSettings:tasks.previewsLabel'),
+                  description: t('serverSettings:tasks.previewsDescription'),
+                  control: <ProcessingSelect label={t("serverSettings:settings.scrubbingPreviews")} value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
                   feedback: <SaveFeedback settings={['preview_mode']} />,
                 },
                 {
-                  kind: 'markers', label: 'Intro & credit detection',
-                  description: 'Finds intros by comparing a season’s episodes, and movie end credits, when nothing is found online.',
-                  control: <ProcessingSelect label="Intro & credit detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
+                  kind: 'markers', label: t('serverSettings:tasks.markersLabel'),
+                  description: t('serverSettings:tasks.markersDescription'),
+                  control: <ProcessingSelect label={t("serverSettings:settings.introCreditDetection")} value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
                   feedback: <SaveFeedback settings={['detection_mode']} />,
                 },
                 {
-                  kind: 'analysis', label: 'Media analysis',
-                  description: 'Brings older files up to date when Arc learns to read more from them, such as Dolby Vision, HDR10+ and Atmos. New files are analysed when added.',
-                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Media analysis" />,
+                  kind: 'analysis', label: t('serverSettings:tasks.analysisLabel'),
+                  description: t('serverSettings:tasks.analysisDescription'),
+                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label={t("serverSettings:settings.mediaAnalysis")} />,
                   feedback: <SaveFeedback settings={['analysis_enabled']} />,
                 },
                 {
-                  kind: 'metadata', label: 'Metadata refresh',
-                  description: 'Keeps titles’ details and artwork up to date, more often for shows that are still airing.',
-                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label="Metadata refresh" />,
+                  kind: 'metadata', label: t('serverSettings:tasks.metadataLabel'),
+                  description: t('serverSettings:tasks.metadataDescription'),
+                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label={t("serverSettings:settings.metadataRefresh")} />,
                   feedback: <SaveFeedback settings={['metadata_refresh_enabled']} />,
                 },
                 {
-                  kind: 'backup', label: 'Database backups',
-                  description: 'A daily backup of Arc’s database. You can also back up any time in Backups & restore.',
-                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Database backups" />,
+                  kind: 'backup', label: t('serverSettings:tasks.backupLabel'),
+                  description: t('serverSettings:tasks.backupDescription'),
+                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label={t("serverSettings:settings.databaseBackups")} />,
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
                 },
                 {
-                  kind: 'database', label: 'Optimize database',
-                  description: 'A weekly check and tidy-up that keeps Arc’s database fast and compact.',
-                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label="Optimize database automatically" />,
+                  kind: 'database', label: t('serverSettings:tasks.databaseLabel'),
+                  description: t('serverSettings:tasks.databaseDescription'),
+                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label={t("serverSettings:settings.optimizeDatabaseAutomatically")} />,
                   feedback: <SaveFeedback settings={['database_upkeep_enabled']} />,
                 },
                 {
-                  kind: 'cache', label: 'Clean up cached files',
-                  description: 'Weekly removal of cached images, previews and subtitles nothing uses any more. Your media files are never touched.',
-                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label="Clean up cached files automatically" />,
+                  kind: 'cache', label: t('serverSettings:tasks.cacheLabel'),
+                  description: t('serverSettings:tasks.cacheDescription'),
+                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label={t("serverSettings:settings.cleanUpCachedFiles")} />,
                   feedback: <SaveFeedback settings={['cache_cleanup_enabled']} />,
                 },
                 {
-                  kind: 'empty_trash', label: 'Empty trash automatically',
-                  description: 'After a complete scan, removes titles whose files are gone, with their watch history. Leave it off if you sometimes disconnect drives. Your files are never deleted.',
+                  kind: 'empty_trash', label: t('serverSettings:tasks.emptyTrashLabel'),
+                  description: t('serverSettings:tasks.emptyTrashDescription'),
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
                   feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
-                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">Choose library…</Link>,
+                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">{t("serverSettings:settings.chooseLibrary")}</Link>,
                 },
               ]}
             />
           </Section>
 
-          <Section title="Diagnostics" hint="Information to help when something is slow or goes wrong."><Diagnostics /></Section>
+          <Section sectionKey="Diagnostics" title={t("serverSettings:settings.diagnostics")} hint={t("serverSettings:settings.informationToHelpWhen")}><Diagnostics /></Section>
 
         </>
       )}
@@ -803,6 +801,7 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
 
 /** Pre-roll videos: files or folders, and whether one plays at random or all of them. */
 function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [paths, setPaths] = useState(s.preroll_paths);
   const [busy, setBusy] = useState(false);
   const changed = paths.trim() !== s.preroll_paths;
@@ -819,36 +818,33 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
   return (
     <div className="space-y-3 px-4 py-3.5">
       <div>
-        <p className="text-sm font-medium">Videos</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          Files or folders, one per line. Played when a movie starts from the beginning, not when resuming. MP4 (H.264) plays everywhere.
-        </p>
+        <p className="text-sm font-medium">{t("serverSettings:settings.videos")}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">{t("serverSettings:settings.filesOrFoldersOne")}</p>
       </div>
       <textarea
         value={paths}
         onChange={(e) => setPaths(e.target.value)}
         rows={3}
-        placeholder={'D:\\Pre-rolls\nD:\\Trailers\\Arc intro.mp4'}
+        placeholder={t("serverSettings:settings.dPreRollsD")}
         className={`${inputClass} h-auto w-full resize-y py-2 font-mono text-xs leading-relaxed`}
       />
       <div className="flex flex-wrap items-center gap-3">
         <select
-          aria-label="Pre-roll order"
+          aria-label={t("serverSettings:settings.preRollOrder")}
             value={s.preroll_mode}
           disabled={busy}
           onChange={(e) => save({ preroll_mode: e.target.value as 'random' | 'all' })}
           className={`${inputClass} [&>option]:bg-surface`}
         >
-          <option value="random">Play one at random</option>
-          <option value="all">Play them all, in order</option>
+          <option value="random">{t("serverSettings:settings.playOneAtRandom")}</option>
+          <option value="all">{t("serverSettings:settings.playThemAllIn")}</option>
         </select>
         <span className="flex-1 text-xs text-muted">
-          {s.preroll_paths ? (s.preroll_found ? `${s.preroll_found} video${s.preroll_found === 1 ? '' : 's'} found` : 'No videos found there') : 'Off'}
+          {s.preroll_paths ? (s.preroll_found ? t('serverSettings:settings.prerollFound', { count: s.preroll_found }) : t("serverSettings:settings.noVideosFoundThere")) : t("serverSettings:settings.off")}
         </span>
         {changed && (
           <Button variant="primary" size="sm" disabled={busy} onClick={() => save({ preroll_paths: paths.trim() })}>
-            {busy && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.save")}</Button>
         )}
       </div>
       <SaveFeedback settings={['preroll_paths', 'preroll_mode']} />
@@ -871,11 +867,12 @@ function HourSelect({ value, disabled, onChange, label }: { label: string; value
 
 function sectionId(title: string) { return 'settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ sectionKey, title, hint, children }: { sectionKey?: string; title: string; hint?: string; children: ReactNode }) {
+  const key = sectionKey ?? title;
   const group = useContext(SettingsSection);
-  if (group !== 'profile' && sectionGroups[title] !== group) return null;
+  if (group !== 'profile' && sectionGroups[key] !== group) return null;
   return (
-    <section id={sectionId(title)} className="scroll-mt-24 lg:scroll-mt-6">
+    <section id={sectionId(key)} className="scroll-mt-24 lg:scroll-mt-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
       <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">{children}</div>
@@ -887,11 +884,12 @@ type SaveState = { keys: string[]; status: 'idle' | 'pending' | 'error' | 'succe
 const SaveFeedbackContext = createContext<SaveState | null>(null);
 
 function SaveFeedback({ settings, className }: { settings: string[]; className?: string }) {
+  const { t } = useTranslation('serverSettings');
   const save = useContext(SaveFeedbackContext);
   if (!save || !settings.some(key => save.keys.includes(key))) return null;
   if (save.status === 'error') return <div className={className}><ErrorNotice error={save.error} onRetry={save.retry} /></div>;
   if (save.status === 'idle') return null;
-  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? 'Saving…' : 'Saved'}</p>;
+  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? t("serverSettings:settings.saving") : t("serverSettings:settings.saved")}</p>;
 }
 
 function Row({ label, description, children, setting, compact = false }: { label: string; description?: ReactNode; children?: ReactNode; setting?: string | string[]; compact?: boolean }) {
@@ -920,6 +918,7 @@ function ToggleRow({ label, description, checked, busy, onChange, setting }: { l
 
 /** Shows whether a key is set; "Change" reveals a field. Keys are checked with the service before saving. */
 function KeyRow({ label, description, current, fixed, link, onSave }: { label: string; description: string; current: string; fixed?: boolean; link: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -944,14 +943,13 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
         <>
           {description}{' '}
           {fixed ? (
-            'Set by an environment variable.'
+            t("serverSettings:settings.setByAnEnvironment")
           ) : current ? (
             <span className="inline-flex items-center gap-1 text-foreground/80">
-              <CheckCircle2 className="size-3.5 text-accent" /> Key {current}
+              <CheckCircle2 className="size-3.5 text-accent" /> {t("serverSettings:settings.key")} {current}
             </span>
           ) : (
-            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
-              Get a free key <ExternalLink className="size-3" />
+            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">{t("serverSettings:settings.getAFreeKey")} <ExternalLink className="size-3" />
             </a>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -967,23 +965,18 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
               save(value.trim());
             }}
           >
-            <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder="Paste the key" className={`${inputClass} w-56`} spellCheck={false} />
+            <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("serverSettings:settings.pasteTheKey")} className={`${inputClass} w-56`} spellCheck={false} />
             <Button size="sm" variant="primary" type="submit" disabled={!value.trim() || busy}>
-              {busy && <Loader2 className="animate-spin" />} Save
-            </Button>
-            <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
+              {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.save")}</Button>
+            <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>{t("serverSettings:settings.cancel")}</Button>
           </form>
         ) : (
           <div className="flex gap-2">
             {current && (
-              <Button size="sm" variant="ghost" onClick={() => save('')} disabled={busy}>
-                Remove
-              </Button>
+              <Button size="sm" variant="ghost" onClick={() => save('')} disabled={busy}>{t("serverSettings:settings.remove")}</Button>
             )}
             <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-              {current ? 'Change' : 'Add Key'}
+              {current ? t("serverSettings:settings.change") : t("serverSettings:settings.addKey")}
             </Button>
           </div>
         ))}
@@ -993,6 +986,7 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
 
 /** An optional OpenSubtitles account: more downloads a day than the key alone. */
 function AccountRow({ username, onSave }: { username: string; onSave: (username: string, password: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
@@ -1013,15 +1007,15 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
   };
   return (
     <Row
-      label="OpenSubtitles account"
+      label={t("serverSettings:settings.opensubtitlesAccount")}
       description={
         <>
           {username ? (
             <span className="inline-flex items-center gap-1 text-foreground/80">
-              <CheckCircle2 className="size-3.5 text-accent" /> Signed in as {username}
+              <CheckCircle2 className="size-3.5 text-accent" /> {t('serverSettings:settings.accountName', { username })}
             </span>
           ) : (
-            'Optional: signing in allows more downloads a day.'
+            t("serverSettings:settings.optionalSigningInAllows")
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
@@ -1035,24 +1029,19 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
             save(user.trim(), pass);
           }}
         >
-          <input autoFocus value={user} onChange={(e) => setUser(e.target.value)} placeholder="Username" autoComplete="off" className={`${inputClass} w-36`} />
-          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder="Password" autoComplete="new-password" className={`${inputClass} w-36`} />
+          <input autoFocus value={user} onChange={(e) => setUser(e.target.value)} placeholder={t("serverSettings:settings.username")} autoComplete="off" className={`${inputClass} w-36`} />
+          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder={t("serverSettings:settings.password")} autoComplete="new-password" className={`${inputClass} w-36`} />
           <Button size="sm" variant="primary" type="submit" disabled={!user.trim() || !pass || busy}>
-            {busy && <Loader2 className="animate-spin" />} Sign In
-          </Button>
-          <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.signIn2")}</Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>{t("serverSettings:settings.cancel")}</Button>
         </form>
       ) : (
         <div className="flex gap-2">
           {username && (
-            <Button size="sm" variant="ghost" onClick={() => save('', '')} disabled={busy}>
-              Sign Out
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => save('', '')} disabled={busy}>{t("serverSettings:settings.signOut")}</Button>
           )}
           <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-            {username ? 'Change' : 'Sign In'}
+            {username ? t("serverSettings:settings.change") : t("serverSettings:settings.signIn2")}
           </Button>
         </div>
       )}
@@ -1062,6 +1051,7 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
 
 /** Where converted streams are written while they're watched. */
 function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState('');
   const save = async (v: string) => {
@@ -1076,24 +1066,19 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
   return (
     <>
       <Row
-        label="Temporary folder"
+        label={t("serverSettings:settings.temporaryFolder")}
         description={
-          <>
-            Where video is kept while it&apos;s converted. A fast drive with free space works best.{' '}
-            <span className="font-mono text-foreground/80">{value || "Arc's data folder"}</span>
+          <>{t("serverSettings:settings.whereVideoIsKept")}{' '}
+            <span className="font-mono text-foreground/80">{value || t("serverSettings:settings.arcSDataFolder")}</span>
             {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
         <div className="flex gap-2">
           {value && (
-            <Button size="sm" variant="ghost" onClick={() => void save('')}>
-              Use Default
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>
           )}
-          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
-            Choose…
-          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>{t("serverSettings:settings.choose")}</Button>
         </div>
       </Row>
       {picking && (
@@ -1203,12 +1188,13 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
 }
 
 function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (path: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [path, setPath] = useState(s.ffprobe_path);
   const [error, setError] = useState('');
   const ok = s.ffprobe.found;
   return (
     <Row
-      label="ffprobe"
+      label={t("serverSettings:settings.ffprobe")}
       description={
         <>
           <span className="flex items-center gap-1.5">
@@ -1220,13 +1206,12 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
             <span className="mt-1.5 flex items-center gap-1.5">
               {s.ffprobe.ffmpeg ? <CheckCircle2 className="size-3.5 shrink-0 text-accent" /> : <XCircle className="size-3.5 shrink-0 text-warning" />}
               {s.ffprobe.ffmpeg
-                ? 'FFmpeg found: files a browser can’t play are converted as they’re watched'
-                : 'FFmpeg wasn’t found next to ffprobe, so files a browser can’t play won’t be converted'}
+                ? t("serverSettings:settings.ffmpegFoundFilesA")
+                : t("serverSettings:settings.ffmpegWasnTFound")}
             </span>
           )}
           {!ok && (
-            <a href="https://ffmpeg.org/download.html" target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-accent hover:underline">
-              Download FFmpeg <ExternalLink className="size-3" />
+            <a href="https://ffmpeg.org/download.html" target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-accent hover:underline">{t("serverSettings:settings.downloadFfmpeg")} <ExternalLink className="size-3" />
             </a>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -1245,11 +1230,9 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
           }
         }}
       >
-        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="Found automatically" className={`${inputClass} min-w-0 flex-1 font-mono text-xs sm:w-72`} spellCheck={false} />
+        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t("serverSettings:settings.foundAutomatically")} className={`${inputClass} min-w-0 flex-1 font-mono text-xs sm:w-72`} spellCheck={false} />
         {path !== s.ffprobe_path && (
-          <Button size="sm" variant="primary" type="submit" disabled={s.from_env.ffprobe_path}>
-            Save
-          </Button>
+          <Button size="sm" variant="primary" type="submit" disabled={s.from_env.ffprobe_path}>{t("serverSettings:settings.save")}</Button>
         )}
       </form>
     </Row>
@@ -1304,10 +1287,15 @@ function PasswordRow() {
   );
 }
 
-const processingLabels: Record<ServerSettings['preview_mode'], string> = { off: 'Off', scheduled: 'During maintenance', added: 'When added and during maintenance' };
+
+
+function processingLabels(): Record<ServerSettings['preview_mode'], string> {
+  return { off: i18n.t('serverSettings:processing.off'), scheduled: i18n.t('serverSettings:processing.scheduled'), added: i18n.t('serverSettings:processing.added') };
+}
 
 function ProcessingSelect({label,value,busy,onChange}:{label:string;value:ServerSettings['preview_mode'];busy:boolean;onChange:(value:ServerSettings['preview_mode'])=>void}) {
+  useTranslation('serverSettings');
  return <select aria-label={label} value={value} disabled={busy} onChange={e=>onChange(e.target.value as ServerSettings['preview_mode'])} className={inputClass+' min-w-0 flex-1 sm:w-72 sm:flex-none [&>option]:bg-surface'}>
-  {(Object.keys(processingLabels) as ServerSettings['preview_mode'][]).map(v => <option key={v} value={v}>{processingLabels[v]}</option>)}
+  {(Object.keys(processingLabels()) as ServerSettings['preview_mode'][]).map(v => <option key={v} value={v}>{processingLabels()[v]}</option>)}
  </select>;
 }
