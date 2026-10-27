@@ -94,7 +94,7 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
           <span>{p.device}</span>
           <span className="text-subtle">{p.address}</span>
           <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted ring-1 ring-border">
-            {p.method === 'direct' ? 'Direct play' : 'Converting'}
+            {p.method === 'direct' ? 'Direct play' : p.throttled ? 'Converting (throttled)' : 'Converting'}
           </span>
         </div>
         <div className="mt-auto flex items-center gap-3 text-[12px] tabular-nums text-muted">

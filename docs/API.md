@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-172 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+173 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -82,7 +82,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| POST | `/api/cast` | profile | {"url"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. |
+| POST | `/api/cast` | profile | {"url"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt). |
 | GET | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
 | OPTIONS | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
 
@@ -188,7 +188,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items/{id}/subtitles` | profile | ?file=<id> lists a file's subtitle tracks. |
 | GET | `/api/items/{id}/subtitles/search` | profile | ?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first. |
 | POST | `/api/items/{id}/subtitles/download` | profile | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |
-| GET | `/api/items/{id}/subtitles/{track}` | profile | ?file=<id> is a text subtitle track's cues (times in the file's time), extracted the first time it's asked for. |
+| GET | `/api/items/{id}/subtitles/{track}` | profile | ?file= returns a subtitle track's cues as JSON, for the web player to show. |
+| GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). |
 | GET | `/api/items/{id}/trickplay` | profile | ?file=<id> describes a file's timeline thumbnails and where its sheets are. Until they're made it's 404, and the file moves up the queue. |
 | GET | `/api/items/{id}/trickplay/{file}/{sheet}` | profile | Is one sheet of thumbnails. |
 | GET | `/api/items/{id}/images/{type}` | profile | Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. |

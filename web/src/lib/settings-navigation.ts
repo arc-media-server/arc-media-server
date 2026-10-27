@@ -69,3 +69,9 @@ export function settingsSectionTitle(title: string): string {
   };
   return labels[title] ?? title;
 }
+
+/** Media tools (ffprobe/FFmpeg) is shown only when something needs attention or a path was set:
+ * when both are found automatically there is nothing to do there. */
+export function mediaToolsNeeded(s?: { ffprobe_path: string; ffprobe: { found: boolean; ffmpeg?: string } }) {
+  return !!s && (!s.ffprobe.found || !s.ffprobe.ffmpeg || !!s.ffprobe_path);
+}

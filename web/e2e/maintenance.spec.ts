@@ -145,6 +145,23 @@ test('maintenance: server clock keeps server timezone, retries errors and reflec
   await page.screenshot({ path: info.outputPath('server-clock-phone.png') });
 });
 
+test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove', async ({ page, media }, info) => {
+  const lib = await library(page, media.movies);
+  await page.goto('/libraries');
+  const row = page.getByRole('region', { name: 'Maintenance library', exact: true });
+  const buttons = row.getByRole('button');
+  await expect(buttons).toHaveText(['Edit', '']);
+  await row.getByRole('button', { name: 'Library actions for Maintenance library', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Scan library files', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Remove library…']);
+  await page.screenshot({ path: info.outputPath('library-menu.png') });
+  await page.getByRole('menuitem', { name: 'Remove library…', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Remove Maintenance library?');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
+});
+
 for (const shows of [false, true]) {
   test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);
@@ -372,4 +389,26 @@ test('attribution: About credits TMDB with its required notice and TheTVDB', asy
   await expect(about.getByText('Metadata provided by', { exact: false })).toBeVisible();
   await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
   await about.screenshot({ path: info.outputPath('about.png') });
+});
+
+test('age ratings: each library uses its own country, chosen in Advanced', async ({ page, media }) => {
+  // New libraries start with the server's country (GB from setup) and get the BBFC rating.
+  const lib = await library(page, media.movies);
+  expect(lib.rating_region).toBe('GB');
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.find((i: { title: string }) => i.title === 'Arc Movie');
+  expect((await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating).toBe('PG');
+  await page.goto('/libraries');
+  await page.getByRole('region', { name: 'Maintenance library', exact: true }).getByRole('button', { name: 'Edit', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('tab', { name: 'Advanced' }).click();
+  const ratings = dialog.getByRole('combobox', { name: 'Age ratings', exact: true });
+  await expect(ratings).toHaveValue('GB');
+  await ratings.selectOption('US');
+  await expect(dialog.getByText('Details are fetched again after you save.', { exact: false })).toBeVisible();
+  const saved = page.waitForResponse(r => r.url().endsWith(`/api/libraries/${lib.id}`) && r.request().method() === 'PATCH' && r.ok());
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await saved;
+  // Saving refetches the library's titles, so the rating follows without a manual refresh.
+  await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
+  expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
 });

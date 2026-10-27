@@ -67,6 +67,11 @@ type Session struct {
 	err      error
 	stderr   bytes.Buffer
 	lastSeen time.Time
+	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
+	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
+	proc      *os.Process
+	requested int
+	paused    bool
 }
 
 // Manager runs sessions.
@@ -164,7 +169,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	var b [8]byte
 	rand.Read(b[:])
 	s := &Session{ID: hex.EncodeToString(b[:]), Options: opts, OffsetMS: opts.StartMS, lastSeen: time.Now(),
-		done: make(chan struct{})}
+		done: make(chan struct{}), requested: -1}
 	s.dir = filepath.Join(dir, s.ID)
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return nil, err
@@ -184,6 +189,8 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	m.log.Info("transcode started", "session", s.ID, "file", filepath.Base(opts.Path), "copy_video", opts.CopyVideo,
 		"copy_audio", opts.CopyAudio, "start", time.Duration(s.OffsetMS)*time.Millisecond)
 	m.log.Debug("ffmpeg", "args", strings.Join(args, " "))
+	s.proc = cmd.Process
+	go s.throttle()
 	go func() {
 		err := cmd.Wait()
 		s.mu.Lock()
@@ -365,6 +372,13 @@ func (m *Manager) Get(id string) *Session {
 		s.mu.Unlock()
 	}
 	return s
+}
+
+// Peek returns a running session without marking it as in use (for status displays).
+func (m *Manager) Peek(id string) *Session {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.sessions[id]
 }
 
 // Stop ends a session and deletes its files.

@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, RefreshCw, ScanSearch, Trash2 } from 'lucide-react';
+import { FolderSearch, MoreHorizontal, RefreshCw, ScanSearch, Trash2, X } from 'lucide-react';
 import { api, type Library, type ScanStatus } from '@/lib/api';
 import { EmptyTrashDialog } from '@/components/EmptyTrash';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorNotice } from '@/components/Page';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /** Explicit costly repairs stay separate from efficient discovery scans. */
-export function LibraryWorkControls({ library }: { library: Library }) {
+/** Stop while work runs, then the library's More menu: Scan, the costly repairs, Empty trash and
+ * Remove (as Plex's library ⋯ menu). Edit sits beside it on the row. */
+export function LibraryWorkControls({ library, onScan, scanDisabled, onRemove, children }: {
+  library: Library; onScan: () => void; scanDisabled: boolean; onRemove: () => void; children?: ReactNode;
+}) {
   const [operation, setOperation] = useState<'refresh' | 'analyze' | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const qc = useQueryClient();
@@ -24,12 +28,16 @@ export function LibraryWorkControls({ library }: { library: Library }) {
     {library.scan.running && !!library.scan.job_id && <Button variant="secondary" size="sm"
       aria-label={`Stop work in ${library.name}`} disabled={stop.isPending || library.scan.stopping}
       onClick={() => stop.mutate(library.scan.job_id!)}>{stop.isPending || library.scan.stopping ? 'Stopping…' : 'Stop'}</Button>}
+    {children}
     <DropdownMenu>
       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Library actions for ${library.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem disabled={scanDisabled || library.scan.running} onSelect={onScan}><FolderSearch /> Scan library files</DropdownMenuItem>
         {library.kind !== 'videos' && <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('refresh'); }}><RefreshCw /> Refresh all metadata…</DropdownMenuItem>}
         <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('analyze'); }}><ScanSearch /> Reanalyze files…</DropdownMenuItem>
         <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => setTrashOpen(true)}><Trash2 /> Empty trash…</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onRemove}><X /> Remove library…</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
     <EmptyTrashDialog libraryId={library.id} libraryName={library.name} open={trashOpen} onOpenChange={setTrashOpen} />

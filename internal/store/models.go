@@ -13,6 +13,8 @@ type Library struct {
 	CollectionMin int `json:"collection_min"`
 	// The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English.
 	MetadataLanguage string `json:"metadata_language"`
+	// The country whose age ratings are used (e.g. "GB"), as Plex's per-library Country.
+	RatingRegion string `json:"rating_region"`
 	// Offer Skip Intro (and Skip Recap) and Skip Credits, finding where they are.
 	SkipIntros  bool `json:"skip_intros"`
 	SkipCredits bool `json:"skip_credits"`
