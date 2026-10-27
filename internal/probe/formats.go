@@ -140,7 +140,7 @@ func (p *Prober) EnrichFormats(ctx context.Context, path string, streams []Strea
 	out := &limitedOutput{remaining: 2 << 20}
 	stderr := &limitedOutput{remaining: 64 << 10}
 	cmd := exec.CommandContext(budget, p.Bin(), "-v", "error", "-probesize", "5000000", "-analyzeduration", "2000000",
-		"-show_streams", "-show_entries", "stream=index,codec_type,codec_name,profile,channel_layout:stream_side_data=side_data_type,dv_profile,rpu_present_flag", "-of", "json", path)
+		"-show_streams", "-show_entries", "stream=index,codec_type,codec_name,profile,channel_layout,width,height,sample_aspect_ratio,display_aspect_ratio:stream_side_data=side_data_type,dv_profile,rpu_present_flag", "-of", "json", path)
 	cmd.Stdout = out
 	cmd.Stderr = stderr
 	var raw ffprobeOutput
@@ -156,6 +156,9 @@ func (p *Prober) EnrichFormats(ctx context.Context, path string, streams []Strea
 				}
 				if r.ChannelLayout != "" {
 					s.ChannelLayout = r.ChannelLayout
+				}
+				if ar := aspectRatio(r.CodecType, r.Width, r.Height, r.SampleAspect, r.DisplayAspect); ar > 0 {
+					s.AspectRatio = ar
 				}
 				applyFormatSideData(s, r.SideData)
 			}

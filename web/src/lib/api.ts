@@ -73,6 +73,8 @@ export interface Stream {
   title?: string;
   width?: number;
   height?: number;
+  /** Display aspect ratio, e.g. 1.78 or 2.39; missing until the file has been analysed. */
+  aspect_ratio?: number;
   channels?: number;
   is_default: boolean;
   is_forced: boolean;

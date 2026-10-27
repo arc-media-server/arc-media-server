@@ -98,11 +98,11 @@ func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	for _, st := range f.Streams {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO media_streams (file_id, idx, kind, codec, profile, language, title, width, height,
-				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, st.Index, st.Kind, st.Codec, st.Profile, st.Language, st.Title, st.Width, st.Height,
 			st.Channels, boolInt(st.IsDefault), boolInt(st.IsForced), st.PixFmt, st.BitDepth, st.ColorTransfer,
-			st.ColorPrimaries, st.FrameRate, st.Bitrate, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus); err != nil {
+			st.ColorPrimaries, st.FrameRate, st.Bitrate, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus, st.AspectRatio); err != nil {
 			return 0, err
 		}
 	}
@@ -361,7 +361,7 @@ func (s *Store) SeriesFilePaths(ctx context.Context, seriesID string, limit int)
 func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT idx, kind, codec, profile, language, title, width, height, channels, is_default, is_forced,
-			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status
+			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio
 		FROM media_streams WHERE file_id = ? ORDER BY idx`, fileID)
 	if err != nil {
 		return nil, err
@@ -372,7 +372,7 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 		var st Stream
 		if err := rows.Scan(&st.Index, &st.Kind, &st.Codec, &st.Profile, &st.Language, &st.Title,
 			&st.Width, &st.Height, &st.Channels, &st.IsDefault, &st.IsForced, &st.PixFmt, &st.BitDepth,
-			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate, &st.ChannelLayout, &st.DolbyVision, &st.DolbyVisionProfile, &st.HDR10Plus, &st.HDRProbeStatus); err != nil {
+			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate, &st.ChannelLayout, &st.DolbyVision, &st.DolbyVisionProfile, &st.HDR10Plus, &st.HDRProbeStatus, &st.AspectRatio); err != nil {
 			return nil, err
 		}
 		streams = append(streams, st)

@@ -37,7 +37,7 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
       <div className={`grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2 ${compact ? "" : "lg:grid-cols-4"}`}>
         <Detail label="Video">
           {video ? [fmt.resolution(video.width, video.height), fmt.codec(video.codec), ...fmt.sourceFormats(video)].filter(Boolean).join(' · ') : '—'}
-          {video && <span className="block text-subtle">{video.width}×{video.height}</span>}
+          {video && <span className="block text-subtle">{[`${video.width}×${video.height}`, fmt.aspectRatio(video.aspect_ratio)].filter(Boolean).join(' · ')}</span>}
         </Detail>
         <Detail label="Audio">
           {audio.length === 0

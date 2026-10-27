@@ -672,7 +672,7 @@ test('source labels keep HDR and profile-based audio with their own movie versio
   const original = await (await page.request.get('/api/items/' + item.id)).json();
   const base = original.files[0];
   const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, streams: [
-    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled' },
+    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled', aspect_ratio: 2.39 },
     { index: 1, kind: 'audio', codec: 'truehd', profile: audioProfile, channels: 8, language: 'eng', is_default: true, is_forced: false },
   ] });
   const files = [file(101, 'Cinema', true, true, 'Dolby TrueHD + Dolby Atmos'), file(102, 'Standard', false, false, '')];
@@ -689,6 +689,7 @@ test('source labels keep HDR and profile-based audio with their own movie versio
     await expect(hero.getByText('Dolby TrueHD 7.1', { exact: true })).toBeVisible();
     await expect(hero.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
     await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('3840×2160 · 2.39:1', { exact: true }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`source-formats-${width}.png`), fullPage: true });
   }

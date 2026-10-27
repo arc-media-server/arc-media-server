@@ -158,6 +158,8 @@ for (const shows of [false, true]) {
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
+    // The generated movie is really read by FFprobe: its 160×90 frame is 16:9.
+    if (!shows) await expect(page.getByText('160×90 · 16:9', { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath('title-actions-desktop.png') });
     await page.setViewportSize({ width: 390, height: 900 });
     await page.screenshot({ path: info.outputPath('title-actions-phone.png') });
