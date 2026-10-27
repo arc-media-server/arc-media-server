@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
@@ -39,6 +40,7 @@ export function EditSeasonDialog({
 }
 
 function SeasonForm({ series, season, orderingId, aired, onDone }: { series: Item; season: Season; orderingId?: number; aired: boolean; onDone: () => void }) {
+  const { t } = useTranslation('details');
   const qc = useQueryClient();
   // Season posters belong to the aired seasons, so they can only be changed in an aired order.
   const posters = aired;
@@ -76,36 +78,33 @@ function SeasonForm({ series, season, orderingId, aired, onDone }: { series: Ite
 
   return (
     <DialogContent
-      title={`Edit ${season.name}`}
+      title={t('details:editSeason.title', { name: season.name })}
       className={tab === 'poster' ? 'w-[min(820px,calc(100vw-32px))]' : undefined}
-      description={tab === 'details' ? 'Anything you change is locked, so refreshes won’t undo it. This changes the season in the episode order you’re viewing.' : undefined}
+      description={tab === 'details' ? t("details:editSeason.anythingYouChangeIs") : undefined}
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost" disabled={save.isPending}>
-              Cancel
-            </Button>
+            <Button variant="ghost" disabled={save.isPending}>{t("details:editSeason.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !name.trim()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />} {t("details:editSeason.save")}</Button>
         </>
       }
     >
       {posters && (
         <div className="mb-5 flex gap-1" role="tablist">
-          {(['details', 'poster'] as const).map((t) => (
+          {(['details', 'poster'] as const).map((tabId) => (
             <button
-              key={t}
+              key={tabId}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
+              aria-selected={tab === tabId}
+              onClick={() => setTab(tabId)}
+              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === tabId ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'details' ? 'Details' : 'Poster'}
-              {t === 'poster' && poster && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+              {tabId === 'details' ? t("details:editSeason.details") : t("details:editSeason.poster")}
+              {tabId === 'poster' && poster && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={t("details:editSeason.changed")} />}
             </button>
           ))}
         </div>
@@ -127,21 +126,21 @@ function SeasonForm({ series, season, orderingId, aired, onDone }: { series: Ite
         >
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editSeason.name")}</span>
               <LockToggle locked={locked.has('name')} onToggle={() => toggle('name')} />
             </span>
             <input value={name} onChange={(e) => edit('name', setName)(e.target.value)} className={inputClass} />
           </label>
           <label className="block">
             <span className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Summary</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editSeason.summary")}</span>
               <LockToggle locked={locked.has('overview')} onToggle={() => toggle('overview')} />
             </span>
             <textarea
               value={overview}
               onChange={(e) => edit('overview', setOverview)(e.target.value)}
               rows={5}
-              placeholder="No summary yet"
+              placeholder={t("details:editSeason.noSummaryYet")}
               className={cn(inputClass, 'h-auto resize-y py-2.5 leading-relaxed')}
             />
           </label>
