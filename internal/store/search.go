@@ -96,14 +96,11 @@ type Person struct {
 	KnownFor string `json:"known_for"`
 }
 
-// SearchPeople returns everyone credited on a present title, with how many they're in.
-func (s *Store) SearchPeople(ctx context.Context) ([]Person, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT p.id, p.tmdb_id, p.name, p.profile_path, COUNT(DISTINCT ip.item_id),
-			(SELECT role FROM item_people r WHERE r.person_id = p.id GROUP BY role ORDER BY COUNT(*) DESC LIMIT 1)
-		FROM people p JOIN item_people ip ON ip.person_id = p.id JOIN items ON items.id = ip.item_id
-		WHERE `+playableSQL+`
-		GROUP BY p.id`)
+// PeopleNames returns everyone Arc has credits for, without counts. Search scores the names
+// first and asks PeopleCredits only about the matches: counting every person's credits on
+// every keystroke took most of a second in a large library.
+func (s *Store) PeopleNames(ctx context.Context) ([]Person, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, tmdb_id, name, profile_path FROM people`)
 	if err != nil {
 		return nil, err
 	}
@@ -111,14 +108,54 @@ func (s *Store) SearchPeople(ctx context.Context) ([]Person, error) {
 	var out []Person
 	for rows.Next() {
 		var p Person
-		var known sql.NullString
-		if err := rows.Scan(&p.ID, &p.TMDBID, &p.Name, &p.ProfilePath, &p.Count, &known); err != nil {
+		if err := rows.Scan(&p.ID, &p.TMDBID, &p.Name, &p.ProfilePath); err != nil {
 			return nil, err
 		}
-		p.KnownFor = known.String
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// PeopleCredits fills in how many present titles each person is in and what they mostly do,
+// leaving out anyone credited only on titles whose files are gone.
+func (s *Store) PeopleCredits(ctx context.Context, people []Person) ([]Person, error) {
+	var out []Person
+	for len(people) > 0 {
+		chunk := people[:min(len(people), 500)]
+		people = people[len(chunk):]
+		byID := make(map[int64]Person, len(chunk))
+		args := make([]any, len(chunk))
+		for i, p := range chunk {
+			byID[p.ID] = p
+			args[i] = p.ID
+		}
+		rows, err := s.db.QueryContext(ctx, `
+			SELECT ip.person_id, COUNT(DISTINCT ip.item_id),
+				(SELECT role FROM item_people r WHERE r.person_id = ip.person_id GROUP BY role ORDER BY COUNT(*) DESC LIMIT 1)
+			FROM item_people ip JOIN items ON items.id = ip.item_id
+			WHERE ip.person_id IN (?`+strings.Repeat(", ?", len(chunk)-1)+`) AND `+playableSQL+`
+			GROUP BY ip.person_id`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id int64
+			var count int
+			var known sql.NullString
+			if err := rows.Scan(&id, &count, &known); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			p := byID[id]
+			p.Count, p.KnownFor = count, known.String
+			out = append(out, p)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // GetPerson returns a person, or nil.

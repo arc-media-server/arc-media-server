@@ -122,8 +122,20 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// People in the cast and crew; the busiest first among equal matches.
-	people, err := s.store.SearchPeople(ctx)
+	people, err := s.store.PeopleNames(ctx)
 	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	scores := map[int64]int{}
+	var matched []store.Person
+	for _, p := range people {
+		if sc := search.Score(q, p.Name); sc > 0 {
+			scores[p.ID] = sc
+			matched = append(matched, p)
+		}
+	}
+	if matched, err = s.store.PeopleCredits(ctx, matched); err != nil {
 		s.fail(w, err)
 		return
 	}
@@ -132,10 +144,8 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		score int
 	}
 	var ph []scoredPerson
-	for _, p := range people {
-		if sc := search.Score(q, p.Name); sc > 0 {
-			ph = append(ph, scoredPerson{p, sc})
-		}
+	for _, p := range matched {
+		ph = append(ph, scoredPerson{p, scores[p.ID]})
 	}
 	slices.SortStableFunc(ph, func(a, b scoredPerson) int {
 		return cmp.Or(b.score-a.score, b.p.Count-a.p.Count, strings.Compare(a.p.Name, b.p.Name))
