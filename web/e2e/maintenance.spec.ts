@@ -152,7 +152,7 @@ for (const shows of [false, true]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveText('Playback queue');
+    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveAttribute('title', /^Playback queue/);
     await expect(page.getByRole('button', { name: 'Add to Playlist', exact: true }).first()).toHaveAttribute('title', 'Save to a playlist');
     await page.getByRole('button', { name: 'More', exact: true }).click();
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
