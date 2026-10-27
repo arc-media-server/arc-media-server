@@ -21,3 +21,21 @@ func TestDocsUpToDate(t *testing.T) {
 		t.Fatal("docs/API.md is out of date: run `go run ./tools/apidoc`")
 	}
 }
+
+// docs/openapi.json must match the code too. Generating it also fails when a route's handler
+// answers in a way the generator can't see (no writeJSON or WriteHeader), so every new endpoint
+// is documented.
+func TestOpenAPIUpToDate(t *testing.T) {
+	root := filepath.Join("..", "..")
+	want, err := GenerateOpenAPI(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "docs", "openapi.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Fatal("docs/openapi.json is out of date: run `go run ./tools/apidoc`")
+	}
+}

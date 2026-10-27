@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-171 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+172 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -254,9 +254,9 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/maintenance` | admin |  |
+| GET | `/api/maintenance` | admin | Lists the scheduled tasks in Settings › Maintenance: each one's setting, whether it is running, waiting or paused, and its last result . |
 | GET | `/api/maintenance/window` | admin | Reports the actual server clock, timezone/offset and current or next maintenance window, including overnight and all-day policy. |
-| POST | `/api/maintenance/{kind}/run` | admin |  |
+| POST | `/api/maintenance/{kind}/run` | admin | Starts a scheduled task now (Run now), outside the maintenance hours; playback and library work still go first . |
 
 ### me
 
@@ -272,6 +272,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/news` | profile | Lists what's new for the profile: new episodes of shows it watches, and new movies it hasn't seen, from the last month, with how many arrived since it last looked. |
 | POST | `/api/news/seen` | profile | Marks everything new as seen by the profile. |
+
+### openapi.json
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/openapi.json` | anyone | Answers with the OpenAPI 3.1 description of this server's API, generated from the code, so apps and API tools can see exactly what this version offers. |
 
 ### optimize
 
