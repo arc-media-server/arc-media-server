@@ -326,17 +326,19 @@ func deviceName(ua string) string {
 }
 
 type playbackDTO struct {
-	ID         string     `json:"id"`
-	Profile    profileDTO `json:"profile"`
-	Item       itemDTO    `json:"item"`
-	Extra      string     `json:"extra,omitempty"` // the trailer or extra being played, by title
-	Device     string     `json:"device"`
-	Address    string     `json:"address"`
-	Method     string     `json:"method"` // direct, remux or transcode
-	PositionMS int64      `json:"position_ms"`
-	DurationMS int64      `json:"duration_ms"`
-	State      string     `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
-	StartedAt  int64      `json:"started_at"`
+	ID      string     `json:"id"`
+	Profile profileDTO `json:"profile"`
+	Item    itemDTO    `json:"item"`
+	Extra   string     `json:"extra,omitempty"` // the trailer or extra being played, by title
+	Device  string     `json:"device"`
+	Address string     `json:"address"`
+	Method  string     `json:"method"` // direct, remux or transcode
+	// The conversion is far enough ahead of the viewer and waits for them (as Plex's "throttled").
+	Throttled  bool   `json:"throttled,omitempty"`
+	PositionMS int64  `json:"position_ms"`
+	DurationMS int64  `json:"duration_ms"`
+	State      string `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
+	StartedAt  int64  `json:"started_at"`
 }
 
 // listPlaying: GET /api/playing is what's being watched right now.
@@ -354,6 +356,11 @@ func (s *Server) listPlaying(w http.ResponseWriter, r *http.Request) {
 		}
 		d := playbackDTO{ID: p.id, Profile: toProfile(user), Device: p.device, Address: p.address,
 			Method: cmp.Or(p.method, "direct"), PositionMS: p.positionMS, DurationMS: p.durationMS, StartedAt: p.started.Unix()}
+		if p.sessionID != "" && s.transcoder != nil {
+			if sess := s.transcoder.Peek(p.sessionID); sess != nil {
+				d.Throttled = sess.Throttled()
+			}
+		}
 		d.Item = toDTO(*it)
 		if it.Kind == "episode" {
 			if series, err := s.store.GetItem(ctx, it.ParentID); err == nil && series != nil {
