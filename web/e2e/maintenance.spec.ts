@@ -145,6 +145,23 @@ test('maintenance: server clock keeps server timezone, retries errors and reflec
   await page.screenshot({ path: info.outputPath('server-clock-phone.png') });
 });
 
+test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove', async ({ page, media }, info) => {
+  const lib = await library(page, media.movies);
+  await page.goto('/libraries');
+  const row = page.getByRole('region', { name: 'Maintenance library', exact: true });
+  const buttons = row.getByRole('button');
+  await expect(buttons).toHaveText(['Edit', '']);
+  await row.getByRole('button', { name: 'Library actions for Maintenance library', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Scan library files', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Remove library…']);
+  await page.screenshot({ path: info.outputPath('library-menu.png') });
+  await page.getByRole('menuitem', { name: 'Remove library…', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('Remove Maintenance library?');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
+});
+
 for (const shows of [false, true]) {
   test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);
@@ -372,21 +389,4 @@ test('attribution: About credits TMDB with its required notice and TheTVDB', asy
   await expect(about.getByText('Metadata provided by', { exact: false })).toBeVisible();
   await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
   await about.screenshot({ path: info.outputPath('about.png') });
-});
-
-test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove', async ({ page, media }, info) => {
-  const lib = await library(page, media.movies);
-  await page.goto('/libraries');
-  const row = page.getByRole('region', { name: 'Maintenance library', exact: true });
-  const buttons = row.getByRole('button');
-  await expect(buttons).toHaveText(['Edit', '']);
-  await row.getByRole('button', { name: 'Library actions for Maintenance library', exact: true }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Scan library files', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Remove library…']);
-  await page.screenshot({ path: info.outputPath('library-menu.png') });
-  await page.getByRole('menuitem', { name: 'Remove library…', exact: true }).click();
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText('Remove Maintenance library?');
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
 });
