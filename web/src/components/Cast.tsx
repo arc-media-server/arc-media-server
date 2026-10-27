@@ -17,8 +17,44 @@ declare global {
   }
 }
 
-/** What Chromecasts play: H.264 or VP9 up to 1080p, with AAC, MP3 or Opus sound. */
-const chromecastCaps: PlayerCaps = { containers: ['mp4', 'webm'], video: ['h264', 'vp9'], audio: ['aac', 'mp3', 'opus', 'vorbis', 'flac'], max_height: 1080 };
+/**
+ * What a Chromecast plays. Google's receiver can't report its own abilities, so Arc first offers
+ * what newer devices (Chromecast with Google TV, Ultra, TVs with it built in) play: the original
+ * quality, up to 4K, HEVC and Dolby/DTS-free surround. If the device can't play that, Arc tries
+ * again with what every Chromecast plays (H.264 or VP9 up to 1080p) and remembers that for the
+ * device.
+ */
+const castCaps: Record<CastQuality, PlayerCaps> = {
+  original: { containers: ['mp4', 'webm'], video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'vorbis', 'flac', 'ac3', 'eac3'], max_height: 0 },
+  basic: { containers: ['mp4', 'webm'], video: ['h264', 'vp9'], audio: ['aac', 'mp3', 'opus', 'vorbis', 'flac'], max_height: 1080 },
+};
+type CastQuality = 'original' | 'basic';
+
+/** What worked on a device before, by its name (this browser only). */
+function rememberedQuality(device: string): CastQuality | null {
+  try {
+    const q = localStorage.getItem('arc-cast-quality:' + device);
+    return q === 'original' || q === 'basic' ? q : null;
+  } catch {
+    return null;
+  }
+}
+function rememberQuality(device: string, q: CastQuality) {
+  try {
+    localStorage.setItem('arc-cast-quality:' + device, q);
+  } catch {
+    /* only a convenience */
+  }
+}
+
+/** A text subtitle track the device shows itself (WebVTT through a cast link). */
+export interface CastText {
+  id: string;
+  language?: string;
+  name: string;
+  /** The viewer's timing adjustment (positive is later). */
+  shiftMS: number;
+}
 
 let sdk: Promise<boolean> | undefined;
 
@@ -86,6 +122,7 @@ export function CastSession({
   fileId,
   audioStream,
   burnSubtitle,
+  text,
   onEnd,
 }: {
   itemId: string;
@@ -95,6 +132,7 @@ export function CastSession({
   fileId: number;
   audioStream: number;
   burnSubtitle?: string;
+  text?: CastText;
   onEnd: (positionMS: number) => void;
 }) {
   const [device, setDevice] = useState('');
@@ -103,6 +141,11 @@ export function CastSession({
   const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fellBack, setFellBack] = useState(false);
+  // Which quality this cast is using, and whether playback got going at it.
+  const quality = useRef<CastQuality>('original');
+  const startedAt = useRef<number | null>(null);
+  const played = useRef(false);
   // Converted streams start at the cast point: the device's clock plus this is the file's time.
   const offset = useRef(0);
   const direct = useRef(true);
@@ -116,7 +159,7 @@ export function CastSession({
 
   // Start (or restart, to seek in a converted stream) the title on the device.
   const start = useCallback(
-    async (atMS: number) => {
+    async (atMS: number, fallback = false): Promise<void> => {
       const run = ++generation.current;
       setBusy(true);
       setError(null);
@@ -128,13 +171,22 @@ export function CastSession({
           await api.stopTranscode(old).catch(() => {});
         }
         if (run !== generation.current) return;
-        const plan = await api.startPlayback(itemId, { caps: chromecastCaps, start_ms: Math.round(atMS), file_id: fileId, audio_stream: audioStream, burn_subtitle: burnSubtitle });
+        const castSession = window.cast.framework.CastContext.getInstance().getCurrentSession();
+        const name = castSession?.getCastDevice()?.friendlyName ?? 'Chromecast';
+        quality.current = fallback ? 'basic' : rememberedQuality(name) ?? 'original';
+        startedAt.current = null;
+        played.current = false;
+        const plan = await api.startPlayback(itemId, { caps: castCaps[quality.current], start_ms: Math.round(atMS), file_id: fileId, audio_stream: audioStream, burn_subtitle: burnSubtitle });
         ownedSession = plan.session_id;
         if (run !== generation.current) {
           if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
           return;
         }
         const { url, local_only } = await api.castLink(plan.url);
+        // The device shows text subtitles itself, timed to the stream it plays.
+        const vtt = text
+          ? (await api.castLink(`/api/items/${itemId}/subtitles/${text.id}/vtt?file=${plan.file_id}&shift_ms=${Math.round(text.shiftMS - (plan.hls ? plan.offset_ms : 0))}`)).url
+          : undefined;
         if (run !== generation.current) {
           if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
           return;
@@ -158,22 +210,61 @@ export function CastSession({
         info.metadata = new chrome.cast.media.GenericMediaMetadata();
         info.metadata.title = title;
         info.metadata.subtitle = subtitle;
+        if (vtt && text) {
+          const track = new chrome.cast.media.Track(1, chrome.cast.media.TrackType.TEXT);
+          track.trackContentId = vtt;
+          track.trackContentType = 'text/vtt';
+          track.subtype = chrome.cast.media.TextTrackType.SUBTITLES;
+          track.name = text.name;
+          if (text.language) track.language = text.language;
+          info.tracks = [track];
+          const style = new chrome.cast.media.TextTrackStyle();
+          style.foregroundColor = '#FFFFFFFF';
+          style.backgroundColor = '#00000000';
+          style.edgeType = chrome.cast.media.TextTrackEdgeType.DROP_SHADOW;
+          style.edgeColor = '#000000CC';
+          info.textTrackStyle = style;
+        }
         const req = new chrome.cast.media.LoadRequest(info);
+        if (vtt) req.activeTrackIds = [1];
         req.autoplay = true;
         // A copied stream may begin at an earlier keyframe, just as in the browser.
         req.currentTime = plan.hls ? Math.max(0, (atMS - plan.offset_ms) / 1000) : atMS / 1000;
-        await s.loadMedia(req);
+        try {
+          await s.loadMedia(req);
+        } catch (e) {
+          const code = (e as { code?: string })?.code;
+          throw Object.assign(new Error(code ? `The Chromecast couldn't play it (${code})` : e instanceof Error ? e.message : String(e)), { loadFailed: true });
+        }
         if (run !== generation.current) return;
         setBusy(false);
+        // If the device stops with an error before playing at the original quality, it can't
+        // decode it: fall back as for a failed load.
+        const media = s.getMediaSession?.();
+        media?.addUpdateListener?.(() => {
+          if (run !== generation.current || quality.current !== 'original' || played.current) return;
+          if (media.playerState === 'IDLE' && media.idleReason === 'ERROR') {
+            rememberQuality(name, 'basic');
+            setFellBack(true);
+            void start(pos.current, true);
+          }
+        });
       } catch (e) {
         if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
         if (session.current === ownedSession) session.current = undefined;
         if (run !== generation.current) return;
+        // The device refused the original quality: try what every Chromecast plays.
+        if ((e as { loadFailed?: boolean }).loadFailed && quality.current === 'original') {
+          const name = window.cast.framework.CastContext.getInstance().getCurrentSession()?.getCastDevice()?.friendlyName ?? 'Chromecast';
+          rememberQuality(name, 'basic');
+          setFellBack(true);
+          return start(atMS, true);
+        }
         setBusy(false);
         setError(e instanceof Error ? e.message : typeof e === 'object' && e && 'code' in e ? `The Chromecast couldn't play it (${String((e as { code: string }).code)})` : String(e));
       }
     },
-    [itemId, title, subtitle, fileId, audioStream, burnSubtitle],
+    [itemId, title, subtitle, fileId, audioStream, burnSubtitle, text],
   );
 
   // Follow the device: where it is, paused or not, and whether it's still connected.
@@ -188,6 +279,13 @@ export function CastSession({
       if (!p.isMediaLoaded) return;
       pos.current = offset.current + p.currentTime * 1000;
       setPositionMS(pos.current);
+      // A few seconds played at the original quality: the device handles it.
+      const began = (startedAt.current ??= p.currentTime);
+      if (p.currentTime - began >= 1) played.current = true;
+      if (quality.current === 'original' && p.currentTime - began >= 5) {
+        const name = window.cast.framework.CastContext.getInstance().getCurrentSession()?.getCastDevice()?.friendlyName;
+        if (name && rememberedQuality(name) !== 'original') rememberQuality(name, 'original');
+      }
     };
     const onPaused = () => setPaused(p.isPaused);
     const onConnected = () => {
@@ -268,6 +366,7 @@ export function CastSession({
       <CastIcon className="size-14 text-white/60" strokeWidth={1.5} />
       <div className="text-center">
         <p className="text-sm text-white/60">{device ? `Playing on ${device}` : 'Connecting…'}</p>
+        {fellBack && <p role="status" className="text-xs text-white/50">{device || 'This Chromecast'} couldn&apos;t play the original, so Arc is converting it.</p>}
         <p className="mt-1 text-2xl font-semibold">{title}</p>
         {subtitle && <p className="text-white/60">{subtitle}</p>}
       </div>

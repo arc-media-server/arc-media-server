@@ -14,6 +14,19 @@ func WithLanguage(ctx context.Context, lang string) context.Context {
 	return context.WithValue(ctx, languageKey{}, lang)
 }
 
+type regionKey struct{}
+
+// WithRegion makes age ratings fetched with ctx come from a country (ISO 3166-1, e.g. "GB"):
+// the library's choice. "" keeps the client's default region.
+func WithRegion(ctx context.Context, region string) context.Context {
+	return context.WithValue(ctx, regionKey{}, region)
+}
+
+func regionOf(ctx context.Context) string {
+	region, _ := ctx.Value(regionKey{}).(string)
+	return region
+}
+
 func languageOf(ctx context.Context) string {
 	lang, _ := ctx.Value(languageKey{}).(string)
 	return lang
