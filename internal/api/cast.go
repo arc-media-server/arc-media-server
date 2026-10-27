@@ -67,10 +67,13 @@ func (c *castTokens) get(token string) *castGrant {
 var (
 	castStreamRe    = regexp.MustCompile(`^/api/items/([0-9a-f]+)/stream$`)
 	castTranscodeRe = regexp.MustCompile(`^/api/transcode/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+)$`)
+	// A text subtitle track as WebVTT, which a Chromecast shows itself.
+	castSubtitleRe = regexp.MustCompile(`^/api/items/([0-9a-f]+)/subtitles/([A-Za-z0-9_-]+)/vtt$`)
 )
 
 // castLink: POST /api/cast {"url"} turns a stream URL from POST /api/items/{id}/playback into a
-// link a cast device can open: absolute, at an address it can reach, with a token.
+// link a cast device can open: absolute, at an address it can reach, with a token. It also takes a
+// text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt).
 func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		URL string `json:"url"`
@@ -86,6 +89,8 @@ func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 	}
 	itemID := ""
 	if m := castStreamRe.FindStringSubmatch(u.Path); m != nil {
+		itemID = m[1]
+	} else if m := castSubtitleRe.FindStringSubmatch(u.Path); m != nil {
 		itemID = m[1]
 	} else if m := castTranscodeRe.FindStringSubmatch(u.Path); m != nil {
 		sess := s.transcoder.Get(m[1])
@@ -178,6 +183,12 @@ func (s *Server) castStream(w http.ResponseWriter, r *http.Request) {
 	if m := castStreamRe.FindStringSubmatch(rest); m != nil && m[1] == g.itemID {
 		r.SetPathValue("id", m[1])
 		s.stream(w, r)
+		return
+	}
+	if m := castSubtitleRe.FindStringSubmatch(rest); m != nil && m[1] == g.itemID {
+		r.SetPathValue("id", m[1])
+		r.SetPathValue("track", m[2])
+		s.subtitleVTT(w, r)
 		return
 	}
 	if m := castTranscodeRe.FindStringSubmatch(rest); m != nil {

@@ -183,7 +183,12 @@ async function receiverFixture(page: Page) {
       removeEventListener(type: string) { delete this.handlers[type]; }
       seek() {} playOrPause() { this.player.isPaused = !this.player.isPaused; }
     }
-    const session = { getCastDevice: () => ({ friendlyName: 'Local receiver fixture' }), loadMedia: async (req: any) => { w.__receiverLoads.push({ url: req.media.contentId, time: req.currentTime }); } };
+    w.__refuseOriginal = 0;
+    const session = { getCastDevice: () => ({ friendlyName: 'Local receiver fixture' }), loadMedia: async (req: any) => {
+      w.__receiverLoads.push({ url: req.media.contentId, time: req.currentTime, tracks: req.media.tracks, active: req.activeTrackIds });
+      // A device that can't decode what it was sent refuses the load, as Google's receiver does.
+      if (w.__refuseOriginal > 0) { w.__refuseOriginal--; throw { code: 'LOAD_FAILED' }; }
+    } };
     const ctx = { setOptions() {}, getCastState: () => 'CONNECTED', addEventListener() {}, removeEventListener() {}, requestSession: async () => { w.__receiverChoices++; }, getCurrentSession: () => session, endCurrentSession() {} };
     w.cast = { framework: { CastContext: { getInstance: () => ctx }, CastContextEventType: { CAST_STATE_CHANGED: 'state' }, AutoJoinPolicy: { ORIGIN_SCOPED: 'origin' }, RemotePlayer, RemotePlayerController: Controller, RemotePlayerEventType: { CURRENT_TIME_CHANGED: 'time', IS_PAUSED_CHANGED: 'paused', IS_CONNECTED_CHANGED: 'connected' } } };
     w.chrome ??= {};
@@ -192,6 +197,8 @@ async function receiverFixture(page: Page) {
       MediaInfo: class { constructor(public contentId: string, public contentType: string) {} },
       GenericMediaMetadata: class {}, LoadRequest: class { constructor(public media: unknown) {} },
       StreamType: { BUFFERED: 'buffered' }, HlsSegmentFormat: { FMP4: 'fmp4' }, HlsVideoSegmentFormat: { FMP4: 'fmp4' },
+      Track: class { constructor(public trackId: number, public type: string) {} }, TrackType: { TEXT: 'TEXT' },
+      TextTrackType: { SUBTITLES: 'SUBTITLES' }, TextTrackStyle: class {}, TextTrackEdgeType: { DROP_SHADOW: 'DROP_SHADOW' },
     } };
   });
   await page.route('https://www.gstatic.com/cv/js/sender/**', route => route.fulfill({ contentType: 'application/javascript', body: 'window.__onGCastApiAvailable(true);' }));
@@ -274,12 +281,13 @@ test('web server: cast retry and converted seek retain selected file/audio and r
   await closePlayer(page);
 });
 
-test('web server: casting text subtitles explains the limit without silently dropping them', async ({ page, media }) => {
+test('web server: Chromecast gets text subtitles as WebVTT; AirPlay explains its limit', async ({ page, media }) => {
   await receiverFixture(page);
   const items: Item[] = await addLibrary(page, media.movies);
   const item = items.find(i => i.title === 'Arc Movie')!;
-  let links = 0;
-  await page.route('**/api/cast', route => { links++; return route.fulfill({ json: { url: 'http://127.0.0.1:18199/receiver-fixture', local_only: false } }); });
+  // The video's cast link points at a stand-in; the subtitle link is Arc's real one.
+  await page.route('**/api/cast', route => route.request().postDataJSON().url.endsWith('/vtt') || route.request().postDataJSON().url.includes('/vtt?')
+    ? route.continue() : route.fulfill({ json: { url: 'http://127.0.0.1:18199/receiver-fixture', local_only: false } }));
   await page.goto(`/movie/${item.id}`);
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   const player = page.getByRole('region', { name: 'Media player', exact: true });
@@ -287,25 +295,57 @@ test('web server: casting text subtitles explains the limit without silently dro
   await player.getByRole('button', { name: 'Subtitles (C)', exact: true }).click();
   await page.getByRole('menuitem').filter({ hasText: 'English' }).click();
   await expect(page.locator('[data-subtitles]')).toHaveText('English fixture subtitle');
-  await page.locator('video').evaluate(v => v.dispatchEvent(Object.assign(new Event('webkitplaybacktargetavailabilitychanged'), { availability: 'available' })));
   await player.hover();
-  await player.getByRole('button', { name: 'Cast to a Chromecast', exact: true }).click();
-  await expect(player.getByRole('status')).toContainText('Chromecast cannot receive browser-rendered text subtitles yet');
-  expect(links).toBe(0);
-  expect(await page.evaluate(() => (window as any).__receiverChoices)).toBe(0);
-  await expect(page.locator('video')).toBeVisible();
-  await expect(page.locator('[data-subtitles]')).toHaveText('English fixture subtitle');
+  await player.getByRole('button', { name: 'Subtitles (C)', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Show 0.5s later', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.locator('video').evaluate(v => v.dispatchEvent(Object.assign(new Event('webkitplaybacktargetavailabilitychanged'), { availability: 'available' })));
   await player.hover();
   await player.getByRole('button', { name: 'AirPlay', exact: true }).click();
   await expect(player.getByRole('status')).toContainText('AirPlay cannot receive browser-rendered text subtitles yet');
   expect(await page.evaluate(() => (window as any).__airplayChoices)).toBe(0);
   await player.hover();
-  await player.getByRole('button', { name: 'Subtitles (C)', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Off', exact: true }).click();
-  await player.hover();
   await player.getByRole('button', { name: 'Cast to a Chromecast', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__receiverLoads.length)).toBe(1);
+  const [load] = await page.evaluate(() => (window as any).__receiverLoads);
+  expect(load.active).toEqual([1]);
+  expect(load.tracks).toHaveLength(1);
+  expect(load.tracks[0]).toMatchObject({ trackId: 1, type: 'TEXT', subtype: 'SUBTITLES', trackContentType: 'text/vtt', name: 'English' });
+  // The device fetches the track itself through its cast link, with the viewer's +0.5s timing.
+  const vtt = await (await fetch(load.tracks[0].trackContentId)).text();
+  expect(vtt).toMatch(/^WEBVTT\n\n00:00:00\.500 --> \d\d:\d\d:\d\d\.\d{3}\nEnglish fixture subtitle\n/);
   await page.evaluate(() => { const c = (window as any).__receiverController; c.player.currentTime = 73; c.handlers.time(); });
   await closePlayer(page);
   await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).user_data.position_ms).toBe(73000);
+});
+
+test('web server: a Chromecast that refuses the original gets a 1080p version, remembered for next time', async ({ page, media }) => {
+  await receiverFixture(page);
+  const items: Item[] = await addLibrary(page, media.movies);
+  const item = items.find(i => i.title === 'Arc Movie')!;
+  const heights: number[] = [];
+  page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith(`/api/items/${item.id}/playback`)) heights.push(r.postDataJSON().caps.max_height); });
+  await page.route('**/api/cast', route => route.fulfill({ json: { url: 'http://127.0.0.1:18199/receiver-fixture', local_only: false } }));
+  await page.addInitScript(() => { (window as any).__refuseOriginal = 1; });
+  await page.goto(`/movie/${item.id}`);
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  const player = page.getByRole('region', { name: 'Media player', exact: true });
+  await expect(page.locator('video')).toBeVisible();
+  heights.length = 0;
+  await player.hover();
+  await player.getByRole('button', { name: 'Cast to a Chromecast', exact: true }).click();
+  await expect(player.getByText("Local receiver fixture couldn't play the original, so Arc is converting it.", { exact: true })).toBeVisible();
+  await expect(player.getByText('Playing on Local receiver fixture', { exact: true })).toBeVisible();
+  // Original quality first (no height limit), then what every Chromecast plays.
+  expect(heights).toEqual([0, 1080]);
+  expect(await page.evaluate(() => (window as any).__receiverLoads.length)).toBe(2);
+  await player.getByRole('button', { name: 'Stop Casting', exact: true }).click();
+  await expect(page.locator('video')).toBeVisible();
+  // Next time this device goes straight to the version it can play.
+  heights.length = 0;
+  await player.hover();
+  await player.getByRole('button', { name: 'Cast to a Chromecast', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__receiverLoads.length)).toBe(3);
+  expect(heights).toEqual([1080]);
+  await closePlayer(page);
 });
