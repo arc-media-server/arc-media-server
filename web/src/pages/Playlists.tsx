@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +20,7 @@ import { inputClass } from '@/components/ui/field';
 
 /** The profile's playlists. */
 export function PlaylistsPage() {
+  const { t } = useTranslation('playlists');
   const navigate = useNavigate();
   const { data, error } = useQuery({ queryKey: ['playlists'], queryFn: api.playlists });
   const [naming, setNaming] = useState(false);
@@ -27,25 +29,21 @@ export function PlaylistsPage() {
   return (
     <Page className="pb-16">
       <PageHeader
-        title="Playlists"
-        subtitle="Movies and episodes to watch in order. Just for your profile."
+        title={t('common:navigation.playlists')}
+        subtitle={t('description')}
         actions={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setSmart(true)} title="A playlist that fills itself from rules, like unwatched comedies">
-              <Wand2 /> New Smart Playlist
-            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSmart(true)} title={t('smart.hint')}>
+              <Wand2 />{' '}{t('smart.new')}</Button>
             <Button variant="secondary" size="sm" onClick={() => setNaming(true)}>
-              <Plus /> New Playlist
-            </Button>
+              <Plus />{' '}{t('new')}</Button>
           </>
         }
       />
       <div className="px-6 md:px-10">
         {!data && <div className="h-48 animate-pulse rounded-2xl bg-surface" />}
         {data?.length === 0 && (
-          <EmptyState icon={<ListVideo />} title="No playlists yet">
-            Add a movie, an episode or a whole show to one from its page, or make an empty one with New Playlist.
-          </EmptyState>
+          <EmptyState icon={<ListVideo />} title={t('empty.heading')}>{t('empty.description')}</EmptyState>
         )}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
           {data?.map((p) => (
@@ -56,14 +54,14 @@ export function PlaylistsPage() {
                 <span className="truncate">{p.title}</span>
               </p>
               <p className="text-xs text-subtle">
-                {fmt.plural(p.count, 'title')}
+                {t('titleCount', { count: p.count })}
                 {p.duration_ms > 0 && ` · ${fmt.runtime(Math.round(p.duration_ms / 60000))}`}
               </p>
             </Link>
           ))}
         </div>
       </div>
-      <NameDialog open={naming} onOpenChange={setNaming} title="New Playlist" onSave={async (name) => navigate(`/playlist/${(await api.createPlaylist(name)).id}`)} />
+      <NameDialog open={naming} onOpenChange={setNaming} title={t('new')} onSave={async (name) => navigate(`/playlist/${(await api.createPlaylist(name)).id}`)} />
       <SmartPlaylistDialog open={smart} onOpenChange={setSmart} onSaved={(id) => navigate(`/playlist/${id}`)} />
     </Page>
   );
@@ -71,6 +69,7 @@ export function PlaylistsPage() {
 
 /** One playlist: play it, shuffle it, arrange it. */
 export function PlaylistPage() {
+  const { t } = useTranslation('playlists');
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -99,38 +98,33 @@ export function PlaylistPage() {
       <div className="flex flex-wrap items-end gap-6 px-6 pb-8 pt-14 md:px-10">
         <PlaylistCover playlist={{ ...p, images: data.entries.map((e) => (e.item.kind === 'episode' ? e.item.images?.series_primary : e.item.images?.primary)).filter((x): x is string => !!x).filter((x, i, a) => a.indexOf(x) === i) }} className="w-40 shadow-2xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{p.smart_filter ? 'Smart Playlist' : 'Playlist'}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{p.smart_filter ? t('kind.smart') : t('kind.manual')}</p>
           <h1 className="mt-1 text-4xl font-bold leading-tight">{p.title}</h1>
           <p className="mt-1 text-sm text-muted">
-            {fmt.plural(p.count, 'title')}
+            {t('titleCount', { count: p.count })}
             {p.duration_ms > 0 && ` · ${fmt.runtime(Math.round(p.duration_ms / 60000))}`}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button variant="primary" size="lg" disabled={!queue.length} onClick={() => playFrom(0)}>
-              <Play className="fill-current" /> Play
-            </Button>
+              <Play className="fill-current" />{' '}{t('common:actions.play')}</Button>
             <Button variant="secondary" size="lg" disabled={queue.length < 2} onClick={shuffle}>
-              <Shuffle /> Shuffle
-            </Button>
+              <Shuffle />{' '}{t('common:actions.shuffle')}</Button>
             {p.smart_filter ? (
               <Button variant="ghost" size="lg" onClick={() => setEditingRules(true)}>
-                <Wand2 /> Edit Rules
-              </Button>
+                <Wand2 />{' '}{t('smart.editRules')}</Button>
             ) : (
               <Button variant="ghost" size="lg" onClick={() => setRenaming(true)}>
-                <Pencil /> Rename
-              </Button>
+                <Pencil />{' '}{t('common:actions.rename')}</Button>
             )}
             <Button variant="ghost" size="lg" onClick={() => setDeleting(true)}>
-              <Trash2 /> Delete
-            </Button>
+              <Trash2 />{' '}{t('common:actions.delete')}</Button>
           </div>
         </div>
       </div>
       <div className="px-6 md:px-10">
         {data.entries.length === 0 ? (
-          <EmptyState icon={<ListVideo />} title="Nothing in it yet">
-            {p.smart_filter ? 'Nothing matches its rules yet. It fills up as titles are added or watched.' : 'Add movies, episodes or whole shows from their pages.'}
+          <EmptyState icon={<ListVideo />} title={t('entries.emptyHeading')}>
+            {p.smart_filter ? t('entries.smartEmpty') : t('entries.empty')}
           </EmptyState>
         ) : p.smart_filter ? (
           <div className="max-w-4xl space-y-1.5">
@@ -145,7 +139,7 @@ export function PlaylistPage() {
       <NameDialog
         open={renaming}
         onOpenChange={setRenaming}
-        title="Rename Playlist"
+        title={t('rename')}
         initial={p.title}
         onSave={async (name) => {
           await api.renamePlaylist(p.id, name);
@@ -164,8 +158,8 @@ export function PlaylistPage() {
           }}
         />
       )}
-      <ConfirmDialog open={deleting} onOpenChange={setDeleting} title={`Delete ${p.title}?`} confirmLabel="Delete" destructive busy={remove.isPending} error={remove.error?.message} onConfirm={() => remove.mutate()}>
-        <p>The playlist goes; its movies and episodes stay in your libraries.</p>
+      <ConfirmDialog open={deleting} onOpenChange={setDeleting} title={t('delete.heading', { title: p.title })} confirmLabel={t('common:actions.delete')} destructive busy={remove.isPending} error={remove.error?.message} onConfirm={() => remove.mutate()}>
+        <p>{t('delete.description')}</p>
       </ConfirmDialog>
     </Page>
   );
@@ -201,6 +195,7 @@ function Entries({ playlistId, entries: initial, onPlay }: { playlistId: string;
 
 /** A playlist's title row; a smart playlist's can't be dragged or removed (its rules decide). */
 function EntryRow({ entry, index, onPlay, onDrop, onRemove, onMoveUp, onMoveDown, busy }: { entry: PlaylistEntry; index: number; onPlay: () => void; onDrop?: () => void; onRemove?: () => void; onMoveUp?: () => void; onMoveDown?: () => void; busy?: boolean }) {
+  const { t } = useTranslation('playlists');
   const drag = useDragControls();
   const it = entry.item;
   const episode = it.kind === 'episode';
@@ -208,13 +203,13 @@ function EntryRow({ entry, index, onPlay, onDrop, onRemove, onMoveUp, onMoveDown
   const content = (
     <>
       {!fixed && (
-        <button type="button" disabled={busy} aria-label={`Drag ${it.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
+        <button type="button" disabled={busy} aria-label={t('entryActions.drag', { title: it.title })} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
           <GripVertical className="size-4" />
         </button>
       )}
-      {!fixed && <div className="flex shrink-0 flex-col"><button type="button" aria-label={'Move ' + it.title + ' up'} disabled={!onMoveUp || busy} onClick={onMoveUp} className="rounded p-1 disabled:opacity-25"><ArrowUp className="size-4" /></button><button type="button" aria-label={'Move ' + it.title + ' down'} disabled={!onMoveDown || busy} onClick={onMoveDown} className="rounded p-1 disabled:opacity-25"><ArrowDown className="size-4" /></button></div>}
+      {!fixed && <div className="flex shrink-0 flex-col"><button type="button" aria-label={t('entryActions.moveUp', { title: it.title })} disabled={!onMoveUp || busy} onClick={onMoveUp} className="rounded p-1 disabled:opacity-25"><ArrowUp className="size-4" /></button><button type="button" aria-label={t('entryActions.moveDown', { title: it.title })} disabled={!onMoveDown || busy} onClick={onMoveDown} className="rounded p-1 disabled:opacity-25"><ArrowDown className="size-4" /></button></div>}
       <span className="w-6 text-right text-sm tabular-nums text-subtle">{index + 1}</span>
-      <button type="button" onClick={onPlay} className="relative hidden w-28 shrink-0 overflow-hidden rounded-lg sm:block" aria-label={`Play ${it.title}`}>
+      <button type="button" onClick={onPlay} className="relative hidden w-28 shrink-0 overflow-hidden rounded-lg sm:block" aria-label={t('entryActions.play', { title: it.title })}>
         <Artwork src={episode ? (it.images?.primary ?? it.images?.series_backdrop) : (it.images?.backdrop ?? it.images?.primary)} alt="" kind="still" icon={episode ? 'tv' : 'film'} fallbackTitle={it.title} />
         <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/35 group-hover:opacity-100">
           <Play className="size-5 fill-white text-white" />
@@ -223,12 +218,12 @@ function EntryRow({ entry, index, onPlay, onDrop, onRemove, onMoveUp, onMoveDown
       <Link to={episode ? `/series/${it.parent_id}` : `/movie/${it.id}`} className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium hover:underline">{episode ? it.series_title : it.title}</p>
         <p className="truncate text-xs text-subtle">
-          {episode ? [it.season_number !== undefined && `S${it.season_number} E${it.episode_number}`, it.title].filter(Boolean).join(' · ') : it.year}
+          {episode ? [it.season_number !== undefined && t('entries.episodeCode', { season: it.season_number, episode: String(it.episode_number) }), it.title].filter(Boolean).join(' · ') : it.year}
           {it.runtime_min ? ` · ${fmt.runtime(it.runtime_min)}` : ''}
         </p>
       </Link>
       {onRemove && (
-        <Button variant="ghost" size="icon" aria-label={`Remove ${it.title}`} onClick={onRemove}>
+        <Button variant="ghost" size="icon" aria-label={t('entryActions.remove', { title: it.title })} onClick={onRemove}>
           <X />
         </Button>
       )}
@@ -249,6 +244,7 @@ function SmartPlaylistDialog({ open, onOpenChange, playlist, onSaved }: { open: 
 }
 
 function SmartPlaylistForm({ playlist, onDone }: { playlist?: Playlist; onDone: (id: string) => void }) {
+  const { t } = useTranslation('playlists');
   const libraries = (useLibraries().data ?? []).filter((l) => l.kind !== 'videos');
   const [title, setTitle] = useState(playlist?.title ?? '');
   const [filter, setFilter] = useState<RowFilter>(playlist?.smart_filter ?? { library_id: libraries[0]?.id ?? 0, unwatched: true, sort: 'shuffle' });
@@ -262,33 +258,33 @@ function SmartPlaylistForm({ playlist, onDone }: { playlist?: Playlist; onDone: 
   const library = libraries.find((l) => l.id === filter.library_id);
   return (
     <DialogContent
-      title={playlist ? 'Edit Smart Playlist' : 'New Smart Playlist'}
-      description="It fills itself from these rules and keeps up to date: titles come and go as they're added or watched. From a TV library, it plays the matching shows' episodes in order."
+      title={playlist ? t('smart.edit') : t('smart.new')}
+      description={t('smart.description')}
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t('common:actions.cancel')}</Button>
           </DialogClose>
           <Button variant="primary" disabled={!title.trim() || !filter.library_id || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />}{' '}{t('common:actions.save')}</Button>
         </>
       }
     >
       <div className="space-y-4 pb-2">
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</span>
-          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="e.g. Unwatched comedies" className={inputClass} />
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('common:fields.name')}</span>
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={t('smart.nameHint')} className={inputClass} />
         </label>
         <FilterFields filter={filter} onChange={setFilter} libraries={libraries} />
-        <FilterPreview filter={filter} library={library} emptyText="Nothing matches yet. It'll fill up as titles are added." />
+        <FilterPreview filter={filter} library={library} emptyText={t('smart.emptyPreview')} />
       </div>
     </DialogContent>
   );
 }
 
 function NameDialog({ open, onOpenChange, title, initial = '', onSave }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; initial?: string; onSave: (name: string) => Promise<unknown> }) {
+  const { t } = useTranslation('playlists');
   const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -316,12 +312,8 @@ function NameDialog({ open, onOpenChange, title, initial = '', onSave }: { open:
           footer={
             <>
               {error && <p className="mr-auto text-sm text-warning">{error}</p>}
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" disabled={!name.trim() || busy} onClick={save}>
-                Save
-              </Button>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common:actions.cancel')}</Button>
+              <Button variant="primary" disabled={!name.trim() || busy} onClick={save}>{t('common:actions.save')}</Button>
             </>
           }
         >
@@ -331,7 +323,7 @@ function NameDialog({ open, onOpenChange, title, initial = '', onSave }: { open:
               if (name.trim()) save();
             }}
           >
-            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Name" className={inputClass} />
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder={t('common:fields.name')} className={inputClass} />
           </form>
         </DialogContent>
       )}

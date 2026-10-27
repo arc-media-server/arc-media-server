@@ -8,7 +8,14 @@
     "retrying": "Retrying…",
     "signIn": "Sign In",
     "stop": "Stop",
-    "stopping": "Stopping…"
+    "stopping": "Stopping…",
+    "save": "Save",
+    "done": "Done",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "delete": "Delete",
+    "rename": "Rename",
+    "create": "Create"
   },
   "activity": {
     "analysing": "Analysing",
@@ -170,5 +177,8 @@
     "minutesAgo_other": "{{count}} min ago",
     "hoursAgo_one": "{{count}} h ago",
     "hoursAgo_other": "{{count}} h ago"
+  },
+  "fields": {
+    "name": "Name"
   }
 }

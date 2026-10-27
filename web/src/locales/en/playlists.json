@@ -1,0 +1,53 @@
+{
+  "description": "Movies and episodes to watch in order. Just for your profile.",
+  "smart": {
+    "hint": "A playlist that fills itself from rules, like unwatched comedies",
+    "new": "New Smart Playlist",
+    "editRules": "Edit Rules",
+    "edit": "Edit Smart Playlist",
+    "description": "It fills itself from these rules and keeps up to date: titles come and go as they're added or watched. From a TV library, it plays the matching shows' episodes in order.",
+    "nameHint": "e.g. Unwatched comedies",
+    "emptyPreview": "Nothing matches yet. It'll fill up as titles are added."
+  },
+  "new": "New Playlist",
+  "empty": {
+    "heading": "No playlists yet",
+    "description": "Add a movie, an episode or a whole show to one from its page, or make an empty one with New Playlist."
+  },
+  "kind": {
+    "smart": "Smart Playlist",
+    "manual": "Playlist"
+  },
+  "entries": {
+    "emptyHeading": "Nothing in it yet",
+    "smartEmpty": "Nothing matches its rules yet. It fills up as titles are added or watched.",
+    "empty": "Add movies, episodes or whole shows from their pages.",
+    "episodeCode": "S{{season}} E{{episode}}"
+  },
+  "rename": "Rename Playlist",
+  "delete": {
+    "description": "The playlist goes; its movies and episodes stay in your libraries.",
+    "heading": "Delete {{title}}?"
+  },
+  "picker": {
+    "hint": "Save to a playlist",
+    "title": "Add to Playlist",
+    "stale": "Showing the last loaded playlists. They may be out of date.",
+    "loading": "Loading playlists…",
+    "empty": "No editable playlists yet. Create one below.",
+    "refreshFirst": "Refresh your playlists before creating another.",
+    "loadFirst": "Load your playlists before creating another.",
+    "new": "New playlist",
+    "addSeriesDescription": "Add every episode of {{title}} you have to one of your playlists.",
+    "addDescription": "Add {{title}} to one of your playlists."
+  },
+  "titleCount_one": "{{count}} title",
+  "titleCount_other": "{{count}} titles",
+  "entryActions": {
+    "drag": "Drag {{title}}",
+    "moveUp": "Move {{title}} up",
+    "moveDown": "Move {{title}} down",
+    "play": "Play {{title}}",
+    "remove": "Remove {{title}}"
+  }
+}
