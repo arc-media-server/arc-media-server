@@ -42,11 +42,14 @@ func TestHistoryAndSizes(t *testing.T) {
 	if sizes[0].ItemID != big || sizes[0].Size != 5000 || sizes[0].Watched {
 		t.Errorf("biggest: %+v", sizes[0])
 	}
-	watched := map[string]bool{}
+	watched, last := map[string]bool{}, map[string]int64{}
 	for _, s := range sizes {
-		watched[s.ItemID] = s.Watched
+		watched[s.ItemID], last[s.ItemID] = s.Watched, s.LastPlayed
 	}
 	if !watched[small] || !watched[started] || watched[big] {
 		t.Errorf("watched: %v", watched)
+	}
+	if last[small] != 400 || last[started] == 0 || last[big] != 0 {
+		t.Errorf("last played: %v", last)
 	}
 }
