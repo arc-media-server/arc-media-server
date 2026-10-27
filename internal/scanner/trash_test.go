@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"ams/internal/activity"
 	"ams/internal/store"
@@ -18,6 +19,12 @@ func trashFixture(t *testing.T) (*store.Store, *Scanner, int64, string) {
 	if err := s.scan(t.Context(), lib); err != nil {
 		t.Fatal(err)
 	}
+	// A file counts as missing when the next scan started after it was last seen, to the
+	// millisecond. This tiny library can scan twice within one millisecond on a fast machine,
+	// which left the deleted file unmarked and the tests flaky, so let the clock move on.
+	for start := time.Now().UnixMilli(); time.Now().UnixMilli() == start; {
+		time.Sleep(100 * time.Microsecond)
+	}
 	path := filepath.Join(root, "Gone (2020).mkv")
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
@@ -29,6 +36,9 @@ func trashFixture(t *testing.T) (*store.Store, *Scanner, int64, string) {
 	})
 	if err := s.scan(t.Context(), lib); err != nil {
 		t.Fatal(err)
+	}
+	if missing, err := st.MissingFiles(t.Context(), lib); err != nil || len(missing) != 1 {
+		t.Fatalf("fixture: want one missing file, got %v %v", missing, err)
 	}
 	return st, s, lib, root
 }
@@ -158,7 +168,11 @@ func TestTrashLeaseAndCancellation(t *testing.T) {
 		_, err := s.EmptyTrash(ctx, lib, false, func(ctx context.Context) error { close(entered); <-release; return ctx.Err() }, nil)
 		done <- err
 	}()
-	<-entered
+	select {
+	case <-entered:
+	case err := <-done:
+		t.Fatalf("cleanup finished without taking its backup: %v", err)
+	}
 	if s.Start(lib) {
 		t.Fatal("scan admitted during backup")
 	}
