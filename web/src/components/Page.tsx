@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -43,22 +44,24 @@ export function EmptyState({ icon, title, children }: { icon: ReactNode; title: 
 }
 
 export function ErrorNotice({ error, onRetry, busy = false }: { error: unknown; onRetry?: () => void; busy?: boolean }) {
+  const { t: tr } = useTranslation('common');
   if (!error) return null;
   return (
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-warning/10 p-3 text-sm text-warning">
       <span className="min-w-0 flex-1 break-words">{error instanceof Error ? error.message : String(error)}</span>
-      {onRetry && <Button size="sm" variant="secondary" disabled={busy} onClick={onRetry}>{busy ? 'Retrying…' : 'Retry'}</Button>}
+      {onRetry && <Button size="sm" variant="secondary" disabled={busy} onClick={onRetry}>{busy ? tr('actions.retrying') : tr('actions.retry')}</Button>}
     </div>
   );
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  const { t: tr } = useTranslation('common');
   const qc = useQueryClient();
   return (
     <div className="mx-auto max-w-md px-6 py-24 text-center">
-      <h2 className="text-lg font-semibold">Something went wrong</h2>
+      <h2 className="text-lg font-semibold">{tr('errors.heading')}</h2>
       <p className="mt-2 text-sm text-muted">{error instanceof Error ? error.message : String(error)}</p>
-      <Button className="mt-4" variant="secondary" onClick={onRetry ?? (() => { void qc.refetchQueries({ type: 'active', stale: true }); })}>Retry</Button>
+      <Button className="mt-4" variant="secondary" onClick={onRetry ?? (() => { void qc.refetchQueries({ type: 'active', stale: true }); })}>{tr('actions.retry')}</Button>
     </div>
   );
 }

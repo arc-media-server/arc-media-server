@@ -1,3 +1,6 @@
+import i18n from '@/i18n';
+import { shortDate } from '@/lib/format';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
@@ -41,6 +44,7 @@ function working(running: ActivityTask[]) {
 
 /** The Activity button: spins while the server is busy, and opens the list of tasks. */
 export function ActivityButton({ className }: { className?: string }) {
+  const { t: tr } = useTranslation('common');
   const admin = useIsAdmin();
   const { data, refetch } = useActivity();
   const [open, setOpen] = useState(false);
@@ -56,7 +60,7 @@ export function ActivityButton({ className }: { className?: string }) {
       }}
     >
       <Popover.Trigger
-        aria-label={busy ? `Activity: ${active.length} running` : 'Activity'}
+        aria-label={busy ? tr('activity.runningCount', { count: active.length }) : tr('activity.label')}
         className={cn(
           'relative flex size-8 items-center justify-center rounded-full text-muted outline-none transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent',
           busy && 'text-accent',
@@ -82,8 +86,7 @@ export function ActivityButton({ className }: { className?: string }) {
           </div>
           <Popover.Close asChild>
             <Link to="/dashboard" className="flex min-h-11 items-center gap-2 border-t border-border px-4 py-3 text-sm font-medium text-accent hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
-              <LayoutDashboard className="size-4" /> View Dashboard
-            </Link>
+              <LayoutDashboard className="size-4" />{' '}{tr('activity.viewDashboard')}</Link>
           </Popover.Close>
         </Popover.Content>
       </Popover.Portal>
@@ -93,6 +96,7 @@ export function ActivityButton({ className }: { className?: string }) {
 
 /** The Activity menu, kept as simple as Plex's: what's running, how far along, and what just finished. */
 function SimpleActivity() {
+  const { t: tr } = useTranslation('common');
   const { data } = useActivity(true);
   if (!data) return <div className="h-20 animate-pulse rounded-xl bg-surface-2" />;
   const done = data.recent.slice(0, 4);
@@ -100,7 +104,7 @@ function SimpleActivity() {
   return (
     <div className="space-y-5">
       {active.length === 0 ? (
-        <p className="text-sm text-muted">Nothing running right now.</p>
+        <p className="text-sm text-muted">{tr('activity.idle')}</p>
       ) : (
         <ul className="space-y-4">
           {active.map((t) => (
@@ -110,7 +114,7 @@ function SimpleActivity() {
       )}
       {done.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Recent</h3>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{tr('activity.recent')}</h3>
           <ul className="space-y-2">
             {done.map((t) => (
               <li key={t.id} className="flex items-start gap-2.5 text-sm">
@@ -118,7 +122,7 @@ function SimpleActivity() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
                     <p className="min-w-0 flex-1 truncate">{finishedTitle(t.title)}</p>
-                    <span className="shrink-0 text-xs text-subtle">{t.stopped ? 'Stopped' : since(t.finished_at!)}</span>
+                    <span className="shrink-0 text-xs text-subtle">{t.stopped ? tr('activity.stopped') : since(t.finished_at!)}</span>
                   </div>
                   {t.error && <p className="mt-0.5 break-words text-xs text-warning">{t.error}</p>}
                 </div>
@@ -132,6 +136,7 @@ function SimpleActivity() {
 }
 
 function SimpleTask({ task: t }: { task: ActivityTask }) {
+  const { t: tr } = useTranslation('common');
   const qc = useQueryClient();
   const stop = useMutation({ mutationFn: () => api.stopActivity(t.id), onSuccess: () => {
     void qc.invalidateQueries({ queryKey: ['activity'] });
@@ -145,7 +150,7 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
   const first = t.current?.[0]?.subject;
   const more = (t.current?.length ?? 0) - 1;
   const steps = t.kind === 'scan' && !stopping ? scanSteps(t) : [];
-  const line = stopping ? 'Stopping…' : first ? (more > 0 ? `${first} and ${more} more` : first) : t.total ? `${t.done ?? 0} of ${t.total}` : '';
+  const line = stopping ? tr('actions.stopping') : first ? (more > 0 ? tr('activity.moreSubjects', { subject: first, count: more }) : first) : t.total ? i18n.t('common:activity.progress', { done: t.done ?? 0, total: t.total }) : '';
   return (
     <li>
       <div className="flex items-center gap-2 text-sm">
@@ -154,8 +159,8 @@ function SimpleTask({ task: t }: { task: ActivityTask }) {
         {t.can_stop && (
           <button
             type="button"
-            aria-label={`Stop ${t.title}`}
-            title="Stop"
+            aria-label={tr('activity.stopTask', { title: t.title })}
+            title={tr('actions.stop')}
             disabled={t.stopping || stop.isPending}
             onClick={() => stop.mutate()}
             className="flex size-6 shrink-0 items-center justify-center rounded-full text-subtle outline-none hover:bg-surface-3 hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
@@ -185,21 +190,21 @@ function scanSteps(t: ActivityTask): [string, string][] {
   const ops = t.current ?? [];
   const on = (stage: RegExp) => ops.find((o) => stage.test(o.stage))?.subject;
   const phase = (t.detail ?? '').split(' · ')[0];
-  const count = t.total ? `${t.done ?? 0} of ${t.total}` : '';
+  const count = t.total ? i18n.t('common:activity.progress', { done: t.done ?? 0, total: t.total }) : '';
   const steps: [string, string][] = [];
   const file = on(/^Checking file$/);
   const walking = /^(Opening library|Checking library folders|Checking files and titles|Looking through folders)$/.test(phase) || phase === '';
   if (file || walking) {
     const found = /(\d+) files/.exec(t.detail ?? '')?.[1];
-    steps.push(['Scanning', file ? file.replace(/\.[^.]+$/, '') : found ? `${found} files found` : '']);
+    steps.push([i18n.t('common:activity.scanning'), file ? file.replace(/\.[^.]+$/, '') : found ? i18n.t('common:activity.filesFound', { count: Number(found) }) : '']);
   }
   const title = on(/^(Matching|Fetching|Saving|Linking|Checking episode|Mapping)/);
-  if (title) steps.push(['Matching', title]);
-  else if (/^(Matching|Getting show details|Updating|Loading alternate episode orders)/.test(phase)) steps.push(['Matching', count]);
+  if (title) steps.push([i18n.t('common:activity.matching'), title]);
+  else if (/^(Matching|Getting show details|Updating|Loading alternate episode orders)/.test(phase)) steps.push([i18n.t('common:activity.matching'), count]);
   const reading = on(/^Inspecting/);
-  if (reading) steps.push(['Analysing', reading]);
-  else if (phase === 'Reading file details') steps.push(['Analysing', count]);
-  return steps.length ? steps : [['Scanning', '']];
+  if (reading) steps.push([i18n.t('common:activity.analysing'), reading]);
+  else if (phase === 'Reading file details') steps.push([i18n.t('common:activity.analysing'), count]);
+  return steps.length ? steps : [[i18n.t('common:activity.scanning'), '']];
 }
 
 function ProgressBar({ pct }: { pct: number | null }) {
@@ -215,15 +220,16 @@ function ProgressBar({ pct }: { pct: number | null }) {
 
 /** Everything about running and recent tasks, for the Dashboard: each title's step, files and summaries. */
 export function ActivityList({ recent = 6 }: { recent?: number }) {
+  const { t: tr } = useTranslation('common');
   const { data } = useActivity(true);
   if (!data) return <div className="h-20 animate-pulse rounded-xl bg-surface-2" />;
   const done = data.recent.slice(0, recent);
   return (
     <div className="space-y-5">
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Running</h3>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{tr('activity.running')}</h3>
         {data.running.length === 0 ? (
-          <p className="text-sm text-muted">Nothing right now. Scans, refreshes and other background work show here while they run.</p>
+          <p className="text-sm text-muted">{tr('activity.emptyDetail')}</p>
         ) : (
           <ul className="space-y-3.5">
             {data.running.map((t) => (
@@ -233,21 +239,21 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
         )}
       </section>
       {data.scheduled?.some(t => t.enabled && t.pending > 0 && t.state !== 'running') && <section>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Scheduled work</h3>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{tr('activity.scheduled')}</h3>
         <ul className="space-y-2">{data.scheduled.filter(t => t.enabled && t.pending > 0 && t.state !== 'running').map(t => <li key={t.kind} className="text-sm"><p>{t.title}</p><p className="text-xs text-subtle">{t.state} · {t.detail}</p></li>)}</ul>
       </section>}
       {done.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">Recently finished</h3>
+          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-subtle">{tr('activity.finished')}</h3>
           <ul className="space-y-2">
             {done.map((t) => (
               <li key={t.id} className="flex items-start gap-2.5 text-sm">
                 {t.error ? <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" /> : <Check className="mt-0.5 size-4 shrink-0 text-subtle" />}
                 <div className="min-w-0 flex-1">
-                  <p className="break-words">{t.title}{t.stopped && <span className="ml-2 text-subtle">Stopped</span>}</p>
+                  <p className="break-words">{t.title}{t.stopped && <span className="ml-2 text-subtle">{tr('activity.stopped')}</span>}</p>
                   {t.detail && <p className="mt-0.5 break-words text-xs text-muted">{t.detail}</p>}
                   {t.error && <p className="mt-0.5 break-words text-xs text-warning">{t.error}</p>}
-                  <p className="mt-0.5 text-xs text-subtle">{since(t.finished_at!)} · took {took(t)}</p>
+                  <p className="mt-0.5 text-xs text-subtle">{tr('activity.elapsed', { since: since(t.finished_at!), duration: took(t) })}</p>
                 </div>
               </li>
             ))}
@@ -259,6 +265,7 @@ export function ActivityList({ recent = 6 }: { recent?: number }) {
 }
 
 function RunningTask({ task: t }: { task: ActivityTask }) {
+  const { t: tr } = useTranslation('common');
   const qc = useQueryClient();
   const stop = useMutation({ mutationFn: () => api.stopActivity(t.id), onSuccess: () => {
     void qc.invalidateQueries({ queryKey: ['activity'] });
@@ -271,16 +278,16 @@ function RunningTask({ task: t }: { task: ActivityTask }) {
         <p className="min-w-0 break-words font-medium">{t.title}</p>
         {pct !== null && <span className="shrink-0 text-xs tabular-nums text-subtle">{pct}%</span>}
       </div>
-      {t.stopping && <p role="status" className="mt-1 text-xs text-muted">Stopping… completed changes will be kept.</p>}
-      {t.can_stop && <Button size="sm" variant="secondary" className="mt-2" disabled={t.stopping || stop.isPending} onClick={() => stop.mutate()} aria-label={`Stop ${t.title}`}>{t.stopping || stop.isPending ? 'Stopping…' : 'Stop'}</Button>}
+      {t.stopping && <p role="status" className="mt-1 text-xs text-muted">{tr('activity.stoppingDetail')}</p>}
+      {t.can_stop && <Button size="sm" variant="secondary" className="mt-2" disabled={t.stopping || stop.isPending} onClick={() => stop.mutate()} aria-label={tr('activity.stopTask', { title: t.title })}>{t.stopping || stop.isPending ? tr('actions.stopping') : tr('actions.stop')}</Button>}
       <ErrorNotice error={stop.error} onRetry={() => stop.mutate()} busy={stop.isPending} />
       {t.detail && t.detail !== t.title && <p className="mt-0.5 break-words text-xs text-subtle">{t.detail}</p>}
-      {!t.detail && !!t.total && <p className="mt-0.5 text-xs text-subtle">{t.done ?? 0} of {t.total}</p>}
+      {!t.detail && !!t.total && <p className="mt-0.5 text-xs text-subtle">{tr('activity.progress', { done: t.done ?? 0, total: t.total })}</p>}
       <ProgressBar pct={pct} />
       {!!t.current?.length && <div className="mt-3 space-y-2 border-l-2 border-border pl-3">
         {t.current.slice(0, 2).map(work => <CurrentOperation key={work.id} work={work} />)}
         {t.current.length > 2 && <details>
-          <summary className="cursor-pointer py-1 text-xs font-medium text-accent">Show {t.current.length - 2} more active {t.current.length === 3 ? 'operation' : 'operations'}</summary>
+          <summary className="cursor-pointer py-1 text-xs font-medium text-accent">{tr('activity.moreOperations', { count: t.current.length - 2 })}</summary>
           <div className="mt-2 space-y-2">{t.current.slice(2).map(work => <CurrentOperation key={work.id} work={work} />)}</div>
         </details>}
       </div>}
@@ -289,11 +296,12 @@ function RunningTask({ task: t }: { task: ActivityTask }) {
 }
 
 function CurrentOperation({ work }: { work: ActivityOperation }) {
+  const { t: tr } = useTranslation('common');
   return <div className="min-w-0 text-xs">
     <p className="break-words font-medium">{work.stage} · {work.subject}</p>
-    {!!work.total && <p className="mt-0.5 text-subtle">{work.done ?? 0} of {work.total}</p>}
+    {!!work.total && <p className="mt-0.5 text-subtle">{tr('activity.progress', { done: work.done ?? 0, total: work.total })}</p>}
     {work.detail && <details className="mt-0.5">
-      <summary className="cursor-pointer py-0.5 text-subtle">Details</summary>
+      <summary className="cursor-pointer py-0.5 text-subtle">{tr('activity.details')}</summary>
       <p className="break-words py-1 text-muted">{work.detail}</p>
     </details>}
   </div>;
@@ -302,10 +310,10 @@ function CurrentOperation({ work }: { work: ActivityOperation }) {
 /** "just now", "4 min ago", "2 h ago". */
 function since(iso: string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  if (s < 60) return i18n.t('common:time.justNow');
+  if (s < 3600) return i18n.t('common:time.minutesAgo', { count: Math.floor(s / 60) });
+  if (s < 86400) return i18n.t('common:time.hoursAgo', { count: Math.floor(s / 3600) });
+  return shortDate(iso);
 }
 
 /** "Scanning Movies" reads as still running in a list of finished work: "Scanned Movies". */
@@ -323,9 +331,9 @@ export function finishedTitle(title: string) {
 
 function took(t: ActivityTask) {
   const ms = new Date(t.finished_at!).getTime() - new Date(t.started_at).getTime();
-  if (ms < 1000) return 'under a second';
+  if (ms < 1000) return i18n.t('common:time.underSecond');
   const s = Math.round(ms / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  if (s < 60) return i18n.t('common:time.seconds', { count: s });
+  if (s < 3600) return i18n.t('common:time.minutesSeconds', { minutes: Math.floor(s / 60), seconds: s % 60 });
+  return i18n.t('common:time.hoursMinutes', { hours: Math.floor(s / 3600), minutes: Math.floor((s % 3600) / 60) });
 }
