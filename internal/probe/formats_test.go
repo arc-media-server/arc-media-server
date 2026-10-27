@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +23,13 @@ func TestMain(m *testing.M) {
 				os.Exit(1)
 			}
 			if mode == "fail" {
+				os.Exit(1)
+			}
+			// An older ffprobe that doesn't know the keyframes-only option.
+			if mode == "no-skip-frame" && strings.Contains(strings.Join(os.Args, " "), "-skip_frame") {
+				os.Exit(1)
+			}
+			if mode == "keyframes-only" && !strings.Contains(strings.Join(os.Args, " "), "-skip_frame nokey") {
 				os.Exit(1)
 			}
 			idx := ""
@@ -127,5 +136,48 @@ func TestExistingFormatEnrichmentRefreshesAudioProfileAndSamplesVideo(t *testing
 	}
 	if streams[1].Profile != "Dolby TrueHD + Dolby Atmos" || streams[1].ChannelLayout != "7.1" || !streams[2].DolbyVision || !streams[2].HDR10Plus {
 		t.Fatalf("lost existing-file evidence: %+v", streams)
+	}
+}
+
+func TestFrameSampleDecodesKeyframesOnly(t *testing.T) {
+	t.Setenv("ARC_TEST_FORMAT_PROBE", "keyframes-only")
+	streams := []Stream{{Index: 4, Kind: "video", Codec: "av1"}}
+	if err := New(os.Args[0]).EnrichFormats(context.Background(), "file.mkv", streams); err != nil {
+		t.Fatal(err)
+	}
+	if !streams[0].DolbyVision || streams[0].HDRProbeStatus != "sampled" {
+		t.Fatalf("frame sample didn't ask for keyframes only: %+v", streams[0])
+	}
+}
+
+func TestFrameSampleFallsBackWhenKeyframesOnlyIsRejected(t *testing.T) {
+	t.Setenv("ARC_TEST_FORMAT_PROBE", "no-skip-frame")
+	streams := []Stream{{Index: 4, Kind: "video", Codec: "av1"}}
+	if err := New(os.Args[0]).EnrichFormats(context.Background(), "file.mkv", streams); err != nil {
+		t.Fatal(err)
+	}
+	if !streams[0].DolbyVision || !streams[0].HDR10Plus || streams[0].HDRProbeStatus != "sampled" {
+		t.Fatalf("no fallback to the full sample: %+v", streams[0])
+	}
+}
+
+// Real files with Dolby Vision 8.1 RPUs or HDR10+ SEI only on frames between keyframes (see
+// testdata/README.md): the keyframes-only sample must still find them.
+func TestProbeFindsDynamicHDRBetweenKeyframes(t *testing.T) {
+	ffprobe, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe not installed")
+	}
+	for file, want := range map[string]func(Stream) bool{
+		"dv81-other-frames.mkv":      func(s Stream) bool { return s.DolbyVision && !s.HDR10Plus },
+		"hdr10plus-other-frames.mkv": func(s Stream) bool { return s.HDR10Plus && !s.DolbyVision },
+	} {
+		res, err := New(ffprobe).Probe(context.Background(), filepath.Join("testdata", file))
+		if err != nil {
+			t.Fatal(file, err)
+		}
+		if len(res.Streams) != 1 || res.Streams[0].ColorTransfer != "smpte2084" || !want(res.Streams[0]) || res.Streams[0].HDRProbeStatus != "sampled" {
+			t.Errorf("%s: %+v", file, res.Streams)
+		}
 	}
 }
