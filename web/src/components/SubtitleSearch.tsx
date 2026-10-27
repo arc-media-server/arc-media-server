@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Download, Loader2, X } from 'lucide-react';
@@ -22,6 +23,7 @@ export function SubtitleSearch({
   onClose: () => void;
   onAdded: (track: SubtitleTrack) => void;
 }) {
+  const { t } = useTranslation('player');
   const [language, setLanguage] = useState(languages.includes(defaultLanguage) ? defaultLanguage : 'eng');
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,10 +55,10 @@ export function SubtitleSearch({
     >
       <div className="flex items-center justify-between gap-3 border-b border-white/10 p-5">
         <div>
-          <h2 className="text-lg font-semibold">Find Subtitles</h2>
-          <p className="text-xs text-white/50">From OpenSubtitles.com</p>
+          <h2 className="text-lg font-semibold">{t("player:subtitleSearch.findSubtitles")}</h2>
+          <p className="text-xs text-white/50">{t("player:subtitleSearch.fromOpensubtitlesCom")}</p>
         </div>
-        <button type="button" aria-label="Close" onClick={onClose} className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white">
+        <button type="button" aria-label={t("player:subtitleSearch.close")} onClick={onClose} className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white">
           <X className="size-5" />
         </button>
       </div>
@@ -64,7 +66,7 @@ export function SubtitleSearch({
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          aria-label="Language"
+          aria-label={t("player:subtitleSearch.language")}
           className="h-10 w-full rounded-xl bg-white/10 px-3 text-sm text-white outline-none ring-1 ring-white/15 focus:ring-2 focus:ring-white/40 [&>option]:bg-neutral-900"
         >
           {languages.map((l) => (
@@ -82,7 +84,7 @@ export function SubtitleSearch({
           </div>
         )}
         {results.error && <p className="px-2 py-6 text-sm text-white/70">{results.error.message}</p>}
-        {results.data?.length === 0 && <p className="px-2 py-6 text-sm text-white/60">No {fmt.language(language)} subtitles found.</p>}
+        {results.data?.length === 0 && <p className="px-2 py-6 text-sm text-white/60">{t("player:subtitleSearch.no")} {fmt.language(language)} {t("player:subtitleSearch.subtitlesFound")}</p>}
         {results.data?.map((s) => (
           <button
             key={s.file_id}
@@ -96,13 +98,12 @@ export function SubtitleSearch({
               <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-white/50">
                 {s.hash_match && (
                   <span className="inline-flex items-center gap-1 text-accent">
-                    <Check className="size-3" /> Made for this file
-                  </span>
+                    <Check className="size-3" /> {t("player:subtitleSearch.madeForThisFile")}</span>
                 )}
-                {s.hearing_impaired && <span>SDH</span>}
-                {s.forced && <span>Forced</span>}
-                {s.machine_translated && <span className="text-warning">Machine translated</span>}
-                <span>{fmt.plural(s.downloads, 'download')}</span>
+                {s.hearing_impaired && <span>{t("player:subtitleSearch.sdh")}</span>}
+                {s.forced && <span>{t("player:subtitleSearch.forced")}</span>}
+                {s.machine_translated && <span className="text-warning">{t("player:subtitleSearch.machineTranslated")}</span>}
+                <span>{t('player:subtitleSearch.downloads', { count: s.downloads })}</span>
               </p>
             </div>
             <span className={cn('mt-0.5 shrink-0 text-white/50 group-hover:text-white')}>

@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
@@ -91,6 +93,7 @@ const pingEveryMS = 30_000;
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation('player');
   const qc = useQueryClient();
   const [queue, setQueue] = useState<QueueState | null>(null);
   const [minimized, setMinimized] = useState(false);
@@ -113,7 +116,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .then((clips) => {
         if (generation !== playGeneration.current) return;
         if (!clips.length) return setQueue(start);
-        const prerolls = clips.map((c) => queued({ title: c.title, subtitle: `Before ${item.title}`, src: c.url, preroll: true }));
+        const prerolls = clips.map((c) => queued({ title: c.title, subtitle: t('player:player.beforeTitle', { title: item.title }), src: c.url, preroll: true }));
         setQueue({ items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index });
       });
   }, []);
@@ -228,6 +231,7 @@ function PlayerOverlay({
   minimized: boolean;
   onMinimize: () => void;
 }) {
+  const { t } = useTranslation('player');
   const queue = usePlaybackQueue();
   const overlayRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -402,7 +406,7 @@ function PlayerOverlay({
         plan.current = p;
         if (qualityMode.current === -1) {
           const effective = quality.current ? Math.min(quality.current, p.server_limit_kbps || Infinity) : p.server_limit_kbps;
-          setQualityNotice(effective ? `Automatic quality: limit ${qualityName(effective)}.` : 'Automatic quality: original allowed by server limits.');
+          setQualityNotice(effective ? t('player:player.automaticLimit', { quality: qualityName(effective) }) : t('player:player.originalAllowed'));
         }
         if (!quality.current) originalRate.current = p.optimized?.bitrate ? p.optimized.bitrate / 1000 : p.source_kbps || 8000;
         setPlanState(p);
@@ -484,7 +488,7 @@ function PlayerOverlay({
         currentLimit: quality.current, originalKbps: originalRate.current, ceilingKbps: p.server_limit_kbps || 0 });
       if (target === null) return;
       quality.current = target; setAutomaticLimit(target);
-      setQualityNotice(target ? `Automatic quality: limit ${qualityName(target)}.` : 'Automatic quality: original allowed by server limits.');
+      setQualityNotice(target ? t('player:player.automaticLimit', { quality: qualityName(target) }) : t('player:player.originalAllowed'));
       adaptiveBusy.current = true;
       void load(absMS(), p.audio_stream, caps.current, true).finally(() => { adaptiveBusy.current = false; });
     }, 1000);
@@ -505,7 +509,7 @@ function PlayerOverlay({
         if (res.status === 403) {
           const body = await res.json().catch(() => ({}));
           detach();
-          setStopped(body.error ?? "The server's admin stopped this.");
+          setStopped(body.error ?? t('player:player.adminStopped'));
           return;
         }
       } catch {
@@ -529,32 +533,32 @@ function PlayerOverlay({
     setLoading(false);
     // A pre-roll that won't play is skipped rather than holding up the movie.
     if (item.preroll && next) return onNext();
-    setError(item.itemId ? "Arc couldn't play this file." : "This file can't be played in the browser.");
+    setError(item.itemId ? t('player:player.fileError') : t('player:player.browserError'));
   }, [absMS, detach, item.itemId, item.src, item.preroll, next, onNext, load]);
 
   // Show a subtitle track (null for none). Text ones are drawn here; picture ones are burned into
   // the video, which restarts it converted. remember saves the language for next time.
   const selectSubtitle = useCallback(
-    async (t: SubtitleTrack | null, remember: boolean) => {
+    async (tabId: SubtitleTrack | null, remember: boolean) => {
       const generation = ++subtitleGeneration.current;
       if (remember) setTrackNotice(null);
       const p = plan.current;
       if (!p || !item.itemId) return;
       // Turning them off forgets the language only where the language is what turns them on.
-      const remembered = rememberedSubtitleLanguage(t, prefs.data?.subtitle_mode);
+      const remembered = rememberedSubtitleLanguage(tabId, prefs.data?.subtitle_mode);
       if (remember && remembered !== undefined) updatePrefs.mutate({ subtitle_language: remembered });
-      if (t) lastSubtitle.current = t;
-      setSubtitle(t);
+      if (tabId) lastSubtitle.current = tabId;
+      setSubtitle(tabId);
       setCues([]);
       setSubtitleError(null);
-      const wantBurn = t?.image ? t.id : undefined;
+      const wantBurn = tabId?.image ? tabId.id : undefined;
       if (wantBurn !== burn.current) {
         burn.current = wantBurn;
         await load(absMS(), p.audio_stream);
       }
-      if (!t || t.image || generation !== subtitleGeneration.current) return;
+      if (!tabId || tabId.image || generation !== subtitleGeneration.current) return;
       try {
-        const res = await api.subtitleCues(item.itemId, t.id, p.file_id);
+        const res = await api.subtitleCues(item.itemId, tabId.id, p.file_id);
         if (generation === subtitleGeneration.current) setCues(res.cues);
       } catch (e) {
         if (generation === subtitleGeneration.current) setSubtitleError(e instanceof Error ? e.message : String(e));
@@ -594,7 +598,7 @@ function PlayerOverlay({
     let cancelled = false;
     api
       .trickplay(item.itemId, thumbFile)
-      .then((t) => !cancelled && setThumbs(t))
+      .then((tabId) => !cancelled && setThumbs(tabId))
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -608,21 +612,21 @@ function PlayerOverlay({
     const audioLang = planState.audio_tracks.find((a) => a.index === planState.audio_stream)?.language;
     const selection = !preplayApplied.current && item.selection?.fileId === planState.file_id ? item.selection : undefined;
     preplayApplied.current = true;
-    let t = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang, prefs.data.subtitle_mode);
+    let localValue = chooseSubtitle(planState.subtitle_tracks, prefs.data.subtitle_language, audioLang, prefs.data.subtitle_mode);
     const patch: { audio_language?: string; subtitle_language?: string } = {};
     if (selection?.audioStream !== undefined && selection.audioStream === planState.audio_stream && audioLang && audioLang !== prefs.data.audio_language) patch.audio_language = audioLang;
     if (selection?.subtitle !== undefined) {
       const explicit = selection.subtitle === null ? null : planState.subtitle_tracks.find(track => track.id === selection.subtitle);
       if (explicit !== undefined) {
-        t = explicit ?? undefined;
+        localValue = explicit ?? undefined;
         const remembered = rememberedSubtitleLanguage(explicit, prefs.data.subtitle_mode);
         if (remembered !== undefined) patch.subtitle_language = remembered;
       } else {
-        setTrackNotice('The selected subtitles are no longer available. Using your profile defaults.');
+        setTrackNotice(t('player:player.missingSubtitles'));
       }
     }
     if (Object.keys(patch).length) updatePrefs.mutate(patch);
-    if (t) void selectSubtitle(t, false);
+    if (localValue) void selectSubtitle(localValue, false);
   }, [planState, prefs.data, selectSubtitle]);
 
   // The cue on screen, checked every frame so it appears on time.
@@ -633,9 +637,9 @@ function PlayerOverlay({
     }
     let raf = 0;
     const tick = () => {
-      const t = absMS() - subtitleOffsetMS;
+      const localValue = absMS() - subtitleOffsetMS;
       const text = cues
-        .filter((c) => c.start_ms <= t && t < c.end_ms)
+        .filter((c) => c.start_ms <= localValue && localValue < c.end_ms)
         .map((c) => c.text)
         .join('\n');
       setCueText((prev) => (prev === text ? prev : text));
@@ -724,10 +728,10 @@ function PlayerOverlay({
   useEffect(() => {
     const sid = planState?.session_id;
     if (!sid) return;
-    const t = window.setInterval(() => {
+    const localValue = window.setInterval(() => {
       api.pingTranscode(sid).catch(() => {});
     }, pingEveryMS);
-    return () => window.clearInterval(t);
+    return () => window.clearInterval(localValue);
   }, [planState?.session_id]);
 
   const seekTo = useCallback(
@@ -737,24 +741,24 @@ function PlayerOverlay({
       if (!v) return;
       adaptive.current.reset(Date.now());
       const dur = durationMS || (v.duration || 0) * 1000;
-      const t = Math.max(0, dur ? Math.min(target, dur - 500) : target);
-      setPositionMS(t);
+      const localValue = Math.max(0, dur ? Math.min(target, dur - 500) : target);
+      setPositionMS(localValue);
       if (!p?.hls) {
-        v.currentTime = t / 1000;
+        v.currentTime = localValue / 1000;
         return;
       }
       if (requestedPosition.current !== null) {
-        void load(t, p.audio_stream);
+        void load(localValue, p.audio_stream);
         return;
       }
-      const rel = (t - offset.current) / 1000;
+      const rel = (localValue - offset.current) / 1000;
       const end = v.seekable.length ? v.seekable.end(v.seekable.length - 1) : 0;
       if (rel >= 0 && rel <= end - 1) {
         v.currentTime = rel;
       } else {
         // Not converted yet (or before where this conversion started): start again from there,
         // the same way as now.
-        void load(t, p.audio_stream);
+        void load(localValue, p.audio_stream);
       }
     },
     [durationMS, load],
@@ -804,7 +808,7 @@ function PlayerOverlay({
   useEffect(() => {
     const v = video.current;
     if (!v || !pip || !cues.length) return;
-    const track = v.addTextTrack('subtitles', 'Subtitles');
+    const track = v.addTextTrack('subtitles', t('player:player.nativeSubtitleLabel'));
     track.mode = 'showing';
     const offsetS = offset.current / 1000;
     for (const c of cues) {
@@ -911,8 +915,8 @@ function PlayerOverlay({
           // Subtitles on (the last ones, or the first text ones) and off.
           if (subtitle) void selectSubtitle(null, true);
           else {
-            const t = lastSubtitle.current ?? plan.current?.subtitle_tracks.find((x) => !x.image);
-            if (t) void selectSubtitle(t, true);
+            const localValue = lastSubtitle.current ?? plan.current?.subtitle_tracks.find((x) => !x.image);
+            if (localValue) void selectSubtitle(localValue, true);
           }
           break;
         case 'N':
@@ -979,9 +983,9 @@ function PlayerOverlay({
     if (!skippable || !prefs.data?.auto_skip || autoSkipped.current.has(skippable.kind) || paused) return;
     autoSkipped.current.add(skippable.kind);
     seekTo(skippable.end_ms);
-    setSkippedNote(skippable.kind === 'intro' ? 'Skipped the intro' : 'Skipped the recap');
-    const t = window.setTimeout(() => setSkippedNote(null), 2500);
-    return () => window.clearTimeout(t);
+    setSkippedNote(skippable.kind === 'intro' ? t('player:player.skippedIntro') : t('player:player.skippedRecap'));
+    const timer = window.setTimeout(() => setSkippedNote(null), 2500);
+    return () => window.clearTimeout(timer);
   }, [skippable, prefs.data?.auto_skip, paused, seekTo]);
   useEffect(() => {
     // When the credits start, Up Next counts down (as Plex does); Cancel lets them play.
@@ -997,7 +1001,7 @@ function PlayerOverlay({
   return (
     <motion.div
       ref={overlayRoot}
-      role="region" aria-label="Media player" tabIndex={-1}
+      role="region" aria-label={t("player:player.mediaPlayer")} tabIndex={-1}
       className={cn(minimized ? 'fixed bottom-4 right-4 z-[100] flex h-48 w-80 max-w-[calc(100vw-32px)] items-center justify-center overflow-hidden rounded-2xl bg-black shadow-2xl' : 'fixed inset-0 z-[100] flex items-center justify-center bg-black', !showChrome && 'cursor-none')}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -1022,11 +1026,11 @@ function PlayerOverlay({
           }}
         />
       ) : stopped !== null ? (
-        <Message icon={<OctagonX className="text-white/70" />} title="Playback was stopped" onClose={onClose}>
+        <Message icon={<OctagonX className="text-white/70" />} title={t("player:player.playbackWasStopped")} onClose={onClose}>
           {stopped}
         </Message>
       ) : error ? (
-        <Message icon={<AlertCircle className="text-warning" />} title="Can't play this" onClose={onClose} onRetry={() => { setError(null); requestRetry(n => n + 1); }}>
+        <Message icon={<AlertCircle className="text-warning" />} title={t("player:player.canTPlayThis")} onClose={onClose} onRetry={() => { setError(null); requestRetry(n => n + 1); }}>
           {error}
         </Message>
       ) : (
@@ -1116,8 +1120,8 @@ function PlayerOverlay({
           {item.subtitle && <p className="text-sm text-white/60">{item.subtitle}</p>}
         </div>
         <div className="pointer-events-auto flex shrink-0 gap-2">
-        <Button variant="glass" size="icon" aria-label={minimized ? 'Expand player' : 'Minimize player'} onClick={() => { if (!minimized && document.fullscreenElement) void document.exitFullscreen(); onMinimize(); }}>{minimized ? <Maximize /> : <Minimize />}</Button>
-        <Button variant="glass" size="icon" className="pointer-events-auto" aria-label="Close player" onClick={onClose}>
+        <Button variant="glass" size="icon" aria-label={minimized ? t("player:player.expandPlayer") : t("player:player.minimizePlayer")} onClick={() => { if (!minimized && document.fullscreenElement) void document.exitFullscreen(); onMinimize(); }}>{minimized ? <Maximize /> : <Minimize />}</Button>
+        <Button variant="glass" size="icon" className="pointer-events-auto" aria-label={t("player:player.closePlayer")} onClick={onClose}>
           <X />
         </Button>
         </div>
@@ -1126,20 +1130,19 @@ function PlayerOverlay({
       {!!updatePrefs.error && <div className="absolute inset-x-6 top-24 z-10"><ErrorNotice error={updatePrefs.error} onRetry={() => { if (updatePrefs.variables) updatePrefs.mutate(updatePrefs.variables); }} /></div>}
       {!minimized && skippable && !skippedNote && (
         <Button variant="primary" size="lg" className="absolute bottom-72 right-6 sm:bottom-28 z-10 shadow-2xl shadow-black/50" onClick={() => seekTo(skippable.end_ms)}>
-          {skippable.kind === 'intro' ? 'Skip Intro' : 'Skip Recap'} <SkipForward />
+          {skippable.kind === 'intro' ? t("player:player.skipIntro") : t("player:player.skipRecap")} <SkipForward />
         </Button>
       )}
       {!minimized && inCredits && upNextIn === null && credits && (
         <Button variant="primary" size="lg" className="absolute bottom-72 right-6 sm:bottom-28 z-10 shadow-2xl shadow-black/50" onClick={() => (next ? onNext() : seekTo(credits.end_ms))}>
-          {next ? 'Play Next' : 'Skip Credits'} <SkipForward />
+          {next ? t("player:player.playNext") : t("player:player.skipCredits")} <SkipForward />
         </Button>
       )}
       {skippedNote && (
         <div className="pointer-events-none absolute bottom-72 right-6 sm:bottom-28 z-10 rounded-full bg-black/70 px-4 py-2 text-sm text-white ring-1 ring-white/15">{skippedNote}</div>
       )}
       {!minimized && item.preroll && next && (
-        <Button variant="glass" className="absolute bottom-72 right-6 sm:bottom-28 z-10" onClick={onNext}>
-          Skip <SkipForward />
+        <Button variant="glass" className="absolute bottom-72 right-6 sm:bottom-28 z-10" onClick={onNext}>{t("player:player.skip")} <SkipForward />
         </Button>
       )}
       {upNextIn !== null && next && (
@@ -1182,23 +1185,23 @@ function PlayerOverlay({
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto sm:flex-1">
-            <ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>
+            <ControlButton label={paused ? t("player:player.playSpace") : t("player:player.pauseSpace")} onClick={togglePlay}>
               {paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
             </ControlButton>
             {onPrevious && (
-              <ControlButton label="Previous (Shift+P)" onClick={onPrevious}>
+              <ControlButton label={t("player:player.previousShiftP")} onClick={onPrevious}>
                 <SkipBack className="fill-current" />
               </ControlButton>
             )}
             {next && (
-              <ControlButton label={`Next: ${next.title} (Shift+N)`} onClick={onNext}>
+              <ControlButton label={t('player:player.nextTitleShortcut', { title: next.title })} onClick={onNext}>
                 <SkipForward className="fill-current" />
               </ControlButton>
             )}
-            <ControlButton label="Back 10 seconds (J)" onClick={() => seekTo(absMS() - 10_000)}>
+            <ControlButton label={t("player:player.back10SecondsJ")} onClick={() => seekTo(absMS() - 10_000)}>
               <RotateCcw />
             </ControlButton>
-            <ControlButton label="Forward 10 seconds (L)" onClick={() => seekTo(absMS() + 10_000)}>
+            <ControlButton label={t("player:player.forward10SecondsL")} onClick={() => seekTo(absMS() + 10_000)}>
               <RotateCw />
             </ControlButton>
             <VolumeControl volume={volume} muted={muted} onVolume={(v) => (setVolume(v), setMuted(false))} onMute={() => setMuted((m) => !m)} />
@@ -1208,21 +1211,21 @@ function PlayerOverlay({
             </div>
             <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto">
             {planState && planState.audio_tracks.length > 1 && (
-              <PlayerMenu icon={<Languages />} label="Audio" onOpenChange={setMenuOpen}>
-                <DropdownMenuLabel>Audio</DropdownMenuLabel>
-                {planState.audio_tracks.map((t, i) => {
-                  const { name, detail } = audioLabel(t, i);
+              <PlayerMenu icon={<Languages />} label={t("player:player.audio")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.audio")}</DropdownMenuLabel>
+                {planState.audio_tracks.map((tabId, i) => {
+                  const { name, detail } = audioLabel(tabId, i);
                   return (
                     <DropdownMenuItem
-                      key={t.index}
+                      key={tabId.index}
                       onSelect={() => {
-                        if (t.index === planState.audio_stream) return;
-                        void load(absMS(), t.index);
+                        if (tabId.index === planState.audio_stream) return;
+                        void load(absMS(), tabId.index);
                         // Remembered for the profile, like subtitles: played by default from now on.
-                        if (t.language && t.language !== prefs.data?.audio_language) updatePrefs.mutate({ audio_language: t.language });
+                        if (tabId.language && tabId.language !== prefs.data?.audio_language) updatePrefs.mutate({ audio_language: tabId.language });
                       }}
                     >
-                      <span className="w-4">{t.index === planState.audio_stream && <Check className="size-4 text-accent" />}</span>
+                      <span className="w-4">{tabId.index === planState.audio_stream && <Check className="size-4 text-accent" />}</span>
                       <span className="min-w-0">
                         <span className="block">{name}</span>
                         <span className="block text-xs text-subtle">{detail}</span>
@@ -1233,17 +1236,15 @@ function PlayerOverlay({
               </PlayerMenu>
             )}
             {planState && (planState.subtitle_tracks.length > 0 || item.itemId) && (
-              <PlayerMenu icon={<Captions />} label="Subtitles (C)" onOpenChange={setMenuOpen}>
-                <DropdownMenuLabel>Subtitles</DropdownMenuLabel>
+              <PlayerMenu icon={<Captions />} label={t("player:player.subtitlesC")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.subtitles")}</DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => void selectSubtitle(null, true)}>
-                  <span className="w-4">{!subtitle && <Check className="size-4 text-accent" />}</span>
-                  Off
-                </DropdownMenuItem>
-                {planState.subtitle_tracks.map((t, i) => {
-                  const { name, detail } = subtitleLabel(t, i);
+                  <span className="w-4">{!subtitle && <Check className="size-4 text-accent" />}</span>{t("player:player.off")}</DropdownMenuItem>
+                {planState.subtitle_tracks.map((tabId, i) => {
+                  const { name, detail } = subtitleLabel(tabId, i);
                   return (
-                    <DropdownMenuItem key={t.id} onSelect={() => t.id !== subtitle?.id && void selectSubtitle(t, true)}>
-                      <span className="w-4">{t.id === subtitle?.id && <Check className="size-4 text-accent" />}</span>
+                    <DropdownMenuItem key={tabId.id} onSelect={() => tabId.id !== subtitle?.id && void selectSubtitle(tabId, true)}>
+                      <span className="w-4">{tabId.id === subtitle?.id && <Check className="size-4 text-accent" />}</span>
                       <span className="min-w-0">
                         <span className="block">{name}</span>
                         {detail && <span className="block text-xs text-subtle">{detail}</span>}
@@ -1254,12 +1255,12 @@ function PlayerOverlay({
                 {subtitleError && <p className="max-w-64 px-2.5 py-1.5 text-xs text-warning">{subtitleError}</p>}
                 {subtitle && !subtitle.image && <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Timing: {subtitleOffsetMS > 0 ? '+' : ''}{(subtitleOffsetMS / 1000).toFixed(1)}s {subtitleOffsetMS > 0 ? '(later)' : subtitleOffsetMS < 0 ? '(earlier)' : ''}</DropdownMenuLabel>
-                  <DropdownMenuItem disabled={subtitleOffsetMS <= -10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(-500); }}>Show 0.5s earlier</DropdownMenuItem>
-                  <DropdownMenuItem disabled={subtitleOffsetMS >= 10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(500); }}>Show 0.5s later</DropdownMenuItem>
-                  <DropdownMenuItem disabled={subtitleOffsetMS === 0} onSelect={(e) => { e.preventDefault(); shiftSubtitles(null); }}>Reset subtitle timing</DropdownMenuItem>
+                  <DropdownMenuLabel>{subtitleOffsetMS > 0 ? t('player:player.timingLater', { seconds: (subtitleOffsetMS / 1000).toFixed(1) }) : subtitleOffsetMS < 0 ? t('player:player.timingEarlier', { seconds: (subtitleOffsetMS / 1000).toFixed(1) }) : t('player:player.timingZero')}</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={subtitleOffsetMS <= -10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(-500); }}>{t("player:player.show05sEarlier")}</DropdownMenuItem>
+                  <DropdownMenuItem disabled={subtitleOffsetMS >= 10000} onSelect={(e) => { e.preventDefault(); shiftSubtitles(500); }}>{t("player:player.show05sLater")}</DropdownMenuItem>
+                  <DropdownMenuItem disabled={subtitleOffsetMS === 0} onSelect={(e) => { e.preventDefault(); shiftSubtitles(null); }}>{t("player:player.resetSubtitleTiming")}</DropdownMenuItem>
                 </>}
-                {subtitle?.image && <p className="max-w-64 px-2.5 py-1.5 text-xs text-white/60">Timing adjustment is available for text subtitles. Image subtitles are part of the converted video.</p>}
+                {subtitle?.image && <p className="max-w-64 px-2.5 py-1.5 text-xs text-white/60">{t("player:player.timingAdjustmentIsAvailable")}</p>}
                 {item.itemId && (
                   <>
                     <DropdownMenuSeparator />
@@ -1269,13 +1270,11 @@ function PlayerOverlay({
                         setSearching(true);
                       }}
                     >
-                      <span className="w-4" />
-                      Find Online…
-                    </DropdownMenuItem>
+                      <span className="w-4" />{t("player:player.findOnline")}</DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Size</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("player:player.size")}</DropdownMenuLabel>
                 {(['small', 'medium', 'large', 'huge'] as const).map((sz) => (
                   <DropdownMenuItem
                     key={sz}
@@ -1285,14 +1284,14 @@ function PlayerOverlay({
                     }}
                   >
                     <span className="w-4">{sz === subtitleSize && <Check className="size-4 text-accent" />}</span>
-                    {sz[0].toUpperCase() + sz.slice(1)}
+                    {{ small: t('player:player.sizeSmall'), medium: t('player:player.sizeMedium'), large: t('player:player.sizeLarge'), huge: t('player:player.sizeHuge') }[sz]}
                   </DropdownMenuItem>
                 ))}
               </PlayerMenu>
             )}
             {planState && planState.versions.length > 1 && (
-              <PlayerMenu icon={<Film />} label="Version" onOpenChange={setMenuOpen}>
-                <DropdownMenuLabel>Version</DropdownMenuLabel>
+              <PlayerMenu icon={<Film />} label={t("player:player.version")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.version")}</DropdownMenuLabel>
                 {planState.versions.map((v) => {
                   const { name, detail } = versionLabel(v);
                   return (
@@ -1308,8 +1307,8 @@ function PlayerOverlay({
               </PlayerMenu>
             )}
             {planState && item.itemId && (
-              <PlayerMenu icon={<SlidersHorizontal />} label="Quality" onOpenChange={setMenuOpen}>
-                <DropdownMenuLabel>Quality</DropdownMenuLabel>
+              <PlayerMenu icon={<SlidersHorizontal />} label={t("player:player.quality")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.quality")}</DropdownMenuLabel>
                 {[-1, 0, ...qualities.filter((q) => !planState.source_kbps || q < planState.source_kbps)].map((q) => (
                   <DropdownMenuItem
                     key={q}
@@ -1330,19 +1329,17 @@ function PlayerOverlay({
                     }}
                   >
                     <span className="w-4">{q === qualityState && <Check className="size-4 text-accent" />}</span>
-                    {q === -1 ? 'Automatic' : q ? qualityName(q) : 'Original'}
+                    {q === -1 ? t("player:player.automatic") : q ? qualityName(q) : t("player:player.original")}
                   </DropdownMenuItem>
                 ))}
-                {qualityState === -1 && <DropdownMenuLabel className="max-w-64 whitespace-normal normal-case font-normal">
-                  Adapts to playback delivery. Changes may briefly rebuffer.
-                  {automaticLimit > 0 && ` Current limit: ${qualityName(Math.min(automaticLimit, planState.server_limit_kbps || Infinity))}.`}
+                {qualityState === -1 && <DropdownMenuLabel className="max-w-64 whitespace-normal normal-case font-normal">{automaticLimit > 0 ? t('player:player.adaptsWithLimit', { quality: qualityName(Math.min(automaticLimit, planState.server_limit_kbps || Infinity)) }) : t("player:player.adaptsToPlaybackDelivery")}
                 </DropdownMenuLabel>}
                 {qualityNotice && <p role="status" className="max-w-64 px-2.5 py-2 text-xs text-subtle">{qualityNotice}</p>}
               </PlayerMenu>
             )}
             {planState && planState.chapters.length > 1 && (
-              <PlayerMenu icon={<ListOrdered />} label="Chapters" onOpenChange={setMenuOpen}>
-                <DropdownMenuLabel>Chapters</DropdownMenuLabel>
+              <PlayerMenu icon={<ListOrdered />} label={t("player:player.chapters")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.chapters")}</DropdownMenuLabel>
                 <div className="max-h-80 overflow-y-auto">
                   {planState.chapters.map((c, i) => (
                     <DropdownMenuItem key={c.start_ms} onSelect={() => seekTo(c.start_ms)}>
@@ -1354,37 +1351,35 @@ function PlayerOverlay({
                 </div>
               </PlayerMenu>
             )}
-            <ControlButton label="Playback queue" onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton>
-            <PlayerMenu icon={<Gauge />} label="Speed" onOpenChange={setMenuOpen}>
-              <DropdownMenuLabel>Speed</DropdownMenuLabel>
+            <ControlButton label={t("player:player.playbackQueue")} onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton>
+            <PlayerMenu icon={<Gauge />} label={t("player:player.speed")} onOpenChange={setMenuOpen}>
+              <DropdownMenuLabel>{t("player:player.speed")}</DropdownMenuLabel>
               {speeds.map((s) => (
                 <DropdownMenuItem key={s} onSelect={() => setRate(s)}>
                   <span className="w-4">{s === rate && <Check className="size-4 text-accent" />}</span>
-                  {s === 1 ? 'Normal' : `${s}×`}
+                  {s === 1 ? t("player:player.normal") : `${s}×`}
                 </DropdownMenuItem>
               ))}
             </PlayerMenu>
             {planState && (
-              <PlayerMenu icon={<Info />} label="Playback info" onOpenChange={setMenuOpen}>
+              <PlayerMenu icon={<Info />} label={t("player:player.playbackInfo")} onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>{methodLabel(planState).title}</DropdownMenuLabel>
                 <p className="max-w-64 px-2.5 pb-2 text-xs leading-relaxed text-muted">{methodLabel(planState).detail}</p>
                 <DropdownMenuSeparator />
-                <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">
-                  Space play/pause · ←/→ 5s · J/L 10s · Shift+←/→ chapters · ↑/↓ volume · M mute · C subtitles · Shift+N/P next/previous · F full screen · I picture-in-picture · &lt;/&gt; speed · 0–9 jump
-                </p>
+                <p className="max-w-64 px-2.5 py-1.5 text-xs leading-relaxed text-subtle">{t("player:player.spacePlayPause5s")}</p>
               </PlayerMenu>
             )}
             {castAvailable && item.itemId && (
-              <ControlButton label="Cast to a Chromecast" onClick={() => void startCast()}>
+              <ControlButton label={t("player:player.castToAChromecast")} onClick={() => void startCast()}>
                 <Cast />
               </ControlButton>
             )}
             {airplayAvailable && item.itemId && (
               <ControlButton
-                label="AirPlay"
+                label={t("player:player.airplay")}
                 onClick={() => {
                   if (subtitle && !subtitle.image) {
-                    setTrackNotice('AirPlay cannot receive browser-rendered text subtitles yet. Turn subtitles Off to cast, or keep playing here.');
+                    setTrackNotice(t('player:player.airplayTextWarning'));
                     return;
                   }
                   (video.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void } | null)?.webkitShowPlaybackTargetPicker?.();
@@ -1394,24 +1389,24 @@ function PlayerOverlay({
               </ControlButton>
             )}
             {pipSupported && (
-              <ControlButton label={pip ? 'Back from Picture-in-Picture (I)' : 'Picture-in-Picture (I)'} onClick={togglePip}>
+              <ControlButton label={pip ? t("player:player.backFromPictureIn") : t("player:player.pictureInPictureI")} onClick={togglePip}>
                 <PictureInPicture2 />
               </ControlButton>
             )}
-            <ControlButton label={fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'} onClick={toggleFullscreen}>
+            <ControlButton label={fullscreen ? t("player:player.exitFullScreenF") : t("player:player.fullScreenF")} onClick={toggleFullscreen}>
               {fullscreen ? <Minimize /> : <Maximize />}
             </ControlButton>
             </div>
           </div>
         </div>
       )}
-      {minimized && <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-black/70 p-2"><ControlButton label={paused ? 'Play (Space)' : 'Pause (Space)'} onClick={togglePlay}>{paused ? <Play /> : <Pause />}</ControlButton>{next && <ControlButton label={'Next: ' + next.title} onClick={onNext}><SkipForward /></ControlButton>}<ControlButton label="Playback queue" onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton></div>}
+      {minimized && <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-black/70 p-2"><ControlButton label={paused ? t("player:player.playSpace") : t("player:player.pauseSpace")} onClick={togglePlay}>{paused ? <Play /> : <Pause />}</ControlButton>{next && <ControlButton label={t('player:player.nextTitle', { title: next.title })} onClick={onNext}><SkipForward /></ControlButton>}<ControlButton label={t("player:player.playbackQueue")} onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton></div>}
       <Dialog open={queueOpen} onOpenChange={setQueueOpen}>
-        <DialogContent title="Playback queue" description="Arrange what plays next. Minimize the player to browse and add more titles." overlayClassName="z-[120]" className="z-[121]" footer={<Button variant="secondary" disabled={!next} onClick={queue.clear}>Clear upcoming</Button>}>
+        <DialogContent title={t("player:player.playbackQueue")} description={t("player:player.arrangeWhatPlaysNext")} overlayClassName="z-[120]" className="z-[121]" footer={<Button variant="secondary" disabled={!next} onClick={queue.clear}>{t("player:player.clearUpcoming")}</Button>}>
           <ol className="space-y-3">
             {queue.state?.items.slice(queue.state.index).map((entry, i, items) => <li key={entry.queueId} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3">
-              <div className="min-w-0 flex-1 basis-40"><p className="break-words text-sm font-medium">{entry.title}</p><p className="text-xs text-muted">{i === 0 ? 'Now playing' : 'Up next'}{entry.subtitle ? ' · ' + entry.subtitle : ''}</p></div>
-              {i > 0 && <div className="flex gap-1"><Button size="icon" variant="ghost" aria-label={'Move ' + entry.title + ' up'} disabled={i === 1} onClick={() => queue.move(entry.queueId, -1)}><ArrowUp /></Button><Button size="icon" variant="ghost" aria-label={'Move ' + entry.title + ' down'} disabled={i === items.length - 1} onClick={() => queue.move(entry.queueId, 1)}><ArrowDown /></Button><Button size="icon" variant="ghost" aria-label={'Play ' + entry.title + ' now'} onClick={() => { queue.jump(entry.queueId); setQueueOpen(false); }}><Play /></Button><Button size="icon" variant="ghost" aria-label={'Remove ' + entry.title + ' from queue'} onClick={() => queue.remove(entry.queueId)}><Trash2 /></Button></div>}
+              <div className="min-w-0 flex-1 basis-40"><p className="break-words text-sm font-medium">{entry.title}</p><p className="text-xs text-muted">{i === 0 ? t("player:player.nowPlaying") : t("player:player.upNext")}{entry.subtitle ? ' · ' + entry.subtitle : ''}</p></div>
+              {i > 0 && <div className="flex gap-1"><Button size="icon" variant="ghost" aria-label={t('player:player.moveUp', { title: entry.title })} disabled={i === 1} onClick={() => queue.move(entry.queueId, -1)}><ArrowUp /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.moveDown', { title: entry.title })} disabled={i === items.length - 1} onClick={() => queue.move(entry.queueId, 1)}><ArrowDown /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.playNowTitle', { title: entry.title })} onClick={() => { queue.jump(entry.queueId); setQueueOpen(false); }}><Play /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.removeQueue', { title: entry.title })} onClick={() => queue.remove(entry.queueId)}><Trash2 /></Button></div>}
             </li>)}
           </ol>
         </DialogContent>
@@ -1496,6 +1491,7 @@ function Thumb({ ms, thumbs }: { ms: number; thumbs: { info: TrickplayInfo; shee
 
 /** The next item in a queue, counting down to it. */
 function UpNext({ item, seconds, compact = false, onTick, onPlay, onCancel }: { item: NowPlaying; seconds: number; compact?: boolean; onTick: () => void; onPlay: () => void; onCancel: () => void }) {
+  const { t } = useTranslation('player');
   // The callbacks change with every render of the player; the countdown only follows the seconds.
   const callbacks = useRef({ onTick, onPlay });
   callbacks.current = { onTick, onPlay };
@@ -1504,42 +1500,38 @@ function UpNext({ item, seconds, compact = false, onTick, onPlay, onCancel }: { 
       callbacks.current.onPlay();
       return;
     }
-    const t = window.setTimeout(() => callbacks.current.onTick(), 1000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => callbacks.current.onTick(), 1000);
+    return () => window.clearTimeout(timer);
   }, [seconds]);
   if (compact) return (
     <div className="absolute inset-x-2 bottom-16 flex items-center justify-between rounded-xl bg-black/80 px-3 py-1 text-white">
-      <p className="text-xs">Up next in {seconds}</p>
-      <Button variant="glass" size="sm" onClick={onCancel}>Cancel</Button>
+      <p className="text-xs">{t('player:player.upNextCountdown', { count: seconds })}</p>
+      <Button variant="glass" size="sm" onClick={onCancel}>{t("player:player.cancel")}</Button>
     </div>
   );
   return (
     <div className="absolute bottom-72 right-6 sm:bottom-28 z-10 w-80 rounded-2xl bg-black/80 p-4 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
-      <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Up next in {seconds}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-white/50">{t('player:player.upNextCountdown', { count: seconds })}</p>
       <p className="mt-1 truncate font-semibold">{item.title}</p>
       {item.subtitle && <p className="truncate text-sm text-white/60">{item.subtitle}</p>}
       <div className="mt-3 flex gap-2">
         <Button variant="primary" size="sm" onClick={onPlay}>
-          <Play className="fill-current" /> Play Now
-        </Button>
-        <Button variant="glass" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
+          <Play className="fill-current" /> {t("player:player.playNow")}</Button>
+        <Button variant="glass" size="sm" onClick={onCancel}>{t("player:player.cancel")}</Button>
       </div>
     </div>
   );
 }
 
 function Message({ icon, title, children, onClose, onRetry }: { icon: ReactNode; title: string; children: ReactNode; onClose: () => void; onRetry?: () => void }) {
+  const { t } = useTranslation('player');
   return (
     <div className="max-w-md px-6 text-center text-white">
       <div className="mx-auto mb-4 flex justify-center [&_svg]:size-10 [&_svg]:stroke-[1.5]">{icon}</div>
       <h2 className="text-xl font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-white/60">{children}</p>
-      {onRetry && <Button variant="glass" className="mr-3 mt-6" onClick={onRetry}>Retry playback</Button>}
-      <Button variant="glass" className="mt-6" onClick={onClose}>
-        Close
-      </Button>
+      {onRetry && <Button variant="glass" className="mr-3 mt-6" onClick={onRetry}>{t("player:player.retryPlayback")}</Button>}
+      <Button variant="glass" className="mt-6" onClick={onClose}>{t("player:player.close")}</Button>
     </div>
   );
 }
@@ -1579,10 +1571,11 @@ function PlayerMenu({ icon, label, children, onOpenChange }: { icon: ReactNode; 
 }
 
 function VolumeControl({ volume, muted, onVolume, onMute }: { volume: number; muted: boolean; onVolume: (v: number) => void; onMute: () => void }) {
+  const { t } = useTranslation('player');
   const level = muted ? 0 : volume;
   return (
     <div className="group/vol hidden items-center sm:flex">
-      <ControlButton label={muted ? 'Unmute (M)' : 'Mute (M)'} onClick={onMute}>
+      <ControlButton label={muted ? t("player:player.unmuteM") : t("player:player.muteM")} onClick={onMute}>
         {level === 0 ? <VolumeX /> : level < 0.5 ? <Volume1 /> : <Volume2 />}
       </ControlButton>
       <input
@@ -1591,7 +1584,7 @@ function VolumeControl({ volume, muted, onVolume, onMute }: { volume: number; mu
         max={1}
         step={0.05}
         value={level}
-        aria-label="Volume"
+        aria-label={t("player:player.volume")}
         onChange={(e) => onVolume(Number(e.target.value))}
         className="w-0 cursor-pointer accent-white opacity-0 transition-all duration-200 group-hover/vol:w-24 group-hover/vol:opacity-100 focus:w-24 focus:opacity-100"
       />
@@ -1617,6 +1610,7 @@ function Scrubber({
   thumbs: { info: TrickplayInfo; sheets: string[] } | null;
   chapters: Chapter[];
 }) {
+  const { t } = useTranslation('player');
   const bar = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
@@ -1631,7 +1625,7 @@ function Scrubber({
     <div
       ref={bar}
       role="slider"
-      aria-label="Position"
+      aria-label={t("player:player.position")}
       aria-valuemin={0}
       aria-valuemax={Math.round(durationMS / 1000)}
       aria-valuenow={Math.round(shown / 1000)}
@@ -1691,8 +1685,8 @@ function chapterAt(chapters: Chapter[], ms: number) {
 
 /** A chapter's name: its title, unless that's missing or just a number or time. */
 function chapterName(chapters: Chapter[], i: number) {
-  const t = chapters[i]?.title?.trim();
-  return t && !/^(chapter\s*)?[\d:.]+$/i.test(t) ? t : `Chapter ${i + 1}`;
+  const localValue = chapters[i]?.title?.trim();
+  return localValue && !/^(chapter\s*)?[\d:.]+$/i.test(localValue) ? localValue : i18n.t('player:player.chapterNumber', { number: i + 1 });
 }
 
 /** What the player needs to play a movie or episode, from where the profile left off. */
