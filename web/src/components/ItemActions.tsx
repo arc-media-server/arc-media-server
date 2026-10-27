@@ -41,7 +41,7 @@ export function MoreMenu({ item, onOpen, onRefresh, refreshing }: { item?: Item;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="lg" className="w-12 px-0" aria-label="More">
+        <Button variant="secondary" size="lg" className="w-12 px-0" title="More" aria-label="More">
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>

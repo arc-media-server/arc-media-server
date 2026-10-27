@@ -26,10 +26,10 @@ export function QueueActions({ item, edition, compact = false }: { item: Item; e
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="secondary" size={compact ? 'icon' : 'lg'} disabled={busy} title="Playback queue — what plays next, rather than a saved playlist" aria-label={'Queue ' + item.title}>{busy ? <Loader2 className="animate-spin" /> : <ListVideo />}{!compact && 'Playback queue'}</Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button variant="secondary" size={compact ? 'icon' : 'lg'} className={compact ? undefined : 'size-12 rounded-2xl px-0'} disabled={busy} title="Playback queue: what plays next, rather than a saved playlist" aria-label={'Queue ' + item.title}>{busy ? <Loader2 className="animate-spin" /> : <ListVideo />}</Button></DropdownMenuTrigger>
         <DropdownMenuContent><DropdownMenuItem onSelect={() => void add(true)}>Play next</DropdownMenuItem><DropdownMenuItem onSelect={() => void add(false)}>Add to queue</DropdownMenuItem></DropdownMenuContent>
       </DropdownMenu>
-      <span role="status" className="text-xs text-muted">{notice}</span>
+      <span role="status" className="text-xs text-muted empty:hidden">{notice}</span>
       <ErrorNotice error={error} />
     </span>
   );

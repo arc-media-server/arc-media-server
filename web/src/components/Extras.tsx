@@ -22,8 +22,9 @@ export function TrailerButton({ extras, title }: { extras?: Extra[]; title: stri
   const trailer = extras?.find((e) => e.kind === 'trailer');
   if (!trailer) return null;
   return (
-    <Button variant="secondary" size="lg" onClick={() => play({ title: trailer.title, subtitle: `${title} · Trailer`, src: trailer.stream_url })}>
-      <Clapperboard /> Trailer
+    <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" title="Play the trailer" aria-label="Trailer"
+      onClick={() => play({ title: trailer.title, subtitle: `${title} · Trailer`, src: trailer.stream_url })}>
+      <Clapperboard />
     </Button>
   );
 }
