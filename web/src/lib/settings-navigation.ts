@@ -38,3 +38,9 @@ export function isSettingsPath(path: string) {
 export function selectedSettingsSection(section: string | null): SettingsGroup {
   return section === 'library' || section === 'playback' || section === 'access' || section === 'maintenance' ? section : 'profile';
 }
+
+/** Media tools (ffprobe/FFmpeg) is shown only when something needs attention or a path was set:
+ * when both are found automatically there is nothing to do there. */
+export function mediaToolsNeeded(s?: { ffprobe_path: string; ffprobe: { found: boolean; ffmpeg?: string } }) {
+  return !!s && (!s.ffprobe.found || !s.ffprobe.ffmpeg || !!s.ffprobe_path);
+}

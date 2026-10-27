@@ -77,9 +77,17 @@ test('Manage libraries requests individual and bulk scans with running guards an
   await page.goto('/libraries');
   const row = page.getByRole('region', { name: movies.name, exact: true });
   const all = page.getByRole('button', { name: 'Scan all libraries', exact: true });
-  await row.getByRole('button', { name: 'Scan ' + movies.name, exact: true }).click();
-  await expect(row.getByRole('button', { name: 'Scan ' + movies.name, exact: true })).toBeDisabled();
+  // Edit sits beside the More menu, which holds Scan with the other library actions (as Plex).
+  await expect(row.getByRole('button', { name: 'Scan ' + movies.name, exact: true })).toHaveCount(0);
+  await expect(row.getByRole('button', { name: 'Remove ' + movies.name, exact: true })).toHaveCount(0);
+  const menu = (lib: Library) => page.getByRole('region', { name: lib.name, exact: true }).getByRole('button', { name: 'Library actions for ' + lib.name, exact: true });
+  await menu(movies).click();
+  await page.getByRole('menuitem', { name: 'Scan library files', exact: true }).click();
+  await expect(row.getByText('Requesting a scan…', { exact: true })).toBeVisible();
   await expect(all).toBeDisabled();
+  await menu(movies).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
   release();
   await expect(all).toBeEnabled();
   await expect.poll(async () => (await (await page.request.get(`/api/libraries/${movies.id}/scan`)).json()).running).toBe(false);
@@ -97,7 +105,9 @@ test('Manage libraries requests individual and bulk scans with running guards an
   await page.route(movieScan, route => route.fulfill({ status: 503, json: { error: 'Fixture scan unavailable' } }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Scan ' + shows.name, exact: true })).toBeDisabled();
+  await menu(shows).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
   await all.click();
   await expect(page.getByText('Scan requested for 1 library. 1 library could not start. Retry below.', { exact: true })).toBeVisible();
   await expect(row.getByText('Fixture scan unavailable', { exact: true })).toBeVisible();
@@ -194,6 +204,9 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await playback.focus(); await page.keyboard.press('Enter');
   await expect(playback).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Subtitle downloads', exact: true })).toBeVisible();
+  // FFmpeg and ffprobe are found automatically here, so Media tools has nothing to show.
+  await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
   await nav.getByRole('link', { name: 'Converting', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
