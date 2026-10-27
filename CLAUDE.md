@@ -37,6 +37,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Faster library removal (#221, 27 October): owner saw Remove library (and other confirmations) hang
+  until the dialog closed. Cause: five foreign-key columns had no index, so each deleted item/file
+  read whole tables (background_jobs per file). A synthetic 24,000-episode library took 4m05s to
+  delete; migration 0054 adds the indexes and it takes 1.2s (safety backup 0.3-0.4s). Empty trash
+  benefits too. TestForeignKeysAreIndexed fails if any future foreign key lacks a leading index.
+
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
   overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data
