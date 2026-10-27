@@ -37,12 +37,17 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
-- Aspect ratio (#212, 27 October): every video track stores its display aspect ratio
-  (migration 0055 media_streams.aspect_ratio; FFprobe display ratio, else frame size x pixel
-  shape, so anamorphic DVDs read 16:9). File details show "1920×800 · 2.40:1" (4:3/16:9 by
-  name). store.FormatVersion is now 2: scans save it for new/changed files; the Media analysis
-  task brings every older video (HDR or not) up to date once with the compact stream read,
-  keeping saved HDR details. Migration numbered 0055 after #222's 0054: merge #222 first.
+- Faster library removal (#221, 27 October): owner saw Remove library (and other confirmations) hang
+  until the dialog closed. Cause: five foreign-key columns had no index, so each deleted item/file
+  read whole tables (background_jobs per file). A synthetic 24,000-episode library took 4m05s to
+  delete; migration 0054 adds the indexes and it takes 1.2s (safety backup 0.3-0.4s). Empty trash
+  benefits too. TestForeignKeysAreIndexed fails if any future foreign key lacks a leading index.
+  Follow-up sweep on a synthetic 139MB database (45,000 episodes, 4,000 movies, 30,000 people,
+  3 profiles with history), timing every screen and confirmation through the real server:
+  Search counted every person's credits per keystroke (0.9s -> 0.2s: names are scored first,
+  credits counted only for matches); Insights Storage compared every title with every watched
+  title (2.4s -> 0.18s: watch activity read once into a map). Everything else answers under
+  0.4s; confirmations are 1.3-3.3s, mostly the mandatory safety backup (1.4s for 155MB).
 
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
