@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Filter, Layers, ListPlus, Loader2, Plus } from 'lucide-react';
 import { api, type Collection, type Item, type Library, type RowFilter, type CollectionMode } from '@/lib/api';
+import { countUnit } from '@/lib/browsing-labels';
 import { kindUnit } from '@/lib/kinds';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -15,6 +17,7 @@ import { Field, inputClass } from '@/components/ui/field';
 import { ArtworkPanel, artworkNames, type ArtworkChange } from '@/components/ChooseArtwork';
 
 export function CollectionCard({ collection: c, unit }: { collection: Collection; unit: string }) {
+  useTranslation('library');
   return (
     <Link to={`/collection/${c.id}`} className="group block outline-none" draggable={false}>
       <div className="relative">
@@ -29,7 +32,7 @@ export function CollectionCard({ collection: c, unit }: { collection: Collection
           {c.kind === 'smart' && <Filter className="size-3 shrink-0 text-accent" />}
           <span className="truncate">{c.title}</span>
         </p>
-        <p className="mt-0.5 text-xs text-subtle">{fmt.plural(c.count, unit)}</p>
+        <p className="mt-0.5 text-xs text-subtle">{countUnit(c.count, unit)}</p>
       </div>
     </Link>
   );
