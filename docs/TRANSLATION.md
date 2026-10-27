@@ -1,10 +1,11 @@
 # Translating Arc's web app
 
 Issue [#122](https://github.com/JonzaUK/arc-media-server/issues/122) is being delivered in
-separate PRs. Phase 1 adds infrastructure and converts the shell, sidebar/profile menu,
-Settings navigation, Activity/News menus, shared error states, dialog primitives, row
-navigation, sign-in, profile selection, invites and first-run setup. Page-specific text,
-including feature dialogs and their Save/Cancel labels, follows in the later area PRs.
+separate PRs. Phase 1 provides infrastructure and the shell, sidebar/profile menu, Settings
+navigation, Activity/News menus, shared errors/dialog primitives, row navigation and account
+screens. Phase 2 converts Home, Watchlist and Playlists, including Home row editing, the playlist
+picker/rules and their shared filters. Other page-specific text and feature dialogs follow
+in the later area PRs.
 English wording, punctuation, capitalization, accessible names and layout must stay identical.
 
 ## Adding UI text
@@ -18,8 +19,9 @@ const { t } = useTranslation('library');
 ```
 
 English files live at `web/src/locales/en/<namespace>.json`. `common.json` contains shared
-navigation/actions/formatting; `auth.json` contains account and setup text. Add `library`,
-`player`, `settings`, etc. as their areas are converted. Namespaces are discovered at build
+navigation/actions/formatting; `auth.json` contains account and setup text. `home.json`,
+`watchlist.json`, `playlists.json` and `filters.json` cover Phase 2. Add `library`, `player`,
+`settings`, etc. as their areas are converted. Namespaces are discovered at build
 time, and all English namespaces are bundled. Use readable nested keys (`maintenance.runNow`
 in `settings.json`, used as `t('settings:maintenance.runNow')`), never English sentences as keys.
 Reuse shared actions with explicit names, e.g. `t('common:actions.cancel')`. Use plain `t`
@@ -27,6 +29,10 @@ everywhere; rename local task/item variables instead of aliasing the translation
 
 Keep whole sentences together. Use `{{title}}` placeholders with values passed to `t()`;
 do not concatenate translated fragments or interpolate the English sentence in JavaScript.
+The Home editor has separate `editor.otherTitle` / `otherTitleEndsS` and description keys
+for the existing English possessive spelling (Sam's / James'). Other languages may translate
+each pair identically when that distinction does not apply; leave the inserted name unchanged.
+
 React handles escaping; i18next's additional HTML escaping is disabled. Never render a
 translation or inserted value through `dangerouslySetInnerHTML`.
 
@@ -79,11 +85,16 @@ keys, section-anchor identifiers, metadata-matching tokens or API enum values.
 English namespace JSON files and fails for missing or unused keys. It understands the `t`
 property destructured from `useTranslation` (including legacy aliases), explicit `i18n.t('namespace:key')`,
 `Trans` with literal `ns`/`i18nKey`, and plural families. Use static keys; dynamic concatenation
-is rejected. Use an explicit lookup of literal translation calls for enum-to-label mappings.
+is rejected. Compound key segments use camelCase; long lowercase segments are rejected unless
+explicitly documented as genuine single words. Counted words require one/other forms; attached
+unit abbreviations can remain invariant. Use an explicit lookup of literal translation calls for enum-to-label mappings.
 Use explicit namespace-qualified keys outside a hook. Keep `Trans` namespaces explicit.
 
 The same tests check English formatting, browser-language selection, on-demand loading and
-failed/missing translation fallback. They run as part of `npm run build`, requiring no new
+failed/missing translation fallback. Phase 2 also checks dynamic built-in row/season labels,
+filter labels and preservation of literal custom/provider names, saved IDs and genre filters.
+Use `rowTitle()` when showing a built-in Home row; never translate custom titles by matching
+their English text. Seasonal dates use the shared `month()` helper. They run as part of `npm run build`, requiring no new
 test dependency. For each area PR also run production and e2e TypeScript, production build,
 `go vet ./...`, `go test ./...`, and its affected browser journeys (full suite for Phase 1).
 Compare desktop and phone screenshots with main. Existing Playwright English selectors must
@@ -91,7 +102,7 @@ remain unchanged: correct the extracted text if they break.
 
 ## Adding a language later
 
-No non-English translation or language picker ships in Phase 1. When a reviewed first
+No non-English translation or language picker ships in these groundwork/area phases. When a reviewed first
 translation is ready, add `web/src/locales/<language>/<namespace>.json` using the same keys
 and placeholders as English. Use a BCP 47 language tag, such as `fr` or `pt-BR`. Rebuild:
 Vite discovers languages and creates separate chunks automatically. The browser detector
@@ -107,8 +118,8 @@ language picker and right-to-left layout work are deferred until a first transla
 
 ## What stays English for now
 
-- Areas not yet converted: Home/Watchlist/Playlists, browsing, title pages and their feature
-  dialogs, Player, Settings page contents and management tools. Convert in #122's order,
+- Areas not yet converted: browsing, title pages and their remaining feature dialogs, Player,
+  Settings page contents and management tools. Convert in #122's order,
   about 2–4 pages/components per PR; split Settings into several PRs.
 - Server API errors (`writeError`), Activity task titles/stages/details and logs. Existing
   English task-title past-tense conversion and protocol-token matching stay unchanged. A
@@ -122,3 +133,11 @@ After every area is converted, add the agreed rule to CLAUDE.md's Principles or 
 “All new UI text goes through `t()` and `en.json`.” Here `en.json` means the English namespace
 catalogs above. Do not claim the whole app is translated or ready for another language until
 that conversion and translation review are complete.
+
+## Deferred metadata-language follow-up
+
+Seasonal rows still filter using English genre display names (`Romance`, `Horror`). A library
+whose provider stores localized genre names can miss those rows. In Phase 5 or a separate
+metadata follow-up, use TMDB genre IDs or another language-independent key rather than UI or
+provider display names. This predates translation extraction and is not fixed here. Tracked
+in [Claude's #236 review](https://github.com/JonzaUK/arc-media-server/pull/236#issuecomment-6449183950).

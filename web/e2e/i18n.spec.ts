@@ -33,3 +33,40 @@ for (const locale of ['en-US', 'fr-FR']) {
     });
   });
 }
+
+test('season cards use singular and plural episode labels on desktop and phone', async ({ page }, info) => {
+  const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
+  expect(reset.ok).toBe(true);
+  const media = await reset.json();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.context().route('**/*', route => {
+    const url = new URL(route.request().url());
+    return url.hostname === '127.0.0.1' || url.protocol === 'data:' ? route.continue() : route.abort();
+  });
+  expect((await page.request.post('/api/auth/setup', { data: { name: 'Owner', password: 'Episode-labels-123', local_bypass: false, tmdb_api_key: 'fixture-not-a-secret', region: 'GB' } })).ok()).toBe(true);
+  expect((await page.request.patch('/api/settings', { data: { scan_automatic: false, scan_on_start: false, scan_interval_minutes: 0, preview_mode: 'off', detection_mode: 'off', analysis_enabled: false, metadata_refresh_enabled: false, auto_backups_enabled: false, database_upkeep_enabled: false, cache_cleanup_enabled: false } })).ok()).toBe(true);
+  const created = await page.request.post('/api/libraries', { data: { name: 'Fixture series', kind: 'shows', paths: [media.shows] } });
+  expect(created.ok()).toBe(true);
+  const library = await created.json();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${library.id}/scan`)).json()).running).toBe(false);
+  const source = (await (await page.request.get(`/api/items?library_id=${library.id}&kind=series`)).json()).items[0];
+  expect(source).toBeTruthy();
+  // Explicit layout fixtures isolate the count forms while retaining an actual imported show.
+  await page.route(`**/api/libraries/${library.id}/recent-shows`, route => route.fulfill({ json: [
+    { type: 'season', item: source, season_number: 2, episodes: 1 },
+    { type: 'season', item: source, season_number: 3, episodes: 2 },
+    { type: 'season', item: source, season_number: 0, episodes: 1 },
+  ] }));
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const row = page.getByRole('region', { name: 'Recently Added in Fixture series', exact: true });
+    await expect(row.getByText('Season 2 · 1 new episode', { exact: true })).toBeVisible();
+    await expect(row.getByText('Season 3 · 2 new episodes', { exact: true })).toBeAttached();
+    await expect(row.getByText('Specials · 1 new episode', { exact: true })).toBeAttached();
+    await expect(row.getByText(/1 new episodes/)).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath(`season-episode-labels-${width}.png`) });
+  }
+  expect(errors).toEqual([]);
+});

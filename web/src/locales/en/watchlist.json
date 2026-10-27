@@ -1,0 +1,7 @@
+{
+  "description": "Movies and shows you've saved for later. A movie leaves the list once you've watched it.",
+  "empty": {
+    "heading": "Nothing saved yet",
+    "description": "Use the bookmark button on a movie or show to add it here."
+  }
+}

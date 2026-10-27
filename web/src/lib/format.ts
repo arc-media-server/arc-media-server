@@ -228,3 +228,8 @@ export function ago(unix: number): string {
   const years = Math.floor(days / 365);
   return i18n.t('common:time.yearsAgo', { count: Math.max(1, years) });
 }
+
+/** Calendar month (1–12) in the active UI language. */
+export function month(value: number): string {
+  return new Intl.DateTimeFormat(formatLocale(), { month: 'short' }).format(new Date(2020, value - 1, 1));
+}

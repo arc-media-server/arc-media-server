@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type HomeRow, type Item, type ItemQuery, type Library, type Prefs, type RowFilter } from '@/lib/api';
 
@@ -33,19 +34,19 @@ export interface Season {
 // Built on the same filters as browsing and custom rows.
 export const seasons: Season[] = [
   {
-    title: "Romance for Valentine's Day",
+    get title() { return i18n.t('home:seasonal.romance'); },
     from: [2, 1],
     to: [2, 14],
     query: { kind: 'movie', genre: 'Romance', sort: 'shuffle' },
   },
   {
-    title: 'Horror for Halloween',
+    get title() { return i18n.t('home:seasonal.horror'); },
     from: [10, 1],
     to: [10, 31],
     query: { kind: 'movie', genre: 'Horror', sort: 'shuffle' },
   },
   {
-    title: 'Christmas Films',
+    get title() { return i18n.t('home:seasonal.christmas'); },
     from: [12, 1],
     to: [12, 31],
     query: { kind: 'movie', about: 'christmas,santa,xmas,north pole,reindeer,elves', sort: 'shuffle' },
@@ -100,16 +101,16 @@ function look(type: ResolvedRow['type'], saved?: HomeRow, library?: Library): Ro
 }
 
 function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
-  if (id === 'continue') return { id, hidden: false, type: 'continue', title: 'Continue Watching', ...look('continue', saved) };
-  if (id === 'next-up') return { id, hidden: false, type: 'next-up', title: 'Up Next', ...look('next-up', saved) };
-  if (id === 'watchlist') return { id, hidden: false, type: 'watchlist', title: 'Watchlist', ...look('watchlist', saved) };
+  if (id === 'continue') return { id, hidden: false, type: 'continue', title: i18n.t('home:rows.continue'), ...look('continue', saved) };
+  if (id === 'next-up') return { id, hidden: false, type: 'next-up', title: i18n.t('home:rows.next'), ...look('next-up', saved) };
+  if (id === 'watchlist') return { id, hidden: false, type: 'watchlist', title: i18n.t('common:navigation.watchlist'), ...look('watchlist', saved) };
   if (id === 'seasonal') {
     const season = currentSeason();
-    return { id, hidden: false, type: 'seasonal', title: season?.title ?? 'Seasonal Picks', season, ...look('seasonal', saved) };
+    return { id, hidden: false, type: 'seasonal', title: season?.title ?? i18n.t('home:rows.seasonal'), season, ...look('seasonal', saved) };
   }
   if (id.startsWith('recent:')) {
     const library = libraries.find((l) => `recent:${l.id}` === id);
-    return library ? { id, hidden: false, type: 'recent', title: `Recently Added in ${library.name}`, library, ...look('recent', saved, library) } : null;
+    return library ? { id, hidden: false, type: 'recent', title: i18n.t('home:rows.recent', { name: library.name }), library, ...look('recent', saved, library) } : null;
   }
   return null;
 }
@@ -129,7 +130,7 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
   for (const r of saved) {
     if (r.id.startsWith('collection:') || r.id.startsWith('playlist:')) {
       const type = r.id.startsWith('collection:') ? 'collection' : 'playlist';
-      out.push({ id: r.id, hidden: !!r.hidden, type, title: r.title || (type === 'collection' ? 'Collection' : 'Playlist'), ref: r.id.slice(type.length + 1), ...look(type, r) });
+      out.push({ id: r.id, hidden: !!r.hidden, type, title: r.title || (type === 'collection' ? i18n.t('home:rowEditor.collection') : i18n.t('playlists:kind.manual')), ref: r.id.slice(type.length + 1), ...look(type, r) });
     } else if (r.id.startsWith('custom:')) {
       if (!r.filter || !r.title) continue;
       const library = libraries.find((l) => l.id === r.filter!.library_id);
@@ -219,4 +220,10 @@ export function useSpoilerGuard() {
   const { data } = usePrefs();
   const on = !!data?.hide_spoilers;
   return (item: Item) => on && item.kind === 'episode' && !item.user_data?.played && !item.user_data?.position_ms;
+}
+
+/** Built-in labels follow the active language; user/provider titles remain verbatim. */
+export function rowTitle(row: ResolvedRow): string {
+  if (row.type === 'custom' || row.type === 'collection' || row.type === 'playlist') return row.title;
+  return builtIn(row.id, row.type === 'recent' ? [row.library] : [])?.title ?? row.title;
 }
