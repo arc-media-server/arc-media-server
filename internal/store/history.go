@@ -217,30 +217,47 @@ type TitleSize struct {
 }
 
 // TitleSizes lists every movie and show with files present, with their size on disk.
+//
+// Sizes and watch activity are read separately and joined here: joining them in SQL compared
+// every title with every watched title, which took seconds in a large library.
 func (s *Store) TitleSizes(ctx context.Context) ([]TitleSize, error) {
+	seen := map[string]int64{}
 	rows, err := s.db.QueryContext(ctx, `
+		SELECT title_id, MAX(last) FROM (
+			SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) AS title_id,
+				COALESCE(u.last_played_at, 0) AS last
+			FROM user_item_data u JOIN items i ON i.id = u.item_id
+			WHERE u.played = 1 OR u.play_count > 0 OR u.position_ms > 0
+			UNION ALL
+			SELECT CASE WHEN series_id <> '' THEN series_id ELSE item_id END, COALESCE(ended_at, 0)
+			FROM play_history
+		) GROUP BY title_id`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id string
+		var last int64
+		if err := rows.Scan(&id, &last); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		seen[id] = last
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows, err = s.db.QueryContext(ctx, `
 		WITH sizes AS (
 			SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) AS title_id,
 				SUM(m.size) AS size, COUNT(*) AS files
 			FROM items i JOIN item_files f ON f.item_id = i.id JOIN media_files m ON m.id = f.file_id
 			WHERE m.missing_since IS NULL AND i.kind IN ('movie', 'episode')
 			GROUP BY title_id
-		), played AS (
-			SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) AS title_id,
-				MAX(u.last_played_at) AS last
-			FROM user_item_data u JOIN items i ON i.id = u.item_id
-			WHERE u.played = 1 OR u.play_count > 0 OR u.position_ms > 0
-			GROUP BY title_id
-		), history AS (
-			SELECT CASE WHEN series_id <> '' THEN series_id ELSE item_id END AS title_id, MAX(ended_at) AS last
-			FROM play_history GROUP BY title_id
 		)
-		SELECT items.id, items.library_id, items.kind, sizes.size, sizes.files, items.added_at,
-			played.title_id IS NOT NULL OR history.title_id IS NOT NULL,
-			MAX(COALESCE(played.last, 0), COALESCE(history.last, 0))
+		SELECT items.id, items.library_id, items.kind, sizes.size, sizes.files, items.added_at
 		FROM sizes JOIN items ON items.id = sizes.title_id
-			LEFT JOIN played ON played.title_id = items.id
-			LEFT JOIN history ON history.title_id = items.id
 		WHERE items.kind IN ('movie', 'series')
 		ORDER BY sizes.size DESC`)
 	if err != nil {
@@ -250,9 +267,10 @@ func (s *Store) TitleSizes(ctx context.Context) ([]TitleSize, error) {
 	out := []TitleSize{}
 	for rows.Next() {
 		var t TitleSize
-		if err := rows.Scan(&t.ItemID, &t.LibraryID, &t.Kind, &t.Size, &t.Files, &t.AddedAt, &t.Watched, &t.LastPlayed); err != nil {
+		if err := rows.Scan(&t.ItemID, &t.LibraryID, &t.Kind, &t.Size, &t.Files, &t.AddedAt); err != nil {
 			return nil, err
 		}
+		t.LastPlayed, t.Watched = seen[t.ItemID]
 		out = append(out, t)
 	}
 	return out, rows.Err()
