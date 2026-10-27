@@ -9,7 +9,7 @@ import { AuthScreen, Card, fieldClass, Label } from './Screen';
 /** Signing in with the household password (away from home, or when that's always required), or
  * as a friend with their own name and password. */
 export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
-  const { t: tr } = useTranslation(['auth', 'common']);
+  const { t } = useTranslation(['auth', 'common']);
   const qc = useQueryClient();
   const [friend, setFriend] = useState(asFriend);
   const [name, setName] = useState('');
@@ -26,8 +26,8 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
   return (
     <AuthScreen>
       <Card>
-        <h1 className="text-2xl font-bold">{tr('auth:signIn.heading')}</h1>
-        <p className="mt-1.5 text-sm text-muted">{friend ? tr('auth:signIn.friendDescription') : tr('auth:signIn.description')}</p>
+        <h1 className="text-2xl font-bold">{t('auth:signIn.heading')}</h1>
+        <p className="mt-1.5 text-sm text-muted">{friend ? t('auth:signIn.friendDescription') : t('auth:signIn.description')}</p>
         <form
           className="mt-6 space-y-4"
           onSubmit={(e) => {
@@ -37,12 +37,12 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
         >
           {friend && (
             <label className="block">
-              <Label>{tr('auth:name')}</Label>
+              <Label>{t('auth:name')}</Label>
               <input autoFocus name="name" value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} autoComplete="username" />
             </label>
           )}
           <label className="block">
-            <Label>{tr('auth:password')}</Label>
+            <Label>{t('auth:password')}</Label>
             <input
               autoFocus={!friend}
               type="password"
@@ -55,10 +55,10 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
           </label>
           {login.error && <p className="text-sm text-warning">{login.error.message}</p>}
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!password || (friend && !name.trim()) || login.isPending}>
-            {login.isPending && <Loader2 className="animate-spin" />}{' '}{tr('common:actions.signIn')}</Button>
+            {login.isPending && <Loader2 className="animate-spin" />}{' '}{t('common:actions.signIn')}</Button>
         </form>
         <button type="button" onClick={() => switchTo(!friend)} className="mt-4 w-full text-center text-sm text-muted transition-colors hover:text-foreground">
-          {friend ? tr('auth:signIn.household') : tr('auth:signIn.friend')}
+          {friend ? t('auth:signIn.household') : t('auth:signIn.friend')}
         </button>
       </Card>
     </AuthScreen>

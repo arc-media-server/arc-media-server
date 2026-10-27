@@ -13,24 +13,24 @@ export const settingsSections: Record<string, SettingsGroup> = {
 
 export function settingsNavigation() {
   return [
-  { label: i18n.t('common:settings.navigation.personal'), links: [{ id: 'profile', label: i18n.t('common:settings.navigation.yourprofile'), to: '/settings' }] },
+  { label: i18n.t('common:settings.navigation.personal'), links: [{ id: 'profile', label: i18n.t('common:settings.navigation.yourProfile'), to: '/settings' }] },
   { label: i18n.t('common:settings.navigation.server'), links: [
     { id: 'dashboard', label: i18n.t('common:settings.navigation.dashboard'), to: '/dashboard' },
     { id: 'insights', label: i18n.t('common:settings.navigation.insights'), to: '/insights' },
     { id: 'health', label: i18n.t('common:settings.navigation.libraryHealth'), to: '/health' },
   ] },
   { label: i18n.t('common:settings.navigation.libraries'), links: [
-    { id: 'libraries', label: i18n.t('common:settings.navigation.managelibraries'), to: '/libraries' },
-    { id: 'library', label: i18n.t('common:settings.navigation.librariesmetadata'), to: '/settings?section=library' },
+    { id: 'libraries', label: i18n.t('common:settings.navigation.manageLibraries'), to: '/libraries' },
+    { id: 'library', label: i18n.t('common:settings.navigation.librariesMetadata'), to: '/settings?section=library' },
   ] },
-  { label: i18n.t('common:settings.navigation.playback'), links: [{ id: 'playback', label: i18n.t('common:settings.navigation.playbacktranscoding'), to: '/settings?section=playback' }] },
-  { label: i18n.t('common:settings.navigation.peopleaccess'), links: [
+  { label: i18n.t('common:settings.navigation.playback'), links: [{ id: 'playback', label: i18n.t('common:settings.navigation.playbackTranscoding'), to: '/settings?section=playback' }] },
+  { label: i18n.t('common:settings.navigation.peopleAccess'), links: [
     { id: 'profiles', label: i18n.t('common:settings.navigation.profiles'), to: '/profiles' },
-    { id: 'access', label: i18n.t('common:settings.navigation.accessdevices'), to: '/settings?section=access' },
+    { id: 'access', label: i18n.t('common:settings.navigation.accessDevices'), to: '/settings?section=access' },
   ] },
   { label: i18n.t('common:settings.navigation.maintenance'), links: [
-    { id: 'backups', label: i18n.t('common:settings.navigation.backupsrestore'), to: '/backups' },
-    { id: 'maintenance', label: i18n.t('common:settings.navigation.maintenancediagnostics'), to: '/settings?section=maintenance' },
+    { id: 'backups', label: i18n.t('common:settings.navigation.backupsRestore'), to: '/backups' },
+    { id: 'maintenance', label: i18n.t('common:settings.navigation.maintenanceDiagnostics'), to: '/settings?section=maintenance' },
   ] },
   ];
 }
@@ -49,22 +49,22 @@ export function settingsSectionTitle(title: string): string {
     "Playback": i18n.t('common:settings.sections.playback'),
     "Subtitles": i18n.t('common:settings.sections.subtitles'),
     "Display": i18n.t('common:settings.sections.display'),
-    "Online metadata": i18n.t('common:settings.sections.onlinemetadata'),
+    "Online metadata": i18n.t('common:settings.sections.onlineMetadata'),
     "Ratings": i18n.t('common:settings.sections.ratings'),
-    "Library scanning": i18n.t('common:settings.sections.libraryscanning'),
-    "Moving in": i18n.t('common:settings.sections.movingin'),
+    "Library scanning": i18n.t('common:settings.sections.libraryScanning'),
+    "Moving in": i18n.t('common:settings.sections.movingIn'),
     "Notifications": i18n.t('common:settings.sections.notifications'),
-    "Media tools": i18n.t('common:settings.sections.mediatools'),
-    "Intro & credit detection": i18n.t('common:settings.sections.introcreditdetection'),
-    "Pre-roll": i18n.t('common:settings.sections.preroll'),
-    "Subtitle downloads": i18n.t('common:settings.sections.subtitledownloads'),
+    "Media tools": i18n.t('common:settings.sections.mediaTools'),
+    "Intro & credit detection": i18n.t('common:settings.sections.introCreditDetection'),
+    "Pre-roll": i18n.t('common:settings.sections.preRoll'),
+    "Subtitle downloads": i18n.t('common:settings.sections.subtitleDownloads'),
     "Converting": i18n.t('common:settings.sections.converting'),
     "Optimized Versions": i18n.t('common:settings.sections.optimizedVersions'),
-    "Sign-in": i18n.t('common:settings.sections.signin'),
+    "Sign-in": i18n.t('common:settings.sections.signIn'),
     "Network": i18n.t('common:settings.sections.network'),
     "Remote Access": i18n.t('common:settings.sections.remoteAccess'),
     "Devices": i18n.t('common:settings.sections.devices'),
-    "Scheduled tasks": i18n.t('common:settings.sections.scheduledtasks'),
+    "Scheduled tasks": i18n.t('common:settings.sections.scheduledTasks'),
     "Diagnostics": i18n.t('common:settings.sections.diagnostics'),
   };
   return labels[title] ?? title;
