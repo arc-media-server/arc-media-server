@@ -349,3 +349,27 @@ test('API documentation opens from Settings and shows the generated description'
   expect(anonymous.ok).toBe(true);
   expect((await anonymous.json()).info.title).toBe('Arc Media Server API');
 });
+
+for (const shows of [false, true]) {
+  test(`attribution: a matched ${shows ? 'show' : 'movie'} credits where its details come from`, async ({ page, media }, info) => {
+    const lib = await library(page, shows ? media.shows : media.movies, shows);
+    const item = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=${shows ? 'series' : 'movie'}`)).json()).items[0];
+    await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
+    const tmdb = page.getByRole('link', { name: 'TMDB', exact: true });
+    await expect(tmdb).toHaveAttribute('href', `https://www.themoviedb.org/${shows ? 'tv' : 'movie'}/${item.tmdb_id}`);
+    await expect(tmdb).toHaveAttribute('target', '_blank');
+    // The fixture library (no TheTVDB key) takes show details and episodes from TMDB, so one line says both.
+    await expect(page.getByText(shows ? 'Details and episodes from' : 'Details from', { exact: false })).toBeVisible();
+    await page.screenshot({ path: info.outputPath('credit.png'), fullPage: true });
+  });
+}
+
+test('attribution: About credits TMDB with its required notice and TheTVDB', async ({ page, media }, info) => {
+  void media;
+  await page.goto('/settings');
+  const about = page.getByRole('region', { name: 'About Arc' });
+  await expect(about.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.', { exact: false })).toBeVisible();
+  await expect(about.getByText('Metadata provided by', { exact: false })).toBeVisible();
+  await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
+  await about.screenshot({ path: info.outputPath('about.png') });
+});

@@ -7,6 +7,8 @@ import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { FileDetails } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
+import { ProviderCredit } from '@/components/ProviderCredits';
+import { useLibraries } from '@/components/Sidebar';
 import { MoreMenu, useAnalyzeItem, useItemDialogs } from '@/components/ItemActions';
 import { isLocalVideo } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
@@ -32,6 +34,7 @@ export function MoviePage() {
   const qc = useQueryClient();
   const admin = useIsAdmin();
   const { open: openDialog, dialogs } = useItemDialogs(item);
+  const libraries = useLibraries().data;
   // The edition chosen on this page (for titles with several); undefined until one is picked.
   const [edition, setEdition] = useState<string>();
   const refresh = useMutation({
@@ -162,6 +165,7 @@ export function MoviePage() {
       <SimilarRow item={item} />
       <ExtrasRow extras={item.extras} title={item.title} />
       {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
+      <ProviderCredit item={item} library={libraries?.find((l) => l.id === item.library_id)} />
       {dialogs}
     </Page>
   );
