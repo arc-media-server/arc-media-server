@@ -23,6 +23,7 @@ import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
 import { FolderPicker } from '@/components/FolderPicker';
 import { Diagnostics } from '@/components/Diagnostics';
+import { ProviderCredits } from '@/components/ProviderCredits';
 
 type Patch = Parameters<typeof api.updateSettings>[0];
 
@@ -40,8 +41,24 @@ export function SettingsPage() {
         <SettingsSection.Provider value={selected}>
           {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
         </SettingsSection.Provider>
+        {selected === 'profile' && <AboutArc />}
       </div>
     </Page>
+  );
+}
+
+/** About Arc, on every profile's Settings: the version, and the credits metadata providers require. */
+function AboutArc() {
+  const info = useQuery({ queryKey: ['server-info'], queryFn: api.serverInfo, staleTime: Infinity });
+  return (
+    <section aria-labelledby="about-arc">
+      <h2 id="about-arc" className="text-lg font-semibold">About Arc</h2>
+      <p className="mt-1 text-sm text-muted">Arc Media Server{info.data?.version ? ` ${info.data.version}` : ''}</p>
+      <div className="mt-4 rounded-2xl bg-surface p-4 ring-1 ring-border">
+        <h3 className="mb-3 text-sm font-medium">Credits</h3>
+        <ProviderCredits />
+      </div>
+    </section>
   );
 }
 

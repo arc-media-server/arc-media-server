@@ -1083,6 +1083,8 @@ export const api = {
   stopActivity: (id: number) => request<void>('POST', `/api/activity/${id}/stop`),
   maintenance: () => request<ScheduledTask[]>('GET', '/api/maintenance'),
   runMaintenance: (kind: string) => request<{ queued: boolean }>('POST', '/api/maintenance/' + kind + '/run'),
+  /** The server's name and version (anyone may ask). */
+  serverInfo: () => request<{ name: string; version: string; api_version: number }>('GET', '/api/health'),
   activity: () => request<{ running: ActivityTask[]; recent: ActivityTask[]; scheduled?: ScheduledTask[] }>('GET', '/api/activity'),
   stopPlaying: (id: string, message: string) => request<void>('POST', `/api/playing/${id}/stop`, { message }),
   playbackOptions: (itemId: string, body: { caps: PlayerCaps; file_id?: number; edition?: string }) =>
