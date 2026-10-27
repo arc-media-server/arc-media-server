@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
@@ -11,6 +12,7 @@ import { SignIn } from './SignIn';
 
 /** "Who's watching?": pick a profile, entering its PIN (or for the admin at home, the password). */
 export function ProfilePicker({ status }: { status: AuthStatus }) {
+  const { t } = useTranslation(['auth', 'common']);
   const qc = useQueryClient();
   const [chosen, setChosen] = useState<Profile | null>(null);
   const [needs, setNeeds] = useState<'pin' | 'password' | null>(null);
@@ -46,13 +48,13 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
   if (asFriend) return <SignIn asFriend />;
 
   if (chosen && needs) {
-    const wrong = choose.error instanceof ApiError && choose.error.status !== 401 ? choose.error.message : choose.error && 'Try again';
+    const wrong = choose.error instanceof ApiError && choose.error.status !== 401 ? choose.error.message : choose.error && t('auth:profiles.tryAgain');
     return (
       <AuthScreen>
         <div className="flex flex-col items-center text-center">
           <Avatar name={chosen.name} color={chosen.color} className="size-24 text-4xl" />
           <h1 className="mt-4 text-2xl font-semibold">{chosen.name}</h1>
-          <p className="mt-1 text-sm text-muted">{needs === 'pin' ? 'Enter your PIN' : 'Enter the password to use the admin profile'}</p>
+          <p className="mt-1 text-sm text-muted">{needs === 'pin' ? t('auth:profiles.enterPin') : t('auth:profiles.enterPassword')}</p>
           <div className="mt-6 w-full max-w-xs">
             {needs === 'pin' ? (
               <PinEntry key={choose.submittedAt} error={!!choose.error} busy={choose.isPending} onComplete={(pin) => choose.mutate({ profile: chosen, secret: { pin } })} />
@@ -67,15 +69,13 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
               >
                 <input name="password" type="password" autoFocus className={fieldClass} autoComplete="current-password" />
                 <Button type="submit" variant="primary" size="lg" className="w-full" disabled={choose.isPending}>
-                  {choose.isPending && <Loader2 className="animate-spin" />} Continue
-                </Button>
+                  {choose.isPending && <Loader2 className="animate-spin" />}{' '}{t('common:actions.continue')}</Button>
               </form>
             )}
             {wrong && <p className="mt-3 text-sm text-warning">{wrong}</p>}
           </div>
           <Button variant="ghost" className="mt-8" onClick={back}>
-            <ChevronLeft /> Profiles
-          </Button>
+            <ChevronLeft />{' '}{t('auth:profiles.back')}</Button>
         </div>
       </AuthScreen>
     );
@@ -83,7 +83,7 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
 
   return (
     <AuthScreen wide>
-      <h1 className="text-center text-3xl font-bold">Who's watching?</h1>
+      <h1 className="text-center text-3xl font-bold">{t('auth:profiles.heading')}</h1>
       <div className="mt-10 flex flex-wrap justify-center gap-6 sm:gap-8">
         {status.profiles.map((p, i) => (
           <motion.button
@@ -109,9 +109,7 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
       </div>
       {choose.error && !needs && <p className="mt-6 text-center text-sm text-warning">{choose.error.message}</p>}
       {!status.signed_in && (
-        <button type="button" onClick={() => setAsFriend(true)} className="mx-auto mt-12 block text-sm text-muted transition-colors hover:text-foreground">
-          Not part of this household? Sign in as a friend
-        </button>
+        <button type="button" onClick={() => setAsFriend(true)} className="mx-auto mt-12 block text-sm text-muted transition-colors hover:text-foreground">{t('auth:profiles.friend')}</button>
       )}
       {status.password_session && (
         <div className="mt-12 flex justify-center">
@@ -123,8 +121,7 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
               qc.invalidateQueries();
             }}
           >
-            <LogOut /> Sign Out
-          </Button>
+            <LogOut />{' '}{t('common:profile.signOut')}</Button>
         </div>
       )}
     </AuthScreen>
@@ -133,6 +130,7 @@ export function ProfilePicker({ status }: { status: AuthStatus }) {
 
 /** Four boxes for a PIN; calls onComplete when all four digits are in. */
 function PinEntry({ onComplete, error, busy }: { onComplete: (pin: string) => void; error: boolean; busy: boolean }) {
+  const { t } = useTranslation(['auth', 'common']);
   const [digits, setDigits] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -151,7 +149,7 @@ function PinEntry({ onComplete, error, busy }: { onComplete: (pin: string) => vo
         autoComplete="off"
         maxLength={4}
         disabled={busy}
-        aria-label="PIN"
+        aria-label={t('auth:profiles.pin')}
         onChange={(e) => {
           const v = e.target.value.replace(/\D/g, '').slice(0, 4);
           setDigits(v);

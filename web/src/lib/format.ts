@@ -1,11 +1,12 @@
+import i18n from '../i18n';
 import type { MediaFile, Stream } from './api';
 
 export function runtime(minutes?: number): string {
   if (!minutes) return '';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  if (h === 0) return i18n.t('common:format.minutes', { count: m });
+  return m === 0 ? i18n.t('common:format.hours', { count: h }) : i18n.t('common:time.hoursMinutes', { hours: h, minutes: m });
 }
 
 /** A position like "1:04:09" or "12:30". */
@@ -87,41 +88,66 @@ export function channels(n?: number): string {
     case 0:
       return '';
     case 1:
-      return 'Mono';
+      return i18n.t('common:format.mono');
     case 2:
-      return 'Stereo';
+      return i18n.t('common:format.stereo');
     case 6:
       return '5.1';
     case 8:
       return '7.1';
     default:
-      return `${n}ch`;
+      return i18n.t('common:format.channels', { count: n });
   }
 }
 
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language' });
+// Keep the existing British English dates/numbers even with an en-US browser.
+export function formatLocale(): string {
+  const active = i18n.resolvedLanguage ?? 'en';
+  return active === 'en' || active.startsWith('en-') ? 'en-GB' : active;
+}
+
+export function number(value: number, options?: Intl.NumberFormatOptions): string {
+  return new Intl.NumberFormat(formatLocale(), options).format(value);
+}
+
+function fixed(value: number, digits: number): string {
+  // toFixed's binary rounding is part of the existing English file-size display.
+  return formatLocale() === 'en-GB' ? value.toFixed(digits) : number(value, { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+export function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(formatLocale(), { day: 'numeric', month: 'short' });
+}
+
+const languageNames = new Map<string, Intl.DisplayNames>();
 
 export function language(code?: string): string {
   if (!code || code === 'und') return '';
   try {
-    return languageNames.of(code) ?? code;
+    const locale = formatLocale();
+    let names = languageNames.get(locale);
+    if (!names) {
+      names = new Intl.DisplayNames([locale], { type: 'language' });
+      languageNames.set(locale, names);
+    }
+    return names.of(code) ?? code;
   } catch {
     return code;
   }
 }
 
 export function fileSize(bytes: number): string {
-  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(1)} TB`;
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
-  return `${Math.round(bytes / 1e3)} KB`;
+  if (bytes >= 1e12) return i18n.t('common:format.terabytes', { value: fixed(bytes / 1e12, 1) });
+  if (bytes >= 1e9) return i18n.t('common:format.gigabytes', { value: fixed(bytes / 1e9, 1) });
+  if (bytes >= 1e6) return i18n.t('common:format.megabytes', { value: number(Math.round(bytes / 1e6), { useGrouping: false }) });
+  return i18n.t('common:format.kilobytes', { value: number(Math.round(bytes / 1e3), { useGrouping: false }) });
 }
 
 export function date(iso?: string): string {
   if (!iso) return '';
   const d = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(formatLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** "Today, 23:40", "Yesterday, 08:15" or "12 Oct 2026, 03:00". */
@@ -129,11 +155,11 @@ export function dateTime(iso?: string): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const time = d.toLocaleTimeString(formatLocale(), { hour: '2-digit', minute: '2-digit' });
   const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000);
-  if (days === 0) return `Today, ${time}`;
-  if (days === 1) return `Yesterday, ${time}`;
-  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}, ${time}`;
+  if (days === 0) return i18n.t('common:time.todayAt', { time });
+  if (days === 1) return i18n.t('common:time.yesterdayAt', { time });
+  return i18n.t('common:time.dateAt', { date: d.toLocaleDateString(formatLocale(), { day: 'numeric', month: 'short', year: 'numeric' }), time });
 }
 
 function startOfDay(d: Date): number {
@@ -170,34 +196,35 @@ export function subtitleStreams(file?: MediaFile): Stream[] {
 /** What a running scan is doing, e.g. "Matching movies · 120 of 1,812 · 98 identified". */
 export function scanProgress(scan: { files_seen: number; matched: number; phase?: string; done?: number; total?: number }): string {
   const parts = [
-    scan.phase ? scan.phase : `Looking through folders · ${plural(scan.files_seen, 'file')}`,
-    scan.phase && scan.total ? `${Math.min(scan.done ?? 0, scan.total).toLocaleString()} of ${scan.total.toLocaleString()}` : '',
-    scan.matched ? `${scan.matched.toLocaleString()} identified` : '',
+    scan.phase ? scan.phase : i18n.t('common:activity.lookingThroughFolders', { count: scan.files_seen }),
+    scan.phase && scan.total ? i18n.t('common:activity.progress', { done: number(Math.min(scan.done ?? 0, scan.total)), total: number(scan.total) }) : '',
+    scan.matched ? i18n.t('common:activity.identified', { count: scan.matched, value: number(scan.matched) }) : '',
   ];
   return parts.filter(Boolean).join(' · ');
 }
 
 export function plural(n: number, word: string, pluralWord = `${word}s`): string {
-  return `${n} ${n === 1 ? word : pluralWord}`;
+  // Compatibility for pages converted in later phases; new text uses noun-specific keys.
+  return i18n.t('common:format.legacyPlural', { count: n, word, pluralWord });
 }
 
 /** Time spent watching: "45m", "3h 20m", or "128 hours" for long stretches. */
 export function watchTime(ms: number): string {
   const minutes = Math.round(ms / 60_000);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return i18n.t('common:format.minutes', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours >= 100) return `${hours.toLocaleString('en-GB')} hours`;
-  return minutes % 60 ? `${hours}h ${minutes % 60}m` : `${hours}h`;
+  if (hours >= 100) return i18n.t('common:format.longHours', { count: hours, value: number(hours) });
+  return minutes % 60 ? i18n.t('common:time.hoursMinutes', { hours, minutes: minutes % 60 }) : i18n.t('common:format.hours', { count: hours });
 }
 
 /** How long ago a unix time was: "today", "3 days ago", "2 months ago", "over a year ago". */
 export function ago(unix: number): string {
   const days = Math.floor((Date.now() / 1000 - unix) / 86_400);
-  if (days < 1) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return `${days} days ago`;
+  if (days < 1) return i18n.t('common:time.today');
+  if (days === 1) return i18n.t('common:time.yesterday');
+  if (days < 30) return i18n.t('common:time.daysAgo', { count: days });
   const months = Math.floor(days / 30);
-  if (months < 12) return months === 1 ? 'a month ago' : `${months} months ago`;
+  if (months < 12) return i18n.t('common:time.monthsAgo', { count: months });
   const years = Math.floor(days / 365);
-  return years <= 1 ? 'over a year ago' : `over ${years} years ago`;
+  return i18n.t('common:time.yearsAgo', { count: Math.max(1, years) });
 }
