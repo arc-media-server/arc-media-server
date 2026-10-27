@@ -202,6 +202,8 @@ export interface Library {
   collection_grid: '' | 'collection' | 'both';
   /** The language titles and descriptions are fetched in (e.g. "fr-FR"); "" for English. */
   metadata_language: string;
+  /** The country whose age ratings the library uses (e.g. "GB"). */
+  rating_region: string;
   /** Offer Skip Intro (TV) and Skip Credits (TV and movies). */
   skip_intros: boolean;
   skip_credits: boolean;
@@ -219,6 +221,7 @@ export interface LibraryInput {
   trickplay?: boolean;
   collection_min?: number;
   metadata_language?: string;
+  rating_region?: string;
   skip_intros?: boolean;
   skip_credits?: boolean;
   collection_grid?: Library['collection_grid'];

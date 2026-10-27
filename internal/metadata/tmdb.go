@@ -41,6 +41,14 @@ func (c *TMDB) SetRegion(region string) {
 	c.mu.Unlock()
 }
 
+// ratingRegion is the library's age-rating country from ctx, or the client's default.
+func (c *TMDB) ratingRegion(ctx context.Context) string {
+	if r := regionOf(ctx); r != "" {
+		return r
+	}
+	return c.Region()
+}
+
 // Region is the country whose age ratings are used ("US" by default).
 func (c *TMDB) Region() string {
 	c.mu.Lock()
@@ -386,7 +394,7 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			Recommendations:  d.Recommendations.ids(),
 			AltTitles:        d.AltTitles.list(d.Title, d.OriginalTitle),
 			Keywords:         d.Keywords.list(),
-			ContentRating:    pickRating(c.Region(), ratings),
+			ContentRating:    pickRating(c.ratingRegion(ctx), ratings),
 			Studios:          names(d.ProductionCompanies),
 			OriginalLanguage: d.OriginalLanguage,
 			Rating:           d.VoteAverage,

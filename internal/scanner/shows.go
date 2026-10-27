@@ -223,7 +223,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		defer finish()
 	}
 	lib = forSeries(lib, series)
-	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	ctx = metadata.WithRegion(metadata.WithLanguage(ctx, lib.MetadataLanguage), lib.RatingRegion)
 	ctx = metadata.WithEssentialTV(ctx, "")
 	if essential {
 		ctx = metadata.WithEssentialTV(metadata.WithPreviewCache(ctx), lib.SourceOrdering)
@@ -708,7 +708,7 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 	currentWork(ctx).Update("Checking episode links", "Using saved episode metadata")
 	currentWork(ctx).Progress(0, len(files))
 	lib = forSeries(lib, series)
-	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	ctx = metadata.WithRegion(metadata.WithLanguage(ctx, lib.MetadataLanguage), lib.RatingRegion)
 	orderings, err := s.store.ListOrderings(ctx, seriesID)
 	if err != nil {
 		return 0, err

@@ -968,6 +968,9 @@
             },
             "type": "array"
           },
+          "rating_region": {
+            "type": "string"
+          },
           "scan": {
             "$ref": "#/components/schemas/ScannerStatus"
           },
@@ -994,6 +997,7 @@
           "metadata_language",
           "name",
           "paths",
+          "rating_region",
           "scan",
           "skip_credits",
           "skip_intros",
@@ -1031,6 +1035,9 @@
             },
             "type": "array"
           },
+          "rating_region": {
+            "type": "string"
+          },
           "skip_credits": {
             "type": "boolean"
           },
@@ -1053,6 +1060,7 @@
           "metadata_language",
           "name",
           "paths",
+          "rating_region",
           "skip_credits",
           "skip_intros",
           "source_ordering",
@@ -1086,6 +1094,9 @@
             },
             "type": "array"
           },
+          "rating_region": {
+            "type": "string"
+          },
           "skip_credits": {
             "type": "boolean"
           },
@@ -1107,6 +1118,7 @@
           "metadata_language",
           "name",
           "paths",
+          "rating_region",
           "skip_credits",
           "skip_intros",
           "source_ordering",
@@ -10546,6 +10558,9 @@
                     },
                     "type": "array"
                   },
+                  "rating_region": {
+                    "type": "string"
+                  },
                   "skip_credits": {
                     "type": "boolean"
                   },
@@ -10566,6 +10581,7 @@
                   "metadata_language",
                   "name",
                   "paths",
+                  "rating_region",
                   "skip_credits",
                   "skip_intros",
                   "source_ordering",
