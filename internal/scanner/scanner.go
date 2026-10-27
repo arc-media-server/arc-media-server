@@ -399,7 +399,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Checking library folders" })
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
-	ctx = metadata.WithPreviewReuse(metadata.WithLanguage(ctx, lib.MetadataLanguage))
+	ctx = metadata.WithPreviewReuse(metadata.WithRegion(metadata.WithLanguage(ctx, lib.MetadataLanguage), lib.RatingRegion))
 	visited, err := scanFolders(lib, paths)
 	if err != nil {
 		return err
@@ -1141,7 +1141,7 @@ func (s *Scanner) refreshMovies(ctx context.Context, libraryID int64) error {
 // inLanguage is ctx asking for a library's metadata language.
 func (s *Scanner) inLanguage(ctx context.Context, libraryID int64) context.Context {
 	if lib, err := s.store.GetLibrary(ctx, libraryID); err == nil && lib != nil {
-		return metadata.WithLanguage(ctx, lib.MetadataLanguage)
+		return metadata.WithRegion(metadata.WithLanguage(ctx, lib.MetadataLanguage), lib.RatingRegion)
 	}
 	return ctx
 }

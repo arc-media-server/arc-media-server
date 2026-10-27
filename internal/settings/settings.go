@@ -33,7 +33,8 @@ type Settings struct {
 	Port        int
 	// Accept connections from other devices (otherwise only this computer).
 	AllowNetwork bool
-	// Country (ISO 3166-1, e.g. "GB") whose age ratings are shown and used by parental controls.
+	// Country (ISO 3166-1, e.g. "GB") new libraries use for age ratings unless they choose one;
+	// set from the browser at first-run setup. Each library keeps its own (rating_region).
 	Region string
 	// Convert video with the graphics card when there's one that can (on unless turned off).
 	HWAccel bool
