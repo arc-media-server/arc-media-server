@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 /** Shared mouse/keyboard navigation for posters, cast and extras. Native wheel/swipe stays intact. */
 export function RowShell({ title, href, empty, children, loading, error, onRetry, className }: { title: string; href?: string; empty?: boolean; children: ReactNode; loading?: boolean; error?: unknown; onRetry?: () => void; className?: string }) {
+  const { t } = useTranslation('common');
   const scroller = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const helpId = useId();
@@ -40,18 +42,18 @@ export function RowShell({ title, href, empty, children, loading, error, onRetry
           {href ? <Link to={href} className="inline-flex items-center gap-1 hover:text-accent">{title}<ChevronRight className="size-4 shrink-0 text-subtle" /></Link> : title}
         </h2>
         {(bounds.left || bounds.right) && <div className="flex shrink-0 gap-1">
-          <Button type="button" variant="secondary" size="icon" aria-label={`Scroll ${title} left`} disabled={!bounds.left} onClick={() => scroll(-1)} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><ChevronLeft className="size-5" /></Button>
-          <Button type="button" variant="secondary" size="icon" aria-label={`Scroll ${title} right`} disabled={!bounds.right} onClick={() => scroll(1)} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><ChevronRight className="size-5" /></Button>
+          <Button type="button" variant="secondary" size="icon" aria-label={t('rows.scrollLeft', { title })} disabled={!bounds.left} onClick={() => scroll(-1)} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><ChevronLeft className="size-5" /></Button>
+          <Button type="button" variant="secondary" size="icon" aria-label={t('rows.scrollRight', { title })} disabled={!bounds.right} onClick={() => scroll(1)} className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><ChevronRight className="size-5" /></Button>
         </div>}
       </div>
       {!!error && <div className="mb-3 px-6 md:px-10"><ErrorNotice error={error} onRetry={onRetry} /></div>}
-      <p id={helpId} className="sr-only">Use Left and Right arrows to browse this row, Home and End to jump to its ends, or Tab to choose a title.</p>
-      <div ref={scroller} role="group" aria-label={`${title} cards`} aria-describedby={helpId} tabIndex={0}
+      <p id={helpId} className="sr-only">{t('rows.keyboardHelp')}</p>
+      <div ref={scroller} role="group" aria-label={t('rows.cards', { title })} aria-describedby={helpId} tabIndex={0}
         className="scrollbar-none flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-2 pt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent md:scroll-px-10 md:px-10"
         onKeyDown={event => {
           if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
           if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); scroll(event.key === 'ArrowLeft' ? -1 : 1); }
-          if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); event.currentTarget.scrollTo({ left: event.key === 'Home' ? 0 : event.currentTarget.scrollWidth, behavior: 'instant' }); }
+          if (event.key === t('navigation.home') || event.key === 'End') { event.preventDefault(); event.currentTarget.scrollTo({ left: event.key === t('navigation.home') ? 0 : event.currentTarget.scrollWidth, behavior: 'instant' }); }
         }}
         onFocusCapture={event => {
           const el = event.currentTarget;

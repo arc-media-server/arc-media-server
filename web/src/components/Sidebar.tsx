@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { createElement, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -49,6 +50,7 @@ export function ArcLogo({ className }: { className?: string }) {
 }
 
 function SearchBox({ className }: { className?: string }) {
+  const { t } = useTranslation('common');
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -77,7 +79,7 @@ function SearchBox({ className }: { className?: string }) {
             if (q || location.pathname === '/search') navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { replace: location.pathname === '/search' });
           }, 250);
         }}
-        placeholder="Search"
+        placeholder={t('navigation.search')}
         className="min-w-0 w-full bg-transparent outline-none placeholder:text-subtle"
       />
     </label>
@@ -101,6 +103,7 @@ function NavItem({ to, icon, children, busy, active }: { to: string; icon: React
 
 /** The current profile, with Switch Profile and Sign Out. */
 function ProfileMenu({ compact }: { compact?: boolean }) {
+  const { t } = useTranslation('common');
   const playback = usePlaybackQueue();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -121,7 +124,7 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {compact ? (
-          <button aria-label={`Profile: ${profile.name}`} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <button aria-label={t('profile.named', { name: profile.name })} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent">
             <Avatar name={profile.name} color={profile.color} className="size-8 text-sm" />
           </button>
         ) : (
@@ -129,7 +132,7 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
             <Avatar name={profile.name} color={profile.color} className="size-8 text-sm" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13.5px] font-medium">{profile.name}</span>
-              {profile.is_admin && <span className="block text-[11px] text-subtle">Admin</span>}
+              {profile.is_admin && <span className="block text-[11px] text-subtle">{t('profile.admin')}</span>}
             </span>
             <ChevronsUpDown className="size-4 text-subtle" />
           </button>
@@ -137,27 +140,21 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? 'end' : 'start'} side={compact ? 'bottom' : 'top'} className="w-60">
         <DropdownMenuItem onSelect={() => navigate('/?edit=1')}>
-          <SlidersHorizontal className="size-4 text-muted" /> Edit Home…
-        </DropdownMenuItem>
+          <SlidersHorizontal className="size-4 text-muted" />{' '}{t('profile.editHome')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/year')}>
-          <Sparkles className="size-4 text-muted" /> Your Year in Review
-        </DropdownMenuItem>
+          <Sparkles className="size-4 text-muted" />{' '}{t('profile.yearInReview')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/link')}>
-          <Tv className="size-4 text-muted" /> Link a Device…
-        </DropdownMenuItem>
+          <Tv className="size-4 text-muted" />{' '}{t('profile.linkDevice')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/settings')}>
-          <Settings className="size-4 text-muted" /> Settings
-        </DropdownMenuItem>
+          <Settings className="size-4 text-muted" />{' '}{t('navigation.settings')}</DropdownMenuItem>
         <DropdownMenuSeparator />
         {!status.friend && (status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
-            <Users className="size-4 text-muted" /> Switch Profile
-          </DropdownMenuItem>
+            <Users className="size-4 text-muted" />{' '}{t('profile.switchProfile')}</DropdownMenuItem>
         )}
         {(status.password_session || status.friend) && (
           <DropdownMenuItem onSelect={signOut}>
-            <LogOut className="size-4 text-muted" /> Sign Out
-          </DropdownMenuItem>
+            <LogOut className="size-4 text-muted" />{' '}{t('profile.signOut')}</DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -165,6 +162,7 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
 }
 
 export function Sidebar() {
+  const { t } = useTranslation('common');
   const { data } = useLibraries();
   const prefs = usePrefs();
   const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
@@ -185,19 +183,13 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
         <div className="space-y-0.5">
-          <NavItem to="/" icon={<Home />}>
-            Home
-          </NavItem>
-          <NavItem to="/watchlist" icon={<Bookmark />}>
-            Watchlist
-          </NavItem>
-          <NavItem to="/playlists" icon={<ListVideo />}>
-            Playlists
-          </NavItem>
+          <NavItem to="/" icon={<Home />}>{t('navigation.home')}</NavItem>
+          <NavItem to="/watchlist" icon={<Bookmark />}>{t('navigation.watchlist')}</NavItem>
+          <NavItem to="/playlists" icon={<ListVideo />}>{t('navigation.playlists')}</NavItem>
         </div>
         {!!libraries?.length && (
           <div>
-            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">Libraries</p>
+            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p>
             <div className="space-y-0.5">
               {libraries.map((lib) => (
                 <NavItem
@@ -214,7 +206,7 @@ export function Sidebar() {
         )}
       </nav>
       <div className="space-y-1 border-t border-border p-2">
-        <NavItem to="/settings" icon={<Settings />} active={isSettingsPath(pathname)}>Settings</NavItem>
+        <NavItem to="/settings" icon={<Settings />} active={isSettingsPath(pathname)}>{t('navigation.settings')}</NavItem>
         <ProfileMenu />
       </div>
     </aside>
@@ -223,6 +215,7 @@ export function Sidebar() {
 
 /** Compact top bar used instead of the sidebar on small screens. */
 export function MobileBar() {
+  const { t } = useTranslation('common');
   const { data } = useLibraries();
   const prefs = usePrefs();
   const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
@@ -236,20 +229,14 @@ export function MobileBar() {
         <SearchBox className="flex-1" />
         <NewsButton />
         <ActivityButton />
-        <Link to="/settings" aria-label="Settings" aria-current={isSettingsPath(pathname) ? 'page' : undefined} className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground', isSettingsPath(pathname) && 'bg-surface-3 text-foreground')}><Settings className="size-[18px]" /></Link>
+        <Link to="/settings" aria-label={t('navigation.settings')} aria-current={isSettingsPath(pathname) ? 'page' : undefined} className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground', isSettingsPath(pathname) && 'bg-surface-3 text-foreground')}><Settings className="size-[18px]" /></Link>
         <ProfileMenu compact />
       </div>
       <div className="flex min-w-0 items-center">
       <nav className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 py-3">
-        <NavLink to="/" end className={link}>
-          Home
-        </NavLink>
-        <NavLink to="/watchlist" className={link}>
-          Watchlist
-        </NavLink>
-        <NavLink to="/playlists" className={link}>
-          Playlists
-        </NavLink>
+        <NavLink to="/" end className={link}>{t('navigation.home')}</NavLink>
+        <NavLink to="/watchlist" className={link}>{t('navigation.watchlist')}</NavLink>
+        <NavLink to="/playlists" className={link}>{t('navigation.playlists')}</NavLink>
         {libraries?.map((lib) => (
           <NavLink key={lib.id} to={`/library/${lib.id}`} className={link}>
             {lib.name}

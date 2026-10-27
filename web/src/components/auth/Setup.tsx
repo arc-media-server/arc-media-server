@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +10,7 @@ import { AuthScreen, Card, fieldClass, Label } from './Screen';
 
 /** First run: create the admin profile, choose sign-in at home, and connect TMDB/TheTVDB. */
 export function Setup() {
+  const { t } = useTranslation(['auth', 'common']);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [step, setStep] = useState<'account' | 'metadata'>('account');
@@ -20,7 +22,7 @@ export function Setup() {
   const [tvdb, setTvdb] = useState('');
 
   const accountError =
-    password && password.length < 8 ? 'At least 8 characters' : confirm && confirm !== password ? "The passwords don't match" : '';
+    password && password.length < 8 ? t('auth:passwordHint') : confirm && confirm !== password ? t('auth:setup.passwordMismatch') : '';
   const setup = useMutation({
     mutationFn: () => api.setup({ name, password, local_bypass: bypass, tmdb_api_key: tmdb, tvdb_api_key: tvdb, region: browserRegion() }),
     onSuccess: async () => {
@@ -39,44 +41,36 @@ export function Setup() {
     <AuthScreen>
       {step === 'account' ? (
         <Card>
-          <h1 className="text-2xl font-bold">Welcome to Arc</h1>
-          <p className="mt-1.5 text-sm text-muted">First, set up your profile. It's the admin: it manages libraries and settings.</p>
+          <h1 className="text-2xl font-bold">{t('auth:setup.heading')}</h1>
+          <p className="mt-1.5 text-sm text-muted">{t('auth:setup.description')}</p>
           <form onSubmit={next} className="mt-6 space-y-4">
             <label className="block">
-              <Label>Your name</Label>
+              <Label>{t('auth:setup.yourName')}</Label>
               <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} autoComplete="name" />
             </label>
             <label className="block">
-              <Label>Password</Label>
+              <Label>{t('auth:password')}</Label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldClass} autoComplete="new-password" />
             </label>
             <label className="block">
-              <Label>Password again</Label>
+              <Label>{t('auth:setup.confirmPassword')}</Label>
               <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={fieldClass} autoComplete="new-password" />
             </label>
             {accountError && <p className="text-sm text-warning">{accountError}</p>}
             <div className="flex items-start gap-3 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">Skip the password at home</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted">
-                  On your home network, just pick a profile. Away from home the password is always needed, and your profile still asks
-                  for it (or its PIN) so others in the house can't change settings.
-                </p>
+                <p className="text-sm font-medium">{t('auth:setup.bypass')}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{t('auth:setup.bypassDescription')}</p>
               </div>
-              <Switch checked={bypass} onCheckedChange={setBypass} aria-label="Skip the password at home" />
+              <Switch checked={bypass} onCheckedChange={setBypass} aria-label={t('auth:setup.bypass')} />
             </div>
-            <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!name.trim() || password.length < 8 || password !== confirm}>
-              Continue
-            </Button>
+            <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!name.trim() || password.length < 8 || password !== confirm}>{t('common:actions.continue')}</Button>
           </form>
         </Card>
       ) : (
         <Card>
-          <h1 className="text-2xl font-bold">Connect to TMDB and TheTVDB</h1>
-          <p className="mt-1.5 text-sm text-muted">
-            Arc uses them to recognise your movies and shows and fetch artwork and details. Both have free API keys; you can add them
-            later in Settings.
-          </p>
+          <h1 className="text-2xl font-bold">{t('auth:setup.providersHeading')}</h1>
+          <p className="mt-1.5 text-sm text-muted">{t('auth:setup.providersDescription')}</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -85,23 +79,21 @@ export function Setup() {
             className="mt-6 space-y-4"
           >
             <label className="block">
-              <Label>TMDB API key (movies and shows)</Label>
-              <input value={tmdb} onChange={(e) => setTmdb(e.target.value)} className={fieldClass} placeholder="Paste your key" spellCheck={false} />
-              <KeyLink href="https://www.themoviedb.org/settings/api">Get a TMDB key</KeyLink>
+              <Label>{t('auth:setup.tmdbKey')}</Label>
+              <input value={tmdb} onChange={(e) => setTmdb(e.target.value)} className={fieldClass} placeholder={t('auth:setup.keyPlaceholder')} spellCheck={false} />
+              <KeyLink href="https://www.themoviedb.org/settings/api">{t('auth:setup.getTmdbKey')}</KeyLink>
             </label>
             <label className="block">
-              <Label>TheTVDB API key (shows, episode orders)</Label>
-              <input value={tvdb} onChange={(e) => setTvdb(e.target.value)} className={fieldClass} placeholder="Paste your key" spellCheck={false} />
-              <KeyLink href="https://thetvdb.com/api-information">Get a TheTVDB key</KeyLink>
+              <Label>{t('auth:setup.tvdbKey')}</Label>
+              <input value={tvdb} onChange={(e) => setTvdb(e.target.value)} className={fieldClass} placeholder={t('auth:setup.keyPlaceholder')} spellCheck={false} />
+              <KeyLink href="https://thetvdb.com/api-information">{t('auth:setup.getTvdbKey')}</KeyLink>
             </label>
             {setup.error && <p className="text-sm text-warning">{setup.error.message}</p>}
             <div className="flex gap-3 pt-1">
-              <Button type="button" variant="ghost" size="lg" onClick={() => setStep('account')} disabled={setup.isPending}>
-                Back
-              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setStep('account')} disabled={setup.isPending}>{t('common:actions.back')}</Button>
               <Button type="submit" variant="primary" size="lg" className="flex-1" disabled={setup.isPending}>
                 {setup.isPending && <Loader2 className="animate-spin" />}
-                {tmdb || tvdb ? 'Finish' : 'Skip for Now'}
+                {tmdb || tvdb ? t('auth:setup.finish') : t('auth:setup.skip')}
               </Button>
             </div>
           </form>

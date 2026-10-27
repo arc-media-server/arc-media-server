@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { AlertDialog } from 'radix-ui';
 import { Loader2 } from 'lucide-react';
@@ -28,6 +29,7 @@ export function ConfirmDialog({
   error?: string;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation('common');
   return (
     <AlertDialog.Root open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
       <AlertDialog.Portal>
@@ -40,9 +42,7 @@ export function ConfirmDialog({
           {error && <p className="mt-4 rounded-xl bg-warning/10 px-3 py-2 text-sm text-warning">{error}</p>}
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
-              <Button variant="ghost" disabled={busy}>
-                Cancel
-              </Button>
+              <Button variant="ghost" disabled={busy}>{t('actions.cancel')}</Button>
             </AlertDialog.Cancel>
             <Button variant={destructive ? 'danger' : 'primary'} disabled={busy} onClick={onConfirm}>
               {busy && <Loader2 className="animate-spin" />} {confirmLabel}
