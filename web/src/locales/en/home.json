@@ -37,7 +37,7 @@
     "newEpisodes_one": "{{count}} new episode",
     "newEpisodes_other": "{{count}} new episodes",
     "season": "Season {{season}}",
-    "seasonEpisodes_one": "{{season}} · {{count}} new episodes",
+    "seasonEpisodes_one": "{{season}} · {{count}} new episode",
     "seasonEpisodes_other": "{{season}} · {{count}} new episodes"
   },
   "rowDescription": {
