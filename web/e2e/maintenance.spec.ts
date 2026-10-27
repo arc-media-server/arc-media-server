@@ -146,6 +146,23 @@ test('maintenance: server clock keeps server timezone, retries errors and reflec
 });
 
 for (const shows of [false, true]) {
+  test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
+    const lib = await library(page, shows ? media.shows : media.movies, shows);
+    const item = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=${shows ? 'series' : 'movie'}`)).json()).items[0];
+    await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    const started = page.waitForResponse(r => r.url().endsWith(`/api/items/${item.id}/analyze`) && r.status() === 202);
+    await page.getByRole('menuitem', { name: 'Analyze', exact: true }).click();
+    await started;
+    await expect(page.getByRole('status').filter({ hasText: 'Progress shows in Activity.' })).toBeVisible();
+    await expect.poll(async () => {
+      const activity = await (await page.request.get('/api/activity')).json();
+      return activity.recent.find((t: { title: string }) => t.title === `Analyzing ${item.title}`)?.detail ?? '';
+    }, { timeout: 30_000 }).toMatch(/^[1-9]\d* analysed · 0 failed$/);
+  });
+}
+
+for (const shows of [false, true]) {
   test(`maintenance: ${shows ? 'series' : 'movie'} viewing actions move Refresh into More`, async ({ page, media }, info) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);
     const item = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=${shows ? 'series' : 'movie'}`)).json()).items[0];

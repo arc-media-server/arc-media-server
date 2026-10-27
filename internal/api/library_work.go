@@ -35,6 +35,30 @@ func (s *Server) startLibraryWork(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 202, s.scanner.Status(lib.ID))
 }
 
+// analyzeItem: POST /api/items/{id}/analyze (admin) rereads a movie's or episode's files, or every
+// episode of a show, like Plex's Analyze. It runs in the background under the library's lease
+// (stoppable from Activity) and keeps watch history, markers and edits.
+func (s *Server) analyzeItem(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	files, err := s.store.ItemAnalysisFiles(r.Context(), it.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if len(files) == 0 {
+		writeError(w, 409, "none of its files are present to analyze")
+		return
+	}
+	if !s.scanner.StartItemAnalysis(it.LibraryID, it.ID) {
+		writeError(w, 409, "the library is busy; try again when its current work finishes")
+		return
+	}
+	writeJSON(w, 202, s.scanner.Status(it.LibraryID))
+}
+
 // stopLibraryWork: POST /api/libraries/{id}/stop (admin) stops {"job_id":...} only.
 // It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled.
 func (s *Server) stopLibraryWork(w http.ResponseWriter, r *http.Request) {

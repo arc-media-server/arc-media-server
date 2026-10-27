@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -191,4 +192,90 @@ func TestManualReanalysisStopsFFprobeAndPreservesSavedDetails(t *testing.T) {
 	if err != nil || saved.ID != file.ID || saved.DurationMS != 12345 || saved.ProbeError != "" || saved.Missing {
 		t.Fatalf("cancelled analysis damaged state: %+v %v", saved, err)
 	}
+}
+
+// Analyze on a show rereads only its episodes' files; on an episode, only that episode's.
+func TestItemAnalysisRereadsOnlyThatTitle(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	ffprobe, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe not installed")
+	}
+	clip := filepath.Join(t.TempDir(), "clip.mkv")
+	if out, err := exec.Command(ffmpeg, "-v", "error", "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10:duration=1",
+		"-c:v", "libx264", "-preset", "ultrafast", clip).CombinedOutput(); err != nil {
+		t.Fatalf("ffmpeg: %v %s", err, out)
+	}
+	video, err := os.ReadFile(clip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := t.Context()
+	// The fixture saves the files as already read but without details, as an older scan might.
+	st, s, lib, root := libraryFixture(t, "shows", map[string]string{
+		"Alpha/Season 01/Alpha S01E01.mkv": string(video),
+		"Alpha/Season 01/Alpha S01E02.mkv": string(video),
+		"Beta/Season 01/Beta S01E01.mkv":   string(video),
+	})
+	s.prober, s.Activity = probe.New(ffprobe), activity.New()
+	if err := s.scan(ctx, lib); err != nil {
+		t.Fatal(err)
+	}
+	duration := func(name string) int64 {
+		f, err := st.GetFileByPath(ctx, filepath.Join(root, filepath.FromSlash(name)))
+		if err != nil || f == nil {
+			t.Fatalf("%s: %+v %v", name, f, err)
+		}
+		return f.DurationMS
+	}
+	shows, _, err := st.ListItems(ctx, store.ItemQuery{LibraryID: lib, Kind: "series"})
+	if err != nil || len(shows) != 2 {
+		t.Fatalf("shows=%v err=%v", shows, err)
+	}
+	byTitle := map[string]store.Item{}
+	for _, sh := range shows {
+		byTitle[sh.Title] = sh
+	}
+	run := func(itemID string) {
+		t.Helper()
+		if !s.StartItemAnalysis(lib, itemID) {
+			t.Fatal("analysis not started")
+		}
+		s.Wait()
+		if st := s.Status(lib); st.Error != "" || st.Running {
+			t.Fatalf("analysis status: %+v", st)
+		}
+	}
+
+	run(byTitle["Alpha"].ID)
+	if duration("Alpha/Season 01/Alpha S01E01.mkv") < 900 || duration("Alpha/Season 01/Alpha S01E02.mkv") < 900 {
+		t.Fatal("show's episodes not reread")
+	}
+	if duration("Beta/Season 01/Beta S01E01.mkv") != 0 {
+		t.Fatal("another show was reread")
+	}
+	_, recent := s.Activity.Snapshot()
+	if len(recent) == 0 || recent[0].Title != "Analyzing Alpha" || recent[0].Detail != "2 analysed · 0 failed" {
+		t.Fatalf("activity: %+v", recent)
+	}
+
+	episodes, err := st.Children(ctx, byTitle["Beta"].ID)
+	if err != nil || len(episodes) != 1 {
+		t.Fatalf("episodes=%v err=%v", episodes, err)
+	}
+	run(episodes[0].ID)
+	if duration("Beta/Season 01/Beta S01E01.mkv") < 900 {
+		t.Fatal("episode not reread")
+	}
+	// Overlapping library work waits for the analysis, and analysis waits for a scan.
+	if !s.Start(lib) {
+		t.Fatal("scan not started")
+	}
+	if s.StartItemAnalysis(lib, byTitle["Alpha"].ID) {
+		t.Fatal("analysis admitted during a scan")
+	}
+	s.Wait()
 }
