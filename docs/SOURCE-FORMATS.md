@@ -34,6 +34,12 @@ sample because actual encoded dynamic metadata may be absent from stream-only ou
 budget per file, one decoder thread, 5 MB input probing budget, 2 seconds analysed duration,
 2 MiB stdout and 64 KiB stderr per subprocess. FFmpeg input probing limits are not a total file I/O-byte quota.
 This does not decode whole films. Multi-stream sampling shares the time budget.
+Within those 64 packets only keyframes are decoded (`-skip_frame nokey`): FFmpeg's HEVC decoder
+still reads Dolby Vision RPUs and HDR10+ SEI from skipped frames and attaches them to the next
+decoded frame. On generated 1080p DV 8.1 and HDR10+ clips (metadata on every frame, keyframes
+only, the first frame only, or only between keyframes) this found exactly what the full 64-frame
+decode found in about 85 ms instead of about 415 ms. An ffprobe that rejects the option falls
+back to decoding all 64 frames. `internal/probe/testdata` holds tiny real DV/HDR10+ fixtures.
 
 Status `sampled` means frames were examined, `stream` means positive declared evidence,
 `unavailable` means the optional sample failed or exceeded a bound. Empty status can mean no
