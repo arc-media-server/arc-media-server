@@ -91,7 +91,11 @@ test('recovery: playlist list failure preserves the title and draft through retr
   let fail = true;
   await page.route('**/api/playlists', route => route.request().method() === 'GET' && fail ? route.fulfill({ status: 503, json: { error: 'Playlists fixture unavailable' } }) : route.continue());
   await page.goto(`/movie/${item.id}`);
-  await page.getByRole('button', { name: 'Add to Playlist', exact: true }).click();
+  const addToPlaylist = async () => {
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
+  };
+  await addToPlaylist();
   const dialog = page.getByRole('dialog', { name: 'Add to Playlist', exact: true });
   await expect(dialog.getByRole('alert')).toContainText('Playlists fixture unavailable');
   await dialog.getByPlaceholder('New playlist').fill('Keep my draft');
@@ -106,7 +110,7 @@ test('recovery: playlist list failure preserves the title and draft through retr
   await page.keyboard.press('Escape');
   fail = true;
   await page.clock.fastForward(31_000);
-  await page.getByRole('button', { name: 'Add to Playlist', exact: true }).click();
+  await addToPlaylist();
   await expect(dialog.getByRole('alert')).toContainText('Playlists fixture unavailable');
   await expect(dialog.getByText(/Showing the last loaded playlists/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Saved queue/ })).toBeVisible();
