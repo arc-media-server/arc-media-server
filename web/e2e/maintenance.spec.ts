@@ -152,14 +152,14 @@ for (const shows of [false, true]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
-    // The generated movie is really read by FFprobe: its 160×90 frame is 16:9.
-    if (!shows) await expect(page.getByText('160×90 · 16:9', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveText('Playback queue');
     await expect(page.getByRole('button', { name: 'Add to Playlist', exact: true }).first()).toHaveAttribute('title', 'Save to a playlist');
     await page.getByRole('button', { name: 'More', exact: true }).click();
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
+    // The generated movie is really read by FFprobe: its 160×90 frame is 16:9.
+    if (!shows) await expect(page.getByText('160×90 · 16:9', { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath('title-actions-desktop.png') });
     await page.setViewportSize({ width: 390, height: 900 });
     await page.screenshot({ path: info.outputPath('title-actions-phone.png') });
