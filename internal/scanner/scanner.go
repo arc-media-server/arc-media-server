@@ -270,6 +270,14 @@ func (s *Scanner) StartOperation(libraryID int64, operation string) bool {
 	return s.startKindLocked(libraryID, operation)
 }
 
+// StartItemAnalysis rereads one movie's or episode's files, or every episode of a show, under
+// the library's lease, so it never overlaps a scan or other library work and can be stopped.
+func (s *Scanner) StartItemAnalysis(libraryID int64, itemID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startKindLocked(libraryID, "analyze_item", itemID)
+}
+
 func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...string) bool {
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
@@ -294,6 +302,8 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 			err = s.maintain(ctx, libraryID)
 		case "refresh", "analyze":
 			err = s.manualWork(ctx, libraryID, operation)
+		case "analyze_item":
+			err = s.analyzeItem(ctx, libraryID, paths[0]) // StartItemAnalysis passes the item ID
 		default:
 			err = s.scanPaths(ctx, libraryID, paths)
 		}

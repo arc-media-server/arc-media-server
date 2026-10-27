@@ -13,7 +13,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { episodeQueue, shuffled } from '@/lib/shuffle';
 import { Artwork } from '@/components/Artwork';
-import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
+import { MoreMenu, useAnalyzeItem, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
 import { useSpoilerGuard } from '@/lib/home';
 import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components/Hero';
@@ -77,6 +77,7 @@ export function SeriesPage() {
 
   const data = seasons.data;
   const series = data?.series;
+  const analysis = useAnalyzeItem(series);
   const { open: openDialog, dialogs } = useItemDialogs(series);
   const admin = useIsAdmin();
   const play = usePlayer();
@@ -156,7 +157,7 @@ export function SeriesPage() {
           {available > 0 && <AddToPlaylistButton item={series} />}
           {admin && (
             <>
-              <MoreMenu item={series} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} />
+              <MoreMenu item={series} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing} />
             </>
           )}
         </div>
@@ -168,6 +169,7 @@ export function SeriesPage() {
 
       <div className="space-y-2 px-6 md:px-10">
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
+        {analysis.notice}
         <ErrorNotice error={orderings.error} onRetry={() => void orderings.refetch()} />
       </div>
       <CastRow credits={series.credits} />
