@@ -8,7 +8,7 @@ import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type Su
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
+import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
@@ -266,21 +266,6 @@ function ServerSettings() {
               link="https://thetvdb.com/api-information"
               onSave={(v) => update.mutateAsync({ tvdb_api_key: v })}
             />
-            <Row setting="region" label="Region" description="Which country's age ratings (like 12A or PG-13) to show and use for parental controls.">
-              <select
-                aria-label="Region"
-            value={s.region}
-                onChange={(e) => update.mutate({ region: e.target.value })}
-                disabled={update.isPending}
-                className={`${inputClass} w-56 [&>option]:bg-surface`}
-              >
-                {regionOptions(s.region).map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </Row>
           </Section>
           <Section title="Ratings" hint="Scores from other sites, shown on title pages and available as sorts.">
             <Row
@@ -373,9 +358,9 @@ function ServerSettings() {
             <Webhooks />
           </Section>
 
-          <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
+          {mediaToolsNeeded(s) && <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
-          </Section>
+          </Section>}
 
           <Section title="Intro & credit detection" hint="Where Skip Intro, Recap and Credits come from. Each library chooses whether to offer them.">
             <Row
@@ -588,16 +573,6 @@ function ServerSettings() {
       )}
     </SaveFeedbackContext.Provider>
   );
-}
-
-// Countries with their own age ratings, most likely first after sorting by name.
-const regionCodes = ['AU', 'BR', 'CA', 'DE', 'DK', 'ES', 'FI', 'FR', 'GB', 'IE', 'IN', 'IT', 'JP', 'KR', 'MX', 'NL', 'NO', 'NZ', 'PL', 'PT', 'SE', 'US', 'ZA'];
-const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-
-/** [code, name] pairs sorted by name, including the current region even if it isn't listed. */
-export function regionOptions(current?: string): [string, string][] {
-  const codes = current && !regionCodes.includes(current) ? [...regionCodes, current] : regionCodes;
-  return codes.map((c) => [c, regionNames.of(c) ?? c] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
 }
 
 /** The home's internet upload speed, shared between remote streams. */

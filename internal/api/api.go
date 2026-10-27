@@ -208,6 +208,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/subtitles/search", user(s.searchSubtitles))
 	mux.HandleFunc("POST /api/items/{id}/subtitles/download", user(s.downloadSubtitles))
 	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}", user(s.subtitleCues))
+	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}/vtt", user(s.subtitleVTT))
 	mux.HandleFunc("GET /api/items/{id}/trickplay", user(s.trickplayInfo))
 	mux.HandleFunc("GET /api/items/{id}/trickplay/{file}/{sheet}", user(s.trickplaySheet))
 	mux.HandleFunc("GET /api/transcode/{sid}/{file}", user(s.transcodeFile))

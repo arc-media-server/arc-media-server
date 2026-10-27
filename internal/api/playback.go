@@ -445,6 +445,7 @@ func (s *Server) transcodeFile(w http.ResponseWriter, r *http.Request) {
 		w.Write(pl)
 		return
 	}
+	sess.Requested(name)
 	path, ok := sess.File(name)
 	if !ok {
 		writeError(w, http.StatusNotFound, "not ready")
@@ -470,45 +471,83 @@ func (s *Server) stopTranscode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// subtitleCues: GET /api/items/{id}/subtitles/{track}?file=<id> is a text subtitle track's cues
-// (times in the file's time), extracted the first time it's asked for.
+// subtitleCues: GET /api/items/{id}/subtitles/{track}?file= returns a subtitle track's cues as
+// JSON, for the web player to show.
 func (s *Server) subtitleCues(w http.ResponseWriter, r *http.Request) {
-	it, ok := s.itemFromPath(w, r)
+	t, cues, ok := s.readSubtitle(w, r)
 	if !ok {
 		return
 	}
-	files, err := s.store.ItemFiles(r.Context(), it.ID)
-	if err != nil {
-		s.fail(w, err)
+	writeJSON(w, http.StatusOK, map[string]any{"track": t, "cues": cues})
+}
+
+// subtitleVTT: GET /api/items/{id}/subtitles/{track}/vtt?file=&shift_ms= returns a text subtitle
+// track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is
+// earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end
+// before 0 are left out. Cast devices fetch it through a cast link (see cast.go).
+func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
+	_, cues, ok := s.readSubtitle(w, r)
+	if !ok {
 		return
 	}
+	shift, _ := strconv.ParseInt(r.URL.Query().Get("shift_ms"), 10, 64)
+	w.Header().Set("Content-Type", "text/vtt; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write([]byte(webVTT(cues, shift)))
+}
+
+// readSubtitle reads the text subtitle track named in the path for the ?file= (or first present)
+// file of the item, writing an error if it can't.
+func (s *Server) readSubtitle(w http.ResponseWriter, r *http.Request) (subtitles.Track, []subtitles.Cue, bool) {
 	fileID, _ := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
-	var f *store.MediaFile
-	for i := range files {
-		if !files[i].Missing && (fileID == 0 || files[i].ID == fileID) {
-			f = &files[i]
-			break
-		}
-	}
-	if f == nil {
-		writeError(w, http.StatusNotFound, "no file for this item")
-		return
+	_, f, ok := s.itemFile(w, r, fileID)
+	if !ok {
+		return subtitles.Track{}, nil, false
 	}
 	t, ok := s.findSubtitle(f, r.PathValue("track"))
 	if !ok {
 		writeError(w, http.StatusNotFound, "no such subtitle track")
-		return
+		return subtitles.Track{}, nil, false
 	}
 	if s.subtitles == nil {
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
-		return
+		return subtitles.Track{}, nil, false
 	}
 	cues, err := s.subtitles.Cues(r.Context(), f, t)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
-		return
+		return subtitles.Track{}, nil, false
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"track": t, "cues": cues})
+	return t, cues, true
+}
+
+// webVTT writes cues as a WebVTT file, each moved by shiftMS.
+func webVTT(cues []subtitles.Cue, shiftMS int64) string {
+	var b strings.Builder
+	b.WriteString("WEBVTT\n")
+	for _, c := range cues {
+		start, end := c.StartMS+shiftMS, c.EndMS+shiftMS
+		if end <= 0 || end <= start {
+			continue
+		}
+		start = max(start, 0)
+		// Cue text can't hold blank lines or "-->"; <i>, <b> and <u> are WebVTT tags too.
+		var lines []string
+		for _, line := range strings.Split(strings.ReplaceAll(c.Text, "-->", "->"), "\n") {
+			if line = strings.TrimSpace(line); line != "" {
+				lines = append(lines, strings.ReplaceAll(line, "&", "&amp;"))
+			}
+		}
+		if len(lines) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "\n%s --> %s\n%s\n", vttTime(start), vttTime(end), strings.Join(lines, "\n"))
+	}
+	return b.String()
+}
+
+func vttTime(ms int64) string {
+	return fmt.Sprintf("%02d:%02d:%02d.%03d", ms/3600000, ms/60000%60, ms/1000%60, ms%1000)
 }
 
 // versionDTO describes one of a title's files, for choosing between editions and versions.

@@ -235,7 +235,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
 		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
 		Details: Details{Tagline: d.Tagline, LogoPath: bestLogo(d.Images.Logos), Recommendations: d.Recommendations.ids(),
-			AltTitles: d.AltTitles.list(d.Name, d.OriginalName), Keywords: d.Keywords.list(), ContentRating: pickRating(c.Region(), ratings), Studios: names(d.Networks),
+			AltTitles: d.AltTitles.list(d.Name, d.OriginalName), Keywords: d.Keywords.list(), ContentRating: pickRating(c.ratingRegion(ctx), ratings), Studios: names(d.Networks),
 			Rating: d.VoteAverage, Genres: names(d.Genres), People: people,
 			OriginalLanguage: d.OriginalLanguage, Status: showStatus(d.Status), LastAired: d.LastAirDate}}
 	if d.NextEpisode != nil {

@@ -86,7 +86,7 @@ async function reset(restart = false) {
 
 const movie = (id, title) => ({ id, title, original_title: title, original_language: 'en', release_date: '2020-01-01',
   overview: 'A locally generated movie for browser regression tests.', runtime: 2, genres: [],
-  release_dates: { results: [{ iso_3166_1: 'GB', release_dates: [{ certification: 'PG', type: 3 }] }] } });
+  release_dates: { results: [{ iso_3166_1: 'GB', release_dates: [{ certification: 'PG', type: 3 }] }, { iso_3166_1: 'US', release_dates: [{ certification: 'PG-13', type: 3 }] }] } });
 const episodes = [1, 2].map(n => ({ id: 3000 + n, name: n === 1 ? 'First Chapter' : 'Second Chapter',
   overview: `Chapter ${n} of the regression fixture.`, season_number: 1, episode_number: n, runtime: 2,
   air_date: `2020-01-0${n}` }));

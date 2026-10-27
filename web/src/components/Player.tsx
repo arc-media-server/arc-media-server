@@ -42,7 +42,7 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { ErrorNotice } from './Page';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
-import { CastSession, chooseChromecast, useCastAvailable } from './Cast';
+import { CastSession, chooseChromecast, useCastAvailable, type CastText } from './Cast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 export interface NowPlaying {
@@ -317,7 +317,7 @@ function PlayerOverlay({
   const lastReport = useRef(0);
   // Casting to a Chromecast: where it started (the cast panel takes over until it stops).
   const castAvailable = useCastAvailable();
-  const [castFrom, setCastFrom] = useState<{ startMS: number; fileId: number; audioStream: number; burnSubtitle?: string } | null>(null);
+  const [castFrom, setCastFrom] = useState<{ startMS: number; fileId: number; audioStream: number; burnSubtitle?: string; text?: CastText } | null>(null);
   const castReturn = useRef<{ positionMS: number; audioStream: number } | null>(null);
   const castOn = useRef(false);
   castOn.current = castFrom !== null;
@@ -693,10 +693,6 @@ function PlayerOverlay({
   }, [item.itemId, load, absMS]);
 
   const startCast = useCallback(async () => {
-    if (subtitle && !subtitle.image) {
-      setTrackNotice('Chromecast cannot receive browser-rendered text subtitles yet. Turn subtitles Off to cast, or keep playing here.');
-      return;
-    }
     const at = absMS();
     if (!(await chooseChromecast())) return;
     const source = plan.current;
@@ -708,8 +704,12 @@ function PlayerOverlay({
     v?.removeAttribute('src');
     v?.load();
     if (source.session_id) await api.stopTranscode(source.session_id).catch(() => {});
-    setCastFrom({ startMS: at, fileId: source.file_id, audioStream: source.audio_stream, burnSubtitle: burn.current });
-  }, [absMS, detach, subtitle]);
+    // A text subtitle goes with it, shown by the device itself with the same timing adjustment.
+    const text: CastText | undefined = subtitle && !subtitle.image
+      ? { id: subtitle.id, language: subtitle.language, name: subtitleLabel(subtitle, 0).name, shiftMS: subtitleOffsetMS }
+      : undefined;
+    setCastFrom({ startMS: at, fileId: source.file_id, audioStream: source.audio_stream, burnSubtitle: burn.current, text });
+  }, [absMS, detach, subtitle, subtitleOffsetMS]);
 
   // Stop/disconnect can finish asynchronously. Resume only after the browser's
   // video element has remounted, rather than racing React's batched state update.
@@ -1015,6 +1015,7 @@ function PlayerOverlay({
           fileId={castFrom.fileId}
           audioStream={castFrom.audioStream}
           burnSubtitle={castFrom.burnSubtitle}
+          text={castFrom.text}
           onEnd={(ms) => {
             castReturn.current = { positionMS: ms, audioStream: castFrom.audioStream };
             setCastFrom(null);
