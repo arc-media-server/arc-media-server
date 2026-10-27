@@ -18,7 +18,10 @@ func (s *Scanner) EnrichFormatFile(ctx context.Context, f store.MediaFile) error
 	}
 	streams := make([]probe.Stream, len(f.Streams))
 	for j, st := range f.Streams {
-		streams[j] = probe.Stream{Index: st.Index, Kind: st.Kind, Codec: st.Codec, ColorTransfer: st.ColorTransfer, Profile: st.Profile, ChannelLayout: st.ChannelLayout}
+		// Start from what's saved, so a file brought up to date for a later addition (such as
+		// aspect ratios) keeps HDR details an earlier sample found even if this sample fails.
+		streams[j] = probe.Stream{Index: st.Index, Kind: st.Kind, Codec: st.Codec, ColorTransfer: st.ColorTransfer, Profile: st.Profile, ChannelLayout: st.ChannelLayout,
+			DolbyVision: st.DolbyVision, DolbyVisionProfile: st.DolbyVisionProfile, HDR10Plus: st.HDR10Plus, HDRProbeStatus: st.HDRProbeStatus, AspectRatio: st.AspectRatio}
 	}
 	if err := s.prober.EnrichFormats(ctx, f.Path, streams); err != nil {
 		return err
@@ -30,6 +33,7 @@ func (s *Scanner) EnrichFormatFile(ctx context.Context, f store.MediaFile) error
 		f.Streams[j].DolbyVisionProfile = st.DolbyVisionProfile
 		f.Streams[j].HDR10Plus = st.HDR10Plus
 		f.Streams[j].HDRProbeStatus = st.HDRProbeStatus
+		f.Streams[j].AspectRatio = st.AspectRatio
 	}
 	after, err := os.Stat(f.Path)
 	if err != nil || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {

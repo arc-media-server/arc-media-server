@@ -37,6 +37,13 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Aspect ratio (#212, 27 October): every video track stores its display aspect ratio
+  (migration 0055 media_streams.aspect_ratio; FFprobe display ratio, else frame size x pixel
+  shape, so anamorphic DVDs read 16:9). File details show "1920×800 · 2.40:1" (4:3/16:9 by
+  name). store.FormatVersion is now 2: scans save it for new/changed files; the Media analysis
+  task brings every older video (HDR or not) up to date once with the compact stream read,
+  keeping saved HDR details. Migration numbered 0055 after #222's 0054: merge #222 first.
+
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
   overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data

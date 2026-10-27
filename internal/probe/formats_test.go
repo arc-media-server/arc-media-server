@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +40,7 @@ func TestMain(m *testing.M) {
 				fmt.Print(`{"frames":[{"stream_index":0}]}`)
 			}
 		} else {
-			fmt.Print(`{"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","color_transfer":"smpte2084"},{"index":2,"codec_type":"audio","codec_name":"truehd","profile":"Dolby TrueHD + Dolby Atmos","channels":8,"channel_layout":"7.1"},{"index":4,"codec_type":"video","codec_name":"av1"}]}`)
+			fmt.Print(`{"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","color_transfer":"smpte2084","width":720,"height":480,"sample_aspect_ratio":"32:27"},{"index":2,"codec_type":"audio","codec_name":"truehd","profile":"Dolby TrueHD + Dolby Atmos","channels":8,"channel_layout":"7.1"},{"index":4,"codec_type":"video","codec_name":"av1","width":1920,"height":800,"display_aspect_ratio":"12:5"}]}`)
 		}
 		os.Exit(0)
 	}
@@ -127,5 +129,55 @@ func TestExistingFormatEnrichmentRefreshesAudioProfileAndSamplesVideo(t *testing
 	}
 	if streams[1].Profile != "Dolby TrueHD + Dolby Atmos" || streams[1].ChannelLayout != "7.1" || !streams[2].DolbyVision || !streams[2].HDR10Plus {
 		t.Fatalf("lost existing-file evidence: %+v", streams)
+	}
+	if streams[0].AspectRatio != 1.78 || streams[1].AspectRatio != 0 || streams[2].AspectRatio != 2.4 {
+		t.Fatalf("aspect ratios: %v %v %v", streams[0].AspectRatio, streams[1].AspectRatio, streams[2].AspectRatio)
+	}
+}
+
+func TestAspectRatio(t *testing.T) {
+	for _, c := range []struct {
+		kind            string
+		w, h            int
+		sample, display string
+		want            float64
+	}{
+		{"video", 1920, 1080, "1:1", "16:9", 1.78},
+		{"video", 1920, 800, "", "", 2.4},          // no ratios: the frame size
+		{"video", 720, 480, "32:27", "", 1.78},     // anamorphic DVD from its pixel shape
+		{"video", 720, 576, "0:1", "N/A", 1.25},    // unknown ratios fall back to the frame
+		{"video", 3840, 1600, "1:1", "12:5", 2.4},  // ffprobe's display ratio wins
+		{"video", 1440, 1080, "4:3", "16:9", 1.78}, // HDV
+		{"audio", 0, 0, "", "", 0},
+		{"video", 0, 0, "1:1", "16:9", 0},
+	} {
+		if got := aspectRatio(c.kind, c.w, c.h, c.sample, c.display); got != c.want {
+			t.Errorf("%s %dx%d sar=%q dar=%q: %v, want %v", c.kind, c.w, c.h, c.sample, c.display, got, c.want)
+		}
+	}
+}
+
+// A real anamorphic file: 720x480 stored pixels shown as 16:9.
+func TestProbeReadsAnamorphicAspectRatio(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	ffprobe, err := exec.LookPath("ffprobe")
+	if err != nil {
+		t.Skip("ffprobe not installed")
+	}
+	path := filepath.Join(t.TempDir(), "dvd.mkv")
+	out, err := exec.Command(ffmpeg, "-v", "error", "-f", "lavfi", "-i", "testsrc=size=720x480:rate=25:duration=1",
+		"-vf", "setsar=32/27", "-c:v", "libx264", "-preset", "ultrafast", path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("ffmpeg: %v %s", err, out)
+	}
+	res, err := New(ffprobe).Probe(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Streams) != 1 || res.Streams[0].Width != 720 || res.Streams[0].AspectRatio != 1.78 {
+		t.Fatalf("streams: %+v", res.Streams)
 	}
 }

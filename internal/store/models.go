@@ -137,6 +137,8 @@ type Stream struct {
 	ColorPrimaries string  `json:"color_primaries,omitempty"`
 	FrameRate      float64 `json:"frame_rate,omitempty"`
 	Bitrate        int64   `json:"bitrate,omitempty"`
+	// Display aspect ratio, e.g. 1.78 or 2.39; 0 until read.
+	AspectRatio float64 `json:"aspect_ratio,omitempty"`
 }
 
 // ItemQuery filters ListItems. Zero values mean "no filter".

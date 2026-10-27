@@ -29,6 +29,14 @@ export function resolution(width?: number, height?: number): string {
   return 'SD';
 }
 
+/** A display aspect ratio as people say it: 4:3 and 16:9 by name, wider films as e.g. 2.39:1. */
+export function aspectRatio(ratio?: number): string {
+  if (!ratio) return '';
+  if (Math.abs(ratio - 4 / 3) < 0.02) return '4:3';
+  if (Math.abs(ratio - 16 / 9) < 0.02) return '16:9';
+  return `${ratio.toFixed(2)}:1`;
+}
+
 const codecNames: Record<string, string> = {
   h264: 'H.264',
   hevc: 'HEVC',
