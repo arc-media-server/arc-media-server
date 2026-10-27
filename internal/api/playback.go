@@ -445,6 +445,7 @@ func (s *Server) transcodeFile(w http.ResponseWriter, r *http.Request) {
 		w.Write(pl)
 		return
 	}
+	sess.Requested(name)
 	path, ok := sess.File(name)
 	if !ok {
 		writeError(w, http.StatusNotFound, "not ready")
