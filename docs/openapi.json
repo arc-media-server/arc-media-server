@@ -1657,6 +1657,9 @@
           },
           "state": {
             "type": "string"
+          },
+          "throttled": {
+            "type": "boolean"
           }
         },
         "required": [
