@@ -327,3 +327,25 @@ test('upkeep: failures remain visible and Run now retries without altering other
   await expect(database).toContainText('integrity checked');
   expect((await (await page.request.get('/api/settings')).json()).empty_trash_enabled).toBe(false);
 });
+
+test('API documentation opens from Settings and shows the generated description', async ({ page, media }) => {
+  void media;
+  await page.goto('/settings?section=maintenance');
+  const opened = page.context().waitForEvent('page');
+  await page.getByRole('link', { name: 'Open API docs', exact: true }).click();
+  const docs = await opened;
+  // The external-request guard above aborts anything not served by this Arc server.
+  const external: string[] = [];
+  docs.on('request', r => { const u = new URL(r.url()); if (u.hostname !== '127.0.0.1' && !['data:', 'blob:'].includes(u.protocol)) external.push(r.url()); });
+  const spec = docs.waitForResponse(r => r.url().endsWith('/api/openapi.json') && r.ok());
+  await docs.waitForURL('**/docs/');
+  await spec;
+  await expect(docs.getByRole('heading', { name: 'Arc Media Server API' })).toBeVisible();
+  await docs.getByText('Items', { exact: true }).first().click();
+  await expect(docs.getByText('Rereads a movie\'s or episode\'s files', { exact: false }).first()).toBeVisible();
+  expect(external).toEqual([]);
+  // The description itself is public, so apps can read it before signing in.
+  const anonymous = await fetch('http://127.0.0.1:18199/api/v1/openapi.json');
+  expect(anonymous.ok).toBe(true);
+  expect((await anonymous.json()).info.title).toBe('Arc Media Server API');
+});
