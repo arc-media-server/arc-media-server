@@ -36,6 +36,8 @@ type libraryBody struct {
 	CollectionMin *int `json:"collection_min"`
 	// The language titles and descriptions are fetched in; "" for English.
 	MetadataLanguage string `json:"metadata_language"`
+	// The country whose age ratings are used (e.g. "GB"); "" for the server's region.
+	RatingRegion string `json:"rating_region"`
 	// Offer Skip Intro and Skip Credits (on by default where they apply).
 	SkipIntros  *bool `json:"skip_intros"`
 	SkipCredits *bool `json:"skip_credits"`
@@ -47,6 +49,9 @@ type libraryBody struct {
 // (its own folders don't conflict with themselves).
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
+	if b.RatingRegion != "" && !regionRe.MatchString(b.RatingRegion) {
+		return fmt.Errorf("rating_region is a two-letter country code such as GB")
+	}
 	if b.DetailsProvider != "" && (b.DetailsProvider != "tvdb" || b.Kind != "shows") {
 		return errors.New("TVDB metadata provider is only available for TV libraries")
 	}
@@ -179,6 +184,14 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	region := b.RatingRegion
+	if region == "" {
+		region = s.settings().Region
+	}
+	if err := s.store.SetLibraryRatingRegion(r.Context(), id, region); err != nil {
+		s.fail(w, err)
+		return
+	}
 	// Plex's defaults: intros and credits for TV, credits for movies, neither for other videos.
 	intros, credits := b.Kind == "shows", b.Kind != "videos"
 	if b.SkipIntros != nil {
@@ -248,6 +261,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		Trickplay       *bool    `json:"trickplay"`
 		CollectionMin   *int     `json:"collection_min"`
 		Language        *string  `json:"metadata_language"`
+		RatingRegion    *string  `json:"rating_region"`
 		SkipIntros      *bool    `json:"skip_intros"`
 		SkipCredits     *bool    `json:"skip_credits"`
 		CollectionGrid  *string  `json:"collection_grid"`
@@ -317,6 +331,19 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		// Fetch everything again in the new language.
 		s.scanner.Request(lib.ID)
 	}
+	// A new age-rating country refetches the library's titles (after the rest of the save, which
+	// refuses a busy library); if it is busy anyway, the maintenance refresh picks them up.
+	regionChanged := patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion && lib.Kind != "videos"
+	if patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion {
+		if !regionRe.MatchString(*patch.RatingRegion) {
+			writeError(w, http.StatusBadRequest, "rating_region is a two-letter country code such as GB")
+			return
+		}
+		if err := s.store.SetLibraryRatingRegion(r.Context(), lib.ID, *patch.RatingRegion); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
 	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
 		if patch.DetailsProvider != nil {
 			if s.scanner.Status(lib.ID).Running {
@@ -329,7 +356,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// Provider-only changes refresh known metadata, never discover media.
-		if patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider {
+		if patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
 			s.scanner.StartOperation(lib.ID, "refresh")
 		}
 		// Nothing that needs a rescan.
@@ -380,7 +407,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	if !slices.Equal(lib.Paths, b.Paths) {
 		s.scanner.Request(lib.ID)
-	} else if b.SourceOrdering != lib.SourceOrdering || patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider {
+	} else if b.SourceOrdering != lib.SourceOrdering || patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
 		s.scanner.StartOperation(lib.ID, "refresh")
 	}
 	updated, err := s.store.GetLibrary(r.Context(), lib.ID)
@@ -443,7 +470,11 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	ctx = metadata.WithLanguage(ctx, b.MetadataLanguage)
+	region := b.RatingRegion
+	if region == "" {
+		region = s.settings().Region
+	}
+	ctx = metadata.WithRegion(metadata.WithLanguage(ctx, b.MetadataLanguage), region)
 	ps := &scanner.PreviewState{}
 	p := s.previews
 	p.mu.Lock()

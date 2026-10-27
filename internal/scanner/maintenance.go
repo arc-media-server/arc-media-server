@@ -52,7 +52,7 @@ func (s *Scanner) maintain(ctx context.Context, libraryID int64) (err error) {
 		return err
 	}
 	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Updating known metadata" })
-	ctx = metadata.WithLanguage(ctx, lib.MetadataLanguage)
+	ctx = metadata.WithRegion(metadata.WithLanguage(ctx, lib.MetadataLanguage), lib.RatingRegion)
 	if lib.Kind == "videos" {
 		return nil
 	}

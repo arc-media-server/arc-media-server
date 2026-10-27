@@ -50,12 +50,6 @@ func (s *Store) MarkSynced(ctx context.Context, id string) error {
 	return err
 }
 
-// MarkAllUnsynced makes every movie and series fetch its metadata again over the next scans.
-func (s *Store) MarkAllUnsynced(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET synced_at = 0 WHERE kind IN ('movie', 'series')`)
-	return err
-}
-
 // NextAired returns the date a show's next episode airs (YYYY-MM-DD), or "" if none is known.
 func (s *Store) NextAired(ctx context.Context, id string) (string, error) {
 	var d string
