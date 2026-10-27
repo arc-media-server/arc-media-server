@@ -8,7 +8,7 @@ import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type Su
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
+import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
@@ -358,9 +358,9 @@ function ServerSettings() {
             <Webhooks />
           </Section>
 
-          <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
+          {mediaToolsNeeded(s) && <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
-          </Section>
+          </Section>}
 
           <Section title="Intro & credit detection" hint="Where Skip Intro, Recap and Credits come from. Each library chooses whether to offer them.">
             <Row

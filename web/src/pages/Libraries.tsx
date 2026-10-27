@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FolderPlus, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { FolderPlus, Loader2, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { kindIcon, kindUnit } from '@/lib/kinds';
 import { api, type Library } from '@/lib/api';
 import * as fmt from '@/lib/format';
@@ -163,22 +163,18 @@ function LibraryRow({ lib, onEdit, onRemove, onScan, scanDisabled, scanPending, 
             <Loader2 className="size-3 animate-spin" /> {fmt.scanProgress(lib.scan)}
           </p>
         )}
+        {!lib.scan.running && scanPending && <p role="status" className="mt-1 flex items-center gap-1.5 text-xs text-muted"><Loader2 className="size-3 animate-spin" /> Requesting a scan…</p>}
         {!lib.scan.running && lib.scan.stopped && <p role="status" className="mt-1 text-xs text-muted">Stopped. Completed changes were kept.</p>}
         {!lib.scan.running && !lib.scan.stopped && scanRequested && <p role="status" className="mt-1 text-xs text-muted">Scan requested. See Activity for results.</p>}
         {!lib.scan.running && lib.scan.error && <p role="alert" className="mt-1 text-xs text-warning">{lib.scan.error}</p>}
         {scanError && <div className="mt-2"><ErrorNotice error={scanError} onRetry={scanDisabled || lib.scan.running ? undefined : onScan} /></div>}
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-2 sm:shrink-0">
-      <Button variant="secondary" size="sm" onClick={onScan} disabled={scanDisabled || lib.scan.running} aria-label={`Scan ${lib.name}`}>
-        {scanPending || lib.scan.running ? <Loader2 className="animate-spin" /> : <RefreshCw />} {lib.scan.stopping ? 'Stopping…' : lib.scan.running ? (lib.scan.operation === 'refresh' || lib.scan.operation === 'analyze' || lib.scan.operation === 'analyze_item' || lib.scan.operation === 'empty_trash' ? 'Working…' : 'Scanning…') : scanPending ? 'Requesting…' : 'Scan'}
-      </Button>
-      <LibraryWorkControls library={lib} />
-      <Button variant="secondary" size="sm" onClick={onEdit}>
-        <Pencil /> Edit
-      </Button>
-      <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Remove ${lib.name}`} title="Remove library">
-        <Trash2 />
-      </Button>
+        <LibraryWorkControls library={lib} onScan={onScan} scanDisabled={scanDisabled} onRemove={onRemove}>
+          <Button variant="secondary" size="sm" onClick={onEdit}>
+            <Pencil /> Edit
+          </Button>
+        </LibraryWorkControls>
       </div>
     </section>
   );
