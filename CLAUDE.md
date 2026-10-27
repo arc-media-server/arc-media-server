@@ -37,6 +37,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Title action buttons (27 October): owner asked for consistency. On movie/show pages Play
+  (or Play S1 E1/Resume) is the only text button; Playback options, Shuffle, Trailer, Watched,
+  Watchlist, Playback queue, Add to Playlist and More are matching 48px square icon buttons
+  with hover tooltips (title) and unchanged accessible names. Episode rows keep compact icons.
+
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
   overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data

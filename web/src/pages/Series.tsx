@@ -138,12 +138,15 @@ export function SeriesPage() {
             <Button
               variant="secondary"
               size="lg"
+              className="size-12 rounded-2xl px-0"
+              title="Shuffle the episodes"
+              aria-label="Shuffle"
               onClick={() => {
                 const q = shuffled(episodeQueue(data.seasons.filter((s) => s.season_number !== 0).flatMap((s) => s.episodes), series.title));
                 if (q.length) play(q[0], q);
               }}
             >
-              <Shuffle /> Shuffle
+              <Shuffle />
             </Button>
           )}
           <TrailerButton extras={series.extras} title={series.title} />
