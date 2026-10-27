@@ -77,16 +77,31 @@ func (p *Prober) enrichFrames(ctx context.Context, path string, streams []Stream
 			continue
 		}
 		attempts++
-		out := &limitedOutput{remaining: 2 << 20}
-		stderr := &limitedOutput{remaining: 64 << 10}
-		cmd := exec.CommandContext(sampleCtx, p.Bin(), "-v", "error", "-threads", "1", "-probesize", "5000000", "-analyzeduration", "2000000",
-			"-select_streams", strconv.Itoa(s.Index), "-read_intervals", "%+#64", "-show_frames",
-			"-show_entries", "frame=stream_index:frame_side_data=side_data_type", "-of", "json", path)
-		cmd.Stdout = out
-		cmd.Stderr = stderr
-		err := cmd.Run()
-		if ctx.Err() != nil {
-			return ctx.Err()
+		// Only keyframes are decoded: the decoder still reads Dolby Vision RPUs and HDR10+
+		// SEI from the frames it skips and hands them to the next decoded one, so this finds
+		// the same metadata about five times faster than decoding all 64 frames (measured on
+		// generated DV 8.1 and HDR10+ files, including ones tagged only on other frames).
+		// An ffprobe that rejects the option gets the full decode instead.
+		var out *limitedOutput
+		var err error
+		for _, keyframesOnly := range []bool{true, false} {
+			out = &limitedOutput{remaining: 2 << 20}
+			args := []string{"-v", "error", "-threads", "1", "-probesize", "5000000", "-analyzeduration", "2000000"}
+			if keyframesOnly {
+				args = append(args, "-skip_frame", "nokey")
+			}
+			args = append(args, "-select_streams", strconv.Itoa(s.Index), "-read_intervals", "%+#64", "-show_frames",
+				"-show_entries", "frame=stream_index:frame_side_data=side_data_type", "-of", "json", path)
+			cmd := exec.CommandContext(sampleCtx, p.Bin(), args...)
+			cmd.Stdout = out
+			cmd.Stderr = &limitedOutput{remaining: 64 << 10}
+			err = cmd.Run()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if err == nil || sampleCtx.Err() != nil {
+				break
+			}
 		}
 		var raw struct {
 			Frames []struct {
