@@ -16,9 +16,9 @@ export function PlaybackOptionsButton({ item, compact = false }: { item: NowPlay
   const play = usePlayer();
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild>
-      <Button variant={compact ? 'ghost' : 'secondary'} size={compact ? 'icon' : 'lg'}
-        aria-label={compact ? `Playback options for ${item.title}` : 'Playback options'}>
-        <SlidersHorizontal className={compact ? 'size-4' : undefined} />{!compact && 'Playback options'}
+      <Button variant={compact ? 'ghost' : 'secondary'} size={compact ? 'icon' : 'lg'} className={compact ? undefined : 'size-12 rounded-2xl px-0'}
+        title="Playback options" aria-label={compact ? `Playback options for ${item.title}` : 'Playback options'}>
+        <SlidersHorizontal className={compact ? 'size-4' : undefined} />
       </Button>
     </DialogTrigger>
     {open && <Options key={`${item.itemId}:${item.edition ?? ''}`} item={item} onPlay={(selection, edition) => {
