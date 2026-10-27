@@ -37,6 +37,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
 
 ## Where things stand
 
+- Compact Library Health playback (27 October): owner found the Playback section too large.
+  It now matches Skip Intro & Credits: one card, one row per library (counts line + thin bar),
+  the device chips became a Device drop-down beside the heading, and reasons/converted titles
+  sit behind "Why N are converted". Same API and data; UI only.
+
 - Desktop rows and profile Home hero (owner request, 26 October): shared RowShell gives poster/
   thumbnail, cast and Extras rows visible Previous/Next controls whenever actual content
   overflows, including narrow widths and short cast lists. Bounds update on scroll/resize/data

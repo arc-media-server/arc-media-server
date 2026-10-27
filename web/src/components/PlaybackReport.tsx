@@ -7,6 +7,7 @@ import { kindUnit } from '@/lib/kinds';
 import { devicePresets } from '@/lib/playback';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { inputClass } from '@/components/ui/field';
 
 /**
  * How each library's titles would play on a device: directly, repackaged (quick, nothing lost) or
@@ -24,32 +25,22 @@ export function PlaybackReport({ libraries }: { libraries: Library[] }) {
   });
 
   return (
-    <section>
-      <h2 className="mb-1 flex items-center gap-2.5 text-xl font-semibold">
-        <MonitorPlay className="size-5 text-muted" /> Playback
-      </h2>
-      <p className="mb-4 max-w-3xl text-sm text-muted">
-        How your titles play on each kind of device. Repackaging is quick and loses nothing; converting uses the processor or graphics card
-        while someone watches.
-      </p>
-      <div className="mb-5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Device">
-        {devicePresets.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            role="radio"
-            aria-checked={d.id === device}
-            onClick={() => setDevice(d.id)}
-            className={cn(
-              'rounded-full px-3.5 py-1.5 text-[13px] font-medium ring-1 transition-colors',
-              d.id === device ? 'bg-foreground text-background ring-foreground' : 'bg-surface text-muted ring-border hover:text-foreground',
-            )}
-          >
-            {d.label}
-          </button>
-        ))}
+    <section aria-label="Playback">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="flex items-center gap-2.5 text-xl font-semibold">
+          <MonitorPlay className="size-5 text-muted" /> Playback
+        </h2>
+        <select aria-label="Device" value={device} onChange={(e) => setDevice(e.target.value)} className={cn(inputClass, 'w-auto')}>
+          {devicePresets.map((d) => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
       </div>
-      <div className="space-y-6">
+      <p className="mb-4 max-w-3xl text-sm text-muted">
+        How your titles would play on this kind of device. Repackaging is quick and loses nothing; converting uses the server&apos;s
+        processor or graphics card.
+      </p>
+      <div className="divide-y divide-border rounded-2xl bg-surface ring-1 ring-border">
         {libraries.map((lib, i) => (
           <LibraryPlayback key={lib.id} library={lib} report={reports[i]?.data} error={reports[i]?.error} />
         ))}
@@ -59,72 +50,63 @@ export function PlaybackReport({ libraries }: { libraries: Library[] }) {
 }
 
 const methods = [
-  { key: 'direct', label: 'Play directly', bar: 'bg-accent' },
+  { key: 'direct', label: 'Direct play', bar: 'bg-accent' },
   { key: 'remux', label: 'Repackaged', bar: 'bg-accent/50' },
   { key: 'transcode', label: 'Converted', bar: 'bg-warning' },
 ] as const;
 
 function LibraryPlayback({ library, report: r, error }: { library: Library; report?: Compatibility; error: Error | null }) {
   const [expanded, setExpanded] = useState(false);
-  if (error) return <p className="text-sm text-warning">{library.name}: {error.message}</p>;
-  if (!r) return <div className="h-28 animate-pulse rounded-2xl bg-surface" />;
+  if (error) return <p className="px-4 py-3 text-sm text-warning">{library.name}: {error.message}</p>;
+  if (!r) return <div className="m-4 h-10 animate-pulse rounded-lg bg-surface-2" />;
   const reasons = Object.entries(r.reasons).sort((a, b) => b[1] - a[1]);
   const shown = expanded ? r.converted : r.converted.slice(0, 5);
   const unit = library.kind === 'shows' ? 'episode' : kindUnit(library.kind)[0];
 
   return (
-    <div className="rounded-2xl bg-surface p-5 ring-1 ring-border">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-semibold">{library.name}</h3>
-        <p className="text-sm text-subtle">{fmt.plural(r.total, unit)}</p>
+    <div className="px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 className="font-medium">{library.name}</h3>
+        <p className="text-sm text-muted tabular-nums">
+          {methods.map((m) => `${r.counts[m.key]} ${m.label.toLowerCase()}`).join(' · ')}
+          <span className="text-subtle"> of {fmt.plural(r.total, unit)}</span>
+        </p>
       </div>
       {r.total > 0 && (
-        <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-2">
+        <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
           {methods.map((m) => (
             <div key={m.key} className={m.bar} style={{ width: `${(r.counts[m.key] / r.total) * 100}%` }} />
           ))}
         </div>
       )}
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        {methods.map((m) => (
-          <div key={m.key}>
-            <p className="flex items-center gap-1.5 text-xs text-muted">
-              <span className={cn('size-2 rounded-full', m.bar)} /> {m.label}
-            </p>
-            <p className="text-lg font-semibold tabular-nums">{r.counts[m.key]}</p>
-          </div>
-        ))}
-      </div>
-      {reasons.length > 0 && (
-        <p className="mt-3 text-sm text-muted">
-          <span className="text-subtle">Why: </span>
-          {reasons.map(([reason, n]) => `${reason} (${n})`).join(' · ')}
-        </p>
-      )}
       {r.converted.length > 0 && (
-        <div className="mt-4 divide-y divide-border overflow-hidden rounded-xl ring-1 ring-border">
-          {shown.map(({ item, reasons: why }) => (
-            <Link
-              key={item.id}
-              to={item.kind === 'episode' ? `/series/${item.parent_id}` : `/movie/${item.id}`}
-              className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {item.kind === 'episode' && item.series_title ? `${item.series_title} · ${item.title}` : item.title}
-                  {item.year ? <span className="font-normal text-muted"> ({item.year})</span> : null}
-                </p>
-                <p className="truncate text-xs text-subtle">{why.join(' · ')}</p>
-              </div>
-              <ChevronRight className="size-4 text-subtle" />
-            </Link>
-          ))}
-          {r.converted.length > 5 && (
-            <button onClick={() => setExpanded((e) => !e)} className="w-full px-4 py-2.5 text-left text-sm font-medium text-accent hover:bg-surface-2">
-              {expanded ? 'Show fewer' : `Show all ${r.converted.length} that are converted`}
-            </button>
-          )}
-        </div>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-sm font-medium text-accent">Why {r.converted.length} are converted</summary>
+          {reasons.length > 0 && <p className="mt-2 text-sm text-muted">{reasons.map(([reason, n]) => `${reason} (${n})`).join(' · ')}</p>}
+          <div className="mt-2 divide-y divide-border overflow-hidden rounded-xl ring-1 ring-border">
+            {shown.map(({ item, reasons: why }) => (
+              <Link
+                key={item.id}
+                to={item.kind === 'episode' ? `/series/${item.parent_id}` : `/movie/${item.id}`}
+                className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-surface-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {item.kind === 'episode' && item.series_title ? `${item.series_title} · ${item.title}` : item.title}
+                    {item.year ? <span className="font-normal text-muted"> ({item.year})</span> : null}
+                  </p>
+                  <p className="truncate text-xs text-subtle">{why.join(' · ')}</p>
+                </div>
+                <ChevronRight className="size-4 text-subtle" />
+              </Link>
+            ))}
+            {r.converted.length > 5 && (
+              <button onClick={() => setExpanded((e) => !e)} className="w-full px-4 py-2 text-left text-sm font-medium text-accent hover:bg-surface-2">
+                {expanded ? 'Show fewer' : `Show all ${r.converted.length}`}
+              </button>
+            )}
+          </div>
+        </details>
       )}
     </div>
   );
