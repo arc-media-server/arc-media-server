@@ -120,3 +120,31 @@ test('hook namespaces are scoped to each component', () => {
 test('audit rejects an incomplete English plural family', () => {
   assert.deepEqual(audit({ common: { items_one: '{{count}} item' } }, { 'test.tsx': "t('items', { count: 2 })" }), ['test.tsx: missing English plural key common:items_other']);
 });
+
+test('audit rejects run-together compound keys but accepts genuine single words', () => {
+  assert.match(audit({ common: { accessdevices: 'Access' } }, { 'test.tsx': "t('accessdevices')" }).join('\n'), /use camelCase/);
+  assert.deepEqual(audit({ common: { notifications: 'Notifications', accessDevices: 'Access' } }, { 'test.tsx': "t('notifications'); t('accessDevices')" }), []);
+});
+test('counted words require plural pairs while attached unit abbreviations stay single', () => {
+  assert.match(audit({ common: { files: '{{count}} files' } }, { 'test.tsx': "t('files', {count: 2})" }).join('\n'), /require _one and _other/);
+  assert.deepEqual(audit({ common: { minutes: '{{count}}m', hours: '{{count}}h', seconds: '{{count}}s', channels: '{{count}}ch' } }, { 'test.tsx': "t('minutes'); t('hours'); t('seconds'); t('channels')" }), []);
+});
+test('language names reuse a DisplayNames instance for each locale', async () => {
+  const Original = Intl.DisplayNames;
+  let constructions = 0;
+  Intl.DisplayNames = class extends Original { constructor(...args) { super(...args); constructions++; } };
+  const fresh = {};
+  try {
+    new Function('require', 'exports', compiled)(() => ({ default: i18n }), fresh);
+    await i18n.changeLanguage('en');
+    assert.equal(fresh.language('fr'), 'French');
+    assert.equal(fresh.language('de'), 'German');
+    assert.equal(constructions, 1);
+    await i18n.changeLanguage('de');
+    assert.equal(fresh.language('fr'), 'Französisch');
+    assert.equal(constructions, 2);
+    await i18n.changeLanguage('en');
+    assert.equal(fresh.language('fr'), 'French');
+    assert.equal(constructions, 2);
+  } finally { Intl.DisplayNames = Original; await i18n.changeLanguage('en'); }
+});

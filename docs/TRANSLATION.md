@@ -22,8 +22,8 @@ navigation/actions/formatting; `auth.json` contains account and setup text. Add 
 `player`, `settings`, etc. as their areas are converted. Namespaces are discovered at build
 time, and all English namespaces are bundled. Use readable nested keys (`maintenance.runNow`
 in `settings.json`, used as `t('settings:maintenance.runNow')`), never English sentences as keys.
-Reuse shared actions with explicit names, e.g. `t('common:actions.cancel')`. `tr` is a local
-alias for `t` in components that already use `t` for a task object.
+Reuse shared actions with explicit names, e.g. `t('common:actions.cancel')`. Use plain `t`
+everywhere; rename local task/item variables instead of aliasing the translation function.
 
 Keep whole sentences together. Use `{{title}}` placeholders with values passed to `t()`;
 do not concatenate translated fragments or interpolate the English sentence in JavaScript.
@@ -46,7 +46,8 @@ Use i18next plurals, with numeric `count`, instead of a JavaScript singular/plur
 Languages with more plural categories add their own i18next/CLDR forms. The old `plural()`
 format helper is retained for unconverted pages: it selects English noun forms through
 an i18next key, but callers still supply English nouns. Replace those callers with complete,
-noun-specific keys as their area is converted; do not use it for new text.
+noun-specific keys in each phase covering their area; do not use it for new text. In the final
+phase, delete `plural()` and the `format.legacyPlural` catalog entries once all callers are gone.
 
 For text containing links or emphasis, keep the sentence in one key and use `Trans`:
 
@@ -64,6 +65,9 @@ existing DOM and whitespace when extracting rich text.
 
 Dates, language names and numbers belong in `web/src/lib/format.ts`. Its `formatLocale()`
 follows the resolved language, with `en-GB` retained for the existing English presentation.
+All English browser variants, including en-US, intentionally retain British day-month dates
+for now, matching existing behavior. Regional English date/number preferences are a later
+owner decision tracked under [#80](https://github.com/JonzaUK/arc-media-server/issues/80).
 Use `number()` for localized numbers. The English file-size helper preserves its existing
 `toFixed` rounding; other locales use `Intl.NumberFormat`. Technical identifiers and codec/HDR
 brand names remain identifiers, not translated prose. Do not translate route paths, storage
@@ -73,7 +77,7 @@ keys, section-anchor identifiers, metadata-matching tokens or API enum values.
 
 `cd web && npm run test:i18n` checks every TypeScript/TSX translation reference against all
 English namespace JSON files and fails for missing or unused keys. It understands the `t`
-property destructured from `useTranslation` (including `tr`), explicit `i18n.t('namespace:key')`,
+property destructured from `useTranslation` (including legacy aliases), explicit `i18n.t('namespace:key')`,
 `Trans` with literal `ns`/`i18nKey`, and plural families. Use static keys; dynamic concatenation
 is rejected. Use an explicit lookup of literal translation calls for enum-to-label mappings.
 Use explicit namespace-qualified keys outside a hook. Keep `Trans` namespaces explicit.

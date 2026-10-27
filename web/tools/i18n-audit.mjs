@@ -11,6 +11,20 @@ export function audit(resources, sources) {
   const available = new Set(Object.entries(resources).flatMap(([namespace, value]) => flatten(value).map(key => `${namespace}:${key}`)));
   const used = new Set();
   const errors = [];
+  // Genuine single words may be long; compound labels should use camelCase.
+  const singleWords = new Set(['notifications']);
+  function checkCatalog(namespace, object, prefix = '') {
+    for (const [segment, value] of Object.entries(object)) {
+      const key = prefix + segment;
+      const baseSegment = segment.replace(/_(zero|one|two|few|many|other)$/, '');
+      if (/^[a-z]{12,}$/.test(baseSegment) && !singleWords.has(baseSegment)) errors.push(`Catalog key ${namespace}:${key}: use camelCase for compound segments (or document a genuine single word)`);
+      if (typeof value === 'object') checkCatalog(namespace, value, key + '.');
+      else if (!/_(zero|one|two|few|many|other)$/.test(segment) && /(?:\{\{count\}\}\s+\p{L}+|\p{L}+\s+\{\{count\}\})/u.test(value)) {
+        for (const suffix of ['one', 'other']) if (!Object.hasOwn(object, segment + '_' + suffix)) errors.push(`Catalog key ${namespace}:${key}: counted words require _one and _other forms`);
+      }
+    }
+  }
+  for (const [namespace, value] of Object.entries(resources)) checkCatalog(namespace, value);
   for (const [file, source] of Object.entries(sources)) {
     const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const bindings = new Map();

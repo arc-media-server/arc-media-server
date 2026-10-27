@@ -28,7 +28,7 @@ import { AuthGate } from './components/auth/AuthGate';
 import { useProfileTheme } from './lib/theme';
 
 export function App() {
-  const { t: tr } = useTranslation('common');
+  const { t } = useTranslation('common');
   const { pathname } = useLocation();
   // Braces matter: scrollTo returns a promise in newer browsers, which React would take as a cleanup.
   useEffect(() => {
@@ -69,7 +69,7 @@ export function App() {
               path="*"
               element={
                 <Page>
-                  <EmptyState icon={<Compass />} title={tr('errors.notFoundHeading')}>{tr('errors.notFound')}</EmptyState>
+                  <EmptyState icon={<Compass />} title={t('errors.notFoundHeading')}>{t('errors.notFound')}</EmptyState>
                 </Page>
               }
             />

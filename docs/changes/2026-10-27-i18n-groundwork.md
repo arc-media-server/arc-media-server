@@ -56,3 +56,23 @@ PRs; management tools. Keep each PR around 2–4 pages/components, list touched 
 compare desktop/phone screenshots, and merge main if needed instead of rebasing/force-pushing.
 Issue #122 stays open. Add the all-new-UI-text rule to CLAUDE.md only after all areas are done;
 its “Where things stand” section is unchanged in this PR.
+
+## Claude review follow-up
+
+Addressed all six points from PR #235 comment 6448220704: compound settings keys use camelCase;
+counted-word messages have explicit one/other families (lookingThroughFolders already had them);
+React components use plain t, with Activity locals renamed task; Intl.DisplayNames instances
+are cached by locale. Documentation explicitly requires each area to replace its fmt.plural
+callers and the final phase to remove the helper/catalog, and records en-GB for all English
+browser variants as an intentional existing default pending the owner's later #80 decision.
+
+The build audit now rejects long lowercase compound segments (notifications is a genuine-word
+exception) and counted-word keys without plural pairs. Three new checks cover these rules and
+actual DisplayNames construction counts across locale switches. English plural entries retain
+existing wording, even where the displayed English is invariant. No dependency/API/layout change.
+
+Fresh local review validation: 14/14 i18n/audit tests, production/e2e TypeScript and build, all-package
+Go vet and 444/444 Go tests/subtests, full 113/113 browser journeys in 670.437 seconds with no failures, skips, flaky
+results or retries. All 18 repeated desktop/phone shell/auth screenshots are byte-identical to
+clean main. Screenshot results and exact run duration are in the review evidence folder:
+/workspace/arc-cloud-evidence/i18n-review/. Earlier evidence above remains historical.

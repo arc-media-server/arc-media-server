@@ -119,10 +119,18 @@ export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString(formatLocale(), { day: 'numeric', month: 'short' });
 }
 
+const languageNames = new Map<string, Intl.DisplayNames>();
+
 export function language(code?: string): string {
   if (!code || code === 'und') return '';
   try {
-    return new Intl.DisplayNames([formatLocale()], { type: 'language' }).of(code) ?? code;
+    const locale = formatLocale();
+    let names = languageNames.get(locale);
+    if (!names) {
+      names = new Intl.DisplayNames([locale], { type: 'language' });
+      languageNames.set(locale, names);
+    }
+    return names.of(code) ?? code;
   } catch {
     return code;
   }
@@ -190,7 +198,7 @@ export function scanProgress(scan: { files_seen: number; matched: number; phase?
   const parts = [
     scan.phase ? scan.phase : i18n.t('common:activity.lookingThroughFolders', { count: scan.files_seen }),
     scan.phase && scan.total ? i18n.t('common:activity.progress', { done: number(Math.min(scan.done ?? 0, scan.total)), total: number(scan.total) }) : '',
-    scan.matched ? i18n.t('common:activity.identified', { value: number(scan.matched) }) : '',
+    scan.matched ? i18n.t('common:activity.identified', { count: scan.matched, value: number(scan.matched) }) : '',
   ];
   return parts.filter(Boolean).join(' · ');
 }
@@ -205,7 +213,7 @@ export function watchTime(ms: number): string {
   const minutes = Math.round(ms / 60_000);
   if (minutes < 60) return i18n.t('common:format.minutes', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours >= 100) return i18n.t('common:format.longHours', { value: number(hours) });
+  if (hours >= 100) return i18n.t('common:format.longHours', { count: hours, value: number(hours) });
   return minutes % 60 ? i18n.t('common:time.hoursMinutes', { hours, minutes: minutes % 60 }) : i18n.t('common:format.hours', { count: hours });
 }
 

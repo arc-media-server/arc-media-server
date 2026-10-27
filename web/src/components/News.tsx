@@ -12,7 +12,7 @@ import { Artwork } from '@/components/Artwork';
 
 /** "New for you": new episodes of shows the profile watches, and new movies, with a count of unread. */
 export function NewsButton({ className }: { className?: string }) {
-  const { t: tr } = useTranslation('common');
+  const { t } = useTranslation('common');
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const news = useQuery({ queryKey: ['news'], queryFn: api.news, refetchInterval: 5 * 60_000 });
@@ -29,7 +29,7 @@ export function NewsButton({ className }: { className?: string }) {
       }}
     >
       <Popover.Trigger
-        aria-label={unread ? tr('news.unread', { count: unread }) : tr('news.label')}
+        aria-label={unread ? t('news.unread', { count: unread }) : t('news.label')}
         className={cn(
           'relative flex size-8 items-center justify-center rounded-full text-muted outline-none transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:ring-2 focus-visible:ring-accent',
           className,
@@ -50,18 +50,18 @@ export function NewsButton({ className }: { className?: string }) {
           className="animate-menu-in z-50 w-[360px] max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/40"
         >
           <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold">{tr('news.heading')}</p>
-            <p className="text-xs text-subtle">{tr('news.description')}</p>
+            <p className="text-sm font-semibold">{t('news.heading')}</p>
+            <p className="text-xs text-subtle">{t('news.description')}</p>
           </div>
           <div className="max-h-[min(65vh,480px)] overflow-y-auto p-1.5">
             {news.error && <div className="m-2 space-y-2">
-              {data && <p className="text-xs text-muted">{tr('news.stale')}</p>}
+              {data && <p className="text-xs text-muted">{t('news.stale')}</p>}
               <ErrorNotice error={news.error} onRetry={() => void news.refetch()} busy={news.isFetching} />
             </div>}
             {!data ? (news.error ? null :
-              <div role="status" className="m-2 h-16 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">{tr('news.loading')}</span></div>
+              <div role="status" className="m-2 h-16 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">{t('news.loading')}</span></div>
             ) : data.entries.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted">{tr('news.empty')}</p>
+              <p className="px-3 py-6 text-center text-sm text-muted">{t('news.empty')}</p>
             ) : (
               data.entries.map((e) => (
                 <Link
@@ -76,10 +76,10 @@ export function NewsButton({ className }: { className?: string }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{e.item.title}</p>
                     <p className="truncate text-xs text-subtle">
-                      {e.item.kind === 'series' ? (tr('news.episodes', { count: e.count })) : e.item.metadata_state === 'locked' ? tr('news.video') : tr('news.movie')} · {ago(e.added_at)}
+                      {e.item.kind === 'series' ? (t('news.episodes', { count: e.count })) : e.item.metadata_state === 'locked' ? t('news.video') : t('news.movie')} · {ago(e.added_at)}
                     </p>
                   </div>
-                  {e.unread && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={tr('news.new')} />}
+                  {e.unread && <span className="size-2 shrink-0 rounded-full bg-accent" aria-label={t('news.new')} />}
                 </Link>
               ))
             )}
