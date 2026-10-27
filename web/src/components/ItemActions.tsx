@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, MoreHorizontal, Pencil, SearchCheck, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -10,6 +10,7 @@ import { FixMatchDialog } from '@/components/FixMatch';
 import { AddToCollectionDialog } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
+import { ErrorNotice } from '@/components/Page';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | 'ordering' | null;
@@ -36,8 +37,34 @@ export function useItemDialogs(item: Item | undefined) {
   return { open: setOpen, dialogs };
 }
 
+/**
+ * Analyze from the "⋯" menu: rereads a title's files (every episode, for a show) in the
+ * background, like Plex's Analyze. Progress shows in Activity; `notice` reports it or an error.
+ */
+export function useAnalyzeItem(item?: Item) {
+  const qc = useQueryClient();
+  const analyze = useMutation({
+    mutationFn: () => api.analyzeItem(item!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['activity'] });
+      qc.invalidateQueries({ queryKey: ['libraries'] });
+    },
+  });
+  const notice = (
+    <>
+      <ErrorNotice error={analyze.error} onRetry={() => analyze.mutate()} />
+      {analyze.isSuccess && (
+        <p role="status" className="mt-3 text-sm text-muted">
+          Analyzing {item?.kind === 'series' ? 'every episode' : 'its files'}. Progress shows in Activity.
+        </p>
+      )}
+    </>
+  );
+  return { analyze: () => analyze.mutate(), analyzing: analyze.isPending, notice };
+}
+
 /** The "⋯" button on a movie or show page. */
-export function MoreMenu({ item, onOpen, onRefresh, refreshing }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void; onRefresh?: () => void; refreshing?: boolean }) {
+export function MoreMenu({ item, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void; onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -47,6 +74,7 @@ export function MoreMenu({ item, onOpen, onRefresh, refreshing }: { item?: Item;
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? 'Refreshing metadata…' : 'Refresh metadata'}</DropdownMenuItem>}
+        {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? 'Starting analysis…' : 'Analyze'}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => onOpen('edit')}>
           <Pencil className="size-4 text-muted" /> Edit…
         </DropdownMenuItem>

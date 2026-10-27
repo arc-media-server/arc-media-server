@@ -160,7 +160,7 @@ export interface Item {
 
 export interface ScanStatus {
   job_id?: number;
-  operation?: 'scan' | 'maintenance' | 'refresh' | 'analyze' | 'empty_trash';
+  operation?: 'scan' | 'maintenance' | 'refresh' | 'analyze' | 'analyze_item' | 'empty_trash';
   stopping?: boolean;
   stopped?: boolean;
   running: boolean;
@@ -1043,6 +1043,8 @@ export const api = {
   editItems: (edit: BulkEdit) => request<void>('POST', '/api/items/bulk', edit),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),
   refreshItem: (id: string) => request<Item>('POST', `/api/items/${id}/refresh`),
+  /** Rereads a title's files (every episode, for a show) in the background, like Plex's Analyze. */
+  analyzeItem: (id: string) => request<ScanStatus>('POST', `/api/items/${id}/analyze`),
   reportProgress: (id: string, positionMS: number, durationMS: number, state: 'playing' | 'paused' | 'stopped' = 'playing') =>
     request<UserData>(
       'PUT',

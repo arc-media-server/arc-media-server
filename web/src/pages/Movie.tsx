@@ -7,7 +7,7 @@ import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { FileDetails } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
-import { MoreMenu, useItemDialogs } from '@/components/ItemActions';
+import { MoreMenu, useAnalyzeItem, useItemDialogs } from '@/components/ItemActions';
 import { isLocalVideo } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
 import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components/Hero';
@@ -43,6 +43,7 @@ export function MoviePage() {
       qc.invalidateQueries({ queryKey: ['health-summary'] });
     },
   });
+  const analysis = useAnalyzeItem(item);
 
   useThemeMusic(item?.theme_url);
 
@@ -87,6 +88,7 @@ export function MoviePage() {
           </> : <Badge>{present.filter(f => (f.edition ?? '') === currentEdition).length} versions</Badge>}
         </div>
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
+        {analysis.notice}
         {item.metadata_state === 'unmatched' && admin && (
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
             <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
@@ -142,7 +144,7 @@ export function MoviePage() {
           {playable && <AddToPlaylistButton item={item} />}
           {admin && (
             <>
-              <MoreMenu item={item} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} />
+              <MoreMenu item={item} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing} />
             </>
           )}
         </div>
