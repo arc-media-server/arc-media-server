@@ -21,7 +21,7 @@ The web app uses a cookie. Apps send a token instead: `Authorization: Bearer <to
   `POST /api/v1/auth/profile {"id", "pin"}` uses one.
 - **A friend**: `POST /api/v1/auth/friend {"name", "password", "device"}` → `{"token"}`, already
   using their profile.
-- **On a TV, with a code** (like plex.tv/link): `POST /api/v1/auth/link {"device"}` →
+- **On a TV, with a code**: `POST /api/v1/auth/link {"device"}` →
   `{"code", "poll", "expires_in"}`. Show the code and ask the person to enter it in Arc (the profile
   menu's *Link a Device*, or `/link`). Meanwhile ask `GET /api/v1/auth/link/{poll}` every few
   seconds: 202 while waiting, then 200 with `{"token"}` once; 404 when the code has run out (10
@@ -146,7 +146,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/home/continue` | profile | Lists what the profile is part-way through, most recent first. With ?with_up_next=1 it also has the next episode of each show they're watching, as Plex's Continue Watching does, one entry per show. |
+| GET | `/api/home/continue` | profile | Lists what the profile is part-way through, most recent first. With ?with_up_next=1 it also has the next episode of each show they're watching, one entry per show. |
 | GET | `/api/home/next-up` | profile | Lists, for each show the profile has been watching, the next episode in their episode order that's on disk and not watched yet (skipping specials and anything already in Continue Watching). |
 | DELETE | `/api/home/continue/{id}` | profile | Takes a movie or episode out of the profile's Continue Watching (and Up Next) without marking it watched; for an episode its whole show goes, until something is played again. The resume point is kept. |
 | GET | `/api/home/default` | admin | Is the home layout for profiles that haven't arranged their own ([] for Arc's own). |
@@ -201,7 +201,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | DELETE | `/api/items/{id}` | admin | Forgets a movie, episode or show whose files are all gone (after backing up the database). Refused if any of its files is still there. |
 | PATCH | `/api/items/{id}` | admin | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`) |
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
-| POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show, like Plex's Analyze. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
+| POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
 | PUT | `/api/items/{id}/artwork` | admin | {"type": "poster", "path": "/abc.jpg"} uses a TMDB image and locks it. A null path goes back to automatic artwork. |
 | POST | `/api/items/{id}/artwork/{type}` | admin | With an image as the body (JPEG, PNG or WebP, up to 20 MB) uses it as the poster or background. It's kept in AMS's data folder. |
@@ -225,8 +225,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/libraries/{id}/stop` | admin | Stops {"job_id":...} only. It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled. |
 | GET | `/api/libraries/{id}/facets` | profile | Lists the genres, decades and resolutions a library's titles can be filtered by, with counts. |
 | GET | `/api/libraries/{id}/collections` | profile | Lists a library's collections. |
-| GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions as Plex shows them: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
-| GET | `/api/libraries/{id}/recommended` | profile | Is a library's Recommended view for the profile, as Plex's: "Because you watched" rows for its recent titles, the best rated it hasn't seen, and its favourite genres. Rows without anything are left out. |
+| GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
+| GET | `/api/libraries/{id}/recommended` | profile | Is a library's Recommended view for the profile: "Because you watched" rows for its recent titles, the best rated it hasn't seen, and its favourite genres. Rows without anything are left out. |
 | POST | `/api/libraries` | admin | {"name", "kind", "paths", "source_ordering"} adds a library and starts scanning it. |
 | PATCH | `/api/libraries/{id}` | admin | {"name", "paths", "source_ordering", "trickplay"} changes a library (not its kind) and rescans it. |
 | DELETE | `/api/libraries/{id}` | admin | Removes a library and everything AMS knows about it, after backing up the database. Media files aren't touched. |
