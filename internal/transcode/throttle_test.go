@@ -25,10 +25,9 @@ func TestConversionWaitsForThePlayer(t *testing.T) {
 		"-c:v", "libx264", "-preset", "ultrafast", "-g", "30", clip).CombinedOutput(); err != nil {
 		t.Fatalf("making clip: %v %s", err, out)
 	}
-	defer func(p, r, tick time.Duration) { pauseAhead, resumeAhead, throttleTick = p, r, tick }(pauseAhead, resumeAhead, throttleTick)
-	pauseAhead, resumeAhead, throttleTick = 24*time.Second, 12*time.Second, 50*time.Millisecond
-
 	m := New(filepath.Join(dir, "sessions"), func() string { return ffmpeg }, func() string { return "" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// Thresholds scaled down for a 3-minute clip; only this manager's sessions use them.
+	m.throttling = throttling{pauseAhead: 24 * time.Second, resumeAhead: 12 * time.Second, tick: 50 * time.Millisecond}
 	s, err := m.Start(Options{Path: clip, VideoStream: 0, AudioStream: -1, BurnSubtitle: -1, SourceHeight: 90})
 	if err != nil {
 		t.Fatal(err)
