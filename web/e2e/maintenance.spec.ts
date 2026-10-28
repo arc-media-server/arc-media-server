@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { rename } from 'node:fs/promises';
-import { relative, isAbsolute } from 'node:path';
+import { copyFile, mkdir, rename } from 'node:fs/promises';
+import { join, relative, isAbsolute } from 'node:path';
 
 type Media = { movies: string; shows: string };
 const test = base.extend<{ media: Media }>({
@@ -411,4 +411,50 @@ test('age ratings: each library uses its own country, chosen in Advanced', async
   // Saving refetches the library's titles, so the rating follows without a manual refresh.
   await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
   expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
+});
+
+test('merging shows: two folders of one show become one, keep watch state and survive a rescan', async ({ page, media }) => {
+  // A second, differently named folder of the same show, with a shared episode and one of its own.
+  const sample = join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E01.mp4');
+  const extra = join(media.shows, 'Arc Show', 'Season 01');
+  await mkdir(extra, { recursive: true });
+  await copyFile(sample, join(extra, 'Arc Show - S01E02.mp4'));
+  await copyFile(sample, join(extra, 'Arc Show - S01E03.mp4'));
+  const lib = await library(page, media.shows, true);
+  type Ep = { id: string; episode_number: number; files?: { path: string }[]; user_data?: { position_ms?: number; played?: boolean } };
+  const shows = async () => (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items as { id: string; title: string }[];
+  const episodes = async (id: string): Promise<Ep[]> => (await (await page.request.get(`/api/series/${id}/seasons`)).json()).seasons.flatMap((s: { episodes: Ep[] }) => s.episodes);
+  const before = await shows();
+  expect(before).toHaveLength(2);
+  const numbers = async (id: string) => (await episodes(id)).map(e => e.episode_number).sort((a, b) => a - b);
+  const keep = (await Promise.all(before.map(async s => ((await numbers(s.id)).includes(1) ? s : null)))).find(Boolean)!;
+  const other = before.find(s => s.id !== keep.id)!;
+  const otherEpisodes = await episodes(other.id);
+  const own = otherEpisodes.find(e => e.episode_number === 3)!;
+  const shared = otherEpisodes.find(e => e.episode_number === 2)!;
+  expect((await page.request.put(`/api/items/${own.id}/progress`, { data: { position_ms: 90000, duration_ms: 600000, state: 'stopped' } })).ok()).toBeTruthy();
+  expect((await page.request.put(`/api/items/${shared.id}/played`, { data: { played: true } })).ok()).toBeTruthy();
+
+  // Movies and shows can't be mixed, nor can titles be merged across libraries.
+  expect((await page.request.post('/api/items/merge', { data: { target_id: keep.id, item_ids: ['not-a-show'] } })).status()).toBe(400);
+  const merged = await page.request.post('/api/items/merge', { data: { target_id: keep.id, item_ids: [other.id] } });
+  expect(merged.status(), await merged.text()).toBe(204);
+
+  const check = async () => {
+    const after = await shows();
+    expect(after.map(s => s.id)).toEqual([keep.id]);
+    const eps = await episodes(keep.id);
+    const two = eps.find(e => e.episode_number === 2)!;
+    const three = eps.find(e => e.episode_number === 3)!;
+    expect(three.id).toBe(own.id);
+    expect(three.user_data?.position_ms).toBe(90000);
+    expect(two.user_data?.played).toBe(true);
+    const detail = await (await page.request.get(`/api/items/${two.id}`)).json();
+    expect(detail.files.map((f: { path: string }) => f.path).sort()).toEqual([join(extra, 'Arc Show - S01E02.mp4'), join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E02.mp4')].sort());
+  };
+  await check();
+  // A full rescan files the merged folder under the kept show instead of bringing it back.
+  expect((await page.request.post(`/api/libraries/${lib.id}/scan`)).ok()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  await check();
 });

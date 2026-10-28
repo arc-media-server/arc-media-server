@@ -441,6 +441,11 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	ctx = context.WithValue(ctx, movieQueueKey{}, enqueueMovie)
 	s.phase(lib.ID, "Checking files and titles", 0)
 	showLocks := map[string]*sync.Mutex{}
+	// Folders merged into another show lock as that show (store.MergeSeries).
+	aliases, err := s.store.SeriesAliases(ctx, lib.ID)
+	if err != nil {
+		return err
+	}
 	enqueueShows := func(all bool) error {
 		for key, group := range series {
 			if !all && group.folder == "" {
@@ -450,6 +455,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 			// Directory spellings differ even when they create the same series row.
 			// Serialize using the same identity as EnsureItem, not the directory key.
 			identity := seriesMatchKey(group.name)
+			if kept, ok := aliases[identity]; ok {
+				identity = kept
+			}
 			lock := showLocks[identity]
 			if lock == nil {
 				lock = &sync.Mutex{}
