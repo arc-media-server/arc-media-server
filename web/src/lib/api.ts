@@ -1207,6 +1207,9 @@ export const api = {
   createBackup: () => request<Backup>('POST', '/api/backups'),
   restoreBackup: (name: string) => request<void>('POST', `/api/backups/${encodeURIComponent(name)}/restore`),
   deleteBackup: (name: string) => request<void>('DELETE', `/api/backups/${encodeURIComponent(name)}`),
+  libraryFolders: (libraryId: number, path: string) =>
+    request<{ path: string; trail: { name: string; path: string }[]; folders: { name: string; path: string; count: number; cover_id?: string; cover?: string }[]; items: Item[] }>(
+      'GET', `/api/libraries/${libraryId}/folders${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   emptyTrash: (libraryId: number) => request<{ removed: number }>('POST', `/api/libraries/${libraryId}/empty-trash`),
   removeItem: (id: string) => request<void>('DELETE', `/api/items/${id}`),
 };
