@@ -46,7 +46,9 @@
     "certificate": "Certificate for {{names}}, until {{date}}",
     "networksDescription": "Extra networks to treat as home, like a VPN or Tailscale ({{network}}).",
     "localAddress": "Arc is at <address>{{address}}</address>",
-    "movedAddress": "Arc has moved. <address>Open it at its new address</address>."
+    "movedAddress": "Arc has moved. <address>Open it at its new address</address>.",
+    "trustedProxies": "Trusted proxies",
+    "trustedProxiesDescription": "If you reach Arc through a reverse proxy like SWAG or Nginx Proxy Manager, add its address so people at home count as home."
   },
   "devices": {
     "linkADevice": "Link a Device",

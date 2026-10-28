@@ -1125,16 +1125,17 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
 
 /** Reverse proxies (SWAG, Nginx Proxy Manager…) whose reports of the visitor's address Arc believes. */
 function TrustedProxiesRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [text, setText] = useState(value);
   const [error, setError] = useState('');
   // Show the saved, tidied form (e.g. 172.17.0.5/32) once it's stored.
   useEffect(() => { setText(value); }, [value]);
   return (
     <Row
-      label="Trusted proxies"
+      label={t('accessSettings:settings.trustedProxies')}
       description={
         <>
-          If you reach Arc through a reverse proxy like SWAG or Nginx Proxy Manager, add its address so people at home count as home.
+          {t('accessSettings:settings.trustedProxiesDescription')}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
@@ -1151,10 +1152,10 @@ function TrustedProxiesRow({ value, onSave }: { value: string; onSave: (v: strin
           }
         }}
       >
-        <input aria-label="Trusted proxies" value={text} onChange={(e) => setText(e.target.value)} placeholder="None" spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        <input aria-label={t('accessSettings:settings.trustedProxies')} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('accessSettings:settings.none')} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
         {text.trim() !== value && (
           <Button size="sm" variant="primary" type="submit">
-            Save
+            {t('common:actions.save')}
           </Button>
         )}
       </form>
