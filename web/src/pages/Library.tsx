@@ -10,6 +10,7 @@ import { kindUnit } from '@/lib/kinds';
 import { language, plural } from '@/lib/format';
 import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
+import { VideoFolders } from '@/components/VideoFolders';
 import { MediaRow } from '@/components/MediaRow';
 import { SelectionBar } from '@/components/BulkEdit';
 import { useLibraries } from '@/components/Sidebar';
@@ -109,7 +110,7 @@ export function LibraryPage() {
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
 
-  const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : 'titles';
+  const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : params.get('view') === 'folders' ? 'folders' : 'titles';
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
   const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
@@ -175,13 +176,15 @@ export function LibraryPage() {
         subtitle={
           view === 'collections'
             ? collections.data && plural(collections.data.length, 'collection')
+            : view === 'folders'
+              ? 'Browse your videos folder by folder'
             : view === 'recommended'
               ? 'Picked for you from what you watch'
               : items.data && plural(items.data.total, unit)
         }
         actions={
           lib &&
-          (view === 'recommended' ? null : view === 'collections' ? (
+          (view === 'recommended' || view === 'folders' ? null : view === 'collections' ? (
             admin && (
               <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
                 <Plus /> New Collection
@@ -231,10 +234,13 @@ export function LibraryPage() {
             [
               ['titles', lib.kind === 'shows' ? 'Shows' : lib.kind === 'videos' ? 'Videos' : 'Movies'],
               ['recommended', 'Recommended'],
+              ['folders', 'Folders'],
               ['collections', 'Collections'],
             ] as const
           )
             .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
+            // Browsing by folder is for Other videos libraries (movies and shows are grouped by title).
+            .filter(([v]) => v !== 'folders' || lib.kind === 'videos')
             // Home videos have nothing to recommend from.
             .filter(([v]) => v !== 'recommended' || lib.kind !== 'videos')
             .map(([v, label]) => (
@@ -243,7 +249,7 @@ export function LibraryPage() {
               type="button"
               role="tab"
               aria-selected={view === v}
-              onClick={() => { const next = new URLSearchParams(params); if (v === 'titles') next.delete('view'); else next.set('view', v); setParams(next, { replace: true }); }}
+              onClick={() => { const next = new URLSearchParams(params); next.delete('folder'); if (v === 'titles') next.delete('view'); else next.set('view', v); setParams(next, { replace: true }); }}
               className={cn(
                 'rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors',
                 view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
@@ -345,7 +351,9 @@ export function LibraryPage() {
         {view === 'titles' && letter && (
           <p role="status" className="mb-4 text-sm text-muted">Starting at {letter.toUpperCase()}{reverse ? ' · Z–A' : ' · A–Z'}. <button type="button" onClick={() => setParam('letter')} className="text-accent underline underline-offset-4">All titles</button></p>
         )}
-        {view === 'collections' ? (
+        {view === 'folders' && lib ? (
+          <VideoFolders library={lib} />
+        ) : view === 'collections' ? (
           collections.error ? (
             <ErrorState error={collections.error} />
           ) : !collections.data ? (

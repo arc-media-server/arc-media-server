@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { rename } from 'node:fs/promises';
-import { relative, isAbsolute } from 'node:path';
+import { copyFile, mkdir, rename } from 'node:fs/promises';
+import { join, relative, isAbsolute } from 'node:path';
 
 type Media = { movies: string; shows: string };
 const test = base.extend<{ media: Media }>({
@@ -160,6 +160,43 @@ test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove',
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
+});
+
+test('Other videos: the Folders tab browses folder by folder, and Back returns up', async ({ page, media }, info) => {
+  const sample = join(media.movies, 'Arc Movie (2020).mp4');
+  const root = join(media.movies, '..', 'Home Videos');
+  for (const [folder, name] of [['', 'loose 2018-01-01.mp4'], ['Holidays', 'arrival 2019-07-01.mp4'], ['Holidays/2019', 'beach 2019-07-14.mp4'],
+    ['Holidays/2019', 'pier 2019-07-15.mp4'], ['Holidays/2020', 'snow 2020-01-02.mp4']]) {
+    await mkdir(join(root, folder), { recursive: true });
+    await copyFile(sample, join(root, folder, name));
+  }
+  const created = await page.request.post('/api/libraries', { data: { name: 'Home Videos', kind: 'videos', paths: [root] } });
+  expect(created.ok()).toBeTruthy();
+  const lib = await created.json();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running, { timeout: 60_000 }).toBe(false);
+  await page.goto(`/library/${lib.id}`);
+  await page.getByRole('tab', { name: 'Folders', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Holidays, 4 videos', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /loose/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Holidays, 4 videos', exact: true }).click();
+  await expect(page).toHaveURL(/folder=0%2FHolidays/);
+  await expect(page.getByRole('link', { name: '2019, 2 videos', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: '2020, 1 video', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '2019, 2 videos', exact: true }).click();
+  const crumbs = page.getByRole('navigation', { name: 'Folder', exact: true });
+  await expect(crumbs.getByText('2019', { exact: true })).toHaveAttribute('aria-current', 'page');
+  // Oldest first, as the folder's collection.
+  const titles = page.getByRole('main').getByRole('link', { name: /beach|pier/ });
+  await expect(titles.first()).toHaveAccessibleName(/beach/);
+  await page.screenshot({ path: info.outputPath('video-folders.png') });
+  await page.goBack();
+  await expect(page.getByRole('link', { name: '2019, 2 videos', exact: true })).toBeVisible();
+  await crumbs.getByRole('link', { name: 'Home Videos', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Holidays, 4 videos', exact: true })).toBeVisible();
+  // Movie and TV libraries have no Folders tab.
+  const movies = await library(page, media.movies);
+  await page.goto(`/library/${movies.id}`);
+  await expect(page.getByRole('tab', { name: 'Folders', exact: true })).toHaveCount(0);
 });
 
 for (const shows of [false, true]) {
