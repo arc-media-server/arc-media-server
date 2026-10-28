@@ -1,8 +1,10 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
-import { applyArtwork, applySeasonArtwork, ArtworkPanel, artworkNames, SeasonsPanel, type ArtworkChange } from '@/components/ChooseArtwork';
+import { applyArtwork, applySeasonArtwork, ArtworkPanel, SeasonsPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { ChipInput } from '@/components/ChipInput';
@@ -26,18 +28,18 @@ interface FieldSpec {
 }
 
 function fieldsFor(kind: Item['kind']): FieldSpec[] {
-  const dateLabel = kind === 'movie' ? 'Release Date' : kind === 'series' ? 'First Aired' : 'Air Date';
+  const dateLabel = kind === 'movie' ? i18n.t('details:fields.releaseDate') : kind === 'series' ? i18n.t('details:fields.firstAired') : i18n.t('details:fields.airDate');
   const all: (FieldSpec | false)[] = [
-    { field: 'title', label: 'Title' },
-    kind !== 'episode' && { field: 'sort_title', label: 'Sort As', placeholder: 'Same as the title' },
-    kind !== 'episode' && { field: 'original_title', label: 'Original Title' },
-    kind !== 'episode' && { field: 'year', label: 'Year', type: 'number', half: true },
+    { field: 'title', label: i18n.t('details:fields.title') },
+    kind !== 'episode' && { field: 'sort_title', label: i18n.t('details:fields.sortTitle'), placeholder: i18n.t('details:fields.sameTitle') },
+    kind !== 'episode' && { field: 'original_title', label: i18n.t('details:fields.originalTitle') },
+    kind !== 'episode' && { field: 'year', label: i18n.t('details:fields.year'), type: 'number', half: true },
     { field: 'release_date', label: dateLabel, type: 'date', half: true },
-    kind !== 'series' && { field: 'runtime_min', label: 'Runtime (minutes)', type: 'number', half: true },
-    kind !== 'episode' && { field: 'content_rating', label: 'Age Rating', half: true, placeholder: 'e.g. 12A' },
-    kind !== 'episode' && { field: 'studio', label: kind === 'series' ? 'Network' : 'Studio', half: true },
-    kind !== 'episode' && { field: 'tagline', label: 'Tagline' },
-    { field: 'overview', label: 'Overview', type: 'textarea' },
+    kind !== 'series' && { field: 'runtime_min', label: i18n.t('details:fields.runtime'), type: 'number', half: true },
+    kind !== 'episode' && { field: 'content_rating', label: i18n.t('details:fields.ageRating'), half: true, placeholder: i18n.t('details:fields.ratingExample') },
+    kind !== 'episode' && { field: 'studio', label: kind === 'series' ? i18n.t('details:fields.network') : i18n.t('details:fields.studio'), half: true },
+    kind !== 'episode' && { field: 'tagline', label: i18n.t('details:fields.tagline') },
+    { field: 'overview', label: i18n.t('details:fields.overview'), type: 'textarea' },
   ];
   return all.filter((f): f is FieldSpec => !!f);
 }
@@ -66,6 +68,14 @@ export function EditDetailsDialog({ item, open, onOpenChange, initialTab }: { it
 }
 
 function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'ordering'; onDone: () => void }) {
+  const { t } = useTranslation('details');
+  const orderLabels = {
+    tmdb_aired: t('details:sourceOrder.tmdbAired'),
+    tvdb_aired: t('details:sourceOrder.tvdbAired'),
+    tvdb_dvd: t('details:sourceOrder.tvdbDvd'),
+    tvdb_absolute: t('details:sourceOrder.tvdbAbsolute'),
+  };
+  const artworkLabels = { poster: t('details:artwork.poster'), backdrop: t('details:artwork.backdrop'), logo: t('details:artwork.logo') };
   const qc = useQueryClient();
   const admin = useIsAdmin();
   const [comparing,setComparing] = useState(false);
@@ -82,7 +92,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
   const [labels, setLabels] = useState<string[]>(() => item.labels ?? []);
   const labelsChanged = labels.join('\n') !== (item.labels ?? []).join('\n');
   const allLabels = useQuery({ queryKey: ['labels'], queryFn: api.labels, enabled: item.kind !== 'episode' });
-  const provider = item.kind === 'movie' ? 'TMDB' : 'TMDB and TheTVDB';
+
   // Movies and shows have artwork to choose; episodes just their details.
   // Episodes and movies also have their skip markers.
   const tabs: ('details' | ArtworkType | 'seasons' | 'markers' | 'ordering')[] =
@@ -95,7 +105,9 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
   const [tab, setTab] = useState<(typeof tabs)[number]>(initialTab ?? 'details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
-  const [saving, setSaving] = useState('Saving details…');
+  const [saving, setSaving] = useState<'details' | 'markers' | ArtworkType | 'unlocked' | { season: string }>('details');
+  const savingLabels = { details: t('details:saving.details'), markers: t('details:saving.markers'), poster: t('details:saving.poster'), backdrop: t('details:saving.backdrop'), logo: t('details:saving.logo'), unlocked: t('details:saving.unlocked') };
+  const savingLabel = typeof saving === 'object' ? t('details:saving.season', { season: saving.season }) : savingLabels[saving];
 
   const save = useMutation({
     mutationFn: async () => {
@@ -116,24 +128,24 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
       if (labelsChanged) edit.labels = labels;
       if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
       let updated = item;
-      if (Object.keys(edit).length) { setSaving('Saving details…'); updated = await api.editItem(item.id, edit); }
+      if (Object.keys(edit).length) { setSaving('details'); updated = await api.editItem(item.id, edit); }
       if (markerEdit.edit) {
-        setSaving('Saving skip markers…');
+        setSaving('markers');
         await api.setItemMarkers(item.id, markerEdit.edit);
         qc.invalidateQueries({ queryKey: ['markers', item.id] });
       }
       for (const [type, change] of Object.entries(art) as [ArtworkType, ArtworkChange | undefined][]) {
         if (!change) continue;
-        setSaving('Saving ' + artworkNames[type].toLowerCase() + '…');
+        setSaving(type);
         updated = await applyArtwork(item.id, type, change);
       }
       for (const [season, change] of Object.entries(seasonArt)) {
-        setSaving('Saving season ' + season + ' poster…');
+        setSaving({ season });
         await applySeasonArtwork(item.id, Number(season), change);
       }
       // Fields just unlocked should go back to the online value straight away.
       if (item.locked_fields.some((f) => !locked.has(f))) {
-        setSaving('Refreshing unlocked fields…');
+        setSaving('unlocked');
         try {
           updated = await api.refreshItem(item.id);
         } catch {
@@ -170,63 +182,58 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
 
   return (
     <DialogContent
-      title="Edit"
+      title={t("details:editDetails.edit")}
       className={tabs.length > 1 ? 'w-[min(820px,calc(100vw-32px))]' : undefined}
       description={
-        tab === 'details' ? <>Anything you change is locked, so refreshing from {provider} won't undo it. Unlock a field to use the online value again.</> : undefined
+        tab === 'details' ? (item.kind === 'movie' ? t('details:editDetails.lockedMovie') : t('details:editDetails.lockedSeries')) : undefined
       }
       footer={
         <>
-          {save.isPending && <span role="status" className="mr-auto text-sm text-muted">{saving}</span>}
-          {save.error && <div role="alert" className="mr-auto text-sm text-warning"><p>{save.error.message}</p><Button variant="ghost" onClick={()=>save.mutate()} disabled={save.isPending}>Retry</Button></div>}
+          {save.isPending && <span role="status" className="mr-auto text-sm text-muted">{savingLabel}</span>}
+          {save.error && <div role="alert" className="mr-auto text-sm text-warning"><p>{save.error.message}</p><Button variant="ghost" onClick={()=>save.mutate()} disabled={save.isPending}>{t("details:editDetails.retry")}</Button></div>}
           <DialogClose asChild>
-            <Button variant="ghost" disabled={save.isPending}>
-              Cancel
-            </Button>
+            <Button variant="ghost" disabled={save.isPending}>{t("details:editDetails.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !values.title?.trim() || !markerEdit.valid}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />} {t("details:editDetails.save")}</Button>
         </>
       }
     >
       <fieldset disabled={save.isPending} className="min-w-0">
       {tabs.length > 1 && (
         <div className="mb-5 flex gap-1 overflow-x-auto" role="tablist">
-          {tabs.map((t) => (
+          {tabs.map((tabId) => (
             <button
-              key={t}
+              key={tabId}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn('shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
+              aria-selected={tab === tabId}
+              onClick={() => setTab(tabId)}
+              className={cn('shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === tabId ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'ordering' ? 'Metadata & ordering' : t === 'details' ? 'Details' : t === 'seasons' ? 'Seasons' : t === 'markers' ? 'Skip Markers' : item.kind === 'episode' ? 'Thumbnail' : artworkNames[t]}
-              {(t === 'seasons' ? Object.keys(seasonArt).length > 0 : t === 'markers' ? !!markerEdit.edit : t !== 'details' && t !== 'ordering' && art[t]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+              {tabId === 'ordering' ? t("details:editDetails.metadataOrdering") : tabId === 'details' ? t("details:editDetails.details") : tabId === 'seasons' ? t("details:editDetails.seasons") : tabId === 'markers' ? t("details:editDetails.skipMarkers") : item.kind === 'episode' ? t("details:editDetails.thumbnail") : artworkLabels[tabId]}
+              {(tabId === 'seasons' ? Object.keys(seasonArt).length > 0 : tabId === 'markers' ? !!markerEdit.edit : tabId !== 'details' && tabId !== 'ordering' && art[tabId]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={t("details:editDetails.changed")} />}
             </button>
           ))}
         </div>
       )}
       {tab === 'ordering' && <div className="space-y-6">
-        {admin && <><p className="text-sm text-muted">Show information follows the library’s {library?.details_provider === 'tvdb' ? 'TheTVDB' : 'TMDB'} metadata provider. Episode information follows File episode order.</p>        {item.kind === 'series' && (
+        {admin && <><p className="text-sm text-muted">{t('details:editDetails.providerExplanation', { provider: library?.details_provider === 'tvdb' ? 'TheTVDB' : 'TMDB' })}</p>        {item.kind === 'series' && (
           <label className="col-span-2 block">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">File episode order</span>
-            <select aria-label="File episode order" aria-describedby={`${item.id}-file-order-help`} value={source} onChange={(e) => setSource(e.target.value as SourceOrdering | '')} className={inputClass}>
-              <option value="">Library default ({orderings.find((o) => o.value === library?.source_ordering)?.label ?? 'TMDB aired order'})</option>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editDetails.fileEpisodeOrder")}</span>
+            <select aria-label={t("details:editDetails.fileEpisodeOrder")} aria-describedby={`${item.id}-file-order-help`} value={source} onChange={(e) => setSource(e.target.value as SourceOrdering | '')} className={inputClass}>
+              <option value="">{t('details:editDetails.defaultOrder', { order: orderLabels[library?.source_ordering || 'tmdb_aired'] })}</option>
               {orderings.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {orderLabels[o.value]}
                 </option>
               ))}
             </select>
-            <span id={`${item.id}-file-order-help`} className="mt-1.5 block text-xs text-subtle">
-              How files are numbered and where episode titles, descriptions and images come from. Changing this rematches only this show’s known files; watch history is kept.
-            </span>
+            <span id={`${item.id}-file-order-help`} className="mt-1.5 block text-xs text-subtle">{t("details:editDetails.howFilesAreNumbered")}</span>
           </label>
         )}
 </>}
-        {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>Retry</Button></p>}
+        {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>{t("details:editDetails.retry")}</Button></p>}
         {orders.data && <EpisodeOrderingFields
           orderings={orders.data.orderings}
           selected={display === undefined ? orders.data.display_choice_id ?? orders.data.display_ordering_id : display ?? 0}
@@ -292,13 +299,13 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         {item.kind !== 'episode' && (
           <div className="col-span-2">
             <span className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">Genres</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editDetails.genres")}</span>
               <LockToggle locked={locked.has('genres')} onToggle={() => toggle('genres')} />
             </span>
             <ChipInput
               value={genres}
-              placeholder="e.g. Drama"
-              morePlaceholder="Add a genre"
+              placeholder={t("details:editDetails.eGDrama")}
+              morePlaceholder={t('details:editDetails.addGenre')}
               onChange={(g) => {
                 setGenres(g);
                 setLocked((prev) => new Set(prev).add('genres'));
@@ -308,9 +315,9 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         )}
         {item.kind !== 'episode' && (
           <div className="col-span-2">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Labels</span>
-            <ChipInput value={labels} onChange={setLabels} placeholder="Your own tags, e.g. Not for kids" morePlaceholder="Add a label" suggestions={allLabels.data} />
-            <p className="mt-1.5 text-xs text-subtle">Only you see these. Use them to filter, build smart collections, or hide titles from a profile.</p>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editDetails.labels")}</span>
+            <ChipInput value={labels} onChange={setLabels} placeholder={t("details:editDetails.yourOwnTagsE")} morePlaceholder={t('details:editDetails.addLabel')} suggestions={allLabels.data} />
+            <p className="mt-1.5 text-xs text-subtle">{t("details:editDetails.onlyYouSeeThese")}</p>
           </div>
         )}
         <button type="submit" hidden />
@@ -334,6 +341,7 @@ function Field({ label, locked, onToggle, half, children }: { label: string; loc
 }
 
 export function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: () => void }) {
+  const { t } = useTranslation('details');
   return (
     <button
       type="button"
@@ -341,7 +349,7 @@ export function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: ()
         e.preventDefault();
         onToggle();
       }}
-      title={locked ? 'Locked: refreshes keep this' : 'Unlocked: updated from the internet on refresh'}
+      title={locked ? t("details:editDetails.lockedRefreshesKeepThis") : t("details:editDetails.unlockedUpdatedFromThe")}
       aria-pressed={locked}
       className={cn(
         'flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors',
@@ -349,7 +357,7 @@ export function LockToggle({ locked, onToggle }: { locked: boolean; onToggle: ()
       )}
     >
       {locked ? <Lock className="size-3" /> : <LockOpen className="size-3" />}
-      {locked ? 'Locked' : 'Auto'}
+      {locked ? t("details:editDetails.locked") : t("details:editDetails.auto")}
     </button>
   );
 }

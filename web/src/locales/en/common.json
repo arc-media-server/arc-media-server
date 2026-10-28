@@ -15,7 +15,9 @@
     "shuffle": "Shuffle",
     "delete": "Delete",
     "rename": "Rename",
-    "create": "Create"
+    "create": "Create",
+    "edit": "Edit",
+    "remove": "Remove"
   },
   "activity": {
     "analysing": "Analysing",
@@ -51,15 +53,14 @@
   "errors": {
     "heading": "Something went wrong",
     "notFound": "This page doesn't exist.",
-    "notFoundHeading": "Nothing here"
+    "notFoundHeading": "Nothing here",
+    "downloadDiagnostics": "Could not download diagnostics. Please try again."
   },
   "format": {
     "channels": "{{count}}ch",
     "gigabytes": "{{value}} GB",
     "hours": "{{count}}h",
     "kilobytes": "{{value}} KB",
-    "legacyPlural_one": "{{count}} {{word}}",
-    "legacyPlural_other": "{{count}} {{pluralWord}}",
     "megabytes": "{{value}} MB",
     "minutes": "{{count}}m",
     "mono": "Mono",

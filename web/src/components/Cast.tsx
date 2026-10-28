@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Cast as CastIcon, Loader2, Pause, Play, RotateCcw, RotateCw } from 'lucide-react';
 import { api, type PlayerCaps } from '@/lib/api';
@@ -135,6 +136,7 @@ export function CastSession({
   text?: CastText;
   onEnd: (positionMS: number) => void;
 }) {
+  const { t } = useTranslation('player');
   const [device, setDevice] = useState('');
   const [positionMS, setPositionMS] = useState(startMS);
   const [durationMS, setDurationMS] = useState(0);
@@ -191,7 +193,7 @@ export function CastSession({
           if (ownedSession) await api.stopTranscode(ownedSession).catch(() => {});
           return;
         }
-        if (local_only) throw new Error('Only this computer can reach Arc. Turn on Allow other devices in Settings > Network so the Chromecast can too.');
+        if (local_only) throw new Error(t('player:cast.localOnly'));
         offset.current = plan.hls ? plan.offset_ms : 0;
         direct.current = !plan.hls;
         session.current = plan.session_id;
@@ -199,7 +201,7 @@ export function CastSession({
         duration.current = plan.duration_ms;
         const { chrome, cast } = window;
         const s = cast.framework.CastContext.getInstance().getCurrentSession();
-        if (!s) throw new Error('The Chromecast disconnected');
+        if (!s) throw new Error(t('player:cast.connectionLost'));
         setDevice(s.getCastDevice()?.friendlyName ?? 'Chromecast');
         const info = new chrome.cast.media.MediaInfo(url, plan.hls ? 'application/x-mpegurl' : 'video/mp4');
         if (plan.hls) {
@@ -234,7 +236,7 @@ export function CastSession({
           await s.loadMedia(req);
         } catch (e) {
           const code = (e as { code?: string })?.code;
-          throw Object.assign(new Error(code ? `The Chromecast couldn't play it (${code})` : e instanceof Error ? e.message : String(e)), { loadFailed: true });
+          throw Object.assign(new Error(code ? t('player:cast.playCode', { code }) : e instanceof Error ? e.message : String(e)), { loadFailed: true });
         }
         if (run !== generation.current) return;
         setBusy(false);
@@ -261,7 +263,7 @@ export function CastSession({
           return start(atMS, true);
         }
         setBusy(false);
-        setError(e instanceof Error ? e.message : typeof e === 'object' && e && 'code' in e ? `The Chromecast couldn't play it (${String((e as { code: string }).code)})` : String(e));
+        setError(e instanceof Error ? e.message : typeof e === 'object' && e && 'code' in e ? t('player:cast.playCode', { code: String((e as { code: string }).code) }) : String(e));
       }
     },
     [itemId, title, subtitle, fileId, audioStream, burnSubtitle, text],
@@ -328,22 +330,22 @@ export function CastSession({
 
   // Save progress, and keep a converting stream going.
   useEffect(() => {
-    const t = window.setInterval(() => {
+    const localValue = window.setInterval(() => {
       if (durationMS && !busy) void api.reportProgress(itemId, pos.current, durationMS, paused ? 'paused' : 'playing').catch(() => {});
       if (session.current) void api.pingTranscode(session.current).catch(() => {});
     }, 10_000);
-    return () => window.clearInterval(t);
+    return () => window.clearInterval(localValue);
   }, [itemId, durationMS, paused, busy]);
 
   const seekTo = (ms: number) => {
-    const t = Math.max(0, durationMS ? Math.min(ms, durationMS - 1000) : ms);
-    setPositionMS(t);
-    pos.current = t;
+    const localValue = Math.max(0, durationMS ? Math.min(ms, durationMS - 1000) : ms);
+    setPositionMS(localValue);
+    pos.current = localValue;
     if (direct.current && player.current?.isMediaLoaded) {
-      player.current.currentTime = t / 1000;
+      player.current.currentTime = localValue / 1000;
       controller.current.seek();
     } else {
-      void start(t); // a converted stream starts again from there
+      void start(localValue); // a converted stream starts again from there
     }
   };
 
@@ -365,16 +367,16 @@ export function CastSession({
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black px-6 text-white">
       <CastIcon className="size-14 text-white/60" strokeWidth={1.5} />
       <div className="text-center">
-        <p className="text-sm text-white/60">{device ? `Playing on ${device}` : 'Connecting…'}</p>
-        {fellBack && <p role="status" className="text-xs text-white/50">{device || 'This Chromecast'} couldn&apos;t play the original, so Arc is converting it.</p>}
+        <p className="text-sm text-white/60">{device ? t('player:cast.playingOn', { device }) : t("player:cast.connecting")}</p>
+        {fellBack && <p role="status" className="text-xs text-white/50">{t('player:cast.convertedFallback', { device: device || t('player:cast.thisChromecast') })}</p>}
         <p className="mt-1 text-2xl font-semibold">{title}</p>
         {subtitle && <p className="text-white/60">{subtitle}</p>}
       </div>
-      {error && <div className="max-w-md space-y-2 text-center"><p role="alert" className="text-sm text-warning">{error}</p><Button variant="secondary" onClick={() => void start(pos.current)}>Retry casting</Button></div>}
+      {error && <div className="max-w-md space-y-2 text-center"><p role="alert" className="text-sm text-warning">{error}</p><Button variant="secondary" onClick={() => void start(pos.current)}>{t("player:cast.retryCasting")}</Button></div>}
       <div className="w-full max-w-xl">
         <input
           type="range"
-          aria-label="Position"
+          aria-label={t("player:cast.position")}
           min={0}
           max={durationMS || 1}
           value={positionMS}
@@ -388,19 +390,17 @@ export function CastSession({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <Button variant="glass" size="icon" aria-label="Back 10 seconds" disabled={busy} onClick={() => seekTo(pos.current - 10_000)}>
+        <Button variant="glass" size="icon" aria-label={t("player:cast.back10Seconds")} disabled={busy} onClick={() => seekTo(pos.current - 10_000)}>
           <RotateCcw />
         </Button>
-        <Button variant="primary" size="lg" className="size-14 rounded-full p-0" aria-label={paused ? 'Play' : 'Pause'} disabled={busy} onClick={() => controller.current?.playOrPause()}>
+        <Button variant="primary" size="lg" className="size-14 rounded-full p-0" aria-label={paused ? t("player:cast.play") : t("player:cast.pause")} disabled={busy} onClick={() => controller.current?.playOrPause()}>
           {busy ? <Loader2 className="animate-spin" /> : paused ? <Play /> : <Pause />}
         </Button>
-        <Button variant="glass" size="icon" aria-label="Forward 10 seconds" disabled={busy} onClick={() => seekTo(pos.current + 10_000)}>
+        <Button variant="glass" size="icon" aria-label={t("player:cast.forward10Seconds")} disabled={busy} onClick={() => seekTo(pos.current + 10_000)}>
           <RotateCw />
         </Button>
       </div>
-      <Button variant="secondary" onClick={stop}>
-        Stop Casting
-      </Button>
+      <Button variant="secondary" onClick={stop}>{t("player:cast.stopCasting")}</Button>
     </div>
   );
 }

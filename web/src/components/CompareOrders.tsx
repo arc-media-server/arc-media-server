@@ -1,8 +1,9 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { api, type Ordering, type SeasonsResponse } from '@/lib/api';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,7 @@ function places(data?: SeasonsResponse) {
 
 function code(p?: Place) {
   if (!p) return null;
-  return p.season === 0 ? `Special ${p.episode}` : `S${p.season} E${p.episode}`;
+  return p.season === 0 ? i18n.t('details:compareOrders.special', { number: p.episode }) : `S${p.season} E${p.episode}`;
 }
 
 function Comparison({
@@ -70,6 +71,7 @@ function Comparison({
   onClose: () => void;
   onUse: (orderingId: number) => void | Promise<unknown>;
 }) {
+  const { t } = useTranslation('details');
   const [left, setLeft] = useState(current);
   const [right, setRight] = useState(() => orderings.find((o) => o.id !== current)?.id ?? current);
   const [changedOnly, setChangedOnly] = useState(false);
@@ -95,28 +97,26 @@ function Comparison({
     return out.sort((x, y) => key(x) - key(y));
   }, [a.data, b.data]);
 
-  const differs = (r: Row) => code(r.left) !== code(r.right);
+  const differs = (r: Row) => r.left?.season !== r.right?.season || r.left?.episode !== r.right?.episode;
   const changed = rows?.filter(differs).length ?? 0;
   const shown = changedOnly ? rows?.filter(differs) : rows;
-  const nameOf = (id: number) => orderings.find((o) => o.id === id)?.name ?? 'Order';
+  const nameOf = (id: number) => orderings.find((o) => o.id === id)?.name ?? t('details:compareOrders.order');
   const error = a.error ?? b.error;
 
   return (
     <DialogContent
-      title="Compare Episode Orders"
-      description="See where each of your episodes goes in another order before you switch. Your files aren't touched."
+      title={t("details:compareOrders.compareEpisodeOrders")}
+      description={t("details:compareOrders.seeWhereEachOf")}
       className="w-[min(820px,calc(100vw-32px))]"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
+          <Button variant="ghost" onClick={onClose}>{t("details:compareOrders.close")}</Button>
           <Button
             variant="primary"
             disabled={right === current || apply.isPending}
             onClick={() => apply.mutate()}
           >
-            {right === current ? 'Already in use' : `Use ${nameOf(right)}`}
+            {right === current ? t("details:compareOrders.alreadyInUse") : t('details:compareOrders.useOrder', { name: nameOf(right) })}
           </Button>
         </>
       }
@@ -130,14 +130,12 @@ function Comparison({
         <p className="text-muted">
           {rows
             ? changed === 0
-              ? `All ${fmt.plural(rows.length, 'episode')} are in the same place.`
-              : `${changed} of ${fmt.plural(rows.length, 'episode')} ${changed === 1 ? 'is' : 'are'} in a different place.`
-            : 'Matching episodes…'}
+              ? t('details:compareOrders.samePlace', { count: rows.length })
+              : t('details:compareOrders.differentPlace', { count: changed, total: rows.length, episodes: t('details:episodeOrdering.episodes', { count: rows.length }) })
+            : t("details:compareOrders.matchingEpisodes")}
         </p>
         <label className="flex shrink-0 cursor-pointer items-center gap-2 text-muted">
-          <input type="checkbox" checked={changedOnly} onChange={(e) => setChangedOnly(e.target.checked)} className="accent-[var(--color-accent)]" />
-          Only differences
-        </label>
+          <input type="checkbox" checked={changedOnly} onChange={(e) => setChangedOnly(e.target.checked)} className="accent-[var(--color-accent)]" />{t("details:compareOrders.onlyDifferences")}</label>
       </div>
       <ErrorNotice error={apply.error} onRetry={() => apply.mutate()} />
       {error && <p className="text-sm text-warning">{error.message}</p>}
@@ -149,24 +147,22 @@ function Comparison({
               <tr>
                 <th className="w-28 px-3 py-2">{nameOf(left)}</th>
                 <th className="w-28 px-3 py-2">{nameOf(right)}</th>
-                <th className="px-3 py-2">Episode</th>
+                <th className="px-3 py-2">{t("details:compareOrders.episode")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {shown.map((r) => (
                 <tr key={r.id} className={cn(differs(r) && 'bg-accent/[0.07]')}>
-                  <td className="px-3 py-2 tabular-nums text-muted">{code(r.left) ?? <span className="text-subtle">Not included</span>}</td>
+                  <td className="px-3 py-2 tabular-nums text-muted">{code(r.left) ?? <span className="text-subtle">{t("details:compareOrders.notIncluded")}</span>}</td>
                   <td className={cn('px-3 py-2 tabular-nums', differs(r) ? 'font-semibold text-accent' : 'text-muted')}>
-                    {code(r.right) ?? <span className="font-normal text-subtle">Not included</span>}
+                    {code(r.right) ?? <span className="font-normal text-subtle">{t("details:compareOrders.notIncluded")}</span>}
                   </td>
                   <td className="px-3 py-2">{r.title}</td>
                 </tr>
               ))}
               {shown.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-3 py-8 text-center text-muted">
-                    No differences.
-                  </td>
+                  <td colSpan={3} className="px-3 py-8 text-center text-muted">{t("details:compareOrders.noDifferences")}</td>
                 </tr>
               )}
             </tbody>
@@ -178,6 +174,7 @@ function Comparison({
 }
 
 function OrderSelect({ orderings, value, current, onChange }: { orderings: Ordering[]; value: number; current: number; onChange: (id: number) => void }) {
+  const { t } = useTranslation('details');
   return (
     <select
       value={value}
@@ -188,7 +185,7 @@ function OrderSelect({ orderings, value, current, onChange }: { orderings: Order
         <option key={o.id} value={o.id}>
           {o.name}
           {o.description ? ` (${o.description})` : ''}
-          {o.id === current ? ' · in use' : ''}
+          {o.id === current ? t("details:compareOrders.inUse") : ''}
         </option>
       ))}
     </select>
