@@ -3,7 +3,7 @@
 Status: implemented locally, 22 October 2026, following the owner's approval to implement.
 Global/server-wide controls replace the earlier per-library proposal. The following contract
 records the chosen defaults, behaviour and verification requirements. See READINESS.md for evidence.
-Tracked in [GitHub #147](https://github.com/JonzaUK/arc-media-server/issues/147).
+Tracked in [GitHub #147](https://github.com/arc-media-server/arc-media-server/issues/147).
 
 ## Placement and everyday flow
 

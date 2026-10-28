@@ -116,6 +116,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify upgrade and full-directory rollback from previous image
         if: github.event_name != 'pull_request'
+        # The older image the upgrade/rollback check starts from. It was published before the repository
+        # moved to the arc-media-server organisation, so it lives in the owner's personal package; the
+        # package grants this repository read access (docs/IMAGE-PUBLISHING.md). If that access is
+        # missing the pull fails and nothing is published: the gate never passes without the check.
         env:
           PREVIOUS_IMAGE: ghcr.io/jonzauk/arc-media-server:2a7029a1a0871a459424336146a9fdb73c107001
         run: |
