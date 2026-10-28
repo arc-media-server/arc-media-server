@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, BookmarkCheck, Star, StarHalf } from 'lucide-react';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
  * has clears it.
  */
 export function StarRating({ item }: { item: Item }) {
+  const { t } = useTranslation('titles');
   const qc = useQueryClient();
   const saved = item.user_data?.rating ?? 0;
   const [hover, setHover] = useState<number | null>(null);
@@ -27,9 +29,9 @@ export function StarRating({ item }: { item: Item }) {
     <div
       className="flex items-center gap-0.5"
       role="radiogroup"
-      aria-label="Your rating"
+      aria-label={t("titles:rating.yourRating")}
       onPointerLeave={() => setHover(null)}
-      title={value ? `Your rating: ${value / 2} of 5. Click it again to clear.` : 'Rate it'}
+      title={value ? t('titles:rating.current', { value: value / 2 }) : t("titles:rating.rateIt")}
     >
       {[1, 2, 3, 4, 5].map((star) => {
         const full = shown >= star * 2;
@@ -40,7 +42,7 @@ export function StarRating({ item }: { item: Item }) {
             type="button"
             role="radio"
             aria-checked={value === star * 2}
-            aria-label={`${star} star${star > 1 ? 's' : ''}`}
+            aria-label={t('titles:rating.stars', { count: star })}
             className="relative size-7 text-foreground/40 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-accent"
             onPointerMove={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
@@ -69,6 +71,7 @@ export function StarRating({ item }: { item: Item }) {
 
 /** Puts a movie or show on the profile's watchlist, or takes it off. */
 export function WatchlistButton({ item }: { item: Item }) {
+  const { t } = useTranslation('titles');
   const qc = useQueryClient();
   const [on, setOn] = useState(!!item.user_data?.watchlisted);
   const toggle = useMutation({
@@ -79,7 +82,7 @@ export function WatchlistButton({ item }: { item: Item }) {
       for (const key of ['watchlist', 'item']) qc.invalidateQueries({ queryKey: [key] });
     },
   });
-  const label = on ? 'On your watchlist' : 'Add to Watchlist';
+  const label = on ? t('titles:rating.onWatchlist') : t('titles:rating.addWatchlist');
   return (
     <>
     <Button

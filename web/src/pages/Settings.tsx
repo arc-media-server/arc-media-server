@@ -1,6 +1,8 @@
+import i18n from '@/i18n';
+import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
@@ -30,14 +32,15 @@ type Patch = Parameters<typeof api.updateSettings>[0];
 const SettingsSection = createContext<SettingsGroup>('profile');
 
 export function SettingsPage() {
+  const { t } = useTranslation('profileSettings');
   const admin = useIsAdmin();
   const [params] = useSearchParams();
   const selected = admin ? selectedSettingsSection(params.get('section')) : 'profile';
   return (
     <Page className="pb-16">
-      <PageHeader title="Settings" subtitle={selected === 'profile' ? 'Your preferences follow your profile.' : 'Server settings apply to everyone. Only admins can change these.'} />
+      <PageHeader title={t("profileSettings:settings.settings")} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
       <div className="max-w-[848px] space-y-8 px-6 md:px-10">
-        <p className="text-sm text-muted">Switches and menus save immediately. Text fields use Save.</p>
+        <p className="text-sm text-muted">{t("profileSettings:settings.switchesAndMenusSave")}</p>
         <SettingsSection.Provider value={selected}>
           {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
         </SettingsSection.Provider>
@@ -49,13 +52,14 @@ export function SettingsPage() {
 
 /** About Arc, on every profile's Settings: the version, and the credits metadata providers require. */
 function AboutArc() {
+  const { t } = useTranslation('profileSettings');
   const info = useQuery({ queryKey: ['server-info'], queryFn: api.serverInfo, staleTime: Infinity });
   return (
     <section aria-labelledby="about-arc">
-      <h2 id="about-arc" className="text-lg font-semibold">About Arc</h2>
-      <p className="mt-1 text-sm text-muted">Arc Media Server{info.data?.version ? ` ${info.data.version}` : ''}</p>
+      <h2 id="about-arc" className="text-lg font-semibold">{t("profileSettings:settings.aboutArc")}</h2>
+      <p className="mt-1 text-sm text-muted">{t("profileSettings:settings.arcMediaServer")}{info.data?.version ? ` ${info.data.version}` : ''}</p>
       <div className="mt-4 rounded-2xl bg-surface p-4 ring-1 ring-border">
-        <h3 className="mb-3 text-sm font-medium">Credits</h3>
+        <h3 className="mb-3 text-sm font-medium">{t("profileSettings:settings.credits")}</h3>
         <ProviderCredits />
       </div>
     </section>
@@ -64,6 +68,8 @@ function AboutArc() {
 
 /** The current profile's own settings (each profile has its own, as in Plex). */
 function ProfileSettings() {
+  const { t } = useTranslation('profileSettings');
+  const subtitleModeHints: Record<SubtitleMode, string> = { '': t('profileSettings:subtitleHints.last'), foreign: t('profileSettings:subtitleHints.foreign'), always: t('profileSettings:subtitleHints.always'), manual: t('profileSettings:subtitleHints.manual') };
   const prefs = usePrefs();
   const update = useUpdatePrefs();
   const p = prefs.data;
@@ -72,70 +78,70 @@ function ProfileSettings() {
   const busy = update.isPending;
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <Section title="Playback" hint="For your profile only.">
-        <Row setting="watched_percent" label="Mark as watched at" description="How far through a movie or episode counts as watched.">
-          <select aria-label="Mark as watched at" value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
-            {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent}%{percent === 90 ? ' (default)' : ''}</option>)}
+      <Section sectionKey="Playback" title={t("profileSettings:settings.playback")} hint={t("profileSettings:settings.forYourProfileOnly")}>
+        <Row setting="watched_percent" label={t("profileSettings:settings.markAsWatchedAt")} description={t("profileSettings:settings.howFarThroughA")}>
+          <select aria-label={t("profileSettings:settings.markAsWatchedAt")} value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            {[75, 90, 95, 100].map(percent => <option key={percent} value={percent}>{percent === 90 ? t('profileSettings:settings.defaultPercent', { percent }) : `${percent}%`}</option>)}
             {!!p.watched_percent && ![75, 90, 95, 100].includes(p.watched_percent) && <option value={p.watched_percent}>{p.watched_percent}%</option>}
           </select>
         </Row>
-        <Row setting="audio_language" label="Preferred audio language" description="Played when a video has it. Choosing a language in the player changes this too.">
-          <select aria-label="Preferred audio language" value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
-            <option value="">Use the file's default</option>
+        <Row setting="audio_language" label={t("profileSettings:settings.preferredAudioLanguage")} description={t("profileSettings:settings.playedWhenAVideo")}>
+          <select aria-label={t("profileSettings:settings.preferredAudioLanguage")} value={p.audio_language ?? ''} disabled={busy} onChange={(e) => update.mutate({ audio_language: e.target.value })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            <option value="">{t("profileSettings:settings.useTheFileS")}</option>
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </Row>
         <ToggleRow
-          setting="auto_play" label="Auto-Play"
-          description="Play the next episode after a short countdown."
+          setting="auto_play" label={t("profileSettings:settings.autoPlay")}
+          description={t("profileSettings:settings.playTheNextEpisode")}
           checked={p.auto_play !== false}
           busy={busy}
           onChange={(v) => update.mutate({ auto_play: v })}
         />
         <ToggleRow
-          setting="auto_skip" label="Skip intros automatically"
-          description="Skip intros and recaps without pressing Skip."
+          setting="auto_skip" label={t("profileSettings:settings.skipIntrosAutomatically")}
+          description={t("profileSettings:settings.skipIntrosAndRecaps")}
           checked={!!p.auto_skip}
           busy={busy}
           onChange={(v) => update.mutate({ auto_skip: v })}
         />
         <ToggleRow
-          setting="theme_music" label="Theme music"
-          description="Play a show's or movie's theme quietly on its page."
+          setting="theme_music" label={t("profileSettings:settings.themeMusic")}
+          description={t("profileSettings:settings.playAShowS")}
           checked={p.theme_music !== false}
           busy={busy}
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
-      <Section title="Home" hint="For your profile only.">
-        <ToggleRow setting="show_home_hero" label="Show home hero" description="Show the large featured title banner at the top of Home. Hide it to go straight to your rows."
+      <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
+        <ToggleRow setting="show_home_hero" label={t("profileSettings:settings.showHomeHero")} description={t("profileSettings:settings.showTheLargeFeatured")}
           checked={p.show_home_hero !== false} busy={busy} onChange={v => update.mutate({ show_home_hero: v })} />
       </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
-      <Section title="Subtitles" hint="Choosing subtitles in the player updates these too.">
-        <Row setting="subtitle_mode" label="Show subtitles" description={subtitleModeHints[p.subtitle_mode ?? '']}>
+      <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>
+        <Row setting="subtitle_mode" label={t("profileSettings:settings.showSubtitles")} description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
-            aria-label="Subtitle mode"
+            aria-label={t("profileSettings:settings.subtitleMode")}
             value={p.subtitle_mode ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_mode: e.target.value as SubtitleMode })}
             className={`${inputClass} w-56 [&>option]:bg-surface`}
           >
-            <option value="">In the language I last chose</option>
-            <option value="foreign">When the audio is in another language</option>
-            <option value="always">Always</option>
-            <option value="manual">Only when I choose them</option>
+            <option value="">{t("profileSettings:settings.inTheLanguageI")}</option>
+            <option value="foreign">{t("profileSettings:settings.whenTheAudioIs")}</option>
+            <option value="always">{t("profileSettings:settings.always")}</option>
+            <option value="manual">{t("profileSettings:settings.onlyWhenIChoose")}</option>
           </select>
         </Row>
-        <Row setting="subtitle_language" label="Language" description="The language of subtitles that turn on, including forced subtitles for foreign-language lines.">
+        <Row setting="subtitle_language" label={t("profileSettings:settings.language")} description={t("profileSettings:settings.theLanguageOfSubtitles")}>
           <select
-            aria-label="Subtitle language"
+            aria-label={t("profileSettings:settings.subtitleLanguage")}
             value={p.subtitle_language}
             disabled={busy}
             onChange={(e) => update.mutate({ subtitle_language: e.target.value })}
             className={`${inputClass} w-56 [&>option]:bg-surface`}
           >
-            <option value="">None</option>
+            <option value="">{t("profileSettings:settings.none")}</option>
             {subtitleLanguages(p.subtitle_language).map(([code, name]) => (
               <option key={code} value={code}>
                 {name}
@@ -145,25 +151,25 @@ function ProfileSettings() {
         </Row>
         <SubtitleStyleRows style={p.subtitle_style ?? {}} busy={busy} onChange={(subtitle_style) => update.mutate({ subtitle_style })} />
       </Section>
-      <Section title="Display">
+      <Section sectionKey="Display" title={t("profileSettings:settings.display")}>
         <ToggleRow
-          setting="hide_spoilers" label="Hide spoilers"
-          description="Blur stills and hide descriptions of episodes you haven't seen."
+          setting="hide_spoilers" label={t("profileSettings:settings.hideSpoilers")}
+          description={t("profileSettings:settings.blurStillsAndHide")}
           checked={!!p.hide_spoilers}
           busy={busy}
           onChange={(v) => update.mutate({ hide_spoilers: v })}
         />
-        <Row setting="theme" label="Appearance" description="Automatic follows this device's light or dark mode.">
+        <Row setting="theme" label={t("profileSettings:settings.appearance")} description={t("profileSettings:settings.automaticFollowsThisDevice")}>
           <select
-            aria-label="Appearance"
+            aria-label={t("profileSettings:settings.appearance")}
             value={p.theme ?? ''}
             disabled={busy}
             onChange={(e) => update.mutate({ theme: e.target.value as Theme })}
             className={`${inputClass} w-40 [&>option]:bg-surface`}
           >
-            <option value="">Automatic</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="">{t("profileSettings:settings.automatic")}</option>
+            <option value="dark">{t("profileSettings:settings.dark")}</option>
+            <option value="light">{t("profileSettings:settings.light")}</option>
           </select>
         </Row>
       </Section>
@@ -171,12 +177,7 @@ function ProfileSettings() {
   );
 }
 
-const subtitleModeHints: Record<SubtitleMode, string> = {
-  '': 'In the language you last picked in the player, until you turn them off.',
-  foreign: 'In your language when the audio is in another language.',
-  always: 'In your language whenever there are some.',
-  manual: 'Only when you pick them in the player. Forced subtitles still show.',
-};
+
 
 /** Common subtitle languages (ISO 639-2), with the profile's current one if it isn't among them. */
 function subtitleLanguages(current: string): [string, string][] {
@@ -187,13 +188,14 @@ function subtitleLanguages(current: string): [string, string][] {
 
 /** How subtitles look, with a sample. */
 function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; busy: boolean; onChange: (s: SubtitleStyle) => void }) {
+  const { t } = useTranslation('profileSettings');
   const pick = <K extends keyof SubtitleStyle>(key: K, options: [NonNullable<SubtitleStyle[K]>, string][], def: NonNullable<SubtitleStyle[K]>) => (
     <select
       value={style[key] ?? def}
       disabled={busy}
       onChange={(e) => onChange({ ...style, [key]: e.target.value })}
       className={`${inputClass} w-32 [&>option]:bg-surface`}
-      aria-label={`Subtitle ${key}`}
+      aria-label={{ size: t('profileSettings:styleLabels.size'), color: t('profileSettings:styleLabels.color'), background: t('profileSettings:styleLabels.background'), position: t('profileSettings:styleLabels.position') }[key]}
     >
       {options.map(([v, label]) => (
         <option key={v} value={v}>
@@ -206,21 +208,19 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
     <div className="space-y-3 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-64">
-          <p className="text-sm font-medium">Style</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">Size, colour, background and position. Picture subtitles from Blu-rays and DVDs can't be restyled.</p>
+          <p className="text-sm font-medium">{t("profileSettings:settings.style")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">{t("profileSettings:settings.sizeColourBackgroundAnd")}</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {pick('size', [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large'], ['huge', 'Huge']], 'medium')}
-        {pick('color', [['white', 'White'], ['yellow', 'Yellow']], 'white')}
-        {pick('background', [['box', 'Shaded box'], ['solid', 'Black box'], ['none', 'Outline only']], 'box')}
-        {pick('position', [['bottom', 'Bottom'], ['top', 'Top']], 'bottom')}
+        {pick('size', [['small', t('profileSettings:styleOptions.small')], ['medium', t('profileSettings:styleOptions.medium')], ['large', t('profileSettings:styleOptions.large')], ['huge', t('profileSettings:styleOptions.huge')]], 'medium')}
+        {pick('color', [['white', t('profileSettings:styleOptions.white')], ['yellow', t('profileSettings:styleOptions.yellow')]], 'white')}
+        {pick('background', [['box', t('profileSettings:styleOptions.box')], ['solid', t('profileSettings:styleOptions.solid')], ['none', t('profileSettings:styleOptions.outline')]], 'box')}
+        {pick('position', [['bottom', t('profileSettings:styleOptions.bottom')], ['top', t('profileSettings:styleOptions.top')]], 'bottom')}
       </div>
       <SaveFeedback settings={['subtitle_style']} />
       <div className="flex h-24 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-500 via-sky-800 to-amber-700 p-3" aria-hidden>
-        <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>
-          Where are we going?
-        </span>
+        <span className={cn('rounded-md px-2 py-0.5 text-lg font-medium', subtitleLook(style), style.position === 'top' && 'self-start')}>{t("profileSettings:settings.whereAreWeGoing")}</span>
       </div>
     </div>
   );
@@ -228,6 +228,12 @@ function SubtitleStyleRows({ style, busy, onChange }: { style: SubtitleStyle; bu
 
 /** The server's settings (admin). */
 function ServerSettings() {
+  const { t } = useTranslation('serverSettings');
+  const detectionHelp = {
+    off: t('serverSettings:detectionHelp.off'),
+    scheduled: t('serverSettings:detectionHelp.scheduled'),
+    added: t('serverSettings:detectionHelp.added'),
+  };
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
@@ -244,37 +250,37 @@ function ServerSettings() {
 
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">Server</h2>
+      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:settings.server")}</h2>
       {!s ? (
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
-          <Section title="Online metadata" hint="Where Arc gets details and artwork for movies and shows.">
+          <Section sectionKey="Online metadata" title={t("serverSettings:settings.onlineMetadata")} hint={t("serverSettings:settings.whereArcGetsDetails")}>
             <KeyRow
-              label="TMDB"
-              description="Movies and shows."
+              label={t("serverSettings:settings.tmdb")}
+              description={t("serverSettings:settings.moviesAndShows")}
               current={s.tmdb_api_key}
               fixed={s.from_env.tmdb_api_key}
               link="https://www.themoviedb.org/settings/api"
               onSave={(v) => update.mutateAsync({ tmdb_api_key: v })}
             />
             <KeyRow
-              label="TheTVDB"
-              description="Shows and their episode orders."
+              label={t("serverSettings:settings.thetvdb")}
+              description={t("serverSettings:settings.showsAndTheirEpisode")}
               current={s.tvdb_api_key}
               fixed={s.from_env.tvdb_api_key}
               link="https://thetvdb.com/api-information"
               onSave={(v) => update.mutateAsync({ tvdb_api_key: v })}
             />
           </Section>
-          <Section title="Ratings" hint="Scores from other sites, shown on title pages and available as sorts.">
+          <Section sectionKey="Ratings" title={t("serverSettings:settings.ratings")} hint={t("serverSettings:settings.scoresFromOtherSites")}>
             <Row
-              label="IMDb"
-              description="Updated weekly from IMDb's free ratings file. No key needed."
+              label={t("serverSettings:settings.imdb")}
+              description={t("serverSettings:settings.updatedWeeklyFromImdb")}
             />
             <KeyRow
-              label="Rotten Tomatoes and Metacritic"
-              description="Critics' scores from OMDb. A free key covers 1,000 titles a day."
+              label={t("serverSettings:settings.rottenTomatoesAndMetacritic")}
+              description={t("serverSettings:settings.criticsScoresFromOmdb")}
               current={s.omdb_api_key}
               fixed={s.from_env.omdb_api_key}
               link="https://www.omdbapi.com/apikey.aspx"
@@ -282,58 +288,58 @@ function ServerSettings() {
             />
           </Section>
 
-          <Section title="Library scanning" hint="How Arc finds new and changed files. Applies to every library.">
+          <Section sectionKey="Library scanning" title={t("serverSettings:settings.libraryScanning")} hint={t("serverSettings:settings.howArcFindsNew")}>
             <ToggleRow
-              setting="scan_automatic" label="Scan automatically when files change"
-              description="Pick up new and changed files as soon as they appear."
+              setting="scan_automatic" label={t("serverSettings:settings.scanAutomaticallyWhenFiles")}
+              description={t("serverSettings:settings.pickUpNewAnd")}
               checked={s.scan_automatic}
               busy={update.isPending}
               onChange={(v) => update.mutate({ scan_automatic: v })}
             />
             <Row
-              setting="scan_interval_minutes" label="Full library scan"
-              description="Regularly check every folder. Catches changes that network drives don't report."
+              setting="scan_interval_minutes" label={t("serverSettings:settings.fullLibraryScan")}
+              description={t("serverSettings:settings.regularlyCheckEveryFolder")}
             >
               <select
-                aria-label="Full library scan"
+                aria-label={t("serverSettings:settings.fullLibraryScan")}
                 value={s.scan_interval_minutes}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ scan_interval_minutes: Number(e.target.value) })}
                 className={inputClass + ' w-44 [&>option]:bg-surface'}
               >
-                <option value={0}>Off</option>
-                <option value={15}>Every 15 minutes</option>
-                <option value={30}>Every 30 minutes</option>
-                <option value={60}>Every hour</option>
-                <option value={120}>Every 2 hours</option>
-                <option value={360}>Every 6 hours</option>
-                <option value={720}>Every 12 hours</option>
-                <option value={1440}>Every 24 hours</option>
+                <option value={0}>{t("serverSettings:settings.off")}</option>
+                <option value={15}>{t("serverSettings:settings.every15Minutes")}</option>
+                <option value={30}>{t("serverSettings:settings.every30Minutes")}</option>
+                <option value={60}>{t("serverSettings:settings.everyHour")}</option>
+                <option value={120}>{t("serverSettings:settings.every2Hours")}</option>
+                <option value={360}>{t("serverSettings:settings.every6Hours")}</option>
+                <option value={720}>{t("serverSettings:settings.every12Hours")}</option>
+                <option value={1440}>{t("serverSettings:settings.every24Hours")}</option>
               </select>
             </Row>
             {s.scan_interval_minutes === 0 && (
               <p className="px-5 pb-3 text-sm text-muted" role="status">
                 {!s.scan_automatic && !s.scan_on_start
-                  ? 'Libraries update when you scan them or change their folders.'
+                  ? t("serverSettings:settings.librariesUpdateWhenYou")
                   : s.scan_automatic && s.scan_on_start
-                    ? 'Full scans are off. Arc still picks up detected changes and checks at startup.'
+                    ? t("serverSettings:settings.fullScansAreOff")
                     : s.scan_automatic
-                      ? 'Full scans are off. Arc still picks up detected changes.'
-                      : 'Full scans are off. Arc still checks at startup.'}
+                      ? t("serverSettings:settings.fullScansAreOff2")
+                      : t("serverSettings:settings.fullScansAreOff3")}
               </p>
             )}
             <details className="px-5 py-3">
-              <summary className="cursor-pointer text-sm font-medium">Advanced scanning options</summary>
+              <summary className="cursor-pointer text-sm font-medium">{t("serverSettings:settings.advancedScanningOptions")}</summary>
               <ToggleRow
-                setting="scan_partial" label="Scan only changed folders"
-                description="When a change is detected, check just that folder instead of the whole library."
+                setting="scan_partial" label={t("serverSettings:settings.scanOnlyChangedFolders")}
+                description={t("serverSettings:settings.whenAChangeIs")}
                 checked={s.scan_partial}
                 busy={update.isPending || !s.scan_automatic}
                 onChange={(v) => update.mutate({ scan_partial: v })}
               />
               <ToggleRow
-                setting="scan_on_start" label="Scan when Arc starts"
-                description="Check every library for changes when Arc starts."
+                setting="scan_on_start" label={t("serverSettings:settings.scanWhenArcStarts")}
+                description={t("serverSettings:settings.checkEveryLibraryFor")}
                 checked={s.scan_on_start}
                 busy={update.isPending}
                 onChange={(v) => update.mutate({ scan_on_start: v })}
@@ -341,54 +347,50 @@ function ServerSettings() {
             </details>
           </Section>
 
-          <Section title="Moving in" hint="Bring everyone's watch history from another media server.">
-            <Row label="Plex" description="Watched status, resume points, ratings and history for everyone, plus your watchlist, playlists and collections.">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
-                Import…
-              </Button>
+          <Section sectionKey="Moving in" title={t("serverSettings:settings.movingIn")} hint={t("serverSettings:settings.bringEveryoneSWatch")}>
+            <Row label={t("serverSettings:settings.plex")} description={t("serverSettings:settings.watchedStatusResumePoints")}>
+              <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>{t("serverSettings:settings.import")}</Button>
             </Row>
-            <Row label="Jellyfin" description="Watched status, resume points, favourites and playlists for every user, plus collections. Needs an administrator sign-in.">
-              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
-                Import…
-              </Button>
+            <Row label={t("serverSettings:settings.jellyfin")} description={t("serverSettings:settings.watchedStatusAndResume")}>
+              <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>{t("serverSettings:settings.import")}</Button>
             </Row>
           </Section>
 
-          <Section title="Notifications" hint="Send messages to Discord, Slack or any webhook when things happen.">
+          <Section sectionKey="Notifications" title={t("serverSettings:settings.notifications")} hint={t("serverSettings:settings.sendMessagesToDiscord")}>
             <Webhooks />
           </Section>
 
-          {mediaToolsNeeded(s) && <Section title="Media tools" hint="FFmpeg reads your video files and converts them for devices that need it.">
+          {mediaToolsNeeded(s) && <Section sectionKey="Media tools" title={t("serverSettings:settings.mediaTools")} hint={t("serverSettings:settings.ffmpegReadsYourVideo")}>
             <FFprobeRow settings={s} onSave={(path) => update.mutateAsync({ ffprobe_path: path })} />
           </Section>}
 
-          <Section title="Intro & credit detection" hint="Where Skip Intro, Recap and Credits come from. Each library chooses whether to offer them.">
+          <Section sectionKey="Intro & credit detection" title={t("serverSettings:settings.introCreditDetection")} hint={t("serverSettings:settings.whereSkipIntroRecap")}>
             <Row
-              label="Chapters and IntroDB"
-              description="Chapters named Opening or Ending, then IntroDB, a free community database. No key needed."
+              label={t("serverSettings:settings.chaptersAndIntrodb")}
+              description={t("serverSettings:settings.chaptersNamedOpeningOr")}
             />
             <KeyRow
-              label="TheIntroDB"
-              description="A larger community database, checked first. Needs a free key."
+              label={t("serverSettings:settings.theintrodb")}
+              description={t("serverSettings:settings.aLargerCommunityDatabase")}
               current={s.theintrodb_api_key}
               fixed={s.from_env.theintrodb_api_key}
               link="https://theintrodb.org"
               onSave={(v) => update.mutateAsync({ theintrodb_api_key: v })}
             />
-            <Row label="Detect intros and credits" description={<>When nothing is found online, Arc compares a season&apos;s episodes or spots a movie&apos;s end credits. Runs: {processingLabels[s.detection_mode].toLowerCase()}.</>}>
-              <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">Scheduled tasks</Link>
+            <Row label={t("serverSettings:settings.detectIntrosAndCredits")} description={detectionHelp[s.detection_mode]}>
+              <Link to="/settings?section=maintenance#settings-scheduled-tasks" className="text-sm font-medium text-accent hover:underline">{t("serverSettings:settings.scheduledTasks")}</Link>
             </Row>
           </Section>
 
-          <Section title="Pre-roll" hint="A short clip played before movies, like a cinema intro or a trailer.">
+          <Section sectionKey="Pre-roll" title={t("serverSettings:settings.preRoll")} hint={t("serverSettings:settings.aShortClipPlayed")}>
             <PrerollRow settings={s} onSave={(patch) => update.mutateAsync(patch)} />
           </Section>
           {importing && <ImportDialog source={importing} open onOpenChange={(o) => !o && setImporting(null)} />}
 
-          <Section title="Subtitle downloads" hint="Find subtitles online from the player when a video doesn't have the ones you want.">
+          <Section sectionKey="Subtitle downloads" title={t("serverSettings:settings.subtitleDownloads")} hint={t("serverSettings:settings.findSubtitlesOnlineFrom")}>
             <KeyRow
-              label="OpenSubtitles"
-              description="Search and download subtitles."
+              label={t("serverSettings:settings.openSubtitles")}
+              description={t("serverSettings:settings.searchAndDownloadSubtitles")}
               current={s.opensubtitles_api_key}
               fixed={s.from_env.opensubtitles_api_key}
               link="https://www.opensubtitles.com/en/consumers"
@@ -399,40 +401,40 @@ function ServerSettings() {
             )}
           </Section>
 
-          <Section title="Converting" hint="When a device can't play a file as it is, Arc converts it while it's watched.">
+          <Section sectionKey="Converting" title={t("serverSettings:settings.converting")} hint={t("serverSettings:settings.whenADeviceCan")}>
             <ToggleRow
-              setting="hw_accel" label="Use hardware acceleration"
+              setting="hw_accel" label={t("serverSettings:settings.useHardwareAcceleration")}
               description={
                 !s.transcoder.checked
-                  ? 'Checking this computer…'
+                  ? t("serverSettings:settings.checkingThisComputer")
                   : s.transcoder.hw_encoder
-                    ? `Convert with the graphics card (${s.transcoder.hw_label}). Faster, and falls back to the processor when needed.`
-                    : 'No supported graphics card (NVIDIA, Intel, AMD or Apple) was found, so Arc uses the processor.'
+                    ? t('serverSettings:settings.hardwareDescription', { hardware: s.transcoder.hw_label })
+                    : t("serverSettings:settings.noSupportedGraphicsCard")
               }
               checked={s.hw_accel && !!s.transcoder.hw_encoder}
               busy={update.isPending || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
             <ToggleRow
-              setting="tone_mapping" label="HDR tone mapping"
+              setting="tone_mapping" label={t("serverSettings:settings.hdrToneMapping")}
               description={
                 s.transcoder.checked && !s.transcoder.tone_mapping
-                  ? "This FFmpeg can't convert HDR colours (it needs the zscale filter), so converted HDR video looks washed out."
-                  : 'Keep converted HDR video looking right on ordinary screens.'
+                  ? t("serverSettings:settings.thisFfmpegCanT")
+                  : t("serverSettings:settings.keepConvertedHdrVideo")
               }
               checked={s.tone_mapping && s.transcoder.tone_mapping}
               busy={update.isPending || !s.transcoder.tone_mapping}
               onChange={(v) => update.mutate({ tone_mapping: v })}
             />
-            <Row setting="max_transcodes" label="Videos converted at once" description="How many videos Arc converts at the same time. Videos that play as they are don't count.">
+            <Row setting="max_transcodes" label={t("serverSettings:settings.videosConvertedAtOnce")} description={t("serverSettings:settings.howManyVideosArc")}>
               <select
-                aria-label="Videos converted at once"
+                aria-label={t("serverSettings:settings.videosConvertedAtOnce")}
             value={s.max_transcodes}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ max_transcodes: Number(e.target.value) })}
                 className={`${inputClass} w-40 [&>option]:bg-surface`}
               >
-                <option value={0}>No limit</option>
+                <option value={0}>{t("serverSettings:settings.noLimit")}</option>
                 {[1, 2, 3, 4, 6, 8, 10].map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -443,14 +445,14 @@ function ServerSettings() {
             <TranscodeDirRow value={s.transcode_dir} onSave={(v) => update.mutateAsync({ transcode_dir: v })} />
           </Section>
 
-          <Section title="Optimized Versions" hint="Easy-to-play copies made ahead of time, used instead of converting while you watch.">
+          <Section sectionKey="Optimized Versions" title={t("serverSettings:settings.optimizedVersions")} hint={t("serverSettings:settings.easyToPlayCopies")}>
             <OptimizedList />
           </Section>
 
-          <Section title="Sign-in" hint="Away from home, the password is always needed.">
+          <Section sectionKey="Sign-in" title={t("serverSettings:settings.signIn")} hint={t("serverSettings:settings.awayFromHomeThe")}>
             <ToggleRow
-              setting="local_bypass" label="Skip the password at home"
-              description="At home, people just pick a profile. The admin profile still needs the password or its PIN."
+              setting="local_bypass" label={t("serverSettings:settings.skipThePasswordAt")}
+              description={t("serverSettings:settings.atHomePeopleJust")}
               checked={s.local_bypass}
               busy={update.isPending}
               onChange={(v) => update.mutate({ local_bypass: v })}
@@ -458,29 +460,30 @@ function ServerSettings() {
             <PasswordRow />
           </Section>
 
-          <Section title="Network">
+          <Section sectionKey="Network" title={t("serverSettings:settings.network")}>
             <ToggleRow
-              setting="allow_network" label="Allow other devices"
-              description="Let phones, TVs and other computers on your network use Arc."
+              setting="allow_network" label={t("serverSettings:settings.allowOtherDevices")}
+              description={t("serverSettings:settings.letPhonesTvsAnd")}
               checked={s.allow_network}
               busy={update.isPending}
               onChange={(v) => update.mutate({ allow_network: v })}
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
             <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
+            <TrustedProxiesRow value={s.trusted_proxies} onSave={(v) => update.mutateAsync({ trusted_proxies: v })} />
           </Section>
 
-          <Section title="Remote Access" hint="Watch away from home. Signing in always needs a password there.">
+          <Section sectionKey="Remote Access" title={t("serverSettings:settings.remoteAccess")} hint={t("serverSettings:settings.watchAwayFromHome")}>
             <RemoteRows settings={s} onSave={(p) => update.mutateAsync(p)} busy={update.isPending} />
-            <Row setting="remote_kbps" label="Limit each remote stream" description="Bigger videos are converted down to this so they play smoothly away from home.">
+            <Row setting="remote_kbps" label={t("serverSettings:settings.limitEachRemoteStream")} description={t("serverSettings:settings.biggerVideosAreConverted")}>
               <select
-                aria-label="Limit each remote stream"
+                aria-label={t("serverSettings:settings.limitEachRemoteStream")}
             value={s.remote_kbps}
                 disabled={update.isPending}
                 onChange={(e) => update.mutate({ remote_kbps: Number(e.target.value) })}
                 className={`${inputClass} w-48 [&>option]:bg-surface`}
               >
-                <option value={0}>Original (no limit)</option>
+                <option value={0}>{t("serverSettings:settings.originalNoLimit")}</option>
                 {qualities.map((q) => (
                   <option key={q} value={q}>
                     {qualityName(q)}
@@ -491,83 +494,82 @@ function ServerSettings() {
             <UploadRow kbps={s.upload_kbps} onSave={(kbps) => update.mutateAsync({ upload_kbps: kbps })} />
           </Section>
 
-          <Section title="Devices" hint="Browsers and apps signed in to Arc. Sign out any you don't recognise.">
+          <Section sectionKey="Devices" title={t("serverSettings:settings.devices")} hint={t("serverSettings:settings.browsersAndAppsSigned")}>
             <DevicesList />
           </Section>
 
-          <Section
-            title="Scheduled tasks"
-            hint="Heavy work waits for a quiet time of night, so it doesn't slow anyone watching."
+          <Section sectionKey="Scheduled tasks" title={t("serverSettings:settings.scheduledTasks")}
+            hint={t("serverSettings:settings.heavyWorkWaitsFor")}
           >
             <Row
-              setting={['maintenance_start', 'maintenance_end']} label="Maintenance time"
+              setting={['maintenance_start', 'maintenance_end']} label={t("serverSettings:settings.maintenanceTime")}
               description={<>
-                {s.maintenance_start === s.maintenance_end ? 'Tasks can run at any time.' : 'Tasks run between these hours, and carry on the next night if they don’t finish.'}
+                <span>{s.maintenance_start === s.maintenance_end ? t("serverSettings:settings.tasksCanRunAt") : t("serverSettings:settings.tasksRunBetweenThese")}</span>
                 <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
               </>}
             >
               <div className="flex items-center gap-2 text-sm">
-                <HourSelect label="Maintenance start" value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
-                <span className="text-muted">to</span>
-                <HourSelect label="Maintenance end" value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
+                <HourSelect label={t("serverSettings:settings.maintenanceStart")} value={s.maintenance_start} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_start: h })} />
+                <span className="text-muted">{t("serverSettings:settings.to")}</span>
+                <HourSelect label={t("serverSettings:settings.maintenanceEnd")} value={s.maintenance_end} disabled={update.isPending} onChange={(h) => update.mutate({ maintenance_end: h })} />
               </div>
             </Row>
             <MaintenanceTasks
               rows={[
                 {
-                  kind: 'previews', label: 'Scrubbing previews',
-                  description: 'Pictures shown while dragging along the timeline, for libraries that have them turned on.',
-                  control: <ProcessingSelect label="Scrubbing previews" value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
+                  kind: 'previews', label: t('serverSettings:tasks.previewsLabel'),
+                  description: t('serverSettings:tasks.previewsDescription'),
+                  control: <ProcessingSelect label={t("serverSettings:settings.scrubbingPreviews")} value={s.preview_mode} busy={update.isPending} onChange={v => update.mutate({ preview_mode: v })} />,
                   feedback: <SaveFeedback settings={['preview_mode']} />,
                 },
                 {
-                  kind: 'markers', label: 'Intro & credit detection',
-                  description: 'Finds intros by comparing a season’s episodes, and movie end credits, when nothing is found online.',
-                  control: <ProcessingSelect label="Intro & credit detection" value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
+                  kind: 'markers', label: t('serverSettings:tasks.markersLabel'),
+                  description: t('serverSettings:tasks.markersDescription'),
+                  control: <ProcessingSelect label={t("serverSettings:settings.introCreditDetection")} value={s.detection_mode} busy={update.isPending} onChange={v => update.mutate({ detection_mode: v })} />,
                   feedback: <SaveFeedback settings={['detection_mode']} />,
                 },
                 {
-                  kind: 'analysis', label: 'Media analysis',
-                  description: 'Brings older files up to date when Arc learns to read more from them, such as Dolby Vision, HDR10+ and Atmos. New files are analysed when added.',
-                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label="Media analysis" />,
+                  kind: 'analysis', label: t('serverSettings:tasks.analysisLabel'),
+                  description: t('serverSettings:tasks.analysisDescription'),
+                  control: <Switch checked={s.analysis_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ analysis_enabled: v })} aria-label={t("serverSettings:settings.mediaAnalysis")} />,
                   feedback: <SaveFeedback settings={['analysis_enabled']} />,
                 },
                 {
-                  kind: 'metadata', label: 'Metadata refresh',
-                  description: 'Keeps titles’ details and artwork up to date, more often for shows that are still airing.',
-                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label="Metadata refresh" />,
+                  kind: 'metadata', label: t('serverSettings:tasks.metadataLabel'),
+                  description: t('serverSettings:tasks.metadataDescription'),
+                  control: <Switch checked={s.metadata_refresh_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ metadata_refresh_enabled: v })} aria-label={t("serverSettings:settings.metadataRefresh")} />,
                   feedback: <SaveFeedback settings={['metadata_refresh_enabled']} />,
                 },
                 {
-                  kind: 'backup', label: 'Database backups',
-                  description: 'A daily backup of Arc’s database. You can also back up any time in Backups & restore.',
-                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label="Database backups" />,
+                  kind: 'backup', label: t('serverSettings:tasks.backupLabel'),
+                  description: t('serverSettings:tasks.backupDescription'),
+                  control: <Switch checked={s.auto_backups_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ auto_backups_enabled: v })} aria-label={t("serverSettings:settings.databaseBackups")} />,
                   feedback: <SaveFeedback settings={['auto_backups_enabled']} />,
                 },
                 {
-                  kind: 'database', label: 'Optimize database',
-                  description: 'A weekly check and tidy-up that keeps Arc’s database fast and compact.',
-                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label="Optimize database automatically" />,
+                  kind: 'database', label: t('serverSettings:tasks.databaseLabel'),
+                  description: t('serverSettings:tasks.databaseDescription'),
+                  control: <Switch checked={s.database_upkeep_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ database_upkeep_enabled: v })} aria-label={t("serverSettings:settings.optimizeDatabaseAutomatically")} />,
                   feedback: <SaveFeedback settings={['database_upkeep_enabled']} />,
                 },
                 {
-                  kind: 'cache', label: 'Clean up cached files',
-                  description: 'Weekly removal of cached images, previews and subtitles nothing uses any more. Your media files are never touched.',
-                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label="Clean up cached files automatically" />,
+                  kind: 'cache', label: t('serverSettings:tasks.cacheLabel'),
+                  description: t('serverSettings:tasks.cacheDescription'),
+                  control: <Switch checked={s.cache_cleanup_enabled} disabled={update.isPending} onCheckedChange={v => update.mutate({ cache_cleanup_enabled: v })} aria-label={t("serverSettings:settings.cleanUpCachedFiles")} />,
                   feedback: <SaveFeedback settings={['cache_cleanup_enabled']} />,
                 },
                 {
-                  kind: 'empty_trash', label: 'Empty trash automatically',
-                  description: 'After a complete scan, removes titles whose files are gone, with their watch history. Leave it off if you sometimes disconnect drives. Your files are never deleted.',
+                  kind: 'empty_trash', label: t('serverSettings:tasks.emptyTrashLabel'),
+                  description: t('serverSettings:tasks.emptyTrashDescription'),
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
                   feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
-                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">Choose library…</Link>,
+                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">{t("serverSettings:settings.chooseLibrary")}</Link>,
                 },
               ]}
             />
           </Section>
 
-          <Section title="Diagnostics" hint="Information to help when something is slow or goes wrong."><Diagnostics /></Section>
+          <Section sectionKey="Diagnostics" title={t("serverSettings:settings.diagnostics")} hint={t("serverSettings:settings.informationToHelpWhen")}><Diagnostics /></Section>
 
         </>
       )}
@@ -577,6 +579,7 @@ function ServerSettings() {
 
 /** The home's internet upload speed, shared between remote streams. */
 function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const pending = useContext(SaveFeedbackContext)?.status === 'pending';
   const save = async () => {
     try { await onSave(value); } catch { /* Row feedback provides the error and retry. */ }
@@ -586,16 +589,14 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
   const valid = mbps.trim() === '' || (Number.isFinite(value) && value >= 0);
   return (
     <Row
-      setting="upload_kbps" label="Internet upload speed"
-      description="From a speed test. Remote streams share 80% of it."
+      setting="upload_kbps" label={t("accessSettings:settings.internetUploadSpeed")}
+      description={t("accessSettings:settings.fromASpeedTest")}
     >
       <div className="flex items-center gap-2">
-        <input aria-label="Internet upload speed" disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder="Not set" className={`${inputClass} w-24 text-right`} />
-        <span className="text-sm text-muted">Mbps</span>
+        <input aria-label={t("accessSettings:settings.internetUploadSpeed")} disabled={pending} value={mbps} onChange={(e) => setMbps(e.target.value)} inputMode="decimal" placeholder={t("accessSettings:settings.notSet")} className={`${inputClass} w-24 text-right`} />
+        <span className="text-sm text-muted">{t("accessSettings:settings.mbps")}</span>
         {valid && value !== kbps && (
-          <Button variant="secondary" size="sm" disabled={pending} onClick={() => void save()}>
-            Save
-          </Button>
+          <Button variant="secondary" size="sm" disabled={pending} onClick={() => void save()}>{t("accessSettings:settings.save")}</Button>
         )}
       </div>
     </Row>
@@ -604,6 +605,7 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
 
 /** Remote access: on or off, the outside address and a check, the router, and HTTPS. */
 function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown>; busy: boolean }) {
+  const { t } = useTranslation('accessSettings');
   const status = useQuery({
     queryKey: ['remote', s.remote_access, s.upnp, s.remote_port, s.https_mode, s.https_domain, s.https_cert],
     queryFn: api.remote,
@@ -621,75 +623,68 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
   return (
     <>
       <Row
-        compact setting="remote_access" label="Remote access"
+        compact setting="remote_access" label={t("accessSettings:settings.remoteAccess")}
         description={
-          <>
-            Let your household and friends sign in from outside your home.
-          </>
+          <>{t("accessSettings:settings.letYourHouseholdAnd")}</>
         }
       >
-        <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label="Remote access" />
+        <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label={t("accessSettings:settings.remoteAccess")} />
       </Row>
       {s.remote_access && (
         <>
           <Row
-            label="Outside address"
+            label={t("accessSettings:settings.outsideAddress")}
             description={
               !r ? (
-                'Finding it…'
+                t("accessSettings:settings.findingIt")
               ) : r.url ? (
                 <>
                   <span className="font-mono text-foreground/80">{r.url}</span>
                   {r.double_nat && (
                     <span className="mt-1 flex items-start gap-1.5 text-warning">
-                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                      Your router is behind another router or your provider shares addresses, so people outside may not reach Arc even with the port forwarded.
-                    </span>
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.yourRouterIsBehind")}</span>
                   )}
                   {check.data && (
                     <span className={`mt-1 flex items-start gap-1.5 ${check.data.reachable ? 'text-foreground' : 'text-warning'}`}>
                       {check.data.reachable ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-accent" /> : <XCircle className="mt-0.5 size-3.5 shrink-0" />}
                       {check.data.reachable
-                        ? 'Arc answered at its outside address.'
-                        : `${check.data.error}. Many routers can't reach their own outside address from inside the home, so try it on a phone with Wi-Fi off.`}
+                        ? t("accessSettings:settings.arcAnsweredAtIts")
+                        : t('accessSettings:settings.checkError', { error: check.data.error })}
                     </span>
                   )}
                 </>
               ) : (
-                "Your home's outside address couldn't be found."
+                t("accessSettings:settings.yourHomeSOutside")
               )
             }
           >
             {r?.url && (
               <div className="flex gap-2">
-                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(r.url!)} aria-label="Copy address">
+                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(r.url!)} aria-label={t("accessSettings:settings.copyAddress")}>
                   <Copy />
                 </Button>
                 <Button size="sm" variant="secondary" disabled={check.isPending} onClick={() => check.mutate()}>
-                  {check.isPending && <Loader2 className="animate-spin" />} Check
-                </Button>
+                  {check.isPending && <Loader2 className="animate-spin" />} {t("accessSettings:settings.check")}</Button>
               </div>
             )}
           </Row>
           <Row
-            compact setting="upnp" label="Open the port on the router"
+            compact setting="upnp" label={t("accessSettings:settings.openThePortOn")}
             description={
               !s.upnp ? (
-                <>
-                  Forward port {s.remote_port} on your router to port {s.port} on this computer, in the router&apos;s settings.
-                </>
+                <>{t('accessSettings:settings.forwardDescription', { outside: s.remote_port, inside: s.port })}</>
               ) : r?.upnp.state === 'mapped' ? (
                 <span className="inline-flex items-center gap-1 text-foreground/80">
-                  <CheckCircle2 className="size-3.5 text-accent" /> Port {r.port} is forwarded{r.upnp.router ? ` by ${r.upnp.router}` : ''}
+                  <CheckCircle2 className="size-3.5 text-accent" /> {r.upnp.router ? t('accessSettings:settings.forwardedRouter', { port: r.port, router: r.upnp.router }) : t('accessSettings:settings.forwarded', { port: r.port })}
                 </span>
               ) : r?.upnp.state === 'failed' ? (
                 <span className="text-warning">{r.upnp.error}</span>
               ) : (
-                'Asking the router (UPnP)…'
+                t("accessSettings:settings.askingTheRouterUpnp")
               )
             }
           >
-            <Switch checked={s.upnp} disabled={busy} onCheckedChange={(v) => save({ upnp: v })} aria-label="Open the port with UPnP" />
+            <Switch checked={s.upnp} disabled={busy} onCheckedChange={(v) => save({ upnp: v })} aria-label={t("accessSettings:settings.openThePortWith")} />
           </Row>
           <OutsidePortRow settings={s} onSave={save} />
           <HTTPSRows settings={s} status={r?.https} onSave={save} />
@@ -700,12 +695,13 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
 }
 
 function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [port, setPort] = useState(String(s.remote_port));
   const n = Number(port);
   return (
     <Row
-      setting="remote_port" label="Outside port"
-      description={`The port people away from home connect to. Usually the same as Arc's port (${s.port}); Let's Encrypt needs 443.`}
+      setting="remote_port" label={t("accessSettings:settings.outsidePort")}
+      description={t('accessSettings:settings.outsidePortDescription', { port: s.port })}
     >
       <form
         className="flex gap-2"
@@ -716,9 +712,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
       >
         <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" className={`${inputClass} w-24`} />
         {n !== s.remote_port && n > 0 && n < 65536 && (
-          <Button size="sm" variant="primary" type="submit">
-            Change
-          </Button>
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.change")}</Button>
         )}
       </form>
     </Row>
@@ -727,6 +721,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
 
 /** HTTPS: off, your own certificate, or Let's Encrypt; and how the certificate stands. */
 function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; status?: RemoteStatus['https']; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [mode, setMode] = useState(s.https_mode);
   const [cert, setCert] = useState(s.https_cert);
   const [key, setKey] = useState(s.https_key);
@@ -746,54 +741,48 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
     <div className="space-y-3 px-4 py-3.5">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-64">
-          <p className="text-sm font-medium">HTTPS</p>
+          <p className="text-sm font-medium">{t("accessSettings:settings.https")}</p>
           <div className="mt-0.5 text-xs leading-relaxed text-muted">
             {s.https_mode === '' ? (
               <span className="flex items-start gap-1.5 text-warning">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                Off: away from home, passwords and what you watch travel unencrypted. Turn it on before sharing your address.
-              </span>
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.offAwayFromHome")}</span>
             ) : status?.error ? (
               <span className="text-warning">{status.error}</span>
             ) : status?.fetching ? (
-              "Asking Let's Encrypt for a certificate…"
+              t("accessSettings:settings.askingLetSEncrypt")
             ) : expires ? (
               <span className="inline-flex items-center gap-1 text-foreground/80">
-                <CheckCircle2 className="size-3.5 text-accent" /> Certificate for {status?.names?.join(', ')}, until {expires.toLocaleDateString()}
-                {s.https_mode === 'letsencrypt' && ' (renewed automatically)'}
+                <CheckCircle2 className="size-3.5 text-accent" /> {s.https_mode === 'letsencrypt' ? t('accessSettings:settings.automaticCertificate', { names: status?.names?.join(', '), date: fmt.localDate(expires) }) : t('accessSettings:settings.certificate', { names: status?.names?.join(', '), date: fmt.localDate(expires) })}
               </span>
             ) : s.https_mode === 'letsencrypt' ? (
-              'The certificate is fetched on the first visit to the domain.'
+              t("accessSettings:settings.theCertificateIsFetched")
             ) : null}
-            <span className="mt-1 block">On the same port as plain HTTP. At home both work; people away from home are sent to HTTPS.</span>
+            <span className="mt-1 block">{t("accessSettings:settings.onTheSamePort")}</span>
           </div>
         </div>
-        <select aria-label="HTTPS mode" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
-          <option value="">Off</option>
-          <option value="letsencrypt">Let&apos;s Encrypt (free)</option>
-          <option value="files">My own certificate</option>
+        <select aria-label={t("accessSettings:settings.httpsMode")} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>
+          <option value="">{t("accessSettings:settings.off")}</option>
+          <option value="letsencrypt">{t("accessSettings:settings.letSEncryptFree")}</option>
+          <option value="files">{t("accessSettings:settings.myOwnCertificate")}</option>
         </select>
       </div>
       {mode === 'letsencrypt' && (
         <div>
-          <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="arc.example.com" spellCheck={false} className={`${inputClass} w-full`} />
-          <p className="mt-1.5 text-xs text-subtle">
-            A domain name pointing at your home&apos;s address (a free dynamic DNS name works). Let&apos;s Encrypt checks it on port 443, so set the outside port to 443.
-          </p>
+          <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder={t("accessSettings:settings.arcExampleCom")} spellCheck={false} className={`${inputClass} w-full`} />
+          <p className="mt-1.5 text-xs text-subtle">{t("accessSettings:settings.aDomainNamePointing")}</p>
         </div>
       )}
       {mode === 'files' && (
         <div className="grid gap-2">
-          <input value={cert} onChange={(e) => setCert(e.target.value)} placeholder="Certificate file (.pem or .crt), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
-          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Private key file (.pem or .key), full path" spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
-          <p className="text-xs text-subtle">PEM files, read again whenever they change, so another tool can renew them.</p>
+          <input value={cert} onChange={(e) => setCert(e.target.value)} placeholder={t("accessSettings:settings.certificateFilePemOr")} spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={t("accessSettings:settings.privateKeyFilePem")} spellCheck={false} className={`${inputClass} w-full font-mono text-xs`} />
+          <p className="text-xs text-subtle">{t("accessSettings:settings.pemFilesReadAgain")}</p>
         </div>
       )}
       {changed && (
         <div className="flex justify-end">
           <Button size="sm" variant="primary" disabled={busy} onClick={apply}>
-            {busy && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("accessSettings:settings.save")}</Button>
         </div>
       )}
       <SaveFeedback settings={['https_mode', 'https_domain', 'https_cert', 'https_key']} />
@@ -803,6 +792,7 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
 
 /** Pre-roll videos: files or folders, and whether one plays at random or all of them. */
 function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [paths, setPaths] = useState(s.preroll_paths);
   const [busy, setBusy] = useState(false);
   const changed = paths.trim() !== s.preroll_paths;
@@ -819,36 +809,33 @@ function PrerollRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
   return (
     <div className="space-y-3 px-4 py-3.5">
       <div>
-        <p className="text-sm font-medium">Videos</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">
-          Files or folders, one per line. Played when a movie starts from the beginning, not when resuming. MP4 (H.264) plays everywhere.
-        </p>
+        <p className="text-sm font-medium">{t("serverSettings:settings.videos")}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted">{t("serverSettings:settings.filesOrFoldersOne")}</p>
       </div>
       <textarea
         value={paths}
         onChange={(e) => setPaths(e.target.value)}
         rows={3}
-        placeholder={'D:\\Pre-rolls\nD:\\Trailers\\Arc intro.mp4'}
+        placeholder={t("serverSettings:settings.dPreRollsD")}
         className={`${inputClass} h-auto w-full resize-y py-2 font-mono text-xs leading-relaxed`}
       />
       <div className="flex flex-wrap items-center gap-3">
         <select
-          aria-label="Pre-roll order"
+          aria-label={t("serverSettings:settings.preRollOrder")}
             value={s.preroll_mode}
           disabled={busy}
           onChange={(e) => save({ preroll_mode: e.target.value as 'random' | 'all' })}
           className={`${inputClass} [&>option]:bg-surface`}
         >
-          <option value="random">Play one at random</option>
-          <option value="all">Play them all, in order</option>
+          <option value="random">{t("serverSettings:settings.playOneAtRandom")}</option>
+          <option value="all">{t("serverSettings:settings.playThemAllIn")}</option>
         </select>
         <span className="flex-1 text-xs text-muted">
-          {s.preroll_paths ? (s.preroll_found ? `${s.preroll_found} video${s.preroll_found === 1 ? '' : 's'} found` : 'No videos found there') : 'Off'}
+          {s.preroll_paths ? (s.preroll_found ? t('serverSettings:settings.prerollFound', { count: s.preroll_found }) : t("serverSettings:settings.noVideosFoundThere")) : t("serverSettings:settings.off")}
         </span>
         {changed && (
           <Button variant="primary" size="sm" disabled={busy} onClick={() => save({ preroll_paths: paths.trim() })}>
-            {busy && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.save")}</Button>
         )}
       </div>
       <SaveFeedback settings={['preroll_paths', 'preroll_mode']} />
@@ -871,11 +858,12 @@ function HourSelect({ value, disabled, onChange, label }: { label: string; value
 
 function sectionId(title: string) { return 'settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ sectionKey, title, hint, children }: { sectionKey: string; title: string; hint?: string; children: ReactNode }) {
+  const key = sectionKey;
   const group = useContext(SettingsSection);
-  if (group !== 'profile' && sectionGroups[title] !== group) return null;
+  if (group !== 'profile' && sectionGroups[key] !== group) return null;
   return (
-    <section id={sectionId(title)} className="scroll-mt-24 lg:scroll-mt-6">
+    <section id={sectionId(key)} className="scroll-mt-24 lg:scroll-mt-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
       <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">{children}</div>
@@ -887,11 +875,12 @@ type SaveState = { keys: string[]; status: 'idle' | 'pending' | 'error' | 'succe
 const SaveFeedbackContext = createContext<SaveState | null>(null);
 
 function SaveFeedback({ settings, className }: { settings: string[]; className?: string }) {
+  const { t } = useTranslation('serverSettings');
   const save = useContext(SaveFeedbackContext);
   if (!save || !settings.some(key => save.keys.includes(key))) return null;
   if (save.status === 'error') return <div className={className}><ErrorNotice error={save.error} onRetry={save.retry} /></div>;
   if (save.status === 'idle') return null;
-  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? 'Saving…' : 'Saved'}</p>;
+  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? t("serverSettings:settings.saving") : t("serverSettings:settings.saved")}</p>;
 }
 
 function Row({ label, description, children, setting, compact = false }: { label: string; description?: ReactNode; children?: ReactNode; setting?: string | string[]; compact?: boolean }) {
@@ -920,6 +909,7 @@ function ToggleRow({ label, description, checked, busy, onChange, setting }: { l
 
 /** Shows whether a key is set; "Change" reveals a field. Keys are checked with the service before saving. */
 function KeyRow({ label, description, current, fixed, link, onSave }: { label: string; description: string; current: string; fixed?: boolean; link: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -944,14 +934,13 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
         <>
           {description}{' '}
           {fixed ? (
-            'Set by an environment variable.'
+            t("serverSettings:settings.setByAnEnvironment")
           ) : current ? (
             <span className="inline-flex items-center gap-1 text-foreground/80">
-              <CheckCircle2 className="size-3.5 text-accent" /> Key {current}
+              <CheckCircle2 className="size-3.5 text-accent" /> {t("serverSettings:settings.key")} {current}
             </span>
           ) : (
-            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
-              Get a free key <ExternalLink className="size-3" />
+            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">{t("serverSettings:settings.getAFreeKey")} <ExternalLink className="size-3" />
             </a>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -967,23 +956,18 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
               save(value.trim());
             }}
           >
-            <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder="Paste the key" className={`${inputClass} w-56`} spellCheck={false} />
+            <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("serverSettings:settings.pasteTheKey")} className={`${inputClass} w-56`} spellCheck={false} />
             <Button size="sm" variant="primary" type="submit" disabled={!value.trim() || busy}>
-              {busy && <Loader2 className="animate-spin" />} Save
-            </Button>
-            <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
+              {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.save")}</Button>
+            <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>{t("serverSettings:settings.cancel")}</Button>
           </form>
         ) : (
           <div className="flex gap-2">
             {current && (
-              <Button size="sm" variant="ghost" onClick={() => save('')} disabled={busy}>
-                Remove
-              </Button>
+              <Button size="sm" variant="ghost" onClick={() => save('')} disabled={busy}>{t("serverSettings:settings.remove")}</Button>
             )}
             <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-              {current ? 'Change' : 'Add Key'}
+              {current ? t("serverSettings:settings.change") : t("serverSettings:settings.addKey")}
             </Button>
           </div>
         ))}
@@ -993,6 +977,7 @@ function KeyRow({ label, description, current, fixed, link, onSave }: { label: s
 
 /** An optional OpenSubtitles account: more downloads a day than the key alone. */
 function AccountRow({ username, onSave }: { username: string; onSave: (username: string, password: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
@@ -1013,15 +998,15 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
   };
   return (
     <Row
-      label="OpenSubtitles account"
+      label={t("serverSettings:settings.opensubtitlesAccount")}
       description={
         <>
           {username ? (
             <span className="inline-flex items-center gap-1 text-foreground/80">
-              <CheckCircle2 className="size-3.5 text-accent" /> Signed in as {username}
+              <CheckCircle2 className="size-3.5 text-accent" /> {t('serverSettings:settings.accountName', { username })}
             </span>
           ) : (
-            'Optional: signing in allows more downloads a day.'
+            t("serverSettings:settings.optionalSigningInAllows")
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
@@ -1035,24 +1020,19 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
             save(user.trim(), pass);
           }}
         >
-          <input autoFocus value={user} onChange={(e) => setUser(e.target.value)} placeholder="Username" autoComplete="off" className={`${inputClass} w-36`} />
-          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder="Password" autoComplete="new-password" className={`${inputClass} w-36`} />
+          <input autoFocus value={user} onChange={(e) => setUser(e.target.value)} placeholder={t("serverSettings:settings.username")} autoComplete="off" className={`${inputClass} w-36`} />
+          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder={t("serverSettings:settings.password")} autoComplete="new-password" className={`${inputClass} w-36`} />
           <Button size="sm" variant="primary" type="submit" disabled={!user.trim() || !pass || busy}>
-            {busy && <Loader2 className="animate-spin" />} Sign In
-          </Button>
-          <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
+            {busy && <Loader2 className="animate-spin" />} {t("serverSettings:settings.signIn2")}</Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => setEditing(false)}>{t("serverSettings:settings.cancel")}</Button>
         </form>
       ) : (
         <div className="flex gap-2">
           {username && (
-            <Button size="sm" variant="ghost" onClick={() => save('', '')} disabled={busy}>
-              Sign Out
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => save('', '')} disabled={busy}>{t("serverSettings:settings.signOut")}</Button>
           )}
           <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-            {username ? 'Change' : 'Sign In'}
+            {username ? t("serverSettings:settings.change") : t("serverSettings:settings.signIn2")}
           </Button>
         </div>
       )}
@@ -1062,6 +1042,7 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
 
 /** Where converted streams are written while they're watched. */
 function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState('');
   const save = async (v: string) => {
@@ -1076,24 +1057,19 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
   return (
     <>
       <Row
-        label="Temporary folder"
+        label={t("serverSettings:settings.temporaryFolder")}
         description={
-          <>
-            Where video is kept while it&apos;s converted. A fast drive with free space works best.{' '}
-            <span className="font-mono text-foreground/80">{value || "Arc's data folder"}</span>
+          <>{t("serverSettings:settings.whereVideoIsKept")}{' '}
+            <span className="font-mono text-foreground/80">{value || t("serverSettings:settings.arcSDataFolder")}</span>
             {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
         <div className="flex gap-2">
           {value && (
-            <Button size="sm" variant="ghost" onClick={() => void save('')}>
-              Use Default
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>
           )}
-          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
-            Choose…
-          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>{t("serverSettings:settings.choose")}</Button>
         </div>
       </Row>
       {picking && (
@@ -1107,6 +1083,7 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
 
 /** Networks that count as home besides the usual private ones (Plex's "LAN networks"). */
 function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [text, setText] = useState(value);
   const [error, setError] = useState('');
   const save = async (v: string) => {
@@ -1120,14 +1097,11 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
   const tailscale = '100.64.0.0/10';
   return (
     <Row
-      label="Home networks"
+      label={t("accessSettings:settings.homeNetworks")}
       description={
-        <>
-          Extra networks to treat as home, like a VPN or Tailscale ({tailscale}).
+        <>{t('accessSettings:settings.networksDescription', { network: tailscale })}
           {!value.includes(tailscale) && (
-            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>
-              Add Tailscale
-            </button>
+            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>{t("accessSettings:settings.addTailscale")}</button>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
@@ -1140,10 +1114,48 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
           void save(text);
         }}
       >
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="None" spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("accessSettings:settings.none")} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        {text.trim() !== value && (
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.save")}</Button>
+        )}
+      </form>
+    </Row>
+  );
+}
+
+/** Reverse proxies (SWAG, Nginx Proxy Manager…) whose reports of the visitor's address Arc believes. */
+function TrustedProxiesRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
+  const [text, setText] = useState(value);
+  const [error, setError] = useState('');
+  // Show the saved, tidied form (e.g. 172.17.0.5/32) once it's stored.
+  useEffect(() => { setText(value); }, [value]);
+  return (
+    <Row
+      label={t('accessSettings:settings.trustedProxies')}
+      description={
+        <>
+          {t('accessSettings:settings.trustedProxiesDescription')}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
+        </>
+      }
+    >
+      <form
+        className="flex gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError('');
+          try {
+            await onSave(text);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+          }
+        }}
+      >
+        <input aria-label={t('accessSettings:settings.trustedProxies')} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('accessSettings:settings.none')} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
         {text.trim() !== value && (
           <Button size="sm" variant="primary" type="submit">
-            Save
+            {t('common:actions.save')}
           </Button>
         )}
       </form>
@@ -1152,6 +1164,7 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
 }
 
 function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (port: number) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
   const [port, setPort] = useState(String(s.port));
   const [error, setError] = useState('');
   const [moved, setMoved] = useState('');
@@ -1159,17 +1172,11 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
   const host = s.allow_network ? window.location.hostname : 'localhost';
   return (
     <Row
-      label="Port"
+      label={t("accessSettings:settings.port")}
       description={
-        <>
-          Arc is at <span className="font-mono text-foreground/80">http://{host}:{s.port}</span>
+        <><Trans ns="accessSettings" i18nKey="settings.localAddress" values={{ address: `http://${host}:${s.port}` }} components={{ address: <span className="font-mono text-foreground/80" /> }} />
           {moved && (
-            <span className="mt-1 block text-foreground">
-              Arc has moved.{' '}
-              <a className="text-accent hover:underline" href={moved}>
-                Open it at its new address
-              </a>
-              .
+            <span className="mt-1 block text-foreground"><Trans ns="accessSettings" i18nKey="settings.movedAddress" components={{ address: <a className="text-accent hover:underline" href={moved} /> }} />
             </span>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -1193,9 +1200,7 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
       >
         <input value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" className={`${inputClass} w-24`} />
         {changed && (
-          <Button size="sm" variant="primary" type="submit">
-            Change
-          </Button>
+          <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.change")}</Button>
         )}
       </form>
     </Row>
@@ -1203,12 +1208,13 @@ function PortRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (p
 }
 
 function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave: (path: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
   const [path, setPath] = useState(s.ffprobe_path);
   const [error, setError] = useState('');
   const ok = s.ffprobe.found;
   return (
     <Row
-      label="ffprobe"
+      label={t("serverSettings:settings.ffprobe")}
       description={
         <>
           <span className="flex items-center gap-1.5">
@@ -1220,13 +1226,12 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
             <span className="mt-1.5 flex items-center gap-1.5">
               {s.ffprobe.ffmpeg ? <CheckCircle2 className="size-3.5 shrink-0 text-accent" /> : <XCircle className="size-3.5 shrink-0 text-warning" />}
               {s.ffprobe.ffmpeg
-                ? 'FFmpeg found: files a browser can’t play are converted as they’re watched'
-                : 'FFmpeg wasn’t found next to ffprobe, so files a browser can’t play won’t be converted'}
+                ? t("serverSettings:settings.ffmpegFoundFilesA")
+                : t("serverSettings:settings.ffmpegWasnTFound")}
             </span>
           )}
           {!ok && (
-            <a href="https://ffmpeg.org/download.html" target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-accent hover:underline">
-              Download FFmpeg <ExternalLink className="size-3" />
+            <a href="https://ffmpeg.org/download.html" target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-accent hover:underline">{t("serverSettings:settings.downloadFfmpeg")} <ExternalLink className="size-3" />
             </a>
           )}
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
@@ -1245,11 +1250,9 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
           }
         }}
       >
-        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="Found automatically" className={`${inputClass} min-w-0 flex-1 font-mono text-xs sm:w-72`} spellCheck={false} />
+        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t("serverSettings:settings.foundAutomatically")} className={`${inputClass} min-w-0 flex-1 font-mono text-xs sm:w-72`} spellCheck={false} />
         {path !== s.ffprobe_path && (
-          <Button size="sm" variant="primary" type="submit" disabled={s.from_env.ffprobe_path}>
-            Save
-          </Button>
+          <Button size="sm" variant="primary" type="submit" disabled={s.from_env.ffprobe_path}>{t("serverSettings:settings.save")}</Button>
         )}
       </form>
     </Row>
@@ -1257,6 +1260,7 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
 }
 
 function PasswordRow() {
+  const { t } = useTranslation('profileSettings');
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -1272,11 +1276,9 @@ function PasswordRow() {
   });
   return (
     <Row
-      label="Password"
+      label={t("profileSettings:settings.password")}
       description={
-        <>
-          Used to sign in away from home, and for the admin profile.
-          {done && <span className="mt-1 block text-foreground">Password changed. Other devices signed in with the old one were signed out.</span>}
+        <>{t("profileSettings:settings.usedToSignIn")}{done && <span className="mt-1 block text-foreground">{t("profileSettings:settings.passwordChangedOtherDevices")}</span>}
           {change.error && <span role="alert" className="mt-1 block text-warning">{change.error.message}</span>}
         </>
       }
@@ -1289,25 +1291,26 @@ function PasswordRow() {
             change.mutate();
           }}
         >
-          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current" className={`${inputClass} w-36`} autoComplete="current-password" />
-          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New (8+ characters)" className={`${inputClass} w-44`} autoComplete="new-password" />
-          <Button size="sm" variant="primary" type="submit" disabled={!current || next.length < 8 || change.isPending}>
-            Change
-          </Button>
+          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder={t("profileSettings:settings.current")} className={`${inputClass} w-36`} autoComplete="current-password" />
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("profileSettings:settings.new8Characters")} className={`${inputClass} w-44`} autoComplete="new-password" />
+          <Button size="sm" variant="primary" type="submit" disabled={!current || next.length < 8 || change.isPending}>{t("profileSettings:settings.change")}</Button>
         </form>
       ) : (
-        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
-          Change Password
-        </Button>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>{t("profileSettings:settings.changePassword")}</Button>
       )}
     </Row>
   );
 }
 
-const processingLabels: Record<ServerSettings['preview_mode'], string> = { off: 'Off', scheduled: 'During maintenance', added: 'When added and during maintenance' };
+
+
+function processingLabels(): Record<ServerSettings['preview_mode'], string> {
+  return { off: i18n.t('serverSettings:processing.off'), scheduled: i18n.t('serverSettings:processing.scheduled'), added: i18n.t('serverSettings:processing.added') };
+}
 
 function ProcessingSelect({label,value,busy,onChange}:{label:string;value:ServerSettings['preview_mode'];busy:boolean;onChange:(value:ServerSettings['preview_mode'])=>void}) {
+  useTranslation('serverSettings');
  return <select aria-label={label} value={value} disabled={busy} onChange={e=>onChange(e.target.value as ServerSettings['preview_mode'])} className={inputClass+' min-w-0 flex-1 sm:w-72 sm:flex-none [&>option]:bg-surface'}>
-  {(Object.keys(processingLabels) as ServerSettings['preview_mode'][]).map(v => <option key={v} value={v}>{processingLabels[v]}</option>)}
+  {(Object.keys(processingLabels()) as ServerSettings['preview_mode'][]).map(v => <option key={v} value={v}>{processingLabels()[v]}</option>)}
  </select>;
 }

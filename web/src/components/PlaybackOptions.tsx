@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Play, SlidersHorizontal } from 'lucide-react';
@@ -12,12 +13,13 @@ import { Field, inputClass } from '@/components/ui/field';
 
 /** A deliberate preplay path; the ordinary Play button keeps its automatic defaults. */
 export function PlaybackOptionsButton({ item, compact = false }: { item: NowPlaying; compact?: boolean }) {
+  const { t } = useTranslation('titleActions');
   const [open, setOpen] = useState(false);
   const play = usePlayer();
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild>
       <Button variant={compact ? 'ghost' : 'secondary'} size={compact ? 'icon' : 'lg'} className={compact ? undefined : 'size-12 rounded-2xl px-0'}
-        title="Playback options" aria-label={compact ? `Playback options for ${item.title}` : 'Playback options'}>
+        title={t("titleActions:playbackOptions.playbackOptions")} aria-label={compact ? t('titleActions:playbackOptions.forTitle', { title: item.title }) : t("titleActions:playbackOptions.playbackOptions")}>
         <SlidersHorizontal className={compact ? 'size-4' : undefined} />
       </Button>
     </DialogTrigger>
@@ -29,6 +31,7 @@ export function PlaybackOptionsButton({ item, compact = false }: { item: NowPlay
 }
 
 function Options({ item, onPlay }: { item: NowPlaying; onPlay: (selection: NonNullable<NowPlaying['selection']>, edition?: string) => void }) {
+  const { t } = useTranslation('titleActions');
   const [fileId, setFileId] = useState<number>();
   const [audio, setAudio] = useState('');
   const [subtitle, setSubtitle] = useState('auto');
@@ -40,27 +43,27 @@ function Options({ item, onPlay }: { item: NowPlaying; onPlay: (selection: NonNu
   });
   const data = options.data;
   const selectedEdition = data?.versions.find(v => v.file_id === data.file_id)?.edition;
-  const audioTrack = data?.audio_tracks.find(t => t.index === (audio === '' ? data.audio_stream : Number(audio)));
+  const audioTrack = data?.audio_tracks.find(tabId => tabId.index === (audio === '' ? data.audio_stream : Number(audio)));
   const automaticSubtitle = data && prefs.data && chooseSubtitle(data.subtitle_tracks, prefs.data.subtitle_language, audioTrack?.language, prefs.data.subtitle_mode);
-  const chosenSubtitle = data?.subtitle_tracks.find(t => t.id === subtitle);
+  const chosenSubtitle = data?.subtitle_tracks.find(tabId => tabId.id === subtitle);
   const label = (value: { name: string; detail: string }) => [value.name, value.detail].filter(Boolean).join(' · ');
   const ready = !!data && !!prefs.data && !options.isFetching && !options.error && !prefs.error;
 
-  return <DialogContent title="Playback options" description={[item.title, selectedEdition || (!item.edition ? item.subtitle : undefined)].filter(Boolean).join(' · ')} footer={<>
-    <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+  return <DialogContent title={t("titleActions:playbackOptions.playbackOptions")} description={[item.title, selectedEdition || (!item.edition ? item.subtitle : undefined)].filter(Boolean).join(' · ')} footer={<>
+    <DialogClose asChild><Button variant="ghost">{t("titleActions:playbackOptions.cancel")}</Button></DialogClose>
     <Button variant="primary" disabled={!ready} onClick={() => data && onPlay({
       fileId: data.file_id,
       audioStream: audio === '' ? undefined : Number(audio),
       subtitle: subtitle === 'auto' ? undefined : subtitle === 'off' ? null : subtitle,
       burnSubtitle: chosenSubtitle?.image ? chosenSubtitle.id : undefined,
-    }, selectedEdition)}><Play className="fill-current" />{item.startMS ? 'Resume' : 'Play'}</Button>
+    }, selectedEdition)}><Play className="fill-current" />{item.startMS ? t("titleActions:playbackOptions.resume") : t("titleActions:playbackOptions.play")}</Button>
   </>}>
     <div className="space-y-5 pb-2">
       <ErrorNotice error={options.error} onRetry={() => void options.refetch()} busy={options.isFetching} />
       <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} busy={prefs.isFetching} />
-      {(options.isPending || prefs.isPending) && <p role="status">Loading playback options…</p>}
+      {(options.isPending || prefs.isPending) && <p role="status">{t("titleActions:playbackOptions.loadingPlaybackOptions")}</p>}
       {data && <>
-        <Field label="Version">
+        <Field label={t("titleActions:playbackOptions.version")}>
           <select className={inputClass} value={data.file_id} disabled={options.isFetching} onChange={e => {
             setFileId(Number(e.target.value));
             setAudio('');
@@ -69,25 +72,24 @@ function Options({ item, onPlay }: { item: NowPlaying; onPlay: (selection: NonNu
             {data.versions.map(v => <option key={v.file_id} value={v.file_id}>{label(versionLabel(v))}</option>)}
           </select>
         </Field>
-        <Field label="Audio">
+        <Field label={t("titleActions:playbackOptions.audio")}>
           <select className={inputClass} value={audio} onChange={e => setAudio(e.target.value)} disabled={!ready || !data.audio_tracks.length}>
-            <option value="">Automatic — {data.audio_tracks.find(t => t.index === data.audio_stream)
-              ? label(audioLabel(data.audio_tracks.find(t => t.index === data.audio_stream)!, 0)) : 'No audio'}</option>
-            {data.audio_tracks.map((t, i) => <option key={t.index} value={t.index}>{label(audioLabel(t, i))}</option>)}
+            <option value="">{t('titleActions:playbackOptions.automaticTrack', { track: data.audio_tracks.find(track => track.index === data.audio_stream) ? label(audioLabel(data.audio_tracks.find(track => track.index === data.audio_stream)!, 0)) : t('titleActions:playbackOptions.noAudio') })}</option>
+            {data.audio_tracks.map((tabId, i) => <option key={tabId.index} value={tabId.index}>{label(audioLabel(tabId, i))}</option>)}
           </select>
         </Field>
-        <Field label="Subtitles">
+        <Field label={t("titleActions:playbackOptions.subtitles")}>
           <select className={inputClass} value={subtitle} onChange={e => setSubtitle(e.target.value)} disabled={!ready}>
-            <option value="auto">Automatic — {automaticSubtitle ? label(subtitleLabel(automaticSubtitle, 0)) : 'Off'}</option>
-            <option value="off">Off</option>
-            {data.subtitle_tracks.map((t, i) => <option key={t.id} value={t.id} disabled={t.image && t.external}>
-              {label(subtitleLabel(t, i))}{t.image && t.external ? ' · Not supported in this browser' : ''}
+            <option value="auto">{t('titleActions:playbackOptions.automaticTrack', { track: automaticSubtitle ? label(subtitleLabel(automaticSubtitle, 0)) : t('titleActions:playbackOptions.off') })}</option>
+            <option value="off">{t("titleActions:playbackOptions.off")}</option>
+            {data.subtitle_tracks.map((tabId, i) => <option key={tabId.id} value={tabId.id} disabled={tabId.image && tabId.external}>
+              {tabId.image && tabId.external ? t('titleActions:playbackOptions.unsupportedTrack', { track: label(subtitleLabel(tabId, i)) }) : label(subtitleLabel(tabId, i))}
             </option>)}
           </select>
         </Field>
-        {chosenSubtitle?.image && <p className="text-sm text-muted">Picture subtitles require video conversion.</p>}
-        <p className="text-xs leading-relaxed text-subtle">Automatic uses your profile preferences, falling back to this file’s available tracks. Choosing another version resets its track choices.</p>
-        <p className="text-xs leading-relaxed text-subtle">Language choices are remembered when you play, just like in the player. Arc may adapt audio or video for this browser; source formats do not guarantee device output.</p>
+        {chosenSubtitle?.image && <p className="text-sm text-muted">{t("titleActions:playbackOptions.pictureSubtitlesRequireVideo")}</p>}
+        <p className="text-xs leading-relaxed text-subtle">{t("titleActions:playbackOptions.automaticUsesYourProfile")}</p>
+        <p className="text-xs leading-relaxed text-subtle">{t("titleActions:playbackOptions.languageChoicesAreRemembered")}</p>
       </>}
     </div>
   </DialogContent>;
