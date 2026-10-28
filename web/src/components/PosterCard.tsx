@@ -1,6 +1,7 @@
-import type { MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import { Check } from 'lucide-react';
+import { CardActions, type CardHover } from './CardActions';
 import type { Item } from '@/lib/api';
 import { itemHref, posterUrl, type Collection } from '@/lib/api';
 import { CollectionCard } from '@/components/Collections';
@@ -30,6 +31,7 @@ export function PosterCard({
   onRemove,
   onSelect,
   selected,
+  hover,
 }: {
   item: Item;
   className?: string;
@@ -39,8 +41,11 @@ export function PosterCard({
   /** When choosing titles: clicking selects instead of opening. */
   onSelect?: (e: MouseEvent) => void;
   selected?: boolean;
+  /** Actions shown on hover (Play, ⋯, and for the server owner select and edit). */
+  hover?: CardHover;
 }) {
   const isEpisode = item.kind === 'episode';
+  const [menuOpen, setMenuOpen] = useState(false);
   const image = overrides?.image ?? (isEpisode ? item.images?.series_primary : posterUrl(item));
   const title = overrides?.title ?? (isEpisode ? (item.series_title ?? item.title) : item.title);
   const subtitle =
@@ -66,8 +71,10 @@ export function PosterCard({
     </>
   );
   return (
-    <div className={cn('group relative', className)}>
+    <div className={cn('group relative scroll-mt-4', className)} data-item={item.id}
+      onContextMenu={hover && !onSelect ? (e) => { e.preventDefault(); setMenuOpen(true); } : undefined}>
       {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
+      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={false} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
       {onSelect ? (
         <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full text-left outline-none">
           {card}
@@ -92,6 +99,7 @@ export function ThumbCard({
   onRemove,
   onSelect,
   selected,
+  hover,
 }: {
   item: Item;
   className?: string;
@@ -101,8 +109,11 @@ export function ThumbCard({
   /** When choosing titles: clicking selects instead of opening. */
   onSelect?: (e: MouseEvent) => void;
   selected?: boolean;
+  /** Actions shown on hover (Play, ⋯, and for the server owner select and edit). */
+  hover?: CardHover;
 }) {
   const isEpisode = item.kind === 'episode';
+  const [menuOpen, setMenuOpen] = useState(false);
   const hideSpoilers = useSpoilerGuard()(item);
   const image =
     overrides?.image ??
@@ -134,8 +145,10 @@ export function ThumbCard({
     </>
   );
   return (
-    <div className={cn('group relative', className)}>
+    <div className={cn('group relative scroll-mt-4', className)} data-item={item.id}
+      onContextMenu={hover && !onSelect ? (e) => { e.preventDefault(); setMenuOpen(true); } : undefined}>
       {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
+      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={true} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
       {onSelect ? (
         <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full text-left outline-none">
           {card}
@@ -172,6 +185,7 @@ export function PosterGrid({
   landscape,
   collections,
   collectionUnit = 'title',
+  hover,
 }: {
   items: Item[];
   /** Collections shown among the titles (Plex's collection mode): each takes the place of its first
@@ -182,8 +196,12 @@ export function PosterGrid({
   select?: { selected: Set<string>; onToggle: (item: Item, index: number, e: MouseEvent) => void };
   /** Landscape thumbnails instead of posters (home videos). */
   landscape?: boolean;
+  /** Hover actions on each card, while not choosing titles (select and edit for the server owner). */
+  hover?: { onSelect?: (item: Item, index: number, e: MouseEvent) => void; onEdit?: (item: Item) => void };
 }) {
   const Card = landscape ? ThumbCard : PosterCard;
+  const hoverFor = (item: Item, i: number): CardHover | undefined =>
+    hover && !select ? { onSelect: hover.onSelect && ((e) => hover.onSelect!(item, i, e)), onEdit: hover.onEdit && (() => hover.onEdit!(item)) } : undefined;
   if (collections?.length) {
     // Where each collection goes: at its first title; and the titles it hides.
     const hidden = new Set<string>();
@@ -197,9 +215,9 @@ export function PosterGrid({
     }
     return (
       <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
-        {items.flatMap((item) => [
+        {items.flatMap((item, i) => [
           ...(at.get(item.id) ?? []).map((c) => <CollectionCard key={`c-${c.id}`} collection={c} unit={collectionUnit} />),
-          ...(hidden.has(item.id) ? [] : [<PosterCard key={item.id} item={item} />]),
+          ...(hidden.has(item.id) ? [] : [<PosterCard key={item.id} item={item} hover={hoverFor(item, i)} />]),
         ])}
       </div>
     );
@@ -219,6 +237,7 @@ export function PosterGrid({
           item={item}
           selected={select?.selected.has(item.id)}
           onSelect={select ? (e) => select.onToggle(item, i, e) : undefined}
+          hover={hoverFor(item, i)}
         />
       ))}
     </div>

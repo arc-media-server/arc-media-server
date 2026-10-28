@@ -383,7 +383,7 @@ func (s *Server) updatePlaylist(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// deletePlaylist: DELETE /api/playlists/{id}.
+// deletePlaylist: DELETE /api/playlists/{id}. Deletes a playlist and its entries.
 func (s *Server) deletePlaylist(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.playlistFromPath(w, r)
 	if !ok {

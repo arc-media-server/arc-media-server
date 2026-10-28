@@ -403,10 +403,12 @@ func (s *Server) resources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.stats.Recent(r.URL.Query().Get("range") == "day"))
 }
 
+// health: GET /api/health. Server name and version.
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"name": "Arc Media Server", "version": s.version, "api_version": APIVersion, "status": "ok"})
 }
 
+// listLibraries: GET /api/libraries. Libraries with their size and scan status.
 func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 	libs, err := s.store.ListLibraries(r.Context())
 	if err != nil {
@@ -452,12 +454,14 @@ func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store
 	return lib, true
 }
 
+// scanStatus: GET /api/libraries/{id}/scan. Scan progress.
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
 	if lib, ok := s.libraryFromPath(w, r); ok {
 		writeJSON(w, http.StatusOK, s.scanner.Status(lib.ID))
 	}
 }
 
+// startScan: POST /api/libraries/{id}/scan. Starts a scan.
 func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
@@ -470,6 +474,17 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, s.scanner.Status(lib.ID))
 }
 
+// listItems: GET /api/items. Browse, filter and search. Sorts: title, added, year, release,
+// rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set
+// `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort,
+// `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next
+// available title in the current direction). The response includes the full filtered `total` and
+// actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds
+// `letters`, the filtered titles counted by the first character of their sort title in A–Z order
+// (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. Resolutions:
+// 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days,
+// runtimes are minutes, `about` is comma-separated words to find in the title, tagline,
+// description or TMDB keywords
 func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	query := store.ItemQuery{
@@ -516,7 +531,14 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out, "offset": offset})
+	resp := map[string]any{"total": total, "items": out, "offset": offset}
+	if q.Get("letters") == "1" {
+		if resp["letters"], err = s.store.TitleLetters(r.Context(), query); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.Item, bool) {
@@ -550,6 +572,7 @@ func access(r *http.Request) store.Access {
 	return store.Access{MaxAge: u.MaxAge, Libraries: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels}
 }
 
+// getItem: GET /api/items/{id}. Item details with files and streams.
 func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {

@@ -500,7 +500,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// listProfiles: GET /api/profiles (admin)
+// listProfiles: GET /api/profiles. Profiles.
 func (s *Server) listProfiles(w http.ResponseWriter, r *http.Request) {
 	users, err := s.store.ListUsers(r.Context())
 	if err != nil {
@@ -820,7 +820,11 @@ func maskKey(k string) string {
 	return "••••" + k[len(k)-4:]
 }
 
-// getSettings: GET /api/settings (admin)
+// getSettings: GET /api/settings. Server settings: API keys, ffprobe, sign-in at home, port,
+// network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access:
+// `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`),
+// `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`);
+// `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit).
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.settingsDTO(s.settings()))
 }

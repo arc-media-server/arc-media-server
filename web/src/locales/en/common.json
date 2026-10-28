@@ -181,5 +181,11 @@
   },
   "fields": {
     "name": "Name"
+  },
+  "card": {
+    "select": "Select {{title}}",
+    "edit": "Edit {{title}}",
+    "play": "Play {{title}}",
+    "more": "More for {{title}}"
   }
 }

@@ -19,7 +19,7 @@ export function WatchlistPage() {
         ) : data.length === 0 ? (
           <EmptyState icon={<Bookmark />} title={t('empty.heading')}>{t('empty.description')}</EmptyState>
         ) : (
-          <PosterGrid items={data} />
+          <PosterGrid items={data} hover={{}} />
         )}
       </div>
     </Page>

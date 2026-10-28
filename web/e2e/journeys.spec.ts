@@ -245,8 +245,14 @@ test('review: phone filters wrap and empty results offer visible recovery preser
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto(`/library/${lib.id}?genre=NoSuchGenre&decade=1990&language=fra&sort=year&reverse=1&min_runtime=150`);
   await expect(page.getByRole('heading', { name: 'Nothing matches', exact: true })).toBeVisible();
+  // Each filter that's on shows as a chip beside Filters; the empty result offers Clear filters.
+  await expect(page.getByRole('button', { name: 'Filters, 4 on', exact: true })).toBeVisible();
   const clear = page.getByRole('button', { name: 'Clear filters', exact: true });
-  await expect(clear).toHaveCount(2);
+  await expect(clear).toHaveCount(1);
+  for (const chip of await page.getByRole('button', { name: /^Remove filter: / }).all()) {
+    const box = await chip.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  }
   for (const button of await clear.all()) {
     await expect(button).toBeVisible();
     const box = await button.boundingBox();
@@ -254,8 +260,7 @@ test('review: phone filters wrap and empty results offer visible recovery preser
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await page.getByRole('button', { name: 'Genre: NoSuchGenre', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: 'Any genre', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove filter: NoSuchGenre', exact: true }).click();
   await expect(page).not.toHaveURL(/genre=/);
   expect(new URL(page.url()).searchParams.get('min_runtime')).toBe('150');
   await page.screenshot({ path: info.outputPath('phone-filter-controls.png') });
@@ -277,7 +282,7 @@ test('review: manual additions only offer editable playlists', async ({ page, me
   expect((await page.request.post('/api/playlists', { data: { title: 'Rule based list', filter: { library_id: lib.id, unwatched: true } } })).ok()).toBeTruthy();
   expect((await page.request.post('/api/playlists', { data: { title: 'Manual list' } })).ok()).toBeTruthy();
   await page.goto(`/library/${lib.id}`);
-  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Add to Playlist', exact: true });
@@ -291,7 +296,7 @@ test('review: late pre-roll lookup cannot replace the latest Play choice', async
   await setup(page);
   const lib = await addLibrary(page, 'Play choices', media.movies);
   await page.goto(`/library/${lib.id}`);
-  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   let release!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });
   let first = true;
@@ -306,7 +311,7 @@ test('review: late pre-roll lookup cannot replace the latest Play choice', async
     await page.getByRole('button', { name: 'Play', exact: true }).click();
     await expect.poll(() => first).toBe(false);
     await page.locator('aside').getByRole('link', { name: 'Play choices', exact: true }).click();
-    await page.getByRole('link', { name: /Unmatched Mystery/ }).first().click();
+    await page.getByRole('link', { name: /Unmatched Mystery/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
     await page.getByRole('button', { name: 'Play', exact: true }).click();
     await expect(page.locator('video')).toBeVisible();
     const late = page.waitForResponse(r => r.url().endsWith('/preroll') && r.ok());
@@ -323,12 +328,15 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
   const first = await addLibrary(page, 'First library', media.movies);
   await addLibrary(page, 'Second library', media.empty);
   await page.goto(`/library/${first.id}`);
-  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  await page.getByRole('button', { name: 'More for First library', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Select titles', exact: true }).click();
   await page.getByRole('button', { name: 'Select loaded (2)', exact: true }).click();
   await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
   await page.locator('aside').getByRole('link', { name: 'Second library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Select', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'More for Second library', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Select titles', exact: true })).toBeEnabled();
+  await page.keyboard.press('Escape');
 });
 
 test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
@@ -372,7 +380,7 @@ for (const next of ['French', 'Off'] as const) {
     await setup(page);
     await addLibrary(page, 'Subtitle fixtures', media.movies);
     await page.locator('aside').getByRole('link', { name: 'Subtitle fixtures', exact: true }).click();
-    await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+    await page.getByRole('link', { name: /Arc Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     await page.getByRole('button', { name: 'Play', exact: true }).click();
@@ -426,7 +434,7 @@ for (const method of ['remux', 'transcode'] as const) {
     expect((await page.request.patch('/api/settings', { data: { hw_accel: false, max_transcodes: 1 } })).ok()).toBeTruthy();
     await addLibrary(page, 'Playback fixtures', media.playback);
     await page.locator('aside').getByRole('link', { name: 'Playback fixtures', exact: true }).click();
-    await page.getByRole('link', { name: method === 'remux' ? /Remux Movie/ : /Transcode Movie/ }).first().click();
+    await page.getByRole('link', { name: method === 'remux' ? /Remux Movie/ : /Transcode Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     const plan = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
@@ -582,7 +590,7 @@ test('background movie import and manually fixing an unmatched title persist', a
   await setup(page);
   const lib = await addLibrary(page, 'Test Movies', media.movies);
   await page.locator('aside').getByRole('link', { name: 'Test Movies', exact: true }).click();
-  await page.getByRole('link', { name: /Unmatched Mystery/ }).first().click();
+  await page.getByRole('link', { name: /Unmatched Mystery/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   await expect(page.getByRole('heading', { name: 'Unmatched Mystery', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Identify it…', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -621,7 +629,7 @@ test('alternate episode order persists and unplaced files remain visible', async
   await setup(page);
   await addLibrary(page, 'Test Shows', media.shows, true);
   await page.locator('aside').getByRole('link', { name: 'Test Shows', exact: true }).click();
-  await page.getByRole('link', { name: /Arc Show/ }).first().click();
+  await page.getByRole('link', { name: /Arc Show/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   const first = page.getByText('First Chapter', { exact: true });
   const second = page.getByText('Second Chapter', { exact: true });
   await expect(first).toBeVisible();
@@ -690,7 +698,7 @@ test('real video plays, saves progress on close and resumes after reload', async
   await setup(page);
   await addLibrary(page, 'Test Movies', media.movies);
   await page.locator('aside').getByRole('link', { name: 'Test Movies', exact: true }).click();
-  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   const plan = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
