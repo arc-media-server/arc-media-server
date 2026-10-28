@@ -44,7 +44,7 @@
     "any": "Any time",
     "week": "This week",
     "year": "This year",
-    "lastDays_one": "In the last {{count}} days",
+    "lastDays_one": "In the last {{count}} day",
     "lastDays_other": "In the last {{count}} days"
   },
   "rating": {
