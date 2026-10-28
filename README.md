@@ -1,542 +1,154 @@
-# Arc Media Server (AMS)
+# Arc Media Server
 
-An open source media server written in Go, built from the ground up.
+A self-hosted media server for your movies, TV shows and home videos, in the spirit of Plex and
+Jellyfin. Written in Go, with its own web app built in. Point it at your folders and it does the
+rest: identifies everything, fetches artwork and details, and plays it in any browser.
 
-**Principles**
+> **Status: private alpha.** Arc runs day to day on a home server (Unraid, Docker), and work is now
+> focused on stability and release readiness. Native TV and phone apps are planned. Expect rough
+> edges, and keep backups of your Arc data folder (your media is never touched).
 
-- **Your files are never touched.** AMS only reads your media. It never renames, moves or writes
-  next to your files, so Sonarr, Radarr and anything else relying on your folder layout keep working.
-- **Display order is separate from storage order.** A series can be stored in TVDB aired order and
-  shown in a TMDB episode group order per series and profile without changing anything on disk.
-- **Its own apps, and an open API.** Arc has its own web app (native TV and phone apps are planned), and its API is
-  documented so anyone can build their own client.
+## Why Arc
 
-## Status
+- **Your files are never touched.** Arc only reads your media. It never renames, moves, tags or
+  writes next to your files, so Sonarr, Radarr and anything else relying on your folders keep working.
+- **Episode order is yours to choose.** Files stay numbered however they are on disk, while each
+  show (and each profile) can be watched in any order TMDB or TheTVDB knows: aired, DVD, absolute,
+  story order, anime cours, or one you make yourself.
+- **Simple by default.** Good automatic choices, settings in the app instead of config files, and
+  advanced options kept out of the way.
+- **Nothing silently disappears.** Unidentified titles, unplaced episodes and missing files are
+  shown and listed, and titles on an offline drive keep their watch history.
+- **Its own apps and an open API.** The web app uses the same documented API anyone can build on.
 
-Early development. Working today:
+## Features
 
-- TV show scanning: `S01E02`, multi-episode files, `1x02`, date-based shows, specials, anime absolute numbering
-- **Display orderings**: every TVDB order (aired, DVD, absolute) and TMDB order (aired plus all episode
-  groups) per series, mapped onto your files whichever way they're named. Pick one per series, make
-  custom orders, and manually place episodes. Episodes an order doesn't place are listed, never hidden.
-  "Compare Orders" shows where each of your episodes lands in another order before you switch
-- Display-order menus explain their scope: an admin also sets the server default; other profiles
-  can choose their own order or return to the server default. Failed saves retain a retry path.
-- Home rows support keyboard move buttons and full filtered results. Library browsing includes
-  added-date, runtime and rating filters, reversible sorting and a remembered sort per profile
-  and library on this device. Failed requests show errors and Retry instead of false empty states.
-- Settings groups profile preferences, libraries/metadata, server playback, access/devices and
-  maintenance/recovery. Each profile can choose its preferred audio language, arrange library
-  navigation and set when future playback counts as watched (90% by default).
-- A visible playback queue supports Play next, Add to queue, reordering, removing and clearing
-  upcoming titles. Minimize the player to browse while it continues; closing it or switching
-  profiles saves progress. The queue ends when you close the player or refresh the page.
-- Movie library scanning (Plex/Jellyfin-style naming, scene release names, `{tmdb-123}` / `{imdb-tt…}` tags,
-  multi-part `cd1`/`part2` files; samples are skipped)
-- Add movie, TV or other-video libraries directly: choose a type and folders, then Add Library.
-  Scanning and matching run in the background. Advanced options include an optional folder preview.
-- Extras: trailers, featurettes, behind the scenes, deleted scenes, interviews and shorts (in
-  `Extras/`, `Trailers/`… folders or named `<movie>-trailer.mkv`) shown with their movie or show
-- Fast first scans (as Plex does): titles are identified from their folder and file names and shown
-  with posters straight away, several at a time, then each file is read with ffprobe (container,
-  duration, codecs, resolution, audio and subtitle tracks) a few at a time in the background. A title
-  played before its file is read is read on the spot. Titles the library preview identified are
-  reused, not searched for again; the scan's progress shows in Activity and on the library
-- TMDB and TheTVDB metadata matching, with genres, cast and crew (with photos), studio or network,
-  tagline, score, age ratings for your region, original language, and for shows whether they are
-  continuing, ended or cancelled and when the next episode airs
-- "Fix Match": see exactly what Arc read from a file name and searched for, then search TMDB or
-  TheTVDB and pick the right movie or show
-- Edit any title, date, description or genres; edited fields (and artwork you choose to keep) are
-  locked so refreshes never undo them. Episodes have Edit in their ⋯ menu (with a Thumbnail tab of
-  TMDB stills), and seasons have Edit Season (name, summary and poster, in the order you're viewing);
-  season summaries from TMDB show above the episode list
-- Episode numbering: TV libraries read file names in TMDB's numbering by default (as Plex does), or
-  TheTVDB's aired, DVD or absolute order; any show can override its library in Edit Details.
-  Switching keeps episodes and their watch history
-- One metadata provider per show: details and artwork come from TMDB, or TheTVDB if a show is set
-  to it (Edit Details › Details From); gaps are left blank, never filled from the other provider
-- Missing-file detection that keeps items and their history (e.g. when a drive is offline)
-- Global Library scanning settings: automatic change detection, optional full scans (Off, hourly,
-  6-hourly, 12-hourly or daily), and Advanced controls for partial and startup scans. Defaults keep
-  automatic, partial and startup scanning on, with an hourly fallback for network shares. Changes
-  apply without restarting; manual scans and first library imports remain available.
-- Playback that adapts to the browser: files it can play are sent as they are (direct play, with
-  range requests for seeking); otherwise FFmpeg repackages them (video untouched, e.g. MKV or AC-3
-  audio) or converts the video to H.264 (e.g. HEVC, 10-bit H.264), as HLS. Seeking anywhere works:
-  within what's converted it's instant, beyond it the conversion restarts there. The player's Info
-  menu says which method is in use and why
-- Playback compatibility (Library Health): for this browser, Chrome, Edge, Firefox, Safari or
-  iPhone/iPad, how many titles in each library play directly, are repackaged or are converted, why,
-  and which ones need converting
-- Converting settings, as in Plex: how many videos may be converted at once (no limit by default;
-  anyone over it is told to try again) and the temporary folder converted video is written to
-- Converting uses the graphics card when there is one (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple
-  VideoToolbox or VA-API, found by a quick test at start-up), falling back to the processor, and maps
-  HDR to SDR so converted HDR doesn't look washed out. Both are on by default, as in Plex (Settings >
-  Converting)
-- Collections: films TMDB groups together (a trilogy) become a collection by themselves once you have
-  enough of them (2 by default, set per library); make your own by picking titles (in any order) or
-  as smart collections that hold everything matching a filter. Each library has a Collections view,
-  and a title's page shows the rest of its collection
-- Collection mode (as in Plex): a collection can show in the library grid in place of its titles, or
-  beside them, or not at all (the default); each library sets a default (Libraries > Edit) and each
-  collection can choose for itself (Edit). Filtering the library shows the titles as usual
-- Edit a collection like a title: name, sort name and description, and Poster and Background tabs
-  (TMDB's for automatic collections, or your own upload); edits are kept when TMDB refreshes
-- Your own ratings (half stars out of five) and a Watchlist (bookmark a movie or show; a Watchlist
-  row on Home and page in the sidebar; a movie leaves it once watched), per profile, as in Plex
-- More Like This on movie and show pages (TMDB's recommendations that are in your library, then
-  titles sharing a collection, genres or lead actors), and a Recommended tab per library: Because
-  you watched…, top rated you haven't seen, and more of your favourite genres
-- Smart playlists (as in Plex): New Smart Playlist fills itself from a library's filters (genre,
-  label, decade, length, rating, unwatched and more) and keeps up to date; from a TV library it plays
-  the matching shows' episodes in order (up to 500 titles)
-- Shuffle (as in Plex): on a show (every episode but specials), a season, a collection (its movies and
-  its shows' episodes, which also get Play) and a playlist, through the player's queue
-- Playlists (each profile's own): movies, episodes, or a whole show (its episodes in your episode
-  order, specials last). Play or shuffle, drag or use move buttons to arrange; the player carries on to the next one
-  after a 10-second Up Next countdown, with Next and Previous buttons (Shift+N / Shift+P)
-- Search everything at once: movies, shows, episodes, people, collections and genres. Accents and
-  case don't matter, small typos are forgiven ("matirx" finds The Matrix), and other names work too
-  ("El origen" finds Inception). Cast and crew open a page with everything in your libraries
-  they're in
-- Versions and editions: several files of one film (4K and 1080p, or `{edition-Director's Cut}`,
-  "Extended", "Theatrical" in the name) are one title. Pick the edition on the film's page; Arc plays
-  the best version for the screen (one that needs no conversion, then the sharpest that fits), and
-  the player's Version menu switches where you are. Library Health only reports real duplicates
-- Scrubbing previews (per library, off by default as in Plex): a picture every 10 seconds shows while
-  dragging along the timeline. They're made in the background from keyframes only (about 5 MB per film),
-  a title that's being watched goes first, and turning the setting off deletes them
-- Subtitles: inside the file or beside it (`Movie.en.srt`, `Movie.eng.forced.srt`, `.ass`, `.vtt`;
-  old Windows-1252 files are read correctly). Text subtitles are drawn by the player in three sizes;
-  picture subtitles (Blu-ray, DVD) are burned into the video. Each profile's last choice of
-  language turns subtitles on by themselves next time, and forced subtitles show for foreign dialogue
-- Text subtitles have session-local earlier/later timing and Reset in the player, including
-  the native PiP cue clock; source files are never edited
-- Subtitle mode and style per profile (Settings > Subtitles, as in Plex): turn on in the language last
-  chosen, when the audio is in another language, always, or only when picked (forced ones always
-  show); size, colour (white or yellow), background (shaded box, black box or outline) and position
-- Find subtitles online from the player (Subtitles > Find Online…) on OpenSubtitles.com, matched by
-  TMDB/IMDb id and the file's hash (exact matches first). Needs a free OpenSubtitles API key in
-  Settings; an account allows more downloads a day. Downloads are kept in Arc's data folder
-- A player with its own controls: audio track choice, playback speed, volume, full screen, and
-  keyboard shortcuts (Space, ←/→, J/L, ↑/↓, M, C, F, < and >, 0–9)
-- Artwork cached locally after each scan, so it loads fast and works offline
-- Local media assets (read only): poster.jpg / folder.jpg / fanart.jpg / clearlogo.png and `<file>-poster.jpg`,
-  `<file>-fanart.jpg`, `<file>-clearlogo.png`, `<episode>-thumb.jpg` are shown instead of online artwork; ids in Kodi,
-  Radarr and Sonarr `.nfo` files (`movie.nfo`, `tvshow.nfo`, movie `<file>.nfo`) help identify titles.
-  NFO support reads provider IDs only; it does not import titles, plots, cast or episode sidecars.
-  See [local metadata and artwork](docs/LOCAL-METADATA.md) for exact scope
-- Clear logos: movie and series pages show the title's logo artwork (from TMDB, or a local
-  clearlogo.png / logo.png) instead of plain text, and the cast sits right under the summary
-- Artwork, in the Edit dialog (Details, Poster, Background and Logo tabs, plus Seasons for a show's
-  season posters, as in Plex): pick any poster, background or logo TMDB has for a title, or upload your own (kept in
-  the data folder; media files are never touched). "Automatic" goes back to local or online artwork
-- Automatic daily database backups (plus one before every upgrade), with one-click restore that
-  saves the current state first
-- Profiles like Plex Home: a "Who's watching?" screen, optional PINs, an admin profile that manages
-  everything, and optional sign-in without the password on your home network
-- Sharing with friends (as in Plex): Profiles > Add Friend makes an invite link; the friend chooses a
-  password with it and signs in from anywhere with their name and password. They see only the
-  libraries (and age ratings) you allow, and never see your household's profiles
-- Server graphs on the Dashboard (as Plex's): CPU and memory, Arc's and the whole computer's, and
-  data sent to devices at home and away, for the last 5 minutes or 24 hours
-- Dashboard (admin): who is watching what, on which device, how far in and how it is being
-  played; stop a stream with an optional message for the viewer; the recent server log, filtered
-  by level and easy to copy
-- Other sites' scores on title pages, and to sort by: IMDb (from IMDb's free ratings file, updated
-  weekly, no key), and Rotten Tomatoes' critics and Metacritic with a free OMDb key in Settings
-- Scheduled tasks (Settings): a nightly maintenance window (02:00–05:00 unless changed) for
-  refreshing known week-old show details and month-old movie details, and the daily backup;
-  scrubbing previews can wait for it too. File discovery follows Library scanning settings.
-- Skip Intro, Skip Recap and Skip Credits: timings from the file's chapters (Opening, Ending),
-  IntroDB (free) or TheIntroDB (with a key), checked against each file's length, and otherwise found
-  overnight by comparing a season's episodes' audio. Movies get Skip Credits too (chapters,
-  TheIntroDB, or the closing credits spotted from the picture overnight). Each library chooses
-  Skip intros and Skip credits (as in Plex: both for TV, credits for movies). At the credits Up Next
-  counts down; Skip intros automatically is in Settings > Playback; times can be set by hand under
-  Edit > Skip Markers
-- Optimize (a title's ⋯ menu, or Select in a library): easy-to-play 1080p or 720p H.264 copies made
-  in the background in Arc's data folder, played instead of converting live when a player can't play
-  the original; listed with their size in Settings
-- Remote access (Settings > Remote Access, off until turned on, as in Plex): the router's port is
-  opened with UPnP (or forwarded by hand), the outside address is shown with a Check button, and
-  HTTPS runs on the same port with your own certificate files or a free Let's Encrypt certificate
-  for your domain, renewed automatically; people away from home are sent to HTTPS
-- Apps and devices: apps sign in with a token (with the password, a friend's name and password,
-  or on a TV with a short code entered at Link a Device, like plex.tv/link); Settings > Devices
-  lists every signed-in browser and app and signs any out. The web app can be added to a phone's
-  home screen, where it opens full screen like an app
-- Casting from the web player: a Cast button for Chromecasts (Chrome and Edge, over HTTPS or on
-  the server's own computer) with a remote-control panel that saves progress, and AirPlay in
-  Safari. The device plays a cast link (a token in the address) since it has no sign-in cookie
-- Home networks (Settings > Network, Plex's "LAN networks"): other networks that count as home,
-  e.g. a VPN or Tailscale (one click adds 100.64.0.0/10), for skipping the password and remote limits
-- Remote streams (Settings > Remote Access): a quality limit for each stream away from home, and
-  the home's upload speed shared between remote streams; streams at home are never limited
-- Pre-roll videos (Settings): files or folders of clips played before a movie started from the
-  beginning, one at random or all in order, with Skip; ones that won't play are skipped
-- Theme music: a theme.mp3 (or .flac, .m4a, .ogg) in a show's or movie's folder, or a theme-music
-  folder, plays quietly once on its page, fading in and out; Theme music in Settings > Playback turns it off
-- New for You: a bell for every profile with new episodes of shows it watches and new movies from
-  the last month, with an unread count
-- Webhooks (Settings > Notifications): new movies and episodes, playback starting and finishing,
-  and problems (failed scans or backups) sent to Discord or Slack as tidy messages, or anywhere as
-  JSON; each shows how its last delivery went, with a Test button
-- Moving in (Settings): import from Plex (Sign in with Plex; watched titles, resume points, ratings
-  and Plex's watch history for everyone on the server, plus the signed-in account's watchlist and
-  playlists and the server's collections) or Jellyfin (every user's watched titles, resume points,
-  favourites as their watchlist and playlists, plus the server's collections). Each person goes to
-  an Arc profile, titles are matched by their online ids, newer progress in Arc is never replaced,
-  and importing again adds to lists rather than repeating them
-- Activity (admin): a button by the Arc logo spins while the server is busy and lists what it is
-  doing, with progress (library scans, refreshes, scrubbing previews, backups) and what finished
-  recently, with any errors; also on the Dashboard
-- Insights (admin): watch time over time, the most watched movies, shows and genres, the busiest
-  days and hours, and watching by profile, library, device and how it played; full watch history
-  per profile and library; and storage: the space each library takes, the biggest titles, and the
-  space taken by titles nobody has watched. A viewing counts once it has played for a minute, and
-  history keeps what was watched even if it later leaves the library
-- Your Year in Review (every profile, from the profile menu): hours watched, top movies and shows,
-  genres, favourite actors, busiest month, day and hour, longest streak and biggest binge
-- Parental controls: limit a profile to titles rated for ages up to 7, 12 or 15 (age ratings for
-  your region); anything else is hidden from it everywhere
-- Library access per profile (as in Plex Home): choose which libraries a profile sees; the others
-  are hidden from it everywhere (sidebar, home, search, collections, playlists)
-- Change many titles at once: Select in a library (shift-click picks a range), then Edit (add or
-  remove genres and labels, set an age rating, lock or unlock every field), Add to Collection,
-  mark watched or unwatched, or Refresh (runs in the background, shown in Activity)
-- Metadata language per library (English US or UK, French, German, Japanese and 30 more): titles,
-  descriptions and episode names come in that language from TMDB and TheTVDB, with English for
-  anything not translated yet. Searches stay in English, since file names usually are
-- Merge and Split Apart: pick movies in Select and Merge them into one (or Merge a duplicate in
-  Library Health); each file becomes a version, and watch history, ratings, playlists and
-  collections come along. Split Apart (a movie's ⋯ menu) gives each version its own title again.
-  Later scans keep these choices
-- Labels: your own tags on movies and shows (Edit → Labels), used as a library filter, in custom
-  Home rows and smart collections, and to hide titles from a profile (e.g. "Not for kids")
-- Watch state per profile: resume where you left off, watched ticks and unwatched counts, play
-  counts, mark a movie, episode, season or show watched; Continue Watching and Up Next on Home
-  (Up Next follows the episode order you chose)
-- A home page each profile arranges for itself ("Edit Home", top right of Home or in the profile
-  menu): drag rows into order, hide rows, choose whether Up Next is part of Continue Watching (as
-  in Plex, the default) or its own row, and
-  add your own rows from filters (library, genre, decade, quality, unwatched, added this week/month/
-  year, length, rating, any sort including a daily shuffle) with a live preview
-- Each home row can use posters or landscape thumbnails (Continue Watching uses thumbnails by
-  default); rows with episodes or seasons can show the show's poster or the season's. A TV library's Recently Added groups new episodes as Plex does: a new show is one card,
-  several new episodes of a season show as that season with its poster, a single new episode as
-  itself. Season posters come from TMDB or a `season01-poster.jpg` in the show's folder
-- The admin can arrange any profile's home page (Profiles > Home) and set a Default Home for
-  profiles that haven't arranged their own, including new ones
-- Any collection (smart ones too) or one of your playlists can be a home row (Edit Home > Add Row)
-- Seasonal rows: romance before Valentine's Day, horror through October, Christmas films in December
-- Remove from Continue Watching (the ⋯ on a card): it stays out, without being marked watched or
-  losing its resume point, until you play it (or, for a show, any episode) again
-- Chapters from the file: marks on the timeline, the chapter's name while scrubbing, a chapter list,
-  and Shift+←/→ to move between chapters
-- Picture-in-Picture (button or I): the video in a small floating window, with its subtitles
-- Quality in the player, as in Plex: Original, or a limit from 20 Mbps 1080p down to 720 kbps 360p
-  (only ones below the file's own bitrate) for slow connections; remembered per device
-- Preferred audio language (per profile, as in Plex): the audio language you pick in the player is
-  remembered and played by default in every file that has it, e.g. Japanese audio for anime
-- Auto-Play (per profile, in Settings > Playback, on by default as in Plex): when an episode ends, the
-  next one in your episode order plays after a 10-second countdown, wherever you started it
-- Hide Spoilers (per profile, in Settings > Display): stills are blurred and descriptions hidden for
-  episodes you haven't started
-- Appearance per profile (Settings > Display): Automatic (follows the device), Dark or Light
-- Set up and configured entirely in the web app: first-run setup, Settings (API keys, ffprobe found
-  automatically, network access and port)
-- Other videos libraries, for home videos and anything else that isn't a film or show: each file is
-  its own title, named from its file and dated by a date in the name (2019-07-14, IMG_20190714)
-  or the file's own date, with a frame of the video as its picture; nothing is looked up online,
-  and each folder becomes a collection
-- Libraries managed in the app, with a folder browser and a preview of what Arc finds (and what it
-  can't identify, and why) before anything is added
-- **Web app**: home with a banner taking turns through the newest titles (every 8 seconds, as in Plex) and recently added rows, library grids with sorting and
-  scanning, movie and series pages with file details, an episode-order picker, in-browser playback,
-  search, and a Library Health page (unidentified titles, unreadable, unrecognised and missing
-  files, duplicates, missing episodes). Light and dark mode follow your system
-- SQLite database, with the schema already in place for users and per-user watch state
+**Libraries and metadata**
+- Movie, TV and Other videos libraries, added in the app with a folder browser. Scanning runs in
+  the background: titles show with posters within seconds, file details follow.
+- Matching from TMDB and TheTVDB with Plex/Jellyfin-style naming, scene release names and
+  `{tmdb-123}` / `{imdb-tt…}` tags. Fix Match shows exactly what Arc read and searched for.
+- Cast and crew, studios, scores (IMDb, Rotten Tomatoes, Metacritic), age ratings for each
+  library's region, and metadata in 35+ languages, set per library.
+- Edit anything; edited fields are locked so refreshes never undo them. Choose or upload
+  posters, backgrounds, logos and season posters. Local artwork and NFO IDs are respected.
+- Versions and editions (4K and 1080p, Director's Cut), extras and trailers, theme music.
+- Collections (automatic from TMDB, manual and smart), labels, merge and split titles or
+  shows, and a folder view for home videos.
+- Library Health: unidentified titles, unreadable or missing files, duplicates, missing
+  episodes, skip-marker coverage and how each library plays in each browser.
 
-## Getting started
+**Playback**
+- Direct play when the browser can, otherwise remuxing or conversion to HLS, with hardware
+  encoding (NVIDIA, Intel Quick Sync, AMD, VA-API, VideoToolbox) and HDR tone mapping.
+- Automatic quality that adapts to the connection, optimized versions for weak devices, and
+  remote bandwidth limits.
+- Subtitles in the file, beside it or from OpenSubtitles, with per-profile styling and timing.
+- Skip Intro, Recap and Credits from chapters, IntroDB/TheIntroDB, or audio and picture
+  detection overnight. Auto-Play, Up Next, chapters, Picture-in-Picture, a playback queue.
+- Chromecast and AirPlay from the web player.
+- Dolby Vision, HDR10+, Atmos and DTS:X labels from the source files.
 
-Requirements: Go 1.27+, Node.js 22+ (to build the web app) and FFmpeg (for `ffprobe`).
+**Profiles and home**
+- Plex Home-style profiles with optional PINs, a "Who's watching?" screen, and sign-in without
+  a password at home (including Tailscale/VPN networks).
+- Friends with invite links, library access per profile and parental controls by age.
+- Each profile arranges its own Home: Continue Watching, Up Next, custom and seasonal rows,
+  collections and playlists. Watchlist, ratings, recommendations, New for You and Year in Review.
+- Playlists and smart playlists, search with typo forgiveness, person pages.
 
-```sh
-cd web && npm install && npm run build && cd ..   # builds the web app into the binary
-go run ./cmd/ams
-```
-
-Then open http://127.0.0.1:8099. Arc walks you through the rest: your admin profile and password,
-your free TMDB and TheTVDB API keys, and your first library (choose its folders, see a preview of
-what Arc finds, then add it). There are no config files; everything is set in the app.
-
-- `-data <folder>` (or `AMS_DATA`) chooses where Arc keeps its database, artwork cache, uploaded artwork and backups
-  (default: `data` in the current folder).
-- Forgot the password? Run `ams -reset-password` on the server for a new one.
-- Troubleshooting: admin Settings > Maintenance & recovery > Diagnostics enables detailed
-  logging for 30 minutes without restarting, or downloads redacted retained logs and build/
-  system information. Logs survive normal restarts in `data/logs` (`/config/logs` in Docker),
-  with at most three 2 MiB files. The download contains no database, settings dump or media;
-  profile/media names and paths can remain. Storage problems are shown and recent in-memory
-  logs remain available. `-debug` also enables the temporary 30-minute mode at startup.
-- Slow updates (two seconds or longer) and failed requests are logged in normal mode, with
-  route, status and duration. Container builds include their commit revision in startup logs
-  and diagnostics. The Dashboard's log-level filter changes visibility, not recording level.
-- `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
-  settings, for containers.
-
-### Working on the web app
-
-For development that follows you between computers, see the repository's
-[Codex Cloud setup and handoff](docs/CODEX-CLOUD.md). GitHub remains the source of
-truth; cloud testing uses generated media and isolated databases.
-
-Run AMS, then in another terminal `cd web && npm run dev` and open the address Vite prints.
-Changes appear instantly; API calls are forwarded to the running server.
-
-The web app is React + TypeScript, styled with Tailwind CSS, using Radix UI primitives,
-Motion for animation and TanStack Query for data loading.
-
-### Stability and release readiness
-
-The current readiness checklist and required evidence are in [docs/READINESS.md](docs/READINESS.md).
-Normal main pushes publish the development Docker image after compilation/building. Full
-Linux/Windows, media, race, browser and container verification runs on demand and gates version
-tags. See [image publishing policy](docs/IMAGE-PUBLISHING.md).
-
-Browser regressions run against the real server using generated clips, local metadata fixtures
-and a new temporary database for every test. No personal API keys, settings or media are used.
-
-```sh
-cd web
-npm ci
-npx playwright install chromium
-npm run test:e2e
-```
-
-FFmpeg and Go must be available (the harness also finds Windows winget FFmpeg). Ports 18199 and
-18200 must be free. The harness builds the server, starts it with an explicit temporary data
-folder and `-config none`, and stops it and removes its own temporary directory at the end.
-The report is in `web/playwright-report`; failed tests retain screenshots, video and traces.
-CI runs these journeys on Linux before Docker publication. Real-device playback is a separate
-readiness task; Chromium fixture tests do not establish TV, casting or GPU compatibility.
-
-### Reverse proxies and sign-in
-
-A reverse proxy must overwrite/set `Forwarded` or `X-Forwarded-For` on every forwarded request.
-Requests with forwarding headers require normal sign-in, even if the proxy runs on the same PC;
-their reported client addresses never grant password-free home-network access. They also use
-remote bandwidth limits. A proxy that forwards no identifying header is indistinguishable from
-a direct local connection: disable "Skip the password at home" in that deployment.
-
-If the proxy terminates HTTPS, set `X-Forwarded-Proto: https` so session cookies are marked Secure.
-Use either the proxy's HTTPS management or Arc's built-in HTTPS; a TLS-terminating proxy forwarding
-plain HTTP to Arc while Arc's own HTTPS redirect is enabled can cause redirect loops. This first
-hardening pass does not provide a trusted-proxy setting for password-free access through a proxy.
+**Running the server**
+- Remote access with UPnP and HTTPS (your own certificate or Let's Encrypt) on one port, and
+  trusted reverse proxies.
+- Dashboard with now playing, resource graphs and the server log; Insights for watch history
+  and storage; an Activity menu for background work.
+- Scheduled maintenance in a quiet window: metadata refresh, previews, intro detection,
+  database backups and optimization, cache clean-up and optional empty trash.
+- Daily database backups with one-click restore, webhooks (Discord, Slack, JSON) and redacted
+  diagnostic downloads.
+- Moving in from Plex or Jellyfin: watch state, resume points, ratings, watchlists, playlists
+  and collections.
+- The web app installs to a phone's home screen, and TVs sign in with a short link code.
 
 ## Running with Docker
 
-GitHub builds an image on every push to `main` (`.github/workflows/docker.yml`), for normal PCs
-and servers (amd64) and ARM boards like the Raspberry Pi (arm64):
-`ghcr.io/jonzauk/arc-media-server:latest`. It includes FFmpeg. This is the fast development
-channel; full verification is separate and gates version-tagged images.
+An image for amd64 and arm64, with FFmpeg included, is published to
+`ghcr.io/jonzauk/arc-media-server`. `latest` follows `main` (the development channel); version
+tags pass the full verification suite. See [image publishing](docs/IMAGE-PUBLISHING.md).
 
-1. The repository is private, so sign in to the registry once: `docker login ghcr.io` (your GitHub
-   name, and a personal access token with `read:packages` as the password).
-2. Copy `docker-compose.yml`, set your media folders (mounted read-only), and run
-   `docker compose up -d`.
-3. Open `http://<that computer>:8099`, set up your profile and keys, and add `/media/movies` and
+1. While the repository is private, sign in to the registry once: `docker login ghcr.io` (your
+   GitHub name, and a personal access token with `read:packages` as the password).
+2. Copy [`docker-compose.yml`](docker-compose.yml), set your media folders (mounted read-only)
+   and run `docker compose up -d`.
+3. Open `http://<that computer>:8099`. First-run setup creates your admin profile and takes
+   your free [TMDB](https://www.themoviedb.org/settings/api) and
+   [TheTVDB](https://thetvdb.com/api-information) API keys. Then add `/media/movies` and
    `/media/tv` as libraries.
 
-Settings, the database, artwork and backups live in `/config` (`./arc-config` in the example).
-Host networking is recommended on Linux so Arc sees devices' real addresses (for "at home" sign-in)
-and can open the router port. Docker Desktop on Windows or Mac uses `ports: ["8099:8099"]` instead.
-Graphics cards: pass `/dev/dri` (Intel/AMD), or use the NVIDIA Container Toolkit; both are in the
-example. To build locally: `docker build -t arc .`.
+Notes:
+- Everything Arc keeps (database, artwork, uploads, backups, logs) lives in `/config`.
+- Host networking is recommended on Linux so Arc sees devices' real addresses (for sign-in at
+  home) and can open the router port. Docker Desktop on Windows or Mac uses `ports: ["8099:8099"]`.
+- For hardware encoding pass `/dev/dri` (Intel/AMD) or use the NVIDIA Container Toolkit; both are
+  in the example file.
+- To run as a non-root user, set `user: "UID:GID"` and make `/config` writable by it. `PUID`/`PGID`
+  aren't read.
+- Keep `/config` on local storage; media can be on network shares. SQLite can't share a database
+  over a network filesystem.
+- Behind a reverse proxy (SWAG, Nginx Proxy Manager, Caddy…), have it set `X-Forwarded-For` and
+  `X-Forwarded-Proto`, and add its address under Settings › Network › Trusted proxies so people at
+  home still count as home.
 
-For a non-root container, set Docker's `--user UID:GID` (or Compose `user: "UID:GID"`) and
-prepare `/config` so that user can write to it. The image does not currently interpret
-`PUID`/`PGID`. Keep media mounts read-only. Converted streams can use a separate writable mount;
-choose its path in Settings > Converting.
+### Backups and upgrades
 
-Before upgrading, stop Arc and preserve the complete `/config` directory on separate storage.
-Built-in backups contain the database only; uploaded artwork and certificates are separate files.
-Follow the [backup and recovery guide](docs/RECOVERY.md) for scope, stopped-folder copies and restore checks.
-Keep the previous image's immutable commit tag as well. For rollback, stop Arc and restore the
-saved data directory into a separate location, then run the matching previous image against it.
-An older Arc refuses a database with newer schema versions. Do not run two servers against the
-same data directory. Keep external certificate files, custom conversion locations and media
-mounts available at their original container paths.
+Built-in backups cover the database. Before upgrading, stop Arc and copy the whole `/config`
+folder somewhere safe; it also holds uploaded artwork and certificates. Arc backs up its database
+automatically before any upgrade that changes it, and an older Arc refuses to open a newer
+database. The [recovery guide](docs/RECOVERY.md) covers restoring and rolling back.
 
-Keep the database/config directory on storage with reliable local filesystem locking; media
-may be on network shares. SQLite WAL does not support a database shared over a network
-filesystem ([SQLite documentation](https://www.sqlite.org/wal.html)). Arc queues database
-writes internally while keeping reads available; this does not coordinate separate servers
-using the same database.
+## Building from source
 
-The isolated container acceptance check is `node tools/docker-smoke.mjs <local-image>`; it uses
-disposable Docker volumes, no host folders, and no external network. Real-device and NAS trial
-results are tracked separately in [docs/READINESS.md](docs/READINESS.md).
+You need Go 1.27+, Node.js 22+ and FFmpeg (`ffprobe` and `ffmpeg`).
+
+```sh
+cd web && npm install && npm run build && cd ..   # the web app is embedded in the binary
+go run ./cmd/ams                                  # serves http://127.0.0.1:8099
+```
+
+- `-data <folder>` (or `AMS_DATA`) sets where Arc keeps its data (default `./data`).
+- `ams -reset-password` sets a new admin password if you've forgotten it.
+- `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
+  settings, for containers.
+- Troubleshooting: Settings › Maintenance & diagnostics turns on detailed logging for 30 minutes
+  and downloads redacted logs. `-debug` does the same at startup.
+
+### Development
+
+- `cd web && npm run dev` serves the web app with hot reload, forwarding API calls to a running
+  server.
+- `go vet ./... && go test ./...` for the server. `cd web && npm run test:e2e` runs the browser
+  journeys (Playwright Chromium) against a real server with generated clips, local metadata
+  fixtures and a fresh temporary database each test, never your own data.
+- `go run ./tools/testmedia -out ../ams-test-media` makes a small test library, including shows
+  with tricky episode orders.
+- UI text goes through react-i18next; see [translation](docs/TRANSLATION.md).
+- [ROADMAP.md](ROADMAP.md) has the plan and [docs/READINESS.md](docs/READINESS.md) the release
+  checklist.
+
+The server is Go with SQLite (pure Go, no CGO). The web app is React, TypeScript, Tailwind CSS,
+Radix UI, Motion and TanStack Query.
 
 ## API
 
-| Method | Path | |
-|---|---|---|
-| GET | `/api/health` | Server name and version |
-| GET | `/api/auth/status` | Setup needed? Signed in? Current profile and the profiles to pick from |
-| POST | `/api/auth/setup` | First run: create the admin profile (`name`, `password`, `local_bypass`, API keys) |
-| POST | `/api/auth/login` | Sign in with the password; an app also sends `device` (its name) and gets `{"token"}` for `Authorization: Bearer` |
-| POST / DELETE | `/api/auth/profile` | Switch to a profile (`id`, `pin` or `password`) / back to the picker |
-| POST | `/api/auth/logout` | Sign out |
-| POST | `/api/auth/link` | A TV asks for a sign-in code: `{"device"}` → `{"code", "poll", "expires_in"}` |
-| GET | `/api/auth/link/{poll}` | The TV asks whether its code was entered: 202 while waiting, then `{"token"}` once |
-| POST | `/api/auth/link/approve` | Enter a TV's code to sign it in: `{"code"}` |
-| GET / DELETE | `/api/devices` | Signed-in browsers and apps (admin) / `/api/devices/{id}` signs one out |
-| POST | `/api/auth/friend` | A friend signs in: `{"name", "password"}` |
-| GET / POST | `/api/invites/{token}` | Who an invite link is for / accept it: `{"password"}` (signs the friend in) |
-| POST | `/api/auth/password` | Change the password (admin) |
-| GET / POST | `/api/profiles` | Profiles (admin) / add one: `{"name", "color", "pin", "max_age", "library_ids", "exclude_labels", "friend"}`; a friend comes back with an `invite_token` |
-| POST | `/api/profiles/{id}/invite` | A new invite link for a friend, e.g. to reset their password (admin) |
-| PATCH / DELETE | `/api/profiles/{id}` | Edit (a `pin` of `""` removes it) / remove a profile |
-| GET / PATCH | `/api/settings` | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit) |
-| POST | `/api/cast` | Turn a stream URL from `/playback` into a link a cast device can open: `{"url"}` → `{"url", "local_only"}` |
-| GET | `/api/cast/{token}/...` | A stream (file, or HLS playlist and segments) for a cast device, with CORS headers |
-| GET | `/api/remote` | Remote access: the outside address, the router's port forwarding and the HTTPS certificate (admin) |
-| POST | `/api/remote/check` | Try to reach Arc at its outside address (admin) |
+Everything the web app does goes through a documented REST API, with stable `/api/v1/...` paths,
+Bearer tokens for apps and link codes for TVs. The full reference is [docs/API.md](docs/API.md),
+generated from the code, and a running server describes itself at `/api/openapi.json`.
 
-The full reference, generated from the code, is [docs/API.md](docs/API.md): signing in apps with tokens, the stable `/api/v1/...` paths, and every endpoint.
+## Credits
 
-Everything except `/api/health` and `/api/auth/*` needs a signed-in profile (a session cookie);
-managing libraries, settings, profiles, backups and metadata needs the admin profile.
-
-| Method | Path | |
-|---|---|---|
-| GET | `/api/libraries` | Libraries with their size and scan status |
-| POST | `/api/libraries` | Add a library: `{"name", "kind": "movies"\|"shows"\|"videos", "paths": [...], "source_ordering", "trickplay", "metadata_language"}` |
-| PATCH | `/api/libraries/{id}` | Rename it, change its folders or episode numbering, `trickplay`, `collection_min`, `metadata_language` (e.g. `"fr-FR"`, `""` for English; everything is fetched again), `skip_intros`, `skip_credits`, or `collection_grid` (`""` titles, `collection`, `both`) |
-| DELETE | `/api/libraries/{id}` | Remove a library from Arc (backed up first; files untouched) |
-| POST | `/api/library-previews` | Preview what a library with these folders would contain (same body as adding) |
-| GET | `/api/library-previews/{id}` | The preview's progress and results |
-| GET | `/api/folders[?path=]` | Folders inside a folder (drives when no path), for choosing library folders |
-| POST | `/api/libraries/{id}/scan` | Start a scan |
-| GET | `/api/libraries/{id}/scan` | Scan progress |
-| GET | `/api/items?library_id=&kind=&q=&sort=&reverse=1&genre=&language=&label=&decade=&resolution=&unwatched=1&added_within=&min_runtime=&max_runtime=&min_rating=&about=&limit=&offset=&jump=` | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
-| GET | `/api/libraries/{id}/facets` | Genres, decades and qualities to filter a library by, with counts |
-| GET | `/api/items/{id}` | Item details with files and streams |
-| POST | `/api/items/bulk` | Change many movies and shows (admin): `{"item_ids", "add_genres", "remove_genres", "add_labels", "remove_labels", "content_rating", "locks": "all"|"none", "played", "refresh"}` |
-| POST | `/api/items/merge` | Merge movies into one (admin): `{"target_id", "item_ids"}`; the others become versions of the target |
-| POST | `/api/items/{id}/split` | Split Apart (admin): each version of a movie but the first gets its own title |
-| GET | `/api/labels` | Every label in use (admin) |
-| PATCH | `/api/items/{id}` | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`) |
-| POST | `/api/items/{id}/refresh` | Re-fetch metadata now (locked fields are kept) |
-| GET | `/api/items/{id}/match` | How the item was identified: what was read from its names and every search made |
-| GET | `/api/items/{id}/match/search?provider=tmdb\|tvdb&q=&year=` | Search a provider for the right match |
-| PUT | `/api/items/{id}/match` | Use a match: `{"provider": "tmdb", "id": 603}` |
-| GET | `/api/items/{id}/stream[?file=]` | Direct-play the original file |
-| POST | `/api/items/{id}/playback` | Decide how to play: `{"caps": {"containers", "video", "audio", "max_height"}, "file_id" or "edition", "audio_stream", "start_ms", "burn_subtitle"}` → `{"method": "direct|remux|transcode", "reasons", "url", "hls", "offset_ms", "audio_tracks", "subtitle_tracks", "versions", ...}`; starting again ends the player's previous conversion |
-| GET | `/api/items/{id}/trickplay?file=` | A file's scrubbing previews `{"info": {"interval_ms", "width", "height", "columns", "rows", "count"}, "sheets": [urls]}`; 404 until made |
-| GET | `/api/items/{id}/subtitles?file=` | A file's subtitle tracks (in it, beside it, downloaded) |
-| GET | `/api/items/{id}/subtitles/search?file=&languages=eng` | Find subtitles on OpenSubtitles |
-| POST | `/api/items/{id}/subtitles/download` | Download one: `{"file", "result", "language", "forced", "hearing_impaired"}` |
-| GET | `/api/items/{id}/subtitles/{track}?file=` | A text subtitle track's cues `{"start_ms", "end_ms", "text"}` (tracks are listed in the playback plan; picture ones are burned in with `"burn_subtitle"`) |
-| GET | `/api/transcode/{session}/index.m3u8` | A conversion's HLS playlist (and its `init.mp4` and `sNNNNN.m4s` segments) |
-| POST | `/api/transcode/{session}/ping` | Keep a paused player's conversion alive (they end after 2 minutes unused) |
-| DELETE | `/api/transcode/{session}` | End a conversion |
-| PUT | `/api/items/{id}/progress` | Player progress `{"position_ms", "duration_ms", "state": "playing\|paused\|stopped"}`; past 90% counts as watched. 409 means the admin stopped playback |
-| PUT | `/api/items/{id}/played` | Mark watched/unwatched `{"played": true}`; for a show, add `season_number` for one season |
-| GET / POST | `/api/playlists` | The profile's playlists; make one `{"title", "item_ids"}`, or a smart one `{"title", "filter"}` (a library filter; its titles are worked out when read) |
-| GET / PATCH / DELETE | `/api/playlists/{id}` | A playlist and its entries; rename `{"title"}`; delete |
-| POST | `/api/playlists/{id}/items` | Add `{"item_ids"}` (movies, episodes, or shows for all their episodes) |
-| DELETE / PUT | `/api/playlists/{id}/entries/{entry}`, `/order` | Remove an entry; order them `{"entry_ids"}` |
-| GET | `/api/home/continue?with_up_next=1` | What the profile is part-way through; with `with_up_next=1`, also the next episode of each show, most recent first (one per show) |
-| GET | `/api/libraries/{id}/recent-shows` | A TV library's Recently Added, grouped: `[{"type": "series"\|"season"\|"episode", "item", "season_number", "episodes", "season_poster"}]` |
-| GET | `/api/items/{id}/next` | The episode after this one in the profile's episode order (204 if none) |
-| DELETE | `/api/home/continue/{id}` | Remove a movie or episode (and its show) from Continue Watching until played again |
-| PUT | `/api/items/{id}/rating` | The profile's own rating `{"rating": 1-10}` (0 clears) |
-| PUT | `/api/items/{id}/watchlist` | `{"on": true}` puts a movie or show on the profile's watchlist |
-| GET | `/api/watchlist` | The profile's watchlist, newest first |
-| GET | `/api/items/{id}/similar` | More like this: movies or shows from the same library |
-| GET | `/api/libraries/{id}/recommended` | Recommended rows for the profile (`{rows: [{title, items, genre?}]}`) |
-| GET | `/api/home/next-up` | The next episode of each show the profile is watching, in their episode order |
-| GET | `/api/me/prefs` | The profile's own preferences: `{"hide_spoilers", "theme": ""\|"dark"\|"light", "split_up_next", "home": [rows]}` (an empty `home` is the default layout) |
-| GET / PATCH | `/api/profiles/{id}/prefs` | Another profile's preferences, e.g. its home (admin) |
-| GET / PUT | `/api/home/default` | The Default Home for profiles that haven't arranged their own: `{"home": [rows]}` (admin) |
-| GET | `/api/me/year?year=` | The profile's year in review (this year by default), and the years it has history for |
-| PATCH | `/api/me/prefs` | Change them (incl. `subtitle_mode`: `""`, `manual`, `foreign`, `always`; `subtitle_style`: `{size, color, background, position}`); a home row is `{"id": "continue"\|"next-up"\|"seasonal"\|"recent:<library>"\|"custom:<any>", "hidden", "title", "filter"}` |
-| GET | `/api/items/{id}/images/{primary\|backdrop}` | Artwork, served from the local cache |
-| GET | `/api/items/{id}/artwork` | Posters and backgrounds to choose from, plus what's in use, chosen or local |
-| PUT | `/api/items/{id}/artwork` | Choose one: `{"type": "poster\|backdrop", "path": "/abc.jpg"}`; `"path": null` goes back to automatic |
-| POST | `/api/items/{id}/artwork/{poster\|backdrop}` | Upload your own (JPEG, PNG or WebP body, up to 20 MB) |
-| GET | `/api/search?q=` | Search everything: `{"movies", "shows", "episodes", "people", "collections", "genres"}`, best matches first; ignores accents and case, and forgives small typos |
-| GET | `/api/people/{id}` | Someone in the cast or crew and the titles in the libraries they're in: `{"person", "credits": [{"item", "roles", "character"}]}` |
-| GET | `/api/people/{id}/image` | A cast or crew member's photo |
-| GET | `/api/extras/{id}/stream` | Play a trailer or other extra |
-| GET | `/api/libraries/{id}/unmatched` | Items that need attention |
-| GET | `/api/libraries/{id}/health` | Library health: unidentified items, unreadable/unrecognised/missing files, duplicates, missing episodes |
-| POST | `/api/libraries/{id}/compatibility` | How a library plays on a device: `{"caps": {...}}` → `{"total", "counts": {"direct", "remux", "transcode"}, "reasons", "converted": [{"item", "reasons"}]}` |
-| GET | `/api/libraries/{id}/collections` | A library's collections |
-| GET | `/api/collections/{id}` | A collection and its titles |
-| GET / PUT | `/api/collections/{id}/artwork` | Posters and backgrounds to choose from; choose one `{"type", "path"}` (`null` for automatic) |
-| POST | `/api/collections/{id}/artwork/{poster|backdrop}` | Upload a collection's poster or background |
-| POST | `/api/collections` | Make one: `{"library_id", "kind": "manual"|"smart", "title", "overview", "filter", "item_ids"}` |
-| PATCH / DELETE | `/api/collections/{id}` | Change (incl. `grid_mode`: `""` the library's, `items`, `collection`, `both`) or delete one (automatic ones are hidden) |
-| POST / DELETE / PUT | `/api/collections/{id}/items[/{item}]`, `/order` | Add, remove and order a manual collection's titles |
-| GET | `/api/health/libraries` | Count of problems needing the user, per library |
-| POST | `/api/libraries/{id}/empty-trash` | Forget titles whose files are all gone (backed up first) |
-| DELETE | `/api/items/{id}` | Forget one title whose files are all gone (backed up first) |
-| GET | `/api/series/{id}/seasons/{n}/image` | A season's poster |
-| PATCH | `/api/series/{id}/seasons/{n}?ordering=` | Edit a season's `name` and `overview` in an order (the display order by default); edited fields are locked, `locked_fields` replaces the set |
-| GET | `/api/series/{id}/season-art` | A show's seasons and the poster each uses (`chosen`, `local`) |
-| GET / PUT / POST | `/api/series/{id}/seasons/{n}/artwork` | TMDB's posters for a season; choose one `{"path"}` (`null` for automatic); upload one (image body) |
-| GET | `/api/series/{id}/seasons[?ordering=&missing=1]` | Episodes arranged by an ordering (display ordering by default) |
-| GET | `/api/series/{id}/orderings` | Available orderings and the one in use |
-| PUT | `/api/series/{id}/display-ordering` | `{"ordering_id": 5}` or `null` to reset |
-| POST | `/api/series/{id}/orderings` | Custom ordering: `{"name": "...", "copy_from": 5}` |
-| DELETE | `/api/series/{id}/orderings/{oid}` | Delete a custom ordering |
-| PUT | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Place an episode: `{"season_number": 1, "episode_number": 3}` |
-| DELETE | `/api/series/{id}/orderings/{oid}/entries/{episode}` | Remove a manual placement |
-| POST | `/api/series/{id}/refresh[?deep=1]` | Re-fetch metadata and orderings |
-| GET | `/api/dashboard/resources` | CPU, memory and data sent, every 2 seconds for 5 minutes, or `?range=day` each minute for 24 hours (admin) |
-| GET | `/api/playing` | What is being watched right now: profile, title, device, position, state |
-| GET / POST | `/api/webhooks` | Webhooks with their last delivery and the event names (admin) / add one: `{"name", "url", "events": []}` (empty for all) |
-| PUT / DELETE | `/api/webhooks/{id}` | Change or remove a webhook (admin) |
-| POST | `/api/webhooks/{id}/test` | Send a test message now |
-| GET / PUT / DELETE | `/api/items/{id}/markers` | A movie's or episode's skip markers with their sources (admin) / set them by hand: `{"markers": [{"kind": "intro", "start_ms", "end_ms"}]}` / forget them so they're found again |
-| POST | `/api/optimize` | Make optimized copies (admin): `{"item_ids", "quality": 1080|720}` (a show means all its episodes) |
-| GET | `/api/optimized` | Optimized copies with their status and size (admin) |
-| DELETE | `/api/optimized/{file}/{quality}` | Remove one (admin) |
-| GET | `/api/items/{id}/preroll` | The pre-roll videos to play before a movie: `[{title, url}]` (empty for episodes, home videos, or none set) |
-| GET | `/api/items/{id}/theme` | A show's or movie's theme tune (the item's `theme_url` when it has one) |
-| GET | `/api/news` | New for You: `{entries: [{item, count, added_at, unread}], unread}` |
-| POST | `/api/news/seen` | Mark New for You as seen |
-| POST | `/api/imports` | Start importing (admin): `{"source": "plex"}` (returns the plex.tv sign-in link) or `{"source": "jellyfin", "url", "username", "password"}` |
-| GET | `/api/imports/{id}` | The import so far: stage (signing_in, choose_server, choose_accounts, running, done, failed), servers, accounts, results |
-| POST | `/api/imports/{id}/server` | Choose the Plex server: `{"server_id"}` |
-| POST | `/api/imports/{id}/run` | Import: `{"profiles": {"<account id>": "<profile id>" | "new"}}` |
-| GET | `/api/activity` | What the server is doing (admin): `{running: [...], recent: [...]}`, each with `title`, `detail`, `done`/`total`, start and finish times and any `error` |
-| POST | `/api/playing/{id}/stop` | Stop a playback, with an optional `{"message": "..."}` for the viewer |
-| GET | `/api/logs?level=info\|warn\|error\|debug&after=<seq>` | Recent server log lines, oldest first |
-| GET | `/api/stats?days=30&profile=&library=` | Watch activity (`days=0` for all time): totals, timeline, top movies, shows and genres, by profile, library, device and method, and watch time by weekday and hour |
-| GET | `/api/stats/history?profile=&library=&before=&limit=50` | Watch history, newest first; pass the last id as `before` for more |
-| GET | `/api/stats/storage?library=` | Space per library, the biggest titles, and titles nobody has watched |
-| GET | `/api/backups` | Database backups, newest first |
-| POST | `/api/backups` | Back up now |
-| POST | `/api/backups/{name}/restore` | Restore a backup (the current state is backed up first) |
-| DELETE | `/api/backups/{name}` | Delete a backup |
-
-## Layout
-
-```
-cmd/ams/            entrypoint
-internal/config/    YAML config
-internal/store/     SQLite, migrations, queries
-internal/probe/     ffprobe wrapper
-internal/scanner/   folder walking and filename parsing
-internal/metadata/  TMDB and TheTVDB clients
-internal/api/       REST API
-internal/webui/     serves the built web app (embedded)
-web/                web app source (React + TypeScript)
-```
+Movie and TV information and images come from [TMDB](https://www.themoviedb.org) and
+[TheTVDB](https://thetvdb.com), credited in the app wherever their information is shown.
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+Skip markers can also come from [IntroDB](https://introdb.app) and
+[TheIntroDB](https://theintrodb.org), subtitles from [OpenSubtitles.com](https://www.opensubtitles.com),
+and critics' scores from [OMDb](https://www.omdbapi.com).
