@@ -16,10 +16,8 @@
     "shuffleTheEpisodes": "Shuffle the episodes",
     "shuffle": "Shuffle",
     "shuffleSeason": "Shuffle Season",
-    "editSeason": "Edit Season",
     "hideMissing": "Hide Missing",
     "showMissing": "Show Missing",
-    "episodeOrdering": "Episode ordering…",
     "edit": "Edit…",
     "notInOrder": "Not in This Order",
     "seasons_one": "{{count}} Season",
@@ -68,6 +66,7 @@
   },
   "itemActions": {
     "more": "More",
+    "episodeOrdering": "Episode ordering…",
     "refreshingMetadata": "Refreshing metadata…",
     "refreshMetadata": "Refresh metadata",
     "startingAnalysis": "Starting analysis…",
