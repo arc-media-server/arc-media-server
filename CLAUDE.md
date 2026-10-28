@@ -683,6 +683,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
 3. **No plugin system.** Features are built into AMS.
 4. **Storage order ≠ display order.** Episode identity is separate from how a series is displayed.
 5. **Nothing silently disappears.** Unmatched or unplaced items are shown and listed, never hidden.
+6. **All new UI text goes through `t()` and `en.json`.** Here `en.json` means the bundled English
+   namespace catalogs in `web/src/locales/en`; use `Trans` for rich text, whole phrases/placeholders
+   and noun-specific plural keys. Never translate API enums, matching tokens, keyboard event values
+   or stored identifiers. See `docs/TRANSLATION.md`.
 
 ## Working with the owner
 

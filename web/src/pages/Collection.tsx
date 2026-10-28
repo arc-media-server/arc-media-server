@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,7 +9,7 @@ import { collectionQueue, shuffled } from '@/lib/shuffle';
 import { api, type Item } from '@/lib/api';
 import { kindUnit } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
-import * as fmt from '@/lib/format';
+import { countUnit } from '@/lib/browsing-labels';
 import { Artwork } from '@/components/Artwork';
 import { CollectionDialog } from '@/components/Collections';
 import { Hero } from '@/components/Hero';
@@ -18,9 +19,9 @@ import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
-const kindLabels = { auto: 'Collection', manual: 'Collection', smart: 'Smart Collection', folder: 'Folder' };
-
 export function CollectionPage() {
+  const { t } = useTranslation('collection');
+  const kindLabels = { auto: t('collection:kind.collection'), manual: t('collection:kind.collection'), smart: t('collection:kind.smart'), folder: t('collection:kind.folder') };
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -67,7 +68,7 @@ export function CollectionPage() {
           <div className="max-w-2xl">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">{kindLabels[c.kind]}</p>
             <h1 className="text-4xl font-bold leading-[1.05] md:text-5xl">{c.title}</h1>
-            <p className="mt-3 text-sm text-foreground/70">{fmt.plural(c.count, unit)}</p>
+            <p className="mt-3 text-sm text-foreground/70">{countUnit(c.count, unit)}</p>
             {c.overview && <p className="mt-4 text-[15px] leading-relaxed text-foreground/85">{c.overview}</p>}
             {data.items.length > 0 && (
               <div className="mt-6 flex flex-wrap gap-3">
@@ -77,25 +78,25 @@ export function CollectionPage() {
                   disabled={starting}
                   onClick={() => void start(false)}
                 >
-                  <Play className="fill-current" /> Play
+                  <Play className="fill-current" /> {t('common:actions.play')}
                 </Button>
                 <Button variant="secondary" size="lg" disabled={starting} onClick={() => void start(true)}>
-                  {starting ? <Loader2 className="animate-spin" /> : <Shuffle />} Shuffle
+                  {starting ? <Loader2 className="animate-spin" /> : <Shuffle />} {t('common:actions.shuffle')}
                 </Button>
               </div>
             )}
             {admin && (
               <div className="mt-3 flex flex-wrap gap-3">
                 <Button variant="secondary" onClick={() => setEditing(true)}>
-                  <Pencil /> Edit
+                  <Pencil /> {t('common:actions.edit')}
                 </Button>
                 {c.kind === 'manual' && data.items.length > 1 && (
                   <Button variant="secondary" onClick={() => setArranging((a) => !a)}>
-                    {arranging ? <Check /> : <ArrowUpDown />} {arranging ? 'Done' : 'Arrange'}
+                    {arranging ? <Check /> : <ArrowUpDown />} {arranging ? t('common:actions.done') : t('collection:arrange')}
                   </Button>
                 )}
                 <Button variant="ghost" onClick={() => setDeleting(true)}>
-                  <Trash2 /> {c.kind === 'auto' || c.kind === 'folder' ? 'Remove' : 'Delete'}
+                  <Trash2 /> {c.kind === 'auto' || c.kind === 'folder' ? t('common:actions.remove') : t('common:actions.delete')}
                 </Button>
               </div>
             )}
@@ -106,7 +107,7 @@ export function CollectionPage() {
       <div className="px-6 pt-8 md:px-10">
         {arranging ? <Arrange collectionId={c.id} items={data.items} /> : data.items.length > 0 && <PosterGrid items={data.items} landscape={c.kind === 'folder'} />}
         {!arranging && data.items.length === 0 && (
-          <p className="text-sm text-muted">{c.kind === 'manual' ? `Nothing in it yet. Add ${unit}s from their pages (⋯ > Add to Collection).` : 'Nothing matches right now.'}</p>
+          <p className="text-sm text-muted">{c.kind === 'manual' ? unit === 'show' ? t('collection:empty.show') : unit === 'video' ? t('collection:empty.video') : t('collection:empty.movie') : t('collection:empty.matches')}</p>
         )}
       </div>
 
@@ -114,8 +115,8 @@ export function CollectionPage() {
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}
-        title={c.kind === 'auto' ? `Remove ${c.title}?` : `Delete ${c.title}?`}
-        confirmLabel={c.kind === 'auto' ? 'Remove' : 'Delete'}
+        title={c.kind === 'auto' ? t('collection:removeTitle', { title: c.title }) : t('collection:deleteTitle', { title: c.title })}
+        confirmLabel={c.kind === 'auto' ? t('common:actions.remove') : t('common:actions.delete')}
         destructive
         busy={remove.isPending}
         error={remove.error?.message}
@@ -123,8 +124,8 @@ export function CollectionPage() {
       >
         <p>
           {c.kind === 'auto'
-            ? "It won't be shown again, even though TMDB groups these films. The films themselves stay in your library."
-            : 'The collection goes; the titles in it stay in your library.'}
+            ? t('collection:removeDescription')
+            : t('collection:deleteDescription')}
         </p>
       </ConfirmDialog>
     </Page>
@@ -157,6 +158,7 @@ function Arrange({ collectionId, items: initial }: { collectionId: string; items
 }
 
 function ArrangeRow({ item, onDrop, onRemove }: { item: Item; onDrop: () => void; onRemove: () => void }) {
+  const { t } = useTranslation('collection');
   const drag = useDragControls();
   return (
     <Reorder.Item
@@ -167,14 +169,14 @@ function ArrangeRow({ item, onDrop, onRemove }: { item: Item; onDrop: () => void
       className="flex items-center gap-3 rounded-2xl bg-surface p-2 pr-3 ring-1 ring-border"
       whileDrag={{ scale: 1.02, boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}
     >
-      <button type="button" aria-label={`Drag ${item.title}`} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
+      <button type="button" aria-label={t('collection:dragTitle', { title: item.title })} onPointerDown={(e) => drag.start(e)} className="cursor-grab touch-none p-1.5 text-subtle hover:text-foreground">
         <GripVertical className="size-4" />
       </button>
       <Artwork src={item.images?.primary} alt="" className="w-9 shrink-0 rounded-md" fallbackTitle={item.title} />
       <p className="min-w-0 flex-1 truncate text-sm font-medium">
         {item.title} {item.year ? <span className="font-normal text-muted">({item.year})</span> : null}
       </p>
-      <Button variant="ghost" size="icon" aria-label={`Take ${item.title} out`} onClick={onRemove}>
+      <Button variant="ghost" size="icon" aria-label={t('collection:takeOut', { title: item.title })} onClick={onRemove}>
         <X />
       </Button>
     </Reorder.Item>
