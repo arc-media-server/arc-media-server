@@ -69,6 +69,9 @@ type Settings struct {
 	HTTPSMode, HTTPSCert, HTTPSKey, HTTPSDomain string
 	// Networks that count as home besides private addresses, e.g. "100.64.0.0/10" (comma-separated).
 	HomeNetworks string
+	// Reverse proxies whose forwarding headers are believed (Plex's and Jellyfin's known proxies),
+	// e.g. "172.17.0.5" for SWAG; none by default.
+	TrustedProxies string
 	// Where converted streams are written while they're watched ("" for Arc's data folder), and
 	// how many videos may be converted at once (0 for no limit).
 	TranscodeDir  string
@@ -82,42 +85,43 @@ const DefaultPort = 8099
 
 // Database keys.
 const (
-	keyScanAutomatic = "scan_automatic"
-	keyScanPartial   = "scan_partial"
-	keyScanOnStart   = "scan_on_start"
-	keyScanInterval  = "scan_interval_hours"
-	keyTMDB          = "tmdb_api_key"
-	keyTVDB          = "tvdb_api_key"
-	keyFFprobe       = "ffprobe_path"
-	keyLocalBypass   = "local_bypass"
-	keyPort          = "port"
-	keyAllowNetwork  = "allow_network"
-	keyRegion        = "region"
-	keyHWAccel       = "hw_accel"
-	keyToneMap       = "tone_mapping"
-	keyOSKey         = "opensubtitles_api_key"
-	keyOSUser        = "opensubtitles_username"
-	keyOSPassword    = "opensubtitles_password"
-	keyMaintStart    = "maintenance_start"
-	keyMaintEnd      = "maintenance_end"
-	keyPreviewsNight = "previews_at_night"
-	keyOMDb          = "omdb_api_key"
-	keyPrerollPaths  = "preroll_paths"
-	keyPrerollMode   = "preroll_mode"
-	keyTheIntroDB    = "theintrodb_api_key"
-	keyDetectIntros  = "detect_intros"
-	keyRemoteKbps    = "remote_kbps"
-	keyUploadKbps    = "upload_kbps"
-	keyRemoteAccess  = "remote_access"
-	keyRemotePort    = "remote_port"
-	keyUPnP          = "upnp"
-	keyHTTPSMode     = "https_mode"
-	keyHTTPSCert     = "https_cert"
-	keyHTTPSKey      = "https_key"
-	keyHTTPSDomain   = "https_domain"
-	keyHomeNetworks  = "home_networks"
-	keyTranscodeDir  = "transcode_dir"
-	keyMaxTranscodes = "max_transcodes"
+	keyScanAutomatic  = "scan_automatic"
+	keyScanPartial    = "scan_partial"
+	keyScanOnStart    = "scan_on_start"
+	keyScanInterval   = "scan_interval_hours"
+	keyTMDB           = "tmdb_api_key"
+	keyTVDB           = "tvdb_api_key"
+	keyFFprobe        = "ffprobe_path"
+	keyLocalBypass    = "local_bypass"
+	keyPort           = "port"
+	keyAllowNetwork   = "allow_network"
+	keyRegion         = "region"
+	keyHWAccel        = "hw_accel"
+	keyToneMap        = "tone_mapping"
+	keyOSKey          = "opensubtitles_api_key"
+	keyOSUser         = "opensubtitles_username"
+	keyOSPassword     = "opensubtitles_password"
+	keyMaintStart     = "maintenance_start"
+	keyMaintEnd       = "maintenance_end"
+	keyPreviewsNight  = "previews_at_night"
+	keyOMDb           = "omdb_api_key"
+	keyPrerollPaths   = "preroll_paths"
+	keyPrerollMode    = "preroll_mode"
+	keyTheIntroDB     = "theintrodb_api_key"
+	keyDetectIntros   = "detect_intros"
+	keyRemoteKbps     = "remote_kbps"
+	keyUploadKbps     = "upload_kbps"
+	keyRemoteAccess   = "remote_access"
+	keyRemotePort     = "remote_port"
+	keyUPnP           = "upnp"
+	keyHTTPSMode      = "https_mode"
+	keyHTTPSCert      = "https_cert"
+	keyHTTPSKey       = "https_key"
+	keyHTTPSDomain    = "https_domain"
+	keyHomeNetworks   = "home_networks"
+	keyTrustedProxies = "trusted_proxies"
+	keyTranscodeDir   = "transcode_dir"
+	keyMaxTranscodes  = "max_transcodes"
 )
 
 // Environment variables that override settings.
@@ -268,6 +272,9 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	if s.HomeNetworks, err = get(keyHomeNetworks); err != nil {
 		return s, err
 	}
+	if s.TrustedProxies, err = get(keyTrustedProxies); err != nil {
+		return s, err
+	}
 	if s.TranscodeDir, err = get(keyTranscodeDir); err != nil {
 		return s, err
 	}
@@ -367,7 +374,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
 		keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
 		keyHTTPSMode: s.HTTPSMode, keyHTTPSCert: s.HTTPSCert, keyHTTPSKey: s.HTTPSKey, keyHTTPSDomain: s.HTTPSDomain,
-		keyHomeNetworks: s.HomeNetworks, keyTranscodeDir: s.TranscodeDir, keyMaxTranscodes: strconv.Itoa(s.MaxTranscodes),
+		keyHomeNetworks: s.HomeNetworks, keyTrustedProxies: s.TrustedProxies, keyTranscodeDir: s.TranscodeDir, keyMaxTranscodes: strconv.Itoa(s.MaxTranscodes),
 	} {
 		if os.Getenv(envOverrides[key]) != "" && envOverrides[key] != "" {
 			continue // fixed by the environment
