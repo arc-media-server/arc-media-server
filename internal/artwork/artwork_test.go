@@ -74,3 +74,24 @@ func TestSourceSizes(t *testing.T) {
 		}
 	}
 }
+
+func TestFullSourceForBanners(t *testing.T) {
+	tests := []struct{ path, want string }{
+		{"/b.jpg", "https://image.tmdb.org/t/p/original/b.jpg"},
+		{"https://artworks.thetvdb.com/banners/fanart/x.jpg", ""}, // TheTVDB has one size only
+		{"upload:abc.jpg", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		if got := FullSource("movie", tt.path); got != tt.want {
+			t.Errorf("FullSource(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+	got := Sources("movie", "backdrop", "/b.jpg")
+	if len(got) != 2 || got[0] != "https://image.tmdb.org/t/p/w1280/b.jpg" || got[1] != "https://image.tmdb.org/t/p/original/b.jpg" {
+		t.Errorf("backdrop sources = %v, want the card size then the full size", got)
+	}
+	if got := Sources("movie", "primary", "/p.jpg"); len(got) != 1 {
+		t.Errorf("poster sources = %v, want one", got)
+	}
+}

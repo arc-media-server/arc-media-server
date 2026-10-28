@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, type MouseEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, BookmarkCheck, Check, Circle, Loader2, MoreVertical, Pencil, Play } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -86,10 +86,20 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
   );
 }
 
-/** The card's "⋯": its menu (and the dialogs it opens) are only built once it's used. */
+/**
+ * The card's "⋯": its menu (and the dialogs it opens) are only built once it's used, and kept
+ * while an action from it finishes or a dialog is open. Results show as a short note here, so
+ * they survive the menu closing.
+ */
 function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const { t } = useTranslation('common');
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    if (!note) return;
+    const timer = window.setTimeout(() => setNote(''), 4000);
+    return () => window.clearTimeout(timer);
+  }, [note]);
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
@@ -101,24 +111,29 @@ function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: stri
           <MoreVertical className="size-4" />
         </button>
       </DropdownMenuTrigger>
-      {(open || busy) && <CardMenuBody item={item} open={open} onBusy={setBusy} />}
+      {(open || busy) && <CardMenuBody item={item} open={open} onBusy={setBusy} onNote={setNote} />}
+      {note && (
+        <p role="status" className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[calc(100vw-32px)] rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-2xl">
+          {note}
+        </p>
+      )}
     </DropdownMenu>
   );
 }
 
-function CardMenuBody({ item, open, onBusy }: { item: Item; open: boolean; onBusy: (busy: boolean) => void }) {
+function CardMenuBody({ item, open, onBusy, onNote }: { item: Item; open: boolean; onBusy: (busy: boolean) => void; onNote: (note: string) => void }) {
   const { t } = useTranslation('titles');
   const admin = useIsAdmin();
   const queue = useQueueActions(item);
   const dialogs = useItemDialogs(item);
   const analysis = useAnalyzeItem(item);
   const changed = useWatchStateChanged();
+  const qc = useQueryClient();
   const [playlist, setPlaylist] = useState(false);
-  const [note, setNote] = useState('');
-  const fail = (e: unknown) => setNote(e instanceof Error ? e.message : String(e));
+  const fail = (e: unknown) => onNote(e instanceof Error ? e.message : String(e));
   const refresh = useMutation({
     mutationFn: async () => { if (item.kind === 'series') await api.refreshSeries(item.id); else await api.refreshItem(item.id); },
-    onSuccess: () => { changed(); setNote(t('titles:cardMenu.refreshed')); },
+    onSuccess: () => { changed(); onNote(t('titles:cardMenu.refreshed')); },
     onError: fail,
   });
   const watched = item.kind === 'series' ? item.unwatched_count === 0 : !!item.user_data?.played;
@@ -128,19 +143,18 @@ function CardMenuBody({ item, open, onBusy }: { item: Item; open: boolean; onBus
     mutationFn: (on: boolean) => api.setWatchlist(item.id, on),
     onMutate: (on) => setListed(on),
     onError: (e, on) => { setListed(!on); fail(e); },
+    onSuccess: () => {
+      for (const key of ['watchlist', 'item', 'items']) qc.invalidateQueries({ queryKey: [key] });
+    },
   });
-  // Stay built while a dialog or a notice from the menu is showing.
-  const showing = dialogs.current !== null || playlist || !!note || !!queue.notice || !!queue.error || analysis.started;
+  // Stay built while a dialog is open or an action from the menu is still finishing.
+  const showing = dialogs.current !== null || playlist || queue.busy || analysis.analyzing ||
+    refresh.isPending || played.isPending || watchlist.isPending;
   useEffect(() => { onBusy(showing); }, [showing, onBusy]);
-  useEffect(() => { if (queue.notice) setNote(queue.notice); }, [queue.notice]);
-  useEffect(() => { if (queue.error) fail(queue.error); }, [queue.error]);
-  useEffect(() => { if (analysis.started) setNote(analysis.message); }, [analysis.started, analysis.message]);
-  useEffect(() => { if (analysis.error) fail(analysis.error); }, [analysis.error]);
-  useEffect(() => {
-    if (!note) return;
-    const timer = window.setTimeout(() => setNote(''), 4000);
-    return () => window.clearTimeout(timer);
-  }, [note]);
+  useEffect(() => { if (queue.notice) onNote(queue.notice); }, [queue.notice, onNote]);
+  useEffect(() => { if (queue.error) fail(queue.error); }, [queue.error]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (analysis.started) onNote(analysis.message); }, [analysis.started, analysis.message, onNote]);
+  useEffect(() => { if (analysis.error) fail(analysis.error); }, [analysis.error]); // eslint-disable-line react-hooks/exhaustive-deps
   const playable = item.kind === 'series' || !!item.stream_url;
   return (
     <>
@@ -174,11 +188,6 @@ function CardMenuBody({ item, open, onBusy }: { item: Item; open: boolean; onBus
       )}
       {dialogs.dialogs}
       <AddToPlaylistDialog item={item} open={playlist} onOpenChange={setPlaylist} />
-      {note && (
-        <p role="status" className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[calc(100vw-32px)] rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-2xl">
-          {note}
-        </p>
-      )}
     </>
   );
 }

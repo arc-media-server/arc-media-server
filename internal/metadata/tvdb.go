@@ -123,7 +123,7 @@ func (c *TVDB) SearchShows(ctx context.Context, title string, year int) ([]Candi
 // nothing plausible is found.
 func (c *TVDB) SearchSeries(ctx context.Context, title string, year int) (int64, error) {
 	pick := func(results []tvdbSearchResult) int64 {
-		return confidentMatch(title, tvdbCandidates(results))
+		return confidentMatch(title, year, tvdbCandidates(results))
 	}
 
 	results, err := c.searchSeries(ctx, title, year)

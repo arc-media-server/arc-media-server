@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { copyFile, mkdir, rename } from 'node:fs/promises';
+import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
 import { join, relative, isAbsolute } from 'node:path';
 
 type Media = { movies: string; shows: string };
@@ -15,7 +15,14 @@ const test = base.extend<{ media: Media }>({
     });
     expect((await page.request.post('/api/auth/setup', { data: { name: 'Admin', password: 'Maintenance-fixture-123', local_bypass: false, tmdb_api_key: 'fixture-not-a-secret', region: 'GB' } })).ok()).toBeTruthy();
     expect((await page.request.patch('/api/settings', { data: { scan_automatic: false, scan_on_start: false, scan_interval_minutes: 0, preview_mode: 'off', detection_mode: 'off', analysis_enabled: false, metadata_refresh_enabled: false, auto_backups_enabled: false } })).ok()).toBeTruthy();
-    await use(await reset.json());
+    const media: Media = await reset.json();
+    try {
+      await use(media);
+    } finally {
+      // The media folders are shared by every test: take away the second "Arc Show" folder the
+      // merging tests add, or later tests find two shows of that name and may pick the wrong one.
+      await rm(join(media.shows, 'Arc Show'), { recursive: true, force: true });
+    }
     expect(errors).toEqual([]);
   },
 });

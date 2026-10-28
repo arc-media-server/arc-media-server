@@ -251,13 +251,19 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			return nil, err
 		}
 		sources := make([]string, 0, len(images))
+		var full []string // full-resolution backdrops for banners, larger, so fetched last
 		for _, im := range images {
 			// Uploaded artwork is already on disk.
 			if src := artwork.Source(im.Kind, im.Type, im.Path); strings.HasPrefix(src, "http") {
 				sources = append(sources, src)
 			}
+			if im.Type == "backdrop" {
+				if src := artwork.FullSource(im.Kind, im.Path); src != "" {
+					full = append(full, src)
+				}
+			}
 		}
-		return sources, nil
+		return append(sources, full...), nil
 	})
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
