@@ -3,7 +3,7 @@ import type { Item } from '@/lib/api';
 import { Artwork } from './Artwork';
 
 /**
- * The artwork of an Arc thumbnail: a squarer card with the title's background art (the show's, for an
+ * The artwork of a backdrop card (the "Backdrops" style): a squarer card with the title's background art (the show's, for an
  * episode) and its logo, as on Apple TV. Background art never gives an episode away, so spoiler
  * protection has nothing to hide here. Without a logo, the title is shown on the art instead.
  */
