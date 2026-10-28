@@ -13,7 +13,7 @@ import (
 
 // ImportRef identifies a movie or episode in another server by its online ids.
 type ImportRef struct {
-	Kind       string // movie or episode
+	Kind       string // movie, series or episode
 	TMDB, TVDB int64
 	IMDB       string
 	// Episodes: their show's ids, and the episode's season and number (aired order).
@@ -22,7 +22,7 @@ type ImportRef struct {
 	Season, Episode        int
 }
 
-// FindImported returns the Arc movie or episode an imported one is, or "" if Arc doesn't have it.
+// FindImported returns the Arc movie, show or episode an imported one is, or "" if Arc doesn't have it.
 func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 	one := func(q string, args ...any) (string, error) {
 		var id string
@@ -31,6 +31,21 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 			return "", nil
 		}
 		return id, err
+	}
+	if r.Kind == "series" {
+		for _, q := range []struct {
+			col string
+			v   any
+			ok  bool
+		}{{"tvdb_id", r.TVDB, r.TVDB != 0}, {"tmdb_id", r.TMDB, r.TMDB != 0}, {"imdb_id", r.IMDB, r.IMDB != ""}} {
+			if !q.ok {
+				continue
+			}
+			if id, err := one(`SELECT id FROM items WHERE kind = 'series' AND `+q.col+` = ? ORDER BY added_at LIMIT 1`, q.v); id != "" || err != nil {
+				return id, err
+			}
+		}
+		return "", nil
 	}
 	if r.Kind == "movie" {
 		if r.TMDB != 0 {
@@ -152,4 +167,75 @@ func (s *Store) AddImportedPlay(ctx context.Context, userID, itemID string, at i
 	}
 	_, err = s.AddPlay(ctx, p)
 	return err == nil, err
+}
+
+// ImportPlaylist adds titles to the profile's playlist of that name (made if it has none, or only a
+// smart one), skipping titles already in it, so importing again doesn't repeat anything. It
+// returns how many entries were added.
+func (s *Store) ImportPlaylist(ctx context.Context, userID, title string, itemIDs []string) (int, error) {
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM playlists WHERE user_id = ? AND title = ? AND filter = ''
+		ORDER BY created_at LIMIT 1`, userID, title).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		p, err := s.CreatePlaylist(ctx, userID, title)
+		if err != nil {
+			return 0, err
+		}
+		id = p.ID
+	} else if err != nil {
+		return 0, err
+	}
+	have := map[string]bool{}
+	rows, err := s.db.QueryContext(ctx, `SELECT item_id FROM playlist_entries WHERE playlist_id = ?`, id)
+	if err != nil {
+		return 0, err
+	}
+	for rows.Next() {
+		var it string
+		if err := rows.Scan(&it); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		have[it] = true
+	}
+	rows.Close()
+	var add []string
+	for _, it := range itemIDs {
+		if !have[it] {
+			have[it] = true
+			add = append(add, it)
+		}
+	}
+	if len(add) == 0 {
+		return 0, nil
+	}
+	return len(add), s.AddToPlaylist(ctx, id, add)
+}
+
+// ImportCollection adds titles to the library's manual collection of that name (made if it has
+// none), keeping titles already in it where they are. It returns how many titles were added.
+func (s *Store) ImportCollection(ctx context.Context, libraryID int64, title string, itemIDs []string) (int, error) {
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT id FROM collections WHERE library_id = ? AND kind = 'manual' AND title = ?
+		ORDER BY created_at LIMIT 1`, libraryID, title).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		c := &Collection{LibraryID: libraryID, Kind: "manual", Title: title}
+		if err := s.CreateCollection(ctx, c); err != nil {
+			return 0, err
+		}
+		id = c.ID
+	} else if err != nil {
+		return 0, err
+	}
+	var before, after int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_items WHERE collection_id = ?`, id).Scan(&before); err != nil {
+		return 0, err
+	}
+	if err := s.AddToCollection(ctx, id, itemIDs); err != nil {
+		return 0, err
+	}
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_items WHERE collection_id = ?`, id).Scan(&after); err != nil {
+		return 0, err
+	}
+	return after - before, nil
 }

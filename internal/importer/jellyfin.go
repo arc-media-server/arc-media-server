@@ -22,6 +22,8 @@ type Jellyfin struct {
 	base     string
 	deviceID string
 	token    string
+	// The administrator signed in as, whose view lists the server's collections.
+	userID string
 }
 
 func (j *Jellyfin) Name() string { return "Jellyfin" }
@@ -83,6 +85,7 @@ func ConnectJellyfin(ctx context.Context, client *http.Client, base, deviceID, u
 	var res struct {
 		AccessToken string `json:"AccessToken"`
 		User        struct {
+			ID     string `json:"Id"`
 			Policy struct {
 				IsAdministrator bool `json:"IsAdministrator"`
 			} `json:"Policy"`
@@ -96,7 +99,7 @@ func ConnectJellyfin(ctx context.Context, client *http.Client, base, deviceID, u
 	if !res.User.Policy.IsAdministrator {
 		return nil, errors.New("sign in with a Jellyfin administrator, so Arc can read everyone's watch history")
 	}
-	j.token = res.AccessToken
+	j.token, j.userID = res.AccessToken, res.User.ID
 	return j, nil
 }
 
@@ -145,19 +148,27 @@ func (it jellyfinItem) provider(name string) string {
 
 // items lists a user's items of some types matching a filter, every page.
 func (j *Jellyfin) items(ctx context.Context, userID, types, filter string) ([]jellyfinItem, error) {
+	q := url.Values{"Recursive": {"true"}, "IncludeItemTypes": {types}}
+	if filter != "" {
+		q.Set("Filters", filter)
+	}
+	return j.pages(ctx, "/Users/"+url.PathEscape(userID)+"/Items", q)
+}
+
+// pages reads every page of an item listing, with provider ids.
+func (j *Jellyfin) pages(ctx context.Context, path string, base url.Values) ([]jellyfinItem, error) {
 	const page = 1000
 	var all []jellyfinItem
 	for start := 0; ; start += page {
-		q := url.Values{"Recursive": {"true"}, "IncludeItemTypes": {types}, "Fields": {"ProviderIds"},
-			"StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(page)}, "EnableImages": {"false"}}
-		if filter != "" {
-			q.Set("Filters", filter)
+		q := url.Values{"Fields": {"ProviderIds"}, "StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(page)}, "EnableImages": {"false"}}
+		for k, v := range base {
+			q[k] = v
 		}
 		var res struct {
 			Items            []jellyfinItem `json:"Items"`
 			TotalRecordCount int            `json:"TotalRecordCount"`
 		}
-		if err := j.do(ctx, http.MethodGet, "/Users/"+url.PathEscape(userID)+"/Items", q, nil, &res); err != nil {
+		if err := j.do(ctx, http.MethodGet, path, q, nil, &res); err != nil {
 			return nil, err
 		}
 		all = append(all, res.Items...)
@@ -217,6 +228,110 @@ func (j *Jellyfin) Entries(ctx context.Context, account Account, progress func(s
 			continue
 		}
 		out = append(out, e)
+	}
+	return out, nil
+}
+
+// shows maps a user's shows by id, for their episodes' show ids.
+func (j *Jellyfin) shows(ctx context.Context, userID string) (map[string]jellyfinItem, error) {
+	series, err := j.items(ctx, userID, "Series", "")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]jellyfinItem{}
+	for _, s := range series {
+		out[s.ID] = s
+	}
+	return out, nil
+}
+
+// listItem is a movie, show or episode as a list member (false for anything else, like a folder).
+func (it jellyfinItem) listItem(shows map[string]jellyfinItem) (ListItem, bool) {
+	ids := func(x jellyfinItem) (int64, int64, string) {
+		return parseID(x.provider("Tmdb")), parseID(x.provider("Tvdb")), x.provider("Imdb")
+	}
+	switch it.Type {
+	case "Movie":
+		tmdb, _, imdb := ids(it)
+		return ListItem{Title: it.Name, Ref: store.ImportRef{Kind: "movie", TMDB: tmdb, IMDB: imdb}}, true
+	case "Series":
+		tmdb, tvdb, imdb := ids(it)
+		return ListItem{Title: it.Name, Ref: store.ImportRef{Kind: "series", TMDB: tmdb, TVDB: tvdb, IMDB: imdb}}, true
+	case "Episode":
+		tmdb, tvdb, imdb := ids(it)
+		li := ListItem{Title: it.Name, Ref: store.ImportRef{Kind: "episode", TMDB: tmdb, TVDB: tvdb, IMDB: imdb, Season: -1}}
+		if it.ParentIndexNumber != nil && it.IndexNumber != nil {
+			li.Ref.Season, li.Ref.Episode = *it.ParentIndexNumber, *it.IndexNumber
+			li.Title = fmt.Sprintf("%s S%02dE%02d", it.SeriesName, *it.ParentIndexNumber, *it.IndexNumber)
+		}
+		if s, ok := shows[it.SeriesID]; ok {
+			li.Ref.SeriesTMDB, li.Ref.SeriesTVDB, li.Ref.SeriesIMDB = ids(s)
+		}
+		return li, true
+	}
+	return ListItem{}, false
+}
+
+func listItems(items []jellyfinItem, shows map[string]jellyfinItem) []ListItem {
+	var out []ListItem
+	for _, it := range items {
+		if li, ok := it.listItem(shows); ok {
+			out = append(out, li)
+		}
+	}
+	return out
+}
+
+// Watchlist is the user's favourite movies and shows (Jellyfin has no separate watchlist).
+func (j *Jellyfin) Watchlist(ctx context.Context, account Account) ([]ListItem, error) {
+	favourites, err := j.items(ctx, account.ID, "Movie,Series", "IsFavorite")
+	if err != nil {
+		return nil, err
+	}
+	return listItems(favourites, nil), nil
+}
+
+// Playlists are the user's video playlists, in their order.
+func (j *Jellyfin) Playlists(ctx context.Context, account Account) ([]List, error) {
+	lists, err := j.items(ctx, account.ID, "Playlist", "")
+	if err != nil {
+		return nil, err
+	}
+	shows, err := j.shows(ctx, account.ID)
+	if err != nil {
+		return nil, err
+	}
+	var out []List
+	for _, pl := range lists {
+		entries, err := j.pages(ctx, "/Playlists/"+url.PathEscape(pl.ID)+"/Items", url.Values{"UserId": {account.ID}})
+		if err != nil {
+			return nil, err
+		}
+		if items := listItems(entries, shows); len(items) > 0 {
+			out = append(out, List{Title: pl.Name, Items: items})
+		}
+	}
+	return out, nil
+}
+
+// Collections are the server's collections (box sets), as the administrator sees them.
+func (j *Jellyfin) Collections(ctx context.Context) ([]List, error) {
+	if j.userID == "" {
+		return nil, nil
+	}
+	sets, err := j.items(ctx, j.userID, "BoxSet", "")
+	if err != nil {
+		return nil, err
+	}
+	var out []List
+	for _, set := range sets {
+		members, err := j.pages(ctx, "/Users/"+url.PathEscape(j.userID)+"/Items", url.Values{"ParentId": {set.ID}})
+		if err != nil {
+			return nil, err
+		}
+		if items := listItems(members, nil); len(items) > 0 {
+			out = append(out, List{Title: set.Name, Items: items})
+		}
 	}
 	return out, nil
 }
