@@ -333,7 +333,8 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			} `json:"results"`
 		} `json:"release_dates"`
 		Images struct {
-			Logos []tmdbImage `json:"logos"`
+			Logos     []tmdbImage `json:"logos"`
+			Backdrops []tmdbImage `json:"backdrops"`
 		} `json:"images"`
 		Recommendations tmdbRecommendations `json:"recommendations"`
 		AltTitles       tmdbAltTitles       `json:"alternative_titles"`
@@ -387,7 +388,7 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		Year:          yearOf(d.ReleaseDate),
 		RuntimeMin:    d.Runtime,
 		PosterPath:    d.PosterPath,
-		BackdropPath:  d.BackdropPath,
+		BackdropPath:  bestBackdrop(d.BackdropPath, d.Images.Backdrops),
 		Details: Details{
 			Tagline:          d.Tagline,
 			LogoPath:         bestLogo(d.Images.Logos),
@@ -528,9 +529,14 @@ func (c *TMDB) Collection(ctx context.Context, id int64) (*CollectionInfo, error
 		Overview     string `json:"overview"`
 		PosterPath   string `json:"poster_path"`
 		BackdropPath string `json:"backdrop_path"`
+		Images       struct {
+			Backdrops []tmdbImage `json:"backdrops"`
+		} `json:"images"`
 	}
-	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10), nil, &d); err != nil {
+	q := url.Values{"append_to_response": {"images"}, "include_image_language": {"en,null"}}
+	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10), q, &d); err != nil {
 		return nil, err
 	}
-	return &CollectionInfo{Name: d.Name, Overview: d.Overview, PosterPath: d.PosterPath, BackdropPath: d.BackdropPath}, nil
+	return &CollectionInfo{Name: d.Name, Overview: d.Overview, PosterPath: d.PosterPath,
+		BackdropPath: bestBackdrop(d.BackdropPath, d.Images.Backdrops)}, nil
 }

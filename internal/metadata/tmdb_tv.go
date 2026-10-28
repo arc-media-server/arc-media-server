@@ -191,7 +191,8 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 			Cast []tmdbCastMember `json:"cast"`
 		} `json:"aggregate_credits"`
 		Images struct {
-			Logos []tmdbImage `json:"logos"`
+			Logos     []tmdbImage `json:"logos"`
+			Backdrops []tmdbImage `json:"backdrops"`
 		} `json:"images"`
 		Recommendations tmdbRecommendations `json:"recommendations"`
 		AltTitles       tmdbAltTitles       `json:"alternative_titles"`
@@ -233,7 +234,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	}
 	s := &Series{TMDBID: d.ID, TVDBID: d.ExternalIDs.TVDBID, IMDBID: d.ExternalIDs.IMDBID, Title: d.Name,
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
-		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
+		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: bestBackdrop(d.BackdropPath, d.Images.Backdrops),
 		Details: Details{Tagline: d.Tagline, LogoPath: bestLogo(d.Images.Logos), Recommendations: d.Recommendations.ids(),
 			AltTitles: d.AltTitles.list(d.Name, d.OriginalName), Keywords: d.Keywords.list(), ContentRating: pickRating(c.ratingRegion(ctx), ratings), Studios: names(d.Networks),
 			Rating: d.VoteAverage, Genres: names(d.Genres), People: people,

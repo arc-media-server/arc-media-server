@@ -383,6 +383,9 @@ func toDTO(it store.Item) itemDTO {
 			d.Images[typ] = base + "/images/" + typ + "?local=" + artwork.Key(local)
 		case path != "":
 			d.Images[typ] = base + "/images/" + typ + "?v=" + artwork.Key(artwork.Source(it.Kind, typ, path))
+			if full := artwork.FullSource(it.Kind, path); typ == "backdrop" && full != "" {
+				d.Images["backdrop_full"] = base + "/images/backdrop?size=full&v=" + artwork.Key(full)
+			}
 		}
 	}
 	if it.Kind == "movie" || it.Kind == "episode" {
@@ -679,6 +682,7 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, path string, 
 
 // image serves an item's artwork from the local cache, downloading it on first use. If it can't
 // be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead.
+// A backdrop with ?size=full is the full-resolution picture, for full-width banners.
 func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
@@ -710,7 +714,18 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
-	s.serveArtwork(w, r, artwork.Source(it.Kind, r.PathValue("type"), imagePath))
+	s.serveArtwork(w, r, imageSource(r, it.Kind, typ, imagePath))
+}
+
+// imageSource is the provider URL to serve for an image request: the full-resolution backdrop for
+// "?size=full" (banners), otherwise the size cards use.
+func imageSource(r *http.Request, kind, typ, imagePath string) string {
+	if typ == "backdrop" && r.URL.Query().Get("size") == "full" {
+		if full := artwork.FullSource(kind, imagePath); full != "" {
+			return full
+		}
+	}
+	return artwork.Source(kind, typ, imagePath)
 }
 
 // serveArtwork serves an image from the cache (downloading it if needed), cacheable forever when

@@ -44,10 +44,16 @@ func (s *Server) collectionDTO(c store.Collection, first *store.Item) collection
 	}
 	if c.BackdropPath != "" {
 		d.Images["backdrop"] = base + "backdrop?v=" + artwork.Key(artwork.Source("collection", "backdrop", c.BackdropPath))
+		if full := artwork.FullSource("collection", c.BackdropPath); full != "" {
+			d.Images["backdrop_full"] = base + "backdrop?size=full&v=" + artwork.Key(full)
+		}
 	}
 	// Without artwork of its own, a collection shows its first title's.
 	if first != nil {
 		fd := toDTO(*first)
+		if d.Images["backdrop"] == "" && fd.Images["backdrop_full"] != "" {
+			d.Images["backdrop_full"] = fd.Images["backdrop_full"]
+		}
 		for _, typ := range []string{"primary", "backdrop"} {
 			if d.Images[typ] == "" && fd.Images[typ] != "" {
 				d.Images[typ] = fd.Images[typ]
@@ -197,7 +203,8 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"collection": s.collectionDTO(*c, first), "items": out})
 }
 
-// collectionImage: GET /api/collections/{id}/images/{primary|backdrop} is a collection's poster or background.
+// collectionImage: GET /api/collections/{id}/images/{primary|backdrop} is a collection's poster or background
+// (?size=full for the full-resolution background).
 func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.collectionFromPath(w, r)
 	if !ok {
@@ -220,7 +227,7 @@ func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(s.uploadsDir, filepath.Base(name)))
 		return
 	}
-	s.serveArtwork(w, r, artwork.Source("collection", typ, path))
+	s.serveArtwork(w, r, imageSource(r, "collection", typ, path))
 }
 
 type collectionBody struct {
