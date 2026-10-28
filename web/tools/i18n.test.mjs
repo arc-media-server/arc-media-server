@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { createInstance } from 'i18next';
@@ -163,4 +163,24 @@ test('language names reuse a DisplayNames instance for each locale', async () =>
     assert.equal(fresh.language('fr'), 'French');
     assert.equal(constructions, 2);
   } finally { Intl.DisplayNames = Original; await i18n.changeLanguage('en'); }
+});
+
+// Translators start from the English "one" form, and in some languages "one" also covers 21, 31…
+// So a "_one" must be genuinely singular even where English never shows a count of 1: one that is
+// word-for-word its "_other" and counts a plural noun ("{{count}} days ago") is a copy, not a form.
+test('singular plural forms are singular', () => {
+  const copies = [];
+  for (const file of readdirSync(root + 'locales/en')) {
+    const walk = (node, path) => {
+      for (const [key, value] of Object.entries(node)) {
+        if (typeof value !== 'string') { walk(value, `${path}${key}.`); continue; }
+        if (!key.endsWith('_one') || node[key.replace(/_one$/, '_other')] !== value) continue;
+        // The first two words after the count (past any rich-text tag), e.g. "{{count}} <b>days</b>".
+        const after = value.split('{{count}}')[1]?.replace(/<[^>]+>/g, '').trim().split(/\s+/).slice(0, 2) ?? [];
+        if (after.some(word => /^[a-z]{3,}s[.,]?$/i.test(word))) copies.push(`${file} ${path}${key}: ${value}`);
+      }
+    };
+    walk(JSON.parse(readFileSync(root + 'locales/en/' + file, 'utf8')), '');
+  }
+  assert.deepEqual(copies, []);
 });
