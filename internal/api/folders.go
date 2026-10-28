@@ -15,8 +15,9 @@ type folderDTO struct {
 	Path string `json:"path"`
 	// Videos in it and every folder below it.
 	Count int `json:"count"`
-	// A video in it whose picture stands for the folder.
+	// A video in it whose picture stands for the folder, and that picture.
 	CoverID string `json:"cover_id,omitempty"`
+	Cover   string `json:"cover,omitempty"`
 }
 
 // libraryFolders: GET /api/libraries/{id}/folders?path= browses an Other videos library folder by
@@ -88,6 +89,7 @@ func (s *Server) libraryFolders(w http.ResponseWriter, r *http.Request) {
 		f.Count++
 		if f.CoverID == "" {
 			f.CoverID = videos[p.index].Item.ID
+			f.Cover = toDTO(videos[p.index].Item).Images["primary"]
 		}
 	}
 	if len(want) > 0 && len(items) == 0 && len(folders) == 0 {

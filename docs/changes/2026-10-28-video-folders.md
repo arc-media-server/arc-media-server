@@ -11,8 +11,12 @@ and hidden labels, and only lists videos with a file present. Other libraries ge
 Unlike folder collections (one per folder that directly holds videos, kept as they are), this
 shows nesting and folders that only hold other folders.
 
-UI: a Folders tab next to Videos and Collections on the library page follows once the open
-translation PR for the Library page (#238) merges, as agreed on #80.
+In the app: Other videos libraries get a **Folders** tab between Videos and Collections. It shows
+the current folder's subfolders as cards (cover picture, "Folder" tag, video count), then its
+videos, with a trail back up. The folder is in the address (`?folder=`), so Back, refresh and links
+work; switching tabs leaves the folder. Movie and TV libraries have no Folders tab.
 
 Checks: go vet/test (new API test: top level, nested counts and covers, oldest-first order,
-trail, unknown folder 404, non-video library 400).
+trail, unknown folder 404, non-video library 400). Playwright: a journey scans a real nested Home Videos folder, opens
+folders down to 2019, checks counts, the trail and oldest-first order, goes Back, returns to the
+top by the trail, and checks a movie library has no Folders tab.
