@@ -492,7 +492,7 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "preview": ps.Snapshot()})
 }
 
-// getPreview: GET /api/library-previews/{id}
+// getPreview: GET /api/library-previews/{id}. The preview's progress and results.
 func (s *Server) getPreview(w http.ResponseWriter, r *http.Request) {
 	p := s.previews
 	p.mu.Lock()

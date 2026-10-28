@@ -1,7 +1,7 @@
 # Library analysis and scheduled work
 
 Owner-approved plan, 23 October 2026. Baseline e5f36e0. Implementation and verification
-tracked in [GitHub #164](https://github.com/JonzaUK/arc-media-server/issues/164); source data and owner deployment are outside this cloud task.
+tracked in [GitHub #164](https://github.com/arc-media-server/arc-media-server/issues/164); source data and owner deployment are outside this cloud task.
 
 ## Behaviour
 

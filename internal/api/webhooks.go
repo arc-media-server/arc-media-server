@@ -78,7 +78,7 @@ func (s *Server) saveWebhook(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, webhookDTO{Webhook: h, Format: webhookFormat(h.URL)})
 }
 
-// deleteWebhook: DELETE /api/webhooks/{id} (admin).
+// deleteWebhook: DELETE /api/webhooks/{id}. Removes a webhook.
 func (s *Server) deleteWebhook(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.DeleteWebhook(r.Context(), r.PathValue("id")); err != nil {
 		s.fail(w, err)

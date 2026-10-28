@@ -1,6 +1,6 @@
 # Optimized-copy source revisions
 
-Issue [#170](https://github.com/JonzaUK/arc-media-server/issues/170) fixes reuse of an optimized
+Issue [#170](https://github.com/arc-media-server/arc-media-server/issues/170) fixes reuse of an optimized
 copy after its original media changes. No new setting is needed.
 
 ## Selection and streaming

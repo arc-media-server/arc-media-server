@@ -16,6 +16,17 @@ export function sortLabels(): Record<ItemSort, string> {
   };
 }
 
+/** A sort's two directions, its usual one first (titles A–Z, dates newest first…). */
+export function sortDirections(sort: Exclude<ItemSort, 'shuffle'>): [string, string] {
+  switch (sort) {
+    case 'title': return [i18n.t('filters:direction.aToZ'), i18n.t('filters:direction.zToA')];
+    case 'added': case 'release': case 'year': return [i18n.t('filters:direction.newest'), i18n.t('filters:direction.oldest')];
+    case 'rating': case 'imdb': case 'critics': return [i18n.t('filters:direction.highest'), i18n.t('filters:direction.lowest')];
+    case 'runtime': return [i18n.t('filters:direction.longest'), i18n.t('filters:direction.shortest')];
+    case 'watched': return [i18n.t('filters:direction.mostRecent'), i18n.t('filters:direction.leastRecent')];
+  }
+}
+
 export function sortSummary(sort: ItemSort): string {
   const labels: Record<ItemSort, string> = {
     title: i18n.t('filters:sortSummary.title'),

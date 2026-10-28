@@ -4,11 +4,11 @@ Reviewed 22 October 2026 against `554120b`. The assessment below preserves the o
 The owner subsequently approved implementation of all findings and proposals, including the
 editable queue. The completed follow-up and its verification are recorded at the end.
 The previous #144 bug pass and #147 scanning work are completed context.
-Tracking: [review #148](https://github.com/JonzaUK/arc-media-server/issues/148),
-[R1 #149](https://github.com/JonzaUK/arc-media-server/issues/149),
-[R2 #150](https://github.com/JonzaUK/arc-media-server/issues/150),
-[R3 #151](https://github.com/JonzaUK/arc-media-server/issues/151),
-[R4 #152](https://github.com/JonzaUK/arc-media-server/issues/152). These findings are addressed by
+Tracking: [review #148](https://github.com/arc-media-server/arc-media-server/issues/148),
+[R1 #149](https://github.com/arc-media-server/arc-media-server/issues/149),
+[R2 #150](https://github.com/arc-media-server/arc-media-server/issues/150),
+[R3 #151](https://github.com/arc-media-server/arc-media-server/issues/151),
+[R4 #152](https://github.com/arc-media-server/arc-media-server/issues/152). These findings are addressed by
 the follow-up; real-library/device/sustained-use acceptance remains separate.
 
 ## Assessment
