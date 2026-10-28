@@ -55,10 +55,36 @@ func Normalize(s string) string {
 // Score is how well text matches the query: 0 for no match, up to 100 for an exact one.
 // query must already be normalized.
 func Score(query, text string) int {
+	return ScoreNormalized(query, Normalize(text))
+}
+
+// ScoreNormalized is Score for text that is already normalized, so a list searched again and
+// again (everyone in the cast and crew) is normalized once.
+func ScoreNormalized(query, t string) int {
+	return NewMatcher(query).Score(t)
+}
+
+// Matcher scores many texts against one query, splitting the query once.
+type Matcher struct {
+	query string
+	words [][]rune
+}
+
+// NewMatcher prepares a normalized query for scoring.
+func NewMatcher(query string) *Matcher {
+	m := &Matcher{query: query}
+	for _, w := range strings.Fields(query) {
+		m.words = append(m.words, []rune(w))
+	}
+	return m
+}
+
+// Score is how well normalized text matches the query, as Score.
+func (m *Matcher) Score(t string) int {
+	query := m.query
 	if query == "" {
 		return 0
 	}
-	t := Normalize(text)
 	switch {
 	case t == query:
 		return 100
@@ -73,18 +99,19 @@ func Score(query, text string) int {
 		return 70
 	}
 	// Every word typed matches a word of the text: exactly, as its start, or with a small typo.
-	words := strings.Fields(t)
 	total, fuzzy := 0, false
-	for _, qw := range strings.Fields(query) {
+	var buf [64]rune
+	for _, qw := range m.words {
+		typed := string(qw)
 		best := 0
-		for _, w := range words {
+		for w := range strings.FieldsSeq(t) {
 			switch {
-			case w == qw:
+			case w == typed:
 				best = max(best, 3)
-			case strings.HasPrefix(w, qw):
+			case strings.HasPrefix(w, typed):
 				best = max(best, 2)
-			case closeEnough(qw, w):
-				best = max(best, 1)
+			case best < 1 && closeEnough(qw, runes(buf[:0], w)):
+				best = 1
 			}
 		}
 		if best == 0 {
@@ -101,10 +128,18 @@ func Score(query, text string) int {
 	return 50 + total
 }
 
+// runes appends a word's letters to buf (on the stack for ordinary words).
+func runes(buf []rune, w string) []rune {
+	for _, r := range w {
+		buf = append(buf, r)
+	}
+	return buf
+}
+
 // closeEnough allows one typo in words of 5 to 7 letters and two in longer ones, comparing the
 // typed word with the text word (or its start, for a word still being typed).
-func closeEnough(typed, word string) bool {
-	n := len([]rune(typed))
+func closeEnough(typed, word []rune) bool {
+	n := len(typed)
 	allowed := 0
 	switch {
 	case n >= 8:
@@ -119,22 +154,24 @@ func closeEnough(typed, word string) bool {
 		return true
 	}
 	// "matri" against "matrix" is a prefix; "matirx" against "matrix..." is a typo in a prefix.
-	if wr := []rune(word); len(wr) > n {
-		return distance(typed, string(wr[:n])) <= allowed
+	if len(word) > n {
+		return distance(typed, word[:n]) <= allowed
 	}
 	return false
 }
 
-// distance is the Damerau-Levenshtein distance (with swapped neighbours as one edit).
-func distance(a, b string) int {
-	ar, br := []rune(a), []rune(b)
+// distance is the Damerau-Levenshtein distance (with swapped neighbours as one edit), or 3 when
+// the lengths alone differ by more than 2. Rows live on the stack for words of up to 32 letters.
+func distance(ar, br []rune) int {
 	if d := len(ar) - len(br); d > 2 || d < -2 {
 		return 3
 	}
-	prev2 := make([]int, len(br)+1)
-	prev := make([]int, len(br)+1)
-	cur := make([]int, len(br)+1)
-	for j := range prev {
+	var rows [3][33]int
+	prev2, prev, cur := rows[0][:], rows[1][:], rows[2][:]
+	if len(br) >= 33 {
+		prev2, prev, cur = make([]int, len(br)+1), make([]int, len(br)+1), make([]int, len(br)+1)
+	}
+	for j := 0; j <= len(br); j++ {
 		prev[j] = j
 	}
 	for i := 1; i <= len(ar); i++ {
