@@ -208,6 +208,30 @@ test('merging shows: two folders of one show become one, keep watch state and su
   await check();
 });
 
+test('merging shows from Library Health: the duplicate pair becomes one show', async ({ page, media }, info) => {
+  const sample = join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E01.mp4');
+  const extra = join(media.shows, 'Arc Show', 'Season 01');
+  await mkdir(extra, { recursive: true });
+  await copyFile(sample, join(extra, 'Arc Show - S01E03.mp4'));
+  const lib = await library(page, media.shows, true);
+  const count = async () => (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items.length;
+  expect(await count()).toBe(2);
+  await page.goto('/health');
+  const row = page.locator('div').filter({ hasText: /2 separate shows matched to the same title/ }).filter({ has: page.getByRole('button', { name: 'Merge', exact: true }) }).last();
+  await row.getByRole('button', { name: 'Merge', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Merge 2 shows' });
+  await expect(dialog).toContainText('Episodes they both have keep every file');
+  await expect(dialog).toContainText("Shows can't be split apart again.");
+  // The two copies are told apart by their folders.
+  await expect(dialog.getByText('Arc Show (2020)', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Arc Show', { exact: true }).last()).toBeVisible();
+  await page.screenshot({ path: info.outputPath('merge-shows-dialog.png') });
+  await dialog.getByRole('button', { name: 'Merge', exact: true }).click();
+  await expect(dialog).not.toBeVisible({ timeout: 30_000 });
+  expect(await count()).toBe(1);
+  await expect(page.getByText(/separate shows matched to the same title/)).toHaveCount(0);
+});
+
 for (const shows of [false, true]) {
   test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);

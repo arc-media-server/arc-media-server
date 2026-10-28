@@ -58,10 +58,25 @@ func (s *Server) libraryHealth(w http.ResponseWriter, r *http.Request) {
 		Kind  string              `json:"kind"`
 		Items []itemDTO           `json:"items"`
 		Files []store.FileProblem `json:"files,omitempty"`
+		// same_title: where each title is, by item id (its file, or a show's folder), so the
+		// copies can be told apart.
+		Folders map[string]string `json:"folders,omitempty"`
 	}
 	dupOut := make([]duplicateDTO, 0, len(dups))
 	for _, d := range dups {
-		dupOut = append(dupOut, duplicateDTO{Kind: d.Kind, Items: toDTOs(d.Items), Files: d.Files})
+		dto := duplicateDTO{Kind: d.Kind, Items: toDTOs(d.Items), Files: d.Files}
+		if d.Kind == "same_title" {
+			dto.Folders = map[string]string{}
+			for i := range d.Items {
+				folder, err := s.store.ItemFolder(ctx, &d.Items[i], lib.Paths)
+				if err != nil {
+					s.fail(w, err)
+					return
+				}
+				dto.Folders[d.Items[i].ID] = folder
+			}
+		}
+		dupOut = append(dupOut, dto)
 	}
 	type gapsDTO struct {
 		Series   itemDTO                `json:"series"`

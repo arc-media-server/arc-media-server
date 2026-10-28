@@ -379,7 +379,8 @@ export interface LibraryHealth {
   unreadable: FileProblem[];
   unrecognised: FileProblem[];
   missing_files: FileProblem[];
-  duplicates: { kind: 'copies' | 'same_title'; items: Item[]; files?: FileProblem[] }[];
+  /** same_title: where each title is (its file, or a show's folder), by item id. */
+  duplicates: { kind: 'copies' | 'same_title'; items: Item[]; files?: FileProblem[]; folders?: Record<string, string> }[];
   missing_episodes: { series: Item; ordering: string; have: number; unplaced: number; missing: MissingEpisode[] }[];
 }
 
