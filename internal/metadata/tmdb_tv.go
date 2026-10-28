@@ -24,12 +24,13 @@ type tmdbTVResult struct {
 	FirstAirDate string `json:"first_air_date"`
 	Overview     string `json:"overview"`
 	PosterPath   string `json:"poster_path"`
+	VoteCount    int    `json:"vote_count"`
 }
 
 func tvCandidates(results []tmdbTVResult) []Candidate {
 	out := make([]Candidate, 0, len(results))
 	for _, r := range results {
-		c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Name, Year: yearOf(r.FirstAirDate), Overview: r.Overview}
+		c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Name, Year: yearOf(r.FirstAirDate), Overview: r.Overview, Votes: r.VoteCount}
 		if r.OriginalName != r.Name {
 			c.OriginalTitle = r.OriginalName
 		}
@@ -63,7 +64,7 @@ func (c *TMDB) SearchTVShows(ctx context.Context, title string, year int) ([]Can
 // SearchTV finds a TMDB series id by title and optional first-aired year, or 0.
 func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, error) {
 	pick := func(results []tmdbTVResult) int64 {
-		return confidentMatch(title, tvCandidates(results))
+		return confidentMatch(title, year, tvCandidates(results))
 	}
 
 	results, err := c.searchTV(ctx, title, year)
@@ -191,7 +192,8 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 			Cast []tmdbCastMember `json:"cast"`
 		} `json:"aggregate_credits"`
 		Images struct {
-			Logos []tmdbImage `json:"logos"`
+			Logos     []tmdbImage `json:"logos"`
+			Backdrops []tmdbImage `json:"backdrops"`
 		} `json:"images"`
 		Recommendations tmdbRecommendations `json:"recommendations"`
 		AltTitles       tmdbAltTitles       `json:"alternative_titles"`
@@ -233,7 +235,7 @@ func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	}
 	s := &Series{TMDBID: d.ID, TVDBID: d.ExternalIDs.TVDBID, IMDBID: d.ExternalIDs.IMDBID, Title: d.Name,
 		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate,
-		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: d.BackdropPath,
+		Year: yearOf(d.FirstAirDate), PosterPath: d.PosterPath, BackdropPath: bestBackdrop(d.BackdropPath, d.Images.Backdrops),
 		Details: Details{Tagline: d.Tagline, LogoPath: bestLogo(d.Images.Logos), Recommendations: d.Recommendations.ids(),
 			AltTitles: d.AltTitles.list(d.Name, d.OriginalName), Keywords: d.Keywords.list(), ContentRating: pickRating(c.ratingRegion(ctx), ratings), Studios: names(d.Networks),
 			Rating: d.VoteAverage, Genres: names(d.Genres), People: people,

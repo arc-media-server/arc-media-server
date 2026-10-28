@@ -38,6 +38,8 @@ type Candidate struct {
 	Overview      string `json:"overview,omitempty"`
 	// Poster image URL straight from the provider (for showing search results).
 	Poster string `json:"poster,omitempty"`
+	// How many people rated it on the provider, when it says (TMDB): how well known it is.
+	Votes int `json:"-"`
 }
 
 // How many results each step keeps: enough to see what the provider offered.

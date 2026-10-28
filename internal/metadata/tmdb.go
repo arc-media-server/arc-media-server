@@ -172,10 +172,11 @@ type movieResult struct {
 	ReleaseDate   string `json:"release_date"`
 	Overview      string `json:"overview"`
 	PosterPath    string `json:"poster_path"`
+	VoteCount     int    `json:"vote_count"`
 }
 
 func (r movieResult) candidate() Candidate {
-	c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Title, Year: yearOf(r.ReleaseDate), Overview: r.Overview}
+	c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Title, Year: yearOf(r.ReleaseDate), Overview: r.Overview, Votes: r.VoteCount}
 	if r.OriginalTitle != r.Title {
 		c.OriginalTitle = r.OriginalTitle
 	}
@@ -230,7 +231,7 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			return 0, err
 		}
 		if len(results) > 0 {
-			id := bestMatch(title, results)
+			id := bestMatch(title, year, results)
 			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Results: movieCandidates(results), Picked: id})
 			return id, nil
 		}
@@ -255,7 +256,7 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Note: note})
 			return 0, nil
 		}
-		id := bestMatch(title, near)
+		id := bestMatch(title, year, near)
 		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
 		return id, nil
 	}
@@ -268,14 +269,14 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Note: "No results."})
 		return 0, nil
 	}
-	id := bestMatch(title, results)
+	id := bestMatch(title, year, results)
 	record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
 	return id, nil
 }
 
 // bestMatch requires a confident, unique title rather than trusting result order.
-func bestMatch(title string, results []movieResult) int64 {
-	return confidentMatch(title, movieCandidates(results))
+func bestMatch(title string, year int, results []movieResult) int64 {
+	return confidentMatch(title, year, movieCandidates(results))
 }
 
 func (c *TMDB) findByIMDB(ctx context.Context, imdbID string) (int64, error) {
@@ -333,7 +334,8 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 			} `json:"results"`
 		} `json:"release_dates"`
 		Images struct {
-			Logos []tmdbImage `json:"logos"`
+			Logos     []tmdbImage `json:"logos"`
+			Backdrops []tmdbImage `json:"backdrops"`
 		} `json:"images"`
 		Recommendations tmdbRecommendations `json:"recommendations"`
 		AltTitles       tmdbAltTitles       `json:"alternative_titles"`
@@ -387,7 +389,7 @@ func (c *TMDB) movieDetails(ctx context.Context, id int64) (*Movie, error) {
 		Year:          yearOf(d.ReleaseDate),
 		RuntimeMin:    d.Runtime,
 		PosterPath:    d.PosterPath,
-		BackdropPath:  d.BackdropPath,
+		BackdropPath:  bestBackdrop(d.BackdropPath, d.Images.Backdrops),
 		Details: Details{
 			Tagline:          d.Tagline,
 			LogoPath:         bestLogo(d.Images.Logos),
@@ -528,9 +530,14 @@ func (c *TMDB) Collection(ctx context.Context, id int64) (*CollectionInfo, error
 		Overview     string `json:"overview"`
 		PosterPath   string `json:"poster_path"`
 		BackdropPath string `json:"backdrop_path"`
+		Images       struct {
+			Backdrops []tmdbImage `json:"backdrops"`
+		} `json:"images"`
 	}
-	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10), nil, &d); err != nil {
+	q := url.Values{"append_to_response": {"images"}, "include_image_language": {"en,null"}}
+	if err := c.get(ctx, "/collection/"+strconv.FormatInt(id, 10), q, &d); err != nil {
 		return nil, err
 	}
-	return &CollectionInfo{Name: d.Name, Overview: d.Overview, PosterPath: d.PosterPath, BackdropPath: d.BackdropPath}, nil
+	return &CollectionInfo{Name: d.Name, Overview: d.Overview, PosterPath: d.PosterPath,
+		BackdropPath: bestBackdrop(d.BackdropPath, d.Images.Backdrops)}, nil
 }
