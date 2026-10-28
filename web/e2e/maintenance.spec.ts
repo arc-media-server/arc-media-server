@@ -162,32 +162,6 @@ test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove',
   expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
 });
 
-test('import results report watchlists, playlists and collections, and what Arc lacks', async ({ page, media }, info) => {
-  void media;
-  // A finished Jellyfin import, as the server reports it (a real one needs a Jellyfin server).
-  const done = {
-    id: 'fixture', source: 'jellyfin', stage: 'done',
-    results: [{ account: 'Jo', profile: 'Admin', matched: 12, not_found: 1, history: 0, watchlist: 3, playlists: 2, playlist_items: 9,
-      lists_not_found: 1, missing: ['Not In Arc', 'Weekend: Also Missing'] }],
-    collections: { collections: 1, collection_items: 4, not_found: 2, missing: ['Nolan: Tenet', 'Nolan: Memento'] },
-  };
-  await page.route('**/api/imports', route => route.fulfill({ json: done }));
-  await page.route('**/api/imports/fixture', route => route.fulfill({ json: done }));
-  await page.goto('/settings?section=library');
-  await page.getByRole('button', { name: 'Import…', exact: true }).nth(1).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('textbox').first().fill('http://jellyfin.local:8096');
-  await dialog.getByRole('textbox').nth(1).fill('admin');
-  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(dialog).toContainText('3 titles on the watchlist · 2 playlists (9 new entries)');
-  await dialog.getByRole('button', { name: '2 not in Arc', exact: true }).first().click();
-  await expect(dialog).toContainText('Weekend: Also Missing');
-  await expect(dialog).toContainText('1 collection (4 new titles)');
-  await dialog.getByRole('button', { name: '2 not in Arc', exact: true }).last().click();
-  await expect(dialog).toContainText('Nolan: Memento');
-  await page.screenshot({ path: info.outputPath('import-results.png') });
-});
-
 for (const shows of [false, true]) {
   test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);
@@ -239,6 +213,32 @@ test('maintenance: ordinary profiles cannot start or stop jobs or read the serve
   expect((await page.request.get('/api/maintenance/window')).status()).toBe(403);
 });
 
+
+test('import results report watchlists, playlists and collections, and what Arc lacks', async ({ page, media }, info) => {
+  void media;
+  // A finished Jellyfin import, as the server reports it (a real one needs a Jellyfin server).
+  const done = {
+    id: 'fixture', source: 'jellyfin', stage: 'done',
+    results: [{ account: 'Jo', profile: 'Admin', matched: 12, not_found: 1, history: 0, watchlist: 3, playlists: 2, playlist_items: 9,
+      lists_not_found: 1, missing: ['Not In Arc', 'Weekend: Also Missing'] }],
+    collections: { collections: 1, collection_items: 4, not_found: 2, missing: ['Nolan: Tenet', 'Nolan: Memento'] },
+  };
+  await page.route('**/api/imports', route => route.fulfill({ json: done }));
+  await page.route('**/api/imports/fixture', route => route.fulfill({ json: done }));
+  await page.goto('/settings?section=library');
+  await page.getByRole('button', { name: 'Import…', exact: true }).nth(1).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox').first().fill('http://jellyfin.local:8096');
+  await dialog.getByRole('textbox').nth(1).fill('admin');
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(dialog).toContainText('3 titles on the watchlist · 2 playlists (9 new entries)');
+  await dialog.getByRole('button', { name: '2 not in Arc', exact: true }).first().click();
+  await expect(dialog).toContainText('Weekend: Also Missing');
+  await expect(dialog).toContainText('1 collection (4 new titles)');
+  await dialog.getByRole('button', { name: '2 not in Arc', exact: true }).last().click();
+  await expect(dialog).toContainText('Nolan: Memento');
+  await page.screenshot({ path: info.outputPath('import-results.png') });
+});
 
 test('empty trash: automatic mode needs confirmation, saves Off by default and retries failures', async ({ page, media }, info) => {
   void media;
