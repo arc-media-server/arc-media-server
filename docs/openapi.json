@@ -30,6 +30,12 @@
           "history": {
             "type": "integer"
           },
+          "lists_error": {
+            "type": "string"
+          },
+          "lists_not_found": {
+            "type": "integer"
+          },
           "matched": {
             "type": "integer"
           },
@@ -42,16 +48,29 @@
           "not_found": {
             "type": "integer"
           },
+          "playlist_items": {
+            "type": "integer"
+          },
+          "playlists": {
+            "type": "integer"
+          },
           "profile": {
             "type": "string"
+          },
+          "watchlist": {
+            "type": "integer"
           }
         },
         "required": [
           "account",
           "history",
+          "lists_not_found",
           "matched",
           "not_found",
-          "profile"
+          "playlist_items",
+          "playlists",
+          "profile",
+          "watchlist"
         ],
         "type": "object"
       },
@@ -1211,6 +1230,34 @@
           "message",
           "seq",
           "time"
+        ],
+        "type": "object"
+      },
+      "ListsResult": {
+        "properties": {
+          "collection_items": {
+            "type": "integer"
+          },
+          "collections": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "not_found": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collection_items",
+          "collections",
+          "not_found"
         ],
         "type": "object"
       },
@@ -6205,6 +6252,9 @@
                     "auth_url": {
                       "type": "string"
                     },
+                    "collections": {
+                      "$ref": "#/components/schemas/ListsResult"
+                    },
                     "error": {
                       "type": "string"
                     },
@@ -6330,6 +6380,9 @@
                     },
                     "auth_url": {
                       "type": "string"
+                    },
+                    "collections": {
+                      "$ref": "#/components/schemas/ListsResult"
                     },
                     "error": {
                       "type": "string"
@@ -6467,6 +6520,9 @@
                     },
                     "auth_url": {
                       "type": "string"
+                    },
+                    "collections": {
+                      "$ref": "#/components/schemas/ListsResult"
                     },
                     "error": {
                       "type": "string"
@@ -6621,6 +6677,9 @@
                     },
                     "auth_url": {
                       "type": "string"
+                    },
+                    "collections": {
+                      "$ref": "#/components/schemas/ListsResult"
                     },
                     "error": {
                       "type": "string"
