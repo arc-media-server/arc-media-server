@@ -13,7 +13,7 @@ import { episodeCode, ProgressBar, progressOf } from './WatchState';
 
 /**
  * A landscape card for something to carry on with (Continue Watching, Up Next): clicking the
- * artwork plays it from where the profile left off. With `arc`, an Arc thumbnail (see ArcArtwork).
+ * artwork plays it from where the profile left off. With `arc`, a backdrop card (see ArcArtwork).
  */
 export function ResumeCard({ item, className, arc, onRemove }: { item: Item; className?: string; arc?: boolean; onRemove?: (item: Item) => void }) {
   const { t } = useTranslation('titles');
