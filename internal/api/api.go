@@ -482,7 +482,8 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 // available title in the current direction). The response includes the full filtered `total` and
 // actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds
 // `letters`, the filtered titles counted by the first character of their sort title in A–Z order
-// (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. Resolutions:
+// (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1`
+// keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions:
 // 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days,
 // runtimes are minutes, `about` is comma-separated words to find in the title, tagline,
 // description or TMDB keywords
@@ -506,6 +507,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Resolution = q.Get("resolution")
 	query.UserID = currentUserID(r)
 	query.Unwatched = q.Get("unwatched") == "1" || q.Get("unwatched") == "true"
+	query.Unmatched = q.Get("unmatched") == "1" || q.Get("unmatched") == "true"
 	query.AddedWithinDays, _ = strconv.Atoi(q.Get("added_within"))
 	query.MinRuntime, _ = strconv.Atoi(q.Get("min_runtime"))
 	query.MaxRuntime, _ = strconv.Atoi(q.Get("max_runtime"))

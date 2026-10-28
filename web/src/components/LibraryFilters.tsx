@@ -18,6 +18,7 @@ export interface BrowseFilters {
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
+  unmatched?: boolean;
   added_within?: number;
   min_runtime?: number;
   max_runtime?: number;
@@ -63,10 +64,14 @@ function useChoices(facets: LibraryFacets | undefined, f: BrowseFilters): Choice
  * The Filters button: every filter in one panel, so the bar stays short. It shows how many are
  * on; the chosen ones also show beside it (ActiveFilters) to remove one at a time.
  */
-export function FiltersButton({ facets, filters, onChange, onClear }: { facets?: LibraryFacets; filters: BrowseFilters; onChange: (patch: FilterPatch) => void; onClear: () => void }) {
+export function FiltersButton({ facets, filters, onChange, onClear, unmatched }: {
+  facets?: LibraryFacets; filters: BrowseFilters; onChange: (patch: FilterPatch) => void; onClear: () => void;
+  /** Offer the Unmatched filter (server owner; for shows it also finds unplaced episodes). */
+  unmatched?: 'movies' | 'shows';
+}) {
   const { t } = useTranslation('library');
   const choices = useChoices(facets, filters);
-  const count = choices.filter((c) => c.value).length + (filters.unwatched ? 1 : 0);
+  const count = choices.filter((c) => c.value).length + (filters.unwatched ? 1 : 0) + (filters.unmatched ? 1 : 0);
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
@@ -87,6 +92,15 @@ export function FiltersButton({ facets, filters, onChange, onClear }: { facets?:
             {t('library:unwatchedOnly')}
             <Switch checked={!!filters.unwatched} onCheckedChange={(on) => onChange({ unwatched: on ? '1' : undefined })} />
           </label>
+          {unmatched && (
+            <label className="-mt-2 mb-4 flex items-center justify-between gap-4 rounded-xl bg-surface-2/60 px-3.5 py-2.5 text-sm font-medium">
+              <span>
+                {t('library:unmatchedOnly', { count: facets?.unmatched ?? 0 })}
+                {unmatched === 'shows' && <span className="mt-0.5 block text-xs font-normal text-muted">{t('library:unmatchedShowsHint')}</span>}
+              </span>
+              <Switch checked={!!filters.unmatched} onCheckedChange={(on) => onChange({ unmatched: on ? '1' : undefined })} />
+            </label>
+          )}
           <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
             {choices.map((c) => (
               <Field key={c.id} label={c.label}>
@@ -114,6 +128,7 @@ export function ActiveFilters({ facets, filters, onChange }: { facets?: LibraryF
   const on = useChoices(facets, filters).filter((c) => c.value);
   const chips: { key: string; text: string; patch: FilterPatch }[] = [
     ...(filters.unwatched ? [{ key: 'unwatched', text: t('library:unwatched'), patch: { unwatched: undefined } }] : []),
+    ...(filters.unmatched ? [{ key: 'unmatched', text: t('library:unmatched'), patch: { unmatched: undefined } }] : []),
     ...on.map((c) => ({ key: c.id, text: c.options.find(([v]) => v === c.value)?.[1] ?? c.value!, patch: c.patch(undefined) })),
   ];
   return (
