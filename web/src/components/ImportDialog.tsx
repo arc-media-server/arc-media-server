@@ -29,7 +29,7 @@ function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose:
   const s = session.data;
   useEffect(() => {
     if (s?.stage === 'done') {
-      for (const key of ['continue', 'next-up', 'items', 'item', 'profiles', 'watchlist']) qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['continue', 'next-up', 'items', 'item', 'profiles', 'watchlist', 'playlists', 'collections']) qc.invalidateQueries({ queryKey: [key] });
     }
   }, [s?.stage, qc]);
 
@@ -277,6 +277,7 @@ function ImportProgress() {
 function Results({ title, session: s, onClose }: { title: string; session: ImportSession; onClose: () => void }) {
   const { t } = useTranslation('accessSettings');
   const [open, setOpen] = useState<string | null>(null);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   return (
     <DialogContent
       title={title}
@@ -297,14 +298,20 @@ function Results({ title, session: s, onClose }: { title: string; session: Impor
             </div>
             <p className="mt-1 pl-6 text-xs text-muted">
               {[t('accessSettings:importDialog.matchedTitles', { count: r.matched }), r.history > 0 && t('accessSettings:importDialog.history', { count: r.history })].filter(Boolean).join(' · ')}
-              {r.not_found > 0 && (
+              {r.not_found + (r.lists_not_found ?? 0) > 0 && (
                 <>
                   {' · '}
                   <button type="button" className="text-foreground/80 underline-offset-2 hover:underline" onClick={() => setOpen(open === r.account ? null : r.account)}>
-                    {t('accessSettings:importDialog.missingCount', { count: r.not_found })}</button>
+                    {t('accessSettings:importDialog.missingCount', { count: r.not_found + (r.lists_not_found ?? 0) })}</button>
                 </>
               )}
             </p>
+            {(!!r.watchlist || !!r.playlists) && (
+              <p className="mt-0.5 pl-6 text-xs text-muted">
+                {[!!r.watchlist && t('accessSettings:importDialog.watchlistCount', { count: r.watchlist }), !!r.playlists && t('accessSettings:importDialog.playlistCount', { count: r.playlists, entries: t('accessSettings:importDialog.playlistEntries', { count: r.playlist_items ?? 0 }) })].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {r.lists_error && <p className="mt-1 pl-6 text-xs text-warning">{t('accessSettings:importDialog.listsError', { error: r.lists_error })}</p>}
             {open === r.account && r.missing && (
               <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto pl-6 text-xs text-subtle">
                 {r.missing.map((m, i) => (
@@ -312,11 +319,40 @@ function Results({ title, session: s, onClose }: { title: string; session: Impor
                     {m}
                   </li>
                 ))}
-                {r.not_found > r.missing.length && <li>{t('accessSettings:importDialog.moreMissing', { count: r.not_found - r.missing.length })}</li>}
+                {r.not_found + (r.lists_not_found ?? 0) > r.missing.length && <li>{t('accessSettings:importDialog.moreMissing', { count: r.not_found + (r.lists_not_found ?? 0) - r.missing.length })}</li>}
               </ul>
             )}
           </div>
         ))}
+        {s.collections && (s.collections.collections > 0 || s.collections.not_found > 0 || s.collections.error) && (
+          <div className="rounded-xl bg-surface-2/50 px-3 py-2.5 ring-1 ring-border">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 shrink-0 text-accent" />
+              <p className="min-w-0 flex-1 truncate text-sm font-medium">{t('accessSettings:importDialog.collections')}</p>
+            </div>
+            <p className="mt-1 pl-6 text-xs text-muted">
+              {t('accessSettings:importDialog.collectionCount', { count: s.collections.collections, titles: t('accessSettings:importDialog.collectionTitles', { count: s.collections.collection_items }) })}
+              {s.collections.not_found > 0 && (
+                <>
+                  {' · '}
+                  <button type="button" className="text-foreground/80 underline-offset-2 hover:underline" onClick={() => setCollectionsOpen((o) => !o)}>
+                    {t('accessSettings:importDialog.missingCount', { count: s.collections.not_found })}
+                  </button>
+                </>
+              )}
+            </p>
+            {s.collections.error && <p className="mt-1 pl-6 text-xs text-warning">{t('accessSettings:importDialog.collectionsError', { error: s.collections.error })}</p>}
+            {collectionsOpen && s.collections.missing && (
+              <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto pl-6 text-xs text-subtle">
+                {s.collections.missing.map((m, i) => (
+                  <li key={i} className="truncate">
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </DialogContent>
   );
