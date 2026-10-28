@@ -1,6 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
-import { rename } from 'node:fs/promises';
-import { relative, isAbsolute } from 'node:path';
+import { copyFile, mkdir, rename } from 'node:fs/promises';
+import { join, relative, isAbsolute } from 'node:path';
 
 type Media = { movies: string; shows: string };
 const test = base.extend<{ media: Media }>({
@@ -120,6 +120,32 @@ test('maintenance: Activity stops the owned refresh and reports Stopped', async 
   } finally { await fetch('http://127.0.0.1:18200/metadata-hold?hold=0', { method: 'POST' }); }
 });
 
+test('trusted proxies: forwarded visitors count as home only through a listed proxy', async ({ page, media }, info) => {
+  void media;
+  const status = async (forwardedFor: string) => (await (await page.request.get('/api/auth/status', { headers: { 'X-Forwarded-For': forwardedFor } })).json()).local;
+  // This test's own connection comes from 127.0.0.1, standing in for a proxy.
+  expect(await status('192.168.1.20')).toBe(false);
+  await page.goto('/settings?section=access');
+  const field = page.getByRole('textbox', { name: 'Trusted proxies', exact: true });
+  await expect(field).toHaveValue('');
+  await field.fill('not an address');
+  await field.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: /not an address|network|address/i })).toBeVisible();
+  await field.fill('127.0.0.1');
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PATCH' && r.ok());
+  await field.press('Enter');
+  expect((await (await saved).json()).trusted_proxies).toBe('127.0.0.1/32');
+  await expect(field).toHaveValue('127.0.0.1/32');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('trusted-proxies.png') });
+  expect(await status('192.168.1.20')).toBe(true);
+  expect(await status('203.0.113.9')).toBe(false);
+  // A visitor can't fake being at home by writing their own header in front of the proxy's.
+  expect(await status('192.168.1.20, 203.0.113.9')).toBe(false);
+  expect((await page.request.patch('/api/settings', { data: { trusted_proxies: '' } })).ok()).toBeTruthy();
+  expect(await status('192.168.1.20')).toBe(false);
+});
+
 test('maintenance: server clock keeps server timezone, retries errors and reflects all-day changes', async ({ page, media }, info) => {
   void media;
   await page.goto('/settings?section=maintenance');
@@ -162,6 +188,76 @@ test('Manage libraries: Edit beside More, which holds Scan, repairs and Remove',
   expect((await (await page.request.get('/api/libraries')).json()).some((l: { id: number }) => l.id === lib.id)).toBe(true);
 });
 
+test('merging shows: two folders of one show become one, keep watch state and survive a rescan', async ({ page, media }) => {
+  // A second, differently named folder of the same show, with a shared episode and one of its own.
+  const sample = join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E01.mp4');
+  const extra = join(media.shows, 'Arc Show', 'Season 01');
+  await mkdir(extra, { recursive: true });
+  await copyFile(sample, join(extra, 'Arc Show - S01E02.mp4'));
+  await copyFile(sample, join(extra, 'Arc Show - S01E03.mp4'));
+  const lib = await library(page, media.shows, true);
+  type Ep = { id: string; episode_number: number; files?: { path: string }[]; user_data?: { position_ms?: number; played?: boolean } };
+  const shows = async () => (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items as { id: string; title: string }[];
+  const episodes = async (id: string): Promise<Ep[]> => (await (await page.request.get(`/api/series/${id}/seasons`)).json()).seasons.flatMap((s: { episodes: Ep[] }) => s.episodes);
+  const before = await shows();
+  expect(before).toHaveLength(2);
+  const numbers = async (id: string) => (await episodes(id)).map(e => e.episode_number).sort((a, b) => a - b);
+  const keep = (await Promise.all(before.map(async s => ((await numbers(s.id)).includes(1) ? s : null)))).find(Boolean)!;
+  const other = before.find(s => s.id !== keep.id)!;
+  const otherEpisodes = await episodes(other.id);
+  const own = otherEpisodes.find(e => e.episode_number === 3)!;
+  const shared = otherEpisodes.find(e => e.episode_number === 2)!;
+  expect((await page.request.put(`/api/items/${own.id}/progress`, { data: { position_ms: 90000, duration_ms: 600000, state: 'stopped' } })).ok()).toBeTruthy();
+  expect((await page.request.put(`/api/items/${shared.id}/played`, { data: { played: true } })).ok()).toBeTruthy();
+
+  // Movies and shows can't be mixed, nor can titles be merged across libraries.
+  expect((await page.request.post('/api/items/merge', { data: { target_id: keep.id, item_ids: ['not-a-show'] } })).status()).toBe(400);
+  const merged = await page.request.post('/api/items/merge', { data: { target_id: keep.id, item_ids: [other.id] } });
+  expect(merged.status(), await merged.text()).toBe(204);
+
+  const check = async () => {
+    const after = await shows();
+    expect(after.map(s => s.id)).toEqual([keep.id]);
+    const eps = await episodes(keep.id);
+    const two = eps.find(e => e.episode_number === 2)!;
+    const three = eps.find(e => e.episode_number === 3)!;
+    expect(three.id).toBe(own.id);
+    expect(three.user_data?.position_ms).toBe(90000);
+    expect(two.user_data?.played).toBe(true);
+    const detail = await (await page.request.get(`/api/items/${two.id}`)).json();
+    expect(detail.files.map((f: { path: string }) => f.path).sort()).toEqual([join(extra, 'Arc Show - S01E02.mp4'), join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E02.mp4')].sort());
+  };
+  await check();
+  // A full rescan files the merged folder under the kept show instead of bringing it back.
+  expect((await page.request.post(`/api/libraries/${lib.id}/scan`)).ok()).toBeTruthy();
+  await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+  await check();
+});
+
+test('merging shows from Library Health: the duplicate pair becomes one show', async ({ page, media }, info) => {
+  const sample = join(media.shows, 'Arc Show (2020)', 'Season 01', 'Arc Show - S01E01.mp4');
+  const extra = join(media.shows, 'Arc Show', 'Season 01');
+  await mkdir(extra, { recursive: true });
+  await copyFile(sample, join(extra, 'Arc Show - S01E03.mp4'));
+  const lib = await library(page, media.shows, true);
+  const count = async () => (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items.length;
+  expect(await count()).toBe(2);
+  await page.goto('/health');
+  const row = page.locator('div').filter({ hasText: /2 separate shows matched to the same title/ }).filter({ has: page.getByRole('button', { name: 'Merge', exact: true }) }).last();
+  await row.getByRole('button', { name: 'Merge', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Merge 2 shows' });
+  await expect(dialog).toContainText('Episodes they both have keep every file');
+  await expect(dialog).toContainText("Shows can't be split apart again.");
+  // The two copies are told apart by their folders.
+  await expect(dialog.getByText('Arc Show (2020)', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Arc Show', { exact: true }).last()).toBeVisible();
+  await page.screenshot({ path: info.outputPath('merge-shows-dialog.png') });
+  await dialog.getByRole('button', { name: 'Merge', exact: true }).click();
+  await expect(dialog).not.toBeVisible({ timeout: 30_000 });
+  expect(await count()).toBe(1);
+  await expect(page.getByText(/separate shows matched to the same title/)).toHaveCount(0);
+});
+
 for (const shows of [false, true]) {
   test(`maintenance: Analyze from a ${shows ? 'show' : 'movie'}'s More menu rereads its files`, async ({ page, media }) => {
     const lib = await library(page, shows ? media.shows : media.movies, shows);
@@ -186,9 +282,11 @@ for (const shows of [false, true]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveAttribute('title', /^Playback queue/);
-    await expect(page.getByRole('button', { name: 'Add to Playlist', exact: true }).first()).toHaveAttribute('title', 'Save to a playlist');
+    // Queue and playlist actions live in More, as in Plex, above the server owner's tools.
+    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(shows ? 3 : 0); // only the episode rows' own buttons
     await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
@@ -437,4 +535,17 @@ test('age ratings: each library uses its own country, chosen in Advanced', async
   // Saving refetches the library's titles, so the rating follows without a manual refresh.
   await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
   expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
+});
+
+test('title pages: a profile without admin rights still gets More with queue and playlist actions only', async ({ page, media }) => {
+  const lib = await library(page, media.movies);
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.find((i: { title: string }) => i.title === 'Arc Movie');
+  const created = await page.request.post('/api/profiles', { data: { name: 'Viewer', color: 'blue' } });
+  expect(created.ok()).toBeTruthy();
+  expect((await page.request.post('/api/auth/profile', { data: { id: (await created.json()).id } })).ok()).toBeTruthy();
+  await page.goto(`/movie/${item.id}`);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…']);
+  await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add to Playlist', exact: true })).toBeVisible();
 });

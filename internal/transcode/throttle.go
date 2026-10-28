@@ -14,11 +14,11 @@ import (
 // player catches up to within resumeAhead or asks for something not converted yet. Someone who
 // stops after ten minutes no longer leaves a whole film converted behind them, and a paused
 // viewer's conversion stops too. Seeking past what's converted still starts a new session.
-var (
-	pauseAhead   = 120 * time.Second
-	resumeAhead  = 60 * time.Second
-	throttleTick = time.Second
-)
+type throttling struct {
+	pauseAhead, resumeAhead, tick time.Duration
+}
+
+var defaultThrottling = throttling{pauseAhead: 120 * time.Second, resumeAhead: 60 * time.Second, tick: time.Second}
 
 // segmentSeconds is the length of each converted segment (-hls_time).
 const segmentSeconds = 6
@@ -50,7 +50,7 @@ func (s *Session) Throttled() bool {
 
 // throttle keeps the conversion within pauseAhead of the player until FFmpeg finishes.
 func (s *Session) throttle() {
-	t := time.NewTicker(throttleTick)
+	t := time.NewTicker(s.throttling.tick)
 	defer t.Stop()
 	for {
 		select {
@@ -64,9 +64,9 @@ func (s *Session) throttle() {
 		s.mu.Unlock()
 		ahead := time.Duration(made-1-at) * segmentSeconds * time.Second
 		switch {
-		case ahead >= pauseAhead:
+		case ahead >= s.throttling.pauseAhead:
 			s.setPaused(true)
-		case ahead <= resumeAhead:
+		case ahead <= s.throttling.resumeAhead:
 			s.setPaused(false)
 		}
 	}

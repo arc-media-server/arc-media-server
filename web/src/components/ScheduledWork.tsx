@@ -1,3 +1,5 @@
+import * as fmt from '@/lib/format';
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type ScheduledTask } from '@/lib/api';
@@ -9,20 +11,17 @@ import { ErrorNotice } from '@/components/Page';
 export type MaintenanceTaskRow = { kind: string; label: string; description: string; control: ReactNode; feedback?: ReactNode; action?: ReactNode };
 
 // Routine states (scheduled, waiting, up to date) aren't shown: only what needs a glance.
-const states: Record<string, { label: string; tone: string }> = {
-  running: { label: 'Running', tone: 'bg-accent animate-pulse' },
-  paused: { label: 'Paused while something plays or scans', tone: 'bg-warning' },
-  failed: { label: 'Needs attention', tone: 'bg-warning' },
-};
+
 
 export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
+  const { t } = useTranslation('serverSettings');
   const query = useQuery({ queryKey: ['scheduled-work'], queryFn: api.maintenance, refetchInterval: 3000 });
   const qc = useQueryClient();
   const run = useMutation({ mutationFn: api.runMaintenance, onSuccess: () => { qc.invalidateQueries({ queryKey: ['scheduled-work'] }); qc.invalidateQueries({ queryKey: ['activity'] }); } });
   return (
     <div>
       <div className="px-4 pt-4">
-        <h3 className="font-medium">Tasks</h3>
+        <h3 className="font-medium">{t("serverSettings:scheduledWork.tasks")}</h3>
         <ErrorNotice error={query.error} onRetry={() => void query.refetch()} />
         <ErrorNotice error={run.error} onRetry={() => run.variables && run.mutate(run.variables)} />
       </div>
@@ -43,12 +42,10 @@ export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
                   size="sm"
                   variant="secondary"
                   className="ml-auto shrink-0 sm:ml-0"
-                  aria-label={`Run ${row.label} now`}
+                  aria-label={t('serverSettings:scheduledWork.runTask', { task: row.label })}
                   disabled={!task?.enabled || run.isPending || task.state === 'running'}
                   onClick={() => run.mutate(row.kind)}
-                >
-                  Run now
-                </Button>}
+                >{t("serverSettings:scheduledWork.runNow")}</Button>}
               </div>
             </li>
           );
@@ -59,6 +56,12 @@ export function MaintenanceTasks({ rows }: { rows: MaintenanceTaskRow[] }) {
 }
 
 function TaskStatus({ task }: { task?: ScheduledTask }) {
+  const { t } = useTranslation('serverSettings');
+  const states: Record<string, { label: string; tone: string }> = {
+  running: { label: t('serverSettings:scheduledWork.running'), tone: 'bg-accent animate-pulse' },
+  paused: { label: t('serverSettings:scheduledWork.paused'), tone: 'bg-warning' },
+  failed: { label: t('serverSettings:scheduledWork.failed'), tone: 'bg-warning' },
+};
   const state = task && states[task.state];
   const last = task?.last_run && task.last_run.finished_at > 0 ? task.last_run : undefined;
   if (!task || (!state && !last)) return null;
@@ -71,8 +74,7 @@ function TaskStatus({ task }: { task?: ScheduledTask }) {
         </span>
         {task.state === 'running' && task.detail && <span>· {task.detail}</span>}
       </p>}
-      {last && <p className="mt-1 text-xs leading-relaxed text-muted">
-        Last result · {new Date(last.finished_at * 1000).toLocaleString()} · {last.detail}
+      {last && <p className="mt-1 text-xs leading-relaxed text-muted">{t('serverSettings:scheduledWork.result', { time: fmt.localDateTime(new Date(last.finished_at * 1000)), detail: last.detail })}
         {last.error && <> · {last.error}</>}
       </p>}
     </div>
