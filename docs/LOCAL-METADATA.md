@@ -39,7 +39,7 @@ records are used to map identities/orders, not to mix missing episode fields.
 Manual edits/locks and watch identity survive supported provider switches.
 
 This retains the owner's recorded single-provider decision in
-[#80 comment 6251381329](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6251381329).
+[#80 comment 6251381329](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6251381329).
 The older #104 cross-provider backfill proposal is superseded by that policy, not an
 unimplemented repair to be enabled automatically.
 

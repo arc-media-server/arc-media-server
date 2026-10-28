@@ -4,7 +4,7 @@
 # personal access token with read:packages).
 services:
   arc:
-    image: ghcr.io/jonzauk/arc-media-server:latest
+    image: ghcr.io/arc-media-server/arc-media-server:latest
     container_name: arc
     restart: unless-stopped
     # Host networking lets Arc see devices' real addresses (for "at home" sign-in and remote limits)

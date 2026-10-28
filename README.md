@@ -130,7 +130,7 @@ native TV and phone apps are planned.
 ## Running with Docker
 
 An image for amd64 and arm64, with FFmpeg included, is published to
-`ghcr.io/jonzauk/arc-media-server`. `latest` follows `main` (the development channel); version
+`ghcr.io/arc-media-server/arc-media-server`. `latest` follows `main` (the development channel); version
 tags pass the full verification suite. See [image publishing](docs/IMAGE-PUBLISHING.md).
 
 1. While the repository is private, sign in to the registry once: `docker login ghcr.io` (your

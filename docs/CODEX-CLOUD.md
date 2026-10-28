@@ -11,7 +11,7 @@ The owner approved using Codex Cloud for cross-PC development on 22 October 2026
 with GitHub remaining the source of truth. The private `arc-media-server` environment
 is now published, and a separate task restored it and passed verification. The
 instructions below are retained for rebuilding or updating the environment.
-Setup and cross-device acceptance: [GitHub #157](https://github.com/JonzaUK/arc-media-server/issues/157).
+Setup and cross-device acceptance: [GitHub #157](https://github.com/arc-media-server/arc-media-server/issues/157).
 
 Library-work handoff (#183/#184/#196/#187, 25 October): confirmed library repair actions
 and safe Stop now live in Manage libraries/Activity, sharing scan admission and preserving
@@ -72,7 +72,7 @@ covered. Older completed copies need Optimize again because provenance cannot be
 there is no automatic bulk regeneration or forced source reprobe. See OPTIMIZED-COPIES.md,
 READINESS and #170 for evidence/limits. Audio follow-up is recorded above; #172 bitrate follow-up is recorded above.
 
-Audit review queue: [#162](https://github.com/JonzaUK/arc-media-server/issues/162) indexes all
+Audit review queue: [#162](https://github.com/arc-media-server/arc-media-server/issues/162) indexes all
 36 Arc/Plex findings, with independent review/implementation-or-close decisions. Start with
 CI #173, then optimized-copy correctness #170–#172. The #173 TestEach correction uses controlled
 worker gates instead of assuming a failing callback runs before later indices. It preserves
@@ -140,7 +140,7 @@ work was performed; keep those remaining acceptance boundaries explicit.
 
 In ChatGPT/Codex choose **Work in > Cloud > Select environment > Create environment**,
 or **Settings > Codex Cloud > Environments**. Select only
-`JonzaUK/arc-media-server` and keep the environment private (**Only me**).
+`arc-media-server/arc-media-server` and keep the environment private (**Only me**).
 Sign in and authorize the repository connection yourself if prompted.
 
 Give the environment setup conversation this request:
@@ -255,9 +255,9 @@ publishes the development image after its gates. Local PCs can pull completed ch
   no global protection or network restriction was disabled. Use that supported review
   when needed; do not replace the pinned browser or bypass access controls.
 - Independent GitHub preflight for `e8e315d` passed in
-  [run 39847970913](https://github.com/JonzaUK/arc-media-server/actions/runs/39847970913).
+  [run 39847970913](https://github.com/arc-media-server/arc-media-server/actions/runs/39847970913).
   Linux/Windows/race/browser/container and image-publication gates also passed in
-  [run 39847970870](https://github.com/JonzaUK/arc-media-server/actions/runs/39847970870).
+  [run 39847970870](https://github.com/arc-media-server/arc-media-server/actions/runs/39847970870).
   Neither result substitutes for actual Unraid/device/sustained-use acceptance.
 
 Official setup and saved-state behaviour:
