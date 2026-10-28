@@ -172,10 +172,11 @@ type movieResult struct {
 	ReleaseDate   string `json:"release_date"`
 	Overview      string `json:"overview"`
 	PosterPath    string `json:"poster_path"`
+	VoteCount     int    `json:"vote_count"`
 }
 
 func (r movieResult) candidate() Candidate {
-	c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Title, Year: yearOf(r.ReleaseDate), Overview: r.Overview}
+	c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Title, Year: yearOf(r.ReleaseDate), Overview: r.Overview, Votes: r.VoteCount}
 	if r.OriginalTitle != r.Title {
 		c.OriginalTitle = r.OriginalTitle
 	}
@@ -230,7 +231,7 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			return 0, err
 		}
 		if len(results) > 0 {
-			id := bestMatch(title, results)
+			id := bestMatch(title, year, results)
 			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Year: year, Results: movieCandidates(results), Picked: id})
 			return id, nil
 		}
@@ -255,7 +256,7 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 			record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Note: note})
 			return 0, nil
 		}
-		id := bestMatch(title, near)
+		id := bestMatch(title, year, near)
 		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
 		return id, nil
 	}
@@ -268,14 +269,14 @@ func (c *TMDB) searchMovie(ctx context.Context, title string, year int) (int64, 
 		record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Note: "No results."})
 		return 0, nil
 	}
-	id := bestMatch(title, results)
+	id := bestMatch(title, year, results)
 	record(ctx, Step{Provider: "tmdb", Kind: "search", Query: title, Results: movieCandidates(results), Picked: id})
 	return id, nil
 }
 
 // bestMatch requires a confident, unique title rather than trusting result order.
-func bestMatch(title string, results []movieResult) int64 {
-	return confidentMatch(title, movieCandidates(results))
+func bestMatch(title string, year int, results []movieResult) int64 {
+	return confidentMatch(title, year, movieCandidates(results))
 }
 
 func (c *TMDB) findByIMDB(ctx context.Context, imdbID string) (int64, error) {
