@@ -1,3 +1,6 @@
+import * as fmt from '@/lib/format';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, Pencil, Plus, Send, Trash2, XCircle } from 'lucide-react';
@@ -10,15 +13,16 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { inputClass } from '@/components/ui/field';
 
 const eventLabels: Record<string, string> = {
-  'library.new': 'New movies and episodes',
-  'playback.start': 'Someone starts watching',
-  'playback.watched': 'Someone finishes watching',
-  'server.problem': 'Problems, like a failed scan or backup',
+  get 'library.new'() { return i18n.t('serverSettings:events.newMedia'); },
+  get 'playback.start'() { return i18n.t('serverSettings:events.started'); },
+  get 'playback.watched'() { return i18n.t('serverSettings:events.finished'); },
+  get 'server.problem'() { return i18n.t('serverSettings:events.problem'); },
 };
 const formatLabels = { discord: 'Discord', slack: 'Slack', json: 'JSON' };
 
 /** Webhooks: where Arc posts events, for Discord, Slack, home automation or anything else. */
 export function Webhooks() {
+  const { t } = useTranslation('serverSettings');
   const qc = useQueryClient();
   const webhooks = useQuery({ queryKey: ['webhooks'], queryFn: api.webhooks });
   const { data } = webhooks;
@@ -32,11 +36,11 @@ export function Webhooks() {
   return (
     <>
       {webhooks.error && <div className="m-4 space-y-2">
-        {data && <p className="text-xs text-muted">Showing the last loaded notifications. They may be out of date.</p>}
+        {data && <p className="text-xs text-muted">{t("serverSettings:webhooks.showingTheLastLoaded")}</p>}
         <ErrorNotice error={webhooks.error} onRetry={() => void webhooks.refetch()} busy={webhooks.isFetching} />
       </div>}
-      {!data && !webhooks.error && <p role="status" className="px-4 py-3 text-sm text-muted">Loading notifications…</p>}
-      {data && data.webhooks.length === 0 && <p className="px-4 py-3 text-sm text-muted">No notifications configured yet.</p>}
+      {!data && !webhooks.error && <p role="status" className="px-4 py-3 text-sm text-muted">{t("serverSettings:webhooks.loadingNotifications")}</p>}
+      {data && data.webhooks.length === 0 && <p className="px-4 py-3 text-sm text-muted">{t("serverSettings:webhooks.noNotificationsConfiguredYet")}</p>}
       {data?.webhooks.map((h) => (
         <div key={h.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
           <div className="min-w-0 flex-1 basis-64">
@@ -48,23 +52,21 @@ export function Webhooks() {
               {h.url}
             </p>
             <p className="mt-0.5 text-xs text-muted">
-              {h.events.length === 0 || h.events.length === data.events.length ? 'Every event' : h.events.map((e) => eventLabels[e] ?? e).join(' · ')}
+              {h.events.length === 0 || h.events.length === data.events.length ? t("serverSettings:webhooks.everyEvent") : h.events.map((e) => eventLabels[e] ?? e).join(' · ')}
             </p>
             {h.last && (
               <p className={cn('mt-1 flex items-center gap-1 text-xs', h.last.ok ? 'text-subtle' : 'text-warning')}>
-                {h.last.ok ? <CheckCircle2 className="size-3.5 text-accent" /> : <XCircle className="size-3.5" />}
-                Last sent {new Date(h.last.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}: {h.last.status}
+                {h.last.ok ? <CheckCircle2 className="size-3.5 text-accent" /> : <XCircle className="size-3.5" />}{t('serverSettings:webhooks.sentStatus', { date: fmt.timestamp(new Date(h.last.at), { dateStyle: 'medium', timeStyle: 'short' }), status: h.last.status })}
               </p>
             )}
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" disabled={test.isPending} onClick={() => test.mutate(h)}>
-              {test.isPending && test.variables?.id === h.id ? <Loader2 className="animate-spin" /> : <Send />} Test
-            </Button>
-            <Button variant="ghost" size="sm" aria-label="Edit" onClick={() => setEditing(h)}>
+              {test.isPending && test.variables?.id === h.id ? <Loader2 className="animate-spin" /> : <Send />} {t("serverSettings:webhooks.test")}</Button>
+            <Button variant="ghost" size="sm" aria-label={t("serverSettings:webhooks.edit")} onClick={() => setEditing(h)}>
               <Pencil />
             </Button>
-            <Button variant="ghost" size="sm" aria-label="Remove" onClick={() => setRemoving(h)}>
+            <Button variant="ghost" size="sm" aria-label={t("serverSettings:webhooks.remove")} onClick={() => setRemoving(h)}>
               <Trash2 />
             </Button>
           </div>
@@ -72,12 +74,10 @@ export function Webhooks() {
       ))}
       <div className="flex items-center gap-4 px-4 py-3.5">
         <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted">
-          {!data ? 'Load notifications before adding a webhook.' : data.webhooks.length ? 'Add another' : 'Add a Discord or Slack webhook, or any address that accepts JSON'}
-          {!data ? '' : data.webhooks.length ? '.' : ' (like ntfy or home automation).'}
+          {!data ? t('serverSettings:webhooks.loadNotificationsBeforeAdding') : data.webhooks.length ? t('serverSettings:webhooks.addMore') : t('serverSettings:webhooks.addDescription')}
         </p>
         <Button variant="secondary" size="sm" disabled={!data} onClick={() => setEditing('new')}>
-          <Plus /> Add Webhook
-        </Button>
+          <Plus /> {t("serverSettings:webhooks.addWebhook")}</Button>
       </div>
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         {editing && data && <WebhookForm webhook={editing === 'new' ? undefined : editing} events={data.events} onDone={() => setEditing(null)} />}
@@ -85,20 +85,20 @@ export function Webhooks() {
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(o) => !o && setRemoving(null)}
-        title="Remove Webhook"
-        confirmLabel="Remove"
+        title={t("serverSettings:webhooks.removeWebhook")}
+        confirmLabel={t("serverSettings:webhooks.remove")}
         destructive
         busy={remove.isPending}
         error={remove.error?.message}
         onConfirm={() => removing && remove.mutate(removing)}
-      >
-        Arc stops sending events to {removing?.name}.
+      >{t('serverSettings:webhooks.removeDescription', { name: removing?.name })}
       </ConfirmDialog>
     </>
   );
 }
 
 function WebhookForm({ webhook, events, onDone }: { webhook?: Webhook; events: string[]; onDone: () => void }) {
+  const { t } = useTranslation('serverSettings');
   const qc = useQueryClient();
   const [name, setName] = useState(webhook?.name ?? '');
   const [url, setUrl] = useState(webhook?.url ?? '');
@@ -109,32 +109,31 @@ function WebhookForm({ webhook, events, onDone }: { webhook?: Webhook; events: s
   });
   return (
     <DialogContent
-      title={webhook ? 'Edit Webhook' : 'Add a Webhook'}
-      description="Arc posts a message to this address when the events you choose happen."
+      title={webhook ? t("serverSettings:webhooks.editWebhook") : t("serverSettings:webhooks.addAWebhook")}
+      description={t("serverSettings:webhooks.arcPostsAMessage")}
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t("serverSettings:webhooks.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" disabled={!url.trim() || chosen.length === 0 || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />} {t("serverSettings:webhooks.save")}</Button>
         </>
       }
     >
       <div className="space-y-4 pb-2">
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Address</span>
-          <input autoFocus value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://discord.com/api/webhooks/…" className={inputClass} />
-          <span className="mt-1.5 block text-xs text-subtle">Discord and Slack addresses get a tidy message; anything else gets the event as JSON.</span>
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:webhooks.address")}</span>
+          <input autoFocus value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("serverSettings:webhooks.httpsDiscordComApi")} className={inputClass} />
+          <span className="mt-1.5 block text-xs text-subtle">{t("serverSettings:webhooks.discordAndSlackAddresses")}</span>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Family Discord" maxLength={60} className={inputClass} />
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:webhooks.name")}</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("serverSettings:webhooks.eGFamilyDiscord")} maxLength={60} className={inputClass} />
         </label>
         <div>
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Send</span>
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:webhooks.send")}</span>
           <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
             {events.map((e) => (
               <label key={e} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm">

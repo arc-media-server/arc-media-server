@@ -1,14 +1,13 @@
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, type PersonCredit } from '@/lib/api';
-import * as fmt from '@/lib/format';
 import { ErrorState, Page } from '@/components/Page';
 import { PosterCard } from '@/components/PosterCard';
 
-const roleNames = { actor: 'Acting', director: 'Directing', writer: 'Writing', creator: 'Created' } as const;
-
 /** Someone in the cast or crew, and everything they're in that's in the libraries. */
 export function PersonPage() {
+  const { t } = useTranslation('person');
   const { id } = useParams();
   const { data, error } = useQuery({ queryKey: ['person', id], queryFn: () => api.person(Number(id)) });
   if (error) return <ErrorState error={error} />;
@@ -29,18 +28,20 @@ export function PersonPage() {
         </div>
         <div>
           <h1 className="text-4xl font-bold leading-tight">{p.name}</h1>
-          <p className="mt-1 text-sm text-muted">{fmt.plural(p.count, 'title')} in your libraries</p>
+          <p className="mt-1 text-sm text-muted">{t('person:libraryTitles', { count: p.count })}</p>
         </div>
       </div>
       <div className="space-y-12 px-6 md:px-10">
-        {acting.length > 0 && <Credits title="Acting" credits={acting} />}
-        {crew.length > 0 && <Credits title="Behind the camera" credits={crew} />}
+        {acting.length > 0 && <Credits title={t('person:acting')} credits={acting} acting />}
+        {crew.length > 0 && <Credits title={t('person:crew')} credits={crew} />}
       </div>
     </Page>
   );
 }
 
-function Credits({ title, credits }: { title: string; credits: PersonCredit[] }) {
+function Credits({ title, credits, acting = false }: { title: string; credits: PersonCredit[]; acting?: boolean }) {
+  const { t } = useTranslation('person');
+  const roleNames = { actor: t('person:roles.actor'), director: t('person:roles.director'), writer: t('person:roles.writer'), creator: t('person:roles.creator') };
   return (
     <section>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
@@ -49,8 +50,8 @@ function Credits({ title, credits }: { title: string; credits: PersonCredit[] })
           <div key={c.item.id}>
             <PosterCard item={c.item} />
             <p className="mt-0.5 truncate px-0.5 text-xs text-muted">
-              {title === 'Acting'
-                ? c.character || 'Cast'
+              {acting
+                ? c.character || t('person:cast')
                 : c.roles
                     .filter((r) => r !== 'actor')
                     .map((r) => roleNames[r])

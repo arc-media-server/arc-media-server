@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Folder, HardDrive, House } from 'lucide-react';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
  * onChoose with the folder being looked at.
  */
 export function FolderPicker({ start, onChoose, onCancel }: { start?: string; onChoose: (path: string) => void; onCancel: () => void }) {
+  const { t } = useTranslation('libraryEditor');
   const [path, setPath] = useState(start ?? '');
   const [typed, setTyped] = useState(start ?? '');
   const listing = useQuery({ queryKey: ['folders', path], queryFn: () => api.folders(path || undefined) });
@@ -33,7 +35,7 @@ export function FolderPicker({ start, onChoose, onCancel }: { start?: string; on
           variant="ghost"
           size="icon"
           className="size-8 shrink-0 rounded-lg"
-          aria-label="Up one folder"
+          aria-label={t("libraryEditor:folderPicker.upOneFolder")}
           disabled={listing.data?.parent === null || !path}
           onClick={() => go(listing.data?.parent ?? '')}
         >
@@ -42,13 +44,13 @@ export function FolderPicker({ start, onChoose, onCancel }: { start?: string; on
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
-          placeholder="Choose a drive, or type a folder path"
+          placeholder={t("libraryEditor:folderPicker.chooseADriveOr")}
           className="h-8 min-w-0 flex-1 rounded-lg bg-transparent px-2 font-mono text-xs outline-none placeholder:font-sans placeholder:text-subtle focus:bg-surface-3"
         />
       </form>
       <div className="h-56 overflow-y-auto p-1">
         {listing.error && <p className="p-3 text-sm text-warning">{listing.error.message}</p>}
-        {listing.data?.folders.length === 0 && <p className="p-3 text-sm text-muted">No folders inside this one.</p>}
+        {listing.data?.folders.length === 0 && <p className="p-3 text-sm text-muted">{t("libraryEditor:folderPicker.noFoldersInsideThis")}</p>}
         {listing.data?.folders.map((f) => {
           const Icon = !path ? (f.name === 'Home' ? House : HardDrive) : Folder;
           return (
@@ -66,12 +68,8 @@ export function FolderPicker({ start, onChoose, onCancel }: { start?: string; on
         })}
       </div>
       <div className="flex items-center justify-end gap-2 border-t border-border p-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="button" variant="primary" size="sm" disabled={!path || !!listing.error} onClick={() => onChoose(path)}>
-          Use This Folder
-        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>{t("libraryEditor:folderPicker.cancel")}</Button>
+        <Button type="button" variant="primary" size="sm" disabled={!path || !!listing.error} onClick={() => onChoose(path)}>{t("libraryEditor:folderPicker.useThisFolder")}</Button>
       </div>
     </div>
   );

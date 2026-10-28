@@ -110,9 +110,31 @@ export function number(value: number, options?: Intl.NumberFormatOptions): strin
   return new Intl.NumberFormat(formatLocale(), options).format(value);
 }
 
-function fixed(value: number, digits: number): string {
+export function fixed(value: number, digits: number): string {
   // toFixed's binary rounding is part of the existing English file-size display.
   return formatLocale() === 'en-GB' ? value.toFixed(digits) : number(value, { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+// These views historically used the browser's native English date/time preferences.
+// Preserve that English baseline; a translated interface uses its active locale.
+function browserLocale(): string | undefined {
+  return formatLocale() === 'en-GB' ? undefined : formatLocale();
+}
+
+export function localDate(value: Date): string {
+  return value.toLocaleDateString(browserLocale());
+}
+
+export function localTime(value: Date): string {
+  return value.toLocaleTimeString(browserLocale());
+}
+
+export function localDateTime(value: Date): string {
+  return value.toLocaleString(browserLocale());
+}
+
+export function timestamp(value: Date, options: Intl.DateTimeFormatOptions): string {
+  return value.toLocaleString(formatLocale(), options);
 }
 
 export function shortDate(iso: string): string {
@@ -203,11 +225,6 @@ export function scanProgress(scan: { files_seen: number; matched: number; phase?
   return parts.filter(Boolean).join(' · ');
 }
 
-export function plural(n: number, word: string, pluralWord = `${word}s`): string {
-  // Compatibility for pages converted in later phases; new text uses noun-specific keys.
-  return i18n.t('common:format.legacyPlural', { count: n, word, pluralWord });
-}
-
 /** Time spent watching: "45m", "3h 20m", or "128 hours" for long stretches. */
 export function watchTime(ms: number): string {
   const minutes = Math.round(ms / 60_000);
@@ -230,6 +247,11 @@ export function ago(unix: number): string {
 }
 
 /** Calendar month (1–12) in the active UI language. */
-export function month(value: number): string {
-  return new Intl.DateTimeFormat(formatLocale(), { month: 'short' }).format(new Date(2020, value - 1, 1));
+export function month(value: number, style: 'short' | 'long' = 'short'): string {
+  return new Intl.DateTimeFormat(formatLocale(), { month: style }).format(new Date(2020, value - 1, 1));
+}
+
+/** Calendar weekday label, anchored to a known Sunday independently of the machine timezone. */
+export function weekday(value: number): string {
+  return new Intl.DateTimeFormat(formatLocale(), { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2020, 5, 7 + value)));
 }
