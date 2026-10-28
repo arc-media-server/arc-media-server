@@ -91,3 +91,33 @@ func (s *Store) SyncFolderCollections(ctx context.Context, libraryID int64, fold
 	}
 	return tx.Commit()
 }
+
+// LibraryVideo is an Other videos library's video with the path of one of its present files.
+type LibraryVideo struct {
+	Item Item
+	Path string
+}
+
+// LibraryVideos lists a library's videos the profile can see, each with a present file, oldest
+// first (by the date in the name or the file's), for browsing folder by folder.
+func (s *Store) LibraryVideos(ctx context.Context, libraryID int64, acc Access) ([]LibraryVideo, error) {
+	q := `SELECT ` + prefixCols("items.", itemCols) + `, MIN(m.path) FROM items
+		JOIN item_files f ON f.item_id = items.id JOIN media_files m ON m.id = f.file_id
+		WHERE items.library_id = ? AND items.kind = 'movie' AND m.missing_since IS NULL`
+	args := []any{libraryID}
+	q, args = acc.Where("items", q, args)
+	rows, err := s.db.QueryContext(ctx, q+` GROUP BY items.id ORDER BY items.release_date, items.sort_title`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LibraryVideo
+	for rows.Next() {
+		var v LibraryVideo
+		if err := scanItemWith(rows, &v.Item, &v.Path); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}

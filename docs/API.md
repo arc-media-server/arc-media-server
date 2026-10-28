@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-173 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+174 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -226,6 +226,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/libraries/{id}/stop` | admin | Stops {"job_id":...} only. It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled. |
 | GET | `/api/libraries/{id}/facets` | profile | Lists the genres, decades and resolutions a library's titles can be filtered by, with counts. |
 | GET | `/api/libraries/{id}/collections` | profile | Lists a library's collections. |
+| GET | `/api/libraries/{id}/folders` | profile | ?path= browses an Other videos library folder by folder, as Plex can: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder. |
 | GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
 | GET | `/api/libraries/{id}/recommended` | profile | Is a library's Recommended view for the profile: "Because you watched" rows for its recent titles, the best rated it hasn't seen, and its favourite genres. Rows without anything are left out. |
 | POST | `/api/libraries` | admin | {"name", "kind", "paths", "source_ordering"} adds a library and starts scanning it. |

@@ -11205,6 +11205,87 @@
         "x-arc-access": "profile"
       }
     },
+    "/libraries/{id}/folders": {
+      "get": {
+        "description": "?path= browses an Other videos library folder by folder, as Plex can: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder.\n\nWho may call it: **profile**.",
+        "operationId": "libraryFolders",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Browses an Other videos library folder by folder, as Plex can: the folders inside path",
+        "tags": [
+          "Libraries"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/libraries/{id}/health": {
       "get": {
         "description": "Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. watch_problem describes failed folder notifications and the configured scheduled fallback.\n\nWho may call it: **admin**.",
