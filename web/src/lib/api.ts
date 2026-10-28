@@ -155,7 +155,7 @@ export interface Item {
   /** On a movie or show's own page: the collections it's in. */
   collections?: { id: string; title: string; kind: Collection['kind'] }[];
   /** backdrop is sized for cards; backdrop_full is the full-resolution picture for banners. */
-  images?: { primary?: string; backdrop?: string; backdrop_full?: string; logo?: string; series_primary?: string; series_backdrop?: string; season_primary?: string };
+  images?: { primary?: string; backdrop?: string; backdrop_full?: string; logo?: string; series_primary?: string; series_backdrop?: string; series_logo?: string; season_primary?: string };
   stream_url?: string;
   files?: MediaFile[];
 }
@@ -697,7 +697,7 @@ export interface HomeRow {
   title?: string;
   filter?: RowFilter;
   /** Posters or landscape thumbnails; absent for the row's usual look. */
-  style?: 'poster' | 'thumb';
+  style?: 'poster' | 'thumb' | 'arc';
   /** A TV library's Recently Added: one card per show instead of grouping new episodes by season. */
   shows_only?: boolean;
   /** For episodes and seasons on a poster row: the show's poster or the season's. */

@@ -4,15 +4,16 @@ import { PosterCard, ThumbCard } from './PosterCard';
 import { RowShell } from './RowShell';
 export { RowShell } from './RowShell';
 
-export type CardStyle = 'poster' | 'thumb';
+export type CardStyle = 'poster' | 'thumb' | 'arc';
 
 /** The width of a card in a row. */
 export function cardClass(style: CardStyle) {
+  if (style === 'arc') return 'w-[208px] shrink-0 snap-start sm:w-[240px]';
   return style === 'thumb' ? 'w-[260px] shrink-0 snap-start sm:w-[300px]' : 'w-[132px] shrink-0 snap-start sm:w-[156px]';
 }
 
 /**
- * A titled, horizontally scrolling row of posters or landscape thumbnails, with visible controls whenever
+ * A titled, horizontally scrolling row of posters, landscape thumbnails or Arc thumbnails, with visible controls whenever
  * the content overflows. With `play`, thumbnails play what they show (Continue Watching, Up Next) instead of
  * opening it.
  */
@@ -53,9 +54,9 @@ export function MediaRow({
             onRemove={onRemove}
           />
         ) : play ? (
-          <ResumeCard key={item.id} item={item} className={cardClass(style)} onRemove={onRemove} />
+          <ResumeCard key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
         ) : (
-          <ThumbCard key={item.id} item={item} className={cardClass(style)} onRemove={onRemove} />
+          <ThumbCard key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
         ),
       )}
     </RowShell>

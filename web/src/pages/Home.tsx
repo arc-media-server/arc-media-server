@@ -35,8 +35,10 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   return (
     <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
       {cards.data?.map((c) => {
-        const Card = style === 'thumb' ? ThumbCard : PosterCard;
-        return <Card key={`${c.type}:${c.item.id}:${c.season_number ?? ''}`} item={c.item} overrides={recentOverrides(c, style, seasonPosters)} className={cardClass(style)} />;
+        const key = `${c.type}:${c.item.id}:${c.season_number ?? ''}`;
+        const overrides = recentOverrides(c, style, seasonPosters);
+        if (style === 'poster') return <PosterCard key={key} item={c.item} overrides={overrides} className={cardClass(style)} />;
+        return <ThumbCard key={key} item={c.item} overrides={overrides} className={cardClass(style)} arc={style === 'arc'} />;
       })}
     </RowShell>
   );
