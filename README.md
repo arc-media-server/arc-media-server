@@ -71,7 +71,7 @@ on when you want to know.
 **🔌 An open API.** Arc's own web app uses the same documented API any app can build on, and
 native TV and phone apps are planned.
 
-> **Status: private alpha.** Arc runs day to day on a home server (Unraid, Docker), and work is now
+> **Status: private alpha.** Arc runs day to day on a home server (Docker), and work is now
 > focused on stability and release readiness. Expect rough edges, and keep backups of your Arc data
 > folder (your media is never touched).
 
