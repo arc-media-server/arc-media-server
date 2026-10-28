@@ -154,13 +154,7 @@ export function SeriesPage() {
           <TrailerButton extras={series.extras} title={series.title} />
           {available > 0 && <WatchedButton itemId={series.id} watched={series.unwatched_count === 0} />}
           <WatchlistButton item={series} />
-          {available > 0 && <QueueActions item={series} />}
-          {available > 0 && <AddToPlaylistButton item={series} />}
-          {admin && (
-            <>
-              <MoreMenu item={series} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing} />
-            </>
-          )}
+          <MoreMenu item={series} admin={admin} playable={available > 0} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing} />
         </div>
         <div className="mt-6 grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(200px,0.6fr)]">
           {series.overview && <Synopsis key={series.id} text={series.overview} />}

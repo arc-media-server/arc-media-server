@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -12,7 +12,9 @@ import { AddToCollectionDialog } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ErrorNotice } from '@/components/Page';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useQueueActions } from '@/components/QueueActions';
+import { AddToPlaylistDialog } from '@/components/Playlists';
 
 type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | 'ordering' | null;
 
@@ -63,37 +65,68 @@ export function useAnalyzeItem(item?: Item) {
   return { analyze: () => analyze.mutate(), analyzing: analyze.isPending, notice };
 }
 
-/** The "⋯" button on a movie or show page. */
-export function MoreMenu({ item, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void; onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean }) {
+/**
+ * The "⋯" button on a movie or show page, as Plex's: Play next, Add to queue and Add to Playlist
+ * for anyone who can play the title, then the server owner's tools.
+ */
+export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: {
+  item: Item; admin: boolean; playable: boolean; edition?: string; onOpen: (d: Exclude<Dialog, null>) => void;
+  onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean;
+}) {
   const { t } = useTranslation('titles');
+  const queue = useQueueActions(item, edition);
+  const [playlist, setPlaylist] = useState(false);
+  if (!admin && !playable) return null;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="lg" className="w-12 px-0" title={t("titles:itemActions.more")} aria-label={t("titles:itemActions.more")}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t("titles:itemActions.refreshingMetadata") : t("titles:itemActions.refreshMetadata")}</DropdownMenuItem>}
-        {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? t("titles:itemActions.startingAnalysis") : t("titles:itemActions.analyze")}</DropdownMenuItem>}
-        <DropdownMenuItem onSelect={() => onOpen('edit')}>
-          <Pencil className="size-4 text-muted" /> {t("titles:itemActions.edit")}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpen('collection')}>
-          <Layers className="size-4 text-muted" /> {t("titles:itemActions.addToCollection")}</DropdownMenuItem>
-        {!isLocalVideo(item) && (
-          <DropdownMenuItem onSelect={() => onOpen('match')}>
-            <SearchCheck className="size-4 text-muted" /> {t("titles:itemActions.fixMatch")}</DropdownMenuItem>
-        )}
-        {item && !isLocalVideo(item) && (
-          <DropdownMenuItem onSelect={() => onOpen('optimize')}>
-            <Gauge className="size-4 text-muted" /> {t("titles:itemActions.optimize")}</DropdownMenuItem>
-        )}
-        {item && splitVersions(item) > 1 && (
-          <DropdownMenuItem onSelect={() => onOpen('split')}>
-            <Split className="size-4 text-muted" /> {t("titles:itemActions.splitApart")}</DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <span className="inline-flex max-w-full flex-wrap items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="lg" className="w-12 px-0" title={t('titles:itemActions.more')} aria-label={t('titles:itemActions.more')} disabled={queue.busy}>
+            {queue.busy ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {playable && (
+            <>
+              <DropdownMenuItem onSelect={() => void queue.add(true)}><ListStart className="size-4 text-muted" /> {t('titles:queueActions.playNext')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void queue.add(false)}><ListVideo className="size-4 text-muted" /> {t('titles:queueActions.addToQueue')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPlaylist(true)}><ListMusic className="size-4 text-muted" /> {t('titles:itemActions.addToPlaylist')}</DropdownMenuItem>
+            </>
+          )}
+          {playable && admin && <DropdownMenuSeparator />}
+          {admin && (
+            <>
+              {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t('titles:itemActions.refreshingMetadata') : t('titles:itemActions.refreshMetadata')}</DropdownMenuItem>}
+              {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? t('titles:itemActions.startingAnalysis') : t('titles:itemActions.analyze')}</DropdownMenuItem>}
+              <DropdownMenuItem onSelect={() => onOpen('edit')}>
+                <Pencil className="size-4 text-muted" /> {t('titles:itemActions.edit')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onOpen('collection')}>
+                <Layers className="size-4 text-muted" /> {t('titles:itemActions.addToCollection')}
+              </DropdownMenuItem>
+              {!isLocalVideo(item) && (
+                <DropdownMenuItem onSelect={() => onOpen('match')}>
+                  <SearchCheck className="size-4 text-muted" /> {t('titles:itemActions.fixMatch')}
+                </DropdownMenuItem>
+              )}
+              {!isLocalVideo(item) && (
+                <DropdownMenuItem onSelect={() => onOpen('optimize')}>
+                  <Gauge className="size-4 text-muted" /> {t('titles:itemActions.optimize')}
+                </DropdownMenuItem>
+              )}
+              {splitVersions(item) > 1 && (
+                <DropdownMenuItem onSelect={() => onOpen('split')}>
+                  <Split className="size-4 text-muted" /> {t('titles:itemActions.splitApart')}
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span role="status" className="text-xs text-muted empty:hidden">{queue.notice}</span>
+      <ErrorNotice error={queue.error} />
+      <AddToPlaylistDialog item={item} open={playlist} onOpenChange={setPlaylist} />
+    </span>
   );
 }
 

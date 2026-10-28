@@ -81,7 +81,8 @@
     "analyzingFiles": "Analyzing its files. Progress shows in Activity.",
     "splitExplanation_one": "{{title}} has {{versions}} versions. Splitting gives the other one a title of its own, identified online from the file name. Use this when different films were grouped together by mistake. Watch history stays with {{title}}.",
     "splitExplanation_other": "{{title}} has {{versions}} versions. Splitting gives the other {{count}} a title of their own, identified online from the file name. Use this when different films were grouped together by mistake. Watch history stays with {{title}}.",
-    "splitTitle": "Split Apart"
+    "splitTitle": "Split Apart",
+    "addToPlaylist": "Add to Playlist…"
   },
   "cardMenu": {
     "removeFromContinueWatching": "Remove from Continue Watching",

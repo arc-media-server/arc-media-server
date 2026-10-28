@@ -186,9 +186,11 @@ for (const shows of [false, true]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveAttribute('title', /^Playback queue/);
-    await expect(page.getByRole('button', { name: 'Add to Playlist', exact: true }).first()).toHaveAttribute('title', 'Save to a playlist');
+    // Queue and playlist actions live in More, as in Plex, above the server owner's tools.
+    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(shows ? 3 : 0); // only the episode rows' own buttons
     await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
@@ -411,4 +413,17 @@ test('age ratings: each library uses its own country, chosen in Advanced', async
   // Saving refetches the library's titles, so the rating follows without a manual refresh.
   await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
   expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
+});
+
+test('title pages: a profile without admin rights still gets More with queue and playlist actions only', async ({ page, media }) => {
+  const lib = await library(page, media.movies);
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.find((i: { title: string }) => i.title === 'Arc Movie');
+  const created = await page.request.post('/api/profiles', { data: { name: 'Viewer', color: 'blue' } });
+  expect(created.ok()).toBeTruthy();
+  expect((await page.request.post('/api/auth/profile', { data: { id: (await created.json()).id } })).ok()).toBeTruthy();
+  await page.goto(`/movie/${item.id}`);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…']);
+  await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add to Playlist', exact: true })).toBeVisible();
 });
