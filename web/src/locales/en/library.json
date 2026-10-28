@@ -25,7 +25,8 @@
     "videos": "Videos",
     "movies": "Movies",
     "recommended": "Recommended",
-    "collections": "Collections"
+    "collections": "Collections",
+    "folders": "Folders"
   },
   "unwatched": "Unwatched",
   "language": "Language",
@@ -50,5 +51,12 @@
   "scanLibrary": "Scan Library",
   "startingReverse": "Starting at {{letter}} · Z–A.",
   "startingForward": "Starting at {{letter}} · A–Z.",
-  "filterValue": "{{label}}: {{value}}"
+  "filterValue": "{{label}}: {{value}}",
+  "foldersDescription": "Browse your videos folder by folder",
+  "folders": {
+    "trail": "Folder",
+    "tag": "Folder",
+    "label_one": "{{name}}, {{count}} video",
+    "label_other": "{{name}}, {{count}} videos"
+  }
 }

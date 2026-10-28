@@ -220,6 +220,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/search", user(s.searchAll))
 	mux.HandleFunc("GET /api/extras/{id}/stream", user(s.streamExtra))
 	mux.HandleFunc("GET /api/libraries/{id}/collections", user(s.listCollections))
+	mux.HandleFunc("GET /api/libraries/{id}/folders", user(s.libraryFolders))
 	mux.HandleFunc("GET /api/collections/{id}", user(s.getCollection))
 	mux.HandleFunc("GET /api/collections/{id}/images/{type}", user(s.collectionImage))
 	mux.HandleFunc("GET /api/series/{id}/seasons", user(s.seasons))
