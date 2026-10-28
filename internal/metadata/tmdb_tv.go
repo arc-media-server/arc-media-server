@@ -24,12 +24,13 @@ type tmdbTVResult struct {
 	FirstAirDate string `json:"first_air_date"`
 	Overview     string `json:"overview"`
 	PosterPath   string `json:"poster_path"`
+	VoteCount    int    `json:"vote_count"`
 }
 
 func tvCandidates(results []tmdbTVResult) []Candidate {
 	out := make([]Candidate, 0, len(results))
 	for _, r := range results {
-		c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Name, Year: yearOf(r.FirstAirDate), Overview: r.Overview}
+		c := Candidate{Provider: "tmdb", ID: r.ID, Title: r.Name, Year: yearOf(r.FirstAirDate), Overview: r.Overview, Votes: r.VoteCount}
 		if r.OriginalName != r.Name {
 			c.OriginalTitle = r.OriginalName
 		}
@@ -63,7 +64,7 @@ func (c *TMDB) SearchTVShows(ctx context.Context, title string, year int) ([]Can
 // SearchTV finds a TMDB series id by title and optional first-aired year, or 0.
 func (c *TMDB) SearchTV(ctx context.Context, title string, year int) (int64, error) {
 	pick := func(results []tmdbTVResult) int64 {
-		return confidentMatch(title, tvCandidates(results))
+		return confidentMatch(title, year, tvCandidates(results))
 	}
 
 	results, err := c.searchTV(ctx, title, year)
