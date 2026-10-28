@@ -1,27 +1,82 @@
-# Arc Media Server
+<p align="center">
+  <img src="web/public/icon.svg" width="112" alt="Arc logo">
+</p>
 
-A self-hosted media server for your movies, TV shows and home videos, in the spirit of Plex and
-Jellyfin. Written in Go, with its own web app built in. Point it at your folders and it does the
-rest: identifies everything, fetches artwork and details, and plays it in any browser.
+<h1 align="center">Arc Media Server</h1>
+
+<p align="center">
+  <strong>Your films, shows and home videos, beautifully organised and ready to play anywhere.</strong>
+</p>
+
+<p align="center">
+  <img alt="Status: private alpha" src="https://img.shields.io/badge/status-private%20alpha-7c68ff">
+  <img alt="Licence: AGPL-3.0" src="https://img.shields.io/badge/licence-AGPL--3.0-c4b5fd">
+  <img alt="Built with Go" src="https://img.shields.io/badge/server-Go-00ADD8?logo=go&logoColor=white">
+  <img alt="Web app in React" src="https://img.shields.io/badge/web%20app-React-61DAFB?logo=react&logoColor=black">
+  <img alt="Docker for amd64 and arm64" src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Arc's home screen" width="900">
+</p>
+
+## What is Arc?
+
+Arc is a media server you run at home. Point it at the folders where your films and shows live
+and it turns them into a library you'd be happy to browse: posters and artwork, cast and crew,
+seasons in the right order, and everything ready to play in a browser on your TV, laptop or phone,
+at home or away.
+
+It's built for people who love Plex and Jellyfin but want something that feels calmer and more
+polished: good automatic choices, settings in the app instead of config files, and a design that
+gets out of the way of what you're watching. Arc is open source, has no plugins to manage, and
+no tracking or telemetry.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/movie.png" alt="A film's page"></td>
+    <td width="50%"><img src="docs/screenshots/show.png" alt="A show's page, with its episodes"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/library.png" alt="Browsing a library"></td>
+    <td width="50%"><img src="docs/screenshots/profiles.png" alt="Who's watching?"></td>
+  </tr>
+</table>
+
+## What makes it different
+
+**🎞️ Your files stay yours.** Arc only ever reads your media. It never renames, moves, tags or
+writes beside a file, so Sonarr, Radarr and everything else that depends on your folders keeps working.
+
+**📺 Watch shows in the order you want.** Files stay numbered however they are on disk, and each
+show can be watched in any order TMDB or TheTVDB knows: as aired, DVD, absolute, story order,
+anime cours, or one you arrange yourself. Each person in the house can pick their own.
+
+**▶️ Plays anywhere, at its best.** Arc plays a file untouched when the device can, and converts
+it on the fly when it can't, using your graphics card if you have one. Skip intros and credits,
+cast to a Chromecast or AirPlay, and keep going where you left off on another screen.
+
+**👨‍👩‍👧 Made for a household.** Everyone gets a profile with their own home screen, watch history,
+watchlist and recommendations. Kids' profiles only see what suits them, and friends can join with
+an invite link and see only the libraries you share.
+
+**🔍 Nothing silently disappears.** Titles Arc can't identify, episodes it can't place and files
+that have gone missing are shown and listed, never hidden. A drive going offline doesn't cost
+anyone their watch history.
+
+**🛠️ Looks after itself.** Scans, artwork, intro detection, backups and database upkeep happen in
+the background, overnight when they're heavy. An Activity menu and dashboard show what's going
+on when you want to know.
+
+**🔌 An open API.** Arc's own web app uses the same documented API any app can build on, and
+native TV and phone apps are planned.
 
 > **Status: private alpha.** Arc runs day to day on a home server (Unraid, Docker), and work is now
-> focused on stability and release readiness. Native TV and phone apps are planned. Expect rough
-> edges, and keep backups of your Arc data folder (your media is never touched).
+> focused on stability and release readiness. Expect rough edges, and keep backups of your Arc data
+> folder (your media is never touched).
 
-## Why Arc
-
-- **Your files are never touched.** Arc only reads your media. It never renames, moves, tags or
-  writes next to your files, so Sonarr, Radarr and anything else relying on your folders keep working.
-- **Episode order is yours to choose.** Files stay numbered however they are on disk, while each
-  show (and each profile) can be watched in any order TMDB or TheTVDB knows: aired, DVD, absolute,
-  story order, anime cours, or one you make yourself.
-- **Simple by default.** Good automatic choices, settings in the app instead of config files, and
-  advanced options kept out of the way.
-- **Nothing silently disappears.** Unidentified titles, unplaced episodes and missing files are
-  shown and listed, and titles on an offline drive keep their watch history.
-- **Its own apps and an open API.** The web app uses the same documented API anyone can build on.
-
-## Features
+<details>
+<summary><strong>Everything Arc can do</strong></summary>
 
 **Libraries and metadata**
 - Movie, TV and Other videos libraries, added in the app with a folder browser. Scanning runs in
@@ -69,6 +124,8 @@ rest: identifies everything, fetches artwork and details, and plays it in any br
 - Moving in from Plex or Jellyfin: watch state, resume points, ratings, watchlists, playlists
   and collections.
 - The web app installs to a phone's home screen, and TVs sign in with a short link code.
+
+</details>
 
 ## Running with Docker
 
