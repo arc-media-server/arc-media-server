@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, type ResourceSample } from '@/lib/api';
@@ -6,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 /** The Dashboard's graphs, as Plex's: CPU, memory and data sent, for 5 minutes or a day. */
 export function ResourceGraphs() {
+  const { t } = useTranslation('reports');
   const [day, setDay] = useState(false);
   const { data } = useQuery({
     queryKey: ['resources', day],
@@ -20,11 +22,11 @@ export function ResourceGraphs() {
   return (
     <section>
       <div className="mb-3 flex items-center gap-3">
-        <h2 className="mr-auto text-lg font-semibold">Server</h2>
+        <h2 className="mr-auto text-lg font-semibold">{t("reports:resources.server")}</h2>
         <div className="flex rounded-full bg-surface p-0.5 ring-1 ring-border" role="tablist">
           {[
-            [false, 'Last 5 minutes'],
-            [true, 'Last 24 hours'],
+            [false, t('reports:resources.lastMinutes')],
+            [true, t('reports:resources.lastDay')],
           ].map(([v, label]) => (
             <button
               key={String(v)}
@@ -40,38 +42,38 @@ export function ResourceGraphs() {
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         <Graph
-          title="CPU"
+          title={t("reports:resources.cpu")}
           samples={samples}
           max={100}
           series={[
             { label: 'Arc', color: 'var(--color-accent)', value: (s) => s.cpu_arc },
-            { label: 'This computer', color: 'var(--color-subtle)', value: (s) => s.cpu_system, hidden: !!last && !known(last.cpu_system) },
+            { label: t('reports:resources.computer'), color: 'var(--color-subtle)', value: (s) => s.cpu_system, hidden: !!last && !known(last.cpu_system) },
           ]}
-          format={(v) => `${Math.round(v)}%`}
-          note={data ? `${data.cores} cores. Conversions run as FFmpeg, so they show under this computer.` : undefined}
+          format={(v) => `${fmt.number(Math.round(v), { useGrouping: false })}%`}
+          note={data ? t('reports:resources.cores', { count: data.cores }) : undefined}
         />
         <Graph
-          title="Memory"
+          title={t("reports:resources.memory")}
           samples={samples}
           max={memMax}
           series={[
             { label: 'Arc', color: 'var(--color-accent)', value: (s) => s.mem_arc },
-            { label: 'This computer', color: 'var(--color-subtle)', value: (s) => s.mem_used, hidden: !!last && !known(last.mem_used) },
+            { label: t('reports:resources.computer'), color: 'var(--color-subtle)', value: (s) => s.mem_used, hidden: !!last && !known(last.mem_used) },
           ]}
           format={(v) => fmt.fileSize(v)}
-          note={data && data.mem_total > 0 ? `${fmt.fileSize(data.mem_total)} in all` : undefined}
+          note={data && data.mem_total > 0 ? t('reports:resources.totalMemory', { size: fmt.fileSize(data.mem_total) }) : undefined}
         />
         <Graph
-          title="Network"
+          title={t("reports:resources.network")}
           samples={samples}
           max={netMax}
           stacked
           series={[
-            { label: 'At home', color: 'var(--color-accent)', value: (s) => s.net_home },
-            { label: 'Away', color: '#f59e0b', value: (s) => s.net_away },
+            { label: t('reports:resources.home'), color: 'var(--color-accent)', value: (s) => s.net_home },
+            { label: t('reports:resources.away'), color: '#f59e0b', value: (s) => s.net_away },
           ]}
           format={(v) => bitrate(v)}
-          note="Sent by Arc to players and browsers"
+          note={t('reports:resources.sentToPlayers')}
         />
       </div>
     </section>
@@ -87,6 +89,7 @@ interface Series {
 
 /** A small line (or stacked area) chart with its latest values. */
 function Graph({ title, samples, max, series, format, note, stacked }: { title: string; samples: ResourceSample[]; max: number; series: Series[]; format: (v: number) => string; note?: string; stacked?: boolean }) {
+  const { t } = useTranslation('reports');
   const shown = series.filter((s) => !s.hidden);
   const last = samples[samples.length - 1];
   const W = 300;
@@ -109,7 +112,7 @@ function Graph({ title, samples, max, series, format, note, stacked }: { title: 
             </span>
           ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-3 h-24 w-full overflow-visible" role="img" aria-label={`${title} over time`}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-3 h-24 w-full overflow-visible" role="img" aria-label={t('reports:resources.overTime', { title })}>
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1={0} x2={W} y1={H * f} y2={H * f} stroke="var(--color-border)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
         ))}
@@ -140,7 +143,7 @@ function Graph({ title, samples, max, series, format, note, stacked }: { title: 
         <span>{note}</span>
         <span className="tabular-nums">{format(max)}</span>
       </div>
-      {n <= 1 && <p className="-mt-16 mb-10 text-center text-xs text-subtle">Gathering…</p>}
+      {n <= 1 && <p className="-mt-16 mb-10 text-center text-xs text-subtle">{t("reports:resources.gathering")}</p>}
     </div>
   );
 }
@@ -158,8 +161,8 @@ function niceMax(v: number) {
 /** Bytes a second as bits a second, e.g. "12.4 Mbps". */
 function bitrate(bytesPerSec: number) {
   const b = bytesPerSec * 8;
-  if (b >= 1e9) return `${(b / 1e9).toFixed(1)} Gbps`;
-  if (b >= 1e6) return `${(b / 1e6).toFixed(1)} Mbps`;
-  if (b >= 1e3) return `${Math.round(b / 1e3)} kbps`;
-  return `${Math.round(b)} bps`;
+  if (b >= 1e9) return `${fmt.fixed(b / 1e9, 1)} Gbps`;
+  if (b >= 1e6) return `${fmt.fixed(b / 1e6, 1)} Mbps`;
+  if (b >= 1e3) return `${fmt.number(Math.round(b / 1e3), { useGrouping: false })} kbps`;
+  return `${fmt.number(Math.round(b), { useGrouping: false })} bps`;
 }
