@@ -11207,7 +11207,7 @@
     },
     "/libraries/{id}/folders": {
       "get": {
-        "description": "?path= browses an Other videos library folder by folder, as Plex can: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder.\n\nWho may call it: **profile**.",
+        "description": "?path= browses an Other videos library folder by folder: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder.\n\nWho may call it: **profile**.",
         "operationId": "libraryFolders",
         "parameters": [
           {
@@ -11279,7 +11279,7 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "Browses an Other videos library folder by folder, as Plex can: the folders inside path",
+        "summary": "Browses an Other videos library folder by folder: the folders inside path",
         "tags": [
           "Libraries"
         ],

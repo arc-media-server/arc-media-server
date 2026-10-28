@@ -20,8 +20,8 @@ type folderDTO struct {
 }
 
 // libraryFolders: GET /api/libraries/{id}/folders?path= browses an Other videos library folder by
-// folder, as Plex can: the folders inside path (none: the top) and the videos directly in it,
-// oldest first. A library with several folders starts with one entry per folder.
+// folder: the folders inside path (none: the top) and the videos directly in it, oldest first.
+// A library with several folders starts with one entry per folder.
 func (s *Server) libraryFolders(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {

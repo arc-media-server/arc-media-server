@@ -46,10 +46,10 @@ func TestLibraryFolders(t *testing.T) {
 	first := add("Holidays/arrival.mp4", "Arrival", "2019-07-01")
 
 	type folders struct {
-		Path    string `json:"path"`
+		Path    string                        `json:"path"`
 		Trail   []struct{ Name, Path string } `json:"trail"`
-		Folders []folderDTO                    `json:"folders"`
-		Items   []struct{ ID, Title string }   `json:"items"`
+		Folders []folderDTO                   `json:"folders"`
+		Items   []struct{ ID, Title string }  `json:"items"`
 	}
 	get := func(path string) (int, folders) {
 		r := httptest.NewRequest("GET", "/api/libraries/x/folders?path="+path, nil)
