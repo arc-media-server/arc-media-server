@@ -6,7 +6,7 @@
     "fileMissing": "File missing",
     "play": "Play",
     "playFromTheBeginning": "Play from the beginning",
-    "versionCount_one": "{{count}} versions",
+    "versionCount_one": "{{count}} version",
     "versionCount_other": "{{count}} versions",
     "resumeAt": "Resume · {{time}}",
     "unmatched": "Arc couldn't identify this movie online."

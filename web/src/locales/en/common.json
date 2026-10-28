@@ -45,7 +45,7 @@
     "runningCount_other": "Activity: {{count}} running",
     "moreSubjects_one": "{{subject}} and {{count}} more",
     "moreSubjects_other": "{{subject}} and {{count}} more",
-    "filesFound_one": "{{count}} files found",
+    "filesFound_one": "{{count}} file found",
     "filesFound_other": "{{count}} files found",
     "identified_one": "{{value}} identified",
     "identified_other": "{{value}} identified"
@@ -152,7 +152,7 @@
       "subtitles": "Subtitles"
     },
     "sectionsLabel": "Settings sections",
-    "libraryIssues_one": "{{count}} library issues",
+    "libraryIssues_one": "{{count}} library issue",
     "libraryIssues_other": "{{count}} library issues"
   },
   "time": {
@@ -172,7 +172,7 @@
     "yearsAgo_other": "over {{count}} years ago",
     "yesterday": "yesterday",
     "yesterdayAt": "Yesterday, {{time}}",
-    "daysAgo_one": "{{count}} days ago",
+    "daysAgo_one": "{{count}} day ago",
     "daysAgo_other": "{{count}} days ago",
     "minutesAgo_one": "{{count}} min ago",
     "minutesAgo_other": "{{count}} min ago",
