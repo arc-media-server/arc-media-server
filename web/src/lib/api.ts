@@ -632,6 +632,8 @@ export interface Facet {
 }
 
 export interface LibraryFacets {
+  /** How many titles the Unmatched filter finds. */
+  unmatched: number;
   genres: Facet[];
   decades: Facet[];
   resolutions: Facet[];
@@ -653,6 +655,8 @@ export interface ItemQuery {
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
+  /** Only titles Arc couldn't identify, and shows with episodes it couldn't place. */
+  unmatched?: boolean;
   /** Added in the last this many days. */
   added_within?: number;
   min_runtime?: number;

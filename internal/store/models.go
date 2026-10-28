@@ -167,6 +167,8 @@ type ItemQuery struct {
 	// The profile whose watch state Unwatched and the "watched" sort use.
 	UserID    string
 	Unwatched bool
+	// Only titles Arc couldn't identify, and shows with episodes it couldn't place.
+	Unmatched bool
 	// Added in the last this many days.
 	AddedWithinDays int
 	// Runtime in minutes, at least / at most.

@@ -95,6 +95,7 @@ export function LibraryPage() {
     decade: Number(params.get('decade')) || undefined,
     resolution: (params.get('resolution') as Resolution) || undefined,
     unwatched: params.get('unwatched') === '1' || undefined,
+    unmatched: params.get('unmatched') === '1' || undefined,
     added_within: Number(params.get('added_within')) || undefined,
     min_runtime: Number(params.get('min_runtime')) || undefined,
     max_runtime: Number(params.get('max_runtime')) || undefined,
@@ -314,7 +315,8 @@ export function LibraryPage() {
       {lib && view === 'titles' && (
         <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
           <SortMenu sort={sort} reverse={reverse} onSort={(v) => setParam('sort', v === 'title' ? undefined : v)} onReverse={(v) => setParam('reverse', v ? '1' : undefined)} />
-          <FiltersButton facets={facets.data} filters={filters} onChange={changeFilters} onClear={clearFilters} />
+          <FiltersButton facets={facets.data} filters={filters} onChange={changeFilters} onClear={clearFilters}
+            unmatched={admin && lib.kind !== 'videos' ? (lib.kind === 'shows' ? 'shows' : 'movies') : undefined} />
           <ActiveFilters facets={facets.data} filters={filters} onChange={changeFilters} />
           {admin && (
             <div className="ml-auto flex items-center gap-2">
