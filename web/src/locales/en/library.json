@@ -24,6 +24,10 @@
   "filtersOn_one": "Filters, {{count}} on",
   "filtersOn_other": "Filters, {{count}} on",
   "unwatchedOnly": "Only titles I haven't watched",
+  "unmatchedOnly_one": "Only titles Arc couldn't identify ({{count}})",
+  "unmatchedOnly_other": "Only titles Arc couldn't identify ({{count}})",
+  "unmatchedShowsHint": "Also shows with episodes Arc couldn't place.",
+  "unmatched": "Unmatched",
   "removeFilter": "Remove filter: {{filter}}",
   "selectTitles": "Select titles",
   "tabs": {

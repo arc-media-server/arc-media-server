@@ -608,6 +608,8 @@ var resolutionHeights = map[string][2]int{"4k": {1600, 100000}, "1080": {1000, 1
 
 // LibraryFacets are the values a library's titles can be filtered by.
 type LibraryFacets struct {
+	// How many titles the Unmatched filter finds.
+	Unmatched   int     `json:"unmatched"`
 	Genres      []Facet `json:"genres"`
 	Decades     []Facet `json:"decades"`
 	Resolutions []Facet `json:"resolutions"`
@@ -646,6 +648,9 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 	}
 	var out LibraryFacets
 	var err error
+	if err = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+base+` AND `+playableSQL+` AND `+unmatchedSQL, args...).Scan(&out.Unmatched); err != nil {
+		return out, err
+	}
 	if out.Genres, err = query(`SELECT g.name, COUNT(*) FROM item_genres g JOIN items ON items.id = g.item_id
 		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
 		return out, err
@@ -817,6 +822,9 @@ func itemFilter(q ItemQuery) (string, []any) {
 				AND MAX(st.height, st.width * 9 / 16) >= ? AND MAX(st.height, st.width * 9 / 16) < ?)`)
 		args = append(args, h[0], h[1])
 	}
+	if q.Unmatched {
+		where = append(where, unmatchedSQL)
+	}
 	if q.Unwatched && q.UserID != "" {
 		// Movies not watched; shows with an episode on disk not watched.
 		where = append(where, `CASE WHEN items.kind = 'series' THEN EXISTS (
@@ -894,6 +902,13 @@ func (s *Store) TitleLetters(ctx context.Context, q ItemQuery) ([]LetterCount, e
 	}
 	return out, rows.Err()
 }
+
+// unmatchedSQL is the Unmatched filter: a movie or show Arc couldn't identify, or a show with an
+// episode on disk it couldn't place (Library Health lists those too). Plex's filter only finds
+// the first.
+const unmatchedSQL = `(items.metadata_state = 'unmatched' OR (items.kind = 'series' AND EXISTS (
+	SELECT 1 FROM items e WHERE e.parent_id = items.id AND e.kind = 'episode' AND e.metadata_state = 'unmatched'
+		AND EXISTS (SELECT 1 FROM item_files f WHERE f.item_id = e.id))))`
 
 // HasUnmatchedEpisodes checks only playable unmatched episodes, not orphan/provider-only rows.
 func (s *Store) HasUnmatchedEpisodes(ctx context.Context, seriesID string) (bool, error) {
