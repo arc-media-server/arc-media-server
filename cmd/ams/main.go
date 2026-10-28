@@ -485,7 +485,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// Remote access: HTTPS on the same port, the router's port forwarding, the outside address.
 	remoteAccess := remote.New(remote.NewCerts(filepath.Join(dataDir, "certs")), remote.NewMapper(log))
 	remoteAccess.Certs.Configure(cfg.HTTPSMode, cfg.HTTPSCert, cfg.HTTPSKey, cfg.HTTPSDomain)
-	applyHomeNetworks(cfg.HomeNetworks)
+	applyHomeNetworks(cfg.HomeNetworks, cfg.TrustedProxies)
 	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
 	go remoteAccess.Mapper.Run(ctx)
@@ -506,7 +506,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		bg.Configure(next)
 		current = next
 		watch.Configure(scanConfig(next))
-		applyHomeNetworks(next.HomeNetworks)
+		applyHomeNetworks(next.HomeNetworks, next.TrustedProxies)
 		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
 		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
@@ -752,7 +752,7 @@ func importLegacyConfig(ctx context.Context, cfg *config.Config, path string, st
 // Preferred" does); the home network can still use plain HTTP.
 func secureRemote(h http.Handler, certs *remote.Certs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.TLS == nil && !auth.IsLocal(r) && certs.Enabled() {
+		if !auth.IsHTTPS(r) && !auth.IsLocal(r) && certs.Enabled() {
 			http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusTemporaryRedirect)
 			return
 		}
@@ -780,10 +780,13 @@ func publicURL(c settings.Settings) string {
 	return "http://" + net.JoinHostPort(host, port)
 }
 
-// applyHomeNetworks sets the extra networks that count as home (saved settings were checked).
-func applyHomeNetworks(s string) {
-	nets, _, _ := auth.ParseNetworks(s)
+// applyHomeNetworks sets the extra networks that count as home and the trusted reverse proxies
+// (saved settings were checked).
+func applyHomeNetworks(home, proxies string) {
+	nets, _, _ := auth.ParseNetworks(home)
 	auth.SetHomeNetworks(nets)
+	trusted, _, _ := auth.ParseNetworks(proxies)
+	auth.SetTrustedProxies(trusted)
 }
 
 // listenPort is the port Arc listens on (AMS_LISTEN can differ from the setting).

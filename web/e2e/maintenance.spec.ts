@@ -120,6 +120,32 @@ test('maintenance: Activity stops the owned refresh and reports Stopped', async 
   } finally { await fetch('http://127.0.0.1:18200/metadata-hold?hold=0', { method: 'POST' }); }
 });
 
+test('trusted proxies: forwarded visitors count as home only through a listed proxy', async ({ page, media }, info) => {
+  void media;
+  const status = async (forwardedFor: string) => (await (await page.request.get('/api/auth/status', { headers: { 'X-Forwarded-For': forwardedFor } })).json()).local;
+  // This test's own connection comes from 127.0.0.1, standing in for a proxy.
+  expect(await status('192.168.1.20')).toBe(false);
+  await page.goto('/settings?section=access');
+  const field = page.getByRole('textbox', { name: 'Trusted proxies', exact: true });
+  await expect(field).toHaveValue('');
+  await field.fill('not an address');
+  await field.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: /not an address|network|address/i })).toBeVisible();
+  await field.fill('127.0.0.1');
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PATCH' && r.ok());
+  await field.press('Enter');
+  expect((await (await saved).json()).trusted_proxies).toBe('127.0.0.1/32');
+  await expect(field).toHaveValue('127.0.0.1/32');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('trusted-proxies.png') });
+  expect(await status('192.168.1.20')).toBe(true);
+  expect(await status('203.0.113.9')).toBe(false);
+  // A visitor can't fake being at home by writing their own header in front of the proxy's.
+  expect(await status('192.168.1.20, 203.0.113.9')).toBe(false);
+  expect((await page.request.patch('/api/settings', { data: { trusted_proxies: '' } })).ok()).toBeTruthy();
+  expect(await status('192.168.1.20')).toBe(false);
+});
+
 test('maintenance: server clock keeps server timezone, retries errors and reflects all-day changes', async ({ page, media }, info) => {
   void media;
   await page.goto('/settings?section=maintenance');
@@ -256,9 +282,11 @@ for (const shows of [false, true]) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveAttribute('title', /^Playback queue/);
-    await expect(page.getByRole('button', { name: 'Add to Playlist', exact: true }).first()).toHaveAttribute('title', 'Save to a playlist');
+    // Queue and playlist actions live in More, as in Plex, above the server owner's tools.
+    await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(shows ? 3 : 0); // only the episode rows' own buttons
     await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
@@ -481,4 +509,17 @@ test('age ratings: each library uses its own country, chosen in Advanced', async
   // Saving refetches the library's titles, so the rating follows without a manual refresh.
   await expect.poll(async () => (await (await page.request.get(`/api/items/${item.id}`)).json()).content_rating, { timeout: 30_000 }).toBe('PG-13');
   expect((await (await page.request.get('/api/libraries')).json()).find((l: { id: number }) => l.id === lib.id).rating_region).toBe('US');
+});
+
+test('title pages: a profile without admin rights still gets More with queue and playlist actions only', async ({ page, media }) => {
+  const lib = await library(page, media.movies);
+  const item = (await (await page.request.get(`/api/items?library_id=${lib.id}`)).json()).items.find((i: { title: string }) => i.title === 'Arc Movie');
+  const created = await page.request.post('/api/profiles', { data: { name: 'Viewer', color: 'blue' } });
+  expect(created.ok()).toBeTruthy();
+  expect((await page.request.post('/api/auth/profile', { data: { id: (await created.json()).id } })).ok()).toBeTruthy();
+  await page.goto(`/movie/${item.id}`);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…']);
+  await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Add to Playlist', exact: true })).toBeVisible();
 });
