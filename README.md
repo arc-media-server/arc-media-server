@@ -152,3 +152,13 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 Skip markers can also come from [IntroDB](https://introdb.app) and
 [TheIntroDB](https://theintrodb.org), subtitles from [OpenSubtitles.com](https://www.opensubtitles.com),
 and critics' scores from [OMDb](https://www.omdbapi.com).
+
+## Licence
+
+Copyright © 2026 The Arc Media Server Authors.
+
+Arc is free software: you can redistribute it and/or modify it under the terms of the
+[GNU Affero General Public License, version 3](LICENSE). In short: you can use, change and share
+Arc freely; if you distribute a modified version, or run one as a service for other people, you
+must make your source code available under the same licence. Apps that only talk to Arc's API
+are not affected and can use any licence.
