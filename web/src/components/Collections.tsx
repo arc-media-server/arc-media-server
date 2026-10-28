@@ -1,10 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Filter, Layers, ListPlus, Loader2, Plus } from 'lucide-react';
 import { api, type Collection, type Item, type Library, type RowFilter, type CollectionMode } from '@/lib/api';
+import { countUnit } from '@/lib/browsing-labels';
 import { kindUnit } from '@/lib/kinds';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Artwork } from '@/components/Artwork';
 import { FilterFields, FilterPreview } from '@/components/FilterFields';
@@ -12,9 +13,10 @@ import { MediaRow } from '@/components/MediaRow';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Field, inputClass } from '@/components/ui/field';
-import { ArtworkPanel, artworkNames, type ArtworkChange } from '@/components/ChooseArtwork';
+import { ArtworkPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 
 export function CollectionCard({ collection: c, unit }: { collection: Collection; unit: string }) {
+  useTranslation('library');
   return (
     <Link to={`/collection/${c.id}`} className="group block outline-none" draggable={false}>
       <div className="relative">
@@ -29,7 +31,7 @@ export function CollectionCard({ collection: c, unit }: { collection: Collection
           {c.kind === 'smart' && <Filter className="size-3 shrink-0 text-accent" />}
           <span className="truncate">{c.title}</span>
         </p>
-        <p className="mt-0.5 text-xs text-subtle">{fmt.plural(c.count, unit)}</p>
+        <p className="mt-0.5 text-xs text-subtle">{countUnit(c.count, unit)}</p>
       </div>
     </Link>
   );
@@ -44,13 +46,6 @@ export function CollectionGrid({ collections, unit }: { collections: Collection[
     </div>
   );
 }
-
-/** Plex's collection modes, as Arc says them. */
-export const gridLabels: Record<CollectionMode, string> = {
-  items: 'Show its titles',
-  collection: 'Show the collection instead of its titles',
-  both: 'Show the collection and its titles',
-};
 
 /** Make a manual or smart collection, or edit one. */
 export function CollectionDialog({
@@ -83,6 +78,7 @@ export function CollectionDialog({
 }
 
 function CollectionEditor({ library, collection, onDone }: { library: Library; collection?: Collection; onDone: (c?: Collection) => void }) {
+  const { t } = useTranslation('titleActions');
   const qc = useQueryClient();
   const [kind, setKind] = useState<'manual' | 'smart'>(collection?.kind === 'smart' ? 'smart' : collection ? 'manual' : 'manual');
   const [title, setTitle] = useState(collection?.title ?? '');
@@ -111,43 +107,52 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
     },
   });
   const unit = kindUnit(library.kind)[0];
+  const artworkLabels = { poster: t('titleActions:collections.poster'), backdrop: t('titleActions:collections.backdrop') };
+  const gridLabels: Record<CollectionMode, string> = {
+    items: t('titleActions:collections.gridItems'),
+    collection: t('titleActions:collections.gridCollection'),
+    both: t('titleActions:collections.gridBoth'),
+  };
+  const inheritedGrid: Record<CollectionMode, string> = {
+    items: t('titleActions:collections.inheritedItems'),
+    collection: t('titleActions:collections.inheritedCollection'),
+    both: t('titleActions:collections.inheritedBoth'),
+  };
 
   return (
     <DialogContent
-      title={editing ? 'Edit Collection' : 'New Collection'}
+      title={editing ? t("titleActions:collections.editCollection") : t("titleActions:collections.newCollection")}
       className={tab === 'details' ? 'w-[min(600px,calc(100vw-32px))]' : 'w-[min(820px,calc(100vw-32px))]'}
       description={tab !== 'details' ? undefined : 
         kind === 'smart'
-          ? `A smart collection holds every ${unit} that matches, and keeps itself up to date.`
+          ? unit === 'show' ? t('titleActions:collections.smartShow') : unit === 'video' ? t('titleActions:collections.smartVideo') : t('titleActions:collections.smartMovie')
           : auto
-            ? 'This collection comes from TMDB. You can rename it and change its description.'
-            : `Add ${unit}s to it from their pages (⋯ > Add to Collection), in any order.`
+            ? t("titleActions:collections.thisCollectionComesFrom")
+            : unit === 'show' ? t('titleActions:collections.manualShows') : unit === 'video' ? t('titleActions:collections.manualVideos') : t('titleActions:collections.manualMovies')
       }
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
-          <Button variant="ghost" onClick={() => onDone()}>
-            Cancel
-          </Button>
+          <Button variant="ghost" onClick={() => onDone()}>{t("titleActions:collections.cancel")}</Button>
           <Button variant="primary" disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} {editing ? 'Save' : 'Create'}
+            {save.isPending && <Loader2 className="animate-spin" />} {editing ? t("titleActions:collections.save") : t("titleActions:collections.create")}
           </Button>
         </>
       }
     >
       {editing && (
         <div className="mb-5 flex gap-1" role="tablist">
-          {(['details', 'poster', 'backdrop'] as const).map((t) => (
+          {(['details', 'poster', 'backdrop'] as const).map((tabId) => (
             <button
-              key={t}
+              key={tabId}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === t ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
+              aria-selected={tab === tabId}
+              onClick={() => setTab(tabId)}
+              className={cn('rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === tabId ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
-              {t === 'details' ? 'Details' : artworkNames[t]}
-              {t !== 'details' && art[t] && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label="changed" />}
+              {tabId === 'details' ? t("titleActions:collections.details") : artworkLabels[tabId]}
+              {tabId !== 'details' && art[tabId] && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={t("titleActions:collections.changed")} />}
             </button>
           ))}
         </div>
@@ -163,11 +168,11 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
       )}
       <div className={cn('space-y-4', tab !== 'details' && 'hidden')}>
         {!editing && (
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Kind">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("titleActions:collections.kind")}>
             {(
               [
-                ['manual', ListPlus, 'Choose the titles', 'Pick them yourself'],
-                ['smart', Filter, 'Smart', 'Everything that matches a filter'],
+                ['manual', ListPlus, t('titleActions:collections.chooseTitles'), t('titleActions:collections.manualHint')],
+                ['smart', Filter, t('titleActions:collections.smart'), t('titleActions:collections.smartHint')],
               ] as const
             ).map(([k, Icon, label, hint]) => (
               <button
@@ -190,21 +195,21 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
             ))}
           </div>
         )}
-        <Field label="Name">
-          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="e.g. Christmas Favourites" className={inputClass} />
+        <Field label={t("titleActions:collections.name")}>
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={t("titleActions:collections.eGChristmasFavourites")} className={inputClass} />
         </Field>
         {editing && (
-          <Field label="Sort As">
-            <input value={sortTitle} onChange={(e) => setSortTitle(e.target.value)} maxLength={100} placeholder={title || 'Same as the name'} className={inputClass} />
+          <Field label={t("titleActions:collections.sortAs")}>
+            <input value={sortTitle} onChange={(e) => setSortTitle(e.target.value)} maxLength={100} placeholder={title || t("titleActions:collections.sameAsTheName")} className={inputClass} />
           </Field>
         )}
-        <Field label="Description">
+        <Field label={t("titleActions:collections.description")}>
           <textarea value={overview} onChange={(e) => setOverview(e.target.value)} rows={2} className={cn(inputClass, 'h-auto resize-y py-2.5')} />
         </Field>
         {editing && collection?.kind !== 'folder' && (
-          <Field label="In the library">
+          <Field label={t("titleActions:collections.inTheLibrary")}>
             <select value={gridMode} onChange={(e) => setGridMode(e.target.value as Collection['grid_mode'])} className={inputClass}>
-              <option value="">As the library is set ({gridLabels[library.collection_grid || 'items'].toLowerCase()})</option>
+              <option value="">{inheritedGrid[library.collection_grid || 'items']}</option>
               {(['items', 'collection', 'both'] as const).map((m) => (
                 <option key={m} value={m}>
                   {gridLabels[m]}
@@ -215,8 +220,8 @@ function CollectionEditor({ library, collection, onDone }: { library: Library; c
         )}
         {kind === 'smart' && (
           <>
-            <FilterFields filter={filter} onChange={setFilter} unwatchedLabel="Only what the person watching hasn't seen" />
-            <FilterPreview filter={filter} library={library} emptyText="Nothing matches yet. It'll fill up as titles are added." />
+            <FilterFields filter={filter} onChange={setFilter} unwatchedLabel={t("titleActions:collections.onlyWhatThePerson")} />
+            <FilterPreview filter={filter} library={library} emptyText={t("titleActions:collections.nothingMatchesYetIt")} />
           </>
         )}
       </div>
@@ -248,6 +253,7 @@ export function AddToCollectionDialog({
 }
 
 function AddToCollection({ items, library, onDone }: { items: Item[]; library: Library; onDone: () => void }) {
+  const { t } = useTranslation('titleActions');
   const item = items[0];
   const ids = items.map((i) => i.id);
   const qc = useQueryClient();
@@ -268,7 +274,7 @@ function AddToCollection({ items, library, onDone }: { items: Item[]; library: L
   const error = add.error ?? create.error;
 
   return (
-    <DialogContent title="Add to Collection" description={items.length === 1 ? `Put ${item.title} in a collection.` : `Put ${fmt.plural(items.length, 'title')} in a collection.`} className="w-[min(480px,calc(100vw-32px))]">
+    <DialogContent title={t("titleActions:collections.addToCollection")} description={items.length === 1 ? t('titleActions:collections.putTitle', { title: item.title }) : t('titleActions:collections.putCount', { count: items.length })} className="w-[min(480px,calc(100vw-32px))]">
       <div className="space-y-4">
         {error && <p className="text-sm text-warning">{error.message}</p>}
         {manual.length > 0 && (
@@ -283,7 +289,7 @@ function AddToCollection({ items, library, onDone }: { items: Item[]; library: L
               >
                 <Layers className="size-4 text-muted" />
                 <span className="flex-1 truncate">{c.title}</span>
-                {inIt.has(c.id) ? <Check className="size-4 text-accent" /> : <span className="text-xs text-subtle">{fmt.plural(c.count, 'title')}</span>}
+                {inIt.has(c.id) ? <Check className="size-4 text-accent" /> : <span className="text-xs text-subtle">{t('titleActions:collections.titleCount', { count: c.count })}</span>}
               </button>
             ))}
           </div>
@@ -295,10 +301,9 @@ function AddToCollection({ items, library, onDone }: { items: Item[]; library: L
             if (name.trim()) create.mutate();
           }}
         >
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New collection" maxLength={100} className={inputClass} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("titleActions:collections.newCollection2")} maxLength={100} className={inputClass} />
           <Button type="submit" variant="secondary" disabled={!name.trim() || create.isPending}>
-            {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} Create
-          </Button>
+            {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t("titleActions:collections.create")}</Button>
         </form>
       </div>
     </DialogContent>

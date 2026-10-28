@@ -1,0 +1,62 @@
+{
+  "counts": {
+    "shows_one": "{{count}} show",
+    "shows_other": "{{count}} shows",
+    "videos_one": "{{count}} video",
+    "videos_other": "{{count}} videos",
+    "movies_one": "{{count}} movie",
+    "movies_other": "{{count}} movies",
+    "titles_one": "{{count}} title",
+    "titles_other": "{{count}} titles",
+    "collections_one": "{{count}} collection",
+    "collections_other": "{{count}} collections"
+  },
+  "notFound": "Library not found",
+  "recommendedDescription": "Picked for you from what you watch",
+  "newCollection": "New Collection",
+  "jumpTo": "Jump to",
+  "jumpLabel": "Jump to letter",
+  "allTitles": "All titles",
+  "reverseLabel": "Reverse sort direction",
+  "reverse": "Reverse",
+  "select": "Select",
+  "tabs": {
+    "shows": "Shows",
+    "videos": "Videos",
+    "movies": "Movies",
+    "recommended": "Recommended",
+    "collections": "Collections",
+    "folders": "Folders"
+  },
+  "unwatched": "Unwatched",
+  "language": "Language",
+  "clearFilters": "Clear filters",
+  "moreFilters": "More filters",
+  "empty": {
+    "recommendedTitle": "Nothing to recommend yet",
+    "recommendedDescription": "As you watch, this fills with titles like the ones you've enjoyed, the best rated you haven't seen, and more of your favourite genres.",
+    "collectionsTitle": "No collections yet",
+    "videoCollections": "Each folder of videos appears here as a collection. You can also make your own with New Collection.",
+    "showCollections": "Make one with New Collection: pick shows yourself, or let a smart collection gather everything that matches a filter.",
+    "movieCollections": "Films TMDB groups together (like a trilogy) appear here by themselves. You can also make your own with New Collection.",
+    "directionTitle": "No titles in this direction",
+    "directionDescription": "Choose another letter or return to All titles.",
+    "filteredTitle": "Nothing matches",
+    "filteredDescription": "Try fewer filters.",
+    "title": "Nothing here yet",
+    "scanning": "Scanning your folders…",
+    "paths": "Arc didn't find anything in {{paths}}."
+  },
+  "loadMore": "Load more",
+  "scanLibrary": "Scan Library",
+  "startingReverse": "Starting at {{letter}} · Z–A.",
+  "startingForward": "Starting at {{letter}} · A–Z.",
+  "filterValue": "{{label}}: {{value}}",
+  "foldersDescription": "Browse your videos folder by folder",
+  "folders": {
+    "trail": "Folder",
+    "tag": "Folder",
+    "label_one": "{{name}}, {{count}} video",
+    "label_other": "{{name}}, {{count}} videos"
+  }
+}

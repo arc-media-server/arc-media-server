@@ -1,8 +1,10 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -144,7 +146,9 @@ func (s *Server) refreshItems(ctx context.Context, items []*store.Item) {
 }
 
 // mergeItems: POST /api/items/merge {"target_id", "item_ids": [...]} (admin) makes several movies
-// one, as versions of the target. Watch state, history and collections move with them.
+// one, as versions of the target, or several shows one (store.MergeSeries), all from one library.
+// Watch state, history and collections move with them. Shows must number their episode files the
+// same way; merging them holds the library's work slot, then refreshes the kept show.
 func (s *Server) mergeItems(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		TargetID string   `json:"target_id"`
@@ -160,8 +164,13 @@ func (s *Server) mergeItems(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if target == nil || target.Kind != "movie" {
-		writeError(w, http.StatusBadRequest, "target_id is the movie to keep (only movies can be merged)")
+	if target == nil || (target.Kind != "movie" && target.Kind != "series") {
+		writeError(w, http.StatusBadRequest, "target_id is the movie or show to keep")
+		return
+	}
+	lib, err := s.store.GetLibrary(ctx, target.LibraryID)
+	if err != nil || lib == nil {
+		s.fail(w, cmp.Or(err, errors.New("the library is gone")))
 		return
 	}
 	var sources []string
@@ -174,22 +183,61 @@ func (s *Server) mergeItems(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, err)
 			return
 		}
-		if it == nil || it.Kind != "movie" || it.LibraryID != target.LibraryID {
-			writeError(w, http.StatusBadRequest, "only movies in the same library can be merged: "+id)
+		if it == nil || it.Kind != target.Kind || it.LibraryID != target.LibraryID {
+			writeError(w, http.StatusBadRequest, "only "+kindPlural(target.Kind)+" in the same library can be merged: "+id)
+			return
+		}
+		if target.Kind == "series" && numberingProvider(it, lib) != numberingProvider(target, lib) {
+			writeError(w, http.StatusBadRequest, it.Title+" numbers its episode files differently ("+
+				numberingProvider(it, lib)+"). Set both shows' File episode order the same in Edit, then merge.")
 			return
 		}
 		sources = append(sources, id)
 	}
 	if len(sources) == 0 {
-		writeError(w, http.StatusBadRequest, "item_ids lists the movies to merge into the target")
+		writeError(w, http.StatusBadRequest, "item_ids lists the titles to merge into the target")
 		return
 	}
-	if err := s.store.MergeItems(ctx, target.ID, sources); err != nil {
+	if target.Kind == "series" {
+		// Merge under the library's work slot, then place every episode in the kept show's orders.
+		err := s.scanner.RefreshSeries(ctx, lib, target.ID, false, func(ctx context.Context) error {
+			return s.store.MergeSeries(ctx, target.ID, sources)
+		})
+		if errors.Is(err, scanner.ErrLibraryBusy) {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
+		if err != nil {
+			// The merge itself happened if the refresh is what failed; say so plainly.
+			if merged, _ := s.store.GetItem(ctx, sources[0]); merged == nil {
+				s.log.Warn("shows merged, but refreshing the kept show failed", "into", target.Title, "err", err)
+				writeError(w, http.StatusBadGateway, "the shows were merged, but refreshing "+target.Title+" failed: "+err.Error()+". Use Refresh metadata to try again.")
+				return
+			}
+			s.fail(w, err)
+			return
+		}
+	} else if err := s.store.MergeItems(ctx, target.ID, sources); err != nil {
 		s.fail(w, err)
 		return
 	}
-	s.log.Info("titles merged", "into", target.Title, "count", len(sources))
+	s.log.Info("titles merged", "into", target.Title, "kind", target.Kind, "count", len(sources))
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func kindPlural(kind string) string {
+	if kind == "series" {
+		return "shows"
+	}
+	return "movies"
+}
+
+// numberingProvider is whose numbering a show's episode files follow (tvdb or tmdb): its own
+// File episode order, else its library's.
+func numberingProvider(it *store.Item, lib *store.Library) string {
+	order := cmp.Or(it.SourceOrdering, lib.SourceOrdering, "tvdb_aired")
+	provider, _, _ := strings.Cut(order, "_")
+	return provider
 }
 
 // splitItem: POST /api/items/{id}/split (admin) gives each version of a movie but the first its own

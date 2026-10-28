@@ -12,7 +12,7 @@ export function audit(resources, sources) {
   const used = new Set();
   const errors = [];
   // Genuine single words may be long; compound labels should use camelCase.
-  const singleWords = new Set(['notifications']);
+  const singleWords = new Set(['notifications', 'administrator']);
   function checkCatalog(namespace, object, prefix = '') {
     for (const [segment, value] of Object.entries(object)) {
       const key = prefix + segment;
@@ -53,6 +53,13 @@ export function audit(resources, sources) {
       for (const form of forms) used.add(form);
     }
     function visit(node) {
+      // KeyboardEvent.key is a protocol token. A translated label must never drive navigation.
+      if (ts.isBinaryExpression(node)) {
+        const sides = [node.left, node.right];
+        const keyToken = sides.some(side => ts.isPropertyAccessExpression(side) && ['event', 'e'].includes(side.expression.getText(tree)) && side.name.text === 'key');
+        const translated = sides.some(side => ts.isCallExpression(side) && (bindings.has(side.expression.getText(tree)) || ['t', 'i18n.t'].includes(side.expression.getText(tree))));
+        if (keyToken && translated) errors.push(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1}: keyboard tokens must not be translated`);
+      }
       if (ts.isCallExpression(node)) {
         const expression = node.expression;
         const name = expression.getText(tree);

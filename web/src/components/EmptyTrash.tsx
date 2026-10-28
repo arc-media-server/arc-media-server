@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
@@ -8,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 export function EmptyTrashDialog({ libraryId, libraryName, open, onOpenChange }: {
   libraryId: number; libraryName: string; open: boolean; onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation('serverSettings');
   const qc = useQueryClient();
   const empty = useMutation({ mutationFn: () => api.emptyTrash(libraryId), onSuccess: () => {
     onOpenChange(false);
@@ -17,15 +19,16 @@ export function EmptyTrashDialog({ libraryId, libraryName, open, onOpenChange }:
     if (empty.isPending) return;
     onOpenChange(o);
     if (!o) empty.reset();
-  }} title="Remove titles whose files are gone?" confirmLabel="Remove" destructive busy={empty.isPending}
+  }} title={t("serverSettings:emptyTrash.removeTitlesWhoseFiles")} confirmLabel={t("serverSettings:emptyTrash.remove")} destructive busy={empty.isPending}
     error={empty.error?.message} onConfirm={() => empty.mutate()}>
-    <p>Arc forgets the missing files in {libraryName}, and any movie, episode or show left with no files at all, including their watch history. Titles that still have a file are kept.</p>
-    <p>Only do this if the files are gone for good, not on a disconnected drive. A backup is made first. Media files are never deleted.</p>
+    <p>{t('serverSettings:emptyTrash.explanation', { name: libraryName })}</p>
+    <p>{t("serverSettings:emptyTrash.onlyDoThisIf")}</p>
   </ConfirmDialog>;
 }
 
 export function EmptyTrashButton({ libraryId, libraryName }: { libraryId: number; libraryName: string }) {
+  const { t } = useTranslation('serverSettings');
   const [open, setOpen] = useState(false);
-  return <><Button variant="secondary" size="sm" className="shrink-0" onClick={() => setOpen(true)}><Trash2 /> Remove All…</Button>
+  return <><Button variant="secondary" size="sm" className="shrink-0" onClick={() => setOpen(true)}><Trash2 /> {t("serverSettings:emptyTrash.removeAll")}</Button>
     <EmptyTrashDialog libraryId={libraryId} libraryName={libraryName} open={open} onOpenChange={setOpen} /></>;
 }

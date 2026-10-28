@@ -442,7 +442,7 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
   await page.locator('aside').getByRole('link', { name: 'Audit Movies', exact: true }).click();
   await page.getByRole('link', { name: /Arc Movie/ }).first().click();
-  await page.getByRole('button', { name: 'Queue Arc Movie', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Play next', exact: true }).click();
   await page.getByRole('button', { name: 'Playback queue', exact: true }).click();
   const queue = page.getByRole('dialog', { name: 'Playback queue', exact: true });
