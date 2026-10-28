@@ -57,19 +57,154 @@ func HashToken(token string) string {
 }
 
 // IsLocal reports whether a request comes from this computer or the home network (a private
-// address, or one in the extra home networks). Forwarded requests never qualify: a local proxy
-// may be relaying someone on the internet. Header values cannot grant home-network privileges.
+// address, or one in the extra home networks). Forwarded requests only qualify through a trusted
+// proxy (SetTrustedProxies), judged by the client address it reports: any other proxy may be
+// relaying someone on the internet, and header values from anyone else grant nothing.
 func IsLocal(r *http.Request) bool {
-	for _, header := range []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Proto"} {
-		if len(r.Header.Values(header)) > 0 {
-			return false
+	peer := peerIP(r)
+	if !forwarded(r) {
+		return IsHomeIP(peer)
+	}
+	if !isTrusted(peer) {
+		return false
+	}
+	client := forwardedClient(r)
+	return client != "" && IsHomeIP(client)
+}
+
+// ClientIP is the address a request comes from: the connection's, or for a trusted proxy the
+// client address it reports. For rate limits, logs and the Dashboard, not for granting access.
+func ClientIP(r *http.Request) string {
+	peer := peerIP(r)
+	if forwarded(r) && isTrusted(peer) {
+		if client := forwardedClient(r); client != "" {
+			return client
 		}
 	}
+	return peer
+}
+
+// IsHTTPS reports whether the browser reached Arc over HTTPS: directly, or through a trusted proxy
+// that says so (X-Forwarded-Proto or Forwarded proto=https).
+func IsHTTPS(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	if !isTrusted(peerIP(r)) {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0]), "https") {
+		return true
+	}
+	for _, e := range forwardedElements(r) {
+		if strings.EqualFold(e["proto"], "https") {
+			return true
+		}
+	}
+	return false
+}
+
+var forwardHeaders = []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Host", "X-Forwarded-Proto"}
+
+func forwarded(r *http.Request) bool {
+	for _, header := range forwardHeaders {
+		if len(r.Header.Values(header)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func peerIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
-	return IsHomeIP(strings.Trim(host, "[]"))
+	return strings.Trim(host, "[]")
+}
+
+// forwardedClient walks the forwarding chain from the nearest hop back, skipping trusted proxies:
+// the first other address is the client ("" when it isn't a usable address). Entries further left
+// were written by the client or untrusted hops and are ignored.
+func forwardedClient(r *http.Request) string {
+	var chain []string
+	if els := forwardedElements(r); len(els) > 0 {
+		for _, e := range els {
+			chain = append(chain, e["for"])
+		}
+	} else if v := r.Header.Values("X-Forwarded-For"); len(v) > 0 {
+		for _, line := range v {
+			chain = append(chain, strings.Split(line, ",")...)
+		}
+	} else if v := r.Header.Get("X-Real-IP"); v != "" {
+		chain = []string{v}
+	}
+	for i := len(chain) - 1; i >= 0; i-- {
+		ip := hostOnly(chain[i])
+		if net.ParseIP(ip) == nil {
+			return "" // "unknown" or an obfuscated name: no address to judge
+		}
+		if !isTrusted(ip) || i == 0 {
+			return ip
+		}
+	}
+	return ""
+}
+
+// forwardedElements parses RFC 7239 Forwarded headers into their elements' lower-case parameters.
+func forwardedElements(r *http.Request) []map[string]string {
+	var out []map[string]string
+	for _, line := range r.Header.Values("Forwarded") {
+		for _, element := range strings.Split(line, ",") {
+			e := map[string]string{}
+			for _, pair := range strings.Split(element, ";") {
+				k, v, ok := strings.Cut(strings.TrimSpace(pair), "=")
+				if ok {
+					e[strings.ToLower(k)] = strings.Trim(strings.TrimSpace(v), `"`)
+				}
+			}
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// hostOnly strips a port and IPv6 brackets: "[2001:db8::1]:4711" -> "2001:db8::1".
+func hostOnly(s string) string {
+	s = strings.TrimSpace(s)
+	if host, _, err := net.SplitHostPort(s); err == nil {
+		return strings.Trim(host, "[]")
+	}
+	return strings.Trim(s, "[]")
+}
+
+// trusted are reverse proxies whose forwarding headers Arc believes (Plex's and Jellyfin's
+// "known proxies"). None by default.
+var trusted struct {
+	sync.RWMutex
+	nets []*net.IPNet
+}
+
+// SetTrustedProxies sets the reverse proxies whose forwarding headers are believed.
+func SetTrustedProxies(nets []*net.IPNet) {
+	trusted.Lock()
+	trusted.nets = nets
+	trusted.Unlock()
+}
+
+func isTrusted(addr string) bool {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return false
+	}
+	trusted.RLock()
+	defer trusted.RUnlock()
+	for _, n := range trusted.nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // extraHome are networks that count as home besides private addresses (Plex's "LAN networks"),

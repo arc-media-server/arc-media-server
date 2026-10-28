@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronLeft, RotateCcw, Upload } from 'lucide-react';
@@ -5,7 +6,6 @@ import { api, type ArtworkChoices, type ArtworkImage, type ArtworkType, type Ite
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-export const artworkNames: Record<ArtworkType, string> = { poster: 'Poster', backdrop: 'Background', logo: 'Logo' };
 
 /** An artwork change waiting to be saved: a provider image, an upload, or back to automatic. */
 export type ArtworkChange = { path: string } | { file: File; preview: string } | { automatic: true };
@@ -34,6 +34,7 @@ export function ArtworkPanel({
   /** Where the choices come from, when not a title's own (e.g. a collection's). */
   source?: { key: unknown[]; load: () => Promise<ArtworkChoices> };
 }) {
+  const { t } = useTranslation('metadata');
   const file = useRef<HTMLInputElement>(null);
   const choices = useQuery({ queryKey: source?.key ?? ['artwork', item.id], queryFn: source?.load ?? (() => api.artwork(item.id)) });
   const c = choices.data;
@@ -41,13 +42,38 @@ export function ArtworkPanel({
   const chosen = c?.chosen[type];
   // What's selected: the pending pick, or what's in use now.
   const selected = change && 'path' in change ? change.path : change ? undefined : c?.current[type];
-  const name = item.kind === 'episode' ? 'thumbnail' : artworkNames[type].toLowerCase();
   const tile = item.kind === 'episode' ? 'backdrop' : type;
-
-  let note = 'Pick an image from TMDB or upload your own. Your choice is kept when the details are refreshed.';
-  if (change && 'automatic' in change) note = `Arc will go back to choosing the ${name} itself when you save.`;
-  else if (change && 'file' in change) note = `Your ${name} will be uploaded when you save.`;
-  else if (c?.local[type] && !chosen) note = `Arc is using the ${name} image in this title's folder. Choosing one here replaces it in Arc (the file isn't changed).`;
+  const messages = {
+    poster: {
+      automatic: t('metadata:chooseArtwork.posterAutomatic'),
+      upload: t('metadata:chooseArtwork.posterUpload'),
+      local: t('metadata:chooseArtwork.posterLocal'),
+      empty: t('metadata:chooseArtwork.posterEmpty'),
+    },
+    backdrop: {
+      automatic: t('metadata:chooseArtwork.backdropAutomatic'),
+      upload: t('metadata:chooseArtwork.backdropUpload'),
+      local: t('metadata:chooseArtwork.backdropLocal'),
+      empty: t('metadata:chooseArtwork.backdropEmpty'),
+    },
+    logo: {
+      automatic: t('metadata:chooseArtwork.logoAutomatic'),
+      upload: t('metadata:chooseArtwork.logoUpload'),
+      local: t('metadata:chooseArtwork.logoLocal'),
+      empty: t('metadata:chooseArtwork.logoEmpty'),
+    },
+    thumbnail: {
+      automatic: t('metadata:chooseArtwork.thumbnailAutomatic'),
+      upload: t('metadata:chooseArtwork.thumbnailUpload'),
+      local: t('metadata:chooseArtwork.thumbnailLocal'),
+      empty: t('metadata:chooseArtwork.thumbnailEmpty'),
+    },
+  };
+  const message = messages[item.kind === 'episode' ? 'thumbnail' : type];
+  let note = t('metadata:chooseArtwork.description');
+  if (change && 'automatic' in change) note = message.automatic;
+  else if (change && 'file' in change) note = message.upload;
+  else if (c?.local[type] && !chosen) note = message.local;
 
   return (
     <div>
@@ -55,8 +81,7 @@ export function ArtworkPanel({
         <p className="mr-auto max-w-md text-[13px] text-muted">{note}</p>
         {(chosen || change) && !(change && 'automatic' in change) && (
           <Button variant="ghost" size="sm" onClick={() => onChange(chosen ? { automatic: true } : undefined)}>
-            <RotateCcw /> Automatic
-          </Button>
+            <RotateCcw /> {t("metadata:chooseArtwork.automatic")}</Button>
         )}
         <input
           ref={file}
@@ -70,16 +95,15 @@ export function ArtworkPanel({
           }}
         />
         <Button variant="secondary" size="sm" onClick={() => file.current?.click()}>
-          <Upload /> Upload…
-        </Button>
+          <Upload /> {t("metadata:chooseArtwork.upload")}</Button>
       </div>
       {choices.error && <p className="text-sm text-warning">{choices.error.message}</p>}
       {!c && !choices.error && <div className="h-64 animate-pulse rounded-2xl bg-surface-2" />}
       {images?.length === 0 && !(change && 'file' in change) && (
-        <p className="py-10 text-center text-sm text-muted">TMDB has no {name} images for this title. You can upload one.</p>
+        <p className="py-10 text-center text-sm text-muted">{message.empty}</p>
       )}
       <div className={cn('grid gap-3 pb-2', tile === 'poster' ? 'grid-cols-[repeat(auto-fill,minmax(120px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))]')}>
-        {change && 'file' in change && <Tile type={tile} src={change.preview} selected title="Your upload" onClick={() => undefined} />}
+        {change && 'file' in change && <Tile type={tile} src={change.preview} selected title={t("metadata:chooseArtwork.yourUpload")} onClick={() => undefined} />}
         {images?.map((img) => (
           <Tile
             key={img.path}
@@ -137,6 +161,7 @@ export function SeasonsPanel({
   changes: Record<number, ArtworkChange>;
   onChange: (season: number, change: ArtworkChange | undefined) => void;
 }) {
+  const { t } = useTranslation('metadata');
   const seasons = useQuery({ queryKey: ['artwork', item.id, 'seasons'], queryFn: () => api.seasonArt(item.id) });
   const [open, setOpen] = useState<number | null>(null);
   const season = seasons.data?.seasons.find((s) => s.season_number === open);
@@ -145,17 +170,14 @@ export function SeasonsPanel({
     return (
       <div>
         <button type="button" onClick={() => setOpen(null)} className="mb-3 flex items-center gap-1 text-[13px] font-medium text-muted hover:text-foreground">
-          <ChevronLeft className="size-4" /> All seasons
-        </button>
+          <ChevronLeft className="size-4" /> {t("metadata:chooseArtwork.allSeasons")}</button>
         <SeasonPicker item={item} season={season} change={changes[season.season_number]} onChange={(c) => onChange(season.season_number, c)} />
       </div>
     );
   }
   return (
     <div>
-      <p className="mb-4 text-[13px] text-muted">
-        Season posters show on home rows set to season posters. Pick a season to change its poster.
-      </p>
+      <p className="mb-4 text-[13px] text-muted">{t("metadata:chooseArtwork.seasonPostersShowOn")}</p>
       {seasons.error && <p className="text-sm text-warning">{seasons.error.message}</p>}
       {!seasons.data && !seasons.error && <div className="h-64 animate-pulse rounded-2xl bg-surface-2" />}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 pb-2">
@@ -171,13 +193,13 @@ export function SeasonsPanel({
                   <PendingThumb seriesId={item.id} season={s.season_number} path={c.path} />
                 ) : (
                   <span className="flex size-full items-center justify-center p-2 text-center text-xs text-subtle">
-                    {c && 'automatic' in c ? 'Automatic' : 'Show poster'}
+                    {c && 'automatic' in c ? t("metadata:chooseArtwork.automatic") : t("metadata:chooseArtwork.showPoster")}
                   </span>
                 )}
-                {c && <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-accent shadow" aria-label="changed" />}
+                {c && <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-accent shadow" aria-label={t("metadata:chooseArtwork.changed")} />}
               </div>
               <p className="mt-1.5 truncate text-[13px] font-medium">{s.name}</p>
-              <p className="text-xs text-subtle">{c ? 'Changed' : s.chosen ? 'Chosen' : s.local ? 'From folder' : s.image ? 'Automatic' : 'None yet'}</p>
+              <p className="text-xs text-subtle">{c ? t("metadata:chooseArtwork.changed2") : s.chosen ? t("metadata:chooseArtwork.chosen") : s.local ? t("metadata:chooseArtwork.fromFolder") : s.image ? t("metadata:chooseArtwork.automatic") : t("metadata:chooseArtwork.noneYet")}</p>
             </button>
           );
         })}
@@ -204,6 +226,7 @@ export function SeasonPicker({
   change?: ArtworkChange;
   onChange: (change: ArtworkChange | undefined) => void;
 }) {
+  const { t } = useTranslation('metadata');
   const file = useRef<HTMLInputElement>(null);
   const choices = useQuery({
     queryKey: ['artwork', item.id, 'season', season.season_number],
@@ -212,10 +235,10 @@ export function SeasonPicker({
   const posters: ArtworkImage[] | undefined = choices.data?.posters;
   const selected = change && 'path' in change ? change.path : undefined;
 
-  let note = `Pick a poster for ${season.name} from TMDB or upload your own.`;
-  if (change && 'automatic' in change) note = `${season.name} will go back to its automatic poster when you save.`;
-  else if (change && 'file' in change) note = 'Your poster will be uploaded when you save.';
-  else if (season.local && !season.chosen) note = `Arc is using the poster in the show's folder. Choosing one here replaces it in Arc (the file isn't changed).`;
+  let note = t('metadata:chooseArtwork.seasonDescription', { season: season.name });
+  if (change && 'automatic' in change) note = t('metadata:chooseArtwork.seasonAutomatic', { season: season.name });
+  else if (change && 'file' in change) note = t('metadata:chooseArtwork.seasonUpload');
+  else if (season.local && !season.chosen) note = t('metadata:chooseArtwork.seasonLocal');
 
   return (
     <div>
@@ -223,8 +246,7 @@ export function SeasonPicker({
         <p className="mr-auto max-w-md text-[13px] text-muted">{note}</p>
         {(season.chosen || change) && !(change && 'automatic' in change) && (
           <Button variant="ghost" size="sm" onClick={() => onChange(season.chosen ? { automatic: true } : undefined)}>
-            <RotateCcw /> Automatic
-          </Button>
+            <RotateCcw /> {t("metadata:chooseArtwork.automatic")}</Button>
         )}
         <input
           ref={file}
@@ -238,16 +260,15 @@ export function SeasonPicker({
           }}
         />
         <Button variant="secondary" size="sm" onClick={() => file.current?.click()}>
-          <Upload /> Upload…
-        </Button>
+          <Upload /> {t("metadata:chooseArtwork.upload")}</Button>
       </div>
       {choices.error && <p className="text-sm text-warning">{choices.error.message}</p>}
       {!posters && !choices.error && <div className="h-64 animate-pulse rounded-2xl bg-surface-2" />}
       {posters?.length === 0 && !(change && 'file' in change) && (
-        <p className="py-10 text-center text-sm text-muted">TMDB has no posters for {season.name}. You can upload one.</p>
+        <p className="py-10 text-center text-sm text-muted">{t('metadata:chooseArtwork.noSeasonPosters', { name: season.name })}</p>
       )}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 pb-2">
-        {change && 'file' in change && <Tile type="poster" src={change.preview} selected title="Your upload" onClick={() => undefined} />}
+        {change && 'file' in change && <Tile type="poster" src={change.preview} selected title={t("metadata:chooseArtwork.yourUpload")} onClick={() => undefined} />}
         {posters?.map((img) => (
           <Tile
             key={img.path}

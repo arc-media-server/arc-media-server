@@ -29,6 +29,7 @@ type importSession struct {
 	src       importer.Source
 	accounts  []importer.Account
 	results   []importer.AccountResult
+	lists     *importer.ListsResult
 	err       string
 	created   time.Time
 }
@@ -201,6 +202,8 @@ func (s *Server) chooseImportServer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
+	// Its watchlist is on plex.tv, read with the account the person signed in with.
+	p.SetAccountToken(sess.plexToken)
 	accounts, err := p.Accounts(ctx)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "couldn't list the server's accounts: "+err.Error())
@@ -272,16 +275,16 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess.mu.Lock()
-	sess.stage, sess.err, sess.results = "running", "", nil
+	sess.stage, sess.err, sess.results, sess.lists = "running", "", nil, nil
 	sess.mu.Unlock()
 	go func() {
 		bg, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
 		defer cancel()
 		task := s.activity.Start("import", "Importing from "+sess.sourceName())
-		results, err := importer.Run(bg, s.store, src, accounts, mapping, names, task)
+		results, lists, err := importer.Run(bg, s.store, src, accounts, mapping, names, task)
 		task.Finish(err)
 		sess.mu.Lock()
-		sess.results = results
+		sess.results, sess.lists = results, &lists
 		if err != nil {
 			sess.stage, sess.err = "failed", err.Error()
 			s.log.Warn("import failed", "source", sess.source, "err", err)
@@ -328,8 +331,10 @@ func (s *Server) writeImport(w http.ResponseWriter, r *http.Request, sess *impor
 		Server   string                   `json:"server,omitempty"`
 		Accounts []account                `json:"accounts,omitempty"`
 		Results  []importer.AccountResult `json:"results,omitempty"`
-		Error    string                   `json:"error,omitempty"`
-	}{ID: sess.id, Source: sess.source, Stage: sess.stage, Server: sess.server, Results: sess.results, Error: sess.err}
+		// The server's collections, brought into the libraries their titles are in.
+		Collections *importer.ListsResult `json:"collections,omitempty"`
+		Error       string                `json:"error,omitempty"`
+	}{ID: sess.id, Source: sess.source, Stage: sess.stage, Server: sess.server, Results: sess.results, Collections: sess.lists, Error: sess.err}
 	if sess.stage == "signing_in" && sess.login != nil {
 		out.AuthURL = sess.login.AuthURL
 	}

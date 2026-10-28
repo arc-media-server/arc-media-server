@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Play } from 'lucide-react';
 import type { Item } from '@/lib/api';
@@ -13,6 +15,7 @@ import { episodeCode, ProgressBar, progressOf } from './WatchState';
  * artwork plays it from where the profile left off.
  */
 export function ResumeCard({ item, className, onRemove }: { item: Item; className?: string; onRemove?: (item: Item) => void }) {
+  const { t } = useTranslation('titles');
   const play = usePlayer();
   const isEpisode = item.kind === 'episode';
   const code = episodeCode(item.season_number, item.episode_number);
@@ -35,7 +38,7 @@ export function ResumeCard({ item, className, onRemove }: { item: Item; classNam
           play({ title: isEpisode ? item.title : item.title, subtitle: isEpisode ? `${title} · ${code}` : subtitle, src: item.stream_url, itemId: item.id, startMS: item.user_data?.position_ms })
         }
         className="relative block w-full overflow-hidden rounded-xl shadow-lg shadow-black/25 ring-1 ring-border outline-none transition-all duration-300 ease-smooth group-hover:-translate-y-1 group-hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label={`Play ${title}`}
+        aria-label={t('titles:episodeCard.playTitle', { title })}
       >
         <Artwork src={art} alt="" kind="still" icon={isEpisode ? 'tv' : 'film'} fallbackTitle={title} className={cn(blur && 'scale-110 blur-xl')} />
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-300 group-hover:bg-black/30">
@@ -58,5 +61,5 @@ function remaining(item: Item): string {
   const dur = (item.runtime_min ?? 0) * 60_000;
   if (!pos || !dur || pos >= dur) return '';
   const mins = Math.max(1, Math.round((dur - pos) / 60_000));
-  return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m left` : `${mins}m left`;
+  return mins >= 60 ? i18n.t('titles:episodeCard.hoursLeft', { hours: Math.floor(mins / 60), minutes: mins % 60 }) : i18n.t('titles:episodeCard.minutesLeft', { count: mins });
 }

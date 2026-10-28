@@ -185,9 +185,11 @@ Early development. Working today:
   and problems (failed scans or backups) sent to Discord or Slack as tidy messages, or anywhere as
   JSON; each shows how its last delivery went, with a Test button
 - Moving in (Settings): import from Plex (Sign in with Plex; watched titles, resume points, ratings
-  and Plex's watch history for everyone on the server) or Jellyfin (every user's watched titles and
-  resume points). Each person goes to an Arc profile, titles are matched by their online ids, and
-  newer progress in Arc is never replaced
+  and Plex's watch history for everyone on the server, plus the signed-in account's watchlist and
+  playlists and the server's collections) or Jellyfin (every user's watched titles, resume points,
+  favourites as their watchlist and playlists, plus the server's collections). Each person goes to
+  an Arc profile, titles are matched by their online ids, newer progress in Arc is never replaced,
+  and importing again adds to lists rather than repeating them
 - Activity (admin): a button by the Arc logo spins while the server is busy and lists what it is
   doing, with progress (library scans, refreshes, scrubbing previews, backups) and what finished
   recently, with any errors; also on the Dashboard

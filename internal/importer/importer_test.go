@@ -83,7 +83,7 @@ func TestPlexImport(t *testing.T) {
 		t.Fatalf("accounts = %+v, %v", accounts, err)
 	}
 	sam, _ := st.CreateUser(ctx, "Sam", false, "teal", "", "")
-	res, err := Run(ctx, st, p, accounts, map[string]string{"1": user, "5": sam.ID}, nil, activity.New().Start("import", "test"))
+	res, _, err := Run(ctx, st, p, accounts, map[string]string{"1": user, "5": sam.ID}, nil, activity.New().Start("import", "test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestPlexImport(t *testing.T) {
 		t.Errorf("Sam's movie from history = %+v", samData[movie])
 	}
 	// Importing again changes nothing.
-	again, _ := Run(ctx, st, p, accounts, map[string]string{"1": user}, nil, nil)
+	again, _, _ := Run(ctx, st, p, accounts, map[string]string{"1": user}, nil, nil)
 	if again[0].History != 0 {
 		t.Errorf("history added twice: %+v", again)
 	}
@@ -148,7 +148,7 @@ func TestJellyfinImport(t *testing.T) {
 		t.Fatal(err)
 	}
 	accounts, _ := j.Accounts(ctx)
-	res, err := Run(ctx, st, j, accounts, map[string]string{"u1": user}, nil, nil)
+	res, _, err := Run(ctx, st, j, accounts, map[string]string{"u1": user}, nil, nil)
 	if err != nil || res[0].Matched != 2 {
 		t.Fatalf("results = %+v, %v", res, err)
 	}

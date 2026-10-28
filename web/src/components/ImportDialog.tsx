@@ -1,8 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, ChevronDown, ExternalLink, Loader2, Server } from 'lucide-react';
 import { api, type ImportSession } from '@/lib/api';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ export function ImportDialog({ source, open, onOpenChange }: { source: 'plex' | 
 const sourceName = { plex: 'Plex', jellyfin: 'Jellyfin' };
 
 function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose: () => void }) {
+  const { t } = useTranslation('accessSettings');
   const qc = useQueryClient();
   const [id, setId] = useState<string | null>(null);
   const session = useQuery({
@@ -28,15 +29,12 @@ function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose:
   const s = session.data;
   useEffect(() => {
     if (s?.stage === 'done') {
-      for (const key of ['continue', 'next-up', 'items', 'item', 'profiles', 'watchlist']) qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['continue', 'next-up', 'items', 'item', 'profiles', 'watchlist', 'playlists', 'collections']) qc.invalidateQueries({ queryKey: [key] });
     }
   }, [s?.stage, qc]);
 
-  const title = `Import from ${sourceName[source]}`;
-  const description =
-    'Bring over what everyone has watched, where they stopped and their ratings' +
-    (source === 'plex' ? ', plus Plex’s watch history.' : '.') +
-    ` Arc only reads from ${sourceName[source]}, and never replaces newer progress in Arc.`;
+  const title = t('accessSettings:importDialog.fromSource', { source: sourceName[source] });
+  const description = source === 'plex' ? t('accessSettings:importDialog.plexDescription') : t('accessSettings:importDialog.jellyfinDescription');
 
   if (!s) {
     return source === 'plex' ? (
@@ -52,11 +50,10 @@ function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose:
           <div className="flex items-center gap-3 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
             <Loader2 className="size-5 shrink-0 animate-spin text-accent" />
             <div className="min-w-0 flex-1 text-sm">
-              <p className="font-medium">Waiting for you to sign in to Plex…</p>
-              <p className="text-xs text-muted">Approve Arc Media Server in the Plex tab that opened, then come back here.</p>
+              <p className="font-medium">{t("accessSettings:importDialog.waitingForYouTo")}</p>
+              <p className="text-xs text-muted">{t("accessSettings:importDialog.approveArcMediaServer")}</p>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => window.open(s.auth_url, '_blank')}>
-              Open Plex <ExternalLink />
+            <Button variant="secondary" size="sm" onClick={() => window.open(s.auth_url, '_blank')}>{t("accessSettings:importDialog.openPlex")} <ExternalLink />
             </Button>
           </div>
         </DialogContent>
@@ -67,7 +64,7 @@ function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose:
       return <ChooseAccounts title={title} session={s} />;
     case 'running':
       return (
-        <DialogContent title={title} description="This runs in the background; you can close this and follow it in Activity." footer={<CloseButton label="Close" />}>
+        <DialogContent title={title} description={t("accessSettings:importDialog.thisRunsInThe")} footer={<CloseButton label={t("accessSettings:importDialog.close")} />}>
           <ImportProgress />
         </DialogContent>
       );
@@ -76,15 +73,17 @@ function ImportFlow({ source, onClose }: { source: 'plex' | 'jellyfin'; onClose:
   }
 }
 
-function CloseButton({ label = 'Cancel' }: { label?: string }) {
+function CloseButton({ label }: { label?: string }) {
+  const { t } = useTranslation('accessSettings');
   return (
     <DialogClose asChild>
-      <Button variant="ghost">{label}</Button>
+      <Button variant="ghost">{label ?? t('accessSettings:importDialog.cancel')}</Button>
     </DialogClose>
   );
 }
 
 function PlexStart({ title, description, onStarted }: { title: string; description: string; onStarted: (s: ImportSession) => void }) {
+  const { t } = useTranslation('accessSettings');
   const start = useMutation({
     mutationFn: async () => {
       // Open the tab straight away so the browser doesn't block it, then point it at Plex.
@@ -109,19 +108,17 @@ function PlexStart({ title, description, onStarted }: { title: string; descripti
           {start.error && <p className="mr-auto text-sm text-warning">{start.error.message}</p>}
           <CloseButton />
           <Button variant="primary" disabled={start.isPending} onClick={() => start.mutate()}>
-            {start.isPending && <Loader2 className="animate-spin" />} Sign In with Plex
-          </Button>
+            {start.isPending && <Loader2 className="animate-spin" />} {t("accessSettings:importDialog.signInWithPlex")}</Button>
         </>
       }
     >
-      <p className="pb-2 text-sm text-muted">
-        Plex opens in a new tab so you can sign in and let Arc read your server. Your password never passes through Arc.
-      </p>
+      <p className="pb-2 text-sm text-muted">{t("accessSettings:importDialog.plexOpensInA")}</p>
     </DialogContent>
   );
 }
 
 function JellyfinStart({ title, description, onStarted }: { title: string; description: string; onStarted: (s: ImportSession) => void }) {
+  const { t } = useTranslation('accessSettings');
   const [url, setUrl] = useState('http://localhost:8096');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -135,8 +132,7 @@ function JellyfinStart({ title, description, onStarted }: { title: string; descr
           {start.error && <p className="mr-auto text-sm text-warning">{start.error.message}</p>}
           <CloseButton />
           <Button variant="primary" disabled={!url.trim() || !username || start.isPending} onClick={() => start.mutate()}>
-            {start.isPending && <Loader2 className="animate-spin" />} Connect
-          </Button>
+            {start.isPending && <Loader2 className="animate-spin" />} {t("accessSettings:importDialog.connect")}</Button>
         </>
       }
     >
@@ -148,20 +144,20 @@ function JellyfinStart({ title, description, onStarted }: { title: string; descr
         }}
       >
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Server address</span>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} className={inputClass} placeholder="http://192.168.1.10:8096" />
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("accessSettings:importDialog.serverAddress")}</span>
+          <input value={url} onChange={(e) => setUrl(e.target.value)} className={inputClass} placeholder={t("accessSettings:importDialog.http1921681")} />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Administrator</span>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("accessSettings:importDialog.administrator")}</span>
             <input value={username} onChange={(e) => setUsername(e.target.value)} className={inputClass} autoComplete="off" />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Password</span>
+            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("accessSettings:importDialog.password")}</span>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} autoComplete="off" />
           </label>
         </div>
-        <p className="text-xs text-subtle">An administrator can read everyone’s watch history. The password is only used to sign in and isn’t kept.</p>
+        <p className="text-xs text-subtle">{t("accessSettings:importDialog.anAdministratorCanRead")}</p>
         <button type="submit" hidden />
       </form>
     </DialogContent>
@@ -169,12 +165,13 @@ function JellyfinStart({ title, description, onStarted }: { title: string; descr
 }
 
 function ChooseServer({ title, session: s }: { title: string; session: ImportSession }) {
+  const { t } = useTranslation('accessSettings');
   const qc = useQueryClient();
   const choose = useMutation({ mutationFn: (serverId: string) => api.chooseImportServer(s.id, serverId), onSuccess: (n) => qc.setQueryData(['import', s.id], n) });
   return (
     <DialogContent
       title={title}
-      description="Which Plex server should Arc import from?"
+      description={t("accessSettings:importDialog.whichPlexServerShould")}
       footer={
         <>
           {choose.error && <p className="mr-auto text-sm text-warning">{choose.error.message}</p>}
@@ -193,7 +190,7 @@ function ChooseServer({ title, session: s }: { title: string; session: ImportSes
           >
             <Server className="size-4 text-muted" />
             <span className="flex-1 truncate font-medium">{sv.name}</span>
-            <span className="text-xs text-subtle">{sv.owned ? 'Yours' : 'Shared with you'}</span>
+            <span className="text-xs text-subtle">{sv.owned ? t("accessSettings:importDialog.yours") : t("accessSettings:importDialog.sharedWithYou")}</span>
             {choose.isPending && choose.variables === sv.id && <Loader2 className="size-4 animate-spin" />}
           </button>
         ))}
@@ -203,6 +200,7 @@ function ChooseServer({ title, session: s }: { title: string; session: ImportSes
 }
 
 function ChooseAccounts({ title, session: s }: { title: string; session: ImportSession }) {
+  const { t } = useTranslation('accessSettings');
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: api.profiles });
   const [choice, setChoice] = useState<Record<string, string>>(() =>
@@ -213,13 +211,13 @@ function ChooseAccounts({ title, session: s }: { title: string; session: ImportS
   return (
     <DialogContent
       title={title}
-      description={`Choose whose watch history goes to which Arc profile${s.server ? ` (from ${s.server})` : ''}.`}
+      description={s.server ? t('accessSettings:importDialog.accountsFromServer', { server: s.server }) : t('accessSettings:importDialog.accountsDescription')}
       footer={
         <>
           {run.error && <p className="mr-auto text-sm text-warning">{run.error.message}</p>}
           <CloseButton />
           <Button variant="primary" disabled={!chosen || run.isPending} onClick={() => run.mutate()}>
-            {run.isPending && <Loader2 className="animate-spin" />} Import {chosen > 0 && fmt.plural(chosen, 'person', 'people')}
+            {run.isPending && <Loader2 className="animate-spin" />} {chosen > 0 ? t('accessSettings:importDialog.importCount', { count: chosen }) : t('accessSettings:importDialog.import')}
           </Button>
         </>
       }
@@ -230,7 +228,7 @@ function ChooseAccounts({ title, session: s }: { title: string; session: ImportS
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{a.name}</p>
               {s.source === 'plex' && (
-                <p className="text-xs text-subtle">{a.owner ? 'Watched, resume points, ratings and history' : 'Watched and history'}</p>
+                <p className="text-xs text-subtle">{a.owner ? t("accessSettings:importDialog.watchedResumePointsRatings") : t("accessSettings:importDialog.watchedAndHistory")}</p>
               )}
             </div>
             <div className="relative w-52 shrink-0">
@@ -239,8 +237,8 @@ function ChooseAccounts({ title, session: s }: { title: string; session: ImportS
                 onChange={(e) => setChoice((c) => ({ ...c, [a.id]: e.target.value }))}
                 className={cn(inputClass, 'h-9 appearance-none pr-8 text-sm')}
               >
-                <option value="">Don’t import</option>
-                <option value="new">New profile “{a.name}”</option>
+                <option value="">{t("accessSettings:importDialog.donTImport")}</option>
+                <option value="new">{t('accessSettings:importDialog.namedProfile', { name: a.name })}</option>
                 {profiles.data?.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -252,10 +250,7 @@ function ChooseAccounts({ title, session: s }: { title: string; session: ImportS
           </div>
         ))}
         {s.source === 'plex' && (
-          <p className="pt-1 text-xs text-subtle">
-            Plex only lets Arc read resume points and ratings for the account you signed in with; everyone’s watched titles come from Plex’s
-            history.
-          </p>
+          <p className="pt-1 text-xs text-subtle">{t("accessSettings:importDialog.plexOnlyLetsArc")}</p>
         )}
       </div>
     </DialogContent>
@@ -263,13 +258,14 @@ function ChooseAccounts({ title, session: s }: { title: string; session: ImportS
 }
 
 function ImportProgress() {
+  const { t } = useTranslation('accessSettings');
   const { data } = useQuery({ queryKey: ['activity'], queryFn: api.activity, refetchInterval: 1500 });
-  const task = data?.running.find((t) => t.kind === 'import');
+  const task = data?.running.find((tabId) => tabId.kind === 'import');
   const pct = task?.total ? Math.round(((task.done ?? 0) / task.total) * 100) : null;
   return (
     <div className="pb-2">
       <p className="flex items-center gap-2 text-sm font-medium">
-        <Loader2 className="size-4 animate-spin text-accent" /> {task?.detail ?? 'Starting…'}
+        <Loader2 className="size-4 animate-spin text-accent" /> {task?.detail ?? t("accessSettings:importDialog.starting")}
       </p>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-3">
         <div className={cn('h-full rounded-full bg-accent transition-all', pct === null && 'w-1/3 animate-pulse')} style={pct === null ? undefined : { width: `${pct}%` }} />
@@ -279,15 +275,15 @@ function ImportProgress() {
 }
 
 function Results({ title, session: s, onClose }: { title: string; session: ImportSession; onClose: () => void }) {
+  const { t } = useTranslation('accessSettings');
   const [open, setOpen] = useState<string | null>(null);
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
   return (
     <DialogContent
       title={title}
-      description={s.stage === 'failed' ? undefined : 'Done. Continue Watching, watched ticks and Insights now include what came over.'}
+      description={s.stage === 'failed' ? undefined : t("accessSettings:importDialog.doneContinueWatchingWatched")}
       footer={
-        <Button variant="primary" onClick={onClose}>
-          Done
-        </Button>
+        <Button variant="primary" onClick={onClose}>{t("accessSettings:importDialog.done")}</Button>
       }
     >
       <div className="space-y-2 pb-2">
@@ -301,16 +297,21 @@ function Results({ title, session: s, onClose }: { title: string; session: Impor
               </p>
             </div>
             <p className="mt-1 pl-6 text-xs text-muted">
-              {[fmt.plural(r.matched, 'title'), r.history > 0 && `${fmt.plural(r.history, 'viewing')} added to history`].filter(Boolean).join(' · ')}
-              {r.not_found > 0 && (
+              {[t('accessSettings:importDialog.matchedTitles', { count: r.matched }), r.history > 0 && t('accessSettings:importDialog.history', { count: r.history })].filter(Boolean).join(' · ')}
+              {r.not_found + (r.lists_not_found ?? 0) > 0 && (
                 <>
                   {' · '}
                   <button type="button" className="text-foreground/80 underline-offset-2 hover:underline" onClick={() => setOpen(open === r.account ? null : r.account)}>
-                    {r.not_found} not in Arc
-                  </button>
+                    {t('accessSettings:importDialog.missingCount', { count: r.not_found + (r.lists_not_found ?? 0) })}</button>
                 </>
               )}
             </p>
+            {(!!r.watchlist || !!r.playlists) && (
+              <p className="mt-0.5 pl-6 text-xs text-muted">
+                {[!!r.watchlist && t('accessSettings:importDialog.watchlistCount', { count: r.watchlist }), !!r.playlists && t('accessSettings:importDialog.playlistCount', { count: r.playlists, entries: t('accessSettings:importDialog.playlistEntries', { count: r.playlist_items ?? 0 }) })].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {r.lists_error && <p className="mt-1 pl-6 text-xs text-warning">{t('accessSettings:importDialog.listsError', { error: r.lists_error })}</p>}
             {open === r.account && r.missing && (
               <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto pl-6 text-xs text-subtle">
                 {r.missing.map((m, i) => (
@@ -318,11 +319,40 @@ function Results({ title, session: s, onClose }: { title: string; session: Impor
                     {m}
                   </li>
                 ))}
-                {r.not_found > r.missing.length && <li>…and {r.not_found - r.missing.length} more</li>}
+                {r.not_found + (r.lists_not_found ?? 0) > r.missing.length && <li>{t('accessSettings:importDialog.moreMissing', { count: r.not_found + (r.lists_not_found ?? 0) - r.missing.length })}</li>}
               </ul>
             )}
           </div>
         ))}
+        {s.collections && (s.collections.collections > 0 || s.collections.not_found > 0 || s.collections.error) && (
+          <div className="rounded-xl bg-surface-2/50 px-3 py-2.5 ring-1 ring-border">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 shrink-0 text-accent" />
+              <p className="min-w-0 flex-1 truncate text-sm font-medium">{t('accessSettings:importDialog.collections')}</p>
+            </div>
+            <p className="mt-1 pl-6 text-xs text-muted">
+              {t('accessSettings:importDialog.collectionCount', { count: s.collections.collections, titles: t('accessSettings:importDialog.collectionTitles', { count: s.collections.collection_items }) })}
+              {s.collections.not_found > 0 && (
+                <>
+                  {' · '}
+                  <button type="button" className="text-foreground/80 underline-offset-2 hover:underline" onClick={() => setCollectionsOpen((o) => !o)}>
+                    {t('accessSettings:importDialog.missingCount', { count: s.collections.not_found })}
+                  </button>
+                </>
+              )}
+            </p>
+            {s.collections.error && <p className="mt-1 pl-6 text-xs text-warning">{t('accessSettings:importDialog.collectionsError', { error: s.collections.error })}</p>}
+            {collectionsOpen && s.collections.missing && (
+              <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto pl-6 text-xs text-subtle">
+                {s.collections.missing.map((m, i) => (
+                  <li key={i} className="truncate">
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </DialogContent>
   );

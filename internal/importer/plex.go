@@ -20,6 +20,14 @@ import (
 
 const plexProduct = "Arc Media Server"
 
+// plexDiscover is where plex.tv keeps each account's watchlist.
+func plexDiscover() string {
+	if u := os.Getenv("AMS_PLEX_DISCOVER_URL"); u != "" {
+		return strings.TrimRight(u, "/") // a stand-in, for tests
+	}
+	return "https://discover.provider.plex.tv"
+}
+
 func plexTV() string {
 	if u := os.Getenv("AMS_PLEX_TV_URL"); u != "" {
 		return strings.TrimRight(u, "/") // a stand-in, for tests
@@ -168,6 +176,8 @@ type Plex struct {
 	token    string
 	// Owner is the server's account id for the signed-in person (whose resume points are read).
 	owner string
+	// The signed-in plex.tv account's token: its watchlist is kept on plex.tv, not the server.
+	accountToken string
 
 	once  sync.Once
 	items map[string]plexItem // by ratingKey, loaded once and shared by every account
@@ -248,6 +258,7 @@ func (p *Plex) Accounts(ctx context.Context) ([]Account, error) {
 // plexMeta is a movie, show or episode as Plex lists it.
 type plexMeta struct {
 	RatingKey            string  `json:"ratingKey"`
+	Type                 string  `json:"type"`
 	Title                string  `json:"title"`
 	GrandparentTitle     string  `json:"grandparentTitle"`
 	GrandparentRatingKey string  `json:"grandparentRatingKey"`
@@ -484,6 +495,133 @@ func (p *Plex) Entries(ctx context.Context, account Account, progress func(strin
 	out := make([]Entry, 0, len(order))
 	for _, k := range order {
 		out = append(out, *byKey[k])
+	}
+	return out, nil
+}
+
+// SetAccountToken gives the signed-in plex.tv account's token, for its watchlist.
+func (p *Plex) SetAccountToken(token string) { p.accountToken = token }
+
+// listItem is a movie, show or episode as a list member (false for anything else).
+func (p *Plex) listItem(m plexMeta) (ListItem, bool) {
+	tmdb, tvdb, imdb, _, _ := m.ids()
+	switch m.Type {
+	case "movie":
+		return ListItem{Title: m.Title, Ref: store.ImportRef{Kind: "movie", TMDB: tmdb, IMDB: imdb}}, true
+	case "show":
+		return ListItem{Title: m.Title, Ref: store.ImportRef{Kind: "series", TMDB: tmdb, TVDB: tvdb, IMDB: imdb}}, true
+	case "episode":
+		// Read with the libraries (load), with its show's ids.
+		if it, ok := p.items[m.RatingKey]; ok {
+			return ListItem{Title: it.title, Ref: it.ref}, true
+		}
+	}
+	return ListItem{}, false
+}
+
+// Watchlist is the signed-in account's plex.tv watchlist (other accounts' can't be read).
+func (p *Plex) Watchlist(ctx context.Context, account Account) ([]ListItem, error) {
+	if !account.Owner || p.accountToken == "" {
+		return nil, nil
+	}
+	const page = 100
+	var out []ListItem
+	for start := 0; ; start += page {
+		u := plexDiscover() + "/library/sections/watchlist/all?" + url.Values{"includeGuids": {"1"},
+			"X-Plex-Container-Start": {strconv.Itoa(start)}, "X-Plex-Container-Size": {strconv.Itoa(page)}}.Encode()
+		req, err := plexRequest(ctx, http.MethodGet, u, p.clientID, p.accountToken)
+		if err != nil {
+			return nil, err
+		}
+		var res struct {
+			MediaContainer struct {
+				TotalSize int        `json:"totalSize"`
+				Metadata  []plexMeta `json:"Metadata"`
+			} `json:"MediaContainer"`
+		}
+		if err := plexDo(p.http, req, &res); err != nil {
+			return nil, err
+		}
+		for _, m := range res.MediaContainer.Metadata {
+			if li, ok := p.listItem(m); ok {
+				out = append(out, li)
+			}
+		}
+		n := len(res.MediaContainer.Metadata)
+		if n < page || (res.MediaContainer.TotalSize > 0 && start+n >= res.MediaContainer.TotalSize) {
+			return out, nil
+		}
+	}
+}
+
+// Playlists are the signed-in account's video playlists (the server lists only the token's own).
+func (p *Plex) Playlists(ctx context.Context, account Account) ([]List, error) {
+	if !account.Owner {
+		return nil, nil
+	}
+	if err := p.load(ctx, func(string) {}); err != nil {
+		return nil, err
+	}
+	lists, err := p.list(ctx, "/playlists", url.Values{"playlistType": {"video"}}, nil)
+	if err != nil {
+		return nil, err
+	}
+	var out []List
+	for _, pl := range lists {
+		entries, err := p.list(ctx, "/playlists/"+url.PathEscape(pl.RatingKey)+"/items", url.Values{"includeGuids": {"1"}}, nil)
+		if err != nil {
+			return nil, err
+		}
+		l := List{Title: pl.Title}
+		for _, m := range entries {
+			if li, ok := p.listItem(m); ok {
+				l.Items = append(l.Items, li)
+			}
+		}
+		if len(l.Items) > 0 {
+			out = append(out, l)
+		}
+	}
+	return out, nil
+}
+
+// Collections are the collections in the server's movie and TV libraries.
+func (p *Plex) Collections(ctx context.Context) ([]List, error) {
+	var sections struct {
+		MediaContainer struct {
+			Directory []struct {
+				Key  string `json:"key"`
+				Type string `json:"type"`
+			} `json:"Directory"`
+		} `json:"MediaContainer"`
+	}
+	if err := p.get(ctx, "/library/sections", nil, &sections); err != nil {
+		return nil, err
+	}
+	var out []List
+	for _, sec := range sections.MediaContainer.Directory {
+		if sec.Type != "movie" && sec.Type != "show" {
+			continue
+		}
+		cols, err := p.list(ctx, "/library/sections/"+url.PathEscape(sec.Key)+"/collections", url.Values{}, nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cols {
+			members, err := p.list(ctx, "/library/collections/"+url.PathEscape(c.RatingKey)+"/children", url.Values{"includeGuids": {"1"}}, nil)
+			if err != nil {
+				return nil, err
+			}
+			l := List{Title: c.Title}
+			for _, m := range members {
+				if li, ok := p.listItem(m); ok {
+					l.Items = append(l.Items, li)
+				}
+			}
+			if len(l.Items) > 0 {
+				out = append(out, l)
+			}
+		}
 	}
 	return out, nil
 }
