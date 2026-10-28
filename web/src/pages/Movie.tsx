@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { CollectionRows } from '@/components/Collections';
@@ -26,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { progressOf } from '@/components/WatchState';
 
 export function MoviePage() {
+  const { t } = useTranslation('titles');
   const { id } = useParams();
   const { data: item, error } = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id!) });
   const play = usePlayer();
@@ -86,20 +88,17 @@ export function MoviePage() {
             {video && <Badge>{fmt.resolution(video.width, video.height)}</Badge>}
             {fmt.sourceFormats(video).map((label) => <Badge key={label}>{label}</Badge>)}
             {audio && <Badge>{fmt.audioFormat(audio)}</Badge>}
-          </> : <Badge>{present.filter(f => (f.edition ?? '') === currentEdition).length} versions</Badge>}
+          </> : <Badge>{t('titles:movie.versionCount', { count: present.filter(f => (f.edition ?? '') === currentEdition).length })}</Badge>}
         </div>
         <ErrorNotice error={refresh.error} onRetry={() => refresh.mutate()} />
         {analysis.notice}
         {item.metadata_state === 'unmatched' && admin && (
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning">
-            <AlertTriangle className="size-4" /> Arc couldn't identify this movie online.
-            <button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>
-              Identify it…
-            </button>
+            <AlertTriangle className="size-4" /> {t("titles:movie.unmatched")}<button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>{t("titles:movie.identifyIt")}</button>
           </p>
         )}
         {editions.length > 1 && (
-          <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Edition">
+          <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("titles:movie.edition")}>
             {editions.map((e) => (
               <button
                 key={e}
@@ -112,7 +111,7 @@ export function MoviePage() {
                   e === currentEdition ? 'bg-foreground text-background ring-foreground' : 'bg-black/20 text-foreground/80 ring-white/15 hover:bg-black/30',
                 )}
               >
-                {e || 'Standard Edition'}
+                {e || t("titles:movie.standardEdition")}
               </button>
             ))}
           </div>
@@ -125,7 +124,7 @@ export function MoviePage() {
             onClick={() => playFrom(resumeAt)}
             className="relative overflow-hidden"
           >
-            <Play className="fill-current" /> {!playable ? 'File missing' : resumeAt ? `Resume · ${fmt.clock(resumeAt)}` : 'Play'}
+            <Play className="fill-current" /> {!playable ? t("titles:movie.fileMissing") : resumeAt ? t('titles:movie.resumeAt', { time: fmt.clock(resumeAt) }) : t("titles:movie.play")}
             {resumeAt > 0 && (
               <span className="absolute inset-x-0 bottom-0 h-1 bg-background/15">
                 <span className="block h-full bg-accent-strong" style={{ width: `${progressOf(item) * 100}%` }} />
@@ -133,7 +132,7 @@ export function MoviePage() {
             )}
           </Button>
           {resumeAt > 0 && playable && (
-            <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => playFrom(0)} title="Play from the beginning" aria-label="Play from the beginning">
+            <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => playFrom(0)} title={t("titles:movie.playFromTheBeginning")} aria-label={t("titles:movie.playFromTheBeginning")}>
               <RotateCcw />
             </Button>
           )}

@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { Fragment } from 'react';
 import { Link } from 'react-router';
 import type { Credit, Item } from '@/lib/api';
@@ -7,15 +9,16 @@ import { Scores } from '@/components/Scores';
 
 /** "Directed by …", "Written by …", "Created by …" and the studio or network. */
 export function CrewLine({ item }: { item: Item }) {
+  const { t } = useTranslation('titles');
   const credits = item.credits ?? [];
   const people = (role: Credit['role']) => credits.filter((c) => c.role === role).map((c) => ({ name: c.name, id: c.person_id }));
   const lines: [string, { name: string; id?: number }[]][] = [
-    ['Created by', people('creator')],
-    ['Directed by', people('director')],
-    ['Written by', people('writer').slice(0, 3)],
-    [item.kind === 'series' ? 'Network' : 'Studio', item.studio ? item.studio.split(', ').slice(0, 2).map((name) => ({ name })) : []],
-    ['Language', item.original_language ? [{ name: fmt.language(item.original_language) }] : []],
-    ['Status', showStatus(item) ? [{ name: showStatus(item) }] : []],
+    [t('titles:credits.createdBy'), people('creator')],
+    [t('titles:credits.directedBy'), people('director')],
+    [t('titles:credits.writtenBy'), people('writer').slice(0, 3)],
+    [item.kind === 'series' ? t('titles:credits.network') : t('titles:credits.studio'), item.studio ? item.studio.split(', ').slice(0, 2).map((name) => ({ name })) : []],
+    [t('titles:credits.language'), item.original_language ? [{ name: fmt.language(item.original_language) }] : []],
+    [t('titles:credits.status'), showStatus(item) ? [{ name: showStatus(item) }] : []],
   ];
   const shown = lines.filter(([, n]) => n.length);
   if (!shown.length) return null;
@@ -50,23 +53,24 @@ export function showStatus(item: Item): string {
   const today = new Date().toISOString().slice(0, 10);
   switch (item.status) {
     case 'ended':
-      return year ? `Ended in ${year}` : 'Ended';
+      return year ? i18n.t('titles:credits.endedYear', { year }) : i18n.t('titles:credits.ended');
     case 'cancelled':
-      return year ? `Cancelled in ${year}` : 'Cancelled';
+      return year ? i18n.t('titles:credits.cancelledYear', { year }) : i18n.t('titles:credits.cancelled');
     case 'upcoming':
-      return item.next_aired && item.next_aired >= today ? `Premieres ${fmt.date(item.next_aired)}` : 'Coming soon';
+      return item.next_aired && item.next_aired >= today ? i18n.t('titles:credits.premieres', { date: fmt.date(item.next_aired) }) : i18n.t('titles:credits.comingSoon');
     case 'continuing':
-      return item.next_aired && item.next_aired >= today ? `Continuing · next episode ${fmt.date(item.next_aired)}` : 'Continuing';
+      return item.next_aired && item.next_aired >= today ? i18n.t('titles:credits.nextEpisode', { date: fmt.date(item.next_aired) }) : i18n.t('titles:credits.continuing');
   }
   return '';
 }
 
 /** A scrolling row of the cast, with photos. */
-export function CastRow({ credits, title = 'Cast' }: { credits?: Credit[]; title?: string }) {
+export function CastRow({ credits, title }: { credits?: Credit[]; title?: string }) {
+  const { t } = useTranslation('titles');
   const cast = (credits ?? []).filter((c) => c.role === 'actor');
   if (!cast.length) return null;
   return (
-    <RowShell title={title} className="mt-6">
+    <RowShell title={title ?? t('titles:credits.cast')} className="mt-6">
         {cast.map((c) => (
           <Link key={c.person_id} to={`/person/${c.person_id}`} className="group/person w-24 shrink-0 snap-start text-center outline-none">
             <div className="mx-auto size-24 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border transition-transform duration-300 group-hover/person:scale-105 group-focus-visible/person:ring-2 group-focus-visible/person:ring-accent">
@@ -78,7 +82,7 @@ export function CastRow({ credits, title = 'Cast' }: { credits?: Credit[]; title
             </div>
             <p className="mt-2 line-clamp-2 text-[13px] font-medium leading-tight">{c.name}</p>
             {c.character && <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-subtle">{c.character}</p>}
-            {!!c.episode_count && <p className="mt-0.5 text-xs text-subtle">{fmt.plural(c.episode_count, 'episode')}</p>}
+            {!!c.episode_count && <p className="mt-0.5 text-xs text-subtle">{t('titles:credits.episodes', { count: c.episode_count })}</p>}
           </Link>
         ))}
     </RowShell>

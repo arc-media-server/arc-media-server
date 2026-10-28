@@ -1,10 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { Gauge, Check, Merge, CircleCheck, Circle, Layers, Loader2, Pencil, RefreshCw, X } from 'lucide-react';
 import { api, posterUrl, type BulkEdit, type Item, type Library } from '@/lib/api';
 import { Artwork } from '@/components/Artwork';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
@@ -29,6 +29,7 @@ export function SelectionBar({
   onClear: () => void;
   onDone: () => void;
 }) {
+  const { t } = useTranslation('titleActions');
   const qc = useQueryClient();
   const chosen = items.filter((i) => selected.has(i.id));
   const [dialog, setDialog] = useState<'edit' | 'collection' | 'merge' | 'optimize' | null>(null);
@@ -37,7 +38,7 @@ export function SelectionBar({
     mutationFn: (edit: Omit<BulkEdit, 'item_ids'>) => api.editItems({ item_ids: chosen.map((i) => i.id), ...edit }),
     onSuccess: (_, edit) => {
       for (const key of ['items', 'item', 'featured', 'continue', 'next-up', 'activity']) qc.invalidateQueries({ queryKey: [key] });
-      setNote(edit.refresh ? 'Refreshing in the background. Follow it in Activity.' : '');
+      setNote(edit.refresh ? t('titleActions:bulkEdit.refreshNotice') : '');
     },
   });
   const n = chosen.length;
@@ -49,38 +50,30 @@ export function SelectionBar({
         className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 md:left-[248px]"
       >
         <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface p-2 pl-4 shadow-2xl shadow-black/50">
-          <span className="mr-1 text-sm font-medium tabular-nums">{n ? `${n} selected` : 'Choose titles'}</span>
+          <span className="mr-1 text-sm font-medium tabular-nums">{n ? t('titleActions:bulkEdit.selected', { count: n }) : t("titleActions:bulkEdit.chooseTitles")}</span>
           <Button variant="ghost" size="sm" onClick={n === items.length ? onClear : onSelectAll}>
-            {n === items.length ? 'Select None' : `Select loaded (${items.length})`}
+            {n === items.length ? t("titleActions:bulkEdit.selectNone") : t('titleActions:bulkEdit.selectLoaded', { count: items.length })}
           </Button>
           <span className="mx-1 h-5 w-px bg-border" />
           <Button variant="secondary" size="sm" disabled={!n} onClick={() => setDialog('edit')}>
-            <Pencil /> Edit
-          </Button>
+            <Pencil /> {t("titleActions:bulkEdit.edit")}</Button>
           <Button variant="ghost" size="sm" disabled={!n} onClick={() => setDialog('collection')}>
-            <Layers /> Add to Collection
-          </Button>
+            <Layers /> {t("titleActions:bulkEdit.addToCollection")}</Button>
           {library.kind === 'movies' && (
-            <Button variant="ghost" size="sm" disabled={n < 2} onClick={() => setDialog('merge')} title="Make these one movie, as versions">
-              <Merge /> Merge
-            </Button>
+            <Button variant="ghost" size="sm" disabled={n < 2} onClick={() => setDialog('merge')} title={t("titleActions:bulkEdit.makeTheseOneMovie")}>
+              <Merge /> {t("titleActions:bulkEdit.merge")}</Button>
           )}
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ played: true })}>
-            <CircleCheck /> Watched
-          </Button>
+            <CircleCheck /> {t("titleActions:bulkEdit.watched")}</Button>
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ played: false })}>
-            <Circle /> Unwatched
-          </Button>
+            <Circle /> {t("titleActions:bulkEdit.unwatched")}</Button>
           <Button variant="ghost" size="sm" disabled={!n} onClick={() => setDialog('optimize')}>
-            <Gauge /> Optimize
-          </Button>
+            <Gauge /> {t("titleActions:bulkEdit.optimize")}</Button>
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ refresh: true })}>
-            <RefreshCw /> Refresh
-          </Button>
+            <RefreshCw /> {t("titleActions:bulkEdit.refresh")}</Button>
           <span className="mx-1 h-5 w-px bg-border" />
-          <Button variant="ghost" size="sm" onClick={onDone} aria-label="Stop choosing">
-            <X /> Done
-          </Button>
+          <Button variant="ghost" size="sm" onClick={onDone} aria-label={t("titleActions:bulkEdit.stopChoosing")}>
+            <X /> {t("titleActions:bulkEdit.done")}</Button>
           {(run.error || note) && (
             <p className={cn('basis-full px-1 pb-1 text-xs', run.error ? 'text-warning' : 'text-subtle')}>{run.error?.message ?? note}</p>
           )}
@@ -108,6 +101,7 @@ export function SelectionBar({
 
 /** Genres, labels, age rating and locks for several titles at once. */
 function BulkEditForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
+  const { t } = useTranslation('titleActions');
   const qc = useQueryClient();
   const [addGenres, setAddGenres] = useState<string[]>([]);
   const [removeGenres, setRemoveGenres] = useState<string[]>([]);
@@ -139,45 +133,44 @@ function BulkEditForm({ items, onDone }: { items: Item[]; onDone: () => void }) 
 
   return (
     <DialogContent
-      title={`Edit ${fmt.plural(items.length, 'title')}`}
-      description="Changes apply to every title you chose. Anything you leave empty stays as it is."
+      title={t('titleActions:bulkEdit.editCount', { count: items.length })}
+      description={t("titleActions:bulkEdit.changesApplyToEvery")}
       className="w-[min(560px,calc(100vw-32px))]"
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t("titleActions:bulkEdit.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />} {t("titleActions:bulkEdit.save")}</Button>
         </>
       }
     >
       <div className="grid grid-cols-2 gap-x-4 gap-y-5 pb-2">
-        <Field label="Add genres">
-          <ChipInput value={addGenres} onChange={setAddGenres} placeholder="e.g. Thriller" morePlaceholder="Add another" suggestions={genres} />
+        <Field label={t("titleActions:bulkEdit.addGenres")}>
+          <ChipInput value={addGenres} onChange={setAddGenres} placeholder={t("titleActions:bulkEdit.eGThriller")} morePlaceholder={t('titleActions:bulkEdit.addAnother')} suggestions={genres} />
         </Field>
-        <Field label="Remove genres">
-          <ChipInput value={removeGenres} onChange={setRemoveGenres} placeholder="e.g. Drama" morePlaceholder="Add another" suggestions={genres} />
+        <Field label={t("titleActions:bulkEdit.removeGenres")}>
+          <ChipInput value={removeGenres} onChange={setRemoveGenres} placeholder={t("titleActions:bulkEdit.eGDrama")} morePlaceholder={t('titleActions:bulkEdit.addAnother')} suggestions={genres} />
         </Field>
-        <Field label="Add labels">
-          <ChipInput value={addLabels} onChange={setAddLabels} placeholder="e.g. Not for kids" morePlaceholder="Add another" suggestions={labels.data} />
+        <Field label={t("titleActions:bulkEdit.addLabels")}>
+          <ChipInput value={addLabels} onChange={setAddLabels} placeholder={t("titleActions:bulkEdit.eGNotFor")} morePlaceholder={t('titleActions:bulkEdit.addAnother')} suggestions={labels.data} />
         </Field>
-        <Field label="Remove labels">
-          <ChipInput value={removeLabels} onChange={setRemoveLabels} placeholder="e.g. Halloween" morePlaceholder="Add another" suggestions={labels.data} />
+        <Field label={t("titleActions:bulkEdit.removeLabels")}>
+          <ChipInput value={removeLabels} onChange={setRemoveLabels} placeholder={t("titleActions:bulkEdit.eGHalloween")} morePlaceholder={t('titleActions:bulkEdit.addAnother')} suggestions={labels.data} />
         </Field>
-        <Field label="Age rating">
-          <input value={rating} onChange={(e) => setRating(e.target.value)} placeholder="Leave as it is" maxLength={20} className={inputClass} />
+        <Field label={t("titleActions:bulkEdit.ageRating")}>
+          <input value={rating} onChange={(e) => setRating(e.target.value)} placeholder={t("titleActions:bulkEdit.leaveAsItIs")} maxLength={20} className={inputClass} />
         </Field>
         <div className="col-span-2">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Locks</span>
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("titleActions:bulkEdit.locks")}</span>
           <div className="grid gap-2 sm:grid-cols-3">
             {(
               [
-                ['', 'Leave as they are', 'Changed fields lock, as usual'],
-                ['all', 'Lock everything', 'Refreshes change nothing'],
-                ['none', 'Unlock everything', 'Use the online details again'],
+                ['', t('titleActions:bulkEdit.leaveLocks'), t('titleActions:bulkEdit.changedLocks')],
+                ['all', t('titleActions:bulkEdit.lockAll'), t('titleActions:bulkEdit.lockHint')],
+                ['none', t('titleActions:bulkEdit.unlockAll'), t('titleActions:bulkEdit.unlockHint')],
               ] as const
             ).map(([v, label, hint]) => (
               <button
@@ -198,7 +191,7 @@ function BulkEditForm({ items, onDone }: { items: Item[]; onDone: () => void }) 
               </button>
             ))}
           </div>
-          {locks === 'none' && <p className="mt-2 text-xs text-subtle">Unlocked fields go back to the online details at the next refresh. Use Refresh to do it now.</p>}
+          {locks === 'none' && <p className="mt-2 text-xs text-subtle">{t("titleActions:bulkEdit.unlockedFieldsGoBack")}</p>}
         </div>
       </div>
     </DialogContent>
@@ -216,6 +209,7 @@ export function MergeDialog({ items, open, onOpenChange }: { items: Item[]; open
 
 /** Merge: choose which movie to keep; the others become its versions. */
 function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
+  const { t } = useTranslation('titleActions');
   const qc = useQueryClient();
   // Keep a matched one by default, since its details are the ones that stay.
   const [keep, setKeep] = useState(() => (items.find((i) => i.metadata_state === 'matched') ?? items[0]).id);
@@ -228,22 +222,21 @@ function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
   });
   return (
     <DialogContent
-      title={`Merge ${items.length} movies`}
-      description="They become one movie, with each file as a version you can choose when playing. Watch history, ratings, playlists and collections come along."
+      title={t('titleActions:bulkEdit.mergeCount', { count: items.length })}
+      description={t("titleActions:bulkEdit.theyBecomeOneMovie")}
       className="w-[min(520px,calc(100vw-32px))]"
       footer={
         <>
           {merge.error && <p className="mr-auto text-sm text-warning">{merge.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t("titleActions:bulkEdit.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" disabled={merge.isPending} onClick={() => merge.mutate()}>
-            {merge.isPending && <Loader2 className="animate-spin" />} Merge
-          </Button>
+            {merge.isPending && <Loader2 className="animate-spin" />} {t("titleActions:bulkEdit.merge")}</Button>
         </>
       }
     >
-      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Keep the details of</span>
+      <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("titleActions:bulkEdit.keepTheDetailsOf")}</span>
       <div className="max-h-[50vh] space-y-1.5 overflow-y-auto pb-2">
         {items.map((it) => (
           <button
@@ -261,13 +254,13 @@ function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
             </div>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{it.title}</span>
-              <span className="block text-xs text-subtle">{[it.year, it.metadata_state !== 'matched' && 'not matched'].filter(Boolean).join(' · ')}</span>
+              <span className="block text-xs text-subtle">{[it.year, it.metadata_state !== 'matched' && t('titleActions:bulkEdit.unmatched')].filter(Boolean).join(' · ')}</span>
             </span>
             {keep === it.id && <Check className="size-4 text-accent" />}
           </button>
         ))}
       </div>
-      <p className="text-xs text-subtle">Split a movie apart again from its ⋯ menu if you change your mind.</p>
+      <p className="text-xs text-subtle">{t("titleActions:bulkEdit.splitAMovieApart")}</p>
     </DialogContent>
   );
 }
