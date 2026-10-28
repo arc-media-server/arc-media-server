@@ -41,12 +41,12 @@ export function SearchPage() {
           <>
             {d.movies.length > 0 && (
               <Section title={t('search:sections.movies')}>
-                <PosterGrid items={d.movies} />
+                <PosterGrid items={d.movies} hover={{}} />
               </Section>
             )}
             {d.shows.length > 0 && (
               <Section title={t('search:sections.shows')}>
-                <PosterGrid items={d.shows} />
+                <PosterGrid items={d.shows} hover={{}} />
               </Section>
             )}
             {d.people.length > 0 && (

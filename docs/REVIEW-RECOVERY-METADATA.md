@@ -14,23 +14,23 @@ are not automatically accepted changes.
 
 ## Why these decisions
 
-The owner's [single-provider decision](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6251381329)
+The owner's [single-provider decision](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6251381329)
 explicitly keeps missing provider fields blank and ties episode text to numbering. This
 supersedes #104, not episode identity or manual locks. Changing it as an automatic gap-fill
 would reverse that decision. LOCAL-METADATA.md records both scopes and the available
 Details From/manual-edit choices; source numbering must match the files, not be changed
 casually to obtain one description.
 
-The owner's [language-learning decision](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6241883327)
-and [approved UI defaults](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6341453397)
+The owner's [language-learning decision](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6241883327)
+and [approved UI defaults](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6341453397)
 remain current. Player selectSubtitle and audio menu update profile preferences for manual
 choices; preplay applies learning only after successful start. Non-forced subtitle language
 can be learned, forced choices preserve it, and Off clears the old remembered-language
 mode only where appropriate. Settings offers an explicit profile audio preference too.
 No extra “make default” setting is added without a new accepted task.
 
-For F32, [editions share identity](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6233582700)
-by design. The [owner-selected global scan controls](https://github.com/JonzaUK/arc-media-server/issues/80#issuecomment-6340025778)
+For F32, [editions share identity](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6233582700)
+by design. The [owner-selected global scan controls](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6340025778)
 remain server-wide, with ordinary manual library actions separate. Empty Trash/Forget remove
 library database records, not source media. Local account setup does not depend on Plex's
 account service; optional Plex import is a separate user-invoked feature. Music, other media,

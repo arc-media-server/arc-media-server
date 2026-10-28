@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status: private alpha" src="https://img.shields.io/badge/status-private%20alpha-7c68ff">
+  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-7c68ff">
   <img alt="Licence: AGPL-3.0" src="https://img.shields.io/badge/licence-AGPL--3.0-c4b5fd">
   <img alt="Built with Go" src="https://img.shields.io/badge/server-Go-00ADD8?logo=go&logoColor=white">
   <img alt="Web app in React" src="https://img.shields.io/badge/web%20app-React-61DAFB?logo=react&logoColor=black">
@@ -71,7 +71,7 @@ on when you want to know.
 **🔌 An open API.** Arc's own web app uses the same documented API any app can build on, and
 native TV and phone apps are planned.
 
-> **Status: private alpha.** Arc runs day to day on a home server (Docker), and work is now
+> **Status: alpha.** Arc runs day to day on a home server (Docker), and work is now
 > focused on stability and release readiness. Expect rough edges, and keep backups of your Arc data
 > folder (your media is never touched).
 
@@ -111,6 +111,8 @@ native TV and phone apps are planned.
 - Each profile arranges its own Home: Continue Watching, Up Next, custom and seasonal rows,
   collections and playlists. Watchlist, ratings, recommendations, New for You and Year in Review.
 - Playlists and smart playlists, search with typo forgiveness, person pages.
+- The app is in English for now. All of its text is ready for translation, and more languages
+  with a language picker are planned; see [translating Arc](docs/TRANSLATION.md) to help.
 
 **Running the server**
 - Remote access with UPnP and HTTPS (your own certificate or Let's Encrypt) on one port, and
@@ -130,14 +132,12 @@ native TV and phone apps are planned.
 ## Running with Docker
 
 An image for amd64 and arm64, with FFmpeg included, is published to
-`ghcr.io/jonzauk/arc-media-server`. `latest` follows `main` (the development channel); version
+`ghcr.io/arc-media-server/arc-media-server`. `latest` follows `main` (the development channel); version
 tags pass the full verification suite. See [image publishing](docs/IMAGE-PUBLISHING.md).
 
-1. While the repository is private, sign in to the registry once: `docker login ghcr.io` (your
-   GitHub name, and a personal access token with `read:packages` as the password).
-2. Copy [`docker-compose.yml`](docker-compose.yml), set your media folders (mounted read-only)
+1. Copy [`docker-compose.yml`](docker-compose.yml), set your media folders (mounted read-only)
    and run `docker compose up -d`.
-3. Open `http://<that computer>:8099`. First-run setup creates your admin profile and takes
+2. Open `http://<that computer>:8099`. First-run setup creates your admin profile and takes
    your free [TMDB](https://www.themoviedb.org/settings/api) and
    [TheTVDB](https://thetvdb.com/api-information) API keys. Then add `/media/movies` and
    `/media/tv` as libraries.

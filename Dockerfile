@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 
 FROM debian:bookworm-slim
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
-      org.opencontainers.image.source="https://github.com/JonzaUK/arc-media-server"
+      org.opencontainers.image.source="https://github.com/arc-media-server/arc-media-server"
 # FFmpeg (with Chromaprint for intro detection, zimg for HDR tone mapping, VAAPI/NVENC for graphics
 # cards), certificates for TMDB/TheTVDB, curl for the health check, tzdata for local times.
 RUN apt-get update \

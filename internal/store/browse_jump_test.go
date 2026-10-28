@@ -101,3 +101,40 @@ func TestBrowseLetterJumpWholeFilteredList(t *testing.T) {
 		}
 	}
 }
+
+func TestTitleLettersFollowTitleOrder(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, err := st.SyncLibrary(ctx, "Letters fixture", "movies", "tmdb_aired", []string{t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, title := range []string{"007", "12 Angry Men", "Alpha", "Avatar", "Hidden", "The Sierra", "Zulu", "Éclair", "東京"} {
+		id, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	fid, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: filepath.Join(t.TempDir(), "fixture.mkv")}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetFileItems(ctx, fid, ids, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.db.ExecContext(ctx, "INSERT INTO item_labels(item_id,label) VALUES(?, 'hidden')", ids[4]); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.TitleLetters(ctx, ItemQuery{LibraryID: lib, Kind: "movie", Access: Access{ExcludeLabels: []string{"hidden"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Digits come before "a" and other scripts after "z"; a hidden title isn't counted; articles
+	// are skipped as in title sort.
+	want := fmt.Sprint([]LetterCount{{"#", 2}, {"a", 2}, {"s", 1}, {"z", 1}, {"#", 2}})
+	if fmt.Sprint(got) != want {
+		t.Fatalf("letters = %v, want %v", got, want)
+	}
+}

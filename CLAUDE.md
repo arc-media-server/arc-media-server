@@ -15,7 +15,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
 2. Log in to GitHub and clone:
    ```
    gh auth login --web
-   gh repo clone JonzaUK/arc-media-server
+   gh repo clone arc-media-server/arc-media-server
    cd arc-media-server
    ```
 3. Start Claude Code in the folder and say "let's continue".
@@ -32,7 +32,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   creates their admin profile and takes the TMDB/TVDB keys (they have both; keys never go in git),
   then libraries are added in the app (the test library's `Movies` and `TV` folders). ffprobe is
   found automatically (PATH, winget folder, next to the binary). An old `ams.yaml` is imported once.
-- Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R JonzaUK/arc-media-server`) to
+- Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R arc-media-server/arc-media-server`) to
   see what's next, then carry on (see "Where things stand").
 
 ## Where things stand
@@ -94,7 +94,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Work milestone by milestone (`ROADMAP.md`). The web app was pulled forward so progress is visible:
   add UI for new features as you build them.
 - Track work in GitHub: each roadmap item is an issue under a milestone in
-  `JonzaUK/arc-media-server` (private). Close issues with the commit hash when done, tick the box in
+  `arc-media-server/arc-media-server` (private). Close issues with the commit hash when done, tick the box in
   `ROADMAP.md`, and close the milestone when it's finished.
 - Commit finished work to your branch and open a PR (see Workflow). Commit messages: a summary line, a body describing what changed,
   and the Co-Authored-By trailer.

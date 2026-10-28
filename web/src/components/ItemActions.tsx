@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Gauge, Layers, ListMusic, ListOrdered, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
@@ -28,7 +28,7 @@ export function useItemDialogs(item: Item | undefined) {
   const [open, setOpen] = useState<Dialog>(null);
   const { data: libraries } = useLibraries();
   const library = libraries?.find((l) => l.id === item?.library_id);
-  const dialogs = item && (
+  const dialogs = item && open !== null && (
     <>
       <EditDetailsDialog item={item} open={open === 'edit' || open === 'ordering'} initialTab={open === 'ordering' ? 'ordering' : undefined} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
@@ -37,7 +37,7 @@ export function useItemDialogs(item: Item | undefined) {
       <OptimizeDialog items={[item]} open={open === 'optimize'} onOpenChange={(o) => setOpen(o ? 'optimize' : null)} />
     </>
   );
-  return { open: setOpen, dialogs };
+  return { open: setOpen, current: open, dialogs };
 }
 
 /**
@@ -62,7 +62,8 @@ export function useAnalyzeItem(item?: Item) {
       )}
     </>
   );
-  return { analyze: () => analyze.mutate(), analyzing: analyze.isPending, notice };
+  const message = item?.kind === 'series' ? t('titles:itemActions.analyzingEpisodes') : t('titles:itemActions.analyzingFiles');
+  return { analyze: () => analyze.mutate(), analyzing: analyze.isPending, notice, started: analyze.isSuccess, message, error: analyze.error };
 }
 
 /**
@@ -88,53 +89,73 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          {playable && (
-            <>
-              <DropdownMenuItem onSelect={() => void queue.add(true)}><ListStart className="size-4 text-muted" /> {t('titles:queueActions.playNext')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void queue.add(false)}><ListVideo className="size-4 text-muted" /> {t('titles:queueActions.addToQueue')}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPlaylist(true)}><ListMusic className="size-4 text-muted" /> {t('titles:itemActions.addToPlaylist')}</DropdownMenuItem>
-            </>
-          )}
-          {ordering && (
-            <>
-              {playable && <DropdownMenuSeparator />}
-              <DropdownMenuItem onSelect={() => onOpen('ordering')}><ListOrdered className="size-4 text-muted" /> {t('titles:itemActions.episodeOrdering')}</DropdownMenuItem>
-            </>
-          )}
-          {(playable || ordering) && admin && <DropdownMenuSeparator />}
-          {admin && (
-            <>
-              {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t('titles:itemActions.refreshingMetadata') : t('titles:itemActions.refreshMetadata')}</DropdownMenuItem>}
-              {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? t('titles:itemActions.startingAnalysis') : t('titles:itemActions.analyze')}</DropdownMenuItem>}
-              <DropdownMenuItem onSelect={() => onOpen('edit')}>
-                <Pencil className="size-4 text-muted" /> {t('titles:itemActions.edit')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onOpen('collection')}>
-                <Layers className="size-4 text-muted" /> {t('titles:itemActions.addToCollection')}
-              </DropdownMenuItem>
-              {!isLocalVideo(item) && (
-                <DropdownMenuItem onSelect={() => onOpen('match')}>
-                  <SearchCheck className="size-4 text-muted" /> {t('titles:itemActions.fixMatch')}
-                </DropdownMenuItem>
-              )}
-              {!isLocalVideo(item) && (
-                <DropdownMenuItem onSelect={() => onOpen('optimize')}>
-                  <Gauge className="size-4 text-muted" /> {t('titles:itemActions.optimize')}
-                </DropdownMenuItem>
-              )}
-              {splitVersions(item) > 1 && (
-                <DropdownMenuItem onSelect={() => onOpen('split')}>
-                  <Split className="size-4 text-muted" /> {t('titles:itemActions.splitApart')}
-                </DropdownMenuItem>
-              )}
-            </>
-          )}
+          <MoreMenuItems item={item} admin={admin} playable={playable} onOpen={onOpen} onRefresh={onRefresh} refreshing={refreshing}
+            onAnalyze={onAnalyze} analyzing={analyzing} onQueue={(next) => void queue.add(next)} onPlaylist={() => setPlaylist(true)} />
         </DropdownMenuContent>
       </DropdownMenu>
       <span role="status" className="text-xs text-muted empty:hidden">{queue.notice}</span>
       <ErrorNotice error={queue.error} />
       <AddToPlaylistDialog item={item} open={playlist} onOpenChange={setPlaylist} />
     </span>
+  );
+}
+
+/**
+ * The items of a title's "⋯" menu: queue and playlist actions for anyone who can play it, any
+ * `extra` items, a show's episode ordering (every profile chooses its own), then the server
+ * owner's tools. Shared by the title page and poster cards.
+ */
+export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refreshing, onAnalyze, analyzing, onQueue, onPlaylist, extra }: {
+  item: Item; admin: boolean; playable: boolean; onOpen: (d: Exclude<Dialog, null>) => void;
+  onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean;
+  onQueue: (next: boolean) => void; onPlaylist: () => void; extra?: ReactNode;
+}) {
+  const { t } = useTranslation('titles');
+  return (
+    <>
+      {playable && (
+        <>
+          <DropdownMenuItem onSelect={() => onQueue(true)}><ListStart className="size-4 text-muted" /> {t('titles:queueActions.playNext')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onQueue(false)}><ListVideo className="size-4 text-muted" /> {t('titles:queueActions.addToQueue')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={onPlaylist}><ListMusic className="size-4 text-muted" /> {t('titles:itemActions.addToPlaylist')}</DropdownMenuItem>
+        </>
+      )}
+      {extra}
+      {item.kind === 'series' && (
+        <>
+          {(playable || extra) && <DropdownMenuSeparator />}
+          <DropdownMenuItem onSelect={() => onOpen('ordering')}><ListOrdered className="size-4 text-muted" /> {t('titles:itemActions.episodeOrdering')}</DropdownMenuItem>
+        </>
+      )}
+      {(playable || extra || item.kind === 'series') && admin && <DropdownMenuSeparator />}
+      {admin && (
+        <>
+          {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t('titles:itemActions.refreshingMetadata') : t('titles:itemActions.refreshMetadata')}</DropdownMenuItem>}
+          {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? t('titles:itemActions.startingAnalysis') : t('titles:itemActions.analyze')}</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={() => onOpen('edit')}>
+            <Pencil className="size-4 text-muted" /> {t('titles:itemActions.edit')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onOpen('collection')}>
+            <Layers className="size-4 text-muted" /> {t('titles:itemActions.addToCollection')}
+          </DropdownMenuItem>
+          {!isLocalVideo(item) && (
+            <DropdownMenuItem onSelect={() => onOpen('match')}>
+              <SearchCheck className="size-4 text-muted" /> {t('titles:itemActions.fixMatch')}
+            </DropdownMenuItem>
+          )}
+          {!isLocalVideo(item) && (
+            <DropdownMenuItem onSelect={() => onOpen('optimize')}>
+              <Gauge className="size-4 text-muted" /> {t('titles:itemActions.optimize')}
+            </DropdownMenuItem>
+          )}
+          {splitVersions(item) > 1 && (
+            <DropdownMenuItem onSelect={() => onOpen('split')}>
+              <Split className="size-4 text-muted" /> {t('titles:itemActions.splitApart')}
+            </DropdownMenuItem>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

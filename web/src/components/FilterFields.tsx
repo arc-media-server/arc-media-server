@@ -10,8 +10,8 @@ import { ErrorNotice } from './Page';
 import { Artwork } from '@/components/Artwork';
 import { Field, inputClass } from '@/components/ui/field';
 
-const addedOptions = [0, 7, 30, 90, 365];
-function getLengthOptions(): { label: string; min?: number; max?: number }[] {
+export const addedOptions = [0, 7, 30, 90, 365];
+export function getLengthOptions(): { label: string; min?: number; max?: number }[] {
   return [
   { label: i18n.t('filters:length.any') },
   { label: i18n.t('filters:length.underNinety'), max: 90 },
@@ -20,7 +20,7 @@ function getLengthOptions(): { label: string; min?: number; max?: number }[] {
   { label: i18n.t('filters:length.overTwoAndHalfHours'), min: 150 },
   ];
 }
-const ratingOptions = [0, 6, 7, 8];
+export const ratingOptions = [0, 6, 7, 8];
 
 /**
  * The filters a custom home row or smart collection is made of. With libraries, the library can

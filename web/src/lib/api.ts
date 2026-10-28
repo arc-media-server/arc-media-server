@@ -663,6 +663,14 @@ export interface ItemQuery {
   offset?: number;
   /** Start at this A–Z title boundary; only with title sort. Omit for later offset pages. */
   jump?: string;
+  /** Also count the titles by first letter (`letters` in the response). */
+  letters?: 1;
+}
+
+/** How many titles in a listing start with a letter ("a"–"z", "#" for anything else), in title order. */
+export interface LetterCount {
+  letter: string;
+  count: number;
 }
 
 /** The browse filters a custom home row is made of. */
@@ -1053,7 +1061,7 @@ export const api = {
   /** Problems needing the user, per library id. */
   healthSummary: () => request<Record<string, number>>('GET', '/api/health/libraries'),
 
-  items: (q: ItemQuery) => request<{ total: number; items: Item[]; offset?: number }>('GET', `/api/items${query(q)}`),
+  items: (q: ItemQuery) => request<{ total: number; items: Item[]; offset?: number; letters?: LetterCount[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
   mergeItems: (targetId: string, itemIds: string[]) => request<void>('POST', '/api/items/merge', { target_id: targetId, item_ids: itemIds }),
   splitItem: (id: string) => request<{ item_ids: string[] }>('POST', `/api/items/${id}/split`),

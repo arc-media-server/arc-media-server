@@ -3791,7 +3791,7 @@
     },
     "/backups": {
       "get": {
-        "description": "Database backups, newest first\n\nWho may call it: **admin**.",
+        "description": "Database backups, newest first.\n\nWho may call it: **admin**.",
         "operationId": "listBackups",
         "responses": {
           "200": {
@@ -3896,7 +3896,7 @@
     },
     "/backups/{name}": {
       "delete": {
-        "description": "Delete a backup\n\nWho may call it: **admin**.",
+        "description": "Deletes a backup.\n\nWho may call it: **admin**.",
         "operationId": "deleteBackup",
         "parameters": [
           {
@@ -3953,7 +3953,7 @@
             "description": "Not found"
           }
         },
-        "summary": "Delete a backup",
+        "summary": "Deletes a backup",
         "tags": [
           "Backups"
         ],
@@ -5840,7 +5840,7 @@
     },
     "/health": {
       "get": {
-        "description": "Server name and version\n\nWho may call it: **anyone**.",
+        "description": "Server name and version.\n\nWho may call it: **anyone**.",
         "operationId": "health",
         "responses": {
           "200": {
@@ -6930,7 +6930,7 @@
     },
     "/items": {
       "get": {
-        "description": "Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords\n\nWho may call it: **profile**.",
+        "description": "Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords\n\nWho may call it: **profile**.",
         "operationId": "listItems",
         "parameters": [
           {
@@ -6985,6 +6985,13 @@
           {
             "in": "query",
             "name": "language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "letters",
             "schema": {
               "type": "string"
             }
@@ -7415,7 +7422,7 @@
         "x-arc-access": "admin"
       },
       "get": {
-        "description": "Item details with files and streams\n\nWho may call it: **profile**.",
+        "description": "Item details with files and streams.\n\nWho may call it: **profile**.",
         "operationId": "getItem",
         "parameters": [
           {
@@ -7476,7 +7483,7 @@
         "x-arc-access": "profile"
       },
       "patch": {
-        "description": "Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`\"\"` for its library's) and `details_provider` where its details come from (`\"\"` TMDB, or `tvdb`)\n\nWho may call it: **admin**.",
+        "description": "Edits metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`\"\"` for its library's) and `details_provider` where its details come from (`\"\"` TMDB, or `tvdb`).\n\nWho may call it: **admin**.",
         "operationId": "editItem",
         "parameters": [
           {
@@ -10546,7 +10553,7 @@
     },
     "/libraries": {
       "get": {
-        "description": "Libraries with their size and scan status\n\nWho may call it: **profile**.",
+        "description": "Libraries with their size and scan status.\n\nWho may call it: **profile**.",
         "operationId": "listLibraries",
         "responses": {
           "200": {
@@ -11682,7 +11689,7 @@
     },
     "/libraries/{id}/scan": {
       "get": {
-        "description": "Scan progress\n\nWho may call it: **profile**.",
+        "description": "Scan progress.\n\nWho may call it: **profile**.",
         "operationId": "scanStatus",
         "parameters": [
           {
@@ -11753,7 +11760,7 @@
         "x-arc-access": "profile"
       },
       "post": {
-        "description": "Start a scan\n\nWho may call it: **admin**.",
+        "description": "Starts a scan.\n\nWho may call it: **admin**.",
         "operationId": "startScan",
         "parameters": [
           {
@@ -11837,7 +11844,7 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "Start a scan",
+        "summary": "Starts a scan",
         "tags": [
           "Libraries"
         ],
@@ -12227,7 +12234,7 @@
     },
     "/library-previews/{id}": {
       "get": {
-        "description": "The preview's progress and results\n\nWho may call it: **admin**.",
+        "description": "The preview's progress and results.\n\nWho may call it: **admin**.",
         "operationId": "getPreview",
         "parameters": [
           {
@@ -13580,7 +13587,7 @@
     },
     "/playlists/{id}": {
       "delete": {
-        "description": "A playlist and its entries; rename `{\"title\"}`; delete\n\nWho may call it: **profile**.",
+        "description": "Deletes a playlist and its entries.\n\nWho may call it: **profile**.",
         "operationId": "deletePlaylist",
         "parameters": [
           {
@@ -13627,7 +13634,7 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "A playlist and its entries; rename `{\"title\"}`; delete",
+        "summary": "Deletes a playlist and its entries",
         "tags": [
           "Playlists"
         ],
@@ -14131,7 +14138,7 @@
     },
     "/profiles": {
       "get": {
-        "description": "Profiles (admin)\n\nWho may call it: **admin**.",
+        "description": "Profiles.\n\nWho may call it: **admin**.",
         "operationId": "listProfiles",
         "responses": {
           "200": {
@@ -15002,7 +15009,7 @@
     },
     "/series/{id}/orderings": {
       "get": {
-        "description": "Available orderings and the one in use\n\nWho may call it: **profile**.",
+        "description": "Available orderings and the one in use.\n\nWho may call it: **profile**.",
         "operationId": "listOrderings",
         "parameters": [
           {
@@ -16366,7 +16373,7 @@
     },
     "/settings": {
       "get": {
-        "description": "Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`\"\"`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `\"100.64.0.0/10, 10.8.0.0/24\"`); `transcode_dir` (a full path, `\"\"` for the data folder), `max_transcodes` (0 for no limit)\n\nWho may call it: **admin**.",
+        "description": "Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`\"\"`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `\"100.64.0.0/10, 10.8.0.0/24\"`); `transcode_dir` (a full path, `\"\"` for the data folder), `max_transcodes` (0 for no limit).\n\nWho may call it: **admin**.",
         "operationId": "getSettings",
         "responses": {
           "200": {
@@ -17115,7 +17122,7 @@
     },
     "/webhooks/{id}": {
       "delete": {
-        "description": "Change or remove a webhook (admin)\n\nWho may call it: **admin**.",
+        "description": "Removes a webhook.\n\nWho may call it: **admin**.",
         "operationId": "deleteWebhook",
         "parameters": [
           {
@@ -17162,7 +17169,7 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "Change or remove a webhook",
+        "summary": "Removes a webhook",
         "tags": [
           "Webhooks"
         ],

@@ -41,3 +41,19 @@ including 9.6 minutes of browser journeys; publication added 0.5 minutes after t
 new main path removes that verification wait, not compilation, runner queueing or registry time.
 Actual new publication timing is recorded in READINESS/GitHub evidence; no fixed duration is
 promised. Full verified acceptance at 2ba97df (93/93 journeys) remains historical evidence.
+
+## After the move to the organisation (28 October 2026)
+
+The repository moved from the owner's account to the `arc-media-server` organisation. New images
+are published as `ghcr.io/arc-media-server/arc-media-server` (the name comes from the repository).
+Images published before the move stay at `ghcr.io/jonzauk/arc-media-server`; nothing deletes or
+moves them.
+
+The upgrade/rollback check in full verification starts from a pinned older image,
+`ghcr.io/jonzauk/arc-media-server:2a7029a…`, so it tests a real upgrade across many changes. That
+package belongs to the owner's personal account, and the organisation's workflow can only read it
+once the package grants access: on GitHub, open the owner's profile → Packages →
+arc-media-server → Package settings → Manage Actions access → Add repository →
+`arc-media-server/arc-media-server`, role Read. Without that, full verification fails at
+"docker pull" and publishes nothing (the gate fails closed). Re-pointing the check at the first
+organisation image would avoid the step but would test a much smaller upgrade, so it was not done.

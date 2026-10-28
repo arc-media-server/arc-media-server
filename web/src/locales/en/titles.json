@@ -85,7 +85,9 @@
   },
   "cardMenu": {
     "removeFromContinueWatching": "Remove from Continue Watching",
-    "moreTitle": "More for {{title}}"
+    "moreTitle": "More for {{title}}",
+    "refreshed": "Refreshing metadata. Changes show when it's done.",
+    "removeFromWatchlist": "Remove from Watchlist"
   },
   "queueActions": {
     "playbackQueueWhatPlays": "Playback queue: what plays next, rather than a saved playlist",

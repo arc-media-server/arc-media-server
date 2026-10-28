@@ -164,7 +164,11 @@ test('clarity: bulk selection names loaded scope and does not select later pages
   });
   await page.goto(`/library/${lib.id}?unwatched=1`);
   await expect(page.getByText('501 movies', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Select', exact: true }).click();
+  // As in Plex, a poster's circle (on hover) starts choosing titles with that one chosen.
+  const card = page.locator('main [data-item]').first();
+  await card.hover();
+  await card.getByRole('button', { name: /^Select / }).click();
+  await expect(page.getByText('1 selected', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Select loaded (500)', exact: true }).click();
   await expect(page.getByText('500 selected', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Load more', exact: true })).toBeVisible();
