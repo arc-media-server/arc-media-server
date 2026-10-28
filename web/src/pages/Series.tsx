@@ -6,10 +6,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, Eye, EyeOff, ListOrdered, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
 import { api, type SeasonEpisode } from '@/lib/api';
 import { EditDetailsDialog } from '@/components/EditDetails';
-import { EditSeasonDialog } from '@/components/EditSeason';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { episodeQueue, shuffled } from '@/lib/shuffle';
@@ -49,7 +48,6 @@ export function SeriesPage() {
   const [showMissing, setShowMissing] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
   const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
-  const [editingSeason, setEditingSeason] = useState(false);
   const libraries = useLibraries().data;
   const scanning = libraries?.some((library) => library.scan.running) ?? false;
   const wasScanning = useRef(scanning);
@@ -109,7 +107,6 @@ export function SeriesPage() {
   const details = detailParts(series);
   const seasonEpisodes = season === UNPLACED ? [] : episodes.filter((e) => e.available);
   const currentSeason = season === UNPLACED ? undefined : data.seasons.find((s) => s.season_number === season);
-  const aired = data.ordering?.source === 'tmdb_aired' || data.ordering?.source === 'tvdb_aired';
   const seasonWatched = seasonEpisodes.length > 0 && seasonEpisodes.every((e) => e.user_data?.played);
 
   return (
@@ -207,14 +204,9 @@ export function SeriesPage() {
           {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
             <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
           )}
-          {admin && currentSeason && (
-            <Button variant="ghost" size="sm" onClick={() => setEditingSeason(true)}>
-              <Pencil /> {t("titles:series.editSeason")}</Button>
-          )}
           <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title={t("titles:series.missingTooltip")}>
             {showMissing ? <EyeOff /> : <Eye />} {showMissing ? t("titles:series.hideMissing") : t("titles:series.showMissing")}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => openDialog('ordering')}><ListOrdered /> {t("titles:series.episodeOrdering")}</Button>
         </div>
       </div>
 
@@ -260,16 +252,6 @@ export function SeriesPage() {
       {dialogs}
       {editingEpisode && (
         <EditDetailsDialog item={editingEpisode} open onOpenChange={(o) => !o && setEditingEpisode(null)} />
-      )}
-      {currentSeason && (
-        <EditSeasonDialog
-          series={series}
-          season={currentSeason}
-          orderingId={data.ordering?.id}
-          aired={aired}
-          open={editingSeason}
-          onOpenChange={setEditingSeason}
-        />
       )}
 
     </Page>
