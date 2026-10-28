@@ -89,5 +89,17 @@
     "critics": "by rotten tomatoes",
     "runtime": "by length",
     "shuffle": "shuffled"
+  },
+  "direction": {
+    "aToZ": "A–Z",
+    "zToA": "Z–A",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "highest": "Highest first",
+    "lowest": "Lowest first",
+    "longest": "Longest first",
+    "shortest": "Shortest first",
+    "mostRecent": "Most recent first",
+    "leastRecent": "Least recent first"
   }
 }

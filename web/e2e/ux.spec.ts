@@ -404,7 +404,9 @@ test('custom Home rows open complete filtered results and reorder by keyboard', 
   await expect(page).toHaveURL(/added_within=30/);
   await expect(page).toHaveURL(/min_rating=8/);
   await expect(page.locator('main a[href^="/movie/ux-"]')).toHaveCount(60);
-  await expect(page.getByRole('combobox', { name: 'Length', exact: true })).toHaveValue('1');
+  await page.getByRole('button', { name: 'Filters, 3 on', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Length', exact: true })).toHaveValue('-90');
+  await page.keyboard.press('Escape');
   await page.goto('/?edit=1');
   const dialog = page.getByRole('dialog', { name: 'Edit Home', exact: true });
   const up = dialog.getByRole('button', { name: 'Move Watchlist up', exact: true });
@@ -445,7 +447,7 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
   await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
   await page.locator('aside').getByRole('link', { name: 'Audit Movies', exact: true }).click();
-  await page.getByRole('link', { name: /Arc Movie/ }).first().click();
+  await page.getByRole('link', { name: /Arc Movie/ }).first().click({ position: { x: 12, y: 60 } }); // beside the poster's hover buttons
   await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Play next', exact: true }).click();
   await page.getByRole('button', { name: 'Playback queue', exact: true }).click();
@@ -551,14 +553,15 @@ test('browse sort direction is remembered per profile on this device', async ({ 
   const original = (await (await page.request.get('/api/items?library_id=' + lib.id + '&sort=title')).json()).items.map((i: Item) => i.id);
   const reversed = (await (await page.request.get('/api/items?library_id=' + lib.id + '&sort=title&reverse=1')).json()).items.map((i: Item) => i.id);
   expect(reversed).toEqual([...original].reverse());
-  await page.getByRole('button', { name: 'Reverse sort direction', exact: true }).click();
+  await page.getByRole('button', { name: 'Order: A–Z', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Z–A', exact: true }).click();
   await expect(page).toHaveURL(/reverse=1/);
   await page.goto('/library/' + lib.id);
-  await expect(page.getByRole('button', { name: 'Reverse sort direction', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Order: Z–A', exact: true })).toBeVisible();
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Browse viewer', color: 'blue' } })).json();
   await page.request.post('/api/auth/profile', { data: { id: viewer.id } });
   await page.goto('/library/' + lib.id);
-  await expect(page.getByRole('button', { name: 'Reverse sort direction', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Order: A–Z', exact: true })).toBeVisible();
 });
 
 test('switching profiles stops compact playback after saving the original profile progress', async ({ page }) => {

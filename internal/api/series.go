@@ -50,7 +50,7 @@ func (s *Server) orderingFromPath(w http.ResponseWriter, r *http.Request, series
 	return o, true
 }
 
-// listOrderings: GET /api/series/{id}/orderings
+// listOrderings: GET /api/series/{id}/orderings. Available orderings and the one in use.
 func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 	series, lib, ok := s.seriesFromPath(w, r)
 	if !ok {

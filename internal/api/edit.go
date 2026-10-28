@@ -44,6 +44,10 @@ func (s *Server) listLabels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, labels)
 }
 
+// editItem: PATCH /api/items/{id}. Edits metadata (incl. `genres` and `labels`; labels are never
+// locked); edited fields are locked. `locked_fields` replaces the locked set. For a show,
+// `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider`
+// where its details come from (`""` TMDB, or `tvdb`).
 func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
