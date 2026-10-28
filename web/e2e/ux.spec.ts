@@ -438,7 +438,11 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
   for (let i = 0; i < 7; i++) await page.keyboard.press('l');
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(65);
+  // Space pauses only when the player, not some button, has focus (a focused button takes Space
+  // as a click, as browsers do); focus it so the keypress can't start another episode instead.
+  await page.getByRole('region', { name: 'Media player', exact: true }).focus();
   await page.keyboard.press('Space');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
   await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
   await page.locator('aside').getByRole('link', { name: 'Audit Movies', exact: true }).click();
   await page.getByRole('link', { name: /Arc Movie/ }).first().click();
