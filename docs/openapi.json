@@ -1176,6 +1176,9 @@
               "$ref": "#/components/schemas/Facet"
             },
             "type": "array"
+          },
+          "unmatched": {
+            "type": "integer"
           }
         },
         "required": [
@@ -1183,7 +1186,8 @@
           "genres",
           "labels",
           "languages",
-          "resolutions"
+          "resolutions",
+          "unmatched"
         ],
         "type": "object"
       },
@@ -6937,7 +6941,7 @@
     },
     "/items": {
       "get": {
-        "description": "Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords\n\nWho may call it: **profile**.",
+        "description": "Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1` keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords\n\nWho may call it: **profile**.",
         "operationId": "listItems",
         "parameters": [
           {
@@ -7069,6 +7073,13 @@
           {
             "in": "query",
             "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unmatched",
             "schema": {
               "type": "string"
             }

@@ -800,3 +800,33 @@ test('global scanning controls persist, apply live and respect startup Off', asy
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: 'Library scanning', exact: true })).toHaveCount(0);
 });
+
+test('Unmatched filter: titles Arc couldn’t identify, shows with unplaced episodes, owner only', async ({ page, media }, info) => {
+  await setup(page);
+  const movies = await addLibrary(page, 'Unmatched movies', media.movies);
+  const shows = await addLibrary(page, 'Unmatched TV', media.shows, true);
+  await page.goto(`/library/${movies.id}`);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  const unmatched = page.getByRole('switch', { name: /Only titles Arc couldn't identify \(1\)/ });
+  await unmatched.click();
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/unmatched=1/);
+  await expect(page.getByRole('link', { name: /Unmatched Mystery/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Arc Movie/ })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('unmatched-filter.png') });
+  await page.getByRole('button', { name: 'Remove filter: Unmatched', exact: true }).click();
+  await expect(page).not.toHaveURL(/unmatched=1/);
+  await expect(page.getByRole('link', { name: /Arc Movie/ }).first()).toBeVisible();
+  // Arc Show is identified, but its S01E99 isn't an episode Arc knows.
+  await page.goto(`/library/${shows.id}?unmatched=1`);
+  await expect(page.getByRole('link', { name: /Arc Show/ }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Filters, 1 on', exact: true }).click();
+  await expect(page.getByText('Also shows with episodes Arc couldn\'t place.', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Filter viewer', color: 'blue' } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
+  await page.goto(`/library/${movies.id}`);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await expect(page.getByRole('switch', { name: /Only titles I haven't watched/ })).toBeVisible();
+  await expect(page.getByRole('switch', { name: /couldn't identify/ })).toHaveCount(0);
+});
