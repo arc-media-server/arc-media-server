@@ -110,7 +110,7 @@ export function number(value: number, options?: Intl.NumberFormatOptions): strin
   return new Intl.NumberFormat(formatLocale(), options).format(value);
 }
 
-function fixed(value: number, digits: number): string {
+export function fixed(value: number, digits: number): string {
   // toFixed's binary rounding is part of the existing English file-size display.
   return formatLocale() === 'en-GB' ? value.toFixed(digits) : number(value, { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
@@ -230,6 +230,11 @@ export function ago(unix: number): string {
 }
 
 /** Calendar month (1–12) in the active UI language. */
-export function month(value: number): string {
-  return new Intl.DateTimeFormat(formatLocale(), { month: 'short' }).format(new Date(2020, value - 1, 1));
+export function month(value: number, style: 'short' | 'long' = 'short'): string {
+  return new Intl.DateTimeFormat(formatLocale(), { month: style }).format(new Date(2020, value - 1, 1));
+}
+
+/** Calendar weekday label, anchored to a known Sunday independently of the machine timezone. */
+export function weekday(value: number): string {
+  return new Intl.DateTimeFormat(formatLocale(), { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2020, 5, 7 + value)));
 }
