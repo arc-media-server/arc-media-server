@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Circle, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -35,10 +36,12 @@ export function WatchedButton({
   variant?: ButtonProps['variant'];
   className?: string;
 }) {
+  const { t } = useTranslation('titles');
   const changed = useWatchStateChanged();
   const toggle = useMutation({ mutationFn: () => api.setPlayed(itemId, !watched, season), onSuccess: changed });
-  const what = season !== undefined ? 'Season' : '';
-  const title = watched ? `Mark ${what ? 'Season ' : ''}as Unwatched` : `Mark ${what ? 'Season ' : ''}as Watched`;
+  const title = season !== undefined
+    ? watched ? t('titles:watchedButton.seasonUnwatched') : t('titles:watchedButton.seasonWatched')
+    : watched ? t('titles:watchedButton.markUnwatched') : t('titles:watchedButton.markAsWatched');
   const Icon = toggle.isPending ? Loader2 : watched ? Check : Circle;
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
@@ -56,7 +59,7 @@ export function WatchedButton({
       aria-pressed={watched}
     >
       <Icon className={cn(toggle.isPending && 'animate-spin', watched && !toggle.isPending && 'text-accent')} strokeWidth={watched ? 3 : 2} />
-      {label && (watched ? 'Watched' : 'Mark Watched')}
+      {label && (watched ? t("titles:watchedButton.watched") : t("titles:watchedButton.markWatched"))}
     </Button>
     <ErrorNotice error={toggle.error} onRetry={() => toggle.mutate()} />
     </span>

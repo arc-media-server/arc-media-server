@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { MoreHorizontal, X } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, type Item } from '@/lib/api';
@@ -16,13 +17,14 @@ export function useRemoveFromContinue() {
 
 /** The ⋯ button in a card's corner, shown on hover, with "Remove from Continue Watching". */
 export function ContinueCardMenu({ item, onRemove }: { item: Item; onRemove: (item: Item) => void }) {
+  const { t } = useTranslation('titles');
   return (
     <div className="absolute left-2 top-2 z-10" onClick={(e) => e.stopPropagation()}>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label={`More for ${item.series_title ?? item.title}`}
+            aria-label={t('titles:cardMenu.moreTitle', { title: item.series_title ?? item.title })}
             className="flex size-8 items-center justify-center rounded-full bg-black/60 text-white opacity-100 md:opacity-0 shadow-lg backdrop-blur transition-opacity hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
           >
             <MoreHorizontal className="size-4" />
@@ -30,8 +32,7 @@ export function ContinueCardMenu({ item, onRemove }: { item: Item; onRemove: (it
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem onSelect={() => onRemove(item)}>
-            <X className="size-4 text-muted" /> Remove from Continue Watching
-          </DropdownMenuItem>
+            <X className="size-4 text-muted" /> {t("titles:cardMenu.removeFromContinueWatching")}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

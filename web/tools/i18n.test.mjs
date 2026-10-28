@@ -20,6 +20,13 @@ test('audit rejects dynamic keys instead of silently missing them', () => {
   assert.match(audit({}, { 'test.tsx': 't(variable)' }).join('\n'), /keys must be static/);
 });
 
+test('keyboard tokens stay separate from translated navigation labels', () => {
+  const resources = { common: { home: 'Home' } };
+  const translated = audit(resources, { 'test.tsx': "const { t } = useTranslation('common'); if (event.key === t('home')) go();" });
+  assert.match(translated.join('\n'), /keyboard tokens must not be translated/);
+  assert.deepEqual(audit(resources, { 'test.tsx': "const { t } = useTranslation('common'); const label = t('home'); if (event.key === 'Home') go();" }), []);
+});
+
 // Exercise the real formatting module with a private i18next instance. No Vite/browser or
 // production translation is needed; the synthetic second language stays inside this test.
 const i18n = createInstance();
@@ -42,9 +49,11 @@ test('English formatting retains dates, units, plurals, rounding and source name
   assert.equal(f.watchTime(100 * 3_600_000), '100 hours');
   assert.equal(f.channels(2), 'Stereo');
   assert.equal(f.language('fr'), 'French');
-  assert.equal(f.plural(1, 'file'), '1 file');
-  assert.equal(f.plural(2, 'file'), '2 files');
-  assert.equal(f.plural(2, 'person', 'people'), '2 people');
+  assert.equal(f.fixed(2.55, 1), '2.5');
+  const stamp = new Date('2020-01-02T15:04:05Z');
+  assert.equal(f.localDate(stamp), stamp.toLocaleDateString());
+  assert.equal(f.localTime(stamp), stamp.toLocaleTimeString());
+  assert.equal(f.localDateTime(stamp), stamp.toLocaleString());
   assert.equal(f.scanProgress({ files_seen: 1, matched: 0 }), 'Looking through folders · 1 file');
   assert.equal(f.scanProgress({ files_seen: 2, matched: 1200, phase: 'Matching', total: 1812, done: 120 }), 'Matching · 120 of 1,812 · 1,200 identified');
   assert.equal(f.ago(Date.now() / 1000 - 86400), 'yesterday');
@@ -57,6 +66,13 @@ test('format helpers follow the active language and retain English fallback', as
   assert.equal(exports.date('2020-01-02'), new Intl.DateTimeFormat('de', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date('2020-01-02T00:00:00')));
   assert.equal(exports.language('fr'), 'Französisch');
   assert.equal(exports.channels(1), 'test-mono');
+  assert.equal(exports.fixed(1234.5, 1), '1234,5');
+  const stamp = new Date('2020-01-02T15:04:05Z');
+  assert.equal(exports.localDateTime(stamp), stamp.toLocaleString('de'));
+  assert.equal(exports.localDate(stamp), stamp.toLocaleDateString('de'));
+  assert.equal(exports.localTime(stamp), stamp.toLocaleTimeString('de'));
+  assert.equal(exports.month(1, 'long'), 'Januar');
+  assert.equal(exports.weekday(0), new Intl.DateTimeFormat('de', { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2020, 5, 7))));
   assert.equal(exports.channels(2), 'Stereo');
   await i18n.changeLanguage('en');
 });

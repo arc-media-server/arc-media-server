@@ -1,0 +1,20 @@
+{
+  "kind": {
+    "collection": "Collection",
+    "smart": "Smart Collection",
+    "folder": "Folder"
+  },
+  "arrange": "Arrange",
+  "empty": {
+    "movie": "Nothing in it yet. Add movies from their pages (⋯ > Add to Collection).",
+    "show": "Nothing in it yet. Add shows from their pages (⋯ > Add to Collection).",
+    "video": "Nothing in it yet. Add videos from their pages (⋯ > Add to Collection).",
+    "matches": "Nothing matches right now."
+  },
+  "removeTitle": "Remove {{title}}?",
+  "deleteTitle": "Delete {{title}}?",
+  "removeDescription": "It won't be shown again, even though TMDB groups these films. The films themselves stay in your library.",
+  "deleteDescription": "The collection goes; the titles in it stay in your library.",
+  "dragTitle": "Drag {{title}}",
+  "takeOut": "Take {{title}} out"
+}
