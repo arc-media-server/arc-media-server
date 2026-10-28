@@ -1,6 +1,6 @@
 # Translating Arc's web app
 
-Issue [#122](https://github.com/JonzaUK/arc-media-server/issues/122) prepares the web interface
+Issue [#122](https://github.com/arc-media-server/arc-media-server/issues/122) prepares the web interface
 for translation in separately reviewable areas. English wording, punctuation, capitalization,
 accessible names and layout stay unchanged. The final integration branch combines the area PRs
 and removes the temporary English-noun compatibility helper. No non-English translation or
@@ -72,7 +72,7 @@ Dates, language names and numbers belong in `web/src/lib/format.ts`. Its `format
 follows the resolved language, with `en-GB` retained for the existing English presentation.
 All English browser variants, including en-US, intentionally retain British day-month dates
 for now, matching existing behavior. Regional English date/number preferences are a later
-owner decision tracked under [#80](https://github.com/JonzaUK/arc-media-server/issues/80).
+owner decision tracked under [#80](https://github.com/arc-media-server/arc-media-server/issues/80).
 Use `number()` for localized numbers. The English fixed-decimal helper preserves existing `toFixed` rounding; other locales use
 `Intl.NumberFormat`. `localDate`, `localTime` and `localDateTime` retain the pre-existing native
 browser English format in the views that used it; translated interfaces follow the active locale.
