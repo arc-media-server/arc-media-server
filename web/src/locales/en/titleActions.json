@@ -80,7 +80,7 @@
     "selectLoaded_other": "Select loaded ({{count}})",
     "editCount_one": "Edit {{count}} title",
     "editCount_other": "Edit {{count}} titles",
-    "mergeCount_one": "Merge {{count}} movies",
+    "mergeCount_one": "Merge {{count}} movie",
     "mergeCount_other": "Merge {{count}} movies",
     "addAnother": "Add another",
     "leaveLocks": "Leave as they are",
@@ -90,7 +90,12 @@
     "unlockAll": "Unlock everything",
     "unlockHint": "Use the online details again",
     "unmatched": "not matched",
-    "refreshNotice": "Refreshing in the background. Follow it in Activity."
+    "refreshNotice": "Refreshing in the background. Follow it in Activity.",
+    "makeTheseOneShow": "Make these one show",
+    "mergeShowsCount_one": "Merge {{count}} show",
+    "mergeShowsCount_other": "Merge {{count}} shows",
+    "theyBecomeOneShow": "They become one show. Episodes they both have keep every file; the rest move across. Watch history, ratings, playlists and collections come along.",
+    "showsCantSplit": "The kept show's episode orders stay; the others' own orders and manual placements are dropped. Shows can't be split apart again."
   },
   "optimize": {
     "optimize": "Optimize",

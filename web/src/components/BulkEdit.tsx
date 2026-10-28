@@ -59,8 +59,8 @@ export function SelectionBar({
             <Pencil /> {t("titleActions:bulkEdit.edit")}</Button>
           <Button variant="ghost" size="sm" disabled={!n} onClick={() => setDialog('collection')}>
             <Layers /> {t("titleActions:bulkEdit.addToCollection")}</Button>
-          {library.kind === 'movies' && (
-            <Button variant="ghost" size="sm" disabled={n < 2} onClick={() => setDialog('merge')} title={t("titleActions:bulkEdit.makeTheseOneMovie")}>
+          {library.kind !== 'videos' && (
+            <Button variant="ghost" size="sm" disabled={n < 2} onClick={() => setDialog('merge')} title={library.kind === 'shows' ? t('titleActions:bulkEdit.makeTheseOneShow') : t('titleActions:bulkEdit.makeTheseOneMovie')}>
               <Merge /> {t("titleActions:bulkEdit.merge")}</Button>
           )}
           <Button variant="ghost" size="sm" disabled={!n || run.isPending} onClick={() => run.mutate({ played: true })}>
@@ -199,31 +199,32 @@ function BulkEditForm({ items, onDone }: { items: Item[]; onDone: () => void }) 
 }
 
 /** Merge several movies into one (also offered for duplicates in Library Health). */
-export function MergeDialog({ items, open, onOpenChange }: { items: Item[]; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function MergeDialog({ items, folders, open, onOpenChange }: { items: Item[]; folders?: Record<string, string>; open: boolean; onOpenChange: (o: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <MergeForm items={items} onDone={() => onOpenChange(false)} />}
+      {open && <MergeForm items={items} folders={folders} onDone={() => onOpenChange(false)} />}
     </Dialog>
   );
 }
 
-/** Merge: choose which movie to keep; the others become its versions. */
-function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
+/** Merge: choose which movie or show to keep; the others' files (and a show's episodes) join it. */
+function MergeForm({ items, folders, onDone }: { items: Item[]; folders?: Record<string, string>; onDone: () => void }) {
   const { t } = useTranslation('titleActions');
   const qc = useQueryClient();
   // Keep a matched one by default, since its details are the ones that stay.
   const [keep, setKeep] = useState(() => (items.find((i) => i.metadata_state === 'matched') ?? items[0]).id);
+  const shows = items[0]?.kind === 'series';
   const merge = useMutation({
     mutationFn: () => api.mergeItems(keep, items.map((i) => i.id)),
     onSuccess: () => {
-      for (const key of ['items', 'item', 'featured', 'continue', 'collections', 'health']) qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['items', 'item', 'seasons', 'featured', 'continue', 'collections', 'health', 'libraries']) qc.invalidateQueries({ queryKey: [key] });
       onDone();
     },
   });
   return (
     <DialogContent
-      title={t('titleActions:bulkEdit.mergeCount', { count: items.length })}
-      description={t("titleActions:bulkEdit.theyBecomeOneMovie")}
+      title={shows ? t('titleActions:bulkEdit.mergeShowsCount', { count: items.length }) : t('titleActions:bulkEdit.mergeCount', { count: items.length })}
+      description={shows ? t('titleActions:bulkEdit.theyBecomeOneShow') : t('titleActions:bulkEdit.theyBecomeOneMovie')}
       className="w-[min(520px,calc(100vw-32px))]"
       footer={
         <>
@@ -255,12 +256,13 @@ function MergeForm({ items, onDone }: { items: Item[]; onDone: () => void }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{it.title}</span>
               <span className="block text-xs text-subtle">{[it.year, it.metadata_state !== 'matched' && t('titleActions:bulkEdit.unmatched')].filter(Boolean).join(' · ')}</span>
+              {folders?.[it.id] && <span className="block truncate font-mono text-[11px] text-subtle" title={folders[it.id]}>{folders[it.id]}</span>}
             </span>
             {keep === it.id && <Check className="size-4 text-accent" />}
           </button>
         ))}
       </div>
-      <p className="text-xs text-subtle">{t("titleActions:bulkEdit.splitAMovieApart")}</p>
+      <p className="text-xs text-subtle">{shows ? t('titleActions:bulkEdit.showsCantSplit') : t('titleActions:bulkEdit.splitAMovieApart')}</p>
     </DialogContent>
   );
 }
