@@ -456,7 +456,15 @@ export interface ImportSession {
   servers?: { id: string; name: string; owned: boolean }[];
   server?: string;
   accounts?: { id: string; name: string; owner?: boolean; suggested_profile?: string }[];
-  results?: { account: string; profile: string; matched: number; not_found: number; history: number; missing?: string[] }[];
+  results?: {
+    account: string; profile: string; matched: number; not_found: number; history: number; missing?: string[];
+    /** Watchlist titles added, playlists made or added to and their new entries, list members not in Arc. */
+    watchlist?: number; playlists?: number; playlist_items?: number; lists_not_found?: number;
+    /** Why the watchlist or playlists couldn't be read (watch state still came over). */
+    lists_error?: string;
+  }[];
+  /** The server's collections, brought into the libraries their titles are in. */
+  collections?: { collections: number; collection_items: number; not_found: number; missing?: string[]; error?: string };
   error?: string;
 }
 

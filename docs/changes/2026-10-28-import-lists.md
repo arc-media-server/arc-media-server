@@ -21,8 +21,9 @@ The Plex and Jellyfin import now also brings lists, after each account's watch s
 
 The import results (`GET /api/imports/{id}`) gain per-account `watchlist`, `playlists`,
 `playlist_items`, `lists_not_found`, `lists_error`, and a `collections` summary. The Moving in
-dialog doesn't show these new counts yet: ImportDialog is in an open translation PR (#247), so
-that small UI change follows its merge. The lists themselves appear in Arc straight away.
+dialog shows them: each person's watchlist and playlist counts under their watch-state line, a
+Collections entry, "not in Arc" lists for both, and any list error. Settings' Plex/Jellyfin rows
+and the dialog's description now mention watchlists, playlists and collections.
 
 Not tested against real Plex/plex.tv/Jellyfin servers: covered by stand-in servers (the
 watchlist endpoint and response shape follow Plex's documented discover API but couldn't be
@@ -30,4 +31,5 @@ fetched from here).
 
 Checks: go vet/test (new tests: Plex watchlist/playlists/collections incl. order, not-found
 listing, owner-only lists and re-import without duplicates; Jellyfin favourites/playlists/box
-sets; list failures keep watch state).
+sets; list failures keep watch state). Playwright: a journey shows a finished import's watchlist, playlist and collection
+counts and both "not in Arc" lists (the import itself is stubbed; it needs a real server).
