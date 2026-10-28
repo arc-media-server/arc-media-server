@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import type { SubtitleMode, AudioTrack, PlaybackPlan, PlayerCaps, SubtitleTrack, Version } from '@/lib/api';
 import * as fmt from '@/lib/format';
 
@@ -41,11 +42,11 @@ export function fallbackCaps(failed: PlaybackPlan['method']): PlayerCaps {
   return failed === 'direct' ? { ...caps, containers: [] } : { ...caps, containers: [], video: [] };
 }
 
-const channelNames: Record<number, string> = { 1: 'Mono', 2: 'Stereo', 6: '5.1', 8: '7.1' };
+const channelNames: Record<number, string> = { 6: '5.1', 8: '7.1' };
 /** e.g. "English" with "Dolby Digital 5.1 · Commentary" as detail. */
 export function audioLabel(t: AudioTrack, i: number) {
-  const name = t.language && t.language !== 'und' ? fmt.language(t.language) : `Track ${i + 1}`;
-  const detail = [fmt.codec(t.codec, t.profile), t.channels ? (channelNames[t.channels] ?? `${t.channels} ch`) : '', t.title]
+  const name = t.language && t.language !== 'und' ? fmt.language(t.language) : i18n.t('player:labels.track', { number: i + 1 });
+  const detail = [fmt.codec(t.codec, t.profile), t.channels ? (t.channels <= 2 ? fmt.channels(t.channels) : channelNames[t.channels] ?? i18n.t('player:labels.channels', { count: t.channels })) : '', t.title]
     .filter(Boolean)
     .join(' · ');
   return { name, detail };
@@ -59,34 +60,30 @@ export function methodLabel(p: PlaybackPlan) {
         const a = p.optimized.audio;
         const track = a ? audioLabel(a, 0) : undefined;
         return {
-          title: 'Optimized Direct Play',
-          detail: `Arc is sending the optimized ${p.optimized.quality}p copy. ` +
-            (track ? `Audio: ${track.name} · ${track.detail}.` : 'This copy has no audio.'),
+          title: i18n.t('player:method.optimizedTitle'),
+          detail: track ? i18n.t('player:method.optimizedAudio', { quality: p.optimized.quality, name: track.name, detail: track.detail }) : i18n.t('player:method.optimizedSilent', { quality: p.optimized.quality }),
         };
       }
-      return { title: 'Direct Play', detail: 'The original file, exactly as it is.' };
+      return { title: i18n.t('player:method.directTitle'), detail: i18n.t('player:method.directDescription') };
     case 'remux':
-      return { title: 'Repackaged', detail: `The video is sent as it is; Arc adapts the rest for this browser (${p.reasons.join(', ')}).` };
+      return { title: i18n.t('player:method.remuxTitle'), detail: i18n.t('player:method.remuxDescription', { reasons: p.reasons.join(', ') }) };
     case 'transcode':
       return {
-        title: 'Converting',
-        detail:
-          `Arc is converting the video for this browser (${p.reasons.join(', ')})` +
-          (p.encoder ? ` with the graphics card (${p.encoder})` : ' with the processor') +
-          (p.tone_mapped ? ', mapping HDR to SDR.' : '.'),
+        title: i18n.t('player:method.convertingTitle'),
+        detail: p.encoder ? p.tone_mapped ? i18n.t('player:method.hardwareHdr', { reasons: p.reasons.join(', '), encoder: p.encoder }) : i18n.t('player:method.hardware', { reasons: p.reasons.join(', '), encoder: p.encoder }) : p.tone_mapped ? i18n.t('player:method.softwareHdr', { reasons: p.reasons.join(', '), encoder: p.encoder }) : i18n.t('player:method.software', { reasons: p.reasons.join(', '), encoder: p.encoder }),
       };
   }
 }
 
 /** e.g. "English" with "Forced · SDH · File" as detail. */
 export function subtitleLabel(t: SubtitleTrack, i: number) {
-  const name = t.language && t.language !== 'und' ? fmt.language(t.language) : t.title || `Subtitles ${i + 1}`;
+  const name = t.language && t.language !== 'und' ? fmt.language(t.language) : t.title || i18n.t('player:labels.subtitlesNumber', { number: i + 1 });
   const detail = [
-    t.forced && 'Forced',
+    t.forced && i18n.t('player:labels.forced'),
     t.hearing_impaired && 'SDH',
     t.title && t.title !== name && !/^(forced|sdh)$/i.test(t.title) ? t.title : '',
-    t.image ? 'Picture' : '',
-    t.downloaded ? 'Downloaded' : t.external ? 'File' : '',
+    t.image ? i18n.t('player:labels.picture') : '',
+    t.downloaded ? i18n.t('player:labels.downloaded') : t.external ? i18n.t('player:labels.file') : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -143,7 +140,7 @@ export function saveQuality(kbps: number) {
 export function versionLabel(v: Version) {
   const res = v.width && v.height ? fmt.resolution(v.width, v.height) : '';
   const rest = [...(v.source_formats ?? (v.hdr ? [v.hdr] : [])), v.video_codec ? fmt.codec(v.video_codec) : '', fmt.fileSize(v.size)];
-  return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || 'Version', detail: rest.filter(Boolean).join(' · ') };
+  return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || i18n.t('player:labels.version'), detail: rest.filter(Boolean).join(' · ') };
 }
 
 /**
@@ -151,7 +148,7 @@ export function versionLabel(v: Version) {
  * HEVC and Dolby audio depend on the hardware and system, so they're left out where uncertain.
  */
 export const devicePresets: { id: string; label: string; caps: () => PlayerCaps }[] = [
-  { id: 'this', label: 'This browser', caps: playerCaps },
+  { id: 'this', get label() { return i18n.t('player:labels.thisBrowser'); }, caps: playerCaps },
   {
     id: 'chrome',
     label: 'Chrome',
@@ -159,7 +156,7 @@ export const devicePresets: { id: string; label: string; caps: () => PlayerCaps 
   },
   {
     id: 'edge',
-    label: 'Edge on Windows',
+    get label() { return i18n.t('player:labels.edgeWindows'); },
     caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
   },
   {
@@ -169,12 +166,12 @@ export const devicePresets: { id: string; label: string; caps: () => PlayerCaps 
   },
   {
     id: 'safari',
-    label: 'Safari on Mac',
+    get label() { return i18n.t('player:labels.safariMac'); },
     caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc', 'vp9'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac', 'opus'], max_height: 2160 }),
   },
   {
     id: 'ios',
-    label: 'iPhone and iPad',
+    get label() { return i18n.t('player:labels.iphoneIpad'); },
     caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac'], max_height: 2160 }),
   },
 ];

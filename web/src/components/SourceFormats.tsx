@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Info } from 'lucide-react';
@@ -9,19 +10,21 @@ import { ErrorNotice } from '@/components/Page';
 
 /** Fetch episode file metadata only on demand; never infer a format for a whole series. */
 export function SourceFilesButton({ id, title }: { id: string; title: string }) {
+  const { t } = useTranslation('titles');
   const [open, setOpen] = useState(false);
   const query = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id), enabled: open });
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><Button size="icon" variant="ghost" aria-label={`File details for ${title}`}><Info className="size-4" /></Button></DialogTrigger>
-    <DialogContent title={`File details: ${title}`} description="Formats of each source file and its tracks.">
+    <DialogTrigger asChild><Button size="icon" variant="ghost" aria-label={t('titles:sourceFormats.forTitle', { title })}><Info className="size-4" /></Button></DialogTrigger>
+    <DialogContent title={t('titles:sourceFormats.title', { title })} description={t("titles:sourceFormats.description")}>
       <ErrorNotice error={query.error} onRetry={() => void query.refetch()} />
-      {query.isPending && <p role="status">Loading file details…</p>}
+      {query.isPending && <p role="status">{t("titles:sourceFormats.loadingFileDetails")}</p>}
       {query.data?.files?.map(f => <FileDetails key={f.id} file={f} several={(query.data?.files?.length ?? 0) > 1} compact />)}
     </DialogContent>
   </Dialog>;
 }
 
 export function FileDetails({ file, several, compact }: { file: MediaFile; several?: boolean; compact?: boolean }) {
+  const { t } = useTranslation('titles');
   const video = fmt.videoStream(file);
   const audio = fmt.audioStreams(file);
   const subs = fmt.subtitleStreams(file);
@@ -29,17 +32,15 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
     <section className={compact ? "mb-6" : "mx-6 mt-10 md:mx-10"}>
       <h2 className="mb-4 text-lg font-semibold">
         {several
-          ? ['About This Version:', file.edition, video && fmt.resolution(video.width, video.height), file.part > 0 && `Part ${file.part}`]
-              .filter(Boolean)
-              .join(' ')
-          : 'About This File'}
+          ? t('titles:sourceFormats.version', { details: [file.edition, video && fmt.resolution(video.width, video.height), file.part > 0 && t('titles:sourceFormats.part', { number: file.part })].filter(Boolean).map(value => ` ${value}`).join('') })
+          : t("titles:sourceFormats.aboutThisFile")}
       </h2>
       <div className={`grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2 ${compact ? "" : "lg:grid-cols-4"}`}>
-        <Detail label="Video">
+        <Detail label={t("titles:sourceFormats.video")}>
           {video ? [fmt.resolution(video.width, video.height), fmt.codec(video.codec), ...fmt.sourceFormats(video)].filter(Boolean).join(' · ') : '—'}
           {video && <span className="block text-subtle">{[`${video.width}×${video.height}`, fmt.aspectRatio(video.aspect_ratio)].filter(Boolean).join(' · ')}</span>}
         </Detail>
-        <Detail label="Audio">
+        <Detail label={t("titles:sourceFormats.audio")}>
           {audio.length === 0
             ? '—'
             : audio.map((a) => (
@@ -48,23 +49,23 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
                 </span>
               ))}
         </Detail>
-        <Detail label="Subtitles">
+        <Detail label={t("titles:sourceFormats.subtitles")}>
           {subs.length === 0
-            ? 'None'
+            ? t("titles:sourceFormats.none")
             : subs.map((s) => (
                 <span key={s.index} className="block">
-                  {[fmt.language(s.language) || 'Unknown', fmt.codec(s.codec), s.is_forced && 'Forced'].filter(Boolean).join(' · ')}
+                  {[fmt.language(s.language) || t('titles:sourceFormats.unknown'), fmt.codec(s.codec), s.is_forced && t('titles:sourceFormats.forced')].filter(Boolean).join(' · ')}
                 </span>
               ))}
         </Detail>
-        <Detail label="File">
+        <Detail label={t("titles:sourceFormats.file")}>
           {[file.container?.toUpperCase(), fmt.fileSize(file.size)].filter(Boolean).join(' · ')}
-          {file.missing && <span className="block text-warning">Missing from disk</span>}
+          {file.missing && <span className="block text-warning">{t("titles:sourceFormats.missingFromDisk")}</span>}
         </Detail>
       </div>
-      <p className="mt-3 text-xs text-subtle">Source formats; playback output depends on your device and conversion.</p>
+      <p className="mt-3 text-xs text-subtle">{t("titles:sourceFormats.sourceDisclaimer")}</p>
       <p className="mt-3 break-all font-mono text-xs text-subtle">{file.path}</p>
-      {file.probe_error && <p className="mt-2 text-xs text-warning">Couldn't read this file: {file.probe_error}</p>}
+      {file.probe_error && <p className="mt-2 text-xs text-warning">{t('titles:sourceFormats.probeError', { error: file.probe_error })}</p>}
     </section>
   );
 }
