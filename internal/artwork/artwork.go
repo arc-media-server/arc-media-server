@@ -45,6 +45,33 @@ func Source(itemKind, imageType, imagePath string) string {
 	return metadata.ImageURL(imagePath, size)
 }
 
+// FullSource returns the provider URL for a backdrop at full resolution, for full-width banners
+// (the home page's featured titles and title pages). TMDB's "w1280" backdrops are only 1280×720,
+// soft on a 1080p or larger screen, so banners get the original upload instead; cards keep the
+// smaller Source. It is "" when there is no separate full-size image (TheTVDB and uploaded
+// artwork are only ever served at one size).
+func FullSource(itemKind, imagePath string) string {
+	if imagePath == "" {
+		return ""
+	}
+	full := metadata.ImageURL(imagePath, "original")
+	if full == Source(itemKind, "backdrop", imagePath) {
+		return ""
+	}
+	return full
+}
+
+// Sources returns every provider URL an image is shown at: Source, plus FullSource for backdrops.
+func Sources(itemKind, imageType, imagePath string) []string {
+	out := []string{Source(itemKind, imageType, imagePath)}
+	if imageType == "backdrop" {
+		if full := FullSource(itemKind, imagePath); full != "" {
+			out = append(out, full)
+		}
+	}
+	return out
+}
+
 // Key identifies a cached image by its source URL. It is also used as a version in image links,
 // so a changed image gets a new link and browsers can cache each one forever.
 func Key(sourceURL string) string {

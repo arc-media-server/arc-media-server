@@ -154,7 +154,8 @@ export interface Item {
   extras?: Extra[];
   /** On a movie or show's own page: the collections it's in. */
   collections?: { id: string; title: string; kind: Collection['kind'] }[];
-  images?: { primary?: string; backdrop?: string; logo?: string; series_primary?: string; series_backdrop?: string; season_primary?: string };
+  /** backdrop is sized for cards; backdrop_full is the full-resolution picture for banners. */
+  images?: { primary?: string; backdrop?: string; backdrop_full?: string; logo?: string; series_primary?: string; series_backdrop?: string; season_primary?: string };
   stream_url?: string;
   files?: MediaFile[];
 }
@@ -1226,8 +1227,9 @@ export function posterUrl(item: Item): string | undefined {
   return item.images?.primary;
 }
 
+/** The backdrop for a full-width banner: full resolution when the provider has it. */
 export function backdropUrl(item: Item): string | undefined {
-  return item.images?.backdrop;
+  return item.images?.backdrop_full ?? item.images?.backdrop;
 }
 
 export function itemHref(item: Item): string {
@@ -1264,7 +1266,7 @@ export interface Collection {
   /** Fields edited by hand, which TMDB refreshes leave alone. */
   locked_fields: string[];
   count: number;
-  images: { primary?: string; backdrop?: string };
+  images: { primary?: string; backdrop?: string; backdrop_full?: string };
   smart_filter?: RowFilter;
   /** How it shows in its library's grid: "" as the library says. */
   grid_mode: '' | CollectionMode;
