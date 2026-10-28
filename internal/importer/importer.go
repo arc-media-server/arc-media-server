@@ -1,6 +1,7 @@
 // Package importer brings watch state over from Plex and Jellyfin: what each person has watched,
-// where they stopped, their ratings and (from Plex) their watch history. It only reads from the
-// other server, and never overwrites newer progress in Arc.
+// where they stopped, their ratings and (from Plex) their watch history, plus watchlists,
+// playlists and collections (lists.go). It only reads from the other server, never overwrites
+// newer progress in Arc, and adds to lists rather than duplicating them when run again.
 package importer
 
 import (
@@ -46,13 +47,23 @@ type AccountResult struct {
 	Matched  int `json:"matched"`
 	NotFound int `json:"not_found"`
 	History  int `json:"history"`
+	// Titles added to the profile's watchlist, playlists made or added to and entries added, and
+	// list members Arc doesn't have.
+	Watchlist     int `json:"watchlist"`
+	Playlists     int `json:"playlists"`
+	PlaylistItems int `json:"playlist_items"`
+	ListsNotFound int `json:"lists_not_found"`
+	// Why the watchlist or playlists couldn't be read, if they couldn't (watch state still came over).
+	ListsError string `json:"lists_error,omitempty"`
 	// Some of the titles Arc doesn't have, so they can be added or looked for.
 	Missing []string `json:"missing,omitempty"`
 }
 
-// Run imports each account into its Arc profile (accounts not in mapping are skipped).
+// Run imports each account into its Arc profile (accounts not in mapping are skipped), then the
+// server's collections.
 func Run(ctx context.Context, st *store.Store, src Source, accounts []Account, mapping map[string]string,
-	profileNames map[string]string, task *activity.Handle) ([]AccountResult, error) {
+	profileNames map[string]string, task *activity.Handle) ([]AccountResult, ListsResult, error) {
+	var lists ListsResult
 	var out []AccountResult
 	var chosen []Account
 	for _, a := range accounts {
@@ -67,7 +78,7 @@ func Run(ctx context.Context, st *store.Store, src Source, accounts []Account, m
 		task.Detail("Reading " + label)
 		entries, err := src.Entries(ctx, a, func(s string) { task.Detail(label + ": " + s) })
 		if err != nil {
-			return out, fmt.Errorf("%s: %w", a.Name, err)
+			return out, lists, fmt.Errorf("%s: %w", a.Name, err)
 		}
 		task.Detail("Matching " + label)
 		for j, e := range entries {
@@ -76,7 +87,7 @@ func Run(ctx context.Context, st *store.Store, src Source, accounts []Account, m
 			}
 			id, err := st.FindImported(ctx, e.Ref)
 			if err != nil {
-				return out, err
+				return out, lists, err
 			}
 			if id == "" {
 				res.NotFound++
@@ -86,23 +97,42 @@ func Run(ctx context.Context, st *store.Store, src Source, accounts []Account, m
 				continue
 			}
 			if err := st.MergeImportedWatch(ctx, userID, id, e.Watch); err != nil {
-				return out, err
+				return out, lists, err
 			}
 			res.Matched++
 			for _, at := range e.History {
 				added, err := st.AddImportedPlay(ctx, userID, id, at)
 				if err != nil {
-					return out, err
+					return out, lists, err
 				}
 				if added {
 					res.History++
 				}
 			}
 		}
+		if ls, ok := src.(ListSource); ok {
+			task.Detail("Watchlist and playlists for " + label)
+			if err := importLists(ctx, st, ls, a, userID, &res); err != nil {
+				if ctx.Err() != nil {
+					return out, lists, ctx.Err()
+				}
+				res.ListsError = err.Error()
+			}
+		}
 		out = append(out, res)
 	}
+	if ls, ok := src.(ListSource); ok && len(chosen) > 0 {
+		task.Detail("Collections")
+		var err error
+		if lists, err = importCollections(ctx, st, ls); err != nil {
+			if ctx.Err() != nil {
+				return out, lists, ctx.Err()
+			}
+			lists.Error = err.Error()
+		}
+	}
 	task.Progress(0, 0)
-	return out, nil
+	return out, lists, nil
 }
 
 // parseID reads a numeric id ("" or junk is 0).
