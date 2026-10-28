@@ -5,6 +5,7 @@ import { Play } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useSpoilerGuard } from '@/lib/home';
+import { ArcArtwork } from './ArcArtwork';
 import { Artwork } from './Artwork';
 import { ContinueCardMenu } from './CardMenu';
 import { usePlayer } from './Player';
@@ -12,9 +13,9 @@ import { episodeCode, ProgressBar, progressOf } from './WatchState';
 
 /**
  * A landscape card for something to carry on with (Continue Watching, Up Next): clicking the
- * artwork plays it from where the profile left off.
+ * artwork plays it from where the profile left off. With `arc`, an Arc thumbnail (see ArcArtwork).
  */
-export function ResumeCard({ item, className, onRemove }: { item: Item; className?: string; onRemove?: (item: Item) => void }) {
+export function ResumeCard({ item, className, arc, onRemove }: { item: Item; className?: string; arc?: boolean; onRemove?: (item: Item) => void }) {
   const { t } = useTranslation('titles');
   const play = usePlayer();
   const isEpisode = item.kind === 'episode';
@@ -40,7 +41,11 @@ export function ResumeCard({ item, className, onRemove }: { item: Item; classNam
         className="relative block w-full overflow-hidden rounded-xl shadow-lg shadow-black/25 ring-1 ring-border outline-none transition-all duration-300 ease-smooth group-hover:-translate-y-1 group-hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-accent"
         aria-label={t('titles:episodeCard.playTitle', { title })}
       >
-        <Artwork src={art} alt="" kind="still" icon={isEpisode ? 'tv' : 'film'} fallbackTitle={title} className={cn(blur && 'scale-110 blur-xl')} />
+        {arc ? (
+          <ArcArtwork item={item} title={title} />
+        ) : (
+          <Artwork src={art} alt="" kind="still" icon={isEpisode ? 'tv' : 'film'} fallbackTitle={title} className={cn(blur && 'scale-110 blur-xl')} />
+        )}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-300 group-hover:bg-black/30">
           <span className="flex size-11 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
             <Play className="ml-0.5 size-5 fill-current" />
