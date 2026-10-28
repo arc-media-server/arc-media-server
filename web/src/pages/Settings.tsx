@@ -342,12 +342,12 @@ function ServerSettings() {
           </Section>
 
           <Section title="Moving in" hint="Bring everyone's watch history from another media server.">
-            <Row label="Plex" description="Watched status, resume points, ratings and history for everyone.">
+            <Row label="Plex" description="Watched status, resume points, ratings and history for everyone, plus your watchlist, playlists and collections.">
               <Button variant="secondary" size="sm" onClick={() => setImporting('plex')}>
                 Import…
               </Button>
             </Row>
-            <Row label="Jellyfin" description="Watched status and resume points for every user. Needs an administrator sign-in.">
+            <Row label="Jellyfin" description="Watched status, resume points, favourites and playlists for every user, plus collections. Needs an administrator sign-in.">
               <Button variant="secondary" size="sm" onClick={() => setImporting('jellyfin')}>
                 Import…
               </Button>
