@@ -7181,7 +7181,7 @@
     },
     "/items/merge": {
       "post": {
-        "description": "{\"target_id\", \"item_ids\": [...]} makes several movies one, as versions of the target. Watch state, history and collections move with them.\n\nWho may call it: **admin**.",
+        "description": "{\"target_id\", \"item_ids\": [...]} makes several movies one, as versions of the target, or several shows one (store.MergeSeries), all from one library. Watch state, history and collections move with them. Shows must number their episode files the same way; merging them holds the library's work slot, then refreshes the kept show.\n\nWho may call it: **admin**.",
         "operationId": "mergeItems",
         "requestBody": {
           "content": {
@@ -7242,6 +7242,16 @@
             },
             "description": "Not allowed for this profile"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -7251,9 +7261,19 @@
               }
             },
             "description": "Something went wrong on the server"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "A service Arc relies on failed"
           }
         },
-        "summary": "Makes several movies one, as versions of the target",
+        "summary": "Makes several movies one, as versions of the target, or several shows one",
         "tags": [
           "Items"
         ],

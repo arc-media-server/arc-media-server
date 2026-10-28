@@ -115,6 +115,15 @@ func (s *Store) EnsureItem(ctx context.Context, it *Item, matchKey string) (stri
 	if !errors.Is(err, sql.ErrNoRows) {
 		return "", false, err
 	}
+	// A show merged into another keeps its folder's key as an alias of the kept one.
+	err = s.db.QueryRowContext(ctx,
+		`SELECT item_id FROM item_aliases WHERE library_id = ? AND match_key = ?`, it.LibraryID, matchKey).Scan(&id)
+	if err == nil {
+		return id, false, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", false, err
+	}
 	id = NewID()
 	now := time.Now().Unix()
 	var parent any

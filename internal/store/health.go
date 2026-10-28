@@ -3,6 +3,10 @@ package store
 import (
 	"cmp"
 	"context"
+	"database/sql"
+	"errors"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -369,4 +373,31 @@ func (s *Store) MissingEpisodes(ctx context.Context, lib *Library) ([]SeriesGaps
 		}
 	}
 	return out, nil
+}
+
+// ItemFolder is where a title's files are, relative to its library's folders: a movie's file, or
+// a show's folder (from one of its episodes' files). "" when it has no present file.
+func (s *Store) ItemFolder(ctx context.Context, it *Item, roots []string) (string, error) {
+	var path string
+	err := s.db.QueryRowContext(ctx, `SELECT m.path FROM item_files f JOIN media_files m ON m.id = f.file_id
+		WHERE m.missing_since IS NULL AND (f.item_id = ?1 OR f.item_id IN (SELECT id FROM items WHERE parent_id = ?1))
+		ORDER BY m.path LIMIT 1`, it.ID).Scan(&path)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	for _, root := range roots {
+		rel, err := filepath.Rel(root, path)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		if it.Kind == "series" && len(parts) > 1 {
+			return parts[0], nil // the show's own folder
+		}
+		return filepath.ToSlash(rel), nil
+	}
+	return path, nil
 }

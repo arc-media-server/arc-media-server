@@ -136,7 +136,7 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
             d.kind === 'copies' ? (
               <DuplicateRow key={i} item={d.items[0]} lines={(d.files ?? []).map((f) => `${f.path} · ${fmt.fileSize(f.size)}`)} label={t('libraryManagement:health.copies', { count: d.files?.length ?? 0 })} />
             ) : (
-              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}`)} label={d.items[0].kind === 'series' ? t('libraryManagement:health.duplicateShows', { count: d.items.length }) : t('libraryManagement:health.duplicateMovies', { count: d.items.length })} merge={d.items[0].kind === 'movie' ? d.items : undefined} />
+              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}${d.folders?.[it.id] ? ` · ${d.folders[it.id]}` : ''}`)} label={d.items[0].kind === 'series' ? t('libraryManagement:health.duplicateShows', { count: d.items.length }) : t('libraryManagement:health.duplicateMovies', { count: d.items.length })} merge={d.items[0].kind === 'movie' || d.items[0].kind === 'series' ? d.items : undefined} folders={d.folders} />
             )
           }
         />
@@ -271,7 +271,7 @@ function FileRow({ file, detail }: { file: FileProblem; detail?: string }) {
   );
 }
 
-function DuplicateRow({ item, label, lines, merge }: { item: Item; label: string; lines: string[]; merge?: Item[] }) {
+function DuplicateRow({ item, label, lines, merge, folders }: { item: Item; label: string; lines: string[]; merge?: Item[]; folders?: Record<string, string> }) {
   const { t } = useTranslation('libraryManagement');
   const href = item.kind === 'series' ? `/series/${item.id}` : item.kind === 'episode' ? `/series/${item.parent_id}` : `/movie/${item.id}`;
   const [merging, setMerging] = useState(false);
@@ -294,7 +294,7 @@ function DuplicateRow({ item, label, lines, merge }: { item: Item; label: string
         <>
           <Button variant="secondary" size="sm" className="mr-4 shrink-0" onClick={() => setMerging(true)}>
             <Merge /> {t("libraryManagement:health.merge")}</Button>
-          <MergeDialog items={merge} open={merging} onOpenChange={setMerging} />
+          <MergeDialog items={merge} folders={folders} open={merging} onOpenChange={setMerging} />
         </>
       )}
     </div>
