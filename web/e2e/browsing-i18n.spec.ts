@@ -27,8 +27,9 @@ for (const width of [1440, 390]) test(`browsing English labels and literal metad
   await expect(page.getByRole('heading', { name: 'Fixture library', exact: true })).toBeVisible();
   await expect(page.locator('main a[href^="/movie/"]').first()).toBeVisible();
   await capture('library');
-  await page.getByRole('combobox', { name: 'Jump to letter' }).selectOption('a');
-  await expect(page.getByRole('status')).toHaveText('Starting at A · A–Z. All titles');
+  const letter = page.getByRole('navigation', { name: 'Jump to a letter', exact: true }).locator('button:not([disabled])').first();
+  await letter.click();
+  await expect(letter).toHaveAttribute('aria-current', 'true');
   await capture('library-letter');
   await page.goto(`/library/${library.id}?genre=NoSuchGenre`);
   await expect(page.getByRole('heading', { name: 'Nothing matches', exact: true })).toBeVisible();

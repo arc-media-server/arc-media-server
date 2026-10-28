@@ -1,15 +1,15 @@
 import { useTranslation } from 'react-i18next';
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ListChecks, ArrowUpDown, ChevronDown, FolderSearch, Layers, Loader2, Plus, RefreshCw, X, Sparkles } from 'lucide-react';
+import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { LetterRail, letterOffsets } from '@/components/LetterRail';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
-import { AdvancedFilterFields } from '@/components/FilterFields';
+import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
 import { cn } from '@/lib/utils';
 import * as fmt from '@/lib/format';
 import { kindUnit } from '@/lib/kinds';
-import { language } from '@/lib/format';
-import { sortLabels } from '@/lib/filter-labels';
+import { sortDirections, sortLabels } from '@/lib/filter-labels';
 import { countUnit } from '@/lib/browsing-labels';
 import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
@@ -19,10 +19,13 @@ import { SelectionBar } from '@/components/BulkEdit';
 import { useLibraries } from '@/components/Sidebar';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
+import { EditDetailsDialog } from '@/components/EditDetails';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -77,8 +80,8 @@ export function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, profileId]);
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
+  // A letter from an older link (?letter=s) jumps there once the titles load.
   const letterParam = params.get('letter')?.toLowerCase() ?? '';
-  const letter = sort === 'title' && /^[a-z]$/.test(letterParam) ? letterParam : '';
   const filters = {
     genre: params.get('genre') ?? undefined,
     language: params.get('language') ?? undefined,
@@ -107,6 +110,7 @@ export function LibraryPage() {
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
   const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
+  const [editing, setEditing] = useState<string>();
   // Choosing titles to change together (admins).
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -131,19 +135,94 @@ export function LibraryPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selecting]);
   const unit = kindUnit(lib?.kind)[0];
-  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, reverse, limit: 500, ...filters, ...(letter ? { jump: letter } : {}) };
+  const query: ItemQuery = { library_id: Number(id), kind: lib?.kind === 'shows' ? 'series' : 'movie', sort, reverse, limit: 500, ...filters };
   const items = useInfiniteQuery({
     queryKey: ['items', 'browse', query],
-    queryFn: ({ pageParam }) => api.items({ ...query, jump: pageParam === 0 ? query.jump : undefined, offset: pageParam }),
+    // The first page also says where each letter starts, for the A–Z rail.
+    queryFn: ({ pageParam }) => api.items({ ...query, offset: pageParam, letters: pageParam === 0 && sort === 'title' ? 1 : undefined }),
     initialPageParam: 0,
     getNextPageParam: (last, _pages, offset) => {
       const next = (last.offset ?? offset) + last.items.length;
       return last.items.length && next < last.total ? next : undefined;
     },
-    select: (data) => ({ total: data.pages[0].total, items: data.pages.flatMap((p) => p.items) }),
+    select: (data) => ({ total: data.pages[0].total, items: data.pages.flatMap((p) => p.items), letters: data.pages[0].letters }),
     enabled: !!lib,
   });
   useBrowsePosition(`${profileId}:${location.key}`, !!items.data);
+  const offsets = useMemo(() => letterOffsets(items.data?.letters ?? [], reverse), [items.data?.letters, reverse]);
+  const [jumped, setJumped] = useState<string>();
+  const gridRef = useRef<HTMLDivElement>(null);
+  // A jump's own scroll keeps its letter lit (the row it lands on can start with an earlier one).
+  const jumpedAt = useRef(0);
+  // The rail follows scrolling: the letter of the first title in view.
+  useEffect(() => {
+    const list = items.data?.items;
+    if (!list || !offsets.size) return;
+    const index = new Map(list.map((it, i) => [it.id, i]));
+    const starts = [...offsets].sort((a, b) => a[1] - b[1]);
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (performance.now() - jumpedAt.current < 400) return;
+      const box = gridRef.current?.getBoundingClientRect();
+      if (!box) return;
+      const card = document.elementFromPoint(box.left + 24, Math.max(box.top, 0) + 40)?.closest<HTMLElement>('[data-item]');
+      const at = card ? index.get(card.dataset.item!) : undefined;
+      if (at === undefined) return;
+      let letter = starts[0][0];
+      for (const [l, o] of starts) if (o <= at) letter = l;
+      setJumped(letter);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame); };
+  }, [items.data?.items, offsets]);
+  const [jumpError, setJumpError] = useState<{ error: Error; retry: () => void }>();
+  useEffect(() => { setJumped(undefined); setJumpError(undefined); }, [selectionScope]);
+  // Jump to a letter in the whole list: load the pages up to its first title, then scroll there.
+  const jumpTo = async (letter: string, offset: number) => {
+    setJumped(letter);
+    setJumpError(undefined);
+    let loaded = items.data?.items ?? [];
+    let more = items.hasNextPage;
+    while (loaded.length <= offset && more) {
+      const next = await items.fetchNextPage();
+      if (next.error) {
+        setJumpError({ error: next.error, retry: () => void jumpTo(letter, offset) });
+        return;
+      }
+      loaded = next.data?.items ?? loaded;
+      more = next.hasNextPage;
+    }
+    // Newly loaded titles appear a frame or two after their page arrives.
+    let tries = 0;
+    const scroll = () => {
+      // A title shown inside a collection has no card of its own: use the next one that does.
+      for (const it of loaded.slice(offset, offset + 50)) {
+        const card = document.querySelector<HTMLElement>(`[data-item="${CSS.escape(it.id)}"]`);
+        if (card) {
+          jumpedAt.current = performance.now();
+          setJumped(letter);
+          card.scrollIntoView({ block: 'start' });
+          return;
+        }
+      }
+      if (++tries < 60) requestAnimationFrame(scroll);
+    };
+    requestAnimationFrame(scroll);
+  };
+  useEffect(() => {
+    if (!letterParam || !items.data || sort !== 'title') return;
+    const next = new URLSearchParams(params);
+    next.delete('letter');
+    setParams(next, { replace: true });
+    const letter = /^[a-z]$/.test(letterParam) ? letterParam : '#';
+    const offset = offsets.get(letter);
+    if (offset !== undefined) void jumpTo(letter, offset);
+    // Only when an older link brings a letter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [letterParam, !!items.data]);
   const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
 
   // Change one URL parameter, keeping the rest.
@@ -151,7 +230,6 @@ export function LibraryPage() {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    if (key === 'sort' && value && value !== 'title') next.delete('letter');
     if (profileId && (key === 'sort' || key === 'reverse')) {
       const saved = new URLSearchParams(); saved.set('sort', next.get('sort') || 'title'); if (next.has('reverse')) saved.set('reverse', '1');
       try { localStorage.setItem(`arc-browse:${profileId}:${id}`, saved.toString()); } catch { /* storage is optional */ }
@@ -159,11 +237,37 @@ export function LibraryPage() {
     setParams(next, { replace: true });
   };
 
+  // Plex shows the rail whenever a library is sorted by title.
+  const showRail = view === 'titles' && sort === 'title' && offsets.size > 0;
+
   if (libraryQuery.error && !libraries) return <ErrorState error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />;
   if (libraries && !lib) return <ErrorState error={t('library:notFound')} />;
 
+  const tabs = lib ? (
+    [
+      ['titles', lib.kind === 'shows' ? t('library:tabs.shows') : lib.kind === 'videos' ? t('library:tabs.videos') : t('library:tabs.movies')],
+      ['recommended', t('library:tabs.recommended')],
+      ['folders', t('library:tabs.folders')],
+      ['collections', t('library:tabs.collections')],
+    ] as const
+  )
+    .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
+    // Browsing by folder is for Other videos libraries (movies and shows are grouped by title).
+    .filter(([v]) => v !== 'folders' || lib.kind === 'videos')
+    // Home videos have nothing to recommend from.
+    .filter(([v]) => v !== 'recommended' || lib.kind !== 'videos') : [];
+  const changeFilters = (patch: FilterPatch) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    setParams(next, { replace: true });
+  };
+
   return (
-    <Page className="pb-16">
+    // While choosing, room at the end for the selection bar so it never covers Load more.
+    <Page className={selecting ? 'pb-36' : 'pb-16'}>
       <PageHeader
         title={lib?.name ?? ''}
         subtitle={
@@ -176,146 +280,49 @@ export function LibraryPage() {
               : items.data && countUnit(items.data.total, unit)
         }
         actions={
-          lib &&
-          (view === 'recommended' || view === 'folders' ? null : view === 'collections' ? (
-            admin && (
-              <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
-                <Plus /> {t('library:newCollection')}
-              </Button>
-            )
-          ) : (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <ArrowUpDown /> {sorts[sort]}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setParam('sort', v === 'title' ? undefined : v)}>
-                    {Object.entries(sorts).map(([k, label]) => (
-                      <DropdownMenuRadioItem key={k} value={k}>
-                        {label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {sort === 'title' && (
-                <label className="flex items-center gap-2 text-sm text-muted">
-                  <span>{t('library:jumpTo')}</span>
-                  <select aria-label={t('library:jumpLabel')} value={letter} onChange={(e) => { setParam('letter', e.target.value || undefined); window.scrollTo(0, 0); }} className="h-9 max-w-32 rounded-lg bg-surface px-2 text-sm text-foreground ring-1 ring-border focus-visible:outline-2 focus-visible:outline-accent">
-                    <option value="">{t('library:allTitles')}</option>
-                    {'abcdefghijklmnopqrstuvwxyz'.split('').map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-                  </select>
-                </label>
-              )}
-              {sort !== 'shuffle' && <Button variant="ghost" size="sm" aria-label={t('library:reverseLabel')} aria-pressed={reverse} onClick={() => setParam('reverse', reverse ? undefined : '1')}>↕ <span className="hidden sm:inline">{t('library:reverse')}</span></Button>}
-              {admin && !selecting && (
-                <Button variant="ghost" size="sm" onClick={() => setSelecting(true)}>
-                  <ListChecks /> {t('library:select')}
-                </Button>
-              )}
-              {admin && <ScanButton lib={lib} />}
-            </>
-          ))
+          tabs.length > 1 && (
+            // The library's views, as one switch.
+            <div className="flex rounded-full bg-surface p-1 ring-1 ring-border" role="tablist">
+              {tabs.map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === v}
+                  onClick={() => { const next = new URLSearchParams(params); next.delete('folder'); if (v === 'titles') next.delete('view'); else next.set('view', v); setParams(next, { replace: true }); }}
+                  className={cn(
+                    'rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors',
+                    view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )
         }
       />
-      {lib && (
-        <div className="-mt-3 mb-5 flex gap-1 px-6 md:px-10" role="tablist">
-          {(
-            [
-              ['titles', lib.kind === 'shows' ? t('library:tabs.shows') : lib.kind === 'videos' ? t('library:tabs.videos') : t('library:tabs.movies')],
-              ['recommended', t('library:tabs.recommended')],
-              ['folders', t('library:tabs.folders')],
-              ['collections', t('library:tabs.collections')],
-            ] as const
-          )
-            .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
-            // Browsing by folder is for Other videos libraries (movies and shows are grouped by title).
-            .filter(([v]) => v !== 'folders' || lib.kind === 'videos')
-            // Home videos have nothing to recommend from.
-            .filter(([v]) => v !== 'recommended' || lib.kind !== 'videos')
-            .map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => { const next = new URLSearchParams(params); next.delete('folder'); if (v === 'titles') next.delete('view'); else next.set('view', v); setParams(next, { replace: true }); }}
-              className={cn(
-                'rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors',
-                view === v ? 'bg-foreground text-background' : 'text-muted hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      {editing && <EditTitle id={editing} onClose={() => setEditing(undefined)} />}
       {lib && <CollectionDialog library={lib} open={newCollection} onOpenChange={setNewCollection} onSaved={(c) => navigate(`/collection/${c.id}`)} />}
       {!!facets.error && <div className="px-6 md:px-10"><ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} /></div>}
-      {lib && view === 'titles' && facets.data && (
-        <div className="-mt-2 mb-6 flex flex-wrap gap-2 px-6 md:px-10">
-          <FilterChip active={!!filters.unwatched} onClick={() => setParam('unwatched', filters.unwatched ? undefined : '1')}>
-            {t('library:unwatched')}
-          </FilterChip>
-          <FilterMenu
-            label={t('filters:genre.label')} anyLabel={t('filters:genre.any')}
-            value={filters.genre}
-            options={facets.data.genres.map((f) => [f.value, f.value, f.count])}
-            onChange={(v) => setParam('genre', v)}
-          />
-          {(facets.data.labels.length > 0 || !!filters.label) && (
-            <FilterMenu
-              label={t('filters:label.label')} anyLabel={t('filters:label.any')}
-              value={filters.label}
-              options={facets.data.labels.map((f) => [f.value, f.value, f.count])}
-              onChange={(v) => setParam('label', v)}
-            />
-          )}
-          {(facets.data.languages.length > 1 || !!filters.language) && (
-            <FilterMenu
-              label={t('library:language')} anyLabel={t('filters:language.any')}
-              value={filters.language}
-              options={facets.data.languages.map((f) => [f.value, language(f.value), f.count])}
-              onChange={(v) => setParam('language', v)}
-            />
-          )}
-          <FilterMenu
-            label={t('filters:decade.label')} anyLabel={t('filters:decade.any')}
-            value={filters.decade ? String(filters.decade) : undefined}
-            options={facets.data.decades.map((f) => [f.value, t('filters:decade.value', { year: f.value }), f.count])}
-            onChange={(v) => setParam('decade', v)}
-          />
-          {(facets.data.resolutions.length > 1 || !!filters.resolution) && (
-            <FilterMenu
-              label={t('filters:quality.label')} anyLabel={t('filters:quality.any')}
-              value={filters.resolution}
-              options={facets.data.resolutions.map((f) => [f.value, resolutions[f.value as Resolution] ?? f.value, f.count])}
-              onChange={(v) => setParam('resolution', v)}
-            />
-          )}
-          {filtered && (
-            <Button variant="ghost" size="sm" className="shrink-0" onClick={clearFilters}>
-              <X /> {t('library:clearFilters')}
-            </Button>
+      {lib && view === 'titles' && (
+        <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
+          <SortMenu sort={sort} reverse={reverse} onSort={(v) => setParam('sort', v === 'title' ? undefined : v)} onReverse={(v) => setParam('reverse', v ? '1' : undefined)} />
+          <FiltersButton facets={facets.data} filters={filters} onChange={changeFilters} onClear={clearFilters} />
+          <ActiveFilters facets={facets.data} filters={filters} onChange={changeFilters} />
+          {admin && (
+            <div className="ml-auto flex items-center gap-2">
+              <LibraryMenu lib={lib} onSelect={selecting ? undefined : () => setSelecting(true)} />
+            </div>
           )}
         </div>
       )}
-      {lib && view === 'titles' && (
-        <details className="mx-6 mb-5 rounded-xl bg-surface px-4 py-3 md:mx-10" open={filters.added_within || filters.min_runtime || filters.max_runtime || filters.min_rating ? true : undefined}>
-          <summary className="cursor-pointer text-sm font-medium">{t('library:moreFilters')}</summary>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <AdvancedFilterFields filter={{ library_id: lib.id, ...filters }} onChange={(f) => {
-              const next = new URLSearchParams(params);
-              for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating'] as const) {
-                if (f[key]) next.set(key, String(f[key])); else next.delete(key);
-              }
-              setParams(next, { replace: true });
-            }} />
-          </div>
-        </details>
+      {lib && view === 'collections' && admin && (
+        <div className="-mt-1 mb-6 flex px-6 md:px-10">
+          <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
+            <Plus /> {t('library:newCollection')}
+          </Button>
+        </div>
       )}
       {view === 'recommended' && (
         <div className="space-y-10">
@@ -340,10 +347,9 @@ export function LibraryPage() {
           )}
         </div>
       )}
-      <div className={cn('px-6 md:px-10', view === 'recommended' && 'hidden')}>
-        {view === 'titles' && letter && (
-          <p role="status" className="mb-4 text-sm text-muted">{reverse ? t('library:startingReverse', { letter: letter.toUpperCase() }) : t('library:startingForward', { letter: letter.toUpperCase() })} <button type="button" onClick={() => setParam('letter')} className="text-accent underline underline-offset-4">{t('library:allTitles')}</button></p>
-        )}
+      <div className={cn('px-6 md:px-10', view === 'recommended' && 'hidden', showRail && 'flex items-start gap-2 pr-2 md:pr-4')}>
+        <div ref={gridRef} className="min-w-0 flex-1">
+        {jumpError && <ErrorNotice error={jumpError.error} onRetry={jumpError.retry} />}
         {view === 'folders' && lib ? (
           <VideoFolders library={lib} />
         ) : view === 'collections' ? (
@@ -366,11 +372,6 @@ export function LibraryPage() {
           <ErrorState error={items.error} />
         ) : !items.data ? (
           <PosterGridSkeleton />
-        ) : items.data.items.length === 0 && letter && items.data.total > 0 ? (
-          <EmptyState icon={<FolderSearch />} title={t('library:empty.directionTitle')}>
-            <p>{t('library:empty.directionDescription')}</p>
-            <Button variant="secondary" className="mt-4" onClick={() => setParam('letter')}>{t('library:allTitles')}</Button>
-          </EmptyState>
         ) : items.data.items.length === 0 && filtered ? (
           <EmptyState icon={<FolderSearch />} title={t('library:empty.filteredTitle')}>
             <p>{t('library:empty.filteredDescription')}</p>
@@ -383,9 +384,14 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
-            collections={!selecting && !filtered && !letter && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
+            collections={!selecting && !filtered && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
             collectionUnit={unit}
             landscape={lib?.kind === 'videos'}
+            hover={admin ? {
+              // As in Plex: a card's circle starts choosing titles with that one chosen.
+              onSelect: (item, index) => { setSelecting(true); setSelected(new Set([item.id])); lastClicked.current = index; },
+              onEdit: lib?.kind === 'videos' ? undefined : (item) => setEditing(item.id),
+            } : {}}
             select={
               selecting
                 ? {
@@ -420,6 +426,15 @@ export function LibraryPage() {
             )}
           </div>
         )}
+        </div>
+        {showRail && (
+          <LetterRail
+            offsets={offsets}
+            current={jumped}
+            onJump={(letter, offset) => void jumpTo(letter, offset)}
+            className="sticky top-3 h-[calc(100dvh-1.5rem)] max-h-[680px] shrink-0"
+          />
+        )}
       </div>
       {selecting && lib && view === 'titles' && items.data && (
         <SelectionBar
@@ -435,66 +450,62 @@ export function LibraryPage() {
   );
 }
 
-// A forwardRef so it can open a dropdown menu.
-const FilterChip = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<'button'> & { active: boolean; children: ReactNode }>(
-  ({ active, className, children, ...props }, ref) => (
-    <button
-      ref={ref}
-      type="button"
-      aria-pressed={active}
-      className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium ring-1 transition-colors',
-        active ? 'bg-foreground text-background ring-foreground' : 'bg-surface-2/60 text-muted ring-border hover:text-foreground',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  ),
-);
-FilterChip.displayName = 'FilterChip';
-
-/** A chip that opens a list of values to filter by; shows the chosen one. */
-function FilterMenu({
-  label,
-  anyLabel,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  anyLabel: string;
-  value?: string;
-  options: [value: string, label: string, count: number][];
-  onChange: (value?: string) => void;
-}) {
+/**
+ * How the titles are sorted, and which way, as two small menus. The direction is named for the
+ * sort (A–Z, Newest first…); shuffle has none.
+ */
+function SortMenu({ sort, reverse, onSort, onReverse }: { sort: ItemSort; reverse: boolean; onSort: (sort: ItemSort) => void; onReverse: (reverse: boolean) => void }) {
   const { t } = useTranslation('library');
-  if (!options.length && !value) return null;
-  const chosen = options.find(([v]) => v === value);
+  const sorts = sortLabels();
+  const directions = sort === 'shuffle' ? undefined : sortDirections(sort);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <FilterChip active={!!value} className="max-w-full" aria-label={value ? t('library:filterValue', { label, value: chosen?.[1] ?? value }) : label}>
-          <span className="truncate">{chosen?.[1] ?? value ?? label}</span> <ChevronDown className="size-3.5 opacity-60" />
-        </FilterChip>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60">
-        <DropdownMenuRadioGroup value={value ?? ''} onValueChange={(v) => onChange(v || undefined)}>
-          <DropdownMenuRadioItem value="">{anyLabel}</DropdownMenuRadioItem>
-          {options.map(([v, l, n]) => (
-            <DropdownMenuRadioItem key={v} value={v}>
-              <span className="flex-1">{l}</span>
-              <span className="text-xs text-subtle">{n}</span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="sm" className="shrink-0" aria-label={t('library:sortLabel', { sort: sorts[sort] })}>
+            {sorts[sort]} <ChevronDown className="opacity-60" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-52">
+          <DropdownMenuLabel>{t('library:sortBy')}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={sort} onValueChange={(v) => onSort(v as ItemSort)}>
+            {Object.entries(sorts).map(([k, label]) => (
+              <DropdownMenuRadioItem key={k} value={k}>{label}</DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {directions && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm" className="shrink-0" aria-label={t('library:orderLabel', { order: directions[reverse ? 1 : 0] })}>
+              {directions[reverse ? 1 : 0]} <ChevronDown className="opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuRadioGroup value={reverse ? 'reverse' : 'normal'} onValueChange={(v) => onReverse(v === 'reverse')}>
+              <DropdownMenuRadioItem value="normal">{directions[0]}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="reverse">{directions[1]}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </>
   );
 }
 
-function ScanButton({ lib }: { lib: Library }) {
+/** Edit from a card's pencil: the dialog opens once the title's full details have loaded. */
+function EditTitle({ id, onClose }: { id: string; onClose: () => void }) {
+  const item = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id) });
+  if (item.error) return <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md"><ErrorNotice error={item.error} onRetry={() => void item.refetch()} /></div>;
+  return item.data ? <EditDetailsDialog item={item.data} open onOpenChange={(o) => !o && onClose()} /> : null;
+}
+
+/**
+ * The library's ⋯ menu (server owner): choosing titles to change together (cards also start it
+ * on hover), and scanning by hand.
+ */
+function LibraryMenu({ lib, onSelect }: { lib: Library; onSelect?: () => void }) {
   const { t } = useTranslation('library');
   const qc = useQueryClient();
   const scan = useMutation({
@@ -520,17 +531,30 @@ function ScanButton({ lib }: { lib: Library }) {
     return () => window.clearInterval(timer);
   }, [lib.scan.running, qc]);
 
-  if (lib.scan.running) {
-    return (
-      <Button variant="secondary" size="sm" disabled title={fmt.scanProgress(lib.scan)}>
-        <Loader2 className="animate-spin" /> <span className="max-w-[22rem] truncate">{fmt.scanProgress(lib.scan)}</span>
-      </Button>
-    );
-  }
+  // Arc scans by itself (it watches the folders, and checks hourly), so scanning by hand sits in
+  // the library's ⋯ menu as in Plex; a running scan still shows its progress here.
   return (
-    <Button variant="secondary" size="sm" onClick={() => scan.mutate()} disabled={scan.isPending}>
-      <RefreshCw /> {t('library:scanLibrary')}
-    </Button>
+    <>
+      {lib.scan.running && (
+        <span role="status" className="flex max-w-[22rem] items-center gap-2 text-sm text-muted" title={fmt.scanProgress(lib.scan)}>
+          <Loader2 className="size-4 shrink-0 animate-spin" /> <span className="truncate">{fmt.scanProgress(lib.scan)}</span>
+        </span>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={t('library:libraryActions', { name: lib.name })}><MoreHorizontal /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled={!onSelect} onSelect={onSelect}>
+            <ListChecks className="size-4 text-muted" /> {t('library:selectTitles')}
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={lib.scan.running || scan.isPending} onSelect={() => scan.mutate()}>
+            <RefreshCw className="size-4 text-muted" /> {t('library:scanLibraryFiles')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ErrorNotice error={scan.error} onRetry={() => scan.mutate()} />
+    </>
   );
 }
 
