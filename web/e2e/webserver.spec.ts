@@ -312,7 +312,12 @@ test('web server: Chromecast gets text subtitles as WebVTT; AirPlay explains its
   expect(load.tracks).toHaveLength(1);
   expect(load.tracks[0]).toMatchObject({ trackId: 1, type: 'TEXT', subtype: 'SUBTITLES', trackContentType: 'text/vtt', name: 'English' });
   // The device fetches the track itself through its cast link, with the viewer's +0.5s timing.
-  const vtt = await (await fetch(load.tracks[0].trackContentId)).text();
+  // Arc hands the device its address on the home network; this test runs beside the server, whose
+  // fixture only listens on this computer, so it fetches the same link there.
+  const link = new URL(load.tracks[0].trackContentId);
+  expect(link.pathname).toMatch(/^\/api\/cast\/[^/]+\/api\/items\/[0-9a-f]+\/subtitles\/[^/]+\/vtt$/);
+  link.host = new URL(page.url()).host;
+  const vtt = await (await fetch(link)).text();
   expect(vtt).toMatch(/^WEBVTT\n\n00:00:00\.500 --> \d\d:\d\d:\d\d\.\d{3}\nEnglish fixture subtitle\n/);
   await page.evaluate(() => { const c = (window as any).__receiverController; c.player.currentTime = 73; c.handlers.time(); });
   await closePlayer(page);

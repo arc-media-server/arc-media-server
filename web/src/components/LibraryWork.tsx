@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FolderSearch, MoreHorizontal, RefreshCw, ScanSearch, Trash2, X } from 'lucide-react';
@@ -14,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 export function LibraryWorkControls({ library, onScan, scanDisabled, onRemove, children }: {
   library: Library; onScan: () => void; scanDisabled: boolean; onRemove: () => void; children?: ReactNode;
 }) {
+  const { t } = useTranslation('libraryManagement');
   const [operation, setOperation] = useState<'refresh' | 'analyze' | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const qc = useQueryClient();
@@ -26,29 +28,29 @@ export function LibraryWorkControls({ library, onScan, scanDisabled, onRemove, c
   const stop = useMutation({ mutationFn: (job: number) => api.stopLibraryWork(library.id, job), onSuccess: updated });
   return <>
     {library.scan.running && !!library.scan.job_id && <Button variant="secondary" size="sm"
-      aria-label={`Stop work in ${library.name}`} disabled={stop.isPending || library.scan.stopping}
-      onClick={() => stop.mutate(library.scan.job_id!)}>{stop.isPending || library.scan.stopping ? 'Stopping…' : 'Stop'}</Button>}
+      aria-label={t('libraryManagement:libraryWork.stopLibrary', { name: library.name })} disabled={stop.isPending || library.scan.stopping}
+      onClick={() => stop.mutate(library.scan.job_id!)}>{stop.isPending || library.scan.stopping ? t("libraryManagement:libraryWork.stopping") : t("libraryManagement:libraryWork.stop")}</Button>}
     {children}
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Library actions for ${library.name}`}><MoreHorizontal /></Button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={t('libraryManagement:libraryWork.actions', { name: library.name })}><MoreHorizontal /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem disabled={scanDisabled || library.scan.running} onSelect={onScan}><FolderSearch /> Scan library files</DropdownMenuItem>
-        {library.kind !== 'videos' && <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('refresh'); }}><RefreshCw /> Refresh all metadata…</DropdownMenuItem>}
-        <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('analyze'); }}><ScanSearch /> Reanalyze files…</DropdownMenuItem>
-        <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => setTrashOpen(true)}><Trash2 /> Empty trash…</DropdownMenuItem>
+        <DropdownMenuItem disabled={scanDisabled || library.scan.running} onSelect={onScan}><FolderSearch /> {t("libraryManagement:libraryWork.scanLibraryFiles")}</DropdownMenuItem>
+        {library.kind !== 'videos' && <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('refresh'); }}><RefreshCw /> {t("libraryManagement:libraryWork.refreshAllMetadata")}</DropdownMenuItem>}
+        <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => { start.reset(); setOperation('analyze'); }}><ScanSearch /> {t("libraryManagement:libraryWork.reanalyzeFiles")}</DropdownMenuItem>
+        <DropdownMenuItem disabled={library.scan.running || start.isPending} onSelect={() => setTrashOpen(true)}><Trash2 /> {t("libraryManagement:libraryWork.emptyTrash")}</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onRemove}><X /> Remove library…</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onRemove}><X /> {t("libraryManagement:libraryWork.removeLibrary")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
     <EmptyTrashDialog libraryId={library.id} libraryName={library.name} open={trashOpen} onOpenChange={setTrashOpen} />
     <ConfirmDialog open={!!operation} onOpenChange={open => { if (!open && !start.isPending) { setOperation(null); start.reset(); } }}
-      title={operation === 'refresh' ? 'Refresh all metadata?' : 'Reanalyze library files?'}
-      confirmLabel={operation === 'refresh' ? 'Refresh all metadata' : 'Reanalyze files'} busy={start.isPending} error={start.error?.message}
+      title={operation === 'refresh' ? t("libraryManagement:libraryWork.refreshAllMetadata2") : t("libraryManagement:libraryWork.reanalyzeLibraryFiles")}
+      confirmLabel={operation === 'refresh' ? t("libraryManagement:libraryWork.refreshAllMetadata3") : t("libraryManagement:libraryWork.reanalyzeFiles2")} busy={start.isPending} error={start.error?.message}
       onConfirm={() => operation && start.mutate(operation)}>
       <p>{operation === 'refresh'
-        ? `Fetch online details again for every known movie or series in ${library.name}, including recently refreshed titles. This can take time and make many provider requests. Locked edits and watch history are kept.`
-        : `Read technical details again for all known present files in ${library.name}, including HDR and audio format checks that were previously unavailable. This can keep the server busy. Matches, watch history and manual markers are kept; new files are found with Scan.`}</p>
-      <p>Follow progress or Stop in Activity. Completed changes are kept if stopped. Media files are never changed.</p>
+        ? t('libraryManagement:libraryWork.refreshDescription', { name: library.name })
+        : t('libraryManagement:libraryWork.analyzeDescription', { name: library.name })}</p>
+      <p>{t("libraryManagement:libraryWork.followProgressOrStop")}</p>
     </ConfirmDialog>
     <ErrorNotice error={stop.error} onRetry={() => { if (stop.variables) stop.mutate(stop.variables); }} busy={stop.isPending} />
   </>;

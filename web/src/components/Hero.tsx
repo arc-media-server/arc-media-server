@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,7 @@ export function TitleHero({ item, landscape = false, children }: { item: Item; l
 
 /** Keep long descriptions readable without moving the primary actions. */
 export function Synopsis({ text }: { text: string }) {
+  const { t } = useTranslation('titles');
   const id = useId();
   const paragraph = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -92,7 +94,7 @@ export function Synopsis({ text }: { text: string }) {
   return (
     <div className="max-w-[75ch]">
       <p ref={paragraph} id={id} className={cn('text-[15px] leading-relaxed text-foreground/85', !expanded && 'line-clamp-4')}>{text}</p>
-      {overflows && <button type="button" aria-controls={id} aria-expanded={expanded} onClick={() => setExpanded(v => !v)} className="mt-2 rounded text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">{expanded ? 'Show less' : 'Show more'}</button>}
+      {overflows && <button type="button" aria-controls={id} aria-expanded={expanded} onClick={() => setExpanded(v => !v)} className="mt-2 rounded text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">{expanded ? t("titles:hero.showLess") : t("titles:hero.showMore")}</button>}
     </div>
   );
 }

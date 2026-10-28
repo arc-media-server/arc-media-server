@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RotateCcw } from 'lucide-react';
@@ -5,20 +6,6 @@ import { api, type Item, type Marker } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { inputClass } from '@/components/ui/field';
-
-const kinds = [
-  ['recap', 'Recap'],
-  ['intro', 'Intro'],
-  ['credits', 'Credits'],
-] as const;
-
-const sourceNames: Record<Marker['source'], string> = {
-  manual: 'Set by you',
-  chapters: 'From the file’s chapters',
-  theintrodb: 'From TheIntroDB',
-  introdb: 'From IntroDB',
-  detected: 'Found by comparing episodes',
-};
 
 /** "1:23" or "1:02:03" for milliseconds; "" for none. */
 function clock(ms: number) {
@@ -43,6 +30,15 @@ export type MarkerEdit = { kind: string; start_ms: number; end_ms: number }[];
  * Times typed here are kept: found ones never replace them.
  */
 export function MarkersPanel({ item, onChange }: { item: Item; onChange: (edit: MarkerEdit | null, valid: boolean) => void }) {
+  const { t } = useTranslation('metadata');
+  const kinds = [['recap', t('metadata:markersPanel.recap')], ['intro', t('metadata:markersPanel.intro')], ['credits', t('metadata:markersPanel.credits')]] as const;
+  const sourceNames: Record<Marker['source'], string> = {
+    manual: t('metadata:markersPanel.manual'),
+    chapters: t('metadata:markersPanel.chapters'),
+    theintrodb: t('metadata:markersPanel.theintrodb'),
+    introdb: t('metadata:markersPanel.introdb'),
+    detected: t('metadata:markersPanel.detected'),
+  };
   const qc = useQueryClient();
   const { data, error } = useQuery({ queryKey: ['markers', item.id], queryFn: () => api.itemMarkers(item.id) });
   const [times, setTimes] = useState<Record<string, { start: string; end: string }> | null>(null);
@@ -86,10 +82,7 @@ export function MarkersPanel({ item, onChange }: { item: Item; onChange: (edit: 
 
   return (
     <div className="space-y-4 pb-2">
-      <p className="text-sm text-muted">
-        Where to offer Skip Intro, Skip Recap and Skip Credits{data.duration_ms ? ` in this ${clock(data.duration_ms)} file` : ''}. Leave both times empty
-        for nothing to skip. Times you set are kept; ones Arc finds never replace them.
-      </p>
+      <p className="text-sm text-muted">{data.duration_ms ? t('metadata:markersPanel.descriptionDuration', { duration: clock(data.duration_ms) }) : t('metadata:markersPanel.description')}</p>
       <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface-2/50 ring-1 ring-border">
         {kinds.map(([k, label]) => {
           const found = data.markers.find((m) => m.kind === k);
@@ -100,21 +93,20 @@ export function MarkersPanel({ item, onChange }: { item: Item; onChange: (edit: 
               <div className="w-36 min-w-0">
                 <p className="text-sm font-medium">{label}</p>
                 <p className="truncate text-xs text-subtle">
-                  {found ? (found.end_ms > found.start_ms ? sourceNames[found.source] : 'None, set by you') : item.kind === 'episode' ? 'Not found yet' : 'Not set'}
+                  {found ? (found.end_ms > found.start_ms ? sourceNames[found.source] : t("metadata:markersPanel.noneSetByYou")) : item.kind === 'episode' ? t("metadata:markersPanel.notFoundYet") : t("metadata:markersPanel.notSet")}
                 </p>
               </div>
-              <input value={start} onChange={(e) => update(k, 'start', e.target.value)} placeholder="start 1:05" className={cn(inputClass, 'h-9 w-32 font-mono text-sm', bad && 'ring-warning')} />
+              <input value={start} onChange={(e) => update(k, 'start', e.target.value)} placeholder={t("metadata:markersPanel.start105")} className={cn(inputClass, 'h-9 w-32 font-mono text-sm', bad && 'ring-warning')} />
               <span className="text-subtle">–</span>
-              <input value={end} onChange={(e) => update(k, 'end', e.target.value)} placeholder="end 2:35" className={cn(inputClass, 'h-9 w-32 font-mono text-sm', bad && 'ring-warning')} />
+              <input value={end} onChange={(e) => update(k, 'end', e.target.value)} placeholder={t("metadata:markersPanel.end235")} className={cn(inputClass, 'h-9 w-32 font-mono text-sm', bad && 'ring-warning')} />
             </div>
           );
         })}
       </div>
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" disabled={reset.isPending} onClick={() => reset.mutate()}>
-          {reset.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />} Find Again
-        </Button>
-        <p className="text-xs text-subtle">Forgets these times and looks again: chapters, online, then by comparing episodes overnight.</p>
+          {reset.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />} {t("metadata:markersPanel.findAgain")}</Button>
+        <p className="text-xs text-subtle">{t("metadata:markersPanel.forgetsTheseTimesAnd")}</p>
       </div>
     </div>
   );

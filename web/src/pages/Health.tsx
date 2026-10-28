@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useQueries } from '@tanstack/react-query';
@@ -29,6 +30,7 @@ import { EmptyTrashButton } from '@/components/EmptyTrash';
 import { MergeDialog } from '@/components/BulkEdit';
 
 export function HealthPage() {
+  const { t } = useTranslation('libraryManagement');
   const { data: libraries } = useLibraries();
   const reports = useQueries({
     queries: (libraries ?? []).map((lib) => ({
@@ -44,14 +46,12 @@ export function HealthPage() {
 
   return (
     <Page className="pb-16">
-      <PageHeader title="Library Health" subtitle="Anything in your libraries worth a look, and how they play on different devices. Arc never changes your files to fix things." />
+      <PageHeader title={t("libraryManagement:health.libraryHealth")} subtitle={t("libraryManagement:health.anythingInYourLibraries")} />
       <div className="space-y-12 px-6 md:px-10">
         {error && <ErrorState error={error} />}
         {!loaded && !error && <div className="h-64 animate-pulse rounded-2xl bg-surface" />}
         {healthy && (
-          <EmptyState icon={<CheckCircle2 />} title="Everything looks good">
-            Every file was read, recognised and identified, and nothing is missing.
-          </EmptyState>
+          <EmptyState icon={<CheckCircle2 />} title={t("libraryManagement:health.everythingLooksGood")}>{t("libraryManagement:health.everyFileWasRead")}</EmptyState>
         )}
         {loaded &&
           !healthy &&
@@ -69,12 +69,12 @@ function problemCount(r: LibraryHealth) {
 }
 
 function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIdentify: (item: Item) => void }) {
+  const { t } = useTranslation('libraryManagement');
   const LibIcon = kindIcon(r.library.kind);
   if (problemCount(r) === 0) {
     return (
       <section className="flex items-center gap-3 text-sm text-muted">
-        <CheckCircle2 className="size-5 text-accent" /> <span className="font-medium text-foreground">{r.library.name}</span> looks good.
-      </section>
+        <CheckCircle2 className="size-5 text-accent" /> <Trans ns="libraryManagement" i18nKey="health.libraryHealthy" values={{ name: r.library.name }} components={{ name: <span className="font-medium text-foreground" /> }} /></section>
     );
   }
   const shows = r.library.kind === 'shows';
@@ -88,63 +88,63 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
         <Category
           icon={HelpCircle}
           tone="warning"
-          title="Not identified"
-          hint={`Arc couldn't find these online, so they have no artwork or details. They're still playable.`}
+          title={t("libraryManagement:health.notIdentified")}
+          hint={t("libraryManagement:health.arcCouldnTFind")}
           items={r.unidentified}
           render={(item) => <UnidentifiedRow key={item.id} item={item} onIdentify={() => onIdentify(item)} />}
         />
         <Category
           icon={FileWarning}
           tone="warning"
-          title="Couldn't be read"
-          hint="These files may be damaged or still downloading. Arc tries them again on every scan."
+          title={t("libraryManagement:health.couldnTBeRead")}
+          hint={t("libraryManagement:health.theseFilesMayBe")}
           items={r.unreadable}
           render={(f) => <FileRow key={f.file_id} file={f} detail={f.error} />}
         />
         <Category
           icon={FileQuestion}
           tone="warning"
-          title={shows ? 'Not recognised as episodes' : 'Not recognised'}
+          title={shows ? t("libraryManagement:health.notRecognisedAsEpisodes") : t("libraryManagement:health.notRecognised")}
           hint={
             shows
-              ? 'Arc reads the season and episode from the file name, like “Show - S01E02”. Rename these and scan again to add them.'
-              : 'Arc couldn’t tell what these files are.'
+              ? t("libraryManagement:health.arcReadsTheSeason")
+              : t("libraryManagement:health.arcCouldnTTell")
           }
           items={r.unrecognised}
           render={(f) => <FileRow key={f.file_id} file={f} />}
         />
         <Category
           icon={FileX2}
-          title="Missing files"
-          hint="These files weren't found in the last scan. If a drive is disconnected, reconnect it and scan. Arc keeps these titles and their history until the files are back, or until you remove them."
+          title={t("libraryManagement:health.missingFiles")}
+          hint={t("libraryManagement:health.theseFilesWerenT")}
           items={r.missing_files}
           action={<EmptyTrashButton libraryId={r.library.id} libraryName={r.library.name} />}
           render={(f) => (
             <FileRow
               key={f.file_id}
               file={f}
-              detail={[f.item_title, f.missing_since && `missing since ${fmt.dateTime(new Date(f.missing_since * 1000).toISOString())}`].filter(Boolean).join(' · ')}
+              detail={[f.item_title, f.missing_since && t('libraryManagement:health.missingSince', { date: fmt.dateTime(new Date(f.missing_since * 1000).toISOString()) })].filter(Boolean).join(' · ')}
             />
           )}
         />
         <Category
           icon={Copy}
-          title="Duplicates"
-          hint="Several copies of the same title. That can be on purpose, like a 4K and a 1080p version."
+          title={t("libraryManagement:health.duplicates")}
+          hint={t("libraryManagement:health.severalCopiesOfThe")}
           items={r.duplicates}
           render={(d, i) =>
             d.kind === 'copies' ? (
-              <DuplicateRow key={i} item={d.items[0]} lines={(d.files ?? []).map((f) => `${f.path} · ${fmt.fileSize(f.size)}`)} label={fmt.plural(d.files?.length ?? 0, 'copy', 'copies')} />
+              <DuplicateRow key={i} item={d.items[0]} lines={(d.files ?? []).map((f) => `${f.path} · ${fmt.fileSize(f.size)}`)} label={t('libraryManagement:health.copies', { count: d.files?.length ?? 0 })} />
             ) : (
-              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}${d.folders?.[it.id] ? ` · ${d.folders[it.id]}` : ''}`)} label={`${d.items.length} separate ${d.items[0].kind === 'series' ? 'shows' : 'movies'} matched to the same title`} merge={d.items[0].kind === 'movie' || d.items[0].kind === 'series' ? d.items : undefined} folders={d.folders} />
+              <DuplicateRow key={i} item={d.items[0]} lines={d.items.map((it) => `${it.title}${it.year ? ` (${it.year})` : ''}${d.folders?.[it.id] ? ` · ${d.folders[it.id]}` : ''}`)} label={d.items[0].kind === 'series' ? t('libraryManagement:health.duplicateShows', { count: d.items.length }) : t('libraryManagement:health.duplicateMovies', { count: d.items.length })} merge={d.items[0].kind === 'movie' || d.items[0].kind === 'series' ? d.items : undefined} folders={d.folders} />
             )
           }
         />
         {shows && (
           <Category
             icon={ListX}
-            title="Missing episodes"
-            hint="Episodes that have aired but aren't in your library, in the episode order you chose for each show. Specials aren't counted."
+            title={t("libraryManagement:health.missingEpisodes")}
+            hint={t("libraryManagement:health.episodesThatHaveAired")}
             items={r.missing_episodes.filter((g) => g.missing.length > 0)}
             render={(g) => <GapsRow key={g.series.id} gaps={g} />}
           />
@@ -152,8 +152,8 @@ function LibraryReport({ report: r, onIdentify }: { report: LibraryHealth; onIde
         {shows && (
           <Category
             icon={ListOrdered}
-            title="Not in the chosen episode order"
-            hint="You have these episodes, but the episode order picked for the show doesn't include them. They're listed separately on the show's page so nothing goes missing."
+            title={t("libraryManagement:health.notInTheChosen")}
+            hint={t("libraryManagement:health.youHaveTheseEpisodes")}
             items={r.missing_episodes.filter((g) => g.unplaced > 0)}
             render={(g) => <UnplacedRow key={g.series.id} gaps={g} />}
           />
@@ -181,6 +181,7 @@ function Category<T>({
   /** A button for the whole category, e.g. Remove All. */
   action?: ReactNode;
 }) {
+  const { t } = useTranslation('libraryManagement');
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
   const limit = 5;
@@ -203,7 +204,7 @@ function Category<T>({
         {shown.map(render)}
         {items.length > limit && (
           <button onClick={() => setExpanded((e) => !e)} className="w-full px-4 py-3 text-left text-sm font-medium text-accent hover:bg-surface-2">
-            {expanded ? 'Show fewer' : `Show all ${items.length}`}
+            {expanded ? t("libraryManagement:health.showFewer") : t('libraryManagement:health.showAll', { count: items.length })}
           </button>
         )}
       </div>
@@ -214,6 +215,7 @@ function Category<T>({
 /** Removes everything in a library whose files are gone, after asking. */
 
 function UnidentifiedRow({ item, onIdentify }: { item: Item; onIdentify: () => void }) {
+  const { t } = useTranslation('libraryManagement');
   if (item.kind === 'episode') {
     return (
       <Link to={`/series/${item.parent_id}`} className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2">
@@ -222,7 +224,7 @@ function UnidentifiedRow({ item, onIdentify }: { item: Item; onIdentify: () => v
             {item.title}
             {item.series_title && <span className="font-normal text-muted"> · {item.series_title}</span>}
           </p>
-          <p className="truncate text-xs text-subtle">The file's episode number isn't in the show's episode list. It's still playable on the show's page.</p>
+          <p className="truncate text-xs text-subtle">{t("libraryManagement:health.theFileSEpisode")}</p>
         </div>
         <ChevronRight className="size-4 text-subtle" />
       </Link>
@@ -235,11 +237,9 @@ function UnidentifiedRow({ item, onIdentify }: { item: Item; onIdentify: () => v
           {item.title}
           {item.year ? <span className="font-normal text-muted"> ({item.year})</span> : null}
         </p>
-        <p className="truncate text-xs text-subtle">{item.kind === 'series' ? 'Show · no match on TheTVDB or TMDB' : 'Movie · no match on TMDB'}</p>
+        <p className="truncate text-xs text-subtle">{item.kind === 'series' ? t("libraryManagement:health.showNoMatchOn") : t("libraryManagement:health.movieNoMatchOn")}</p>
       </Link>
-      <Button size="sm" variant="secondary" onClick={onIdentify}>
-        Identify…
-      </Button>
+      <Button size="sm" variant="secondary" onClick={onIdentify}>{t("libraryManagement:health.identify")}</Button>
     </div>
   );
 }
@@ -272,6 +272,7 @@ function FileRow({ file, detail }: { file: FileProblem; detail?: string }) {
 }
 
 function DuplicateRow({ item, label, lines, merge, folders }: { item: Item; label: string; lines: string[]; merge?: Item[]; folders?: Record<string, string> }) {
+  const { t } = useTranslation('libraryManagement');
   const href = item.kind === 'series' ? `/series/${item.id}` : item.kind === 'episode' ? `/series/${item.parent_id}` : `/movie/${item.id}`;
   const [merging, setMerging] = useState(false);
   return (
@@ -292,8 +293,7 @@ function DuplicateRow({ item, label, lines, merge, folders }: { item: Item; labe
       {merge && (
         <>
           <Button variant="secondary" size="sm" className="mr-4 shrink-0" onClick={() => setMerging(true)}>
-            <Merge /> Merge
-          </Button>
+            <Merge /> {t("libraryManagement:health.merge")}</Button>
           <MergeDialog items={merge} folders={folders} open={merging} onOpenChange={setMerging} />
         </>
       )}
@@ -317,23 +317,23 @@ function SeriesRow({ gaps, children }: { gaps: Gaps; children: ReactNode }) {
 }
 
 function GapsRow({ gaps }: { gaps: Gaps }) {
+  const { t } = useTranslation('libraryManagement');
   return (
     <SeriesRow gaps={gaps}>
       <p className="text-xs text-muted">
-        {fmt.plural(gaps.missing.length, 'episode')} missing: <span className="text-foreground/80">{episodeRanges(gaps.missing)}</span>
+        <Trans ns="libraryManagement" i18nKey="health.missingRanges" count={gaps.missing.length} values={{ range: episodeRanges(gaps.missing) }} components={{ range: <span className="text-foreground/80" /> }} />
       </p>
-      <p className="text-[11px] text-subtle">
-        In {gaps.ordering} · {fmt.plural(gaps.have, 'episode')} in your library
-      </p>
+      <p className="text-[11px] text-subtle">{t('libraryManagement:health.inLibrary', { count: gaps.have, ordering: gaps.ordering })}</p>
     </SeriesRow>
   );
 }
 
 function UnplacedRow({ gaps }: { gaps: Gaps }) {
+  const { t } = useTranslation('libraryManagement');
   return (
     <SeriesRow gaps={gaps}>
       <p className="text-xs text-muted">
-        {fmt.plural(gaps.unplaced, 'episode')} {gaps.unplaced === 1 ? "isn't" : "aren't"} in {gaps.ordering}
+        {t('libraryManagement:health.unplaced', { count: gaps.unplaced, ordering: gaps.ordering })}
       </p>
     </SeriesRow>
   );

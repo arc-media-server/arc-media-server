@@ -69,9 +69,10 @@ type Session struct {
 	lastSeen time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
-	proc      *os.Process
-	requested int
-	paused    bool
+	proc       *os.Process
+	requested  int
+	paused     bool
+	throttling throttling
 }
 
 // Manager runs sessions.
@@ -83,8 +84,10 @@ type Manager struct {
 	mu       sync.Mutex
 	dir      string // where sessions write, chosen in Settings
 	maxVideo int    // video conversions at once, 0 for no limit
-	sessions map[string]*Session
-	caps     Capabilities
+	// How far ahead of the player sessions convert (throttle.go); each session keeps its own copy.
+	throttling throttling
+	sessions   map[string]*Session
+	caps       Capabilities
 }
 
 // ErrBusy means as many videos are being converted as Settings allows.
@@ -112,7 +115,7 @@ func (m *Manager) Configure(dir string, maxVideo int) {
 // ffmpeg and ffprobe return the binaries to use.
 func New(dir string, ffmpeg, ffprobe func() string, log *slog.Logger) *Manager {
 	os.RemoveAll(dir)
-	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, sessions: map[string]*Session{}}
+	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, sessions: map[string]*Session{}, throttling: defaultThrottling}
 }
 
 // Run ends idle sessions until ctx is done, then ends them all.
@@ -169,7 +172,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	var b [8]byte
 	rand.Read(b[:])
 	s := &Session{ID: hex.EncodeToString(b[:]), Options: opts, OffsetMS: opts.StartMS, lastSeen: time.Now(),
-		done: make(chan struct{}), requested: -1}
+		done: make(chan struct{}), requested: -1, throttling: m.throttling}
 	s.dir = filepath.Join(dir, s.ID)
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return nil, err

@@ -739,14 +739,9 @@ func (s *Server) deleteProfile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// clientIP is the request's address without the port, for rate limiting.
-func clientIP(r *http.Request) string {
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
-	}
-	return host
-}
+// clientIP is the request's address without the port (through a trusted proxy, the client's),
+// for rate limiting, logs and the Dashboard.
+func clientIP(r *http.Request) string { return auth.ClientIP(r) }
 
 // settingsDTO is what the Settings page shows. API keys are only hinted at.
 func (s *Server) settingsDTO(st settings.Settings) map[string]any {
@@ -789,6 +784,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"https_key":          st.HTTPSKey,
 		"https_domain":       st.HTTPSDomain,
 		"home_networks":      st.HomeNetworks,
+		"trusted_proxies":    st.TrustedProxies,
 		"transcode_dir":      st.TranscodeDir,
 		"max_transcodes":     st.MaxTranscodes,
 		"listen":             st.ListenAddress(),
@@ -924,6 +920,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		HTTPSKey               *string  `json:"https_key"`
 		HTTPSDomain            *string  `json:"https_domain"`
 		HomeNetworks           *string  `json:"home_networks"`
+		TrustedProxies         *string  `json:"trusted_proxies"`
 		TranscodeDir           *string  `json:"transcode_dir"`
 		MaxTranscodes          *int     `json:"max_transcodes"`
 	}
@@ -1126,6 +1123,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		next.HomeNetworks = tidy
+	}
+	if body.TrustedProxies != nil {
+		_, tidy, err := auth.ParseNetworks(*body.TrustedProxies)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		next.TrustedProxies = tidy
 	}
 	if body.RemoteAccess != nil {
 		next.RemoteAccess = *body.RemoteAccess
