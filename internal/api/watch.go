@@ -228,6 +228,9 @@ func (s *Server) episodeDTO(ep store.Item, series *store.Item, positions map[str
 		if b := toDTO(*series).Images["backdrop"]; b != "" {
 			d.Images["series_backdrop"] = b
 		}
+		if l := toDTO(*series).Images["logo"]; l != "" {
+			d.Images["series_logo"] = l
+		}
 		d.Images["series_primary"] = "/api/items/" + series.ID + "/images/primary"
 	}
 	if p, ok := positions[ep.ID]; ok {

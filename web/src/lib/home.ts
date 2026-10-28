@@ -60,7 +60,8 @@ export function currentSeason(now = new Date()): Season | undefined {
 
 /** How a row looks: its cards' style and, for a TV library's Recently Added, whether new episodes are grouped by season. */
 export interface RowLook {
-  style: 'poster' | 'thumb';
+  /** Arc thumbnails: squarer cards with the title's background art and logo, as on Apple TV. */
+  style: 'poster' | 'thumb' | 'arc';
   showsOnly: boolean;
   /** Episodes and seasons on poster rows: the show's poster or the season's. */
   posters: 'series' | 'season';

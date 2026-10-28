@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUp, ArrowDown, CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, GripVertical, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Square, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
 import { useLibraries } from '@/components/Sidebar';
 import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
@@ -292,20 +292,20 @@ function runtimeLabel(min: number) {
   return min % 60 === 0 ? i18n.t('filters:summary.hours', { count: min / 60 }) : i18n.t('filters:summary.minutes', { count: min });
 }
 
-function lookLabels() { return { series: i18n.t('home:look.series'), season: i18n.t('home:look.season'), thumb: i18n.t('home:look.thumb'), poster: i18n.t('home:look.poster') }; }
+function lookLabels() { return { series: i18n.t('home:look.series'), season: i18n.t('home:look.season'), thumb: i18n.t('home:look.thumb'), arc: i18n.t('home:look.arc'), poster: i18n.t('home:look.poster') }; }
 
-/** How a row's cards look: posters (the show's or the season's, for rows with episodes) or thumbnails. */
+/** How a row's cards look: posters (the show's or the season's, for rows with episodes), thumbnails or Arc thumbnails. */
 function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Partial<RowLook>) => void }) {
   const { t } = useTranslation('home');
   const labels = lookLabels();
   const episodes = hasEpisodes(row);
-  const value = row.style === 'thumb' ? 'thumb' : episodes ? row.posters : 'poster';
-  const options = episodes ? (['series', 'season', 'thumb'] as const) : (['poster', 'thumb'] as const);
+  const value = row.style !== 'poster' ? row.style : episodes ? row.posters : 'poster';
+  const options = episodes ? (['series', 'season', 'thumb', 'arc'] as const) : (['poster', 'thumb', 'arc'] as const);
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label={t('look.label', { style: labels[value] })} title={t('look.label', { style: labels[value] })}>
-          {value === 'thumb' ? <RectangleHorizontal /> : <RectangleVertical />}
+          {value === 'thumb' ? <RectangleHorizontal /> : value === 'arc' ? <Square /> : <RectangleVertical />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
@@ -313,7 +313,7 @@ function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Parti
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(v) =>
-            onChange(v === 'thumb' ? { style: 'thumb' } : v === 'poster' ? { style: 'poster' } : { style: 'poster', posters: v as RowLook['posters'] })
+            onChange(v === 'thumb' || v === 'arc' || v === 'poster' ? { style: v } : { style: 'poster', posters: v as RowLook['posters'] })
           }
         >
           {options.map((o) => (

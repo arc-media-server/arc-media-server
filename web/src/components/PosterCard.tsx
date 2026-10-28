@@ -8,6 +8,7 @@ import { CollectionCard } from '@/components/Collections';
 import { useSpoilerGuard } from '@/lib/home';
 import { cn } from '@/lib/utils';
 import { cardYear } from '@/lib/kinds';
+import { ArcArtwork } from './ArcArtwork';
 import { Artwork } from './Artwork';
 import { ContinueCardMenu } from './CardMenu';
 import { episodeCode, ProgressBar, progressOf, WatchBadge } from './WatchState';
@@ -100,10 +101,13 @@ export function ThumbCard({
   onSelect,
   selected,
   hover,
+  arc,
 }: {
   item: Item;
   className?: string;
   overrides?: CardOverrides;
+  /** An Arc thumbnail (see ArcArtwork) instead of a landscape one. */
+  arc?: boolean;
   /** Offers "Remove from Continue Watching" (on carry-on-watching rows). */
   onRemove?: (item: Item) => void;
   /** When choosing titles: clicking selects instead of opening. */
@@ -130,8 +134,12 @@ export function ThumbCard({
             selected && 'ring-[3px] ring-accent',
           )}
         >
-          <Artwork src={image} alt="" kind="still" fallbackTitle={title} icon={item.kind === 'movie' ? 'film' : 'tv'} className={cn(blur && 'scale-110 blur-xl')} />
-          {item.kind !== 'episode' && item.images?.logo && (
+          {arc ? (
+            <ArcArtwork item={item} title={title} image={overrides?.image} />
+          ) : (
+            <Artwork src={image} alt="" kind="still" fallbackTitle={title} icon={item.kind === 'movie' ? 'film' : 'tv'} className={cn(blur && 'scale-110 blur-xl')} />
+          )}
+          {!arc && item.kind !== 'episode' && item.images?.logo && (
             <img src={item.images.logo} alt="" className="pointer-events-none absolute bottom-3 left-3 max-h-[30%] max-w-[55%] object-contain object-left-bottom drop-shadow-[0_2px_10px_rgb(0_0_0/0.6)]" />
           )}
           {!overrides?.noBadge && <WatchBadge item={item} />}
