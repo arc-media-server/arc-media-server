@@ -20,11 +20,15 @@ case: two folders of one show ("Doctor Who (2005)" and "Doctor Who") that became
   with a message to set both the same first, since their episode keys can't be paired.
 - The merged show's own display orders and manual placements are dropped (the kept show's stay).
 
-Not yet in the UI: Library Health's Duplicates list offers Merge for movies only, and the Merge
-dialog's wording is movie-specific. Both files are in open translation PRs (#243, #249); the
-small UI change follows once those merge, as agreed on #80.
+In the app: Library Health's Duplicates list now offers Merge for shows as well as movies, and
+so does the selection bar in a TV library (Select, then Merge). The Merge dialog explains what
+happens to a show's episodes and orders, and that shows can't be split apart again. Both the
+Health list and the dialog now show where each copy is (a movie's file, or a show's folder), so
+two "Arc Show (2020)" entries can be told apart (`folders` in the library health response).
 
 Checks: go vet/test (new store test: shared/own episodes, progress combining, show-level marks,
 history, aliases and alias carry-over); Playwright: new journey against the real scanner (a
 second folder with a shared and an own episode, merge, full rescan keeps one show with the
 same episode ids, progress and both files), plus maintenance, episode-details and clarity specs.
+A second journey merges from Library Health: the dialog names both folders, and afterwards one
+show remains and the Duplicates entry is gone.
