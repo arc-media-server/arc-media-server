@@ -77,7 +77,7 @@ function SearchBox({ className }: { className?: string }) {
           timer.current = window.setTimeout(() => {
             const q = next.trim();
             if (q || location.pathname === '/search') navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { replace: location.pathname === '/search' });
-          }, 250);
+          }, 150);
         }}
         placeholder={t('navigation.search')}
         className="min-w-0 w-full bg-transparent outline-none placeholder:text-subtle"
