@@ -37,11 +37,12 @@ const out = resolve(repo, args.out);
 const port = 18299;
 const base = `http://127.0.0.1:${port}`;
 
-// Blender Studio's open films (Creative Commons) and films in the public domain.
+// Blender Studio's open films (Creative Commons) and films in the public domain, all with posters
+// on TMDB (Charge and Coffee Run have none, so they'd show as grey tiles).
 const movies = [
   'Big Buck Bunny (2008)', 'Sintel (2010)', 'Tears of Steel (2012)', 'Elephants Dream (2006)',
-  'Cosmos Laundromat (2015)', 'Spring (2019)', 'Sprite Fright (2021)', 'Charge (2022)',
-  'Coffee Run (2020)', 'Agent 327 Operation Barbershop (2017)', 'Night of the Living Dead (1968)',
+  'Cosmos Laundromat (2015)', 'Spring (2019)', 'Sprite Fright (2021)', 'The Gold Rush (1925)',
+  'Steamboat Bill, Jr. (1928)', 'Agent 327 Operation Barbershop (2017)', 'Night of the Living Dead (1968)',
   'Nosferatu (1922)', 'Metropolis (1927)', 'The General (1926)', 'Sherlock Jr. (1924)', 'The Kid (1921)',
   'Charade (1963)', 'His Girl Friday (1940)', 'Plan 9 from Outer Space (1957)',
   'The Phantom of the Opera (1925)', 'A Trip to the Moon (1902)', 'The Cabinet of Dr. Caligari (1920)',
