@@ -120,6 +120,32 @@ test('maintenance: Activity stops the owned refresh and reports Stopped', async 
   } finally { await fetch('http://127.0.0.1:18200/metadata-hold?hold=0', { method: 'POST' }); }
 });
 
+test('trusted proxies: forwarded visitors count as home only through a listed proxy', async ({ page, media }, info) => {
+  void media;
+  const status = async (forwardedFor: string) => (await (await page.request.get('/api/auth/status', { headers: { 'X-Forwarded-For': forwardedFor } })).json()).local;
+  // This test's own connection comes from 127.0.0.1, standing in for a proxy.
+  expect(await status('192.168.1.20')).toBe(false);
+  await page.goto('/settings?section=access');
+  const field = page.getByRole('textbox', { name: 'Trusted proxies', exact: true });
+  await expect(field).toHaveValue('');
+  await field.fill('not an address');
+  await field.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: /not an address|network|address/i })).toBeVisible();
+  await field.fill('127.0.0.1');
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/settings') && r.request().method() === 'PATCH' && r.ok());
+  await field.press('Enter');
+  expect((await (await saved).json()).trusted_proxies).toBe('127.0.0.1/32');
+  await expect(field).toHaveValue('127.0.0.1/32');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('trusted-proxies.png') });
+  expect(await status('192.168.1.20')).toBe(true);
+  expect(await status('203.0.113.9')).toBe(false);
+  // A visitor can't fake being at home by writing their own header in front of the proxy's.
+  expect(await status('192.168.1.20, 203.0.113.9')).toBe(false);
+  expect((await page.request.patch('/api/settings', { data: { trusted_proxies: '' } })).ok()).toBeTruthy();
+  expect(await status('192.168.1.20')).toBe(false);
+});
+
 test('maintenance: server clock keeps server timezone, retries errors and reflects all-day changes', async ({ page, media }, info) => {
   void media;
   await page.goto('/settings?section=maintenance');

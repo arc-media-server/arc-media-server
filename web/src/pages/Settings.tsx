@@ -2,7 +2,7 @@ import i18n from '@/i18n';
 import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
@@ -470,6 +470,7 @@ function ServerSettings() {
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
             <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
+            <TrustedProxiesRow value={s.trusted_proxies} onSave={(v) => update.mutateAsync({ trusted_proxies: v })} />
           </Section>
 
           <Section sectionKey="Remote Access" title={t("serverSettings:settings.remoteAccess")} hint={t("serverSettings:settings.watchAwayFromHome")}>
@@ -1116,6 +1117,46 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("accessSettings:settings.none")} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
         {text.trim() !== value && (
           <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.save")}</Button>
+        )}
+      </form>
+    </Row>
+  );
+}
+
+/** Reverse proxies (SWAG, Nginx Proxy Manager…) whose reports of the visitor's address Arc believes. */
+function TrustedProxiesRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
+  const [text, setText] = useState(value);
+  const [error, setError] = useState('');
+  // Show the saved, tidied form (e.g. 172.17.0.5/32) once it's stored.
+  useEffect(() => { setText(value); }, [value]);
+  return (
+    <Row
+      label={t('accessSettings:settings.trustedProxies')}
+      description={
+        <>
+          {t('accessSettings:settings.trustedProxiesDescription')}
+          {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
+        </>
+      }
+    >
+      <form
+        className="flex gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError('');
+          try {
+            await onSave(text);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+          }
+        }}
+      >
+        <input aria-label={t('accessSettings:settings.trustedProxies')} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('accessSettings:settings.none')} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        {text.trim() !== value && (
+          <Button size="sm" variant="primary" type="submit">
+            {t('common:actions.save')}
+          </Button>
         )}
       </form>
     </Row>
