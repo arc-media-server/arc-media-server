@@ -4980,7 +4980,7 @@
     },
     "/collections/{id}/images/{type}": {
       "get": {
-        "description": "Is a collection's poster or background.\n\nWho may call it: **profile**.",
+        "description": "Is a collection's poster or background (?size=full for the full-resolution background).\n\nWho may call it: **profile**.",
         "operationId": "collectionImage",
         "parameters": [
           {
@@ -4995,6 +4995,13 @@
             "in": "path",
             "name": "type",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
             "schema": {
               "type": "string"
             }
@@ -8042,7 +8049,7 @@
     },
     "/items/{id}/images/{type}": {
       "get": {
-        "description": "Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead.\n\nWho may call it: **profile**.",
+        "description": "Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. A backdrop with ?size=full is the full-resolution picture, for full-width banners.\n\nWho may call it: **profile**.",
         "operationId": "image",
         "parameters": [
           {
@@ -8057,6 +8064,13 @@
             "in": "path",
             "name": "type",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
             "schema": {
               "type": "string"
             }

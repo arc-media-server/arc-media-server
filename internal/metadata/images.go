@@ -129,6 +129,52 @@ func bestLogo(list []tmdbImage) string {
 	return ""
 }
 
+// fullHDWidth is how wide a backdrop must be to look sharp as a full-width banner on a 1080p screen.
+const fullHDWidth = 1920
+
+// bestBackdrop picks a title's backdrop. TMDB's own choice (def, its most liked) is kept when it
+// is at least full HD, or when its size isn't known. Otherwise the most liked full-HD backdrop
+// wins, preferring the same kind of picture as TMDB's choice (textless, or with English text),
+// then textless ones. With no full-HD backdrop at all, the first one wider than TMDB's choice is
+// used. list is in TMDB's order, most liked first.
+func bestBackdrop(def string, list []tmdbImage) string {
+	defWidth, defLang, known := 0, "", false
+	for _, i := range list {
+		if i.FilePath == def {
+			defWidth, defLang, known = i.Width, i.Language, true
+			break
+		}
+	}
+	if def != "" && (!known || defWidth >= fullHDWidth) {
+		return def
+	}
+	rank := func(i tmdbImage) int {
+		switch {
+		case def != "" && i.Language == defLang:
+			return 0
+		case i.Language == "":
+			return 1
+		}
+		return 2
+	}
+	best, bestRank := "", 3
+	for _, i := range list {
+		if i.Width >= fullHDWidth && rank(i) < bestRank {
+			best, bestRank = i.FilePath, rank(i)
+		}
+	}
+	if best != "" {
+		return best
+	}
+	best, bestWidth := def, defWidth
+	for _, i := range list {
+		if i.Width > bestWidth {
+			best, bestWidth = i.FilePath, i.Width
+		}
+	}
+	return best
+}
+
 type tmdbImage struct {
 	FilePath    string  `json:"file_path"`
 	Width       int     `json:"width"`
