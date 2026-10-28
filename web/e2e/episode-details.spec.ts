@@ -6,6 +6,12 @@ async function chooseDisplay(page: Page, label: RegExp) {
  if(!value)throw new Error('Display option missing');
  await select.selectOption(value);
 }
+
+/** Episode ordering lives in the show's ⋯ More menu. */
+async function openOrdering(page: Page) {
+ await page.getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Episode ordering…',exact:true}).click();
+}
 import type { Item, SeasonsResponse } from '../src/lib/api';
 
 const test = base.extend<{ media: { specials: string } }>({
@@ -48,7 +54,7 @@ test('metadata ordering: staged file order, Retry, scoped refresh and independen
   const before=await (await page.request.get(`/api/items/${first.id}`)).json();
   expect((await page.request.put(`/api/items/${first.id}/progress`,{data:{position_ms:70000,duration_ms:120000,state:'stopped'}})).ok()).toBeTruthy();
   await page.goto(`/series/${series.id}`);
-  const open=()=>page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  const open=()=>openOrdering(page);
   const dialog=page.getByRole('dialog',{name:'Edit',exact:true});
   await open();
   await expect(dialog.getByText('Details From',{exact:true})).toHaveCount(0);
@@ -169,7 +175,7 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   await page.goto(`/series/${series.id}`);
   let fail = true;
   await page.route('**/api/series/*/specials', route => fail ? route.fulfill({ status: 503, json: { error: 'Specials save unavailable' } }) : route.continue());
-  const menu = async () => { await page.getByRole('button', { name: 'Episode ordering…', exact:true }).click(); };
+  const menu = async () => { await openOrdering(page); };
   await menu(); await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('on'); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Specials save unavailable');
   expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(false);
@@ -192,4 +198,37 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toHaveCount(0);
   await menu(); await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('inherit'); await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+});
+
+test('season names and summaries are edited from Edit, Seasons, for the order being viewed', async ({ page, media }) => {
+  const { series } = await importShow(page, media.specials);
+  await page.goto(`/series/${series.id}`);
+  // The season bar keeps playback and view controls only; editing lives in the Edit dialog.
+  await expect(page.getByRole('button', { name: 'Show Missing', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit Season', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Episode ordering…', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit', exact: true });
+  await dialog.getByRole('tab', { name: 'Seasons', exact: true }).click();
+  await expect(dialog.getByText(/order you’re viewing/)).toBeVisible();
+  await dialog.getByRole('button', { name: /Season 1 2 episodes/ }).click();
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('');
+  await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('The First Run');
+  await dialog.getByRole('textbox', { name: 'Summary', exact: true }).fill('A summary written by hand.');
+  let fail = true;
+  await page.route(`**/api/series/${series.id}/seasons/1*`, route => route.request().method() === 'PATCH' && fail
+    ? route.fulfill({ status: 503, json: { error: 'Season save unavailable' } }) : route.continue());
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Season save unavailable');
+  fail = false;
+  await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'The First Run', exact: true })).toBeVisible();
+  await expect(page.getByText('A summary written by hand.', { exact: true })).toBeVisible();
+  const saved: SeasonsResponse = await (await page.request.get(`/api/series/${series.id}/seasons`)).json();
+  const season = saved.seasons.find(s => s.season_number === 1)!;
+  expect(season.name).toBe('The First Run');
+  expect([...season.locked_fields].sort()).toEqual(['name', 'overview']);
 });

@@ -6,6 +6,12 @@ async function chooseDisplay(page: Page, label: RegExp) {
  if(!value)throw new Error('Display option missing');
  await select.selectOption(value);
 }
+
+/** Episode ordering lives in the show's ⋯ More menu. */
+async function openOrdering(page: Page) {
+ await page.getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Episode ordering…',exact:true}).click();
+}
 import type { Item, Library } from '../src/lib/api';
 type Fixtures = { movies: string; shows: string; empty: string; playback: string };
 const password = 'Arc-browser-test-123';
@@ -335,7 +341,7 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.reload(); await expect(spoiler).toBeChecked();
   await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Ordering save failed' } }));
   await page.goto('/series/' + item.id);
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
 
   await expect(page.getByText('Your choice also sets the server default', {exact:true})).toBeVisible();
   await chooseDisplay(page, /Story Order/);
@@ -343,14 +349,14 @@ test('profile preferences and display orders explain failed saves and retry', as
   await expect(page.getByText('Ordering save failed', { exact: true })).toBeVisible();
   await page.unroute('**/display-ordering');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
   await page.reload();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
 
   await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Follow file order');
 });
 
@@ -484,7 +490,7 @@ test('playback failures can retry without reopening the title', async ({ page })
 test('comparison keeps selections on failure and profiles can return to inherited order', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
 
   await page.getByRole('button', { name: 'Compare orders…',exact:true }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare Episode Orders', exact: true });
@@ -501,17 +507,17 @@ test('comparison keeps selections on failure and profiles can return to inherite
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Order viewer', color: 'blue' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
   await page.reload();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
 
   await expect(page.getByText('Your profile only', { exact: true })).toBeVisible();
   await chooseDisplay(page, /Aired Order/);
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Aired Order');
 
   await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
   await page.getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('button',{name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Use server default');
   expect((await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id).toBe(inherited);
 });

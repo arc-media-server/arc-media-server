@@ -149,10 +149,10 @@ export function applySeasonArtwork(seriesId: string, season: number, change: Art
 }
 
 /**
- * A show's seasons with their posters; pick one to choose its poster from TMDB's, upload one, or
- * go back to automatic. Changes wait for the Edit dialog's Save.
+ * A show's aired seasons with their posters; pick one to choose its poster from TMDB's, upload
+ * one, or go back to automatic. Changes wait for the Edit dialog's Save.
  */
-export function SeasonsPanel({
+export function SeasonPostersPanel({
   item,
   changes,
   onChange,
@@ -183,19 +183,10 @@ export function SeasonsPanel({
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 pb-2">
         {seasons.data?.seasons.map((s) => {
           const c = changes[s.season_number];
-          const src = c && 'file' in c ? c.preview : c && 'path' in c ? undefined : s.image;
           return (
             <button key={s.season_number} type="button" onClick={() => setOpen(s.season_number)} className="group text-left">
               <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-surface-2 ring-1 ring-border transition-all group-hover:-translate-y-0.5 group-hover:ring-2 group-hover:ring-accent/60">
-                {src ? (
-                  <img src={src} alt="" loading="lazy" className="size-full object-cover" />
-                ) : c && 'path' in c ? (
-                  <PendingThumb seriesId={item.id} season={s.season_number} path={c.path} />
-                ) : (
-                  <span className="flex size-full items-center justify-center p-2 text-center text-xs text-subtle">
-                    {c && 'automatic' in c ? t("metadata:chooseArtwork.automatic") : t("metadata:chooseArtwork.showPoster")}
-                  </span>
-                )}
+                <SeasonPosterThumb seriesId={item.id} season={s.season_number} image={s.image} change={c} />
                 {c && <span className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-accent shadow" aria-label={t("metadata:chooseArtwork.changed")} />}
               </div>
               <p className="mt-1.5 truncate text-[13px] font-medium">{s.name}</p>
@@ -205,6 +196,19 @@ export function SeasonsPanel({
         })}
       </div>
     </div>
+  );
+}
+
+/** A season's poster tile image: a pending change if there is one, else the poster in use. */
+export function SeasonPosterThumb({ seriesId, season, image, change }: { seriesId: string; season: number; image?: string; change?: ArtworkChange }) {
+  const { t } = useTranslation('metadata');
+  const src = change ? ('file' in change ? change.preview : undefined) : image;
+  if (src) return <img src={src} alt="" loading="lazy" className="size-full object-cover" />;
+  if (change && 'path' in change) return <PendingThumb seriesId={seriesId} season={season} path={change.path} />;
+  return (
+    <span className="flex size-full items-center justify-center p-2 text-center text-xs text-subtle">
+      {change && 'automatic' in change ? t("metadata:chooseArtwork.automatic") : t("metadata:chooseArtwork.showPoster")}
+    </span>
   );
 }
 

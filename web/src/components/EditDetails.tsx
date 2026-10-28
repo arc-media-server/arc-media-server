@@ -4,7 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
-import { applyArtwork, applySeasonArtwork, ArtworkPanel, SeasonsPanel, type ArtworkChange } from '@/components/ChooseArtwork';
+import { applyArtwork, applySeasonArtwork, ArtworkPanel, type ArtworkChange } from '@/components/ChooseArtwork';
+import { SeasonsPanel, seasonEdit, type SeasonText } from '@/components/EditSeasons';
 import { orderings } from '@/components/LibraryEditor';
 import { useLibraries } from '@/components/Sidebar';
 import { ChipInput } from '@/components/ChipInput';
@@ -105,9 +106,16 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
   const [tab, setTab] = useState<(typeof tabs)[number]>(initialTab ?? 'details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
-  const [saving, setSaving] = useState<'details' | 'markers' | ArtworkType | 'unlocked' | { season: string }>('details');
+  // Season names and summaries belong to the episode order being viewed, as on the show's page.
+  const seasonView = useQuery({ queryKey: ['seasons', item.id, true], queryFn: () => api.seasons(item.id, { missing: true }), enabled: admin && item.kind === 'series' });
+  const [seasonText, setSeasonText] = useState<Record<number, SeasonText>>({});
+  const seasonNamesValid = Object.values(seasonText).every((s) => s.name.trim());
+  const [saving, setSaving] = useState<'details' | 'markers' | ArtworkType | 'unlocked' | { season: string } | { seasonText: string }>('details');
   const savingLabels = { details: t('details:saving.details'), markers: t('details:saving.markers'), poster: t('details:saving.poster'), backdrop: t('details:saving.backdrop'), logo: t('details:saving.logo'), unlocked: t('details:saving.unlocked') };
-  const savingLabel = typeof saving === 'object' ? t('details:saving.season', { season: saving.season }) : savingLabels[saving];
+  const savingLabel =
+    typeof saving !== 'object' ? savingLabels[saving]
+    : 'seasonText' in saving ? t('details:saving.seasonText', { season: saving.seasonText })
+    : t('details:saving.season', { season: saving.season });
 
   const save = useMutation({
     mutationFn: async () => {
@@ -138,6 +146,12 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         if (!change) continue;
         setSaving(type);
         updated = await applyArtwork(item.id, type, change);
+      }
+      for (const [n, text] of Object.entries(seasonText)) {
+        const season = seasonView.data?.seasons.find((s) => s.season_number === Number(n));
+        if (!season) continue;
+        setSaving({ seasonText: season.name });
+        await api.editSeason(item.id, season.season_number, seasonView.data?.ordering?.id, seasonEdit(season, text));
       }
       for (const [season, change] of Object.entries(seasonArt)) {
         setSaving({ season });
@@ -194,7 +208,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
           <DialogClose asChild>
             <Button variant="ghost" disabled={save.isPending}>{t("details:editDetails.cancel")}</Button>
           </DialogClose>
-          <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !values.title?.trim() || !markerEdit.valid}>
+          <Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending || !values.title?.trim() || !markerEdit.valid || !seasonNamesValid}>
             {save.isPending && <Loader2 className="animate-spin" />} {t("details:editDetails.save")}</Button>
         </>
       }
@@ -212,7 +226,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
               className={cn('shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors', tab === tabId ? 'bg-foreground text-background' : 'text-muted hover:text-foreground')}
             >
               {tabId === 'ordering' ? t("details:editDetails.metadataOrdering") : tabId === 'details' ? t("details:editDetails.details") : tabId === 'seasons' ? t("details:editDetails.seasons") : tabId === 'markers' ? t("details:editDetails.skipMarkers") : item.kind === 'episode' ? t("details:editDetails.thumbnail") : artworkLabels[tabId]}
-              {(tabId === 'seasons' ? Object.keys(seasonArt).length > 0 : tabId === 'markers' ? !!markerEdit.edit : tabId !== 'details' && tabId !== 'ordering' && art[tabId]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={t("details:editDetails.changed")} />}
+              {(tabId === 'seasons' ? Object.keys(seasonArt).length + Object.keys(seasonText).length > 0 : tabId === 'markers' ? !!markerEdit.edit : tabId !== 'details' && tabId !== 'ordering' && art[tabId]) && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-label={t("details:editDetails.changed")} />}
             </button>
           ))}
         </div>
@@ -252,11 +266,22 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
       {tab === 'seasons' && (
         <SeasonsPanel
           item={item}
-          changes={seasonArt}
-          onChange={(n, c) =>
+          view={seasonView.data}
+          error={seasonView.error}
+          art={seasonArt}
+          onArt={(n, c) =>
             setSeasonArt((prev) => {
               const next = { ...prev };
               if (c) next[n] = c;
+              else delete next[n];
+              return next;
+            })
+          }
+          text={seasonText}
+          onText={(n, v) =>
+            setSeasonText((prev) => {
+              const next = { ...prev };
+              if (v) next[n] = v;
               else delete next[n];
               return next;
             })

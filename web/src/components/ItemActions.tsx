@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, ListMusic, ListOrdered, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -68,7 +68,8 @@ export function useAnalyzeItem(item?: Item) {
 
 /**
  * The "⋯" button on a movie or show page, as Plex's: Play next, Add to queue and Add to Playlist
- * for anyone who can play the title, then the server owner's tools.
+ * for anyone who can play the title, a show's episode ordering for every profile (each chooses
+ * their own), then the server owner's tools.
  */
 export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: {
   item: Item; admin: boolean; playable: boolean; edition?: string; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -77,7 +78,8 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
   const { t } = useTranslation('titles');
   const queue = useQueueActions(item, edition);
   const [playlist, setPlaylist] = useState(false);
-  if (!admin && !playable) return null;
+  const ordering = item.kind === 'series';
+  if (!admin && !playable && !ordering) return null;
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2">
       <DropdownMenu>
@@ -100,7 +102,8 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
 
 /**
  * The items of a title's "⋯" menu: queue and playlist actions for anyone who can play it, any
- * `extra` items, then the server owner's tools. Shared by the title page and poster cards.
+ * `extra` items, a show's episode ordering (every profile chooses its own), then the server
+ * owner's tools. Shared by the title page and poster cards.
  */
 export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refreshing, onAnalyze, analyzing, onQueue, onPlaylist, extra }: {
   item: Item; admin: boolean; playable: boolean; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -118,7 +121,13 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
         </>
       )}
       {extra}
-      {(playable || extra) && admin && <DropdownMenuSeparator />}
+      {item.kind === 'series' && (
+        <>
+          {(playable || extra) && <DropdownMenuSeparator />}
+          <DropdownMenuItem onSelect={() => onOpen('ordering')}><ListOrdered className="size-4 text-muted" /> {t('titles:itemActions.episodeOrdering')}</DropdownMenuItem>
+        </>
+      )}
+      {(playable || extra || item.kind === 'series') && admin && <DropdownMenuSeparator />}
       {admin && (
         <>
           {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t('titles:itemActions.refreshingMetadata') : t('titles:itemActions.refreshMetadata')}</DropdownMenuItem>}

@@ -7,6 +7,12 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
+/** Episode ordering lives in the show's ⋯ More menu. */
+async function openOrdering(page: Page) {
+ await page.getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('menuitem',{name:'Episode ordering…',exact:true}).click();
+}
+
 type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string };
 const password = 'Arc-browser-test-123';
 
@@ -635,16 +641,16 @@ test('alternate episode order persists and unplaced files remain visible', async
   await expect(first).toBeVisible();
   await expect(second).toBeVisible();
   expect((await first.boundingBox())!.y).toBeLessThan((await second.boundingBox())!.y);
-  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
 
   await chooseDisplay(page, /Story Order/);
   await page.getByRole('button', {name:'Save',exact:true}).click();
-  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
   await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect.poll(async () => (await second.boundingBox())!.y < (await first.boundingBox())!.y).toBe(true);
   await page.reload();
-  await page.getByRole('button', {name:'Episode ordering…',exact:true}).click();
+  await openOrdering(page);
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
   await page.getByRole('button', {name:'Cancel',exact:true}).click();
   await expect(second).toBeVisible();

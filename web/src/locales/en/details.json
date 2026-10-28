@@ -28,17 +28,20 @@
     "addGenre": "Add a genre",
     "addLabel": "Add a label"
   },
-  "editSeason": {
-    "anythingYouChangeIs": "Anything you change is locked, so refreshes won’t undo it. This changes the season in the episode order you’re viewing.",
-    "cancel": "Cancel",
-    "save": "Save",
-    "details": "Details",
-    "poster": "Poster",
-    "changed": "changed",
+  "editSeasons": {
+    "allSeasons": "All seasons",
+    "pick": "Pick a season to change its name or summary in the {{order}} order you’re viewing.",
+    "pickAired": "Pick a season to change its name, summary or poster. Names and summaries change in the {{order}} order you’re viewing; posters show on home rows set to season posters.",
+    "airedPosters": "Season posters (aired seasons)",
+    "locked": "Anything you change is locked, so refreshes won’t undo it.",
     "name": "Name",
     "summary": "Summary",
     "noSummaryYet": "No summary yet",
-    "title": "Edit {{name}}"
+    "poster": "Poster",
+    "changed": "changed",
+    "changedLabel": "Changed",
+    "episodes_one": "{{count}} episode",
+    "episodes_other": "{{count}} episodes"
   },
   "episodeOrdering": {
     "displayOrder": "Display order",
@@ -113,6 +116,7 @@
     "backdrop": "Saving background…",
     "logo": "Saving logo…",
     "unlocked": "Refreshing unlocked fields…",
-    "season": "Saving season {{season}} poster…"
+    "season": "Saving season {{season}} poster…",
+    "seasonText": "Saving {{season}}…"
   }
 }
