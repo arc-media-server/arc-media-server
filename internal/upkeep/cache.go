@@ -44,9 +44,10 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 	}
 	keepArt := map[string]bool{}
 	for _, im := range images {
-		src := artwork.Source(im.Kind, im.Type, im.Path)
-		if strings.HasPrefix(src, "http") {
-			keepArt[artwork.Key(src)] = true
+		for _, src := range artwork.Sources(im.Kind, im.Type, im.Path) {
+			if strings.HasPrefix(src, "http") {
+				keepArt[artwork.Key(src)] = true
+			}
 		}
 	}
 	versions, err := st.OptimizedVersions(ctx)

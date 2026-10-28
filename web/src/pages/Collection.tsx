@@ -62,7 +62,7 @@ export function CollectionPage() {
 
   return (
     <Page className="pb-20">
-      <Hero backdrop={c.images.backdrop} className="min-h-[52vh]">
+      <Hero backdrop={c.images.backdrop_full ?? c.images.backdrop}className="min-h-[52vh]">
         <div className="flex min-h-[52vh] items-end gap-8 px-6 pb-10 pt-24 md:px-10">
           <Artwork src={c.images.primary} alt={c.title} fallbackTitle={c.title} eager className="hidden w-44 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block" />
           <div className="max-w-2xl">

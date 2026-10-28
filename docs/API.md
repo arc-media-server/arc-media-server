@@ -91,7 +91,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/collections/{id}` | profile | Is a collection and its titles. |
-| GET | `/api/collections/{id}/images/{type}` | profile | Is a collection's poster or background. |
+| GET | `/api/collections/{id}/images/{type}` | profile | Is a collection's poster or background (?size=full for the full-resolution background). |
 | POST | `/api/collections` | admin | {"library_id", "kind": "manual"\|"smart", "title", "overview", "filter" (smart), "item_ids" (manual)}. |
 | PATCH | `/api/collections/{id}` | admin | {"title", "overview", "filter"}. |
 | DELETE | `/api/collections/{id}` | admin | Automatic collections are hidden for good. |
@@ -192,7 +192,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). |
 | GET | `/api/items/{id}/trickplay` | profile | ?file=<id> describes a file's timeline thumbnails and where its sheets are. Until they're made it's 404, and the file moves up the queue. |
 | GET | `/api/items/{id}/trickplay/{file}/{sheet}` | profile | Is one sheet of thumbnails. |
-| GET | `/api/items/{id}/images/{type}` | profile | Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. |
+| GET | `/api/items/{id}/images/{type}` | profile | Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. A backdrop with ?size=full is the full-resolution picture, for full-width banners. |
 | PUT | `/api/items/{id}/progress` | profile | {"position_ms", "duration_ms"} from the player, every few seconds and on pause or close. |
 | PUT | `/api/items/{id}/played` | profile | {"played": true} marks a movie or episode watched or unwatched for the current profile. For a series it applies to all its episodes, or with "season_number" to one season of the profile's episode order. |
 | GET | `/api/items/{id}/next` | profile | Is the episode that follows one in the profile's episode order, for playing on: the next one on disk, staying out of specials unless the episode is one. 204 when there's none (the last episode, a movie, or an episode the order doesn't place). |
