@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Gauge, Layers, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
@@ -42,6 +43,7 @@ export function useItemDialogs(item: Item | undefined) {
  * background, like Plex's Analyze. Progress shows in Activity; `notice` reports it or an error.
  */
 export function useAnalyzeItem(item?: Item) {
+  const { t } = useTranslation('titles');
   const qc = useQueryClient();
   const analyze = useMutation({
     mutationFn: () => api.analyzeItem(item!.id),
@@ -54,9 +56,7 @@ export function useAnalyzeItem(item?: Item) {
     <>
       <ErrorNotice error={analyze.error} onRetry={() => analyze.mutate()} />
       {analyze.isSuccess && (
-        <p role="status" className="mt-3 text-sm text-muted">
-          Analyzing {item?.kind === 'series' ? 'every episode' : 'its files'}. Progress shows in Activity.
-        </p>
+        <p role="status" className="mt-3 text-sm text-muted">          {item?.kind === 'series' ? t('titles:itemActions.analyzingEpisodes') : t('titles:itemActions.analyzingFiles')}</p>
       )}
     </>
   );
@@ -65,36 +65,32 @@ export function useAnalyzeItem(item?: Item) {
 
 /** The "⋯" button on a movie or show page. */
 export function MoreMenu({ item, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: { item?: Item; onOpen: (d: Exclude<Dialog, null>) => void; onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean }) {
+  const { t } = useTranslation('titles');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="lg" className="w-12 px-0" title="More" aria-label="More">
+        <Button variant="secondary" size="lg" className="w-12 px-0" title={t("titles:itemActions.more")} aria-label={t("titles:itemActions.more")}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? 'Refreshing metadata…' : 'Refresh metadata'}</DropdownMenuItem>}
-        {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? 'Starting analysis…' : 'Analyze'}</DropdownMenuItem>}
+        {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t("titles:itemActions.refreshingMetadata") : t("titles:itemActions.refreshMetadata")}</DropdownMenuItem>}
+        {onAnalyze && <DropdownMenuItem disabled={analyzing} onSelect={onAnalyze}><ScanSearch className="size-4 text-muted" />{analyzing ? t("titles:itemActions.startingAnalysis") : t("titles:itemActions.analyze")}</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => onOpen('edit')}>
-          <Pencil className="size-4 text-muted" /> Edit…
-        </DropdownMenuItem>
+          <Pencil className="size-4 text-muted" /> {t("titles:itemActions.edit")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onOpen('collection')}>
-          <Layers className="size-4 text-muted" /> Add to Collection…
-        </DropdownMenuItem>
+          <Layers className="size-4 text-muted" /> {t("titles:itemActions.addToCollection")}</DropdownMenuItem>
         {!isLocalVideo(item) && (
           <DropdownMenuItem onSelect={() => onOpen('match')}>
-            <SearchCheck className="size-4 text-muted" /> Fix Match…
-          </DropdownMenuItem>
+            <SearchCheck className="size-4 text-muted" /> {t("titles:itemActions.fixMatch")}</DropdownMenuItem>
         )}
         {item && !isLocalVideo(item) && (
           <DropdownMenuItem onSelect={() => onOpen('optimize')}>
-            <Gauge className="size-4 text-muted" /> Optimize…
-          </DropdownMenuItem>
+            <Gauge className="size-4 text-muted" /> {t("titles:itemActions.optimize")}</DropdownMenuItem>
         )}
         {item && splitVersions(item) > 1 && (
           <DropdownMenuItem onSelect={() => onOpen('split')}>
-            <Split className="size-4 text-muted" /> Split Apart…
-          </DropdownMenuItem>
+            <Split className="size-4 text-muted" /> {t("titles:itemActions.splitApart")}</DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -103,6 +99,7 @@ export function MoreMenu({ item, onOpen, onRefresh, refreshing, onAnalyze, analy
 
 /** Split Apart: each version of a movie but the first becomes a title of its own. */
 function SplitDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { t } = useTranslation('titles');
   const qc = useQueryClient();
   const split = useMutation({
     mutationFn: () => api.splitItem(item.id),
@@ -116,14 +113,13 @@ function SplitDialog({ item, open, onOpenChange }: { item: Item; open: boolean; 
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Split Apart"
-      confirmLabel="Split Apart"
+      title={t("titles:itemActions.splitTitle")}
+      confirmLabel={t("titles:itemActions.splitTitle")}
       busy={split.isPending}
       error={split.error?.message}
       onConfirm={() => split.mutate()}
     >
-      {item.title} has {n} versions. Splitting gives the other {n - 1 === 1 ? 'one' : n - 1} a title of {n - 1 === 1 ? 'its' : 'their'} own, identified
-      online from the file name. Use this when different films were grouped together by mistake. Watch history stays with {item.title}.
+      {t('titles:itemActions.splitExplanation', { count: n - 1, versions: n, title: item.title })}
     </ConfirmDialog>
   );
 }
