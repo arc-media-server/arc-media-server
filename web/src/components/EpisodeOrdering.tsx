@@ -1,7 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { useId } from 'react';
 import { GitCompareArrows } from 'lucide-react';
 import type { Ordering } from '@/lib/api';
-import * as fmt from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { FieldLabel, inputClass } from '@/components/ui/field';
 
@@ -18,41 +18,41 @@ export function EpisodeOrderingFields({
   specials: 'inherit' | 'on' | 'off';
   onSpecials: (value: boolean | null) => void;
 }) {
+  const { t } = useTranslation('details');
   const id = useId();
   const groups: [string, Ordering[]][] = [
     ['TheTVDB', orderings.filter(o => o.source.startsWith('tvdb'))],
     ['TMDB', orderings.filter(o => o.source.startsWith('tmdb'))],
-    ['Custom', orderings.filter(o => o.source === 'custom')],
-    ['From file names', orderings.filter(o => o.source === 'file')],
+    [t('details:episodeOrdering.custom'), orderings.filter(o => o.source === 'custom')],
+    [t('details:episodeOrdering.fileNames'), orderings.filter(o => o.source === 'file')],
   ];
   return <div className="space-y-6">
     <div>
-      <label htmlFor={`${id}-display`}><FieldLabel>Display order</FieldLabel></label>
+      <label htmlFor={`${id}-display`}><FieldLabel>{t("details:episodeOrdering.displayOrder")}</FieldLabel></label>
       <select id={`${id}-display`} aria-describedby={`${id}-display-help`} value={selected || 'inherit'} disabled={pending}
         onChange={e => onSelect(e.target.value === 'inherit' ? null : Number(e.target.value))} className={inputClass}>
-        <option value="inherit">{admin ? 'Follow file order' : 'Use server default'}</option>
+        <option value="inherit">{admin ? t("details:episodeOrdering.followFileOrder") : t("details:episodeOrdering.useServerDefault")}</option>
         {groups.filter(([, list]) => list.length).map(([label, list]) => <optgroup key={label} label={label}>
           {list.map(o => <option key={o.id} value={o.id}>
-            {[providerLabel(o), o.name, fmt.plural(o.episode_count, 'episode')].filter(Boolean).join(' · ')}
+            {[providerLabel(o), o.name, t('details:episodeOrdering.episodes', { count: o.episode_count })].filter(Boolean).join(' · ')}
           </option>)}
         </optgroup>)}
       </select>
-      <p id={`${id}-display-help`} className="mt-1.5 text-xs text-subtle">Changes browsing and playback sequence. Your files keep the same episode identities.</p>
+      <p id={`${id}-display-help`} className="mt-1.5 text-xs text-subtle">{t("details:episodeOrdering.changesBrowsingAndPlayback")}</p>
       {onCompare && <Button type="button" variant="ghost" size="sm" className="mt-2" disabled={pending} onClick={onCompare}>
-        <GitCompareArrows className="size-4" /> Compare orders…
-      </Button>}
+        <GitCompareArrows className="size-4" /> {t("details:episodeOrdering.compareOrders")}</Button>}
     </div>
     <div>
-      <label htmlFor={`${id}-specials`}><FieldLabel>Specials in seasons</FieldLabel></label>
+      <label htmlFor={`${id}-specials`}><FieldLabel>{t("details:episodeOrdering.specialsInSeasons")}</FieldLabel></label>
       <select id={`${id}-specials`} aria-describedby={`${id}-specials-help`} value={specials} disabled={pending}
         onChange={e => onSpecials(e.target.value === 'inherit' ? null : e.target.value === 'on')} className={inputClass}>
-        <option value="inherit">{admin ? 'Default (Off)' : 'Use server setting'}</option>
-        <option value="on">On</option>
-        <option value="off">Off</option>
+        <option value="inherit">{admin ? t("details:episodeOrdering.defaultOff") : t("details:episodeOrdering.useServerSetting")}</option>
+        <option value="on">{t("details:episodeOrdering.on")}</option>
+        <option value="off">{t("details:episodeOrdering.off")}</option>
       </select>
-      <p id={`${id}-specials-help`} className="mt-1.5 text-xs text-subtle">Places specials between regular episodes when their position is known. Others stay in Specials; custom placements are kept.</p>
+      <p id={`${id}-specials-help`} className="mt-1.5 text-xs text-subtle">{t("details:episodeOrdering.placesSpecialsBetweenRegular")}</p>
     </div>
-    <p className="text-xs text-subtle">{admin ? 'Your choice also sets the server default' : 'Your profile only'}</p>
+    <p className="text-xs text-subtle">{admin ? t("details:episodeOrdering.yourChoiceAlsoSets") : t("details:episodeOrdering.yourProfileOnly")}</p>
   </div>;
 }
 

@@ -53,7 +53,7 @@ export function RowShell({ title, href, empty, children, loading, error, onRetry
         onKeyDown={event => {
           if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
           if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); scroll(event.key === 'ArrowLeft' ? -1 : 1); }
-          if (event.key === t('navigation.home') || event.key === 'End') { event.preventDefault(); event.currentTarget.scrollTo({ left: event.key === t('navigation.home') ? 0 : event.currentTarget.scrollWidth, behavior: 'instant' }); }
+          if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); event.currentTarget.scrollTo({ left: event.key === 'Home' ? 0 : event.currentTarget.scrollWidth, behavior: 'instant' }); }
         }}
         onFocusCapture={event => {
           const el = event.currentTarget;

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useId, useState } from 'react';
 import { X } from 'lucide-react';
 import { inputClass } from '@/components/ui/field';
@@ -18,6 +19,7 @@ export function ChipInput({
   /** Offered as you type (e.g. labels already in use). */
   suggestions?: string[];
 }) {
+  const { t } = useTranslation('metadata');
   const [text, setText] = useState('');
   const listId = useId();
   const add = (raw = text) => {
@@ -31,7 +33,7 @@ export function ChipInput({
       {value.map((g) => (
         <span key={g} className="flex items-center gap-1 rounded-full bg-surface-3 py-0.5 pl-2.5 pr-1 text-[13px]">
           {g}
-          <button type="button" aria-label={`Remove ${g}`} onClick={() => onChange(value.filter((v) => v !== g))} className="rounded-full p-0.5 text-subtle hover:text-foreground">
+          <button type="button" aria-label={t('metadata:chipInput.remove', { value: g })} onClick={() => onChange(value.filter((v) => v !== g))} className="rounded-full p-0.5 text-subtle hover:text-foreground">
             <X className="size-3" />
           </button>
         </span>

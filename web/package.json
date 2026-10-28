@@ -9,7 +9,7 @@
     "test:adaptive": "node e2e/adaptive-policy.test.mjs",
     "test:e2e": "npm run build && tsc -p e2e/tsconfig.json && npm run test:e2e:only",
     "test:e2e:only": "npm run test:adaptive && playwright test",
-    "test:i18n": "node --test tools/i18n.test.mjs tools/home-i18n.test.mjs"
+    "test:i18n": "node --test tools/i18n.test.mjs tools/home-i18n.test.mjs tools/browsing-i18n.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

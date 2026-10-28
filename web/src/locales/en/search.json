@@ -1,0 +1,21 @@
+{
+  "resultsFor": "Results for “{{query}}”",
+  "description": "Find movies, shows, episodes, people and collections.",
+  "searching": "Searching…",
+  "emptyTitle": "No results",
+  "emptyDescription": "Nothing in your libraries matches “{{query}}”.",
+  "sections": {
+    "movies": "Movies",
+    "shows": "TV Shows",
+    "people": "People",
+    "collections": "Collections",
+    "episodes": "Episodes",
+    "genres": "Genres"
+  },
+  "roles": {
+    "actor": "Acting",
+    "director": "Directing",
+    "writer": "Writing",
+    "creator": "Creator"
+  }
+}

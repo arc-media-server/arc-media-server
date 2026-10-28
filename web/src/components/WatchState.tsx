@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ export function ProgressBar({ value, className }: { value: number; className?: s
  * The corner badge on a poster: a tick when watched, or for a show the number of unwatched episodes.
  */
 export function WatchBadge({ item, className }: { item: Item; className?: string }) {
+  const { t } = useTranslation('titles');
   const watched = item.kind === 'series' ? item.unwatched_count === 0 : item.user_data?.played;
   const count = item.kind === 'series' ? (item.unwatched_count ?? 0) : 0;
   if (!watched && count === 0) return null;
@@ -33,7 +35,7 @@ export function WatchBadge({ item, className }: { item: Item; className?: string
         watched ? 'bg-black/55 text-white backdrop-blur' : 'bg-accent-strong text-white',
         className,
       )}
-      title={watched ? 'Watched' : `${count} unwatched`}
+      title={watched ? t('titles:watchState.watched') : t('titles:watchState.unwatched', { count })}
     >
       {watched ? <Check className="size-3.5" strokeWidth={3} /> : count}
     </span>

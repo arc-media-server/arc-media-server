@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useQueries } from '@tanstack/react-query';
@@ -5,7 +6,6 @@ import { ChevronRight, MonitorPlay } from 'lucide-react';
 import { api, type Compatibility, type Library } from '@/lib/api';
 import { kindUnit } from '@/lib/kinds';
 import { devicePresets } from '@/lib/playback';
-import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { inputClass } from '@/components/ui/field';
 
@@ -14,6 +14,7 @@ import { inputClass } from '@/components/ui/field';
  * converted (uses the processor or graphics card), and which titles need converting and why.
  */
 export function PlaybackReport({ libraries }: { libraries: Library[] }) {
+  const { t } = useTranslation('reports');
   const [device, setDevice] = useState(devicePresets[0].id);
   const preset = devicePresets.find((d) => d.id === device)!;
   const caps = useMemo(() => preset.caps(), [preset]);
@@ -25,21 +26,17 @@ export function PlaybackReport({ libraries }: { libraries: Library[] }) {
   });
 
   return (
-    <section aria-label="Playback">
+    <section aria-label={t("reports:playbackReport.playback")}>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h2 className="flex items-center gap-2.5 text-xl font-semibold">
-          <MonitorPlay className="size-5 text-muted" /> Playback
-        </h2>
-        <select aria-label="Device" value={device} onChange={(e) => setDevice(e.target.value)} className={cn(inputClass, 'w-auto')}>
+          <MonitorPlay className="size-5 text-muted" /> {t("reports:playbackReport.playback")}</h2>
+        <select aria-label={t("reports:playbackReport.device")} value={device} onChange={(e) => setDevice(e.target.value)} className={cn(inputClass, 'w-auto')}>
           {devicePresets.map((d) => (
             <option key={d.id} value={d.id}>{d.label}</option>
           ))}
         </select>
       </div>
-      <p className="mb-4 max-w-3xl text-sm text-muted">
-        How your titles would play on this kind of device. Repackaging is quick and loses nothing; converting uses the server&apos;s
-        processor or graphics card.
-      </p>
+      <p className="mb-4 max-w-3xl text-sm text-muted">{t("reports:playbackReport.howYourTitlesWould")}</p>
       <div className="divide-y divide-border rounded-2xl bg-surface ring-1 ring-border">
         {libraries.map((lib, i) => (
           <LibraryPlayback key={lib.id} library={lib} report={reports[i]?.data} error={reports[i]?.error} />
@@ -49,13 +46,15 @@ export function PlaybackReport({ libraries }: { libraries: Library[] }) {
   );
 }
 
-const methods = [
-  { key: 'direct', label: 'Direct play', bar: 'bg-accent' },
-  { key: 'remux', label: 'Repackaged', bar: 'bg-accent/50' },
-  { key: 'transcode', label: 'Converted', bar: 'bg-warning' },
-] as const;
+
 
 function LibraryPlayback({ library, report: r, error }: { library: Library; report?: Compatibility; error: Error | null }) {
+  const { t } = useTranslation('reports');
+  const methods = [
+  { key: 'direct', label: t('reports:methods.direct'), bar: 'bg-accent' },
+  { key: 'remux', label: t('reports:methods.remux'), bar: 'bg-accent/50' },
+  { key: 'transcode', label: t('reports:methods.transcode'), bar: 'bg-warning' },
+] as const;
   const [expanded, setExpanded] = useState(false);
   if (error) return <p className="px-4 py-3 text-sm text-warning">{library.name}: {error.message}</p>;
   if (!r) return <div className="m-4 h-10 animate-pulse rounded-lg bg-surface-2" />;
@@ -68,8 +67,8 @@ function LibraryPlayback({ library, report: r, error }: { library: Library; repo
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 className="font-medium">{library.name}</h3>
         <p className="text-sm text-muted tabular-nums">
-          {methods.map((m) => `${r.counts[m.key]} ${m.label.toLowerCase()}`).join(' · ')}
-          <span className="text-subtle"> of {fmt.plural(r.total, unit)}</span>
+          {methods.map((m) => m.key === 'direct' ? t('reports:playbackReport.directCount', { count: r.counts[m.key] }) : m.key === 'remux' ? t('reports:playbackReport.remuxCount', { count: r.counts[m.key] }) : t('reports:playbackReport.transcodeCount', { count: r.counts[m.key] })).join(' · ')}
+          <span className="text-subtle"> {unit === 'episode' ? t('reports:playbackReport.ofEpisodes', { count: r.total }) : unit === 'show' ? t('reports:playbackReport.ofShows', { count: r.total }) : unit === 'video' ? t('reports:playbackReport.ofVideos', { count: r.total }) : t('reports:playbackReport.ofMovies', { count: r.total })}</span>
         </p>
       </div>
       {r.total > 0 && (
@@ -81,7 +80,7 @@ function LibraryPlayback({ library, report: r, error }: { library: Library; repo
       )}
       {r.converted.length > 0 && (
         <details className="mt-2">
-          <summary className="cursor-pointer text-sm font-medium text-accent">Why {r.converted.length} are converted</summary>
+          <summary className="cursor-pointer text-sm font-medium text-accent">{t('reports:playbackReport.whyConverted', { count: r.converted.length })}</summary>
           {reasons.length > 0 && <p className="mt-2 text-sm text-muted">{reasons.map(([reason, n]) => `${reason} (${n})`).join(' · ')}</p>}
           <div className="mt-2 divide-y divide-border overflow-hidden rounded-xl ring-1 ring-border">
             {shown.map(({ item, reasons: why }) => (
@@ -102,7 +101,7 @@ function LibraryPlayback({ library, report: r, error }: { library: Library; repo
             ))}
             {r.converted.length > 5 && (
               <button onClick={() => setExpanded((e) => !e)} className="w-full px-4 py-2 text-left text-sm font-medium text-accent hover:bg-surface-2">
-                {expanded ? 'Show fewer' : `Show all ${r.converted.length}`}
+                {expanded ? t("reports:playbackReport.showFewer") : t('reports:playbackReport.showAll', { count: r.converted.length })}
               </button>
             )}
           </div>

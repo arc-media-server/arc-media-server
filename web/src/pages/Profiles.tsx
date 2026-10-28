@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Link2, Loader2, Lock, Pencil, Plus, SlidersHorizontal, Trash2, UserPlus } from 'lucide-react';
@@ -15,6 +17,7 @@ import { ChipInput } from '@/components/ChipInput';
 import { EditOtherHomeDialog, type HomeTarget } from '@/components/EditHome';
 
 export function ProfilesPage() {
+  const { t } = useTranslation('administration');
   const qc = useQueryClient();
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: api.profiles });
   const [editing, setEditing] = useState<Profile | 'new' | 'friend' | null>(null);
@@ -40,19 +43,16 @@ export function ProfilesPage() {
   return (
     <Page className="pb-16">
       <PageHeader
-        title="Profiles"
-        subtitle="Everyone in your household gets their own watch history and Continue Watching. A PIN keeps a profile private."
+        title={t("administration:profiles.profiles")}
+        subtitle={t("administration:profiles.everyoneInYourHousehold")}
         actions={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'default' })} title="The home page for profiles that haven't arranged their own">
-              <SlidersHorizontal /> Default Home
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setEditing('friend')} title="Share libraries with someone outside your household">
-              <UserPlus /> Add Friend
-            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'default' })} title={t("administration:profiles.theHomePageFor")}>
+              <SlidersHorizontal /> {t("administration:profiles.defaultHome")}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setEditing('friend')} title={t("administration:profiles.shareLibrariesWithSomeone")}>
+              <UserPlus /> {t("administration:profiles.addFriend")}</Button>
             <Button variant="secondary" size="sm" onClick={() => setEditing('new')}>
-              <Plus /> Add Profile
-            </Button>
+              <Plus /> {t("administration:profiles.addProfile")}</Button>
           </>
         }
       />
@@ -66,41 +66,36 @@ export function ProfilesPage() {
                 <p className="break-words text-sm font-semibold">{p.name}</p>
                 <p className="flex flex-wrap items-center gap-1.5 text-xs text-subtle">
                   {p.is_admin
-                    ? 'Admin · manages libraries and settings'
-                    : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length), p.exclude_labels?.length && `hides ${p.exclude_labels.join(', ')}`]
+                    ? t("administration:profiles.adminManagesLibrariesAnd")
+                    : [limitLabel(p.max_age), p.library_ids && libraryCount(p.library_ids.length), p.exclude_labels?.length && t('administration:profiles.hiddenLabels', { labels: p.exclude_labels.join(', ') })]
                         .filter(Boolean)
                         .join(' · ')}
                   {p.has_pin && (
                     <>
                       {' · '}
-                      <Lock className="size-3" /> PIN
-                    </>
+                      <Lock className="size-3" /> {t("administration:profiles.pin")}</>
                   )}
                 </p>
               </div>
               {!p.is_admin && (
                 <Button variant="ghost" size="sm" onClick={() => setHome({ kind: 'profile', id: p.id, name: p.name })}>
-                  <SlidersHorizontal /> Home
-                </Button>
+                  <SlidersHorizontal /> {t("administration:profiles.home")}</Button>
               )}
               <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>
-                <Pencil /> Edit
-              </Button>
+                <Pencil /> {t("administration:profiles.edit")}</Button>
               {!p.is_admin && (
-                <Button variant="ghost" size="icon" aria-label={`Remove ${p.name}`} title="Remove profile" onClick={() => setRemoving(p)}>
+                <Button variant="ghost" size="icon" aria-label={t('administration:profiles.removeName', { name: p.name })} title={t("administration:profiles.removeProfile")} onClick={() => setRemoving(p)}>
                   <Trash2 />
                 </Button>
               )}
             </div>
           ))}
         </div>
-        <h2 className="mb-1 mt-10 text-lg font-semibold">Friends</h2>
-        <p className="mb-4 text-sm text-muted">
-          People outside your household. They sign in from anywhere with their own name and password, only see the libraries you share, and never see your profiles.
-        </p>
+        <h2 className="mb-1 mt-10 text-lg font-semibold">{t("administration:profiles.friends")}</h2>
+        <p className="mb-4 text-sm text-muted">{t("administration:profiles.peopleOutsideYourHousehold")}</p>
         <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
           {profiles.data && !profiles.data.some((p) => p.is_friend) && (
-            <p className="px-4 py-3.5 text-sm text-muted">No friends yet. Add Friend makes an invite link to send them.</p>
+            <p className="px-4 py-3.5 text-sm text-muted">{t("administration:profiles.noFriendsYetAdd")}</p>
           )}
           {profiles.data?.filter((p) => p.is_friend).map((p) => (
             <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -108,7 +103,7 @@ export function ProfilesPage() {
               <div className="min-w-0 basis-[calc(100%-4rem)] sm:basis-0 flex-1">
                 <p className="break-words text-sm font-semibold">{p.name}</p>
                 <p className="break-words text-xs text-subtle">
-                  {[p.joined ? 'Joined' : "Invited, hasn't joined yet", p.library_ids ? libraryCount(p.library_ids.length) : 'All libraries', p.max_age > 0 && limitLabel(p.max_age)]
+                  {[p.joined ? t('administration:profiles.joined') : t('administration:profiles.invited'), p.library_ids ? libraryCount(p.library_ids.length) : t('administration:profiles.allLibraries'), p.max_age > 0 && limitLabel(p.max_age)]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
@@ -118,14 +113,13 @@ export function ProfilesPage() {
                 size="sm"
                 disabled={reinvite.isPending}
                 onClick={() => reinvite.mutate(p)}
-                title={p.joined ? 'A new link lets them choose a new password' : 'A new invite link (the old one stops working)'}
+                title={p.joined ? t("administration:profiles.aNewLinkLets") : t("administration:profiles.aNewInviteLink")}
               >
-                <Link2 /> {p.joined ? 'Reset Password' : 'Invite Link'}
+                <Link2 /> {p.joined ? t("administration:profiles.resetPassword") : t("administration:profiles.inviteLink")}
               </Button>
               <Button variant="secondary" size="sm" onClick={() => setEditing(p)}>
-                <Pencil /> Edit
-              </Button>
-              <Button variant="ghost" size="icon" aria-label={`Remove ${p.name}`} title="Remove friend" onClick={() => setRemoving(p)}>
+                <Pencil /> {t("administration:profiles.edit")}</Button>
+              <Button variant="ghost" size="icon" aria-label={t('administration:profiles.removeName', { name: p.name })} title={t("administration:profiles.removeFriend")} onClick={() => setRemoving(p)}>
                 <Trash2 />
               </Button>
             </div>
@@ -150,14 +144,14 @@ export function ProfilesPage() {
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(o) => !o && setRemoving(null)}
-        title={`Remove ${removing?.name ?? ''}?`}
-        confirmLabel="Remove"
+        title={t('administration:profiles.removeTitle', { name: removing?.name ?? '' })}
+        confirmLabel={t("administration:profiles.remove")}
         destructive
         busy={remove.isPending}
         error={remove.error?.message}
         onConfirm={() => removing && remove.mutate(removing)}
       >
-        <p>Their watch history and Continue Watching are deleted. This can't be undone, except by restoring a backup.</p>
+        <p>{t("administration:profiles.theirWatchHistoryAnd")}</p>
       </ConfirmDialog>
     </Page>
   );
@@ -165,17 +159,18 @@ export function ProfilesPage() {
 
 /** A friend's invite link, to copy and send them. */
 function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token: string } | null; onOpenChange: (o: boolean) => void }) {
+  const { t } = useTranslation('administration');
   const [copied, setCopied] = useState(false);
   const url = link ? `${window.location.origin}/invite/${link.token}` : '';
   return (
     <Dialog open={!!link} onOpenChange={(o) => (setCopied(false), onOpenChange(o))}>
       {link && (
         <DialogContent
-          title={`Invite ${link.name}`}
-          description="Send them this link. With it they choose a password, then sign in with their name and password. It works once, for 7 days."
+          title={t('administration:profiles.inviteTitle', { name: link.name })}
+          description={t("administration:profiles.sendThemThisLink")}
           footer={
             <DialogClose asChild>
-              <Button variant="primary">Done</Button>
+              <Button variant="primary">{t("administration:profiles.done")}</Button>
             </DialogClose>
           }
         >
@@ -187,11 +182,11 @@ function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token:
                 navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {});
               }}
             >
-              {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy'}
+              {copied ? <Check /> : <Copy />} {copied ? t("administration:profiles.copied") : t("administration:profiles.copy")}
             </Button>
           </div>
           {/^https?:\/\/(localhost|127\.|192\.168\.|10\.)/.test(url) && (
-            <p className="pb-2 text-xs text-subtle">This link uses your home address. For a friend elsewhere, open Arc at its outside address (see Remote Access in Settings) and make the link there.</p>
+            <p className="pb-2 text-xs text-subtle">{t("administration:profiles.thisLinkUsesYour")}</p>
           )}
         </DialogContent>
       )}
@@ -200,6 +195,7 @@ function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token:
 }
 
 function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: boolean; onDone: (p?: Profile) => void }) {
+  const { t } = useTranslation('administration');
   const qc = useQueryClient();
   const [name, setName] = useState(profile?.name ?? '');
   const [color, setColor] = useState<ProfileColor>(profile?.color ?? 'blue');
@@ -236,17 +232,16 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
 
   return (
     <DialogContent
-      title={profile ? `Edit ${profile.name}` : friend ? 'Add a Friend' : 'Add a Profile'}
-      description={!profile && friend ? "Choose what they can watch. Next you'll get an invite link to send them." : undefined}
+      title={profile ? t('administration:profiles.editTitle', { name: profile.name }) : friend ? t("administration:profiles.addAFriend") : t("administration:profiles.addAProfile")}
+      description={!profile && friend ? t("administration:profiles.chooseWhatTheyCan") : undefined}
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
           <DialogClose asChild>
-            <Button variant="ghost">Cancel</Button>
+            <Button variant="ghost">{t("administration:profiles.cancel")}</Button>
           </DialogClose>
           <Button variant="primary" disabled={!name.trim() || !pinValid || save.isPending} onClick={() => save.mutate()}>
-            {save.isPending && <Loader2 className="animate-spin" />} Save
-          </Button>
+            {save.isPending && <Loader2 className="animate-spin" />} {t("administration:profiles.save")}</Button>
         </>
       }
     >
@@ -261,11 +256,11 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
           <Avatar name={name || '?'} color={color} className="size-24 text-4xl" />
         </div>
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Name</span>
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.name")}</span>
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className={inputClass} />
         </label>
         <div>
-          <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Colour</span>
+          <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.colour")}</span>
           <div className="flex flex-wrap gap-2.5">
             {(Object.keys(profileColors) as ProfileColor[]).map((c) => (
               <button
@@ -283,7 +278,7 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
         </div>
         {!friend && (
           <div>
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">PIN</span>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.pin")}</span>
             {settingPin ? (
               <div className="flex items-center gap-2">
                 <input
@@ -291,26 +286,21 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
                   value={pin ?? ''}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   inputMode="numeric"
-                  placeholder="4 digits"
+                  placeholder={t("administration:profiles.label4Digits")}
                   className={cn(inputClass, 'w-32 text-center tracking-[0.4em]')}
                 />
-                <Button type="button" variant="ghost" size="sm" onClick={() => (setSettingPin(false), setPin(undefined))}>
-                  Cancel
-                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => (setSettingPin(false), setPin(undefined))}>{t("administration:profiles.cancel")}</Button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-sm text-muted">
-                  {hasPin ? 'A PIN is needed to use this profile.' : 'Anyone can use this profile.'}
-                  {profile?.is_admin && !hasPin && ' At home, the admin profile asks for the password instead.'}
+                  {hasPin ? t("administration:profiles.aPinIsNeeded") : profile?.is_admin ? t('administration:profiles.adminWithoutPin') : t("administration:profiles.anyoneCanUseThis")}
                 </p>
                 {hasPin && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setPin('')}>
-                    Remove PIN
-                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPin('')}>{t("administration:profiles.removePin")}</Button>
                 )}
                 <Button type="button" variant="secondary" size="sm" onClick={() => (setSettingPin(true), setPin(''))}>
-                  {hasPin ? 'Change PIN' : 'Add PIN'}
+                  {hasPin ? t("administration:profiles.changePin") : t("administration:profiles.addPin")}
                 </Button>
               </div>
             )}
@@ -318,7 +308,7 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
         )}
         {!profile?.is_admin && (
           <div>
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Can watch</span>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.canWatch")}</span>
             <div className="grid grid-cols-2 gap-2">
               {ageLimits.map((l) => (
                 <button
@@ -336,17 +326,17 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
                 </button>
               ))}
             </div>
-            {maxAge > 0 && <p className="mt-2 text-xs text-subtle">Titles without an age rating are hidden too. You can add a rating with Edit on its page.</p>}
+            {maxAge > 0 && <p className="mt-2 text-xs text-subtle">{t("administration:profiles.titlesWithoutAnAge")}</p>}
           </div>
         )}
         {!profile?.is_admin && libraries.length > 1 && (
           <div>
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Libraries</span>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.libraries")}</span>
             <div className="divide-y divide-border overflow-hidden rounded-xl bg-surface-2/50 ring-1 ring-border">
               <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">All libraries</span>
-                  <span className="block text-xs text-subtle">Including ones you add later</span>
+                  <span className="block text-sm font-medium">{t("administration:profiles.allLibraries")}</span>
+                  <span className="block text-xs text-subtle">{t("administration:profiles.includingOnesYouAdd")}</span>
                 </span>
                 <Switch checked={libraryIds === null} onCheckedChange={(all) => setLibraryIds(all ? null : libraries.map((l) => l.id))} />
               </label>
@@ -363,14 +353,14 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
                   </label>
                 ))}
             </div>
-            {libraryIds?.length === 0 && <p className="mt-2 text-xs text-warning">This profile won't see anything until you choose a library.</p>}
+            {libraryIds?.length === 0 && <p className="mt-2 text-xs text-warning">{t("administration:profiles.thisProfileWonT")}</p>}
           </div>
         )}
         {!profile?.is_admin && (
           <div>
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">Hide titles labelled</span>
-            <ChipInput value={hiddenLabels} onChange={setHiddenLabels} placeholder="e.g. Not for kids" morePlaceholder="Add a label" suggestions={allLabels.data} />
-            <p className="mt-2 text-xs text-subtle">Add labels to titles with Edit on their page.</p>
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("administration:profiles.hideTitlesLabelled")}</span>
+            <ChipInput value={hiddenLabels} onChange={setHiddenLabels} placeholder={t("administration:profiles.eGNotFor")} morePlaceholder={t("administration:profiles.addALabel")} suggestions={allLabels.data} />
+            <p className="mt-2 text-xs text-subtle">{t("administration:profiles.addLabelsToTitles")}</p>
           </div>
         )}
         <button type="submit" hidden />
@@ -381,18 +371,18 @@ function ProfileForm({ profile, friend, onDone }: { profile?: Profile; friend?: 
 
 // Age limits a profile can have, like Plex's restriction profiles.
 const ageLimits = [
-  { age: 0, label: 'Everything', hint: 'No restrictions' },
-  { age: 7, label: 'Young children', hint: 'Rated for ages up to 7' },
-  { age: 12, label: 'Older children', hint: 'Rated for ages up to 12' },
-  { age: 15, label: 'Teens', hint: 'Rated for ages up to 15' },
+  { age: 0, get label() { return i18n.t('administration:ageLimits.everything'); }, get hint() { return i18n.t('administration:ageLimits.noRestrictions'); } },
+  { age: 7, get label() { return i18n.t('administration:ageLimits.youngChildren'); }, get hint() { return i18n.t('administration:ageLimits.ageSeven'); } },
+  { age: 12, get label() { return i18n.t('administration:ageLimits.olderChildren'); }, get hint() { return i18n.t('administration:ageLimits.ageTwelve'); } },
+  { age: 15, get label() { return i18n.t('administration:ageLimits.teens'); }, get hint() { return i18n.t('administration:ageLimits.ageFifteen'); } },
 ];
 
 /** "Can watch everything" or the profile's limit, for the list. */
 function limitLabel(age: number) {
-  return age ? `Ages up to ${age}` : 'Can watch everything';
+  return age ? i18n.t('administration:profiles.maxAge', { age }) : i18n.t('administration:profiles.allAges');
 }
 
 
 function libraryCount(n: number) {
-  return n === 0 ? 'No libraries' : n === 1 ? '1 library' : `${n} libraries`;
+  return i18n.t('administration:profiles.libraryCount', { count: n });
 }
