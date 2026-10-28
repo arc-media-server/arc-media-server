@@ -114,6 +114,7 @@ type Server struct {
 	links            linkCodes
 	limiter          *auth.Limiter
 	setupMu          sync.Mutex
+	people           peopleIndex
 	log              *slog.Logger
 	version          string
 	revision         string

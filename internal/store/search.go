@@ -4,8 +4,36 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 )
+
+// TitleName is what search compares for a movie or show: its names, without its other details.
+type TitleName struct {
+	ID, Kind, Title, OriginalTitle, SortTitle string
+}
+
+// SearchTitleNames returns the names of the playable movies and shows the profile may see. Search
+// scores these and loads full details (ItemsByID) only for the titles it shows.
+func (s *Store) SearchTitleNames(ctx context.Context, acc Access) ([]TitleName, error) {
+	q := `SELECT id, kind, title, original_title, sort_title FROM items WHERE kind IN ('movie', 'series') AND ` + playableSQL
+	var args []any
+	q, args = acc.Where("items", q, args)
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TitleName
+	for rows.Next() {
+		var t TitleName
+		if err := rows.Scan(&t.ID, &t.Kind, &t.Title, &t.OriginalTitle, &t.SortTitle); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
 
 // SearchTitles returns every movie and show a profile can see, for ranking against a search.
 func (s *Store) SearchTitles(ctx context.Context, acc Access) ([]Item, error) {
@@ -96,11 +124,13 @@ type Person struct {
 	KnownFor string `json:"known_for"`
 }
 
-// PeopleNames returns everyone Arc has credits for, without counts. Search scores the names
-// first and asks PeopleCredits only about the matches: counting every person's credits on
-// every keystroke took most of a second in a large library.
+// PeopleNames returns everyone Arc has credits for, with how many credits each has in all
+// (titles whose files are gone included). Search keeps this list in memory, scores the names
+// and asks PeopleCredits only about the best matches: counting every person's present credits
+// on every keystroke took most of a second in a large library.
 func (s *Store) PeopleNames(ctx context.Context) ([]Person, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, tmdb_id, name, profile_path FROM people`)
+	rows, err := s.db.QueryContext(ctx, `SELECT p.id, p.tmdb_id, p.name, p.profile_path,
+		(SELECT COUNT(*) FROM item_people ip WHERE ip.person_id = p.id) FROM people p`)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +138,20 @@ func (s *Store) PeopleNames(ctx context.Context) ([]Person, error) {
 	var out []Person
 	for rows.Next() {
 		var p Person
-		if err := rows.Scan(&p.ID, &p.TMDBID, &p.Name, &p.ProfilePath); err != nil {
+		if err := rows.Scan(&p.ID, &p.TMDBID, &p.Name, &p.ProfilePath, &p.Count); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// PeopleVersion changes when people are added or removed, so a copy of PeopleNames knows when
+// to reload. (A renamed person keeps it; such a copy also reloads every few minutes.)
+func (s *Store) PeopleVersion(ctx context.Context) (string, error) {
+	var n, maxID int64
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(MAX(id), 0) FROM people`).Scan(&n, &maxID)
+	return fmt.Sprint(n, "/", maxID), err
 }
 
 // PeopleCredits fills in how many present titles each person is in and what they mostly do,

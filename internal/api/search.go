@@ -50,9 +50,11 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	acc := access(r)
+	match := search.NewMatcher(q)
 
-	// Movies and shows, by title or original title.
-	titles, err := s.store.SearchTitles(ctx, acc)
+	// Movies and shows, by title, original title or other names. Only their names are loaded
+	// to score; full details just for the titles shown.
+	titles, err := s.store.SearchTitleNames(ctx, acc)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -63,32 +65,46 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type scored struct {
-		it    store.Item
+		t     store.TitleName
 		score int
 	}
 	var hits []scored
-	for _, it := range titles {
-		sc := max(search.Score(q, it.Title), search.Score(q, it.OriginalTitle)-5)
+	for _, t := range titles {
+		sc := max(search.Score(q, t.Title), search.Score(q, t.OriginalTitle)-5)
 		// Other names (e.g. "Sen to Chihiro") count a little less than the title.
-		for _, t := range alt[it.ID] {
-			sc = max(sc, search.Score(q, t)-5)
+		for _, a := range alt[t.ID] {
+			sc = max(sc, search.Score(q, a)-5)
 		}
 		if sc > 0 {
-			hits = append(hits, scored{it, sc})
+			hits = append(hits, scored{t, sc})
 		}
 	}
 	slices.SortStableFunc(hits, func(a, b scored) int {
-		return cmp.Or(b.score-a.score, strings.Compare(a.it.SortTitle, b.it.SortTitle))
+		return cmp.Or(b.score-a.score, strings.Compare(a.t.SortTitle, b.t.SortTitle))
 	})
-	var movies, shows []store.Item
+	var movieIDs, showIDs []string
 	for _, h := range hits {
-		if h.it.Kind == "movie" && len(movies) < 60 {
-			movies = append(movies, h.it)
-		} else if h.it.Kind == "series" && len(shows) < 60 {
-			shows = append(shows, h.it)
+		if h.t.Kind == "movie" && len(movieIDs) < 60 {
+			movieIDs = append(movieIDs, h.t.ID)
+		} else if h.t.Kind == "series" && len(showIDs) < 60 {
+			showIDs = append(showIDs, h.t.ID)
 		}
 	}
-	res.Movies, res.Shows = toDTOs(movies), toDTOs(shows)
+	found, err := s.store.ItemsByID(ctx, append(slices.Clone(movieIDs), showIDs...))
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	inOrder := func(ids []string) []store.Item {
+		out := []store.Item{}
+		for _, id := range ids {
+			if it, ok := found[id]; ok {
+				out = append(out, it)
+			}
+		}
+		return out
+	}
+	res.Movies, res.Shows = toDTOs(inOrder(movieIDs)), toDTOs(inOrder(showIDs))
 	all := append(ptrs(res.Movies), ptrs(res.Shows)...)
 	if err := s.fillUserData(r, all); err != nil {
 		s.fail(w, err)
@@ -121,21 +137,10 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// People in the cast and crew; the busiest first among equal matches.
-	people, err := s.store.PeopleNames(ctx)
+	// People in the cast and crew; the busiest first among equal matches. Names are scored from
+	// the in-memory list; only the best matches have their present credits counted.
+	people, names, err := s.people.get(ctx, s.store)
 	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	scores := map[int64]int{}
-	var matched []store.Person
-	for _, p := range people {
-		if sc := search.Score(q, p.Name); sc > 0 {
-			scores[p.ID] = sc
-			matched = append(matched, p)
-		}
-	}
-	if matched, err = s.store.PeopleCredits(ctx, matched); err != nil {
 		s.fail(w, err)
 		return
 	}
@@ -144,12 +149,32 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		score int
 	}
 	var ph []scoredPerson
+	for i, name := range names {
+		if sc := match.Score(name); sc > 0 {
+			ph = append(ph, scoredPerson{people[i], sc})
+		}
+	}
+	// Credits in all titles stand in for present ones until those are counted.
+	byBusiest := func(a, b scoredPerson) int {
+		return cmp.Or(b.score-a.score, b.p.Count-a.p.Count, strings.Compare(a.p.Name, b.p.Name))
+	}
+	slices.SortStableFunc(ph, byBusiest)
+	candidates := make([]store.Person, 0, min(len(ph), 200))
+	scores := map[int64]int{}
+	for _, c := range ph[:min(len(ph), 200)] {
+		candidates = append(candidates, c.p)
+		scores[c.p.ID] = c.score
+	}
+	matched, err := s.store.PeopleCredits(ctx, candidates)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	ph = ph[:0]
 	for _, p := range matched {
 		ph = append(ph, scoredPerson{p, scores[p.ID]})
 	}
-	slices.SortStableFunc(ph, func(a, b scoredPerson) int {
-		return cmp.Or(b.score-a.score, b.p.Count-a.p.Count, strings.Compare(a.p.Name, b.p.Name))
-	})
+	slices.SortStableFunc(ph, byBusiest)
 	for i, p := range ph {
 		if i == 30 {
 			break

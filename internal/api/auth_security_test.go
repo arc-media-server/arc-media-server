@@ -16,7 +16,7 @@ import (
 	"ams/internal/store"
 )
 
-func securityServer(t *testing.T) (*Server, *store.User) {
+func securityServer(t testing.TB) (*Server, *store.User) {
 	t.Helper()
 	st, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"), store.Options{})
 	if err != nil {
