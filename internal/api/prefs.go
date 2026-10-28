@@ -141,8 +141,8 @@ func (p *prefs) validate() error {
 		if r.Posters != "" && r.Posters != "series" && r.Posters != "season" {
 			return fmt.Errorf(`a row's posters are "series" or "season"`)
 		}
-		if r.Style != "" && r.Style != "poster" && r.Style != "thumb" {
-			return fmt.Errorf(`a row's style is "poster" or "thumb"`)
+		if r.Style != "" && r.Style != "poster" && r.Style != "thumb" && r.Style != "arc" {
+			return fmt.Errorf(`a row's style is "poster", "thumb" or "arc"`)
 		}
 		if strings.HasPrefix(r.ID, "collection:") || strings.HasPrefix(r.ID, "playlist:") {
 			// A collection or playlist: its name is kept for Edit Home; the row shows the current one.
