@@ -906,3 +906,29 @@ test('Activity distinguishes paused background work from running foreground work
   await expect(page.getByText('paused · Waiting for playback or scanning', { exact: true })).toBeVisible();
   await expect(page.getByText(/Nothing right now/)).toBeVisible();
 });
+
+test('poster menu: Watchlist changes show straight away and a slow action still reports back', async ({ page }) => {
+  const { lib, item } = await seed(page);
+  await page.goto('/library/' + lib.id);
+  const card = page.locator(`main [data-item="${item.id}"]`);
+  const more = card.getByRole('button', { name: `More for ${item.title}`, exact: true });
+  await card.hover({ position: { x: 12, y: 60 } });
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Add to Watchlist', exact: true }).click();
+  await expect.poll(async () => (await (await page.request.get('/api/watchlist')).json()).some((i: Item) => i.id === item.id)).toBe(true);
+  await card.hover({ position: { x: 12, y: 60 } });
+  await more.click();
+  await expect(page.getByRole('menuitem', { name: 'Remove from Watchlist', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // A show's Play next looks its episodes up first: its note arrives after the menu has closed.
+  const shows = await seed(page, true);
+  await page.goto('/library/' + shows.lib.id);
+  const show = page.locator(`main [data-item="${shows.item.id}"]`);
+  await page.route('**/api/series/*/seasons*', async (route) => { await new Promise((r) => setTimeout(r, 1500)); await route.continue(); });
+  await show.hover({ position: { x: 12, y: 60 } });
+  await show.getByRole('button', { name: `More for ${shows.item.title}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Play next', exact: true }).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: /Playback started|Added/ })).toBeVisible();
+  await page.unroute('**/api/series/*/seasons*');
+});

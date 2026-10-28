@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
 import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
@@ -63,6 +63,12 @@ function useBrowsePosition(key: string, ready: boolean) {
     const frame = requestAnimationFrame(() => { window.scrollTo(0, y); restore.current = undefined; });
     return () => cancelAnimationFrame(frame);
   }, [key, ready]);
+}
+
+// The loaded pages as one list. A function outside the component, so the list is only rebuilt
+// when a page arrives, not on every render.
+function browsePages(data: InfiniteData<Awaited<ReturnType<typeof api.items>>>) {
+  return { total: data.pages[0].total, items: data.pages.flatMap((p) => p.items), letters: data.pages[0].letters };
 }
 
 export function LibraryPage() {
@@ -145,7 +151,7 @@ export function LibraryPage() {
       const next = (last.offset ?? offset) + last.items.length;
       return last.items.length && next < last.total ? next : undefined;
     },
-    select: (data) => ({ total: data.pages[0].total, items: data.pages.flatMap((p) => p.items), letters: data.pages[0].letters }),
+    select: browsePages,
     enabled: !!lib,
   });
   useBrowsePosition(`${profileId}:${location.key}`, !!items.data);
