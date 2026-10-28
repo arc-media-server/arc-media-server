@@ -503,7 +503,7 @@ function ServerSettings() {
             <Row
               setting={['maintenance_start', 'maintenance_end']} label={t("serverSettings:settings.maintenanceTime")}
               description={<>
-                {s.maintenance_start === s.maintenance_end ? t("serverSettings:settings.tasksCanRunAt") : t("serverSettings:settings.tasksRunBetweenThese")}
+                <span>{s.maintenance_start === s.maintenance_end ? t("serverSettings:settings.tasksCanRunAt") : t("serverSettings:settings.tasksRunBetweenThese")}</span>
                 <MaintenanceClock start={s.maintenance_start} end={s.maintenance_end} />
               </>}
             >

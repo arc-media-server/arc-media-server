@@ -8,7 +8,8 @@ import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 /** Queue choices share the current profile's display order and resume state. */
-export function QueueActions({ item, edition, compact = false }: { item: Item; edition?: string; compact?: boolean }) {
+/** Adding a movie, episode or every available episode of a show to the playback queue. */
+export function useQueueActions(item: Item, edition?: string) {
   const { t } = useTranslation('titles');
   const queue = usePlaybackQueue();
   const [busy, setBusy] = useState(false);
@@ -25,6 +26,12 @@ export function QueueActions({ item, edition, compact = false }: { item: Item; e
       setNotice(queue.state ? (next ? t('titles:queueActions.addedNext') : t('titles:queueActions.added') ) : t('titles:queueActions.started'));
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
+  return { add, busy, error, notice };
+}
+
+export function QueueActions({ item, edition, compact = false }: { item: Item; edition?: string; compact?: boolean }) {
+  const { t } = useTranslation('titles');
+  const { add, busy, error, notice } = useQueueActions(item, edition);
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
       <DropdownMenu>

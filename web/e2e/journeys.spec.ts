@@ -278,7 +278,8 @@ test('review: manual additions only offer editable playlists', async ({ page, me
   expect((await page.request.post('/api/playlists', { data: { title: 'Manual list' } })).ok()).toBeTruthy();
   await page.goto(`/library/${lib.id}`);
   await page.getByRole('link', { name: /Arc Movie/ }).first().click();
-  await page.getByRole('button', { name: 'Add to Playlist', exact: true }).click();
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Add to Playlist', exact: true });
   await expect(dialog.getByRole('button', { name: /Manual list/ })).toBeVisible();
   await expect(dialog.getByRole('button', { name: /Rule based list/ })).toHaveCount(0);
