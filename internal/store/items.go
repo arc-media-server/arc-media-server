@@ -689,6 +689,86 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 	if q.Jump != "" && (len(q.Jump) != 1 || q.Jump[0] < 'a' || q.Jump[0] > 'z' || (q.Sort != "" && q.Sort != "title")) {
 		return nil, 0, 0, errors.New("jump requires a letter a–z and title sort")
 	}
+	cond, args := itemFilter(q)
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond, args...).Scan(&total); err != nil {
+		return nil, 0, 0, err
+	}
+	offset := max(0, q.Offset)
+	if q.Jump != "" {
+		boundary, comparison := q.Jump, "<"
+		if q.Reverse {
+			// Descending starts with the last title in the chosen letter (or next
+			// available earlier letter), not with the first title at its lower bound.
+			boundary, comparison = string([]byte{q.Jump[0] + 1}), ">="
+		}
+		jumpArgs := append(append([]any{}, args...), boundary)
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond+
+			` AND sort_title `+comparison+` ?`, jumpArgs...).Scan(&offset); err != nil {
+			return nil, 0, 0, err
+		}
+	}
+
+	order := "sort_title ASC, year ASC"
+	var orderArgs []any
+	switch q.Sort {
+	case "added":
+		order = "added_at DESC, sort_title"
+	case "year":
+		order = "year DESC, sort_title"
+	case "release":
+		order = "release_date DESC, sort_title"
+	case "rating":
+		order = "rating DESC, sort_title"
+	case "imdb":
+		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
+	case "critics":
+		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
+	case "runtime":
+		order = "runtime_min DESC, sort_title"
+	case "watched":
+		// Most recently watched first (a show by its episodes); never watched last.
+		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
+			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
+		orderArgs = append(orderArgs, q.UserID)
+	case "shuffle":
+		// A different order each day, but the same one all day so rows don't jump around.
+		order = "(items.rowid * 2654435761 + ?) % 4294967291"
+		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
+	}
+	if q.Reverse && q.Sort != "shuffle" {
+		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
+		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
+		order = strings.ReplaceAll(order, " DESC", " __DESC__")
+		order = strings.ReplaceAll(order, " ASC", " DESC")
+		order = strings.ReplaceAll(order, " __DESC__", " ASC")
+	}
+	order += ", id"
+	limit := q.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items WHERE `+cond+
+		` ORDER BY `+order+` LIMIT ? OFFSET ?`, all...)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var it Item
+		if err := scanItem(rows, &it); err != nil {
+			return nil, 0, 0, err
+		}
+		items = append(items, it)
+	}
+	return items, total, offset, rows.Err()
+}
+
+// itemFilter is the WHERE clause (and its arguments) for a listing's filters and access.
+func itemFilter(q ItemQuery) (string, []any) {
 	// Only list things that can be played: items with a present file, or series with at least one
 	// such episode.
 	where := []string{`(EXISTS (
@@ -774,82 +854,45 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 	if len(about) > 0 {
 		where = append(where, "("+strings.Join(about, " OR ")+")")
 	}
-	cond := strings.Join(where, " AND ")
+	return strings.Join(where, " AND "), args
+}
 
-	var total int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond, args...).Scan(&total); err != nil {
-		return nil, 0, 0, err
-	}
-	offset := max(0, q.Offset)
-	if q.Jump != "" {
-		boundary, comparison := q.Jump, "<"
-		if q.Reverse {
-			// Descending starts with the last title in the chosen letter (or next
-			// available earlier letter), not with the first title at its lower bound.
-			boundary, comparison = string([]byte{q.Jump[0] + 1}), ">="
-		}
-		jumpArgs := append(append([]any{}, args...), boundary)
-		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE `+cond+
-			` AND sort_title `+comparison+` ?`, jumpArgs...).Scan(&offset); err != nil {
-			return nil, 0, 0, err
-		}
-	}
+// LetterCount is how many titles in a listing start with one character of their sort title:
+// "a" to "z", or "#" for anything else (digits, punctuation, other scripts).
+type LetterCount struct {
+	Letter string `json:"letter"`
+	Count  int    `json:"count"`
+}
 
-	order := "sort_title ASC, year ASC"
-	var orderArgs []any
-	switch q.Sort {
-	case "added":
-		order = "added_at DESC, sort_title"
-	case "year":
-		order = "year DESC, sort_title"
-	case "release":
-		order = "release_date DESC, sort_title"
-	case "rating":
-		order = "rating DESC, sort_title"
-	case "imdb":
-		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
-	case "critics":
-		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
-	case "runtime":
-		order = "runtime_min DESC, sort_title"
-	case "watched":
-		// Most recently watched first (a show by its episodes); never watched last.
-		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
-			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
-		orderArgs = append(orderArgs, q.UserID)
-	case "shuffle":
-		// A different order each day, but the same one all day so rows don't jump around.
-		order = "(items.rowid * 2654435761 + ?) % 4294967291"
-		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
-	}
-	if q.Reverse && q.Sort != "shuffle" {
-		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
-		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
-		order = strings.ReplaceAll(order, " DESC", " __DESC__")
-		order = strings.ReplaceAll(order, " ASC", " DESC")
-		order = strings.ReplaceAll(order, " __DESC__", " ASC")
-	}
-	order += ", id"
-	limit := q.Limit
-	if limit <= 0 || limit > 500 {
-		limit = 100
-	}
-	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
-	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items WHERE `+cond+
-		` ORDER BY `+order+` LIMIT ? OFFSET ?`, all...)
+// TitleLetters counts a listing's titles by the first character of their sort title, in title
+// order, so a client can tell where each letter starts. "#" can appear twice: before "a" for
+// digits and punctuation, after "z" for other scripts.
+func (s *Store) TitleLetters(ctx context.Context, q ItemQuery) ([]LetterCount, error) {
+	cond, args := itemFilter(q)
+	rows, err := s.db.QueryContext(ctx, `SELECT substr(sort_title, 1, 1) AS c, COUNT(*) FROM items WHERE `+cond+
+		` GROUP BY c ORDER BY c`, args...)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, err
 	}
 	defer rows.Close()
-	items := []Item{}
+	out := []LetterCount{}
 	for rows.Next() {
-		var it Item
-		if err := scanItem(rows, &it); err != nil {
-			return nil, 0, 0, err
+		var c string
+		var n int
+		if err := rows.Scan(&c, &n); err != nil {
+			return nil, err
 		}
-		items = append(items, it)
+		letter := strings.ToLower(c)
+		if len(letter) != 1 || letter[0] < 'a' || letter[0] > 'z' {
+			letter = "#"
+		}
+		if last := len(out) - 1; last >= 0 && out[last].Letter == letter {
+			out[last].Count += n
+			continue
+		}
+		out = append(out, LetterCount{letter, n})
 	}
-	return items, total, offset, rows.Err()
+	return out, rows.Err()
 }
 
 // HasUnmatchedEpisodes checks only playable unmatched episodes, not orphan/provider-only rows.

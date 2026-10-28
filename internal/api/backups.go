@@ -9,7 +9,7 @@ import (
 	"ams/internal/backup"
 )
 
-// listBackups: GET /api/backups
+// listBackups: GET /api/backups. Database backups, newest first.
 func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 	list, err := s.backups.List()
 	if err != nil {
@@ -55,7 +55,7 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// deleteBackup: DELETE /api/backups/{name}
+// deleteBackup: DELETE /api/backups/{name}. Deletes a backup.
 func (s *Server) deleteBackup(w http.ResponseWriter, r *http.Request) {
 	if err := s.backups.Delete(r.PathValue("name")); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

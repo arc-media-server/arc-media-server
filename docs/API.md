@@ -73,10 +73,10 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/backups` | admin | Database backups, newest first |
+| GET | `/api/backups` | admin | Database backups, newest first. |
 | POST | `/api/backups` | admin | Takes a manual backup now. |
 | POST | `/api/backups/{name}/restore` | admin | Replaces the database with a backup. The current state is saved as a backup first. Refused while a scan is running. |
-| DELETE | `/api/backups/{name}` | admin | Delete a backup |
+| DELETE | `/api/backups/{name}` | admin | Deletes a backup. |
 
 ### cast
 
@@ -139,7 +139,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/health` | anyone | Server name and version |
+| GET | `/api/health` | anyone | Server name and version. |
 | GET | `/api/health/libraries` | admin | Counts, per library id, the problems that need the user (unidentified items, unreadable and unrecognised files). |
 
 ### home
@@ -180,8 +180,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/bulk` | admin | Changes many movies and shows at once: {"item_ids": [...], "add_genres": [...], "remove_genres": [...], "add_labels": [...], "remove_labels": [...], "content_rating": "15", "locks": "all" \| "none", "played": true, "refresh": true} Every field but item_ids is optional. "played" is for the current profile. "refresh" fetches their metadata again in the background (it shows in Activity). |
 | POST | `/api/items/merge` | admin | {"target_id", "item_ids": [...]} makes several movies one, as versions of the target, or several shows one (store.MergeSeries), all from one library. Watch state, history and collections move with them. Shows must number their episode files the same way; merging them holds the library's work slot, then refreshes the kept show. |
 | POST | `/api/items/{id}/split` | admin | Gives each version of a movie but the first its own title; they're identified at the scan that starts straight after. |
-| GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
-| GET | `/api/items/{id}` | profile | Item details with files and streams |
+| GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
+| GET | `/api/items/{id}` | profile | Item details with files and streams. |
 | GET | `/api/items/{id}/stream` | profile | Serves the original file with HTTP range support (direct play). ?file=<id> selects a specific part or version; otherwise the first available file is used. |
 | POST | `/api/items/{id}/playback` | profile | {"caps": {...}, "file_id", "audio_stream", "start_ms"} decides how to play a movie or episode on this player and, unless it can play the file as it is, starts converting it. Starting again (e.g. to seek or change audio track) ends the player's previous conversion. |
 | POST | `/api/items/{id}/playback-options` | profile | Resolves the edition/version and source track choices without starting a stream, conversion, progress or preference update. Send {"caps": {...}} and optionally "file_id" or "edition" as for playback. |
@@ -200,7 +200,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | PUT | `/api/items/{id}/rating` | profile | {"rating": 1-10, or 0 to clear} is the profile's own rating of a movie, show or episode (half stars out of five). |
 | PUT | `/api/items/{id}/watchlist` | profile | {"on": true} puts a movie or show on the profile's watchlist, or takes it off. |
 | DELETE | `/api/items/{id}` | admin | Forgets a movie, episode or show whose files are all gone (after backing up the database). Refused if any of its files is still there. |
-| PATCH | `/api/items/{id}` | admin | Edit metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`) |
+| PATCH | `/api/items/{id}` | admin | Edits metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`). |
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
 | POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
@@ -220,8 +220,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/libraries` | profile | Libraries with their size and scan status |
-| GET | `/api/libraries/{id}/scan` | profile | Scan progress |
+| GET | `/api/libraries` | profile | Libraries with their size and scan status. |
+| GET | `/api/libraries/{id}/scan` | profile | Scan progress. |
 | POST | `/api/libraries/{id}/work` | admin | Starts {"operation":"refresh"\|"analyze"}. Refresh refetches known titles regardless of age; analyze rereads known present files, not folders. Both preserve locked metadata/history and share the library's scan/maintenance lease. |
 | POST | `/api/libraries/{id}/stop` | admin | Stops {"job_id":...} only. It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled. |
 | GET | `/api/libraries/{id}/facets` | profile | Lists the genres, decades and resolutions a library's titles can be filtered by, with counts. |
@@ -232,7 +232,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/libraries` | admin | {"name", "kind", "paths", "source_ordering"} adds a library and starts scanning it. |
 | PATCH | `/api/libraries/{id}` | admin | {"name", "paths", "source_ordering", "trickplay"} changes a library (not its kind) and rescans it. |
 | DELETE | `/api/libraries/{id}` | admin | Removes a library and everything AMS knows about it, after backing up the database. Media files aren't touched. |
-| POST | `/api/libraries/{id}/scan` | admin | Start a scan |
+| POST | `/api/libraries/{id}/scan` | admin | Starts a scan. |
 | GET | `/api/libraries/{id}/unmatched` | admin | Lists items that need attention. |
 | GET | `/api/libraries/{id}/health` | admin | Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. watch_problem describes failed folder notifications and the configured scheduled fallback. |
 | GET | `/api/libraries/{id}/markers` | admin | Lists the library's shows and movies with how many of their files have intro and credits markers and how many have been checked, for Library Health. |
@@ -244,7 +244,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | POST | `/api/library-previews` | admin | {"kind", "paths", "source_ordering"} starts working out what a library with these folders would contain. Poll GET /api/library-previews/{id}. |
-| GET | `/api/library-previews/{id}` | admin | The preview's progress and results |
+| GET | `/api/library-previews/{id}` | admin | The preview's progress and results. |
 
 ### logs
 
@@ -316,7 +316,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/playlists` | profile | {"title", "item_ids"} makes a playlist for the profile; with "filter" (a library filter, as for a smart collection) it's a smart playlist kept up to date. |
 | GET | `/api/playlists/{id}` | profile | Is a playlist and its titles in order. |
 | PATCH | `/api/playlists/{id}` | profile | {"title", "filter"} renames a playlist, or changes a smart playlist's rules. |
-| DELETE | `/api/playlists/{id}` | profile | A playlist and its entries; rename `{"title"}`; delete |
+| DELETE | `/api/playlists/{id}` | profile | Deletes a playlist and its entries. |
 | POST | `/api/playlists/{id}/items` | profile | {"item_ids"} adds movies, episodes or whole shows. |
 | DELETE | `/api/playlists/{id}/entries/{entry}` | profile | Takes an entry out of a playlist. |
 | PUT | `/api/playlists/{id}/order` | profile | {"entry_ids"} puts a playlist in order. |
@@ -332,7 +332,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | POST | `/api/profiles/{id}/invite` | admin | Makes a new invite link for a friend (e.g. one who's lost theirs, or to reset their password). |
-| GET | `/api/profiles` | admin | Profiles (admin) |
+| GET | `/api/profiles` | admin | Profiles. |
 | POST | `/api/profiles` | admin | {"name", "color", "pin"}  |
 | PATCH | `/api/profiles/{id}` | admin | {"name", "color", "pin"}  |
 | GET | `/api/profiles/{id}/prefs` | admin | Is a profile's preferences , e.g. to arrange its home page. |
@@ -358,7 +358,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/series/{id}/seasons` | profile | ?ordering=<id>&missing=1 Arranges the series' episodes by an ordering (the display ordering by default). Episodes you have that the ordering doesn't place are returned in "unplaced" rather than hidden. |
 | GET | `/api/series/{id}/seasons/{n}/image` | profile | Is a season's poster: the file in the show's folder if there is one, otherwise the provider's. |
-| GET | `/api/series/{id}/orderings` | profile | Available orderings and the one in use |
+| GET | `/api/series/{id}/orderings` | profile | Available orderings and the one in use. |
 | PUT | `/api/series/{id}/display-ordering` | profile | {"ordering_id": 12} (null resets). The choice is the current profile's own; the admin's choice is also the default for profiles that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode mapping first. |
 | PATCH | `/api/series/{id}/specials` | profile | {"inline_specials": true\|false\|null}. null restores inheritance (or Off for the admin's server default). This changes display/ playback traversal only; manual/custom placements and original numbering remain authoritative. |
 | POST | `/api/series/{id}/orderings` | admin | {"name": "...", "copy_from": <ordering id>} creates a custom ordering starting as a copy of another. |
@@ -376,7 +376,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/settings` | admin | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night` (admin); remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit) |
+| GET | `/api/settings` | admin | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit). |
 
 ### stats
 
@@ -407,5 +407,5 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/webhooks` | admin | Lists webhooks, how each last went, and every event. |
 | POST | `/api/webhooks` | admin | Or PUT /api/webhooks/{id} {"name", "url", "events"} . |
 | PUT | `/api/webhooks/{id}` | admin | Or PUT /api/webhooks/{id} {"name", "url", "events"} . |
-| DELETE | `/api/webhooks/{id}` | admin | Change or remove a webhook (admin) |
+| DELETE | `/api/webhooks/{id}` | admin | Removes a webhook. |
 | POST | `/api/webhooks/{id}/test` | admin | Sends a test message now and says how it went. |
