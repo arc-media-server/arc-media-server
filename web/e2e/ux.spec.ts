@@ -216,13 +216,12 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
-  await nav.getByRole('link', { name: 'Converting', exact: true }).click();
+  await page.getByRole('heading', { name: 'Converting', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
   await expect(playback).toBeInViewport();
   await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
-  await page.goBack(); // Subsection anchor, then group selection both participate in history.
-  await page.goBack();
+  await page.goBack(); // Group selection participates in browser history.
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
   for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
     await page.goto('/settings?section=' + group);
@@ -1100,4 +1099,20 @@ test('poster menu: Watchlist changes show straight away and a slow action still 
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: /Playback started|Added/ })).toBeVisible();
   await page.unroute('**/api/series/*/seasons*');
+});
+
+
+test('sidebar library actions share scan and repair confirmations', async ({ page }) => {
+  const { lib: library } = await seed(page);
+  await page.goto('/');
+  const sidebar = page.locator('aside');
+  await sidebar.getByRole('button', { name: 'More for ' + library.name, exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Reanalyze files…', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText(library.name);
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.goto('/settings');
+  await expect(page.getByText('On this page', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toHaveCount(0);
 });

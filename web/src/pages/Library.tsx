@@ -2,13 +2,12 @@ import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Pencil, Plus, Sparkles, Users } from 'lucide-react';
+import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
+import { ChevronDown, FolderSearch, Layers, Loader2, Plus, Sparkles } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
 import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
 import { cn } from '@/lib/utils';
-import * as fmt from '@/lib/format';
 import { kindUnit } from '@/lib/kinds';
 import { sortDirections, sortLabels } from '@/lib/filter-labels';
 import { browseFilterKeys, readBrowseState, rememberBrowseState } from '@/lib/browse-state';
@@ -23,17 +22,14 @@ import { useLibraries } from '@/components/Sidebar';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { EditDetailsDialog } from '@/components/EditDetails';
-import { LibraryEditorDialog } from '@/components/LibraryEditor';
-import { LibraryWorkDialogs, LibraryWorkItems, useLibraryWork } from '@/components/LibraryWork';
+import { LibraryMenu } from '@/components/LibraryMenu';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -586,75 +582,7 @@ function EditTitle({ id, onClose }: { id: string; onClose: () => void }) {
  * the costly repairs and Empty trash (shared with Manage Libraries), and who can see it (library
  * access is set per profile). Removing a library stays on Manage Libraries.
  */
-function LibraryMenu({ lib, onSelect, selectable }: { lib: Library; onSelect?: () => void; selectable: boolean }) {
-  const { t } = useTranslation('library');
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const work = useLibraryWork(lib);
-  const [editOpen, setEditOpen] = useState(false);
-  const scan = useMutation({
-    mutationFn: () => api.scanLibrary(lib.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['libraries'] }),
-  });
 
-  // Refresh what's shown when a scan finishes.
-  const wasRunning = useRef(lib.scan.running);
-  useEffect(() => {
-    if (wasRunning.current && !lib.scan.running) {
-      qc.invalidateQueries({ queryKey: ['items'] });
-      qc.invalidateQueries({ queryKey: ['health'] });
-      qc.invalidateQueries({ queryKey: ['health-summary'] });
-      qc.invalidateQueries({ queryKey: ['featured'] });
-    }
-    wasRunning.current = lib.scan.running;
-  }, [lib.scan.running, qc]);
-  // Titles appear as they're identified, without waiting for the whole scan.
-  useEffect(() => {
-    if (!lib.scan.running) return;
-    const timer = window.setInterval(() => qc.invalidateQueries({ queryKey: ['items'] }), 5000);
-    return () => window.clearInterval(timer);
-  }, [lib.scan.running, qc]);
-
-  // Arc scans by itself (it watches the folders, and checks hourly), so scanning by hand sits in
-  // the library's ⋯ menu as in Plex; a running scan still shows its progress here.
-  return (
-    <>
-      {lib.scan.running && (
-        <span role="status" className="flex max-w-[22rem] items-center gap-2 text-sm text-muted" title={fmt.scanProgress(lib.scan)}>
-          <Loader2 className="size-4 shrink-0 animate-spin" /> <span className="truncate">{fmt.scanProgress(lib.scan)}</span>
-        </span>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={t('library:libraryActions', { name: lib.name })}><MoreHorizontal /></Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted">
-          {selectable && (
-            <DropdownMenuItem disabled={!onSelect} onSelect={onSelect}>
-              <ListChecks /> {t('library:selectTitles')}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem disabled={lib.scan.running || scan.isPending} onSelect={() => scan.mutate()}>
-            <FolderSearch /> {t('library:scanLibraryFiles')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-            <Pencil /> {t('libraryManagement:libraryWork.editLibrary')}
-          </DropdownMenuItem>
-          <LibraryWorkItems work={work} />
-          <DropdownMenuItem onSelect={() => navigate('/profiles')}>
-            <Users /> {t('libraryManagement:libraryWork.manageAccess')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <LibraryEditorDialog library={lib} open={editOpen} onOpenChange={setEditOpen} />
-      <LibraryWorkDialogs work={work} />
-      <ErrorNotice error={scan.error} onRetry={() => scan.mutate()} />
-    </>
-  );
-}
-
-/** The collections that show in the grid (Plex's collection mode), with whether they hide their titles. */
 function gridCollections(collections: Collection[], libraryDefault: Library['collection_grid']) {
   return collections
     .map((c) => ({ collection: c, mode: (c.grid_mode || libraryDefault || 'items') as CollectionMode }))
