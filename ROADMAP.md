@@ -157,7 +157,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 _Arc has its own clients; the API is open for anyone to build more._
 - [x] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
 - [ ] Native apps (tvOS, iOS, Android TV) (#63)
-  - Android TV: first slice in its own repository, arc-media-server/arc-android-tv (sign-in code,
+  - Android TV: first slice in its own repository, arc-media-server/arc-android (sign-in code,
     profiles, immersive Home, details, playback); not yet checked on a real TV
 
 ### 19. Quick wins and server resources ✅
