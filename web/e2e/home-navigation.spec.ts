@@ -55,10 +55,17 @@ test('row navigation: visible mouse controls reach beyond the first screen and r
   await right.click();
   await expect.poll(() => frame.evaluate(el => el.scrollLeft)).toBeGreaterThan(200);
   await expect(left).toBeEnabled();
+  // Smooth scrolling can still be moving after a step reaches its target, and the button only
+  // disables once the row stops at the end; wait for it to settle before deciding to click again.
+  const settled = async () => {
+    let last = -1;
+    await expect.poll(async () => { const now = await frame.evaluate(el => el.scrollLeft); const still = now === last; last = now; return still; }, { intervals: [150] }).toBe(true);
+  };
   for (let i = 0; i < 8 && await right.isEnabled(); i++) {
     const target = await frame.evaluate(el => Math.min(el.scrollWidth - el.clientWidth - 2, el.scrollLeft + el.clientWidth * 0.5));
     await right.click();
     await expect.poll(async () => !(await right.isEnabled()) || (await frame.evaluate(el => el.scrollLeft)) >= target).toBe(true);
+    await settled();
   }
   await expect(right).toBeDisabled();
   const last = row.getByRole('link', { name: /^Row Movie 20(?: |$)/ });
