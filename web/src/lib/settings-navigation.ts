@@ -47,6 +47,7 @@ export function selectedSettingsSection(section: string | null): SettingsGroup {
 export function settingsSectionTitle(title: string): string {
   const labels: Record<string, string> = {
     "Playback": i18n.t('common:settings.sections.playback'),
+    "Home": i18n.t('common:settings.sections.home'),
     "Subtitles": i18n.t('common:settings.sections.subtitles'),
     "Display": i18n.t('common:settings.sections.display'),
     "Online metadata": i18n.t('common:settings.sections.onlineMetadata'),

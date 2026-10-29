@@ -27,7 +27,7 @@ export function SettingsArea() {
   // Avoid mounting management tools or issuing their queries for ordinary profiles.
   if (!admin) return location.pathname === '/settings' ? <Outlet /> : <Navigate to="/settings" replace />;
   const titles = location.pathname !== '/settings' ? [] : selected === 'profile'
-    ? ['Playback', 'Subtitles', 'Display']
+    ? ['Playback', 'Home', 'Subtitles', 'Display']
     : Object.keys(settingsSections).filter(title => settingsSections[title] === section && (title !== 'Media tools' || mediaToolsNeeded(settings.data)));
   return (
     <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start">

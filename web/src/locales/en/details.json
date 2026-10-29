@@ -23,7 +23,7 @@
     "auto": "Auto",
     "lockedMovie": "Anything you change is locked, so refreshing from TMDB won't undo it. Unlock a field to use the online value again.",
     "lockedSeries": "Anything you change is locked, so refreshing from TMDB and TheTVDB won't undo it. Unlock a field to use the online value again.",
-    "providerExplanation": "Show information follows the library’s {{provider}} metadata provider. Episode information follows File episode order.",
+    "providerExplanation": "The show’s details come from the library’s metadata provider, {{provider}}. Episode titles, descriptions and images come from the file episode order below.",
     "defaultOrder": "Library default ({{order}})",
     "addGenre": "Add a genre",
     "addLabel": "Add a label"
@@ -46,11 +46,11 @@
   "episodeOrdering": {
     "displayOrder": "Display order",
     "followFileOrder": "Follow file order",
+    "matchFileOrder": "Match file episode order ({{order}})",
     "useServerDefault": "Use server default",
     "changesBrowsingAndPlayback": "Changes browsing and playback sequence. Your files keep the same episode identities.",
     "compareOrders": "Compare orders…",
     "specialsInSeasons": "Specials in seasons",
-    "defaultOff": "Default (Off)",
     "useServerSetting": "Use server setting",
     "on": "On",
     "off": "Off",

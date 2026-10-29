@@ -7,7 +7,7 @@ import { FieldLabel, inputClass } from '@/components/ui/field';
 
 /** Staged form fields; the enclosing Edit dialog owns Save/Cancel and error recovery. */
 export function EpisodeOrderingFields({
-  orderings, selected, pending, onSelect, onCompare, admin, specials, onSpecials,
+  orderings, selected, pending, onSelect, onCompare, admin, specials, onSpecials, fileOrder,
 }: {
   orderings: Ordering[];
   selected: number;
@@ -17,6 +17,8 @@ export function EpisodeOrderingFields({
   admin: boolean;
   specials: 'inherit' | 'on' | 'off';
   onSpecials: (value: boolean | null) => void;
+  /** The order the files are numbered by (e.g. "TheTVDB aired order"), which the default follows. */
+  fileOrder?: string;
 }) {
   const { t } = useTranslation('details');
   const id = useId();
@@ -31,7 +33,9 @@ export function EpisodeOrderingFields({
       <label htmlFor={`${id}-display`}><FieldLabel>{t("details:episodeOrdering.displayOrder")}</FieldLabel></label>
       <select id={`${id}-display`} aria-describedby={`${id}-display-help`} value={selected || 'inherit'} disabled={pending}
         onChange={e => onSelect(e.target.value === 'inherit' ? null : Number(e.target.value))} className={inputClass}>
-        <option value="inherit">{admin ? t("details:episodeOrdering.followFileOrder") : t("details:episodeOrdering.useServerDefault")}</option>
+        <option value="inherit">{admin
+          ? (fileOrder ? t('details:episodeOrdering.matchFileOrder', { order: fileOrder }) : t('details:episodeOrdering.followFileOrder'))
+          : t('details:episodeOrdering.useServerDefault')}</option>
         {groups.filter(([, list]) => list.length).map(([label, list]) => <optgroup key={label} label={label}>
           {list.map(o => <option key={o.id} value={o.id}>
             {[providerLabel(o), o.name, t('details:episodeOrdering.episodes', { count: o.episode_count })].filter(Boolean).join(' · ')}
@@ -44,9 +48,11 @@ export function EpisodeOrderingFields({
     </div>
     <div>
       <label htmlFor={`${id}-specials`}><FieldLabel>{t("details:episodeOrdering.specialsInSeasons")}</FieldLabel></label>
-      <select id={`${id}-specials`} aria-describedby={`${id}-specials-help`} value={specials} disabled={pending}
+      {/* For the server owner no choice and Off are the same, so only profiles get a third option:
+          following the owner's choice. */}
+      <select id={`${id}-specials`} aria-describedby={`${id}-specials-help`} value={admin && specials === 'inherit' ? 'off' : specials} disabled={pending}
         onChange={e => onSpecials(e.target.value === 'inherit' ? null : e.target.value === 'on')} className={inputClass}>
-        <option value="inherit">{admin ? t("details:episodeOrdering.defaultOff") : t("details:episodeOrdering.useServerSetting")}</option>
+        {!admin && <option value="inherit">{t("details:episodeOrdering.useServerSetting")}</option>}
         <option value="on">{t("details:episodeOrdering.on")}</option>
         <option value="off">{t("details:episodeOrdering.off")}</option>
       </select>
