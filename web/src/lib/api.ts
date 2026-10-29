@@ -622,7 +622,7 @@ export interface BackupsResponse {
   backups: Backup[];
 }
 
-export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'imdb' | 'critics' | 'runtime' | 'watched' | 'shuffle';
+export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'critics' | 'runtime' | 'watched' | 'shuffle';
 export type Resolution = '4k' | '1080' | '720' | 'sd';
 
 export interface Facet {

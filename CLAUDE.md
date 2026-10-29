@@ -46,6 +46,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   copies storage budget (#193, deferred). Decisions waiting for the owner are on #80.
 - **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
+- **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
+  Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
 
 ## Workflow (owner, 26 October; applies to Claude and Codex alike)

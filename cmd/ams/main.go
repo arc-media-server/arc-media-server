@@ -196,7 +196,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}()
 	})
 	go backups.Run(ctx)
-	// Other sites' ratings (IMDb, and Rotten Tomatoes and Metacritic with an OMDb key).
+	// Critics' ratings (Rotten Tomatoes and Metacritic with an OMDb key). IMDb is paused.
 	extRatings := ratings.New(filepath.Join(dataDir, "ratings"), st, log)
 	extRatings.Activity, extRatings.Window = tasks, window
 	extRatings.SetOMDbKey(cfg.OMDbKey)

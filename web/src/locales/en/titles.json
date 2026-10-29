@@ -169,8 +169,6 @@
   },
   "scores": {
     "audience": "TMDB audience score",
-    "votes_one": "IMDb, {{value}} votes",
-    "votes_other": "IMDb, {{value}} votes",
     "fresh": "Rotten Tomatoes critics: fresh",
     "rotten": "Rotten Tomatoes critics: rotten"
   }
