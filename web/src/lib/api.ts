@@ -68,6 +68,9 @@ export interface Stream {
   dolby_vision?: boolean;
   dolby_vision_profile?: number;
   hdr10_plus?: boolean;
+  bitrate?: number;
+  frame_rate?: number;
+  pix_fmt?: string;
   /** sampled means a bounded read, never proof of whole-file absence. */
   hdr_probe_status?: '' | 'stream' | 'sampled' | 'unavailable';
   language?: string;
@@ -478,7 +481,7 @@ export interface Playback {
   extra?: string;
   device: string;
   address: string;
-  method: 'direct' | 'transcode';
+  method: PlaybackMethod;
   /** The conversion is far enough ahead and waits for the viewer. */
   throttled?: boolean;
   position_ms: number;
