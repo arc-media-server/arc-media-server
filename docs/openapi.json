@@ -1334,6 +1334,183 @@
         ],
         "type": "object"
       },
+      "Matched": {
+        "properties": {
+          "added_at": {
+            "type": "integer"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionRef"
+            },
+            "type": "array"
+          },
+          "content_rating": {
+            "type": "string"
+          },
+          "credits": {
+            "items": {
+              "$ref": "#/components/schemas/Credit"
+            },
+            "type": "array"
+          },
+          "details_provider": {
+            "type": "string"
+          },
+          "episode_number": {
+            "type": "integer"
+          },
+          "extras": {
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/MediaFile"
+            },
+            "type": "array"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "images": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "imdb_id": {
+            "type": "string"
+          },
+          "imdb_rating": {
+            "type": "number"
+          },
+          "imdb_votes": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "last_aired": {
+            "type": "string"
+          },
+          "library_id": {
+            "type": "integer"
+          },
+          "locked_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "match_task_id": {
+            "type": "integer"
+          },
+          "metacritic": {
+            "type": "integer"
+          },
+          "metadata_state": {
+            "type": "string"
+          },
+          "next_aired": {
+            "type": "string"
+          },
+          "original_language": {
+            "type": "string"
+          },
+          "original_title": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "release_date": {
+            "type": "string"
+          },
+          "rotten_tomatoes": {
+            "type": "integer"
+          },
+          "runtime_min": {
+            "type": "integer"
+          },
+          "season_number": {
+            "type": "integer"
+          },
+          "series_title": {
+            "type": "string"
+          },
+          "sort_title": {
+            "type": "string"
+          },
+          "source_ordering": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "stream_url": {
+            "type": "string"
+          },
+          "studio": {
+            "type": "string"
+          },
+          "tagline": {
+            "type": "string"
+          },
+          "theme_url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "tvdb_id": {
+            "type": "integer"
+          },
+          "unwatched_count": {
+            "type": "integer"
+          },
+          "user_data": {
+            "$ref": "#/components/schemas/UserData"
+          },
+          "year": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added_at",
+          "id",
+          "kind",
+          "library_id",
+          "locked_fields",
+          "metadata_state",
+          "sort_title",
+          "title"
+        ],
+        "type": "object"
+      },
       "MediaFile": {
         "properties": {
           "bitrate": {
@@ -8464,7 +8641,7 @@
         "x-arc-access": "admin"
       },
       "put": {
-        "description": "{\"provider\": \"tmdb\", \"id\": 603} identifies an item as the chosen provider entry and fetches its metadata.\n\nWho may call it: **admin**.",
+        "description": "{\"provider\": \"tmdb\", \"id\": 603} identifies an item as the chosen provider entry. A movie's metadata is fetched before it answers (200 with the item). For a show it fetches only the chosen entry's own details and answers 202 with the item and `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the background, which then links its files to the new episodes. The item keeps its previous match if the chosen entry can't be fetched.\n\nWho may call it: **admin**.",
         "operationId": "setMatch",
         "parameters": [
           {
@@ -8503,11 +8680,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Item"
+                  "$ref": "#/components/schemas/Matched"
                 }
               }
             },
             "description": "OK"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Matched"
+                }
+              }
+            },
+            "description": "Accepted; the work continues in the background"
           },
           "400": {
             "content": {
@@ -8580,7 +8767,7 @@
             "description": "A service Arc relies on failed"
           }
         },
-        "summary": "Identifies an item as the chosen provider entry and fetches its metadata",
+        "summary": "Identifies an item as the chosen provider entry",
         "tags": [
           "Items"
         ],
