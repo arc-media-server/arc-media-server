@@ -293,8 +293,8 @@ for (const shows of [false, true]) {
     await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveCount(0);
     await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(shows ? 3 : 0); // only the episode rows' own buttons
     await page.getByRole('button', { name: 'More', exact: true }).click();
-    // A show's episode ordering is there for every profile, between the two groups.
-    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', ...(shows ? ['Episode ordering…'] : []), 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
+    // The server owner sets a show's episode ordering in Edit, so it isn't repeated here.
+    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
