@@ -7,17 +7,17 @@ import { FieldLabel, inputClass } from '@/components/ui/field';
 
 /** Staged form fields; the enclosing Edit dialog owns Save/Cancel and error recovery. */
 export function EpisodeOrderingFields({
-  orderings, selected, pending, onSelect, onCompare, specials, onSpecials, defaultLabel,
+  orderings, selected, pending, onSelect, onCompare, specials, onSpecials, unavailableLabel,
 }: {
   orderings: Ordering[];
   selected: number;
   pending: boolean;
-  onSelect: (id: number | null) => void;
+  onSelect: (id: number) => void;
   onCompare?: () => void;
   specials: boolean;
   onSpecials: (value: boolean) => void;
-  /** The name of the default choice: the library's file episode order, or the show's own. */
-  defaultLabel: string;
+  /** A selected file order may only become available after the scoped refresh on Save. */
+  unavailableLabel: string;
 }) {
   const { t } = useTranslation('details');
   const id = useId();
@@ -30,9 +30,9 @@ export function EpisodeOrderingFields({
   return <div className="space-y-6">
     <div>
       <label htmlFor={`${id}-display`}><FieldLabel>{t("details:episodeOrdering.displayOrder")}</FieldLabel></label>
-      <select id={`${id}-display`} aria-describedby={`${id}-display-help`} value={selected || 'inherit'} disabled={pending}
-        onChange={e => onSelect(e.target.value === 'inherit' ? null : Number(e.target.value))} className={inputClass}>
-        <option value="inherit">{defaultLabel}</option>
+      <select id={`${id}-display`} aria-describedby={`${id}-display-help`} value={selected} disabled={pending}
+        onChange={e => onSelect(Number(e.target.value))} className={inputClass}>
+        {!selected && <option value={0} disabled>{unavailableLabel}</option>}
         {groups.filter(([, list]) => list.length).map(([label, list]) => <optgroup key={label} label={label}>
           {list.map(o => <option key={o.id} value={o.id}>
             {[providerLabel(o), o.name, t('details:episodeOrdering.episodes', { count: o.episode_count })].filter(Boolean).join(' · ')}
