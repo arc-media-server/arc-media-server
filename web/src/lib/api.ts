@@ -1200,8 +1200,9 @@ export const api = {
     if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? res.statusText, res.status);
     return (await res.json()) as Item;
   },
+  /** For a show the answer comes once it's identified; `match_task_id` is the Activity task fetching the rest. */
   setMatch: (id: string, provider: Provider, matchId: number) =>
-    request<Item>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
+    request<Item & { match_task_id?: number }>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
 
   seasons: (seriesId: string, opts: { ordering?: number; missing?: boolean } = {}) =>
     request<SeasonsResponse>(

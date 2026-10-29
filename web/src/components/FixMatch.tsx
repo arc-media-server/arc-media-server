@@ -1,7 +1,9 @@
 import { Trans, useTranslation } from 'react-i18next';
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Check, CheckCircle2, FileVideo, Folder, Loader2, Search, XCircle } from 'lucide-react';
+import { useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { AlertCircle, ArrowRight, Check, CheckCircle2, FileVideo, Folder, Loader2, Search, X, XCircle } from 'lucide-react';
+import { useActivity } from '@/components/Activity';
+import { ErrorNotice } from '@/components/Page';
 import { api, type Item, type MatchCandidate, type MatchInfo, type MatchStep, type ParsedName, type Provider } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -155,18 +157,17 @@ function Finder({ item, info, onDone }: { item: Item; info: MatchInfo; onDone: (
     queryFn: () => api.searchMatches(item.id, submitted!.provider, submitted!.q, submitted!.year),
   });
 
+  // Like Plex, the dialog closes once the match is accepted; for a show the rest is fetched in
+  // the background and <MatchUpdates> follows it.
   const choose = useMutation({
     mutationFn: (c: MatchCandidate) => api.setMatch(item.id, c.provider, c.id),
-    onSuccess: (updated) => {
+    onSuccess: ({ match_task_id, ...updated }, c) => {
       qc.setQueryData(['item', item.id], updated);
-      qc.invalidateQueries({ queryKey: ['item', item.id] });
-      qc.invalidateQueries({ queryKey: ['match', item.id] });
-      qc.invalidateQueries({ queryKey: ['seasons', item.id] });
-      qc.invalidateQueries({ queryKey: ['orderings', item.id] });
-      qc.invalidateQueries({ queryKey: ['items'] });
-      qc.invalidateQueries({ queryKey: ['health'] });
-      qc.invalidateQueries({ queryKey: ['health-summary'] });
-      qc.invalidateQueries({ queryKey: ['featured'] });
+      refreshMatched(qc, item.id);
+      if (match_task_id) {
+        trackMatch({ taskId: match_task_id, itemId: item.id, title: updated.title, provider: c.provider, matchId: c.id });
+        qc.invalidateQueries({ queryKey: ['activity'] });
+      }
       onDone();
     },
   });
@@ -235,7 +236,7 @@ function Finder({ item, info, onDone }: { item: Item; info: MatchInfo; onDone: (
               onChoose={() => choose.mutate(c)}
             />
           ))}
-        {choose.error && <p className="text-sm text-warning">{choose.error.message}</p>}
+        <ErrorNotice error={choose.error} busy={choose.isPending} onRetry={() => choose.variables && choose.mutate(choose.variables)} />
       </div>
     </section>
   );
@@ -287,6 +288,114 @@ function Candidate({
   );
 }
 
+
+/** Everything on screen that shows a matched item, refetched once its details have changed. */
+function refreshMatched(qc: QueryClient, id: string) {
+  for (const key of [['item', id], ['match', id], ['seasons', id], ['orderings', id], ['similar', id], ['items'], ['health'], ['health-summary'], ['featured']]) {
+    qc.invalidateQueries({ queryKey: key });
+  }
+}
+
+/** A show whose new match is still being fetched in the background. */
+interface MatchUpdate {
+  taskId: number;
+  itemId: string;
+  title: string;
+  provider: Provider;
+  matchId: number;
+}
+
+// Kept outside React so the note outlives the dialog, the card menu and the page that opened it.
+let updates: MatchUpdate[] = [];
+const listeners = new Set<() => void>();
+function setUpdates(next: MatchUpdate[]) {
+  updates = next;
+  for (const l of listeners) l();
+}
+function trackMatch(u: MatchUpdate) {
+  setUpdates([...updates.filter((x) => x.itemId !== u.itemId), u]);
+}
+function untrack(taskId: number) {
+  setUpdates(updates.filter((x) => x.taskId !== taskId));
+}
+function subscribe(l: () => void) {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+/**
+ * A short note while a show's new match is fetched in the background ("Updating … from TMDB…"),
+ * as Plex shows a refresh after Fix Match. When the Activity task finishes, the pages showing the
+ * show are refreshed; if it failed, the note stays with the error and Try again.
+ */
+export function MatchUpdates() {
+  const list = useSyncExternalStore(subscribe, () => updates);
+  if (list.length === 0) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex flex-col items-center gap-2 px-4 md:left-[248px]">
+      {list.map((u) => (
+        <MatchUpdateNote key={u.taskId} update={u} />
+      ))}
+    </div>
+  );
+}
+
+function MatchUpdateNote({ update }: { update: MatchUpdate }) {
+  const { t } = useTranslation('metadata');
+  const qc = useQueryClient();
+  const { data } = useActivity();
+  const [since] = useState(() => Date.now());
+  const [seen, setSeen] = useState(false);
+  const running = !!data?.running.some((task) => task.id === update.taskId);
+  const finished = data?.recent.find((task) => task.id === update.taskId);
+  useEffect(() => {
+    if (running || finished) setSeen(true);
+  }, [running, finished]);
+  // A task that has left both lists (or never showed, e.g. after a restart) counts as finished.
+  const done = !!finished || (!running && (seen || Date.now() - since > 15000));
+  const error = finished && !finished.stopped ? finished.error : undefined;
+  useEffect(() => {
+    if (!done) return;
+    refreshMatched(qc, update.itemId);
+    if (error) return;
+    const timer = setTimeout(() => untrack(update.taskId), 4000);
+    return () => clearTimeout(timer);
+  }, [done, error, qc, update]);
+  const retry = useMutation({
+    mutationFn: () => api.setMatch(update.itemId, update.provider, update.matchId),
+    onSuccess: ({ match_task_id, ...item }) => {
+      qc.setQueryData(['item', update.itemId], item);
+      refreshMatched(qc, update.itemId);
+      untrack(update.taskId);
+      if (match_task_id) trackMatch({ ...update, taskId: match_task_id, title: item.title });
+      qc.invalidateQueries({ queryKey: ['activity'] });
+    },
+  });
+  const values = { title: update.title, provider: providerName[update.provider] };
+
+  if (error) {
+    return (
+      <div role="alert" className="pointer-events-auto flex w-full max-w-lg flex-wrap items-center gap-3 rounded-2xl bg-surface p-3 text-sm shadow-2xl ring-1 ring-warning/40">
+        <AlertCircle className="size-4 shrink-0 text-warning" />
+        <p className="min-w-0 flex-1 break-words text-warning">{retry.error ? retry.error.message : t('metadata:fixMatch.updateFailed', { ...values, error })}</p>
+        <Button size="sm" variant="secondary" disabled={retry.isPending} onClick={() => retry.mutate()}>
+          {retry.isPending && <Loader2 className="animate-spin" />} {t('metadata:fixMatch.tryAgain')}
+        </Button>
+        <button type="button" aria-label={t('metadata:fixMatch.dismiss')} onClick={() => untrack(update.taskId)} className="rounded-full p-1 text-muted hover:bg-surface-3 hover:text-foreground">
+          <X className="size-4" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <p role="status" className="pointer-events-auto flex w-fit max-w-full items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-2xl">
+      {done ? <Check className="size-4 shrink-0" /> : <Loader2 className="size-4 shrink-0 animate-spin" />}
+      <span className="truncate">{done ? t('metadata:fixMatch.updated', values) : t('metadata:fixMatch.updating', values)}</span>
+    </p>
+  );
+}
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-subtle">{children}</h3>;
