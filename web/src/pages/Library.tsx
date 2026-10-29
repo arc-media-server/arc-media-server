@@ -15,6 +15,7 @@ import { countUnit } from '@/lib/browsing-labels';
 import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { VideoFolders } from '@/components/VideoFolders';
+import { EditRecommended } from '@/components/EditRecommended';
 import { MediaRow } from '@/components/MediaRow';
 import { useRemoveFromContinue } from '@/components/CardMenu';
 import { SelectionBar } from '@/components/BulkEdit';
@@ -340,6 +341,7 @@ export function LibraryPage() {
       {lib && view !== 'titles' && admin && (
         // The other tabs keep the library's ⋯ in the same spot as the Titles filter bar.
         <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
+          {view === 'recommended' && <EditRecommended library={lib} />}
           {view === 'collections' && (
             <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
               <Plus /> {t('library:newCollection')}
@@ -519,10 +521,10 @@ function RecommendedRowView({ row, lib }: { row: RecommendedRow; lib: Library })
   const href = recommendedHref(row, lib);
   // Carrying on and episodes use landscape thumbnails, as on Home; Continue Watching plays.
   if (row.type === 'continue') {
-    return <MediaRow title={title} items={row.items} style="thumb" play error={remove.error} onRetry={() => { if (remove.variables) remove.mutate(remove.variables); }} onRemove={(i) => remove.mutate(i)} />;
+    return <MediaRow title={title} items={row.items} style={row.style || "thumb"} play error={remove.error} onRetry={() => { if (remove.variables) remove.mutate(remove.variables); }} onRemove={(i) => remove.mutate(i)} />;
   }
   const episodes = row.items.some((i) => i.kind === 'episode');
-  return <MediaRow title={title} items={row.items} href={href} style={episodes ? 'thumb' : 'poster'} />;
+  return <MediaRow title={title} items={row.items} href={href} style={row.style || (episodes ? 'thumb' : 'poster')} />;
 }
 
 /**

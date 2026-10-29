@@ -626,7 +626,10 @@ export interface BackupsResponse {
 }
 
 /** A row of a library's Recommended view: what it is and what it's about, for the app to title. */
+export type RecommendedLook = { type: RecommendedRow['type']; hidden?: boolean; style?: '' | 'poster' | 'thumb' | 'arc' };
+
 export interface RecommendedRow {
+  style?: 'poster' | 'thumb' | 'arc';
   type:
     | 'continue'
     | 'recently_released'
@@ -1200,6 +1203,8 @@ export const api = {
   /** The episode that follows one in the profile's episode order, if any. */
   similar: (id: string) => request<Item[]>('GET', `/api/items/${id}/similar`),
   recommended: (libraryId: number) => request<{ rows: RecommendedRow[] }>('GET', `/api/libraries/${libraryId}/recommended`),
+  recommendedLayout: (id: number) => request<{ rows: RecommendedLook[] }>('GET', `/api/libraries/${id}/recommended/layout`),
+  saveRecommendedLayout: (id: number, rows: RecommendedLook[]) => request<{ rows: RecommendedLook[] }>('PUT', `/api/libraries/${id}/recommended/layout`, { rows }),
   removeFromContinue: (id: string) => request<void>('DELETE', `/api/home/continue/${id}`),
   nextEpisode: (id: string) => request<Item | undefined>('GET', `/api/items/${id}/next`),
   continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),
