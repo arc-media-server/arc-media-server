@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arc's mark as the web app draws it in its sidebar and sign-in screens (ArcLogo, 32 grid). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <path
+        android:pathData="M5,24a11,11 0,0 1,22 0"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="32" android:endY="32">
+                <item android:offset="0" android:color="#FFC4B5FD" />
+                <item android:offset="1" android:color="#FF7C68FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M13.4,24a2.6,2.6 0,1 0,5.2 0a2.6,2.6 0,1 0,-5.2 0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="32" android:endY="32">
+                <item android:offset="0" android:color="#FFC4B5FD" />
+                <item android:offset="1" android:color="#FF7C68FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

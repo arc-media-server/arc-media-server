@@ -61,6 +61,7 @@ data class Images(
     val logo: String? = null,
     @SerialName("series_primary") val seriesPrimary: String? = null,
     @SerialName("series_backdrop") val seriesBackdrop: String? = null,
+    @SerialName("series_logo") val seriesLogo: String? = null,
     @SerialName("season_primary") val seasonPrimary: String? = null,
 )
 
@@ -176,6 +177,8 @@ data class PlaybackRequest(
     @SerialName("start_ms") val startMs: Long = 0,
     @SerialName("file_id") val fileId: Long? = null,
     @SerialName("audio_stream") val audioStream: Int? = null,
+    /** A quality limit chosen in the player (kbit/s); null for the original. */
+    @SerialName("max_kbps") val maxKbps: Int? = null,
 )
 
 @Serializable
@@ -217,6 +220,38 @@ data class PlaybackPlan(
     @SerialName("audio_tracks") val audioTracks: List<AudioTrack> = emptyList(),
     @SerialName("subtitle_tracks") val subtitleTracks: List<SubtitleTrack> = emptyList(),
     val encoder: String? = null,
+    @SerialName("tone_mapped") val toneMapped: Boolean = false,
+    /** The title's files: editions and versions (e.g. 4K and 1080p). */
+    val versions: List<Version> = emptyList(),
+    val chapters: List<Chapter> = emptyList(),
+    /** Intro, recap and credits, for Skip Intro and Skip Credits (times in the file). */
+    val markers: List<Marker> = emptyList(),
+    @SerialName("source_kbps") val sourceKbps: Int = 0,
+    @SerialName("source_height") val sourceHeight: Int = 0,
+    /** The ceiling away from home (0 at home or with no limit). */
+    @SerialName("server_limit_kbps") val serverLimitKbps: Int = 0,
+)
+
+@Serializable
+data class Version(
+    @SerialName("file_id") val fileId: Long,
+    val edition: String? = null,
+    val width: Int = 0,
+    val height: Int = 0,
+    @SerialName("video_codec") val videoCodec: String? = null,
+    val hdr: String? = null,
+    val size: Long = 0,
+)
+
+@Serializable
+data class Chapter(@SerialName("start_ms") val startMs: Long, @SerialName("end_ms") val endMs: Long = 0, val title: String? = null)
+
+@Serializable
+data class Marker(
+    /** intro, recap or credits. */
+    val kind: String,
+    @SerialName("start_ms") val startMs: Long,
+    @SerialName("end_ms") val endMs: Long,
 )
 
 @Serializable

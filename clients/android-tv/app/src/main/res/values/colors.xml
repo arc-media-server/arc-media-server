@@ -2,7 +2,4 @@
 <resources>
     <!-- The web app's dark tokens (web/src/index.css). -->
     <color name="arc_background">#FF0B0B10</color>
-    <color name="arc_accent">#FF9D8CFF</color>
-    <color name="arc_accent_strong">#FF7C68FF</color>
-    <color name="arc_accent_light">#FFC4B5FD</color>
 </resources>

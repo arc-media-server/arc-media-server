@@ -53,6 +53,11 @@ data class PlayerUiState(
     /** Arc stopped this playback (from its Dashboard), with the admin's message. */
     val stopped: String? = null,
     val ended: Boolean = false,
+    /** The episode that follows, for Next and Play Next. */
+    val next: Item? = null,
+    /** -1 Automatic, 0 Original, or a limit in kbit/s (the web player's quality menu). */
+    val quality: Int = -1,
+    val speed: Float = 1f,
 )
 
 /**
@@ -74,6 +79,7 @@ class PlayerViewModel(
     private var preferredSubtitleLanguage = ""
     private var retried = false
     private var loadJob: Job? = null
+    private var maxKbps: Int? = null
 
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state
@@ -108,6 +114,8 @@ class PlayerViewModel(
             // The title and the profile's subtitle language, alongside the first decision.
             val item = runCatching { api.item(itemId) }.getOrNull()
             _state.update { it.copy(item = item) }
+            val next = if (item?.isEpisode == true) runCatching { api.next(itemId) }.getOrNull() else null
+            _state.update { it.copy(next = next) }
         }
         viewModelScope.launch {
             preferredSubtitleLanguage = runCatching { api.prefs().subtitleLanguage }.getOrDefault("")
@@ -121,13 +129,20 @@ class PlayerViewModel(
     private fun position(): Long = plan?.let { PlaybackClock.filePosition(it, player.currentPosition.coerceAtLeast(0)) } ?: startMs
 
     /** Starts (or restarts) playback at a point in the file, optionally with another audio track. */
-    fun load(fromMs: Long, audioStream: Int? = null) {
+    fun load(fromMs: Long, audioStream: Int? = null, fileId: Long? = null) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             plan?.sessionId?.let { sid -> runCatching { api.stopTranscode(sid) } }
             val p = try {
-                api.startPlayback(itemId, PlaybackRequest(caps, startMs = fromMs, fileId = plan?.fileId, audioStream = audioStream ?: plan?.audioStream?.takeIf { it >= 0 }))
+                api.startPlayback(itemId, PlaybackRequest(
+                    caps,
+                    startMs = fromMs,
+                    fileId = fileId ?: plan?.fileId,
+                    // A new version starts with its own default audio.
+                    audioStream = audioStream ?: plan?.audioStream?.takeIf { it >= 0 && fileId == null },
+                    maxKbps = maxKbps,
+                ))
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 if (e is ApiException && e.status == 403) {
@@ -226,6 +241,26 @@ class PlayerViewModel(
         val p = plan ?: return
         _state.update { it.copy(subtitle = track) }
         install(p, position(), track)
+    }
+
+    /** Quality as the web player offers it: -1 Automatic, 0 Original, or a limit in kbit/s. */
+    fun chooseQuality(kbps: Int) {
+        if (kbps == _state.value.quality) return
+        _state.update { it.copy(quality = kbps) }
+        val limit = kbps.takeIf { it > 0 }
+        if (limit == maxKbps) return
+        maxKbps = limit
+        load(position())
+    }
+
+    fun chooseVersion(fileId: Long) {
+        if (fileId == plan?.fileId) return
+        load(position(), fileId = fileId)
+    }
+
+    fun setSpeed(speed: Float) {
+        player.setPlaybackSpeed(speed)
+        _state.update { it.copy(speed = speed) }
     }
 
     fun retry() {

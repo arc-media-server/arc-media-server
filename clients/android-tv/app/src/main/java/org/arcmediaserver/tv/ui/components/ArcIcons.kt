@@ -2,66 +2,77 @@ package org.arcmediaserver.tv.ui.components
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
-/** The few icons the app uses (Material Symbols' shapes, Apache 2.0), without the icons library. */
+/**
+ * The icons the web app uses (Lucide, ISC licence), drawn the same way: 24-unit strokes 2 wide with
+ * round ends. Kept here rather than pulling in an icon library for a dozen shapes.
+ */
 object ArcIcons {
-    private fun icon(name: String, path: String) = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
-        .addPath(pathData = addPathNodes(path), fill = SolidColor(Color.White))
-        .build()
+    private fun rect(x: Float, y: Float, w: Float, h: Float, r: Float) =
+        "M${x + r},${y}h${w - 2 * r}a$r,$r 0 0 1 $r,${r}v${h - 2 * r}a$r,$r 0 0 1 -$r,${r}h${-(w - 2 * r)}a$r,$r 0 0 1 -$r,-${r}v${-(h - 2 * r)}a$r,$r 0 0 1 $r,-${r}z"
 
-    val Play = icon("play", "M8,5v14l11,-7z")
-    val Pause = icon("pause", "M6,19h4V5H6v14zM14,5v14h4V5h-4z")
-    val Home = icon("home", "M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z")
-    val Movie = icon(
-        "movie",
-        "M18,4l2,4h-3l-2,-4h-2l2,4h-3l-2,-4H8l2,4H7L5,4H4c-1.1,0 -1.99,0.9 -1.99,2L2,18c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V4h-4z",
+    private fun circle(cx: Float, cy: Float, r: Float) = "M${cx - r},${cy}a$r,$r 0 1 0 ${2 * r},0a$r,$r 0 1 0 ${-2 * r},0"
+
+    private fun icon(name: String, vararg paths: String, filled: Boolean = false): ImageVector {
+        val b = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
+        for (p in paths) {
+            b.addPath(
+                pathData = addPathNodes(p),
+                fill = if (filled) SolidColor(Color.White) else null,
+                stroke = SolidColor(Color.White),
+                strokeLineWidth = 2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            )
+        }
+        return b.build()
+    }
+
+    // Navigation (web/src/components/Sidebar.tsx, web/src/lib/kinds.ts).
+    val Home = icon(
+        "home",
+        "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8",
+        "M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
     )
-    val Tv = icon(
-        "tv",
-        "M21,3H3c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h5v2h8v-2h5c1.1,0 1.99,-0.9 1.99,-2L23,5c0,-1.1 -0.9,-2 -2,-2zM21,17H3V5h18v12z",
+    val Film = icon(
+        "film", rect(3f, 3f, 18f, 18f, 2f),
+        "M7 3v18", "M3 7.5h4", "M3 12h18", "M3 16.5h4", "M17 3v18", "M17 7.5h4", "M17 16.5h4",
     )
-    val Folder = icon(
-        "folder",
-        "M10,4H4c-1.1,0 -1.99,0.9 -1.99,2L2,18c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V8c0,-1.1 -0.9,-2 -2,-2h-8l-2,-2z",
+    val Tv = icon("tv", rect(2f, 7f, 20f, 15f, 2f), "M17 2 12 7 7 2")
+    val Clapperboard = icon(
+        "clapperboard",
+        "M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z",
+        "m6.2 5.3 3.1 3.9", "m12.4 3.4 3.1 4",
+        "M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z",
     )
-    val Replay = icon(
-        "replay",
-        "M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6 -6,6 -6,-2.69 -6,-6H4c0,4.42 3.58,8 8,8s8,-3.58 8,-8 -3.58,-8 -8,-8z",
+    val SignOut = icon("log-out", "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "m16 17 5-5-5-5", "M21 12H9")
+
+    // Player (web/src/components/Player.tsx).
+    val Play = icon("play", "M6 3 20 12 6 21 6 3z", filled = true)
+    val Pause = icon("pause", rect(14f, 4f, 4f, 16f, 1f), rect(6f, 4f, 4f, 16f, 1f), filled = true)
+    val SkipBack = icon("skip-back", "M19 20 9 12 19 4 19 20z", "M5 19V5", filled = true)
+    val SkipForward = icon("skip-forward", "M5 4 15 12 5 20 5 4z", "M19 5v14", filled = true)
+    val RotateCcw = icon("rotate-ccw", "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5")
+    val RotateCw = icon("rotate-cw", "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8", "M21 3v5h-5")
+    val Languages = icon("languages", "m5 8 6 6", "m4 14 6-6 2-3", "M2 5h12", "M7 2h1", "m22 22-5-10-5 10", "M14 18h6")
+    val Captions = icon("captions", rect(3f, 5f, 18f, 14f, 2f), "M7 15h4M15 15h2M7 11h2M13 11h4")
+    val Sliders = icon(
+        "sliders-horizontal",
+        "M21 4h-7", "M10 4H3", "M21 12h-9", "M8 12H3", "M21 20h-5", "M12 20H3", "M14 2v4", "M8 10v4", "M16 18v4",
     )
-    val Forward = icon(
-        "forward",
-        "M12,5V1l5,5 -5,5V7c-3.31,0 -6,2.69 -6,6s2.69,6 6,6 6,-2.69 6,-6h2c0,4.42 -3.58,8 -8,8s-8,-3.58 -8,-8 3.58,-8 8,-8z",
-    )
-    val Subtitles = icon(
-        "subtitles",
-        "M20,4H4c-1.1,0 -2,0.9 -2,2v12c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V6c0,-1.1 -0.9,-2 -2,-2zM4,12h4v2H4v-2zM14,18H4v-2h10v2zM20,18h-4v-2h4v2zM20,14H10v-2h10v2z",
-    )
-    val Audio = icon(
-        "audio",
-        "M12,3v9.28c-0.47,-0.17 -0.97,-0.28 -1.5,-0.28C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21c2.31,0 4.2,-1.75 4.45,-4H15V6h4V3h-7z",
-    )
-    val Person = icon(
-        "person",
-        "M12,12c2.21,0 4,-1.79 4,-4s-1.79,-4 -4,-4 -4,1.79 -4,4 1.79,4 4,4zM12,14c-2.67,0 -8,1.34 -8,4v2h16v-2c0,-2.66 -5.33,-4 -8,-4z",
-    )
-    val Check = icon("check", "M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z")
-    val Lock = icon(
-        "lock",
-        "M18,8h-1V6c0,-2.76 -2.24,-5 -5,-5S7,3.24 7,6v2H6c-1.1,0 -2,0.9 -2,2v10c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2V10c0,-1.1 -0.9,-2 -2,-2zM12,17c-1.1,0 -2,-0.9 -2,-2s0.9,-2 2,-2 2,0.9 2,2 -0.9,2 -2,2zM15.1,8H8.9V6c0,-1.71 1.39,-3.1 3.1,-3.1 1.71,0 3.1,1.39 3.1,3.1v2z",
-    )
-    val Backspace = icon(
-        "backspace",
-        "M22,3H7c-0.69,0 -1.23,0.35 -1.59,0.88L0,12l5.41,8.11c0.36,0.53 0.9,0.89 1.59,0.89h15c1.1,0 2,-0.9 2,-2V5c0,-1.1 -0.9,-2 -2,-2zM19,15.59L17.59,17 14,13.41 10.41,17 9,15.59 12.59,12 9,8.41 10.41,7 14,10.59 17.59,7 19,8.41 15.41,12 19,15.59z",
-    )
-    val SignOut = icon(
-        "sign-out",
-        "M17,7l-1.41,1.41L18.17,11H8v2h10.17l-2.58,2.58L17,17l5,-5zM4,5h8V3H4c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h8v-2H4V5z",
-    )
-    val Restart = icon(
-        "restart",
-        "M6,6h2v12H6zM9.5,12l8.5,6V6z",
-    )
+    val ListOrdered = icon("list-ordered", "M10 12h11", "M10 18h11", "M10 6h11", "M4 10h2", "M4 6h1v4", "M6 18H4c0-1 2-2 2-3s-1-1.5-2-1")
+    val Gauge = icon("gauge", "m12 14 4-4", "M3.34 19a10 10 0 1 1 17.32 0")
+    val Info = icon("info", circle(12f, 12f, 10f), "M12 16v-4", "M12 8h.01")
+    val Close = icon("x", "M18 6 6 18", "m6 6 12 12")
+
+    // Elsewhere.
+    val Check = icon("check", "M20 6 9 17l-5-5")
+    val Lock = icon("lock", rect(3f, 11f, 18f, 11f, 2f), "M7 11V7a5 5 0 0 1 10 0v4")
+    val ChevronLeft = icon("chevron-left", "m15 18-6-6 6-6")
+    val Delete = icon("delete", "M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z", "m12 9 6 6", "m18 9-6 6")
 }

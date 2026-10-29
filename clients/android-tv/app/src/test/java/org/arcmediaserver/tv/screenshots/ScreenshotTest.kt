@@ -164,9 +164,29 @@ class ScreenshotTest {
                     positionMs = 21 * 60_000L + 14_000,
                     durationMs = Fixtures.plan.durationMs,
                     bufferedMs = 26 * 60_000L,
+                    next = Fixtures.seasons[0].episodes[3],
                 ),
+                visible = true,
                 scrubMs = null,
-                onPlayPause = {}, onBack10 = {}, onForward30 = {}, onScrub = {}, onAudio = {}, onSubtitles = {},
+                onPlayPause = {}, onBack10 = {}, onForward10 = {}, onScrub = {}, onSkip = {}, onNext = {}, onMenu = {}, onClose = {},
+            )
+        }
+    }
+
+    @Test
+    fun playerSkipIntro() = shot("player-skip-intro") {
+        Box(Modifier.fillMaxSize()) {
+            androidx.compose.foundation.Image(
+                bitmap = Fixtures.art("art:backdrop:The Ferry").asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            )
+            PlayerControls(
+                state = PlayerUiState(item = Fixtures.seasons[0].episodes[2], plan = Fixtures.plan, loading = false, playing = true, positionMs = 75_000, durationMs = Fixtures.plan.durationMs),
+                visible = false,
+                scrubMs = null,
+                onPlayPause = {}, onBack10 = {}, onForward10 = {}, onScrub = {}, onSkip = {}, onNext = {}, onMenu = {}, onClose = {},
             )
         }
     }

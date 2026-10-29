@@ -105,6 +105,16 @@ class ArcApi(
     suspend fun startPlayback(itemId: String, request: PlaybackRequest): PlaybackPlan =
         send("POST", "items/${enc(itemId)}/playback", ArcJson.encodeToString(PlaybackRequest.serializer(), request), PlaybackPlan.serializer(), route = "items/{id}/playback")
 
+    /** The episode that follows in the profile's order, or null (204) for none. */
+    suspend fun next(itemId: String): Item? {
+        val (status, body) = raw("GET", "items/${enc(itemId)}/next", null, route = "items/{id}/next")
+        return when (status) {
+            204 -> null
+            in 200..299 -> decode(body, Item.serializer(), "items/{id}/next")
+            else -> throw failure(status, body, "items/{id}/next")
+        }
+    }
+
     suspend fun reportProgress(itemId: String, report: ProgressReport) {
         val (status, body) = raw("PUT", "items/${enc(itemId)}/progress", ArcJson.encodeToString(ProgressReport.serializer(), report), route = "items/{id}/progress")
         if (status !in 200..299) throw failure(status, body, "items/{id}/progress")

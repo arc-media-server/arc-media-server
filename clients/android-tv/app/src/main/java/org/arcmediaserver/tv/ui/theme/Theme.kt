@@ -12,7 +12,11 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 
-/** Arc's dark tokens, as the web app's (web/src/index.css). */
+/**
+ * Arc's colours: the web app's dark tokens (web/src/index.css). Arc is dark only, as the owner
+ * chose. The brand accent is defined here and nowhere else in code: change Accent, AccentStrong and
+ * AccentLight to re-colour the app (the logo drawables and TV banner carry the same violet).
+ */
 object ArcColors {
     val Background = Color(0xFF0B0B10)
     val Surface = Color(0xFF15151C)

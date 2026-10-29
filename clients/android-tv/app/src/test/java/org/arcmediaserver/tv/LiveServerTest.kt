@@ -127,6 +127,11 @@ class LiveServerTest {
         val episode = nextEpisode(seasons.seasons.filter { it.episodes.isNotEmpty() })
         assertNotNull(episode)
 
+        val following = api.next(episode!!.id)
+        step("next after ${episode.title}: ${following?.title}")
+        assertNotNull(following)
+        assertNull(api.next(movieList.first().id)) // 204 for a movie
+
         val movie = movieList.first { it.title.contains("Matrix") }
         val detail = api.item(movie.id)
         step("item ${detail.title}: ${detail.files.size} files, ${detail.durationMs} ms")

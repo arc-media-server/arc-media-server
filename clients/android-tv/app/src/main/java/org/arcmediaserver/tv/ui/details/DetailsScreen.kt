@@ -93,14 +93,8 @@ fun DetailsScreen(details: Details, onPlay: (Item, Long) -> Unit, onOpen: (Strin
     val item = details.item
     val primary = remember { FocusRequester() }
     Box(Modifier.fillMaxSize().background(ArcColors.Background)) {
-        Artwork(
-            url = item.images?.backdropFull ?: item.images?.backdrop ?: item.images?.seriesBackdrop,
-            label = "",
-            modifier = Modifier.align(Alignment.TopEnd).fillMaxWidth(0.78f).fillMaxHeight(0.85f),
-        )
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0.18f to ArcColors.Background, 0.62f to ArcColors.Background.copy(alpha = 0.35f), 1f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.35f to Color.Transparent, 0.85f to ArcColors.Background)))
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 56.dp, bottom = 40.dp)) {
+        org.arcmediaserver.tv.ui.browse.ImmersiveBackdrop(org.arcmediaserver.tv.ui.browse.backdropOf(item))
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 40.dp, bottom = 40.dp)) {
             item { Header(details, onPlay, onOpen, primary) }
             if (item.isSeries) {
                 item { Seasons(details, onPlay) }
@@ -115,10 +109,12 @@ private fun Header(details: Details, onPlay: (Item, Long) -> Unit, onOpen: (Stri
     val item = details.item
     Column(Modifier.padding(start = 56.dp).width(520.dp)) {
         if (item.isEpisode) {
-            Text(item.seriesTitle.orEmpty(), style = MaterialTheme.typography.titleLarge, color = ArcColors.Muted)
-            Spacer(Modifier.height(4.dp))
+            org.arcmediaserver.tv.ui.browse.TitleLogo(item, maxHeight = 72.dp, textStyle = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(10.dp))
+            Text(item.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        } else {
+            org.arcmediaserver.tv.ui.browse.TitleLogo(item, maxHeight = 84.dp, textStyle = MaterialTheme.typography.displayMedium)
         }
-        Text(item.title, style = MaterialTheme.typography.displayMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(10.dp))
         val unwatched = item.unwatchedCount ?: 0
         val meta = listOfNotNull(
@@ -140,7 +136,7 @@ private fun Header(details: Details, onPlay: (Item, Long) -> Unit, onOpen: (Stri
         }
         item.overview?.takeIf { it.isNotBlank() }?.let {
             Spacer(Modifier.height(10.dp))
-            Text(it, style = MaterialTheme.typography.bodyLarge, color = ArcColors.Foreground.copy(alpha = 0.85f), maxLines = 4, overflow = TextOverflow.Ellipsis)
+            Text(it, style = MaterialTheme.typography.bodyLarge, color = ArcColors.Foreground.copy(alpha = 0.85f), maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.height(24.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -156,7 +152,7 @@ private fun Header(details: Details, onPlay: (Item, Long) -> Unit, onOpen: (Stri
                 }
                 ActionButton(ArcIcons.Play, label, primary = true, modifier = Modifier.focusRequester(primary)) { onPlay(target, resume) }
                 if (resume > 0) {
-                    ActionButton(ArcIcons.Restart, stringResource(R.string.action_play_from_start)) { onPlay(target, 0) }
+                    ActionButton(ArcIcons.RotateCcw, stringResource(R.string.action_play_from_start)) { onPlay(target, 0) }
                 }
             }
             if (item.isEpisode && item.parentId != null) {
@@ -196,7 +192,7 @@ private fun Seasons(details: Details, onPlay: (Item, Long) -> Unit) {
         return
     }
     var selected by rememberSaveable(details.item.id) { mutableIntStateOf(details.initialSeason.coerceIn(0, details.seasons.lastIndex)) }
-    Column(Modifier.padding(top = 36.dp)) {
+    Column(Modifier.padding(top = 24.dp)) {
         TabRow(
             selectedTabIndex = selected,
             modifier = Modifier.padding(start = 48.dp),

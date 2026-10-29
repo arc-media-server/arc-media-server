@@ -19,6 +19,8 @@ import org.arcmediaserver.tv.data.CardStyle
 import org.arcmediaserver.tv.data.Season
 import org.arcmediaserver.tv.data.SubtitleTrack
 import org.arcmediaserver.tv.data.AudioTrack
+import org.arcmediaserver.tv.data.Chapter
+import org.arcmediaserver.tv.data.Marker
 import org.arcmediaserver.tv.data.UserData
 import org.arcmediaserver.tv.data.cardFor
 import org.arcmediaserver.tv.ui.browse.BrowseFrame
@@ -35,6 +37,8 @@ object Fixtures {
         primary = "art:poster:$title",
         backdrop = "art:backdrop:$title",
         backdropFull = "art:backdrop:$title",
+        // Some titles have a clear logo, as most matched ones do; the rest show their name.
+        logo = if (title.length % 2 == 0) "art:logo:$title" else null,
     )
 
     private fun movie(id: String, title: String, year: Int, minutes: Int, overview: String, pos: Long = 0, played: Boolean = false, rating: String = "15") = Item(
@@ -59,7 +63,7 @@ object Fixtures {
         id = "ep:hc:$s:$e", libraryId = 2, kind = "episode", parentId = "hc", title = title, seriesTitle = "Hollow Creek",
         seasonNumber = s, episodeNumber = e, runtimeMin = minutes, userData = UserData(pos, played),
         overview = "The town meeting goes badly when the old mill's owner turns up with a plan.",
-        images = Images(primary = "art:still:$title", seriesPrimary = showImages.primary, seriesBackdrop = showImages.backdrop),
+        images = Images(primary = "art:still:$title", seriesPrimary = showImages.primary, seriesBackdrop = showImages.backdrop, seriesLogo = "art:logo:Hollow Creek"),
     )
 
     val show = Item(
@@ -112,11 +116,29 @@ object Fixtures {
         offsetMs = 0, durationMs = 52 * 60_000L, fileId = 1, audioStream = 1,
         audioTracks = listOf(AudioTrack(1, "eng", codec = "eac3", channels = 6, default = true), AudioTrack(2, "fra", codec = "aac", channels = 2)),
         subtitleTracks = listOf(SubtitleTrack("s:3", "eng"), SubtitleTrack("s:4", "eng", forced = true)),
+        chapters = listOf(Chapter(0, 300_000), Chapter(300_000, 1_200_000), Chapter(1_200_000, 2_400_000), Chapter(2_400_000, 3_120_000)),
+        markers = listOf(Marker("intro", 60_000, 150_000), Marker("credits", 3_000_000, 3_120_000)),
+        sourceKbps = 9000,
     )
 
     /** Draws artwork for an "art:" address: a gradient in a colour from the title, and the title. */
     fun art(url: String): Bitmap {
         val (kind, title) = url.removePrefix("art:").split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+        if (kind == "logo") {
+            // A clear logo: the title set in heavy serif capitals on transparency.
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                textSize = 120f
+                typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                letterSpacing = 0.08f
+                setShadowLayer(12f, 0f, 4f, 0x99000000.toInt())
+            }
+            val text = title.uppercase()
+            val w = paint.measureText(text).toInt() + 40
+            val bmp = Bitmap.createBitmap(w, 170, Bitmap.Config.ARGB_8888)
+            Canvas(bmp).drawText(text, 20f, 135f, paint)
+            return bmp
+        }
         val (w, h) = when (kind) {
             "poster" -> 400 to 600
             "still" -> 640 to 360

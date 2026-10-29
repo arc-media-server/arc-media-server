@@ -52,7 +52,7 @@ val LocalImageUrl = compositionLocalOf<(String) -> String> { { it } }
 
 val CardShape = RoundedCornerShape(10.dp)
 val PosterWidth = 132.dp
-val ThumbWidth = 236.dp
+val ThumbWidth = 208.dp
 
 /**
  * Artwork with a quiet placeholder underneath: the title on a dark gradient, which is what shows

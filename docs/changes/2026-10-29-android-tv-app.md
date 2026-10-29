@@ -16,22 +16,33 @@ app are unchanged; `clients/` is added to `.dockerignore` so the image build doe
   polls every 3 s, gets a fresh code when one runs out, and keeps the device token. The token is
   encrypted with an AES key held in the Android Keystore (non-exportable), not stored in clear.
   A token signed out from Settings > Devices sends the TV back to the code screen.
-- **Profiles.** "Who's watching?" with the web's avatars and colours; a PIN profile opens a number
-  pad (remote number keys work too) that checks as soon as four digits are in; a wrong PIN turns
-  the dots red and clears them. The profile stays chosen on the server for the token, so the next launch goes
-  straight to Home (as Plex does); the sidebar has Switch Profile and Sign Out.
+- **Profiles** look like the web's picker (`web/src/components/auth/ProfilePicker.tsx`): Arc's
+  mark and name over the accent glow, "Who's watching?", round avatars in the profile colours with
+  a lock badge (PIN, or the admin without a password session), the web's ring on focus and a
+  staggered entrance. The PIN step is the web's too (avatar, name, "Enter your PIN", four boxes
+  with the next one ringed in the accent, a shake and "Try again" when wrong, Profiles to go back),
+  with a number pad beside it because a TV has no keyboard (the remote's number keys work too).
+  The profile stays chosen on the server for the token, so the next launch goes straight to Home
+  (as Plex does); the sidebar has Switch Profile and Sign Out.
 - **Home** is the profile's own layout, resolved the way `web/src/lib/home.ts` does it: saved
   order, hidden rows, built-ins not yet placed inserted where they'd be by default, Up Next inside
   Continue Watching unless the profile split it out, Watchlist, Recently Added per library (a TV
   library groups new episodes by season via `/libraries/{id}/recent-shows`), and custom filter
-  rows. The focused card's backdrop, title and summary fill the top of the screen (Plex/Google TV
-  style). Empty rows are left out; a row that fails shows its error and a Try Again button.
-- **Libraries** in a left rail (icons that open into labels, as Plex and Google TV do), in the
-  profile's library order, each an A–Z poster grid that loads more as the focus nears the end.
-- **Details.** Movies and episodes: backdrop, title, year, age rating, runtime, genres, summary,
-  Resume from 52:00 / Play from Beginning, and Go to Show for an episode. Shows: the same header
-  with Play/Resume of the next episode (the one part-way through, else the first unwatched,
-  specials last), then season tabs and episode cards. Seasons and episodes come from
+  rows. It is **immersive** (owner's direction): no banner; the focused title's backdrop
+  (`backdrop_full`, or the show's `series_backdrop` for an episode) fills the whole screen behind
+  the sidebar and fades as the focus moves; its clear logo (`images.logo` / `series_logo`; the
+  title in large type when there's none or it fails to load), a details line and a three-line
+  summary sit top left; the rows run along the lower part. Empty rows are left out; a row that
+  fails shows its error and Try Again.
+- **Navigation**: a Compose for TV navigation drawer at the left (icons when collapsed, labels
+  when the focus moves into it, as Google TV's), using the web's icons (Lucide, drawn as vectors):
+  Home, each library in the profile's order (A–Z poster grids that load more as the focus nears
+  the end), the profile (Switch Profile) and Sign Out. Back closes panels, then controls, then
+  goes back a screen.
+- **Details.** The same immersive backdrop and logo. Movies and episodes: year, age rating,
+  runtime, genres, summary, Resume from 52:00 / Play from Beginning, and Go to Show for an
+  episode. Shows: Play/Resume of the next episode (the one part-way through, else the first
+  unwatched, specials last), then season tabs and episode cards. Seasons and episodes come from
   `GET /series/{id}/seasons` without an ordering, so the show's display order is the server's.
   Coming back from the player refreshes resume points and ticks.
 - **Playback** mirrors the web player's contract (not its code): `POST /items/{id}/playback`
@@ -41,11 +52,24 @@ app are unchanged; `clients/` is added to `.dockerignore` so the image build doe
   10 s, on pause and with `stopped` on close; `POST /transcode/{sid}/ping` every 30 s; `DELETE`
   of the session when leaving or restarting; one retry with fallback caps when the device fails
   to play what it claimed (direct → repackage → convert), as `fallbackCaps` does; an admin's
-  "stop playback" (403 `needs: stopped`) shows their message. Controls: play/pause, back 10 s /
-  forward 30 s, a scrubbable timeline (left/right in 10 s steps), media keys, and side panels for
-  the audio track (restarts the decision with `audio_stream`, as the web does) and text subtitles
-  (WebVTT from `/subtitles/{track}/vtt` with `shift_ms` = −offset, chosen by default as the web's
-  `chooseSubtitle` does). Controls hide after 5 s of playing.
+  "stop playback" (403 `needs: stopped`) shows their message.
+- **Player controls match the web player's** (`web/src/components/Player.tsx`), same order,
+  icons and labels, adapted for the D-pad: at the top the title, the show and episode, and Close
+  player; at the bottom the timeline (chapter marks; focused, left/right scrub in 10 s steps),
+  then Play/Pause, Next (the following episode from `GET /items/{id}/next`), Back 10 seconds,
+  Forward 10 seconds and the time, and on the right Audio, Subtitles, Version, Quality, Chapters,
+  Speed and Playback info, each opening a panel at the right with the web's choices (audio
+  restarts the decision with `audio_stream`; text subtitles as WebVTT from
+  `/subtitles/{track}/vtt` with `shift_ms` = −offset, chosen at start as the web's
+  `chooseSubtitle` does; Version restarts with that `file_id`; Quality sends `max_kbps` from the
+  web's list, below the file's bitrate and the away-from-home cap; Chapters seek; Speed sets
+  the playback rate; Playback info gives the web's method text). The focused button's label shows
+  above the row. **Skip Intro / Skip Recap / Skip Credits** appear from the plan's `markers`
+  (and become **Play Next** in the credits when there is a next episode); they take the focus even
+  with the controls hidden, so OK skips. At the end the next episode plays (replacing the player
+  in the back stack), else the player closes. With the controls hidden, OK pauses, left/right go
+  back/forward 10 s (the web's J/L) and up/down show the controls; media keys always work.
+  Controls hide after 5 s of playing.
 - **Errors**: every load shows a spinner and then either the content or what went wrong in plain
   words (Arc's own `error` text when it gave one) with Try Again, which takes the focus.
 - **Strings**: all user-facing text is in `res/values/strings.xml`.
@@ -67,10 +91,21 @@ app are unchanged; `clients/` is added to `.dockerignore` so the image build doe
   `ignoreUnknownKeys`, models holding only the fields used), `playback`, and a package per screen
   with a ViewModel exposing `StateFlow` and a stateless composable (which the screenshot tests
   render). A small `AppContainer` instead of a DI library.
-- **Focus and navigation:** Plex's pattern: a left rail that expands on focus, Home rows below a
-  hero of the focused title, cards that grow 8 % with a white outline and violet glow, the first
-  card or primary button focused when a screen opens, Back closes panels/controls before leaving.
-  Episode cards play straight away (resuming); the details page offers Play from Beginning.
+- **Design direction (owner, 29 October):** dark only; behave like a native Google TV app (Compose
+  for TV Material components, standard focus, keys and Back, system-like fades) with Arc's identity
+  from the accent, the logo and the type; the navigation drawer at the left; an immersive Home
+  instead of a banner; the web player's control set; the web's profile picker. Cards grow 8 % with
+  a white outline and an accent glow; the first card or primary button takes the focus when a
+  screen opens. Episode cards play straight away (resuming); the details page offers Play from
+  Beginning. The brand colours live in one place, `ArcColors` in `ui/theme/Theme.kt` (the web's
+  accent #9d8cff and accent-strong #7c68ff), so changing the brand colour is one edit there (plus
+  the logo drawable and banner PNG, which carry the same violet).
+- **Player differences from the web, because a TV isn't a browser:** no volume (the TV's remote
+  does it), no full screen, picture-in-picture, Chromecast or AirPlay buttons, and no playback
+  queue (the TV plays one title then the next episode); the subtitle menu has no timing, size or
+  Find Online yet; Automatic quality doesn't adapt to the connection as the web's does yet (it
+  plays the original within the away-from-home cap); the web's Up Next countdown is a straight
+  carry-on at the end.
 - **Capabilities** are measured, not listed per model: video and audio codecs from
   `MediaCodecList` decoders (h264, hevc, vp9, av1, mpeg2video, mpeg4; aac, mp3, opus, flac, vorbis,
   ac3, eac3, dts, truehd), plus Dolby/DTS formats the TV or receiver takes by HDMI passthrough
@@ -103,13 +138,14 @@ progress report.
 
 ## Checks run
 
-- `./gradlew assembleDebug testDebugUnitTest recordRoborazziDebug`: build OK, 33 unit tests and 12
+- `./gradlew assembleDebug testDebugUnitTest recordRoborazziDebug`: build OK, 33 unit tests and 13
   screenshot tests pass (the live test is skipped without a server).
 - End to end against a scratch Arc (this branch's server, the `tools/testmedia` library, an admin
   and a "Sam" profile with a PIN): `LiveServerTest` passed — health (API v1); sign-in code shown,
   approved as the admin over the API, polled to a token, the poll then answering 404; profiles
   listed, wrong PIN refused (401, needs pin), right PIN accepted; libraries (7 movies, 3 shows);
   every Home row loaded (Continue Watching, Watchlist, Recently Added ×2); movie and show lists;
+  `GET /items/{id}/next` for an episode (the following one) and a movie (204);
   Firefly's seasons in display order (S1: 15, specials: 1); The Matrix decided as direct play with
   a 206 range read of the stream; a Firefly episode with no containers accepted came back as a
   repackaged HLS session at `offset_ms` 1000, its playlist and first fMP4 segment fetched under
@@ -123,14 +159,14 @@ needed before calling this done.
 
 ## Limits and what's next
 
-- Not yet: next-episode autoplay and Skip Intro/Credits (markers are in the plan), picture
-  subtitles (need `burn_subtitle`), quality choice and remote-bandwidth handling, versions and
-  editions, trickplay thumbnails while scrubbing, search, collections and playlists rows, the
-  seasonal row, Other videos' folder browsing (its library shows a flat grid), watchlist/played
-  toggles, spoiler hiding, saving the chosen subtitle language back to the profile, theme music,
-  TMDB/TVDB attribution screen, Android TV "Watch Next"/channels integration, and a signed release.
-- Next: real-device pass (Chromecast with Google TV, Shield), next episode + skip markers, picture
-  subtitles, search, then the iOS/tvOS app on the same API.
+- Not yet: picture subtitles (need `burn_subtitle`), subtitle timing/size and remembering the
+  chosen subtitle and audio language on the profile, adaptive Automatic quality, the Up Next
+  countdown and auto-skip preference, trickplay thumbnails while scrubbing, search, collections,
+  playlists and the seasonal row, Other videos' folder browsing (its library shows a flat grid),
+  watchlist/played toggles, spoiler hiding, theme music, the TMDB/TVDB attribution screen,
+  Android TV "Watch Next"/channels integration, and a signed release.
+- Next: real-device pass (Chromecast with Google TV, Shield), picture subtitles, search, the
+  remaining player menu items, then the iOS/tvOS app on the same API (feeling like tvOS).
 
 ## v1 API gaps found
 

@@ -141,7 +141,7 @@ fun SignInScreen(state: SignInUiState, onNewCode: () -> Unit, onChangeServer: ()
         }
         Row(Modifier.fillMaxSize().padding(horizontal = 96.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Icon(painterResource(R.drawable.arc_mark), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(64.dp))
+                Icon(painterResource(R.drawable.arc_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(20.dp))
                 Text(stringResource(R.string.signin_title), style = MaterialTheme.typography.displaySmall)
                 Spacer(Modifier.height(28.dp))

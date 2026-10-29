@@ -124,7 +124,7 @@ fun ServerScreen(state: ServerUiState, onEdit: (String) -> Unit, onConnect: () -
     Box(Modifier.fillMaxSize().background(ArcColors.Background), contentAlignment = Alignment.Center) {
         BackdropGlow()
         Column(Modifier.width(560.dp), horizontalAlignment = Alignment.Start) {
-            Icon(painterResource(R.drawable.arc_mark), contentDescription = null, tint = androidx.compose.ui.graphics.Color.Unspecified, modifier = Modifier.size(72.dp))
+            Icon(painterResource(R.drawable.arc_logo), contentDescription = null, tint = androidx.compose.ui.graphics.Color.Unspecified, modifier = Modifier.size(52.dp))
             Spacer(Modifier.height(20.dp))
             Text(stringResource(R.string.server_title), style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(8.dp))
@@ -191,13 +191,5 @@ private fun AddressField(value: String, onEdit: (String) -> Unit, onDone: () -> 
 /** The soft violet light behind sign-in screens. */
 @Composable
 fun BackdropGlow() {
-    Box(
-        Modifier.fillMaxSize().background(
-            androidx.compose.ui.graphics.Brush.radialGradient(
-                listOf(ArcColors.AccentStrong.copy(alpha = 0.22f), ArcColors.Background.copy(alpha = 0f)),
-                center = androidx.compose.ui.geometry.Offset(0f, 0f),
-                radius = 1400f,
-            ),
-        ),
-    )
+    org.arcmediaserver.tv.ui.profiles.AuthGlow()
 }

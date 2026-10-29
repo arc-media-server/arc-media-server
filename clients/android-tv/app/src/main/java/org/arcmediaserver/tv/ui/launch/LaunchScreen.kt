@@ -87,7 +87,7 @@ fun LaunchRoute(onDestination: (Destination) -> Unit, onChangeServer: () -> Unit
                 }
             }
             else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(painterResource(R.drawable.arc_mark), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(96.dp))
+                Icon(painterResource(R.drawable.arc_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(64.dp))
                 Spacer(Modifier.height(24.dp))
                 Spinner(size = 28.dp)
             }

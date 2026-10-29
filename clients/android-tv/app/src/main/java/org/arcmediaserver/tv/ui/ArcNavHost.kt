@@ -69,7 +69,13 @@ fun ArcNavHost() {
             }
             composable<PlayerDest> { entry ->
                 val dest = entry.toRoute<PlayerDest>()
-                PlayerRoute(dest.itemId, dest.startMs, onClose = { nav.popBackStack() })
+                PlayerRoute(
+                    dest.itemId,
+                    dest.startMs,
+                    onClose = { nav.popBackStack() },
+                    // The next episode replaces this one, so Back still returns to where play began.
+                    onPlayNext = { next -> nav.navigate(PlayerDest(next.id, next.resumeMs)) { popUpTo<PlayerDest> { inclusive = true } } },
+                )
             }
         }
     }

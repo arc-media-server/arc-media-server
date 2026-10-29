@@ -1,6 +1,20 @@
 package org.arcmediaserver.tv.ui.profiles
 
 import android.view.KeyEvent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.OutlinedButton
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -42,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Glow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -64,7 +77,6 @@ import org.arcmediaserver.tv.ui.components.Loaded
 import org.arcmediaserver.tv.ui.components.UiError
 import org.arcmediaserver.tv.ui.components.text
 import org.arcmediaserver.tv.ui.components.toUiError
-import org.arcmediaserver.tv.ui.server.BackdropGlow
 import org.arcmediaserver.tv.ui.theme.ArcColors
 
 /** Asking for a profile's PIN: whose, what's been typed, and whether the last try was wrong. */
@@ -76,6 +88,8 @@ data class ProfilesUiState(
     /** A failure choosing a profile (not a wrong PIN, which the PIN pad shows). */
     val error: UiError? = null,
     val needsPassword: Boolean = false,
+    /** Signed in with the password: the admin profile needs no PIN (else it shows a lock, as on the web). */
+    val passwordSession: Boolean = true,
     val chosen: Boolean = false,
 )
 
@@ -92,7 +106,7 @@ class ProfilesViewModel(private val container: AppContainer) : ViewModel() {
         _state.update { it.copy(profiles = LoadState.Loading) }
         viewModelScope.launch {
             val result = try {
-                LoadState.Ready(api.authStatus().profiles)
+                api.authStatus().also { s -> _state.update { it.copy(passwordSession = s.passwordSession) } }.let { LoadState.Ready(it.profiles) }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 LoadState.Failed(e.toUiError())
@@ -161,9 +175,14 @@ fun ProfilesRoute(onChosen: () -> Unit) {
         }
     }
     androidx.activity.compose.BackHandler(enabled = state.pin != null) { vm.cancelPin() }
-    ProfilesScreen(state, onChoose = vm::choose, onRetry = vm::load, onDigit = vm::typeDigit, onDelete = vm::deleteDigit)
+    ProfilesScreen(state, onChoose = vm::choose, onRetry = vm::load, onDigit = vm::typeDigit, onDelete = vm::deleteDigit, onBack = vm::cancelPin)
 }
 
+/**
+ * "Who's watching?" as the web app's picker (web/src/components/auth/ProfilePicker.tsx): Arc's
+ * mark and name over a soft accent glow, the heading, and round avatars with a lock badge for
+ * profiles that ask for a PIN. Focus draws the web's ring and brightens the name.
+ */
 @Composable
 fun ProfilesScreen(
     state: ProfilesUiState,
@@ -171,22 +190,31 @@ fun ProfilesScreen(
     onRetry: () -> Unit,
     onDigit: (Char) -> Unit,
     onDelete: () -> Unit,
+    onBack: () -> Unit = {},
 ) {
     Box(Modifier.fillMaxSize().background(ArcColors.Background)) {
-        BackdropGlow()
+        AuthGlow()
         val pin = state.pin
         if (pin != null) {
-            PinPad(pin, onDigit, onDelete)
+            PinScreen(pin, onDigit, onDelete, onBack)
             return@Box
         }
         Loaded(state.profiles, onRetry) { profiles ->
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(stringResource(R.string.profiles_title), style = MaterialTheme.typography.displayMedium)
-                Spacer(Modifier.height(56.dp))
+                ArcWordmark()
+                Spacer(Modifier.height(28.dp))
+                Text(stringResource(R.string.profiles_title), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 30.sp))
+                Spacer(Modifier.height(36.dp))
                 val first = remember { FocusRequester() }
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(40.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 48.dp, vertical = 16.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(32.dp), contentPadding = PaddingValues(horizontal = 48.dp, vertical = 12.dp)) {
                     itemsIndexed(profiles, key = { _, p -> p.id }) { i, p ->
-                        ProfileTile(p, onClick = { onChoose(p) }, modifier = if (i == 0) Modifier.focusRequester(first) else Modifier)
+                        ProfileTile(
+                            p,
+                            index = i,
+                            locked = p.hasPin || (p.isAdmin && !state.passwordSession),
+                            onClick = { onChoose(p) },
+                            modifier = if (i == 0) Modifier.focusRequester(first) else Modifier,
+                        )
                     }
                 }
                 LaunchedEffect(profiles) { first.requestWhenReady() }
@@ -195,103 +223,158 @@ fun ProfilesScreen(
                     state.error != null -> state.error.text()
                     else -> null
                 }
-                Spacer(Modifier.height(32.dp))
-                Text(message.orEmpty(), style = MaterialTheme.typography.bodyLarge, color = ArcColors.Error, textAlign = TextAlign.Center, modifier = Modifier.width(640.dp))
+                Spacer(Modifier.height(24.dp))
+                Text(message.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = ArcColors.Warning, textAlign = TextAlign.Center, modifier = Modifier.width(560.dp))
             }
         }
     }
 }
 
+/** The web's auth backdrop: a large accent glow above the centre. */
+@Composable
+fun AuthGlow() {
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.radialGradient(
+                listOf(ArcColors.AccentStrong.copy(alpha = 0.18f), ArcColors.AccentStrong.copy(alpha = 0.06f), Color.Transparent),
+                center = Offset(960f, -120f),
+                radius = 1100f,
+            ),
+        ),
+    )
+}
+
+/** Arc's mark and name, as at the top of the web's sign-in screens. */
+@Composable
+fun ArcWordmark() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(R.drawable.arc_logo), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(34.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp))
+    }
+}
+
 /** A profile's picture: its initial on its colour (web/src/components/Avatar.tsx). */
 @Composable
-fun Avatar(profile: Profile, size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+fun Avatar(profile: Profile, size: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier.size(size).clip(CircleShape).background(Brush.linearGradient(ArcColors.profile(profile.color))),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             profile.name.trim().take(1).uppercase().ifEmpty { "?" },
-            fontSize = (size.value * 0.42f).sp,
+            fontSize = (size.value * 0.36f).sp,
+            fontWeight = FontWeight.SemiBold,
             color = Color.White,
-            style = MaterialTheme.typography.displayMedium,
         )
     }
 }
 
 @Composable
-private fun ProfileTile(profile: Profile, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ProfileTile(profile: Profile, index: Int, locked: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(150.dp)) {
-        Surface(
-            onClick = onClick,
-            modifier = modifier.onFocusChanged { focused = it.isFocused },
-            shape = ClickableSurfaceDefaults.shape(CircleShape),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.12f),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(4.dp, ArcColors.Foreground), shape = CircleShape)),
-            glow = ClickableSurfaceDefaults.glow(focusedGlow = Glow(ArcColors.AccentStrong.copy(alpha = 0.6f), 24.dp)),
-            colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
-        ) {
-            Avatar(profile, 128.dp)
-        }
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                profile.name,
-                style = MaterialTheme.typography.titleLarge,
-                color = if (focused) ArcColors.Foreground else ArcColors.Muted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (profile.hasPin) {
-                Spacer(Modifier.width(6.dp))
-                Icon(ArcIcons.Lock, contentDescription = stringResource(R.string.profiles_locked), tint = ArcColors.Muted, modifier = Modifier.size(16.dp))
+    // The web's entrance: each fades and rises in, one after another.
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(50L * index)
+        appear.animateTo(1f, tween(350))
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(128.dp).graphicsLayer {
+            alpha = appear.value
+            translationY = (1f - appear.value) * 20f
+        },
+    ) {
+        Box {
+            Surface(
+                onClick = onClick,
+                modifier = modifier.onFocusChanged { focused = it.isFocused },
+                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+                border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(4.dp, ArcColors.Foreground), shape = CircleShape)),
+                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent),
+            ) {
+                Avatar(profile, 112.dp, Modifier.padding(4.dp))
+            }
+            if (locked) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).size(34.dp).clip(CircleShape).background(ArcColors.Background).padding(4.dp)
+                        .clip(CircleShape).background(ArcColors.Surface3),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(ArcIcons.Lock, contentDescription = stringResource(R.string.profiles_locked), tint = ArcColors.Muted, modifier = Modifier.size(14.dp))
+                }
             }
         }
+        Spacer(Modifier.height(14.dp))
+        Text(
+            profile.name,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (focused) ArcColors.Foreground else ArcColors.Muted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
-/** Four dots and a number pad; the remote's number keys work too. */
+/**
+ * The web's PIN step: the avatar, the name, "Enter your PIN" and four boxes, the next one ringed in
+ * the accent; a wrong PIN shakes them. A TV has no keyboard, so a number pad sits below (the
+ * remote's number keys work too), and Profiles goes back.
+ */
 @Composable
-private fun PinPad(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> Unit) {
+private fun PinScreen(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> Unit, onBack: () -> Unit) {
     val five = remember { FocusRequester() }
-    Column(
-        Modifier.fillMaxSize().onPreviewKeyDigits(onDigit, onDelete),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    val shake = remember { Animatable(0f) }
+    LaunchedEffect(prompt.wrong) {
+        if (prompt.wrong) for (x in listOf(-10f, 10f, -6f, 6f, 0f)) shake.animateTo(x, tween(60))
+    }
+    Row(
+        Modifier.fillMaxSize().onPreviewKeyDigits(onDigit, onDelete).padding(horizontal = 120.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(96.dp, Alignment.CenterHorizontally),
     ) {
-        Avatar(prompt.profile, 56.dp)
-        Spacer(Modifier.height(12.dp))
-        Text(stringResource(R.string.pin_title, prompt.profile.name), style = MaterialTheme.typography.headlineSmall)
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            repeat(4) { i ->
-                Box(
-                    Modifier.size(18.dp).clip(CircleShape).background(
-                        when {
-                            prompt.wrong -> ArcColors.Error
-                            i < prompt.digits.length -> ArcColors.Foreground
-                            else -> ArcColors.Surface3
-                        },
-                    ),
-                )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Avatar(prompt.profile, 96.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(prompt.profile.name, style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.pin_enter), style = MaterialTheme.typography.bodyMedium, color = ArcColors.Muted)
+            Spacer(Modifier.height(24.dp))
+            Row(Modifier.graphicsLayer { translationX = shake.value * density }, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                repeat(4) { i ->
+                    val ring = when {
+                        prompt.wrong -> ArcColors.Warning
+                        i == prompt.digits.length -> ArcColors.Accent
+                        else -> Color.White.copy(alpha = 0.08f)
+                    }
+                    Box(
+                        Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(ArcColors.Surface2)
+                            .border(if (i == prompt.digits.length && !prompt.wrong) 2.dp else 1.dp, ring, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (i < prompt.digits.length) Text("•", fontSize = 26.sp, color = ArcColors.Foreground)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(if (prompt.wrong) stringResource(R.string.pin_wrong) else " ", style = MaterialTheme.typography.bodyMedium, color = ArcColors.Warning)
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(onClick = onBack, contentPadding = ButtonDefaults.ButtonWithIconContentPadding) {
+                Icon(ArcIcons.ChevronLeft, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.pin_back))
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            if (prompt.wrong) stringResource(R.string.pin_wrong) else " ",
-            style = MaterialTheme.typography.bodyMedium,
-            color = ArcColors.Error,
-        )
-        Spacer(Modifier.height(10.dp))
-        val keys = listOf("123", "456", "789", " 0<")
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            keys.forEach { row ->
+            listOf("123", "456", "789", " 0<").forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { k ->
                         when (k) {
-                            ' ' -> Spacer(Modifier.size(56.dp))
+                            ' ' -> Spacer(Modifier.size(60.dp))
                             '<' -> PadKey(onClick = onDelete) {
-                                Icon(ArcIcons.Backspace, contentDescription = stringResource(R.string.pin_delete), modifier = Modifier.size(26.dp))
+                                Icon(ArcIcons.Delete, contentDescription = stringResource(R.string.pin_delete), modifier = Modifier.size(24.dp))
                             }
                             else -> PadKey(onClick = { onDigit(k) }, modifier = if (k == '5') Modifier.focusRequester(five) else Modifier) {
                                 Text(k.toString(), style = MaterialTheme.typography.headlineSmall)
@@ -309,9 +392,9 @@ private fun PinPad(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> U
 private fun PadKey(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = modifier.size(56.dp),
-        shape = ClickableSurfaceDefaults.shape(CircleShape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+        modifier = modifier.size(60.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = ArcColors.Surface2,
             contentColor = ArcColors.Foreground,
@@ -319,7 +402,7 @@ private fun PadKey(onClick: () -> Unit, modifier: Modifier = Modifier, content: 
             focusedContentColor = ArcColors.Background,
         ),
     ) {
-        Box(Modifier.fillMaxSize().padding(4.dp), contentAlignment = Alignment.Center) { content() }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
     }
 }
 
