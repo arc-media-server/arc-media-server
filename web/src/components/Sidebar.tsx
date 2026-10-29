@@ -41,8 +41,8 @@ export function ArcLogo({ className }: { className?: string }) {
     <svg viewBox="0 0 32 32" className={className} aria-hidden>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#c4b5fd" />
-          <stop offset="1" stopColor="#7c68ff" />
+          <stop offset="0" stopColor="#7fdccd" />
+          <stop offset="1" stopColor="#0b7d72" />
         </linearGradient>
       </defs>
       <path d="M5 24a11 11 0 0 1 22 0" fill="none" stroke={`url(#${id})`} strokeWidth="4.5" strokeLinecap="round" />
