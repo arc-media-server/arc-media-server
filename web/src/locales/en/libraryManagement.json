@@ -90,7 +90,9 @@
     "stopLibrary": "Stop work in {{name}}",
     "actions": "Library actions for {{name}}",
     "refreshDescription": "Fetch online details again for every known movie or series in {{name}}, including recently refreshed titles. This can take time and make many provider requests. Locked edits and watch history are kept.",
-    "analyzeDescription": "Read technical details again for all known present files in {{name}}, including HDR and audio format checks that were previously unavailable. This can keep the server busy. Matches, watch history and manual markers are kept; new files are found with Scan."
+    "analyzeDescription": "Read technical details again for all known present files in {{name}}, including HDR and audio format checks that were previously unavailable. This can keep the server busy. Matches, watch history and manual markers are kept; new files are found with Scan.",
+    "editLibrary": "Edit library…",
+    "manageAccess": "Manage access…"
   },
   "markerCoverage": {
     "skipIntroAndCredits": "Skip Intro and Credits",

@@ -346,6 +346,52 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
   await page.keyboard.press('Escape');
 });
 
+test('library ⋯ manages the library on every tab, owner only, without removing it', async ({ page, media }, info) => {
+  await setup(page);
+  const lib = await addLibrary(page, 'Menu library', media.movies);
+  await page.goto(`/library/${lib.id}`);
+  const more = page.getByRole('button', { name: 'More for Menu library', exact: true });
+  const item = (name: string) => page.getByRole('menuitem', { name, exact: true });
+  await more.click();
+  for (const name of ['Select titles', 'Scan library files', 'Edit library…', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Manage access…'])
+    await expect(item(name)).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Remove|Delete/ })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('library-menu.png') });
+  await item('Edit library…').click();
+  const editor = page.getByRole('dialog', { name: 'Edit Menu library', exact: true });
+  await expect(editor).toBeVisible();
+  await editor.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(editor).not.toBeVisible();
+  // The costly repairs ask first, as on Manage Libraries.
+  await more.click();
+  await item('Refresh all metadata…').click();
+  const refresh = page.getByRole('alertdialog', { name: 'Refresh all metadata?', exact: true });
+  await expect(refresh).toContainText('Menu library');
+  await page.keyboard.press('Escape');
+  await expect(refresh).not.toBeVisible();
+  await more.click();
+  await item('Empty trash…').click();
+  const trash = page.getByRole('alertdialog', { name: 'Remove titles whose files are gone?', exact: true });
+  await expect(trash).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(trash).not.toBeVisible();
+  // The other tabs have the same menu, without choosing titles.
+  await page.getByRole('tab', { name: 'Recommended', exact: true }).click();
+  await more.click();
+  await expect(item('Edit library…')).toBeVisible();
+  await expect(item('Select titles')).toHaveCount(0);
+  await item('Manage access…').click();
+  await expect(page).toHaveURL(/\/profiles$/);
+  // A household profile has no library ⋯ on any tab.
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Menu viewer', color: 'blue' } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
+  for (const view of ['', '?view=recommended']) {
+    await page.goto(`/library/${lib.id}${view}`);
+    await expect(page.getByRole('heading', { name: 'Menu library', exact: true })).toBeVisible();
+    await expect(more).toHaveCount(0);
+  }
+});
+
 test('restoring a backup immediately restores running settings and access controls', async ({ page, media }) => {
   void media;
   await setup(page);
