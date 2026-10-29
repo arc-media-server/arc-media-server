@@ -30,7 +30,7 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   });
   const cards = useQuery({ queryKey: ['items', 'recent-shows', lib.id], queryFn: () => api.recentShows(lib.id), enabled: grouped });
   const title = t('rows.recent', { name: lib.name });
-  const href = `/library/${lib.id}`;
+  const href = `/library/${lib.id}?sort=added`;
   if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} loading={titles.isPending} error={titles.error} onRetry={() => void titles.refetch()} href={href} style={style} />;
   return (
     <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>

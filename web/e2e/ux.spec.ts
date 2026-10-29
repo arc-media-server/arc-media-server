@@ -716,6 +716,14 @@ test('invalid library storage is ignored and unavailable storage leaves URL cont
   await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
 });
 
+test('Recently Added heading opens explicit added sorting instead of remembered title order', async ({ page }) => {
+  const { lib } = await seed(page);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Recently Added in ' + lib.name, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp('/library/' + lib.id + '\\?sort=added'));
+  await expect(page.getByRole('button', { name: 'Sort by Recently Added', exact: true })).toBeVisible();
+});
+
 test('browse sort direction is remembered per profile on this device', async ({ page }) => {
   const { lib } = await seed(page);
   await page.goto('/library/' + lib.id);
