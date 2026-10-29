@@ -201,6 +201,8 @@ Radix UI, Motion and TanStack Query.
 Everything the web app does goes through a documented REST API, with stable `/api/v1/...` paths,
 Bearer tokens for apps and link codes for TVs. The full reference is [docs/API.md](docs/API.md),
 generated from the code, and a running server describes itself at `/api/openapi.json`.
+See [artwork and collection automation](docs/AUTOMATION.md) for integration examples and
+[remote quality](docs/REMOTE-QUALITY.md) for playback limits and upload measurements.
 
 ## Credits
 
