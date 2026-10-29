@@ -605,6 +605,110 @@ test('playlist keyboard ordering and failed writes retain a recoverable list', a
   await expect.poll(async () => (await (await page.request.get('/api/playlists/' + p.id)).json()).entries[0].item.id).toBe(items[0].id);
 });
 
+for (const shows of [false, true]) {
+  test(`${shows ? 'series' : 'movie'} library remembers filters and sorts after navigation, Back, reload and clear`, async ({ page }) => {
+    const { lib, item } = await seed(page, shows);
+    await page.goto('/library/' + lib.id);
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByRole('switch', { name: "Only titles I haven't watched", exact: true }).click();
+    await expect(page.getByRole('switch', { name: "Only titles I haven't watched", exact: true })).toBeChecked();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Order: A–Z', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Z–A', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: new RegExp(item.title) }).first().locator('p').filter({ hasText: item.title }).first().click();
+    await page.goBack();
+    await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Order: Z–A', exact: true })).toBeVisible();
+    await page.locator('aside').getByRole('link', { name: 'Home', exact: true }).click();
+    await page.locator('aside').getByRole('link', { name: lib.name, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Order: Z–A', exact: true })).toBeVisible();
+    await page.locator('aside').getByRole('link', { name: lib.name, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters, 1 on', exact: true }).click();
+    await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.locator('aside').getByRole('link', { name: 'Home', exact: true }).click();
+    await page.locator('aside').getByRole('link', { name: lib.name, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Order: Z–A', exact: true })).toBeVisible();
+  });
+}
+
+test('remembered filters are isolated by library and actual profile switching', async ({ page }) => {
+  const { lib: movies } = await seed(page);
+  const { lib: shows } = await seed(page, true);
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Filter viewer', color: 'blue' } })).json();
+  await page.goto('/library/' + movies.id);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await page.getByRole('switch', { name: "Only titles I haven't watched", exact: true }).click();
+    await expect(page.getByRole('switch', { name: "Only titles I haven't watched", exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
+  await page.locator('aside').getByRole('link', { name: shows.name, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+  await page.locator('aside').getByRole('link', { name: movies.name, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+  await page.locator('aside').getByRole('button', { name: 'Admin Admin', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Switch Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Filter viewer', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/unwatched/);
+  await page.locator('aside').getByRole('button', { name: 'Filter viewer', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Switch Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Admin', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+  expect(await page.evaluate(({ id, library }) => localStorage.getItem(`arc-browse:${id}:${library}`), { id: viewer.id, library: movies.id })).toBeNull();
+});
+
+test('explicit library links override saved filters and empty results clear durably', async ({ page }) => {
+  const { lib } = await seed(page);
+  await page.goto('/library/' + lib.id);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await page.getByRole('switch', { name: "Only titles I haven't watched", exact: true }).click();
+    await expect(page.getByRole('switch', { name: "Only titles I haven't watched", exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
+  await page.goto(`/library/${lib.id}?genre=NoSuchGenre&view=titles&letter=a`);
+  await expect(page.getByRole('button', { name: 'Remove filter: NoSuchGenre', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/letter=/);
+  await page.getByRole('button', { name: 'Sort by Title', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Year', exact: true }).click();
+  await page.locator('aside').getByRole('link', { name: 'Home', exact: true }).click();
+  await page.locator('aside').getByRole('link', { name: lib.name, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Clear filters', exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/view=|letter=/);
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.locator('aside').getByRole('link', { name: 'Home', exact: true }).click();
+  await page.locator('aside').getByRole('link', { name: lib.name, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sort by Year', exact: true })).toBeVisible();
+});
+
+test('invalid library storage is ignored and unavailable storage leaves URL controls usable', async ({ page }) => {
+  const { lib } = await seed(page);
+  const profile = (await (await page.request.get('/api/auth/status')).json()).profile.id;
+  await page.evaluate(({ profile, lib }) => localStorage.setItem(`arc-browse:${profile}:${lib}`, 'sort=not-a-sort&resolution=invalid&unwatched=no&view=recommended&letter=z&offset=500'), { profile, lib: lib.id });
+  await page.goto('/library/' + lib.id);
+  await expect(page.getByRole('button', { name: 'Sort by Title', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/resolution=|unwatched=|view=|letter=|offset=/);
+  await page.addInitScript(() => {
+    const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
+    Storage.prototype.getItem = function(key: string) { if (key.startsWith('arc-browse:')) throw new DOMException('Storage disabled', 'SecurityError'); return get.call(this, key); };
+    Storage.prototype.setItem = function(key: string, value: string) { if (key.startsWith('arc-browse:')) throw new DOMException('Storage disabled', 'SecurityError'); set.call(this, key, value); };
+  });
+  await page.goto('/library/' + lib.id);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await page.getByRole('switch', { name: "Only titles I haven't watched", exact: true }).click();
+    await expect(page.getByRole('switch', { name: "Only titles I haven't watched", exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
+});
+
 test('browse sort direction is remembered per profile on this device', async ({ page }) => {
   const { lib } = await seed(page);
   await page.goto('/library/' + lib.id);
