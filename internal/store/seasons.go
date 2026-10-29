@@ -122,13 +122,13 @@ func (s *Store) SeasonPosters(ctx context.Context, seriesID string) (map[int]Sea
 // RecentEpisodes selects recent shows before collecting their episodes. A large show cannot
 // consume an episode sample and starve other cards; complete selected groups retain their counts.
 func (s *Store) RecentEpisodes(ctx context.Context, libraryID int64, acc Access, limit int) ([]Item, error) {
-	q := `SELECT * FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
+	q := `SELECT items.*,COALESCE((SELECT sequence FROM item_arrivals WHERE item_id=items.id),0) AS arrival_order FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
 	args := []any{libraryID}
 	q, args = acc.Where("items", q, args)
 	q = `WITH eligible AS NOT MATERIALIZED (` + q + `), ranked AS (
- SELECT id,parent_id,added_at,release_date,ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY added_at DESC,release_date DESC,id) AS position FROM eligible
+ SELECT id,parent_id,added_at,arrival_order,release_date,ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id) AS position FROM eligible
  ) SELECT ` + itemCols + ` FROM eligible WHERE parent_id IN (
- SELECT parent_id FROM ranked WHERE position=1 ORDER BY added_at DESC,release_date DESC,id LIMIT ?
- ) ORDER BY added_at DESC,release_date DESC,id`
+ SELECT parent_id FROM ranked WHERE position=1 ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id LIMIT ?
+ ) ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id`
 	return s.queryItems(ctx, q, append(args, limit)...)
 }
