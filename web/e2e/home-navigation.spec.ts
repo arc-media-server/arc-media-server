@@ -127,27 +127,30 @@ test('row navigation: small overflowing cast lists and extras use the same contr
   await page.screenshot({ path: info.outputPath('cast-extras-navigation.png') });
 });
 
-test('home hero: profile switch defaults On, handles failed saves and persists hiding across restart', async ({ page, media }, info) => {
+test('home hero: Edit Home switch defaults On, handles failed saves and persists hiding across restart', async ({ page, media }, info) => {
   await rows(page, media.movies, () => 20, true);
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Featured titles', exact: true })).toBeVisible();
+  // Settings, Your profile points to Edit Home, where the switch lives with the rows.
   await page.goto('/settings?section=profile');
-  const toggle = page.getByRole('switch', { name: 'Show home hero', exact: true });
+  await page.getByRole('link', { name: 'Edit Home…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit Home', exact: true });
+  const toggle = dialog.getByRole('switch', { name: /^Show featured banner/ });
   await expect(toggle).toBeChecked();
+  await page.screenshot({ path: info.outputPath('edit-home.png') });
   let fail = true;
   await page.route('**/api/me/prefs', route => route.request().method() === 'PATCH' && fail ? route.fulfill({ status: 503, json: { error: 'Hero preference unavailable' } }) : route.continue());
   await toggle.click();
-  await expect(toggle).toBeChecked();
-  const error = page.getByRole('alert').filter({ hasText: 'Hero preference unavailable' });
-  await expect(error).toBeVisible();
-  fail = false; await error.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(toggle).not.toBeChecked();
-  expect((await (await page.request.get('/api/me/prefs')).json()).show_home_hero).toBe(false);
-  await toggle.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: info.outputPath('profile-home-hero-switch.png') });
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(dialog.getByText('Hero preference unavailable', { exact: true })).toBeVisible();
+  expect((await (await page.request.get('/api/me/prefs')).json()).show_home_hero).not.toBe(false);
+  await page.screenshot({ path: info.outputPath('edit-home-hero-switch.png') });
   let hiddenFeaturedRequests = 0;
   page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/api/items' && url.searchParams.get('limit') === '12') hiddenFeaturedRequests++; });
-  await page.goto('/');
+  fail = false; await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect((await (await page.request.get('/api/me/prefs')).json()).show_home_hero).toBe(false);
   await expect(page.getByRole('region', { name: 'Featured titles', exact: true })).toHaveCount(0);
   await expect(shelf(page)).toBeVisible();
   const box = await shelf(page).boundingBox(); expect(box!.y).toBeLessThan(220);
@@ -156,8 +159,8 @@ test('home hero: profile switch defaults On, handles failed saves and persists h
   await page.reload(); await expect(shelf(page)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Featured titles', exact: true })).toHaveCount(0);
   expect(hiddenFeaturedRequests).toBe(0);
-  await page.goto('/settings?section=profile'); await expect(toggle).not.toBeChecked(); await toggle.click();
-  await expect(toggle).toBeChecked(); await page.goto('/');
+  await page.goto('/?edit=1'); await expect(toggle).not.toBeChecked(); await toggle.click();
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Featured titles', exact: true })).toBeVisible();
 });
 
