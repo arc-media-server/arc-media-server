@@ -10,7 +10,7 @@ export function useRemoveFromContinue() {
   return useMutation({
     mutationFn: (item: Item) => api.removeFromContinue(item.id),
     onSuccess: () => {
-      for (const key of ['continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
+      for (const key of ['continue', 'next-up', 'recommended']) qc.invalidateQueries({ queryKey: [key] });
     },
   });
 }

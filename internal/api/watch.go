@@ -275,13 +275,13 @@ type homeEntry struct {
 // recent first. With ?with_up_next=1 it also has the next episode of each show they're watching,
 // one entry per show.
 func (s *Server) continueWatching(w http.ResponseWriter, r *http.Request) {
-	entries, err := s.inProgress(r)
+	entries, err := s.inProgress(r, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
 	if r.URL.Query().Get("with_up_next") == "1" {
-		next, err := s.upNext(r)
+		next, err := s.upNext(r, access(r))
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -295,7 +295,7 @@ func (s *Server) continueWatching(w http.ResponseWriter, r *http.Request) {
 // episode in their episode order that's on disk and not watched yet (skipping specials and
 // anything already in Continue Watching).
 func (s *Server) nextUp(w http.ResponseWriter, r *http.Request) {
-	entries, err := s.upNext(r)
+	entries, err := s.upNext(r, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -327,6 +327,17 @@ func mergeHome(inProgress, upNext []homeEntry, limit int) []homeEntry {
 
 // writeHome sends home entries with their episode numbers (in the series' order) and watch state.
 func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []homeEntry) {
+	out, err := s.homeDTOs(r, entries)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// homeDTOs describes home entries: episodes with their series and their numbers in its order,
+// all with the profile's watch state.
+func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, error) {
 	ctx := r.Context()
 	out := make([]itemDTO, 0, len(entries))
 	series := map[string]*store.Item{}
@@ -342,36 +353,33 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 		if !ok {
 			var err error
 			if sr, err = s.store.GetItem(ctx, it.ParentID); err != nil {
-				s.fail(w, err)
-				return
+				return nil, err
 			}
 			pos := map[string][2]int{}
 			if sr != nil {
 				if pos, _, err = s.orderPositions(ctx, sr); err != nil {
-					s.fail(w, err)
-					return
+					return nil, err
 				}
 			}
 			series[it.ParentID], positions[it.ParentID] = sr, pos
 		}
 		d := s.episodeDTO(it, sr, positions[it.ParentID])
 		if err := s.withSeasonPoster(r, &d, sr, posters); err != nil {
-			s.fail(w, err)
-			return
+			return nil, err
 		}
 		out = append(out, d)
 	}
 	if err := s.fillUserData(r, ptrs(out)); err != nil {
-		s.fail(w, err)
-		return
+		return nil, err
 	}
-	writeJSON(w, http.StatusOK, out)
+	return out, nil
 }
 
-// inProgress lists the movies and episodes the profile is part-way through, most recent first.
-func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
+// inProgress lists the movies and episodes the profile is part-way through and may see (acc),
+// most recent first.
+func (s *Server) inProgress(r *http.Request, acc store.Access) ([]homeEntry, error) {
 	ctx := r.Context()
-	items, err := s.store.InProgress(ctx, currentUserID(r), 30, access(r))
+	items, err := s.store.InProgress(ctx, currentUserID(r), 30, acc)
 	if err != nil {
 		return nil, err
 	}
@@ -391,11 +399,12 @@ func (s *Server) inProgress(r *http.Request) ([]homeEntry, error) {
 	return out, nil
 }
 
-// upNext finds the next episode to watch of each show the profile has been watching.
-func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
+// upNext finds the next episode to watch of each show the profile has been watching and may see
+// (acc).
+func (s *Server) upNext(r *http.Request, acc store.Access) ([]homeEntry, error) {
 	ctx := r.Context()
 	userID := currentUserID(r)
-	watched, err := s.store.RecentlyWatchedSeries(ctx, userID, 40)
+	watched, err := s.store.RecentlyWatchedSeries(ctx, userID, 40, acc)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +424,7 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 		if series == nil {
 			continue
 		}
-		if ok, err := s.store.CanSee(ctx, series, access(r)); err != nil {
+		if ok, err := s.store.CanSee(ctx, series, acc); err != nil {
 			return nil, err
 		} else if !ok {
 			continue

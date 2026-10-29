@@ -209,13 +209,15 @@ type WatchedSeries struct {
 	LastPlayedAt  int64
 }
 
-// RecentlyWatchedSeries lists the series a profile has finished episodes of, most recent first.
-func (s *Store) RecentlyWatchedSeries(ctx context.Context, userID string, limit int) ([]WatchedSeries, error) {
+// RecentlyWatchedSeries lists the series a profile has finished episodes of and may see (acc,
+// so a library's own list is acc limited to that library), most recent first.
+func (s *Store) RecentlyWatchedSeries(ctx context.Context, userID string, limit int, acc Access) ([]WatchedSeries, error) {
 	// SQLite returns the other columns from the row that has the MAX.
-	rows, err := s.db.QueryContext(ctx, `
+	q, args := acc.Where("sr", `
 		SELECT i.parent_id, i.id, MAX(u.last_played_at) FROM user_item_data u JOIN items i ON i.id = u.item_id
-		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL
-		GROUP BY i.parent_id ORDER BY 3 DESC LIMIT ?`, userID, limit)
+		JOIN items sr ON sr.id = i.parent_id
+		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
+	rows, err := s.db.QueryContext(ctx, q+` GROUP BY i.parent_id ORDER BY 3 DESC LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
