@@ -919,7 +919,7 @@ export interface ServerSettings {
   opensubtitles_api_key: string;
   opensubtitles_username: string;
   /** What this server's FFmpeg can do. */
-  transcoder: { hw_encoder: string; hw_label: string; tone_mapping: boolean; checked: boolean };
+  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[] };
   port: number;
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
@@ -1049,6 +1049,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
+  detectHardware: () => request<{started: boolean}>('POST', '/api/transcoder/detect'),
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
