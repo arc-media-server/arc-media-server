@@ -18,3 +18,7 @@ Validation: background/store regression tests, focused upkeep tests including ma
 preemption and explicit Stop, UI build/20 translation checks, app/e2e TypeScript, and two pinned
 browser journeys passed (maintenance states and diagnostics/admin boundaries). Background race checks, focused vet, embedded build and diff checks also passed. Isolated stores/generated fixtures only; no owner database,
 real GPU or container/production validation. Full browser suite was not repeated for this change.
+
+API-reference follow-up: regenerated both docs/API.md and docs/openapi.json after the UI build;
+`go test ./internal/apidoc` passed. The local combined-PR check caught the stale machine-readable
+reference before handoff. No product behaviour changed in this follow-up.
