@@ -622,6 +622,29 @@ export interface BackupsResponse {
   backups: Backup[];
 }
 
+/** A row of a library's Recommended view: what it is and what it's about, for the app to title. */
+export interface RecommendedRow {
+  type:
+    | 'continue'
+    | 'recently_released'
+    | 'recently_added'
+    | 'start_watching'
+    | 'because_you_watched'
+    | 'top_rated'
+    | 'recently_watched'
+    | 'rediscover'
+    | 'more_in_genre'
+    | 'top_in_genre'
+    | 'top_by_person'
+    | 'top_unwatched';
+  items: Item[];
+  /** The title, genre or person the row is about (or the library's name). */
+  name?: string;
+  genre?: string;
+  person_id?: number;
+  role?: 'actor' | 'director';
+}
+
 export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'critics' | 'runtime' | 'watched' | 'shuffle';
 export type Resolution = '4k' | '1080' | '720' | 'sd';
 
@@ -1172,8 +1195,7 @@ export const api = {
   recentShows: (libraryId: number) => request<RecentCard[]>('GET', `/api/libraries/${libraryId}/recent-shows`),
   /** The episode that follows one in the profile's episode order, if any. */
   similar: (id: string) => request<Item[]>('GET', `/api/items/${id}/similar`),
-  recommended: (libraryId: number) =>
-    request<{ rows: { title: string; items: Item[]; genre?: string }[] }>('GET', `/api/libraries/${libraryId}/recommended`),
+  recommended: (libraryId: number) => request<{ rows: RecommendedRow[] }>('GET', `/api/libraries/${libraryId}/recommended`),
   removeFromContinue: (id: string) => request<void>('DELETE', `/api/home/continue/${id}`),
   nextEpisode: (id: string) => request<Item | undefined>('GET', `/api/items/${id}/next`),
   continueWatching: (withUpNext = false) => request<Item[]>('GET', `/api/home/continue${withUpNext ? '?with_up_next=1' : ''}`),

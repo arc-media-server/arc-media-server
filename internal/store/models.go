@@ -176,6 +176,15 @@ type ItemQuery struct {
 	MinRating              float64
 	// Any of these words in the title, tagline or description (e.g. "christmas", "santa").
 	About []string
+	// For UserID's watch state: titles not started (nothing watched or part-watched, for a show
+	// none of its episodes), titles watched (a show: any episode; an episode: itself), and titles
+	// finished before this time (unix seconds) and not played since.
+	Unstarted    bool
+	Played       bool
+	PlayedBefore int64
+	// Titles crediting this person (people.id), in PersonRole (actor or director) when it's set.
+	PersonID   int64
+	PersonRole string
 }
 
 // Sorts ListItems understands. "shuffle" is a random order that stays the same all day.

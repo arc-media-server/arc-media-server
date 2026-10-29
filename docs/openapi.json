@@ -11850,7 +11850,7 @@
     },
     "/libraries/{id}/recommended": {
       "get": {
-        "description": "Is a library's Recommended view for the profile: \"Because you watched\" rows for its recent titles, the best rated it hasn't seen, and its favourite genres. Rows without anything are left out.\n\nWho may call it: **profile**.",
+        "description": "Is a library's Recommended view for the profile, in this order: Continue Watching (what it's part-way through here and the next episode of shows it's watching), Recently Released, Recently Added, Start Watching (shows not started), \"Because you watched\" rows for its recent titles, Top Rated, Recently Watched (episodes, in a TV library), Rediscover (finished more than six months ago), more of its favourite genres, the top titles of a genre and of an actor or director (both changing daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre, person_id, role) rather than a title; rows without anything are left out.\n\nWho may call it: **profile**.",
         "operationId": "recommended",
         "parameters": [
           {
@@ -11915,7 +11915,7 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "A library's Recommended view for the profile: \"Because you watched\" rows for its recent titles, the best rated it has…",
+        "summary": "A library's Recommended view for the profile, in this order: Continue Watching",
         "tags": [
           "Libraries"
         ],
