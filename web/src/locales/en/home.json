@@ -12,6 +12,8 @@
     "description": "Drag rows or use the move buttons to reorder them, hide the ones you don't want, or add your own. This is just for your profile.",
     "resetOrder": "Reset Order",
     "addRow": "Add Row",
+    "heroLabel": "Show featured banner",
+    "heroHint": "The large banner of new titles at the top of Home. Turn it off to go straight to your rows.",
     "splitLabel": "Show Up Next separately",
     "splitOn": "Next episodes have their own row, apart from what you're part-way through.",
     "splitOff": "Next episodes of your shows are in Continue Watching, as in Plex.",
