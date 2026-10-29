@@ -1,7 +1,9 @@
+import { useState, type MouseEvent } from 'react';
+import { CardActions, selectCircle, type CardHover } from './CardActions';
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Play } from 'lucide-react';
+import { Check, Play } from 'lucide-react';
 import type { Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useSpoilerGuard } from '@/lib/home';
@@ -15,8 +17,9 @@ import { episodeCode, ProgressBar, progressOf } from './WatchState';
  * A landscape card for something to carry on with (Continue Watching, Up Next): clicking the
  * artwork plays it from where the profile left off. With `arc`, a backdrop card (see ArcArtwork).
  */
-export function ResumeCard({ item, className, arc, onRemove }: { item: Item; className?: string; arc?: boolean; onRemove?: (item: Item) => void }) {
+export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, selected }: { item: Item; className?: string; arc?: boolean; onRemove?: (item: Item) => void; hover?: CardHover; onSelect?: (e: MouseEvent) => void; selected?: boolean }) {
   const { t } = useTranslation('titles');
+  const [menuOpen, setMenuOpen] = useState(false);
   const play = usePlayer();
   const isEpisode = item.kind === 'episode';
   const code = episodeCode(item.season_number, item.episode_number);
@@ -31,15 +34,17 @@ export function ResumeCard({ item, className, arc, onRemove }: { item: Item; cla
 
   return (
     <div className={cn('group relative', className)}>
+      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
       {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
       <button
         type="button"
-        onClick={() =>
+        onClick={onSelect ?? (() =>
           item.stream_url &&
           play({ title: isEpisode ? item.title : item.title, subtitle: isEpisode ? `${title} · ${code}` : subtitle, src: item.stream_url, itemId: item.id, startMS: item.user_data?.position_ms })
-        }
-        className="relative block w-full overflow-hidden rounded-xl shadow-lg shadow-black/25 ring-1 ring-border outline-none transition-all duration-300 ease-smooth group-hover:-translate-y-1 group-hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-accent"
-        aria-label={t('titles:episodeCard.playTitle', { title })}
+        )}
+        className={cn("relative block w-full overflow-hidden rounded-xl shadow-lg shadow-black/25 ring-1 ring-border outline-none transition-all duration-300 ease-smooth group-hover:-translate-y-1 group-hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-accent", selected && "ring-4 ring-accent")}
+        aria-pressed={onSelect ? !!selected : undefined}
+        aria-label={onSelect ? t('common:card.select', { title }) : t('titles:episodeCard.playTitle', { title })}
       >
         {arc ? (
           <ArcArtwork item={item} title={title} />
@@ -52,6 +57,7 @@ export function ResumeCard({ item, className, arc, onRemove }: { item: Item; cla
           </span>
         </div>
         <ProgressBar value={progressOf(item)} />
+        {onSelect && <span className={cn("absolute left-2 top-2", selectCircle(!!selected))}><Check className="size-4" /></span>}
       </button>
       <Link to={href} className="mt-2.5 block px-0.5">
         <p className="truncate text-[13px] font-medium leading-tight hover:underline">{title}</p>

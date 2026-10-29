@@ -16,6 +16,7 @@ import { OptimizeDialog } from '@/components/Optimize';
 /** The bar along the bottom while choosing titles in a library, with what can be done to them. */
 export function SelectionBar({
   library,
+  scope,
   items,
   selected,
   onSelectAll,
@@ -23,6 +24,7 @@ export function SelectionBar({
   onDone,
 }: {
   library: Library;
+  scope?: string;
   items: Item[];
   selected: Set<string>;
   onSelectAll: () => void;
@@ -50,6 +52,7 @@ export function SelectionBar({
         className="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 md:left-[248px]"
       >
         <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface p-2 pl-4 shadow-2xl shadow-black/50">
+          {scope && <p className="basis-full px-1 text-xs text-muted">{scope}</p>}
           <span className="mr-1 text-sm font-medium tabular-nums">{n ? t('titleActions:bulkEdit.selected', { count: n }) : t("titleActions:bulkEdit.chooseTitles")}</span>
           <Button variant="ghost" size="sm" onClick={n === items.length ? onClear : onSelectAll}>
             {n === items.length ? t("titleActions:bulkEdit.selectNone") : t('titleActions:bulkEdit.selectLoaded', { count: items.length })}
