@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-174 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+175 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -393,6 +393,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/transcode/{sid}/{file}` | profile | Serves a session's playlist or segments. |
 | POST | `/api/transcode/{sid}/ping` | profile | Keeps a paused player's session alive. |
 | DELETE | `/api/transcode/{sid}` | profile | Ends a session (the player closed or seeked). |
+
+### transcoder
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/transcoder/detect` | admin | Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected. |
 
 ### watchlist
 

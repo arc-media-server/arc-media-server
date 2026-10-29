@@ -242,7 +242,8 @@ function ServerSettings() {
     added: t('serverSettings:detectionHelp.added'),
   };
   const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings, refetchInterval: q => q.state.data?.transcoder.checking ? 2000 : false });
+ const detect = useMutation({mutationFn:api.detectHardware,onSuccess:()=>{qc.setQueryData<ServerSettings>(['settings'],old=>old?{...old,transcoder:{...old.transcoder,checking:true}}:old);void qc.invalidateQueries({queryKey:['settings']});}});
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
   const update = useMutation({
     mutationFn: (patch: Patch) => api.updateSettings(patch),
@@ -408,16 +409,24 @@ function ServerSettings() {
             <ToggleRow
               setting="hw_accel" label={t("serverSettings:settings.useHardwareAcceleration")}
               description={
-                !s.transcoder.checked
+                (!s.transcoder.checked || s.transcoder.checking)
                   ? t("serverSettings:settings.checkingThisComputer")
                   : s.transcoder.hw_encoder
                     ? t('serverSettings:settings.hardwareDescription', { hardware: s.transcoder.hw_label })
                     : t("serverSettings:settings.noSupportedGraphicsCard")
               }
               checked={s.hw_accel && !!s.transcoder.hw_encoder}
-              busy={update.isPending || !s.transcoder.hw_encoder}
+              busy={update.isPending || s.transcoder.checking || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
+            <div className="space-y-2 px-5 py-3">
+              <Button variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>
+              <ErrorNotice error={detect.error} onRetry={()=>detect.mutate()} />
+              {!!s.transcoder.attempts?.length && <details className="text-xs text-muted">
+                <summary className="cursor-pointer">{t('serverSettings:settings.hardwareDetectionDetails')}</summary>
+                <ul className="mt-2 space-y-2 break-words">{s.transcoder.attempts.map((a,i)=><li key={i}>{[a.encoder,a.device,a.driver].filter(Boolean).join(' · ')}{a.error ? `: ${a.error}` : `: ${t('serverSettings:settings.hardwareTestPassed')}`}</li>)}</ul>
+              </details>}
+            </div>
             <ToggleRow
               setting="tone_mapping" label={t("serverSettings:settings.hdrToneMapping")}
               description={

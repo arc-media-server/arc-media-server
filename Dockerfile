@@ -26,7 +26,9 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
 # FFmpeg (with Chromaprint for intro detection, zimg for HDR tone mapping, VAAPI/NVENC for graphics
 # cards), certificates for TMDB/TheTVDB, curl for the health check, tzdata for local times.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl tzdata \
+ && hw_packages="" \
+ && if [ "$(dpkg --print-architecture)" = amd64 ]; then hw_packages="intel-media-va-driver i965-va-driver"; fi \
+ && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl tzdata $hw_packages \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=server /out/ams /usr/local/bin/ams
 # /config holds the database, artwork, backups and certificates; mount your media read-only
