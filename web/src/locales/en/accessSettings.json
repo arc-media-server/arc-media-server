@@ -1,7 +1,7 @@
 {
   "settings": {
     "internetUploadSpeed": "Internet upload speed",
-    "fromASpeedTest": "From a speed test. Remote streams share 80% of it.",
+    "fromASpeedTest": "Measure upload speed on your server's internet connection, not on a remote phone. Remote streams share 80% of it.",
     "notSet": "Not set",
     "mbps": "Mbps",
     "save": "Save",

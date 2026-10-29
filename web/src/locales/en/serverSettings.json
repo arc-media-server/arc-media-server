@@ -80,7 +80,7 @@
     "remoteAccess": "Remote Access",
     "watchAwayFromHome": "Watch away from home. Signing in always needs a password there.",
     "limitEachRemoteStream": "Limit each remote stream",
-    "biggerVideosAreConverted": "Bigger videos are converted down to this so they play smoothly away from home.",
+    "biggerVideosAreConverted": "Compatible videos within this bitrate and resolution limit keep their original quality. Others may need conversion.",
     "originalNoLimit": "Original (no limit)",
     "devices": "Devices",
     "browsersAndAppsSigned": "Browsers and apps signed in to Arc. Sign out any you don't recognise.",
