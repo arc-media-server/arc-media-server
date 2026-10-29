@@ -267,6 +267,11 @@ function PlayerOverlay({
   const quality = useRef(Math.max(0, qualityMode.current));
   const [qualityState, setQualityState] = useState(qualityMode.current);
   const [automaticLimit, setAutomaticLimit] = useState(0);
+  // Away from home the server caps quality (its remote limits and the profile's internet streaming
+  // quality): choices above it are left out and Maximum names it, unless the file is already within it.
+  const serverCap = planState?.server_limit_kbps || 0;
+  const qualityCap = serverCap && (!planState?.source_kbps || planState.source_kbps > serverCap) ? serverCap : 0;
+  const shownQuality = qualityCap && qualityState >= qualityCap ? 0 : qualityState;
   const adaptive = useRef(new AdaptiveQuality(qualities));
   const originalRate = useRef(8000);
   const adaptiveBusy = useRef(false);
@@ -1312,11 +1317,11 @@ function PlayerOverlay({
             {planState && item.itemId && (
               <PlayerMenu icon={<SlidersHorizontal />} label={t("player:player.quality")} onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>{t("player:player.quality")}</DropdownMenuLabel>
-                {[-1, 0, ...qualities.filter((q) => !planState.source_kbps || q < planState.source_kbps)].map((q) => (
+                {[-1, 0, ...qualities.filter((q) => (!planState.source_kbps || q < planState.source_kbps) && (!qualityCap || q < qualityCap))].map((q) => (
                   <DropdownMenuItem
                     key={q}
                     role="menuitemradio"
-                    aria-checked={q === qualityState}
+                    aria-checked={q === shownQuality}
                     onSelect={() => {
                       if (q === qualityMode.current) return;
                       const previousLimit = quality.current;
@@ -1331,10 +1336,11 @@ function PlayerOverlay({
                       void load(absMS(), planState.audio_stream, caps.current, true);
                     }}
                   >
-                    <span className="w-4">{q === qualityState && <Check className="size-4 text-accent" />}</span>
-                    {q === -1 ? t("player:player.automatic") : q ? qualityName(q) : t("player:player.original")}
+                    <span className="w-4">{q === shownQuality && <Check className="size-4 text-accent" />}</span>
+                    {q === -1 ? t("player:player.automatic") : q ? qualityName(q) : qualityCap ? t("player:player.maximumCapped", { quality: qualityName(qualityCap) }) : t("player:player.original")}
                   </DropdownMenuItem>
                 ))}
+                {qualityCap > 0 && <p className="max-w-64 px-2.5 py-1.5 text-xs text-subtle">{t("player:player.awayFromHomeLimit", { quality: qualityName(qualityCap) })}</p>}
                 {qualityState === -1 && <DropdownMenuLabel className="max-w-64 whitespace-normal normal-case font-normal">{automaticLimit > 0 ? t('player:player.adaptsWithLimit', { quality: qualityName(Math.min(automaticLimit, planState.server_limit_kbps || Infinity)) }) : t("player:player.adaptsToPlaybackDelivery")}
                 </DropdownMenuLabel>}
                 {qualityNotice && <p role="status" className="max-w-64 px-2.5 py-2 text-xs text-subtle">{qualityNotice}</p>}
