@@ -106,7 +106,7 @@ export function ThumbCard({
   item: Item;
   className?: string;
   overrides?: CardOverrides;
-  /** An Arc thumbnail (see ArcArtwork) instead of a landscape one. */
+  /** A backdrop card (see ArcArtwork) instead of a landscape one. */
   arc?: boolean;
   /** Offers "Remove from Continue Watching" (on carry-on-watching rows). */
   onRemove?: (item: Item) => void;
