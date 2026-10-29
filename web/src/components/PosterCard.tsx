@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import { Check } from 'lucide-react';
-import { CardActions, type CardHover } from './CardActions';
+import { CardActions, CardScrim, selectCircle, type CardHover } from './CardActions';
 import type { Item } from '@/lib/api';
 import { itemHref, posterUrl, type Collection } from '@/lib/api';
 import { CollectionCard } from '@/components/Collections';
@@ -61,6 +61,7 @@ export function PosterCard({
       >
         <Artwork src={image} alt={title} fallbackTitle={title} icon={item.kind === 'movie' ? 'film' : 'tv'} />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/0 via-transparent to-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        {hover && !onSelect && <CardScrim />}
         {!overrides?.noBadge && <WatchBadge item={item} />}
         <ProgressBar value={progressOf(item)} />
         {onSelect && <SelectMark selected={!!selected} />}
@@ -77,7 +78,7 @@ export function PosterCard({
       {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
       {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={false} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
       {onSelect ? (
-        <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full text-left outline-none">
+        <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full cursor-pointer text-left outline-none">
           {card}
         </button>
       ) : (
@@ -142,6 +143,7 @@ export function ThumbCard({
           {!arc && item.kind !== 'episode' && item.images?.logo && (
             <img src={item.images.logo} alt="" className="pointer-events-none absolute bottom-3 left-3 max-h-[30%] max-w-[55%] object-contain object-left-bottom drop-shadow-[0_2px_10px_rgb(0_0_0/0.6)]" />
           )}
+          {hover && !onSelect && <CardScrim />}
           {!overrides?.noBadge && <WatchBadge item={item} />}
           <ProgressBar value={progressOf(item)} />
           {onSelect && <SelectMark selected={!!selected} />}
@@ -158,7 +160,7 @@ export function ThumbCard({
       {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
       {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={true} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
       {onSelect ? (
-        <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full text-left outline-none">
+        <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full cursor-pointer text-left outline-none">
           {card}
         </button>
       ) : (
@@ -170,15 +172,17 @@ export function ThumbCard({
   );
 }
 
-/** The tick on a card while choosing titles. */
+/** The tick on a card while choosing titles: the same circle as on hover (see CardActions). */
 function SelectMark({ selected }: { selected: boolean }) {
   return (
     <>
-      <div className={cn('absolute inset-0 transition-colors', selected ? 'bg-accent/15' : 'group-hover:bg-black/20')} />
+      <div className={cn('absolute inset-0 transition-colors duration-150', selected ? 'bg-accent/15' : 'group-hover:bg-black/20')} />
       <span
         className={cn(
-          'absolute left-2 top-2 flex size-6 items-center justify-center rounded-full ring-2 transition-colors',
-          selected ? 'bg-accent text-white ring-accent' : 'bg-black/40 text-transparent ring-white/80',
+          'absolute left-1.5 top-1.5 transition-[background-color,color,box-shadow] duration-150 ease-out motion-reduce:transition-none',
+          selectCircle(selected),
+          // Hovering a card while choosing previews the tick: clicking anywhere on it selects.
+          !selected && 'group-hover:bg-white/25 group-hover:text-white group-hover:shadow-[0_0_0_3px_rgb(255_255_255/0.18),0_1px_4px_rgb(0_0_0/0.35)]',
         )}
       >
         <Check className="size-3.5" strokeWidth={3} />

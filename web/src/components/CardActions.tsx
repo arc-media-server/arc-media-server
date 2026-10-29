@@ -19,7 +19,39 @@ export interface CardHover {
   onEdit?: () => void;
 }
 
-const reveal = 'opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100';
+/** Shown while the card is hovered or has focus; each control answers the pointer quickly. */
+const reveal =
+  'cursor-pointer opacity-0 transition-[opacity,scale,background-color,color,box-shadow] duration-150 ease-out motion-reduce:transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-white';
+
+/** The small round buttons at the bottom (pencil, ⋯): a soft disc behind the icon on hover. */
+const iconButton =
+  'pointer-events-auto absolute bottom-1.5 flex size-8 items-center justify-center rounded-full text-white/90 drop-shadow-[0_1px_3px_rgb(0_0_0/0.6)] hover:bg-white/20 hover:text-white hover:drop-shadow-none hover:backdrop-blur-sm focus-visible:bg-white/20 focus-visible:text-white active:bg-white/30';
+
+/**
+ * The select circle, the same control on hover and while choosing titles: a crisp white ring on a
+ * dark disc (so it reads on light and dark posters), the height of the unwatched count opposite.
+ * Chosen, it fills with the accent and shows the tick.
+ */
+export function selectCircle(selected: boolean) {
+  return cn(
+    'flex size-6 items-center justify-center rounded-full shadow-[0_1px_4px_rgb(0_0_0/0.35)] ring-2 ring-inset',
+    selected ? 'bg-accent-strong text-white ring-accent-strong' : 'bg-black/35 text-white/0 ring-white/95 backdrop-blur-sm',
+  );
+}
+
+/** Hovering the circle (or tabbing to it): it fills with the accent, glows and previews the tick. */
+const selectCircleHover =
+  'hover:bg-accent-strong hover:text-white hover:ring-accent-strong hover:shadow-[0_0_0_3px_rgb(255_255_255/0.22),0_0_14px_2px_color-mix(in_srgb,var(--accent)_65%,transparent)] focus-visible:bg-accent-strong focus-visible:text-white focus-visible:ring-accent-strong active:scale-95 motion-reduce:active:scale-100';
+
+/**
+ * A soft shade over the artwork while a card's actions show, as Plex's, so the white controls read
+ * on pale posters. It sits under the watched badge, inside the artwork.
+ */
+export function CardScrim() {
+  return (
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgb(0_0_0/0.38),rgb(0_0_0/0.12)_32%,rgb(0_0_0/0.12)_62%,rgb(0_0_0/0.5))] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:hidden" />
+  );
+}
 
 /**
  * A poster's hover actions, as Plex's: a small circle to start choosing titles, Play in the
@@ -49,15 +81,26 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
     }
   };
   return (
-    <div className={cn('pointer-events-none absolute inset-x-0 top-0 z-10 [@media(hover:none)]:hidden', landscape ? 'aspect-video' : 'aspect-[2/3]')}>
+    <div
+      className={cn(
+        // Rides up with the artwork on hover, so the controls stay lined up with the badge.
+        'pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none [@media(hover:none)]:hidden',
+        landscape ? 'aspect-video' : 'aspect-[2/3]',
+      )}
+    >
       {hover.onSelect && (
         <button
           type="button"
           aria-label={t('common:card.select', { title })}
           onClick={hover.onSelect}
-          className={cn('pointer-events-auto absolute left-2 top-2 flex size-[22px] items-center justify-center rounded-full text-white/0 ring-[1.5px] ring-white/90 drop-shadow hover:bg-accent hover:text-white hover:ring-accent', reveal)}
+          className={cn(
+            'pointer-events-auto absolute left-1.5 top-1.5',
+            selectCircle(false),
+            selectCircleHover,
+            reveal,
+          )}
         >
-          <Check className="size-3" strokeWidth={3.5} />
+          <Check className="size-3.5" strokeWidth={3} />
         </button>
       )}
       {playable && (
@@ -66,7 +109,11 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
           aria-label={t('common:card.play', { title })}
           onClick={() => void start()}
           disabled={starting}
-          className={cn('pointer-events-auto absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white ring-2 ring-white/85 backdrop-blur-sm transition-transform hover:scale-105 hover:bg-accent-strong hover:ring-accent-strong', reveal)}
+          className={cn(
+            'pointer-events-auto absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_2px_12px_rgb(0_0_0/0.35)] ring-2 ring-inset ring-white/90 backdrop-blur-sm',
+            'hover:scale-110 hover:bg-accent-strong hover:ring-accent-strong hover:shadow-[0_0_0_4px_rgb(255_255_255/0.2),0_4px_22px_4px_color-mix(in_srgb,var(--accent)_60%,transparent)] focus-visible:bg-accent-strong focus-visible:ring-accent-strong active:scale-100 motion-reduce:hover:scale-100',
+            reveal,
+          )}
         >
           {starting ? <Loader2 className="size-5 animate-spin" /> : <Play className="ml-0.5 size-5 fill-current" />}
         </button>
@@ -76,7 +123,7 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
           type="button"
           aria-label={t('common:card.edit', { title })}
           onClick={hover.onEdit}
-          className={cn('pointer-events-auto absolute bottom-2 left-2 flex size-7 items-center justify-center rounded-full text-white drop-shadow hover:bg-black/60', reveal)}
+          className={cn(iconButton, 'left-1.5', reveal)}
         >
           <Pencil className="size-4" />
         </button>
@@ -106,7 +153,7 @@ function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: stri
         <button
           type="button"
           aria-label={t('common:card.more', { title })}
-          className={cn('pointer-events-auto absolute bottom-2 right-1.5 flex size-7 items-center justify-center rounded-full text-white drop-shadow hover:bg-black/60 data-[state=open]:opacity-100', reveal)}
+          className={cn(iconButton, 'right-1.5 data-[state=open]:bg-white/20 data-[state=open]:opacity-100', reveal)}
         >
           <MoreVertical className="size-4" />
         </button>
