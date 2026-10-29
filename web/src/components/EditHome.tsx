@@ -47,6 +47,7 @@ export function EditHomeDialog({
           initial={rows}
           libraries={libraries}
           initialSplit={!!prefs.data?.split_up_next}
+          initialHero={prefs.data.show_home_hero !== false}
           onSave={(patch) => update.mutateAsync(patch)}
           onDone={() => onOpenChange(false)}
         />
@@ -67,7 +68,7 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
   const prefs = useQuery({
     queryKey: key,
     enabled: open && !!target,
-    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default'>> =>
+    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default' | 'show_home_hero'>> =>
       target?.kind === 'profile' ? api.profilePrefs(target.id) : { ...(await api.defaultHome()), split_up_next: false },
   });
   const ready = open && target && prefs.data && libraries;
@@ -80,6 +81,7 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
           libraries={libraries!}
           initialSplit={!!prefs.data!.split_up_next}
           showSplit={target!.kind === 'profile'}
+          initialHero={target!.kind === 'profile' ? prefs.data!.show_home_hero !== false : undefined}
           title={target!.kind === 'profile' ? target!.name.endsWith('s') ? t('editor.otherTitleEndsS', { name: target!.name }) : t('editor.otherTitle', { name: target!.name }) : t('editor.defaultTitle')}
           description={
             target!.kind === 'profile'
@@ -104,6 +106,7 @@ function Editor({
   libraries,
   initialSplit,
   showSplit = true,
+  initialHero,
   title,
   description,
   onSave,
@@ -113,6 +116,8 @@ function Editor({
   libraries: Library[];
   initialSplit: boolean;
   showSplit?: boolean;
+  /** Whether Home shows the featured banner; leave it out where there's no profile (the default home). */
+  initialHero?: boolean;
   title?: string;
   description?: string;
   onSave: (patch: Partial<Prefs>) => Promise<unknown>;
@@ -122,6 +127,7 @@ function Editor({
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
   const [split, setSplit] = useState(initialSplit);
+  const [hero, setHero] = useState(initialHero);
   const [announcement, announce] = useState('');
   const save = useMutation({ mutationFn: onSave, onSuccess: onDone });
   // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
@@ -198,12 +204,24 @@ function Editor({
               const saved = toSaved(rows);
               const isDefault =
                 rows.every((r) => !r.hidden && r.type !== 'custom' && isDefaultLook(r)) && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
-              save.mutate(showSplit ? { home: isDefault ? [] : saved, split_up_next: split } : { home: isDefault ? [] : saved });
+              const patch: Partial<Prefs> = { home: isDefault ? [] : saved };
+              if (showSplit) patch.split_up_next = split;
+              if (hero !== undefined) patch.show_home_hero = hero;
+              save.mutate(patch);
             }}
           >{t('common:actions.done')}</Button>
         </>
       }
     >
+      {hero !== undefined && (
+        <label className="mb-2 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border">
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">{t('editor.heroLabel')}</span>
+            <span className="block text-xs text-subtle">{t('editor.heroHint')}</span>
+          </span>
+          <Switch checked={hero} onCheckedChange={setHero} />
+        </label>
+      )}
       <label className={cn('mb-4 flex cursor-pointer items-center gap-4 rounded-2xl bg-surface-2/40 px-4 py-3 ring-1 ring-border', !showSplit && 'hidden')}>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium">{t('editor.splitLabel')}</span>

@@ -192,6 +192,9 @@ type Scanner struct {
 	retryBase     time.Duration // zero uses the automatic one-minute base
 	// Titles a library preview identified, so adding the library doesn't search for them again.
 	remembered remembered
+	// The latest Fix Match of each show still being fetched in the background, by item id.
+	matching map[string]int64
+	matchGen int64
 }
 
 // New creates a scanner. Background scans stop when ctx is cancelled.

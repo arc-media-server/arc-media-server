@@ -46,6 +46,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   copies storage budget (#193, deferred). Decisions waiting for the owner are on #80.
 - **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
+- **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
+  Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
 
 ## Workflow (owner, 26 October; applies to Claude and Codex alike)
@@ -64,6 +66,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Keep working without check-ins. For product decisions, pick a sensible default that is easy to
   change and log it on #80 ("Decisions waiting for the owner"). Only stop for risky or
   irreversible things.
+- Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
+  logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
+  and share the existing one rather than writing a second copy.
 - Necessary configuration belongs in the web UI, never config files (#66). Choose good automatic
   defaults and keep advanced choices and implementation details (worker counts, cache knobs) out
   of ordinary flows.

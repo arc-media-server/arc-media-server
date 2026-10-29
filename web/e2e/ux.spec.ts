@@ -361,6 +361,30 @@ test('profile preferences and display orders explain failed saves and retry', as
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Library default (');
 });
 
+test('internet streaming quality is saved to the profile and only limits streams away from home', async ({ page }, info) => {
+  const { item } = await seed(page);
+  await page.goto('/settings');
+  const quality = page.getByRole('combobox', { name: 'Internet streaming quality', exact: true });
+  await expect(quality.locator('option:checked')).toHaveText('Maximum');
+  await expect(page.getByText(/If quality is set too high, videos will start slowly and pause frequently\. Only applies away from home/)).toBeVisible();
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/me/prefs') && r.request().method() === 'PATCH' && r.ok());
+  await quality.selectOption({ label: '4 Mbps 720p' });
+  expect((await (await saved).json()).remote_quality_kbps).toBe(4000);
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('internet-quality-setting.png') });
+  await page.reload();
+  await expect(quality.locator('option:checked')).toHaveText('4 Mbps 720p');
+  expect((await page.request.patch('/api/me/prefs', { data: { remote_quality_kbps: 5000 } })).status()).toBe(400);
+  // The playback decision: capped away from home (through an untrusted forwarder), not at home.
+  const plan = async (headers: Record<string, string>) => (await (await page.request.post('/api/items/' + item.id + '/playback', { headers, data: { caps: { containers: ['mp4', 'mkv'], video: ['h264', 'hevc'], audio: ['aac', 'ac3'] } } })).json()).server_limit_kbps;
+  expect(await plan({ 'X-Forwarded-For': '203.0.113.9' })).toBe(4000);
+  expect(await plan({})).toBe(0);
+  await quality.selectOption({ label: 'Maximum' });
+  await page.reload();
+  await expect(quality.locator('option:checked')).toHaveText('Maximum');
+  expect(await plan({ 'X-Forwarded-For': '203.0.113.9' })).toBe(0);
+});
+
 test('mobile profiles, settings sections and player controls remain usable', async ({ page }, info) => {
   const { item } = await seed(page);
   await page.request.post('/api/profiles', { data: { name: 'Audit Household with a long name', color: 'blue' } });
@@ -518,6 +542,36 @@ test('comparison keeps selections on failure and only the server owner changes t
   expect((await page.request.put(`/api/series/${item.id}/display-ordering`, { data: { ordering_id: orders.find(o => o.id !== inherited)!.id } })).status()).toBe(403);
   expect((await page.request.put(`/api/series/${item.id}/display-ordering`, { data: { ordering_id: null } })).status()).toBe(403);
   expect((await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id).toBe(inherited);
+});
+
+test('paused IMDb ratings hide stale scores and sort choices while provider and personal scores remain', async ({ page }) => {
+  const { item, lib } = await seed(page);
+  let critics = false;
+  await page.route('**/api/items/' + item.id, async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), rating: 7.4,
+      imdb_rating: 9.9, imdb_votes: 12345,
+      rotten_tomatoes: critics ? 83 : null, metacritic: critics ? 71 : null } });
+  });
+  await page.goto('/movie/' + item.id);
+  await expect(page.getByRole('heading', { name: item.title, exact: true })).toBeVisible();
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('★ 7.4', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: '5 stars', exact: true })).toBeVisible();
+  critics = true;
+  await page.reload();
+  await expect(page.getByText('83%', { exact: true })).toBeVisible();
+  await expect(page.locator('[title="Metacritic"]')).toContainText('71');
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
+  // Saved pre-pause IMDb browse URLs recover to an available sort.
+  await page.goto('/library/' + lib.id + '?sort=imdb');
+  await page.getByRole('button', { name: 'Sort by Title', exact: true }).click();
+  await expect(page.getByRole('menuitemradio', { name: /IMDb/ })).toHaveCount(0);
+  await expect(page.getByRole('menuitemradio', { name: 'Title', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.goto('/settings?section=library');
+  await expect(page.getByText('Rotten Tomatoes and Metacritic', { exact: true })).toBeVisible();
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
 });
 
 test('ratings, watchlist and metadata refresh failures explain and recover', async ({ page }) => {

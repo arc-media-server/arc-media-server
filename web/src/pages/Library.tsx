@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
-import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Plus, RefreshCw, Sparkles } from 'lucide-react';
+import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Pencil, Plus, Sparkles, Users } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
 import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
@@ -22,6 +22,8 @@ import { useLibraries } from '@/components/Sidebar';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { EditDetailsDialog } from '@/components/EditDetails';
+import { LibraryEditorDialog } from '@/components/LibraryEditor';
+import { LibraryWorkDialogs, LibraryWorkItems, useLibraryWork } from '@/components/LibraryWork';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -30,6 +32,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -322,16 +325,22 @@ export function LibraryPage() {
           <ActiveFilters facets={facets.data} filters={filters} onChange={changeFilters} />
           {admin && (
             <div className="ml-auto flex items-center gap-2">
-              <LibraryMenu lib={lib} onSelect={selecting ? undefined : () => setSelecting(true)} />
+              <LibraryMenu lib={lib} selectable onSelect={selecting ? undefined : () => setSelecting(true)} />
             </div>
           )}
         </div>
       )}
-      {lib && view === 'collections' && admin && (
-        <div className="-mt-1 mb-6 flex px-6 md:px-10">
-          <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
-            <Plus /> {t('library:newCollection')}
-          </Button>
+      {lib && view !== 'titles' && admin && (
+        // The other tabs keep the library's ⋯ in the same spot as the Titles filter bar.
+        <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
+          {view === 'collections' && (
+            <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
+              <Plus /> {t('library:newCollection')}
+            </Button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <LibraryMenu lib={lib} selectable={false} />
+          </div>
         </div>
       )}
       {view === 'recommended' && (
@@ -561,12 +570,17 @@ function EditTitle({ id, onClose }: { id: string; onClose: () => void }) {
 }
 
 /**
- * The library's ⋯ menu (server owner): choosing titles to change together (cards also start it
- * on hover), and scanning by hand.
+ * The library's ⋯ menu (server owner), on every tab, as Plex's: choosing titles to change together
+ * (Titles only; cards also start it on hover), scanning by hand, then managing the library: Edit,
+ * the costly repairs and Empty trash (shared with Manage Libraries), and who can see it (library
+ * access is set per profile). Removing a library stays on Manage Libraries.
  */
-function LibraryMenu({ lib, onSelect }: { lib: Library; onSelect?: () => void }) {
+function LibraryMenu({ lib, onSelect, selectable }: { lib: Library; onSelect?: () => void; selectable: boolean }) {
   const { t } = useTranslation('library');
+  const navigate = useNavigate();
   const qc = useQueryClient();
+  const work = useLibraryWork(lib);
+  const [editOpen, setEditOpen] = useState(false);
   const scan = useMutation({
     mutationFn: () => api.scanLibrary(lib.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['libraries'] }),
@@ -603,15 +617,27 @@ function LibraryMenu({ lib, onSelect }: { lib: Library; onSelect?: () => void })
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label={t('library:libraryActions', { name: lib.name })}><MoreHorizontal /></Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={!onSelect} onSelect={onSelect}>
-            <ListChecks className="size-4 text-muted" /> {t('library:selectTitles')}
-          </DropdownMenuItem>
+        <DropdownMenuContent align="end" className="[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted">
+          {selectable && (
+            <DropdownMenuItem disabled={!onSelect} onSelect={onSelect}>
+              <ListChecks /> {t('library:selectTitles')}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem disabled={lib.scan.running || scan.isPending} onSelect={() => scan.mutate()}>
-            <RefreshCw className="size-4 text-muted" /> {t('library:scanLibraryFiles')}
+            <FolderSearch /> {t('library:scanLibraryFiles')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <Pencil /> {t('libraryManagement:libraryWork.editLibrary')}
+          </DropdownMenuItem>
+          <LibraryWorkItems work={work} />
+          <DropdownMenuItem onSelect={() => navigate('/profiles')}>
+            <Users /> {t('libraryManagement:libraryWork.manageAccess')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <LibraryEditorDialog library={lib} open={editOpen} onOpenChange={setEditOpen} />
+      <LibraryWorkDialogs work={work} />
       <ErrorNotice error={scan.error} onRetry={() => scan.mutate()} />
     </>
   );

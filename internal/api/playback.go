@@ -90,6 +90,10 @@ func defaultAudio(f *store.MediaFile) *store.Stream {
 }
 
 // qualityHeight is the picture height a quality limit (kbit/s) is converted to, as Plex's steps.
+// qualityLimits are the quality limits a player or profile can choose (kbit/s), the same list as
+// `qualities` in web/src/lib/playback.ts.
+var qualityLimits = []int{20000, 12000, 8000, 4000, 3000, 2000, 1500, 720}
+
 func qualityHeight(kbps int) int {
 	switch {
 	case kbps >= 8000:
@@ -218,7 +222,8 @@ type playbackPlan struct {
 	// The file's overall bitrate and picture height, so the player offers only lower qualities.
 	SourceKbps   int `json:"source_kbps"`
 	SourceHeight int `json:"source_height"`
-	// Independent server bandwidth ceiling, not the player's current requested quality.
+	// The ceiling away from home (the server's remote limits and the profile's internet streaming
+	// quality, whichever is lowest; 0 at home), not the player's current requested quality.
 	ServerLimitKbps int `json:"server_limit_kbps"`
 	// The file's chapter marks (times in the file).
 	Chapters []store.Chapter `json:"chapters"`
@@ -834,8 +839,9 @@ func (s *Server) compatibility(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// remoteLimit is the most a stream away from home may use (kbps), or 0 for no limit: the per-stream
-// limit, and a share of 80% of the home's upload speed between the remote streams playing.
+// remoteLimit is the most a stream away from home may use (kbps), or 0 for no limit: the server's
+// per-stream limit, a share of 80% of the home's upload speed between the remote streams playing,
+// and the profile's own internet streaming quality, whichever is lowest. None of them apply at home.
 func (s *Server) remoteLimit(r *http.Request, itemID string) int {
 	if auth.IsLocal(r) {
 		return 0
@@ -846,6 +852,11 @@ func (s *Server) remoteLimit(r *http.Request, itemID string) int {
 		share := st.UploadKbps * 8 / 10 / (s.playing.remoteOthers(r, itemID) + 1)
 		if limit == 0 || share < limit {
 			limit = max(share, 500)
+		}
+	}
+	if s.store != nil {
+		if p, err := s.loadPrefs(r); err == nil && p.RemoteQualityKbps > 0 && (limit == 0 || p.RemoteQualityKbps < limit) {
+			limit = p.RemoteQualityKbps
 		}
 	}
 	return limit

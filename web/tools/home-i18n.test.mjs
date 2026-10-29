@@ -34,7 +34,8 @@ test('English built-in labels, seasonal dates and filter summaries preserve thei
   assert.equal(home.currentSeason(new Date(2026, 9, 27)).title, 'Horror for Halloween');
   assert.equal(format.month(2), 'Feb');
   assert.equal(format.month(10), 'Oct');
-  assert.equal(filters.sortSummary('imdb'), 'by imdb rating');
+  assert.equal(filters.sortSummary('imdb'), 'by title');
+  assert.equal(Object.hasOwn(filters.sortLabels(), 'imdb'), false);
   assert.equal(filters.sortLabels().critics, 'Rotten Tomatoes');
   assert.equal(i18n.t('filters:preview.movies', { count: 1 }), '1 movie matches');
   assert.equal(i18n.t('filters:preview.movies', { count: 2 }), '2 movies match');

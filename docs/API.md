@@ -208,7 +208,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/artwork/{type}` | admin | With an image as the body (JPEG, PNG or WebP, up to 20 MB) uses it as the poster or background. It's kept in AMS's data folder. |
 | GET | `/api/items/{id}/match` | admin | Explains how an item was identified: what was read from its file and folder names, and every search made with what it found. |
 | GET | `/api/items/{id}/match/search` | admin | ?provider=tmdb&q=Alien&year=1979 |
-| PUT | `/api/items/{id}/match` | admin | {"provider": "tmdb", "id": 603} identifies an item as the chosen provider entry and fetches its metadata. |
+| PUT | `/api/items/{id}/match` | admin | {"provider": "tmdb", "id": 603} identifies an item as the chosen provider entry. A movie's metadata is fetched before it answers (200 with the item). For a show it fetches only the chosen entry's own details and answers 202 with the item and `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the background, which then links its files to the new episodes. The item keeps its previous match if the chosen entry can't be fetched. |
 
 ### labels
 
@@ -266,7 +266,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/me/year` | profile | ?year=2026 is the current profile's year in review (this year by default), with the years it has history for. |
 | GET | `/api/me/prefs` | profile | Is the current profile's preferences, including library_order (navigation only, never access) and watched_percent (50–100; absent/0 keeps 90%). |
-| PATCH | `/api/me/prefs` | profile | Changes only the fields sent, e.g. {"library_order": [2,1]}, {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%. |
+| PATCH | `/api/me/prefs` | profile | Changes only the fields sent, e.g. {"library_order": [2,1]}, {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%. remote_quality_kbps is the profile's internet streaming quality: 0 for Maximum, or one of 20000, 12000, 8000, 4000, 3000, 2000, 1500 or 720 (kbit/s) to limit streams away from home (the lower of it and the server's remote limit applies; never on the home network). |
 
 ### news
 
