@@ -25,3 +25,7 @@ wrap fixed. All data/providers were temporary fixtures. No owner deployment acce
 Logging: one info outcome when an administrator saves, with library and bounded family count.
 Read/poll paths add no logs; invalid input is an ordinary validation response; database failures
 retain the API error boundary. No request bodies, title lists or credentials are logged.
+
+API-reference follow-up: regenerated both docs/API.md and docs/openapi.json after the UI build;
+`go test ./internal/apidoc` passed. The local combined-PR check caught the stale machine-readable
+reference before handoff. No product behaviour changed in this follow-up.
