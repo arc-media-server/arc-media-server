@@ -55,27 +55,33 @@ test('web server: library order saves per profile, retries and never grants libr
     await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
   }
   await page.goto('/settings');
-  const region = page.getByRole('region', { name: 'Library navigation order' });
+  await page.locator('aside').getByRole('button', { name: 'Library order', exact: true }).click();
+  const region = page.getByRole('dialog', { name: 'Library order', exact: true });
   const original = ['Films', 'Series'];
   await expect(page.locator('aside nav a[href^="/library/"]')).toHaveText(original);
   let fail = true;
   await page.route('**/api/me/prefs', route => route.request().method() === 'PATCH' && fail && route.request().postDataJSON().library_order
     ? route.fulfill({ status: 503, json: { error: 'Order save unavailable' } }) : route.continue());
   await region.getByRole('button', { name: 'Move Series up', exact: true }).click();
+  // Draft reordering does not change navigation before Save.
+  await expect(page.locator('aside nav a[href^="/library/"]')).toHaveText(original);
+  await region.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(region.getByRole('alert')).toContainText('Order save unavailable');
   await expect.poll(() => page.locator('aside nav a[href^="/library/"]').allTextContents()).toEqual(original);
   expect((await (await page.request.get('/api/me/prefs')).json()).library_order).toBeUndefined();
   fail = false;
-  await region.getByRole('button', { name: 'Retry', exact: true }).click();
+  await region.getByRole('button', { name: 'Save', exact: true }).click();
   await expect.poll(() => page.locator('aside nav a[href^="/library/"]').allTextContents()).toEqual(['Series', 'Films']);
   await page.reload();
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order).toEqual([libs[1].id, libs[0].id]);
   await page.screenshot({ path: info.outputPath('library-order-desktop.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(['Series', 'Films']);
-  await region.scrollIntoViewIfNeeded();
+  await page.getByRole('button', { name: 'Library order', exact: true }).filter({ visible: true }).click();
+  await expect(region).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('library-order-phone.png'), fullPage: true });
+  await region.getByRole('button', { name: 'Cancel', exact: true }).click();
   const response = await page.request.post('/api/profiles', { data: { name: 'Limited', library_ids: [libs[0].id] } });
   expect(response.ok()).toBeTruthy();
   const viewer = await response.json();
@@ -85,7 +91,9 @@ test('web server: library order saves per profile, retries and never grants libr
   await page.reload();
   await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(['Films']);
   expect((await (await page.request.get(`/api/items?library_id=${libs[1].id}`)).json()).items).toEqual([]);
+  await page.getByRole('button', { name: 'Library order', exact: true }).filter({ visible: true }).click();
   await region.getByRole('button', { name: 'Reset library order', exact: true }).click();
+  await region.getByRole('button', { name: 'Save', exact: true }).click();
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order ?? []).toEqual([]);
 });
 
@@ -353,4 +361,20 @@ test('web server: a Chromecast that refuses the original gets a 1080p version, r
   await expect.poll(() => page.evaluate(() => (window as any).__receiverLoads.length)).toBe(3);
   expect(heights).toEqual([1080]);
   await closePlayer(page);
+});
+
+test('sidebar library actions share scan and repair confirmations', async ({ page, media }) => {
+  await addLibrary(page, media.movies);
+  const library = (await (await page.request.get('/api/libraries')).json())[0];
+  await page.goto('/');
+  const sidebar = page.locator('aside');
+  await sidebar.getByRole('button', { name: 'More for ' + library.name, exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Reanalyze files…', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText(library.name);
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.goto('/settings');
+  await expect(page.getByText('On this page', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toHaveCount(0);
 });

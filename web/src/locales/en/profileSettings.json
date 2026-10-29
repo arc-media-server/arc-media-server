@@ -21,10 +21,6 @@
     "skipIntrosAndRecaps": "Skip intros and recaps without pressing Skip.",
     "themeMusic": "Theme music",
     "playAShowS": "Play a show's or movie's theme quietly on its page.",
-    "home": "Home",
-    "homeRows": "Rows and featured banner",
-    "homeRowsHint": "Choose, order and style the rows on Home, and whether the featured banner shows, in Edit Home.",
-    "editHome": "Edit Home…",
     "subtitles": "Subtitles",
     "choosingSubtitlesInThe": "Choosing subtitles in the player updates these too.",
     "showSubtitles": "Show subtitles",
@@ -60,15 +56,14 @@
     "serverDescription": "Server settings apply to everyone. Only admins can change these."
   },
   "libraryNavigationSettings": {
-    "libraryNavigationOrder": "Library navigation order",
     "libraryOrder": "Library order",
     "theOrderOfLibraries": "The order of libraries in your sidebar and menus.",
-    "loadingLibraries": "Loading libraries…",
-    "noLibrariesAvailable": "No libraries available.",
-    "saved": "Saved",
     "resetLibraryOrder": "Reset library order",
     "moveUp": "Move {{name}} up",
-    "moveDown": "Move {{name}} down"
+    "moveDown": "Move {{name}} down",
+    "cancel": "Cancel",
+    "save": "Save",
+    "dragHint": "Drag libraries to reorder them, or use the up and down buttons. Changes apply to your profile after saving."
   },
   "providerCredits": {
     "thisProductUsesThe": "This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and show details, artwork and cast come from The Movie Database (TMDB).",
