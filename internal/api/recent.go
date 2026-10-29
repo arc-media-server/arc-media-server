@@ -86,7 +86,7 @@ func (s *Server) seasonPostersFor(r *http.Request, series *store.Item) (map[int]
 	if err != nil || lib == nil {
 		return nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return nil, err
 	}
@@ -164,7 +164,6 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	byKey := map[string]*group{}
 	series := map[string]*store.Item{}
 	positions := map[string]map[string][2]int{}
-	userID := currentUserID(r)
 	for _, ep := range eps {
 		sr, ok := series[ep.ParentID]
 		if !ok {
@@ -175,7 +174,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 			series[ep.ParentID] = sr
 			pos := map[string][2]int{}
 			if sr != nil {
-				if pos, _, err = s.orderPositions(ctx, userID, sr); err != nil {
+				if pos, _, err = s.orderPositions(ctx, sr); err != nil {
 					s.fail(w, err)
 					return
 				}

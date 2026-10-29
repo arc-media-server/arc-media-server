@@ -38,9 +38,9 @@ func TestSpecialTraversalInheritanceAndIdentity(t *testing.T) {
 	if err := st.ReplaceSpecialPlacements(ctx, series, map[string]string{ids["special1"]: ids["b"], ids["special2"]: ids["b"], ids["missingTarget"]: "absent", ids["unknown"]: ids["unknown"]}); err != nil {
 		t.Fatal(err)
 	}
-	check := func(user string, want []string) []OrderingEntry {
+	check := func(label string, want []string) []OrderingEntry {
 		t.Helper()
-		got, err := st.DisplayEntries(ctx, order, user)
+		got, err := st.DisplayEntries(ctx, order)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,30 +53,38 @@ func TestSpecialTraversalInheritanceAndIdentity(t *testing.T) {
 			expected = append(expected, ids[key])
 		}
 		if !slices.Equal(actual, expected) {
-			t.Fatalf("%s traversal=%v want %v", user, actual, expected)
+			t.Fatalf("%s traversal=%v want %v", label, actual, expected)
 		}
 		return got
 	}
 	off := []string{"a", "b", "c", "special1", "special2", "unknown", "missingTarget"}
 	on := []string{"a", "special1", "special2", "b", "c", "unknown", "missingTarget"}
-	check("viewer", off)
+	check("default", off)
 	yes, no := true, false
-	if err := st.SetInlineSpecials(ctx, series, "admin", true, &yes); err != nil {
+	if err := st.SetInlineSpecials(ctx, series, &yes); err != nil {
 		t.Fatal(err)
 	}
-	got := check("viewer", on)
+	got := check("on", on)
 	if !got[1].InlineSpecial || got[1].Season != 0 || got[1].Episode != 1 || got[1].GroupSeason != 1 {
 		t.Fatalf("changed source identity: %+v", got[1])
 	}
-	if err := st.SetInlineSpecials(ctx, series, "viewer", false, &no); err != nil {
+	// A profile's old row (from when profiles could choose) is kept but no longer read.
+	if _, err := st.db.ExecContext(ctx, `INSERT INTO series_specials(series_id,user_id,inline) VALUES(?, 'viewer', 0)`, series); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", off)
-	check("other", on)
-	if err := st.SetInlineSpecials(ctx, series, "viewer", false, nil); err != nil {
+	check("old profile row", on)
+	if err := st.SetInlineSpecials(ctx, series, &no); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", on)
+	check("off", off)
+	if err := st.SetInlineSpecials(ctx, series, nil); err != nil {
+		t.Fatal(err)
+	}
+	check("cleared", off)
+	if err := st.SetInlineSpecials(ctx, series, &yes); err != nil {
+		t.Fatal(err)
+	}
+	check("on again", on)
 	// An alternate order resolves the mapped target identity into its own season,
 	// retaining repeated positions used by multi-part playback's last-position rule.
 	alt, err := st.UpsertOrdering(ctx, series, "tvdb_dvd", "", "DVD", "")
@@ -91,19 +99,19 @@ func TestSpecialTraversalInheritanceAndIdentity(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	altEntries, err := st.DisplayEntries(ctx, alt, "viewer")
+	altEntries, err := st.DisplayEntries(ctx, alt)
 	if err != nil || len(altEntries) != 4 || altEntries[1].EpisodeID != ids["special1"] || altEntries[1].GroupSeason != 3 || altEntries[3].EpisodeID != ids["a"] {
 		t.Fatalf("alternate traversal=%+v %v", altEntries, err)
 	}
 	if err := st.SetEntry(ctx, order, ids["special1"], 0, 1); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", []string{"a", "special2", "b", "c", "special1", "unknown", "missingTarget"})
+	check("placed", []string{"a", "special2", "b", "c", "special1", "unknown", "missingTarget"})
 	custom, err := st.CopyOrdering(ctx, &Ordering{ID: order, SeriesID: series}, "Custom")
 	if err != nil {
 		t.Fatal(err)
 	}
-	customEntries, err := st.DisplayEntries(ctx, custom, "viewer")
+	customEntries, err := st.DisplayEntries(ctx, custom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +131,7 @@ func TestSpecialTraversalInheritanceAndIdentity(t *testing.T) {
 	if err := st.ReplaceSpecialPlacements(ctx, series, nil); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", off)
+	check("placed", off)
 	data, err := st.UserDataFor(ctx, u.ID, []string{ids["special2"]})
 	if err != nil || data[ids["special2"]].PositionMS != 70000 {
 		t.Fatalf("lost resume: %+v %v", data, err)
@@ -156,9 +164,9 @@ func TestEpisodeDetailsUpgradePreservesLegacyMetadataAndDefaults(t *testing.T) {
 	if err != nil || it.Title != "My edited title" || !slices.Contains(it.LockedFields, "title") {
 		t.Fatal("legacy metadata changed")
 	}
-	enabled, overridden, err := st.InlineSpecials(ctx, "movie", "viewer")
-	if err != nil || enabled || overridden {
-		t.Fatalf("migration enabled specials: %v %v %v", enabled, overridden, err)
+	enabled, err := st.InlineSpecials(ctx, "movie")
+	if err != nil || enabled {
+		t.Fatalf("migration enabled specials: %v %v", enabled, err)
 	}
 	if err := st.RestoreFrom(ctx, backup); err != nil {
 		t.Fatal(err)

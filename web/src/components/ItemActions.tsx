@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, ListMusic, ListOrdered, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useQueueActions } from '@/components/QueueActions';
 import { AddToPlaylistDialog } from '@/components/Playlists';
 
-type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | 'ordering' | null;
+type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | null;
 
 /** Versions of a movie that could be split into titles of their own (parts of one version count once). */
 export function splitVersions(item: Item) {
@@ -30,7 +30,7 @@ export function useItemDialogs(item: Item | undefined) {
   const library = libraries?.find((l) => l.id === item?.library_id);
   const dialogs = item && open !== null && (
     <>
-      <EditDetailsDialog item={item} open={open === 'edit' || open === 'ordering'} initialTab={open === 'ordering' ? 'ordering' : undefined} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
+      <EditDetailsDialog item={item} open={open === 'edit'} onOpenChange={(o) => setOpen(o ? 'edit' : null)} />
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
       <AddToCollectionDialog item={item} library={library} open={open === 'collection'} onOpenChange={(o) => setOpen(o ? 'collection' : null)} />
       <SplitDialog item={item} open={open === 'split'} onOpenChange={(o) => setOpen(o ? 'split' : null)} />
@@ -68,8 +68,8 @@ export function useAnalyzeItem(item?: Item) {
 
 /**
  * The "⋯" button on a movie or show page, as Plex's: Play next, Add to queue and Add to Playlist
- * for anyone who can play the title, a show's episode ordering for profiles without Edit (each
- * chooses their own), then the server owner's tools.
+ * for anyone who can play the title, then the server owner's tools (a show's episode ordering is
+ * in Edit, Metadata & ordering).
  */
 export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: {
   item: Item; admin: boolean; playable: boolean; edition?: string; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -78,8 +78,7 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
   const { t } = useTranslation('titles');
   const queue = useQueueActions(item, edition);
   const [playlist, setPlaylist] = useState(false);
-  const ordering = item.kind === 'series' && !admin;
-  if (!admin && !playable && !ordering) return null;
+  if (!admin && !playable) return null;
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2">
       <DropdownMenu>
@@ -102,9 +101,7 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
 
 /**
  * The items of a title's "⋯" menu: queue and playlist actions for anyone who can play it, any
- * `extra` items, a show's episode ordering for profiles without Edit (the server owner finds it
- * in Edit, Metadata & ordering), then the server owner's tools. Shared by the title page and
- * poster cards.
+ * `extra` items, then the server owner's tools. Shared by the title page and poster cards.
  */
 export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refreshing, onAnalyze, analyzing, onQueue, onPlaylist, extra }: {
   item: Item; admin: boolean; playable: boolean; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -122,12 +119,6 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
         </>
       )}
       {extra}
-      {item.kind === 'series' && !admin && (
-        <>
-          {(playable || extra) && <DropdownMenuSeparator />}
-          <DropdownMenuItem onSelect={() => onOpen('ordering')}><ListOrdered className="size-4 text-muted" /> {t('titles:itemActions.episodeOrdering')}</DropdownMenuItem>
-        </>
-      )}
       {(playable || extra) && admin && <DropdownMenuSeparator />}
       {admin && (
         <>

@@ -6,41 +6,27 @@ import (
 	"errors"
 )
 
-// InlineSpecials follows the profile choice, then the server default, then Off.
-func (s *Store) InlineSpecials(ctx context.Context, series, user string) (enabled, overridden bool, err error) {
-	var owner string
-	err = s.db.QueryRowContext(ctx, `SELECT inline, user_id FROM series_specials
-        WHERE series_id = ? AND user_id IN (?, '') ORDER BY user_id = '' LIMIT 1`, series, user).Scan(&enabled, &owner)
+// InlineSpecials is the server owner's Specials in seasons choice for a series, for everyone
+// (Off when they haven't chosen). Profiles' old choices are kept but no longer read (#80).
+func (s *Store) InlineSpecials(ctx context.Context, series string) (bool, error) {
+	var enabled bool
+	err := s.db.QueryRowContext(ctx, `SELECT inline FROM series_specials WHERE series_id = ? AND user_id = ''`, series).Scan(&enabled)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, false, nil
+		return false, nil
 	}
-	return enabled, owner != "", err
+	return enabled, err
 }
 
-// SetInlineSpecials changes a personal choice; admins also set the inherited default.
-// nil clears that scope. Both writes are atomic and independent of display order.
-func (s *Store) SetInlineSpecials(ctx context.Context, series, user string, admin bool, enabled *bool) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
+// SetInlineSpecials sets Specials in seasons for a series; nil goes back to Off. Independent of
+// display order.
+func (s *Store) SetInlineSpecials(ctx context.Context, series string, enabled *bool) error {
+	if enabled == nil {
+		_, err := s.db.ExecContext(ctx, `DELETE FROM series_specials WHERE series_id = ? AND user_id = ''`, series)
 		return err
 	}
-	defer tx.Rollback()
-	owners := []string{user}
-	if admin {
-		owners = append(owners, "")
-	}
-	for _, owner := range owners {
-		if enabled == nil {
-			_, err = tx.ExecContext(ctx, `DELETE FROM series_specials WHERE series_id = ? AND user_id = ?`, series, owner)
-		} else {
-			_, err = tx.ExecContext(ctx, `INSERT INTO series_specials(series_id,user_id,inline) VALUES(?,?,?)
-                ON CONFLICT(series_id,user_id) DO UPDATE SET inline=excluded.inline`, series, owner, boolInt(*enabled))
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
+	_, err := s.db.ExecContext(ctx, `INSERT INTO series_specials(series_id,user_id,inline) VALUES(?,'',?)
+        ON CONFLICT(series_id,user_id) DO UPDATE SET inline=excluded.inline`, series, boolInt(*enabled))
+	return err
 }
 
 // ReplaceSpecialPlacements accepts only two distinct episode identities in this series.
@@ -68,7 +54,7 @@ func (s *Store) ReplaceSpecialPlacements(ctx context.Context, series string, bef
 
 // DisplayEntries is the shared browse/playback traversal. Special labels remain S00.
 // Manual entries and custom orders win; absent/unmapped hints stay in Specials.
-func (s *Store) DisplayEntries(ctx context.Context, orderingID int64, user string) ([]OrderingEntry, error) {
+func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]OrderingEntry, error) {
 	entries, err := s.OrderingEntries(ctx, orderingID)
 	if err != nil {
 		return nil, err
@@ -80,7 +66,7 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64, user strin
 	if err != nil || o == nil {
 		return entries, err
 	}
-	inline, _, err := s.InlineSpecials(ctx, o.SeriesID, user)
+	inline, err := s.InlineSpecials(ctx, o.SeriesID)
 	if err != nil {
 		return nil, err
 	}

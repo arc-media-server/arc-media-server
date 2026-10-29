@@ -371,14 +371,14 @@ func (s *Store) DeleteOrdering(ctx context.Context, id int64) error {
 	return err
 }
 
-// DisplayOrdering returns the ordering a user sees for a series: their own choice, else the
-// server default, else the ordering matching the library's source ordering, else the first one.
-// It returns 0 when the series has no orderings.
-func (s *Store) DisplayOrdering(ctx context.Context, seriesID, userID, librarySource string) (int64, error) {
+// DisplayOrdering returns the ordering a series is shown in, for everyone: the server owner's
+// choice, else the ordering matching the library's source ordering, else the first one. It
+// returns 0 when the series has no orderings. (Profiles once chose their own; the owner decided
+// episode order is theirs alone (#80), so those rows are kept but no longer read.)
+func (s *Store) DisplayOrdering(ctx context.Context, seriesID, librarySource string) (int64, error) {
 	var id int64
 	err := s.db.QueryRowContext(ctx, `
-		SELECT ordering_id FROM series_display WHERE series_id = ? AND user_id IN (?, '')
-		ORDER BY user_id = '' LIMIT 1`, seriesID, userID).Scan(&id)
+		SELECT ordering_id FROM series_display WHERE series_id = ? AND user_id = ''`, seriesID).Scan(&id)
 	if err == nil {
 		return id, nil
 	}
@@ -421,11 +421,11 @@ func (s *Store) ClearDisplayOrdering(ctx context.Context, seriesID, userID strin
 	return err
 }
 
-// DisplayChoice returns the saved choice, or zero when the next default applies. Administrators
-// edit the server default too; ordinary profiles only edit their own override.
-func (s *Store) DisplayChoice(ctx context.Context, seriesID, userID string, admin bool) (int64, error) {
+// DisplayChoice returns the server owner's saved choice, or zero when the series follows its file
+// order.
+func (s *Store) DisplayChoice(ctx context.Context, seriesID string) (int64, error) {
 	var id int64
-	err := s.db.QueryRowContext(ctx, `SELECT ordering_id FROM series_display WHERE series_id=? AND (user_id=? OR (? AND user_id='')) ORDER BY user_id='' LIMIT 1`, seriesID, userID, admin).Scan(&id)
+	err := s.db.QueryRowContext(ctx, `SELECT ordering_id FROM series_display WHERE series_id = ? AND user_id = ''`, seriesID).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}

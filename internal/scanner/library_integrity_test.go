@@ -152,7 +152,7 @@ func TestTVRescanPreservesMultiEpisodeLinksAndCustomOrder(t *testing.T) {
 	if !placed {
 		t.Fatalf("manual placement lost: %v", got)
 	}
-	display, err := st.DisplayOrdering(ctx, show.ID, "", "tmdb_aired")
+	display, err := st.DisplayOrdering(ctx, show.ID, "tmdb_aired")
 	if err != nil || display != custom {
 		t.Fatalf("display=%d err=%v", display, err)
 	}

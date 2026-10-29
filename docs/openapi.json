@@ -9805,7 +9805,7 @@
     },
     "/items/{id}/subtitles/download": {
       "post": {
-        "description": "{\"file\": <id>, \"result\": <file_id>, \"language\", \"forced\", \"hearing_impaired\"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track.\n\nWho may call it: **profile**.",
+        "description": "{\"file\": <id>, \"result\": <file_id>, \"language\", \"forced\", \"hearing_impaired\"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track.\n\nWho may call it: **admin**.",
         "operationId": "downloadSubtitles",
         "parameters": [
           {
@@ -9883,6 +9883,16 @@
             },
             "description": "Sign in (or choose a profile) first"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -9928,12 +9938,12 @@
         "tags": [
           "Items"
         ],
-        "x-arc-access": "profile"
+        "x-arc-access": "admin"
       }
     },
     "/items/{id}/subtitles/search": {
       "get": {
-        "description": "?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first.\n\nWho may call it: **profile**.",
+        "description": "?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first.\n\nWho may call it: **admin**.",
         "operationId": "searchSubtitles",
         "parameters": [
           {
@@ -9983,6 +9993,16 @@
             },
             "description": "Sign in (or choose a profile) first"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -10028,7 +10048,7 @@
         "tags": [
           "Items"
         ],
-        "x-arc-access": "profile"
+        "x-arc-access": "admin"
       }
     },
     "/items/{id}/subtitles/{track}": {
@@ -14942,7 +14962,7 @@
     },
     "/series/{id}/display-ordering": {
       "put": {
-        "description": "{\"ordering_id\": 12} (null resets). The choice is the current profile's own; the admin's choice is also the default for profiles that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode mapping first.\n\nWho may call it: **profile**.",
+        "description": "{\"ordering_id\": 12} (null goes back to the file order) sets the order a series is shown in, for everyone. Choosing an ordering from the other provider triggers a thorough episode mapping first.\n\nWho may call it: **admin**.",
         "operationId": "setDisplayOrdering",
         "parameters": [
           {
@@ -15004,6 +15024,16 @@
             },
             "description": "Sign in (or choose a profile) first"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -15025,11 +15055,11 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": "Set display ordering",
+        "summary": "(null goes back to the file order) sets the order a series is shown in, for everyone",
         "tags": [
           "Series"
         ],
-        "x-arc-access": "profile"
+        "x-arc-access": "admin"
       }
     },
     "/series/{id}/orderings": {
@@ -15772,7 +15802,7 @@
     },
     "/series/{id}/seasons/{n}": {
       "patch": {
-        "description": "?ordering=<id> {\"name\", \"overview\", \"locked_fields\"} changes a season's name and summary in an episode order (the profile's display order by default). Fields sent are locked so refreshes keep them; \"locked_fields\" replaces the locked set.\n\nWho may call it: **admin**.",
+        "description": "?ordering=<id> {\"name\", \"overview\", \"locked_fields\"} changes a season's name and summary in an episode order (the show's display order by default). Fields sent are locked so refreshes keep them; \"locked_fields\" replaces the locked set.\n\nWho may call it: **admin**.",
         "operationId": "editSeason",
         "parameters": [
           {
@@ -16308,7 +16338,7 @@
     },
     "/series/{id}/specials": {
       "patch": {
-        "description": "{\"inline_specials\": true|false|null}. null restores inheritance (or Off for the admin's server default). This changes display/ playback traversal only; manual/custom placements and original numbering remain authoritative.\n\nWho may call it: **profile**.",
+        "description": "{\"inline_specials\": true|false|null} (null is Off) places specials between regular episodes, for everyone. This changes display/playback traversal only; manual/custom placements and original numbering remain authoritative.\n\nWho may call it: **admin**.",
         "operationId": "setSpecials",
         "parameters": [
           {
@@ -16368,6 +16398,16 @@
             },
             "description": "Sign in (or choose a profile) first"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -16389,11 +16429,11 @@
             "description": "Something went wrong on the server"
           }
         },
-        "summary": ". null restores inheritance",
+        "summary": "(null is Off) places specials between regular episodes, for everyone",
         "tags": [
           "Series"
         ],
-        "x-arc-access": "profile"
+        "x-arc-access": "admin"
       }
     },
     "/settings": {
