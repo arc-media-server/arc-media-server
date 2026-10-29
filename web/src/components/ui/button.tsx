@@ -9,7 +9,7 @@ export const buttonVariants = cva(
       variant: {
         // Bright, high-contrast call to action (Play).
         primary: 'bg-foreground text-background hover:bg-foreground/90 shadow-lg shadow-black/20',
-        accent: 'bg-accent-strong text-accent-foreground hover:bg-accent',
+        accent: 'bg-accent-strong text-accent-foreground hover:bg-accent-strong/85',
         secondary: 'bg-surface-2/80 text-foreground hover:bg-surface-3 backdrop-blur-xl',
         ghost: 'text-muted hover:text-foreground hover:bg-surface-2',
         glass: 'bg-white/12 text-white hover:bg-white/20 backdrop-blur-xl',
