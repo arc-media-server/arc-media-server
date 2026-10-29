@@ -43,6 +43,11 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            all {
+                // Robolectric reaches into these on JDK 17 and later.
+                it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED")
+                it.maxHeapSize = "2g"
+            }
         }
     }
 }

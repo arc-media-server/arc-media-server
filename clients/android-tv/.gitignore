@@ -6,3 +6,5 @@ local.properties
 *.iml
 captures/
 .cxx/
+# Screenshots are generated (./gradlew recordRoborazziDebug), not kept in git.
+app/screenshots/

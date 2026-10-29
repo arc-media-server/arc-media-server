@@ -76,6 +76,18 @@ fun UiError.text(): String = when (this) {
     UiError.Unexpected -> stringResource(R.string.error_unexpected)
 }
 
+/**
+ * Moves the focus here once the target is on screen. Lazy rows compose their items a frame or two
+ * after the screen appears, so a single request right away can miss.
+ */
+suspend fun FocusRequester.requestWhenReady(): Boolean {
+    repeat(30) {
+        if (runCatching { requestFocus() }.getOrDefault(false)) return true
+        kotlinx.coroutines.delay(16)
+    }
+    return false
+}
+
 /** A spinner in Arc's accent, for the moments something is on its way. */
 @Composable
 fun Spinner(modifier: Modifier = Modifier, size: Dp = 40.dp) {
@@ -106,7 +118,7 @@ fun ErrorPane(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier
             Button(onClick = onRetry, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.action_retry)) }
         }
     }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) { focus.requestWhenReady() }
 }
 
 /** Shows [content] once the data's there, a spinner while it comes, or the error with Retry. */

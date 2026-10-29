@@ -15,9 +15,11 @@ const val DEFAULT_PORT = 8099
  * that can't be an address.
  */
 fun normalizeServerAddress(input: String): HttpUrl? {
-    var text = input.trim().trimEnd('/')
+    var text = input.trim()
     if (text.isEmpty() || text.any { it.isWhitespace() }) return null
     val hasScheme = text.startsWith("http://", ignoreCase = true) || text.startsWith("https://", ignoreCase = true)
+    if (hasScheme && text.substringAfter("://").trimEnd('/').isEmpty()) return null
+    text = text.trimEnd('/')
     if (!hasScheme) {
         if ("://" in text) return null
         text = "http://$text"

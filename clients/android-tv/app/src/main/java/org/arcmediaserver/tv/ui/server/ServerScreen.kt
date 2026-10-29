@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.arcmediaserver.tv.AppContainer
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.ArcLog
 import org.arcmediaserver.tv.data.display
 import org.arcmediaserver.tv.data.normalizeServerAddress
@@ -156,7 +157,7 @@ fun ServerScreen(state: ServerUiState, onEdit: (String) -> Unit, onConnect: () -
             }
         }
     }
-    LaunchedEffect(Unit) { runCatching { fieldFocus.requestFocus() } }
+    LaunchedEffect(Unit) { fieldFocus.requestWhenReady() }
 }
 
 @Composable

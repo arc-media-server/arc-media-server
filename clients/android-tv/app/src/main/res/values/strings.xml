@@ -99,6 +99,9 @@
     <string name="player_subtitles_off">Off</string>
     <string name="player_track">Track %1$d</string>
     <string name="player_forced">Forced</string>
+    <string name="player_mono">Mono</string>
+    <string name="player_stereo">Stereo</string>
+    <string name="player_channels">%1$d channels</string>
     <string name="player_converting">Converting · %1$s</string>
     <string name="player_repackaging">Repackaging · %1$s</string>
     <string name="player_direct">Playing the original file</string>

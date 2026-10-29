@@ -28,11 +28,19 @@ object PlaybackClock {
     }
 }
 
-/** Language codes compared by language: "en", "eng" and "en-GB" match. */
+/** ISO 639-2's bibliographic codes (which video files often use) and their terminology codes. */
+private val bibliographic = mapOf(
+    "alb" to "sqi", "arm" to "hye", "baq" to "eus", "bur" to "mya", "chi" to "zho", "cze" to "ces", "dut" to "nld",
+    "fre" to "fra", "geo" to "kat", "ger" to "deu", "gre" to "ell", "ice" to "isl", "mac" to "mkd", "mao" to "mri",
+    "may" to "msa", "per" to "fas", "rum" to "ron", "slo" to "slk", "tib" to "bod", "wel" to "cym",
+)
+
+/** Language codes compared by language: "en", "eng" and "en-GB" match; so do "fre" and "fr". */
 fun sameLanguage(a: String?, b: String?): Boolean {
     if (a.isNullOrBlank() || b.isNullOrBlank()) return false
     fun key(code: String): String {
         val base = code.substringBefore('-').substringBefore('_').lowercase()
+        bibliographic[base]?.let { return it }
         return runCatching { Locale.forLanguageTag(base).isO3Language }.getOrNull()?.takeIf { it.isNotEmpty() } ?: base
     }
     return key(a) == key(b)

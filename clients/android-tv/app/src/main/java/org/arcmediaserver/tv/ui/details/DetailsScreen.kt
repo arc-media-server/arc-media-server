@@ -54,6 +54,7 @@ import androidx.tv.material3.TabRow
 import androidx.tv.material3.TabRowDefaults
 import androidx.tv.material3.Text
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.Item
 import org.arcmediaserver.tv.data.Season
 import org.arcmediaserver.tv.data.cardFor
@@ -106,7 +107,7 @@ fun DetailsScreen(details: Details, onPlay: (Item, Long) -> Unit, onOpen: (Strin
             }
         }
     }
-    LaunchedEffect(item.id) { runCatching { primary.requestFocus() } }
+    LaunchedEffect(item.id) { primary.requestWhenReady() }
 }
 
 @Composable

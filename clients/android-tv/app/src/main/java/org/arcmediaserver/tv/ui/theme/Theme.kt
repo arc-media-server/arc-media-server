@@ -1,6 +1,8 @@
 package org.arcmediaserver.tv.ui.theme
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.tv.material3.LocalContentColor
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -76,5 +78,8 @@ private val typography = Typography(
 
 @Composable
 fun ArcTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme, typography = typography, content = content)
+    MaterialTheme(colorScheme = scheme, typography = typography) {
+        // Text outside a Surface takes the page's colour rather than black.
+        CompositionLocalProvider(LocalContentColor provides ArcColors.Foreground, content = content)
+    }
 }

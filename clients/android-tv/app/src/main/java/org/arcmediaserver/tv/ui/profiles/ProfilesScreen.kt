@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.arcmediaserver.tv.AppContainer
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.ApiException
 import org.arcmediaserver.tv.data.ArcLog
 import org.arcmediaserver.tv.data.Profile
@@ -188,7 +189,7 @@ fun ProfilesScreen(
                         ProfileTile(p, onClick = { onChoose(p) }, modifier = if (i == 0) Modifier.focusRequester(first) else Modifier)
                     }
                 }
-                LaunchedEffect(profiles) { runCatching { first.requestFocus() } }
+                LaunchedEffect(profiles) { first.requestWhenReady() }
                 val message = when {
                     state.needsPassword -> stringResource(R.string.profiles_needs_password)
                     state.error != null -> state.error.text()
@@ -258,10 +259,10 @@ private fun PinPad(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> U
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Avatar(prompt.profile, 88.dp)
-        Spacer(Modifier.height(18.dp))
-        Text(stringResource(R.string.pin_title, prompt.profile.name), style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(22.dp))
+        Avatar(prompt.profile, 56.dp)
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.pin_title, prompt.profile.name), style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             repeat(4) { i ->
                 Box(
@@ -275,25 +276,25 @@ private fun PinPad(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> U
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
             if (prompt.wrong) stringResource(R.string.pin_wrong) else " ",
             style = MaterialTheme.typography.bodyMedium,
             color = ArcColors.Error,
         )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(10.dp))
         val keys = listOf("123", "456", "789", " 0<")
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             keys.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { k ->
                         when (k) {
-                            ' ' -> Spacer(Modifier.size(72.dp))
+                            ' ' -> Spacer(Modifier.size(56.dp))
                             '<' -> PadKey(onClick = onDelete) {
                                 Icon(ArcIcons.Backspace, contentDescription = stringResource(R.string.pin_delete), modifier = Modifier.size(26.dp))
                             }
                             else -> PadKey(onClick = { onDigit(k) }, modifier = if (k == '5') Modifier.focusRequester(five) else Modifier) {
-                                Text(k.toString(), style = MaterialTheme.typography.headlineMedium)
+                                Text(k.toString(), style = MaterialTheme.typography.headlineSmall)
                             }
                         }
                     }
@@ -301,14 +302,14 @@ private fun PinPad(prompt: PinPrompt, onDigit: (Char) -> Unit, onDelete: () -> U
             }
         }
     }
-    LaunchedEffect(prompt.profile.id) { runCatching { five.requestFocus() } }
+    LaunchedEffect(prompt.profile.id) { five.requestWhenReady() }
 }
 
 @Composable
 private fun PadKey(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = modifier.size(72.dp),
+        modifier = modifier.size(56.dp),
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
         colors = ClickableSurfaceDefaults.colors(

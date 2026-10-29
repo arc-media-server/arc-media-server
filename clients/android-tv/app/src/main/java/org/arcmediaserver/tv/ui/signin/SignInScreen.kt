@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.arcmediaserver.tv.AppContainer
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.ArcLog
 import org.arcmediaserver.tv.data.LinkPoll
 import org.arcmediaserver.tv.data.display
@@ -155,7 +156,7 @@ fun SignInScreen(state: SignInUiState, onNewCode: () -> Unit, onChangeServer: ()
                     OutlinedButton(onClick = onNewCode, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.signin_new_code)) }
                     OutlinedButton(onClick = onChangeServer) { Text(stringResource(R.string.signin_change_server)) }
                 }
-                LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+                LaunchedEffect(Unit) { focus.requestWhenReady() }
             }
             Spacer(Modifier.width(64.dp))
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

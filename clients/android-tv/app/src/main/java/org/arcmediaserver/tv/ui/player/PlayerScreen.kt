@@ -67,6 +67,7 @@ import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
 import org.arcmediaserver.tv.ArcApplication
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.AudioTrack
 import org.arcmediaserver.tv.data.SubtitleTrack
 import org.arcmediaserver.tv.playback.sameLanguage
@@ -109,7 +110,7 @@ fun PlayerRoute(itemId: String, startMs: Long, onClose: () -> Unit) {
         vm.seekTo(target)
         scrub = null
     }
-    LaunchedEffect(controls) { if (!controls) runCatching { rootFocus.requestFocus() } }
+    LaunchedEffect(controls) { if (!controls) rootFocus.requestWhenReady() }
 
     BackHandler(enabled = panel != Panel.None || controls) {
         if (panel != Panel.None) panel = Panel.None else controls = false
@@ -196,7 +197,7 @@ fun PlayerRoute(itemId: String, startMs: Long, onClose: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
+    LaunchedEffect(Unit) { rootFocus.requestWhenReady() }
 }
 
 @Composable
@@ -209,7 +210,7 @@ private fun StoppedPane(message: String, onClose: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Button(onClick = onClose, modifier = Modifier.focusRequester(focus)) { Text(stringResource(R.string.player_close)) }
     }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) { focus.requestWhenReady() }
 }
 
 private fun languageName(code: String?): String? =
@@ -220,9 +221,17 @@ private fun audioName(t: AudioTrack, i: Int): String = languageName(t.language) 
 
 private val codecNames = mapOf("aac" to "AAC", "ac3" to "Dolby Digital", "eac3" to "Dolby Digital Plus", "truehd" to "Dolby TrueHD", "dts" to "DTS", "flac" to "FLAC", "mp3" to "MP3", "opus" to "Opus", "vorbis" to "Vorbis")
 
+@Composable
 private fun audioDetail(t: AudioTrack): String = listOfNotNull(
     codecNames[t.codec] ?: t.codec.uppercase().takeIf { it.isNotBlank() },
-    when (t.channels) { 0 -> null; 1 -> "Mono"; 2 -> "Stereo"; 6 -> "5.1"; 8 -> "7.1"; else -> "${t.channels} ch" },
+    when (t.channels) {
+        0 -> null
+        1 -> stringResource(R.string.player_mono)
+        2 -> stringResource(R.string.player_stereo)
+        6 -> "5.1"
+        8 -> "7.1"
+        else -> stringResource(R.string.player_channels, t.channels)
+    },
     t.title,
 ).joinToString(" · ")
 
@@ -291,7 +300,7 @@ fun PlayerControls(
             }
         }
     }
-    LaunchedEffect(Unit) { runCatching { playFocus.requestFocus() } }
+    LaunchedEffect(Unit) { playFocus.requestWhenReady() }
 }
 
 /** Times either side of a bar; focused, left and right move along it in 10-second steps. */
@@ -384,11 +393,5 @@ private fun TrackPanel(title: String, options: List<TrackOption>) {
             }
         }
     }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-}
-
-@Suppress("unused")
-@Composable
-private fun CloseButton(onClose: () -> Unit) {
-    OutlinedButton(onClick = onClose) { Text(stringResource(R.string.player_close)) }
+    LaunchedEffect(Unit) { focus.requestWhenReady() }
 }

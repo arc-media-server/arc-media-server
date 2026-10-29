@@ -52,6 +52,7 @@ import androidx.tv.material3.NavigationDrawerScope
 import androidx.tv.material3.Text
 import androidx.tv.material3.rememberDrawerState
 import org.arcmediaserver.tv.R
+import org.arcmediaserver.tv.ui.components.requestWhenReady
 import org.arcmediaserver.tv.data.CardStyle
 import org.arcmediaserver.tv.data.HomeRowSpec
 import org.arcmediaserver.tv.data.Item
@@ -236,7 +237,7 @@ fun HomeContent(rows: List<HomeRowState>, onOpen: (Item) -> Unit, onRetryRow: (H
     val ready = visible.any { it.cards is LoadState.Ready }
     LaunchedEffect(ready) {
         if (ready && !focusedOnce) {
-            focusedOnce = runCatching { firstCard.requestFocus() }.isSuccess
+            focusedOnce = firstCard.requestWhenReady()
         }
     }
 }
@@ -340,17 +341,17 @@ fun LibraryContent(state: LoadState<LibraryPage>, onOpen: (Item) -> Unit, onRetr
             }
             val landscape = page.library.kind == "videos"
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(if (landscape) 236.dp else PosterWidth),
+                columns = GridCells.Adaptive(if (landscape) 220.dp else 112.dp),
                 contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 16.dp, bottom = 48.dp),
                 horizontalArrangement = Arrangement.spacedBy(22.dp),
                 verticalArrangement = Arrangement.spacedBy(26.dp),
             ) {
                 itemsIndexed(page.items, key = { _, it -> it.id }) { i, item ->
-                    val mod = Modifier.onFocusChanged { if (it.hasFocus && i >= page.items.size - 18) onNearEnd() }
+                    val mod = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus && i >= page.items.size - 18) onNearEnd() }
                     MediaCardView(cardFor(item), landscape = landscape, onClick = { onOpen(item) }, modifier = if (i == 0) mod.focusRequester(first) else mod)
                 }
             }
         }
-        LaunchedEffect(page.library.id) { runCatching { first.requestFocus() } }
+        LaunchedEffect(page.library.id) { first.requestWhenReady() }
     }
 }
