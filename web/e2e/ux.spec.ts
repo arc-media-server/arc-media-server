@@ -216,13 +216,12 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
-  await nav.getByRole('link', { name: 'Converting', exact: true }).click();
+  await page.getByRole('heading', { name: 'Converting', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
   await expect(playback).toBeInViewport();
   await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
-  await page.goBack(); // Subsection anchor, then group selection both participate in history.
-  await page.goBack();
+  await page.goBack(); // Group selection participates in browser history.
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
   for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
     await page.goto('/settings?section=' + group);
@@ -716,6 +715,14 @@ test('invalid library storage is ignored and unavailable storage leaves URL cont
   await expect(page.getByRole('button', { name: 'Remove filter: Unwatched', exact: true })).toBeVisible();
 });
 
+test('Recently Added heading opens explicit added sorting instead of remembered title order', async ({ page }) => {
+  const { lib } = await seed(page);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Recently Added in ' + lib.name, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp('/library/' + lib.id + '\\?sort=added'));
+  await expect(page.getByRole('button', { name: 'Sort by Recently Added', exact: true })).toBeVisible();
+});
+
 test('browse sort direction is remembered per profile on this device', async ({ page }) => {
   const { lib } = await seed(page);
   await page.goto('/library/' + lib.id);
@@ -767,6 +774,33 @@ test('compact playback carries on to the next episode after its countdown', asyn
   await expect(video).toHaveCount(1); // Wait for the previous player's exit animation.
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
+});
+
+test('maintenance Run explains accepted, queued, waiting, running and finished states', async ({ page }) => {
+  let task = { kind: 'database', title: 'Optimize database', enabled: true, requested: false,
+    state: 'scheduled', detail: 'Waiting for maintenance', pending: 0, completed: 0, failed: 0,
+    last_run: undefined as undefined | { started_at: number; finished_at: number; last_success_at: number; detail: string } };
+  await page.route('**/api/maintenance', route => route.fulfill({ json: [task] }));
+  let requests = 0;
+  await page.route('**/api/maintenance/database/run', async route => {
+    requests++;
+    task = { ...task, requested: true, state: 'queued', detail: 'Run requested; waiting for an available background task slot' };
+    await route.fulfill({ status: 202, json: { queued: true } });
+  });
+  await page.goto('/settings?section=maintenance');
+  const run = page.getByRole('button', { name: 'Run Optimize database now', exact: true });
+  await run.click();
+  await expect(page.getByText('Queued', { exact: true })).toBeVisible();
+  await expect(run).toBeDisabled();
+  expect(requests).toBe(1);
+  task = { ...task, state: 'paused', detail: 'Waiting for playback or scanning' };
+  await expect(page.getByText('Waiting for playback or scanning', { exact: false })).toBeVisible();
+  task = { ...task, state: 'running', detail: 'Checking database integrity' };
+  await expect(page.getByText('Running', { exact: true })).toBeVisible();
+  task = { ...task, requested: false, state: 'completed', detail: 'Next automatic run is weekly',
+    last_run: { started_at: 100, finished_at: 110, last_success_at: 110, detail: 'Compaction not needed' } };
+  await expect(page.getByText(/Last result.*Compaction not needed/)).toBeVisible();
+  await expect(run).toBeEnabled();
 });
 
 test('diagnostics can be enabled, downloaded and retained across restart with admin protection', async ({ page }, info) => {
@@ -867,8 +901,8 @@ test('source labels keep HDR and profile-based audio with their own movie versio
   const { item } = await seed(page);
   const original = await (await page.request.get('/api/items/' + item.id)).json();
   const base = original.files[0];
-  const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, streams: [
-    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled', aspect_ratio: 2.39 },
+  const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, bitrate: 12500000, streams: [
+    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled', aspect_ratio: 2.39, bitrate: 10000000, frame_rate: 23.976, bit_depth: 10, dolby_vision_profile: 8, color_primaries: 'bt2020' },
     { index: 1, kind: 'audio', codec: 'truehd', profile: audioProfile, channels: 8, language: 'eng', is_default: true, is_forced: false },
   ] });
   const files = [file(101, 'Cinema', true, true, 'Dolby TrueHD + Dolby Atmos'), file(102, 'Standard', false, false, '')];
@@ -885,9 +919,15 @@ test('source labels keep HDR and profile-based audio with their own movie versio
     await expect(hero.getByText('Dolby TrueHD 7.1', { exact: true })).toBeVisible();
     await expect(hero.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
     await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Media information for ' + item.title, exact: true }).click();
     await expect(page.getByText('3840×2160 · 2.39:1', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Video bitrate: 10.0 Mb/s', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('23.976 fps', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('10-bit', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Dolby Vision profile 8', { exact: true }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`source-formats-${width}.png`), fullPage: true });
+    await page.keyboard.press('Escape');
   }
   files[1].edition = 'Cinema';
   await page.goto('/movie/' + item.id);
@@ -899,7 +939,7 @@ test('source labels keep HDR and profile-based audio with their own movie versio
 test('series file details show episode source tracks without claiming series-wide HDR', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  const button = page.getByRole('button', { name: /^File details for / }).first();
+  const button = page.getByRole('button', { name: /^Media information for / }).first();
   await expect(button).toBeVisible();
   // Intercept only the on-demand item read; the series and episode list remain real.
   await page.route('**/api/items/*', async r => {
@@ -914,7 +954,7 @@ test('series file details show episode source tracks without claiming series-wid
     ] })) } });
   });
   await button.click();
-  const dialog = page.getByRole('dialog', { name: /^File details:/ });
+  const dialog = page.getByRole('dialog', { name: /^Media information:/ });
   await expect(dialog.getByText(/1080p · HEVC · HLG/)).toBeVisible();
   await expect(dialog.getByText('Dolby Digital+ Atmos · 5.1', { exact: true })).toBeVisible();
   await expect(dialog.getByText('DTS-HD MA · DTS:X · 7.1', { exact: true })).toBeVisible();
@@ -1100,4 +1140,17 @@ test('poster menu: Watchlist changes show straight away and a slow action still 
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: /Playback started|Added/ })).toBeVisible();
   await page.unroute('**/api/series/*/seasons*');
+});
+
+
+test('Dashboard distinguishes direct play, direct stream and transcoding', async ({ page }) => {
+  const { item } = await seed(page);
+  await page.route('**/api/playing', r => r.fulfill({ json: ['direct', 'remux', 'transcode'].map((method, i) => ({
+    id: 'playing-' + i, item, profile: { id: 'admin', name: 'Admin', color: '#888' }, method, state: 'playing', device: 'Fixture', address: '127.0.0.1', started_at: 1,
+    position_ms: 0, duration_ms: 120000, throttled: method === 'transcode',
+  })) }));
+  await page.goto('/dashboard');
+  await expect(page.getByText('Direct Play', { exact: true })).toBeVisible();
+  await expect(page.getByText('Direct Stream', { exact: true })).toBeVisible();
+  await expect(page.getByText('Transcoding (throttled)', { exact: true })).toBeVisible();
 });

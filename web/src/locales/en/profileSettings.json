@@ -13,7 +13,7 @@
     "playedWhenAVideo": "Played when a video has it. Choosing a language in the player changes this too.",
     "useTheFileS": "Use the file's default",
     "internetStreamingQuality": "Internet streaming quality",
-    "internetStreamingQualityHint": "Set the default quality for streaming video over the internet. If quality is set too high, videos will start slowly and pause frequently. Only applies away from home; videos already within it play at their original quality.",
+    "internetStreamingQualityHint": "Applies away from home. Compatible videos within the bitrate and resolution limit keep their original quality; codec or subtitle support can still require conversion. Choose a limit your server's upload and your connection can sustain.",
     "maximumQuality": "Maximum",
     "autoPlay": "Auto-Play",
     "playTheNextEpisode": "Play the next episode after a short countdown.",
@@ -21,10 +21,6 @@
     "skipIntrosAndRecaps": "Skip intros and recaps without pressing Skip.",
     "themeMusic": "Theme music",
     "playAShowS": "Play a show's or movie's theme quietly on its page.",
-    "home": "Home",
-    "homeRows": "Rows and featured banner",
-    "homeRowsHint": "Choose, order and style the rows on Home, and whether the featured banner shows, in Edit Home.",
-    "editHome": "Edit Home…",
     "subtitles": "Subtitles",
     "choosingSubtitlesInThe": "Choosing subtitles in the player updates these too.",
     "showSubtitles": "Show subtitles",
@@ -60,15 +56,14 @@
     "serverDescription": "Server settings apply to everyone. Only admins can change these."
   },
   "libraryNavigationSettings": {
-    "libraryNavigationOrder": "Library navigation order",
     "libraryOrder": "Library order",
     "theOrderOfLibraries": "The order of libraries in your sidebar and menus.",
-    "loadingLibraries": "Loading libraries…",
-    "noLibrariesAvailable": "No libraries available.",
-    "saved": "Saved",
     "resetLibraryOrder": "Reset library order",
     "moveUp": "Move {{name}} up",
-    "moveDown": "Move {{name}} down"
+    "moveDown": "Move {{name}} down",
+    "cancel": "Cancel",
+    "save": "Save",
+    "dragHint": "Drag libraries to reorder them, or use the up and down buttons. Changes apply to your profile after saving."
   },
   "providerCredits": {
     "thisProductUsesThe": "This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and show details, artwork and cast come from The Movie Database (TMDB).",

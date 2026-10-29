@@ -40,7 +40,8 @@
     "newEpisodes_other": "{{count}} new episodes",
     "season": "Season {{season}}",
     "seasonEpisodes_one": "{{season}} · {{count}} new episode",
-    "seasonEpisodes_other": "{{season}} · {{count}} new episodes"
+    "seasonEpisodes_other": "{{season}} · {{count}} new episodes",
+    "selectionScope": "Loaded titles in {{row}} · {{library}}"
   },
   "rowDescription": {
     "continueMerged": "What you're part-way through, and the next episode of each show",

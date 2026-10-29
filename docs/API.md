@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-174 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+177 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -229,6 +229,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/libraries/{id}/folders` | profile | ?path= browses an Other videos library folder by folder: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder. |
 | GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
 | GET | `/api/libraries/{id}/recommended` | profile | Is a library's Recommended view for the profile, in this order: Continue Watching (what it's part-way through here and the next episode of shows it's watching), Recently Released, Recently Added, Start Watching (shows not started), "Because you watched" rows for its recent titles, Top Rated, Recently Watched (episodes, in a TV library), Rediscover (finished more than six months ago), more of its favourite genres, the top titles of a genre and of an actor or director (both changing daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre, person_id, role) for the app to title in the viewer's language, plus an English title for apps written before rows had a type; rows without anything are left out. |
+| GET | `/api/libraries/{id}/recommended/layout` | admin | Returns the library's shared row-family order, visibility and style . |
+| PUT | `/api/libraries/{id}/recommended/layout` | admin | {"rows":[{"type","hidden","style"}]} sets shared Recommended rows . Empty rows resets defaults; omitted/new families remain visible. Styles: poster, thumb, arc or empty for automatic. |
 | POST | `/api/libraries` | admin | {"name", "kind", "paths", "source_ordering"} adds a library and starts scanning it. |
 | PATCH | `/api/libraries/{id}` | admin | {"name", "paths", "source_ordering", "trickplay"} changes a library (not its kind) and rescans it. |
 | DELETE | `/api/libraries/{id}` | admin | Removes a library and everything AMS knows about it, after backing up the database. Media files aren't touched. |
@@ -237,7 +239,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/libraries/{id}/health` | admin | Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. watch_problem describes failed folder notifications and the configured scheduled fallback. |
 | GET | `/api/libraries/{id}/markers` | admin | Lists the library's shows and movies with how many of their files have intro and credits markers and how many have been checked, for Library Health. |
 | POST | `/api/libraries/{id}/compatibility` | admin | {"caps": {...}} says how a library's titles would play on a player that can play those things: how many directly, repackaged or converted, why, and which titles need converting. |
-| POST | `/api/libraries/{id}/empty-trash` | admin | Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. |
+| POST | `/api/libraries/{id}/empty-trash` | admin | Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. ?safe=1 additionally requires fresh complete-scan proof and readable unchanged roots; unsafe/busy libraries return a skipped reason. |
 
 ### library-previews
 
@@ -393,6 +395,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/transcode/{sid}/{file}` | profile | Serves a session's playlist or segments. |
 | POST | `/api/transcode/{sid}/ping` | profile | Keeps a paused player's session alive. |
 | DELETE | `/api/transcode/{sid}` | profile | Ends a session (the player closed or seeked). |
+
+### transcoder
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/transcoder/detect` | admin | Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected. |
 
 ### watchlist
 

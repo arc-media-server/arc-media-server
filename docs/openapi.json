@@ -206,6 +206,9 @@
           "pending": {
             "type": "integer"
           },
+          "requested": {
+            "type": "boolean"
+          },
           "state": {
             "type": "string"
           },
@@ -1279,8 +1282,14 @@
           "last_success_at": {
             "type": "integer"
           },
+          "paused": {
+            "type": "boolean"
+          },
           "started_at": {
             "type": "integer"
+          },
+          "stopped": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -2391,6 +2400,23 @@
         ],
         "type": "object"
       },
+      "RecommendedLook": {
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          },
+          "style": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "RecommendedResponse": {
         "properties": {
           "rows": {
@@ -2423,6 +2449,9 @@
             "type": "integer"
           },
           "role": {
+            "type": "string"
+          },
+          "style": {
             "type": "string"
           },
           "title": {
@@ -11397,13 +11426,20 @@
     },
     "/libraries/{id}/empty-trash": {
       "post": {
-        "description": "Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched.\n\nWho may call it: **admin**.",
+        "description": "Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. ?safe=1 additionally requires fresh complete-scan proof and readable unchanged roots; unsafe/busy libraries return a skipped reason.\n\nWho may call it: **admin**.",
         "operationId": "emptyTrash",
         "parameters": [
           {
             "in": "path",
             "name": "id",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "safe",
             "schema": {
               "type": "string"
             }
@@ -11957,6 +11993,203 @@
           "Libraries"
         ],
         "x-arc-access": "profile"
+      }
+    },
+    "/libraries/{id}/recommended/layout": {
+      "get": {
+        "description": "Returns the library's shared row-family order, visibility and style .\n\nWho may call it: **admin**.",
+        "operationId": "getRecommendedLayout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Returns the library's shared row-family order, visibility and style ",
+        "tags": [
+          "Libraries"
+        ],
+        "x-arc-access": "admin"
+      },
+      "put": {
+        "description": "{\"rows\":[{\"type\",\"hidden\",\"style\"}]} sets shared Recommended rows . Empty rows resets defaults; omitted/new families remain visible. Styles: poster, thumb, arc or empty for automatic.\n\nWho may call it: **admin**.",
+        "operationId": "setRecommendedLayout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "rows": {
+                    "items": {
+                      "$ref": "#/components/schemas/RecommendedLook"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "rows"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "rows": {
+                      "items": {
+                        "$ref": "#/components/schemas/RecommendedLook"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "rows"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Sets shared Recommended rows",
+        "tags": [
+          "Libraries"
+        ],
+        "x-arc-access": "admin"
       }
     },
     "/libraries/{id}/scan": {
@@ -17247,6 +17480,62 @@
           "Transcode"
         ],
         "x-arc-access": "profile"
+      }
+    },
+    "/transcoder/detect": {
+      "post": {
+        "description": "Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected.\n\nWho may call it: **admin**.",
+        "operationId": "detectHardware",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted; the work continues in the background"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Starts one bounded hardware encoding recheck",
+        "tags": [
+          "Transcoder"
+        ],
+        "x-arc-access": "admin"
       }
     },
     "/watchlist": {

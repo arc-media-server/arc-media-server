@@ -337,7 +337,7 @@ function EpisodeRow({
         <AddToPlaylistButton
           item={{ ...ep, series_title: seriesTitle }}
           size="icon"
-          className="mt-0.5 size-8 shrink-0 bg-transparent opacity-100 md:opacity-0 transition-opacity hover:bg-surface-2 focus-visible:opacity-100 group-hover:opacity-100 [&_svg]:size-4"
+          className="mt-0.5 size-8 shrink-0 bg-transparent hover:bg-surface-2 [&_svg]:size-4"
         />
       )}
       {ep.available && (
@@ -346,7 +346,7 @@ function EpisodeRow({
           watched={watched}
           size="sm"
           variant="ghost"
-          className={cn('mt-0.5 shrink-0 transition-opacity', !watched && 'opacity-100 md:opacity-0 focus-visible:opacity-100 group-hover:opacity-100')}
+          className="mt-0.5 shrink-0"
         />
       )}
       {onEdit && (
@@ -357,7 +357,7 @@ function EpisodeRow({
                 variant="ghost"
                 size="icon"
                 aria-label={t('titles:series.moreEpisode', { title: ep.title })}
-                className="mt-0.5 size-8 shrink-0 opacity-100 md:opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-4"
+                className="mt-0.5 size-8 shrink-0  [&_svg]:size-4"
               >
                 <MoreHorizontal />
               </Button>

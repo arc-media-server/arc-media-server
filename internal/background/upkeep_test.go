@@ -94,7 +94,7 @@ func TestUpkeepYieldsAndReportsInterruptedWork(t *testing.T) {
 		}
 	})
 	last, _ := st.MaintenanceRun(ctx, "cache")
-	if !strings.Contains(last.Error, "Paused") || last.LastSuccessAt != 0 {
+	if !last.Paused || last.Error != "" || last.LastSuccessAt != 0 {
 		t.Fatalf("paused incorrectly completed: %+v", last)
 	}
 	m.SetPlayback(nil)
@@ -130,5 +130,76 @@ func TestUpkeepStateErrorsAreReported(t *testing.T) {
 		if task.Kind == "database" && task.State != "failed" {
 			t.Fatalf("unavailable status reported as healthy: %+v", task)
 		}
+	}
+}
+
+func TestManualUpkeepQueuedStatusAndPreemption(t *testing.T) {
+	ctx, _, m, _ := fixture(t)
+	m.Configure(settings.Settings{DatabaseUpkeepEnabled: true})
+	m.now = func() time.Time { return time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC) }
+	if err := m.RunNow(ctx, "database"); err != nil {
+		t.Fatal(err)
+	}
+	find := func() Status {
+		for _, s := range m.Snapshot(ctx) {
+			if s.Kind == "database" {
+				return s
+			}
+		}
+		t.Fatal("missing database task")
+		return Status{}
+	}
+	if s := find(); !s.Requested || s.State != "queued" {
+		t.Fatalf("manual request hidden outside window: %+v", s)
+	}
+	m.SetPlayback(func() bool { return true })
+	if s := find(); !s.Requested || s.State != "paused" || !strings.Contains(s.Detail, "playback") {
+		t.Fatalf("busy reason hidden: %+v", s)
+	}
+	m.SetPlayback(nil)
+	m.upkeepPass(ctx, "database", func(context.Context, func() bool) (string, error) {
+		return "Interrupted synthetic work", context.Canceled
+	})
+	if !m.Forced("database") {
+		t.Fatal("preemption lost explicit request")
+	}
+	if _, recent := m.Activity.Snapshot(); len(recent) != 1 || recent[0].Error != "" {
+		t.Fatalf("expected pause treated as failure: %+v", recent)
+	}
+	m.upkeepPass(ctx, "database", func(context.Context, func() bool) (string, error) { return "Done", nil })
+	if s := find(); s.Requested || s.State != "completed" || s.LastRun == nil || s.LastRun.Paused {
+		t.Fatalf("completion lost: %+v", s)
+	}
+}
+
+func TestUpkeepUserStopDoesNotReplayManualRequest(t *testing.T) {
+	ctx, st, m, _ := fixture(t)
+	m.Configure(settings.Settings{DatabaseUpkeepEnabled: true})
+	if err := m.RunNow(ctx, "database"); err != nil {
+		t.Fatal(err)
+	}
+	m.upkeepPass(ctx, "database", func(ctx context.Context, _ func() bool) (string, error) {
+		running, _ := m.Activity.Snapshot()
+		if len(running) != 1 || !m.Activity.Stop(running[0].ID) {
+			t.Fatal("could not stop upkeep")
+		}
+		<-ctx.Done()
+		return "Partial work preserved", ctx.Err()
+	})
+	last, err := st.MaintenanceRun(ctx, "database")
+	if err != nil || !last.Stopped || last.Error != "" || m.Forced("database") {
+		t.Fatalf("stop not respected: %+v %v", last, err)
+	}
+	called := false
+	m.upkeepPass(ctx, "database", func(context.Context, func() bool) (string, error) { called = true; return "unexpected", nil })
+	if called {
+		t.Fatal("stopped task immediately restarted")
+	}
+	if err := m.RunNow(ctx, "database"); err != nil {
+		t.Fatal(err)
+	}
+	m.upkeepPass(ctx, "database", func(context.Context, func() bool) (string, error) { called = true; return "Done", nil })
+	if !called {
+		t.Fatal("explicit retry could not start")
 	}
 }

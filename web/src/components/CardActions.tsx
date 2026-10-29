@@ -21,7 +21,7 @@ export interface CardHover {
 
 /** Shown while the card is hovered or has focus; each control answers the pointer quickly. */
 const reveal =
-  'cursor-pointer opacity-0 transition-[opacity,scale,background-color,color,box-shadow] duration-150 ease-out motion-reduce:transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-white';
+  '[@media(hover:none)]:opacity-100 cursor-pointer opacity-0 transition-[opacity,scale,background-color,color,box-shadow] duration-150 ease-out motion-reduce:transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-white';
 
 /** The small round buttons at the bottom (pencil, ⋯): a soft disc behind the icon on hover. */
 const iconButton =
@@ -49,14 +49,13 @@ const selectCircleHover =
  */
 export function CardScrim() {
   return (
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgb(0_0_0/0.38),rgb(0_0_0/0.12)_32%,rgb(0_0_0/0.12)_62%,rgb(0_0_0/0.5))] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:hidden" />
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgb(0_0_0/0.38),rgb(0_0_0/0.12)_32%,rgb(0_0_0/0.12)_62%,rgb(0_0_0/0.5))] opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" />
   );
 }
 
 /**
  * A poster's hover actions, as Plex's: a small circle to start choosing titles, Play in the
- * middle, the pencil to edit and "⋯" for everything else (also on right-click). Touch screens,
- * which can't hover, keep the plain card.
+ * middle, the pencil to edit and "⋯" for everything else (also on right-click). Touch screens keep the controls visible.
  */
 export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpen }: {
   item: Item;
@@ -84,7 +83,7 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
     <div
       className={cn(
         // Rides up with the artwork on hover, so the controls stay lined up with the badge.
-        'pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none [@media(hover:none)]:hidden',
+        'pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none',
         landscape ? 'aspect-video' : 'aspect-[2/3]',
       )}
     >

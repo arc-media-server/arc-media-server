@@ -14,10 +14,11 @@ export function SourceFilesButton({ id, title }: { id: string; title: string }) 
   const [open, setOpen] = useState(false);
   const query = useQuery({ queryKey: ['item', id], queryFn: () => api.item(id), enabled: open });
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild><Button size="icon" variant="ghost" aria-label={t('titles:sourceFormats.forTitle', { title })}><Info className="size-4" /></Button></DialogTrigger>
+    <DialogTrigger asChild><Button size="sm" variant="ghost" aria-label={t('titles:sourceFormats.forTitle', { title })}><Info className="size-4" />{t("titles:sourceFormats.mediaInformation")}</Button></DialogTrigger>
     <DialogContent title={t('titles:sourceFormats.title', { title })} description={t("titles:sourceFormats.description")}>
       <ErrorNotice error={query.error} onRetry={() => void query.refetch()} />
       {query.isPending && <p role="status">{t("titles:sourceFormats.loadingFileDetails")}</p>}
+      {query.data && !query.data.files?.length && <p className="text-sm text-muted">{t("titles:sourceFormats.noFiles")}</p>}
       {query.data?.files?.map(f => <FileDetails key={f.id} file={f} several={(query.data?.files?.length ?? 0) > 1} compact />)}
     </DialogContent>
   </Dialog>;
@@ -28,6 +29,13 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
   const video = fmt.videoStream(file);
   const audio = fmt.audioStreams(file);
   const subs = fmt.subtitleStreams(file);
+  const rate = (value?: number) => value && value > 0 ? value >= 1e6
+    ? t('titles:sourceFormats.megabits', { value: fmt.fixed(value / 1e6, 1) })
+    : t('titles:sourceFormats.kilobits', { value: fmt.fixed(value / 1e3, 0) }) : '';
+  const inspection = video?.hdr_probe_status === 'sampled' ? t('titles:sourceFormats.sampled')
+    : video?.hdr_probe_status === 'stream' ? t('titles:sourceFormats.streamInspection')
+    : video?.hdr_probe_status === 'unavailable' ? t('titles:sourceFormats.inspectionUnavailable') : '';
+
   return (
     <section className={compact ? "mb-6" : "mx-6 mt-10 md:mx-10"}>
       <h2 className="mb-4 text-lg font-semibold">
@@ -38,14 +46,20 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
       <div className={`grid gap-px overflow-hidden rounded-2xl bg-border ring-1 ring-border sm:grid-cols-2 ${compact ? "" : "lg:grid-cols-4"}`}>
         <Detail label={t("titles:sourceFormats.video")}>
           {video ? [fmt.resolution(video.width, video.height), fmt.codec(video.codec), ...fmt.sourceFormats(video)].filter(Boolean).join(' · ') : '—'}
-          {video && <span className="block text-subtle">{[`${video.width}×${video.height}`, fmt.aspectRatio(video.aspect_ratio)].filter(Boolean).join(' · ')}</span>}
+          {video && <span className="block text-subtle">{[video.width && video.height ? `${video.width}×${video.height}` : undefined, fmt.aspectRatio(video.aspect_ratio)].filter(Boolean).join(' · ')}</span>}
+          {!!video?.frame_rate && <span className="block text-subtle">{t('titles:sourceFormats.frameRate', { value: fmt.fixed(video.frame_rate, 3) })}</span>}
+          {!!video?.bitrate && <span className="block text-subtle">{t('titles:sourceFormats.trackBitrate', { value: rate(video.bitrate) })}</span>}
+          {!!video?.bit_depth && <span className="block text-subtle">{t('titles:sourceFormats.bitDepth', { count: video.bit_depth })}</span>}
+          {!!video?.dolby_vision_profile && <span className="block text-subtle">{t('titles:sourceFormats.dvProfile', { profile: video.dolby_vision_profile })}</span>}
+          {(video?.color_primaries || video?.color_transfer || video?.pix_fmt) && <span className="block text-subtle">{[video.color_primaries, video.color_transfer, video.pix_fmt].filter(Boolean).join(' · ')}</span>}
+          {inspection && <span className="block text-subtle">{inspection}</span>}
         </Detail>
         <Detail label={t("titles:sourceFormats.audio")}>
           {audio.length === 0
             ? '—'
             : audio.map((a) => (
                 <span key={a.index} className="block">
-                  {[fmt.language(a.language), fmt.codec(a.codec, a.profile), fmt.channels(a.channels)].filter(Boolean).join(' · ')}
+                  {[fmt.language(a.language), fmt.codec(a.codec, a.profile), fmt.channels(a.channels), rate(a.bitrate)].filter(Boolean).join(' · ')}
                 </span>
               ))}
         </Detail>
@@ -59,7 +73,7 @@ export function FileDetails({ file, several, compact }: { file: MediaFile; sever
               ))}
         </Detail>
         <Detail label={t("titles:sourceFormats.file")}>
-          {[file.container?.toUpperCase(), fmt.fileSize(file.size)].filter(Boolean).join(' · ')}
+          {[file.container?.toUpperCase(), fmt.fileSize(file.size), rate(file.bitrate)].filter(Boolean).join(' · ')}
           {file.missing && <span className="block text-warning">{t("titles:sourceFormats.missingFromDisk")}</span>}
         </Detail>
       </div>

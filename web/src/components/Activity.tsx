@@ -69,7 +69,7 @@ export function ActivityButton({ className }: { className?: string }) {
       >
         {busy ? <Loader2 className="size-[18px] animate-spin" /> : <Zap className="size-[18px]" />}
         {active.length > 1 && (
-          <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-accent-strong text-[10px] font-semibold text-white">
             {active.length}
           </span>
         )}

@@ -48,6 +48,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
 - **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
+- **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android
+  (Kotlin, Compose for TV, Media3), and uses only `/api/v1`; API gaps it needs are fixed here.
 - **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
 
 ## Workflow (owner, 26 October; applies to Claude and Codex alike)
@@ -69,12 +71,6 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
   logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
   and share the existing one rather than writing a second copy.
-- Logging (owner, 29 October): every feature logs enough to troubleshoot it, without slowing Arc.
-  Info: one line per outcome of background work (started/finished, with counts and duration) and
-  decisions worth explaining later (e.g. why playback converts). Warn/Error: every failure, with
-  what failed (title, provider, error). Per-item and per-request detail only at Debug (recorded
-  while Settings' detailed logging is on). Nothing at Info or above inside per-file, per-request
-  or per-segment loops; never keys, passwords or tokens. Each PR says what it logs.
 - The /api/v1 promise is enforced: `docs/api-v1-contract.txt` lists every endpoint, success status
   and response field apps may rely on, and a test fails if one disappears or changes type. Add
   fields instead of renaming or removing them; delete a contract line only for a deliberate break.

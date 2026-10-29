@@ -155,6 +155,7 @@ func New(d Deps) http.Handler {
 
 	// Every profile: watching.
 	user, admin := s.signedIn, s.adminOnly
+	mux.HandleFunc("POST /api/transcoder/detect", admin(s.detectHardware))
 	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
 	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
@@ -236,6 +237,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
 	mux.HandleFunc("GET /api/items/{id}/similar", user(s.similar))
 	mux.HandleFunc("GET /api/libraries/{id}/recommended", user(s.recommended))
+	mux.HandleFunc("GET /api/libraries/{id}/recommended/layout", admin(s.getRecommendedLayout))
+	mux.HandleFunc("PUT /api/libraries/{id}/recommended/layout", admin(s.setRecommendedLayout))
 	mux.HandleFunc("PUT /api/items/{id}/rating", user(s.setUserRating))
 	mux.HandleFunc("PUT /api/items/{id}/watchlist", user(s.setWatchlist))
 	mux.HandleFunc("GET /api/watchlist", user(s.watchlist))
