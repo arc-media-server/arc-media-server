@@ -120,8 +120,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/diagnostics` | admin | Reports temporary detailed logging and bounded retention . |
-| PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for thirty minutes; false stops them . |
-| GET | `/api/diagnostics/download` | admin | Exports redacted retained logs and build information as a ZIP . No database, settings dump or media files are included. |
+| PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for two hours; false stops them . |
+| GET | `/api/diagnostics/download` | admin | Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP . No database, settings dump or media files are included. |
 
 ### extras
 

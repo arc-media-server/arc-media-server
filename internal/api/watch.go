@@ -85,6 +85,7 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	requestStage(r, "saving playback progress", it.LibraryID)
 	d, err := s.store.ReportProgressAt(r.Context(), currentUserID(r), it.ID, body.PositionMS, body.DurationMS, prefs.WatchedPercent)
 	if err != nil {
 		s.fail(w, err)
@@ -92,6 +93,7 @@ func (s *Server) reportProgress(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Played && it.Kind == "movie" {
 		// Watched: off the watchlist, as in Plex.
+		requestStage(r, "saving watchlist", it.LibraryID)
 		if err := s.store.SetWatchlist(r.Context(), currentUserID(r), it.ID, false); err != nil {
 			s.log.Warn("taking a watched movie off the watchlist failed", "err", err)
 		}
@@ -169,6 +171,7 @@ func (s *Server) setPlayed(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	requestStage(r, "saving watched state", it.LibraryID)
 	if err := s.store.SetPlayed(r.Context(), currentUserID(r), ids, *body.Played); err != nil {
 		s.fail(w, err)
 		return
@@ -617,6 +620,7 @@ func (s *Server) setWatchlist(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `send {"on": true or false}`)
 		return
 	}
+	requestStage(r, "saving watchlist", it.LibraryID)
 	if err := s.store.SetWatchlist(r.Context(), currentUserID(r), it.ID, *body.On); err != nil {
 		s.fail(w, err)
 		return

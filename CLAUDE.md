@@ -78,6 +78,25 @@ The owner works from more than one PC (Windows). On a fresh clone:
   no deleting media from the app; a show's details come from its library's one metadata provider
   and gaps are never backfilled from the other.
 
+## Logging and PR review
+
+Every PR must consider whether failures and stalls in its scope can be diagnosed; describe the
+coverage or why no additional logging is needed. Use `.github/pull_request_template.md`;
+current detail-window, request tracking and export limits are in `docs/LOGGING.md`.
+
+- Log meaningful background-job starts/outcomes with duration and useful counts, and important
+  decisions such as conversion reasons. Successful page loads/polls need no info-level record.
+- Log actionable failures once at the responsible boundary, including safe operation/provider
+  context. Expected cancellations, empty results and ordinary validation are not server errors.
+- Per-item detail belongs at debug level behind temporary detailed logging. Guard expensive debug
+  argument preparation with `log.Enabled`; disabled logging still evaluates Go arguments.
+- Never log at info in file/segment/progress loops. Summarise and rate-limit repeated warnings.
+  Use bounded, threshold-based diagnostics for unfinished work instead of a flood of start logs.
+- Never log passwords, keys, tokens, raw URLs/query strings, request bodies or SQL arguments.
+  Preserve redaction and bounded retention; diagnostic stacks are admin-only and on demand.
+- Test meaningful failure/stall and privacy boundaries using isolated fixtures. State what the PR
+  logs, relevant performance/volume bounds and remaining diagnostic limitations.
+
 ## Principles (non-negotiable)
 
 1. **Never modify media files.** AMS only reads: no renaming, moving, tagging or writing beside them.
