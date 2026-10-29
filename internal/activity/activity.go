@@ -146,6 +146,14 @@ func (h *Handle) set(fn func(*Task)) {
 	h.t.mu.Unlock()
 }
 
+// ID is the task's id, as the Activity list shows it (0 on a nil Handle).
+func (h *Handle) ID() int64 {
+	if h == nil {
+		return 0
+	}
+	return h.task.ID
+}
+
 // Detail says what the task is doing now.
 func (h *Handle) Detail(s string) { h.set(func(t *Task) { t.Detail = s }) }
 

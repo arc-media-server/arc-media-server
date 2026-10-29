@@ -144,6 +144,31 @@ func (e tmdbEpisode) toEpisode() *Episode {
 		RuntimeMin: e.Runtime, Still: e.StillPath, AiredSeason: e.SeasonNumber, AiredNumber: e.EpisodeNumber, People: credits(e.GuestStars, e.Crew)}
 }
 
+// TVSummary fetches only a show's own record (title, year, overview, artwork and its TheTVDB and
+// IMDb ids) in one request, without seasons, episodes or episode groups: enough to show which
+// show an item is while TV fetches the rest. ErrNotFound means TMDB has no show with that id.
+func (c *TMDB) TVSummary(ctx context.Context, id int64) (*Series, error) {
+	var d struct {
+		ID           int64  `json:"id"`
+		Name         string `json:"name"`
+		OriginalName string `json:"original_name"`
+		Overview     string `json:"overview"`
+		FirstAirDate string `json:"first_air_date"`
+		PosterPath   string `json:"poster_path"`
+		BackdropPath string `json:"backdrop_path"`
+		ExternalIDs  struct {
+			IMDBID string `json:"imdb_id"`
+			TVDBID int64  `json:"tvdb_id"`
+		} `json:"external_ids"`
+	}
+	if err := c.get(ctx, "/tv/"+strconv.FormatInt(id, 10), url.Values{"append_to_response": {"external_ids"}}, &d); err != nil {
+		return nil, err
+	}
+	return &Series{TMDBID: d.ID, TVDBID: d.ExternalIDs.TVDBID, IMDBID: d.ExternalIDs.IMDBID, Title: d.Name,
+		OriginalTitle: d.OriginalName, Overview: d.Overview, FirstAired: d.FirstAirDate, Year: yearOf(d.FirstAirDate),
+		PosterPath: d.PosterPath, BackdropPath: d.BackdropPath}, nil
+}
+
 // TV fetches series metadata plus all of its orderings: TMDB aired order and every episode group.
 func (c *TMDB) TV(ctx context.Context, id int64) (*Series, []Ordering, error) {
 	var d struct {

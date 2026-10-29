@@ -208,7 +208,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/artwork/{type}` | admin | With an image as the body (JPEG, PNG or WebP, up to 20 MB) uses it as the poster or background. It's kept in AMS's data folder. |
 | GET | `/api/items/{id}/match` | admin | Explains how an item was identified: what was read from its file and folder names, and every search made with what it found. |
 | GET | `/api/items/{id}/match/search` | admin | ?provider=tmdb&q=Alien&year=1979 |
-| PUT | `/api/items/{id}/match` | admin | {"provider": "tmdb", "id": 603} identifies an item as the chosen provider entry and fetches its metadata. |
+| PUT | `/api/items/{id}/match` | admin | {"provider": "tmdb", "id": 603} identifies an item as the chosen provider entry. A movie's metadata is fetched before it answers (200 with the item). For a show it fetches only the chosen entry's own details and answers 202 with the item and `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the background, which then links its files to the new episodes. The item keeps its previous match if the chosen entry can't be fetched. |
 
 ### labels
 
