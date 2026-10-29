@@ -69,11 +69,14 @@ func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	started := time.Now()
 	rows, err := s.recommendedRows(r, lib)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	// Per request, so detail only (recorded while detailed logging is on).
+	s.log.Debug("recommended rows", "library", lib.Name, "rows", len(rows), "took", time.Since(started).Round(time.Millisecond))
 	writeJSON(w, http.StatusOK, map[string]any{"rows": rows})
 }
 
