@@ -83,5 +83,26 @@
     "topShowsWith": "Top Shows with {{name}}",
     "topShowsBy": "Top Shows by {{name}}",
     "topUnwatched": "Top Unwatched"
+  },
+  "recommendedEditor": {
+    "title": "Edit Recommended",
+    "description": "Arrange recommendation categories for everyone using {{name}}. Titles still reflect each profile. Empty categories stay hidden until they have something to show. Home is unchanged.",
+    "reset": "Reset",
+    "cancel": "Cancel",
+    "save": "Save",
+    "style": "Card style for {{title}}",
+    "automatic": "Automatic",
+    "continue": "Continue Watching",
+    "recentlyReleased": "Recently Released",
+    "recentlyAdded": "Recently Added",
+    "startWatching": "Start Watching",
+    "becauseYouWatched": "Because you watched",
+    "topRated": "Top Rated",
+    "recentlyWatched": "Recently Watched",
+    "rediscover": "Rediscover",
+    "moreInGenre": "Favourite genres",
+    "topInGenre": "Top in a genre",
+    "topByPerson": "Actors and directors",
+    "topUnwatched": "Top Unwatched"
   }
 }
