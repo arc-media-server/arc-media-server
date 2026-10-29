@@ -13,7 +13,8 @@ export function DropdownMenuContent({ className, sideOffset = 8, ...props }: Com
       <Menu.Content
         sideOffset={sideOffset}
         className={cn(
-          'glass z-50 min-w-56 overflow-hidden rounded-2xl border border-border p-1.5 shadow-2xl shadow-black/40',
+          // Solid, like the Activity panel: a see-through menu was hard to read over posters.
+          'z-50 min-w-56 overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-2xl shadow-black/50',
           'animate-menu-in origin-(--radix-dropdown-menu-content-transform-origin)',
           'max-h-[min(70vh,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto',
           className,
