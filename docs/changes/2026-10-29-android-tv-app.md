@@ -97,9 +97,12 @@ app are unchanged; `clients/` is added to `.dockerignore` so the image build doe
   instead of a banner; the web player's control set; the web's profile picker. Cards grow 8 % with
   a white outline and an accent glow; the first card or primary button takes the focus when a
   screen opens. Episode cards play straight away (resuming); the details page offers Play from
-  Beginning. The brand colours live in one place, `ArcColors` in `ui/theme/Theme.kt` (the web's
-  accent #9d8cff and accent-strong #7c68ff), so changing the brand colour is one edit there (plus
-  the logo drawable and banner PNG, which carry the same violet).
+  Beginning. The brand colours live in one place, `ArcColors` in `ui/theme/Theme.kt`, so changing
+  the brand colour is one edit there (plus the logo drawables and banner PNG, which carry the same
+  colour). The owner's new brand colour is deep teal: accent #2bb3a3 (focus rings, highlights,
+  text on dark), accent-strong #0b7d72 (filled buttons, progress, toggles, with white text), and
+  the logo gradient #7fdccd → #0b7d72, applied to the app, launcher icon and TV banner. The web
+  app gets the same change in its own PR; until then the two differ in colour only.
 - **Player differences from the web, because a TV isn't a browser:** no volume (the TV's remote
   does it), no full screen, picture-in-picture, Chromecast or AirPlay buttons, and no playback
   queue (the TV plays one title then the next episode); the subtitle menu has no timing, size or

@@ -188,7 +188,7 @@ private fun AddressField(value: String, onEdit: (String) -> Unit, onDone: () -> 
     )
 }
 
-/** The soft violet light behind sign-in screens. */
+/** The soft accent light behind sign-in screens. */
 @Composable
 fun BackdropGlow() {
     org.arcmediaserver.tv.ui.profiles.AuthGlow()

@@ -15,7 +15,7 @@ import androidx.tv.material3.darkColorScheme
 /**
  * Arc's colours: the web app's dark tokens (web/src/index.css). Arc is dark only, as the owner
  * chose. The brand accent is defined here and nowhere else in code: change Accent, AccentStrong and
- * AccentLight to re-colour the app (the logo drawables and TV banner carry the same violet).
+ * AccentLight to re-colour the app (the logo drawables and TV banner carry the same teal).
  */
 object ArcColors {
     val Background = Color(0xFF0B0B10)
@@ -25,9 +25,12 @@ object ArcColors {
     val Foreground = Color(0xFFF5F5F7)
     val Muted = Color(0xFFA1A1AD)
     val Subtle = Color(0xFF6B6B78)
-    val Accent = Color(0xFF9D8CFF)
-    val AccentStrong = Color(0xFF7C68FF)
-    val AccentLight = Color(0xFFC4B5FD)
+    // Brand: deep teal (owner, 29 October). Accent for focus rings, highlights and text on dark;
+    // AccentStrong for filled buttons, progress and toggles (with white text); AccentLight is the
+    // light end of the logo's gradient (#7fdccd → #0b7d72).
+    val Accent = Color(0xFF2BB3A3)
+    val AccentStrong = Color(0xFF0B7D72)
+    val AccentLight = Color(0xFF7FDCCD)
     val Warning = Color(0xFFFFB547)
     val Error = Color(0xFFFF6B6B)
 
