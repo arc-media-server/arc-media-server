@@ -214,6 +214,14 @@ func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string
 		return err
 	}
 	defer tx.Rollback()
+	var arrived arrival
+	if len(itemIDs) > 0 {
+		var err error
+		arrived, err = linkedArrival(ctx, tx, fileID)
+		if err != nil {
+			return err
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM item_files WHERE file_id = ?`, fileID); err != nil {
 		return err
 	}
@@ -222,6 +230,10 @@ func (s *Store) SetFileItems(ctx context.Context, fileID int64, itemIDs []string
 			`INSERT OR IGNORE INTO item_files (item_id, file_id, part) VALUES (?, ?, ?)`, id, fileID, part); err != nil {
 			return err
 		}
+		if err := recordArrival(ctx, tx, id, arrived); err != nil {
+			return err
+		}
+
 	}
 	return tx.Commit()
 }

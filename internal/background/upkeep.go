@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 	if !m.Ready(kind) {
 		return
 	}
-	if !m.Forced(kind) && (last.LastSuccessAt > m.now().Add(-7*24*time.Hour).Unix() || last.Error != "" && last.FinishedAt > m.now().Add(-time.Hour).Unix()) {
+	if !m.Forced(kind) && (last.Stopped && last.FinishedAt > m.now().Add(-7*24*time.Hour).Unix() || last.LastSuccessAt > m.now().Add(-7*24*time.Hour).Unix() || last.Error != "" && last.FinishedAt > m.now().Add(-time.Hour).Unix()) {
 		return
 	}
 	if !m.turn(kind, false, 0) {
@@ -62,11 +63,13 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 	if !allowed() {
 		return
 	}
-	last.StartedAt, last.FinishedAt, last.Error = m.now().Unix(), 0, ""
+	last.StartedAt, last.FinishedAt, last.Error, last.Paused, last.Stopped = m.now().Unix(), 0, "", false, false
 	if err := m.store.SaveMaintenanceRun(ctx, kind, last); err != nil {
 		m.upkeepStateFailure(kind, err)
 		return
 	}
+	started := time.Now()
+	m.logger().Info("maintenance started", "kind", kind)
 	task := m.Activity.Start(kind, titles[kind])
 	if kind == "database" {
 		task.Detail("Checking database integrity and available disk space")
@@ -74,7 +77,8 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 		task.Detail("Checking retained file and artwork references")
 	}
 	workCtx, cancel := context.WithCancel(ctx)
-	task.Cancellable(cancel)
+	var stopRequested atomic.Bool
+	task.Cancellable(func() { stopRequested.Store(true); cancel() })
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
@@ -96,25 +100,50 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 	cancel()
 	<-stopped
 	last.FinishedAt, last.Detail = m.now().Unix(), detail
-	if err != nil {
+	stoppedByUser := stopRequested.Load() && errors.Is(err, context.Canceled)
+	paused := errors.Is(err, context.Canceled) && !stoppedByUser
+	if stoppedByUser {
+		last.Stopped = true
+		last.Detail = "Stopped by request. " + detail
+	} else if paused {
+		last.Paused = true
+		last.Detail = "Paused before completion; waiting to retry. " + detail
+	} else if err != nil {
 		last.Error = err.Error()
-		if errors.Is(err, context.Canceled) {
-			last.Error = "Paused before completion; will retry during maintenance"
-		}
 	} else {
 		last.LastSuccessAt = last.FinishedAt
 	}
-	// Cancellation of the optional lease must not erase the last result. Only server shutdown
-	// may leave an unfinished marker, which the next startup reports as interrupted.
-	if saveErr := m.store.SaveMaintenanceRun(ctx, kind, last); saveErr != nil {
+	// Keep the explicit request pending on preemption, so it resumes after
+	// foreground work instead of disappearing or becoming a server error.
+	if saveErr := m.store.SaveMaintenanceRun(ctx, kind, last); saveErr != nil && !errors.Is(saveErr, context.Canceled) {
 		err = errors.Join(err, fmt.Errorf("saving maintenance result: %w", saveErr))
+		paused, stoppedByUser = false, false
 	}
-	task.Detail(detail)
+	task.Detail(last.Detail)
+	if paused || errors.Is(ctx.Err(), context.Canceled) {
+		task.Finish(nil)
+		m.logger().Info("maintenance paused", "kind", kind, "took", time.Since(started).Round(time.Millisecond))
+		return
+	}
+	if stoppedByUser {
+		task.Finish(nil)
+		m.logger().Info("maintenance stopped", "kind", kind, "took", time.Since(started).Round(time.Millisecond))
+		m.CompletePass(kind)
+		return
+	}
 	task.Finish(err)
+	if err != nil {
+		m.logger().Warn("maintenance failed", "kind", kind, "took", time.Since(started).Round(time.Millisecond), "err", err)
+	} else {
+		m.logger().Info("maintenance finished", "kind", kind, "took", time.Since(started).Round(time.Millisecond), "detail", detail)
+	}
 	m.CompletePass(kind)
 }
 
 func (m *Manager) upkeepStateFailure(kind string, err error) {
+	if !errors.Is(err, context.Canceled) {
+		m.logger().Warn("maintenance could not start", "kind", kind, "err", err)
+	}
 	task := m.Activity.Start(kind, titles[kind])
 	task.Detail("Could not start maintenance; resolve the reported error and retry")
 	task.Finish(err)

@@ -5,7 +5,7 @@ import { CollectionRows } from '@/components/Collections';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
-import { FileDetails } from '@/components/SourceFormats';
+import { SourceFilesButton } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
 import { ProviderCredit } from '@/components/ProviderCredits';
 import { useLibraries } from '@/components/Sidebar';
@@ -137,6 +137,7 @@ export function MoviePage() {
             </Button>
           )}
           {playable && <PlaybackOptionsButton item={{ title: item.title, subtitle: [item.year, currentEdition].filter(Boolean).join(' · ') || undefined, itemId: item.id, src: item.stream_url!, startMS: resumeAt, edition: currentEdition }} />}
+          <SourceFilesButton id={item.id} title={item.title} />
           <TrailerButton extras={item.extras} title={item.title} />
           <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
           <WatchlistButton item={item} />
@@ -155,7 +156,6 @@ export function MoviePage() {
       <CollectionRows item={item} />
       <SimilarRow item={item} />
       <ExtrasRow extras={item.extras} title={item.title} />
-      {item.files?.map((f) => <FileDetails key={f.id} file={f} several={(item.files?.length ?? 0) > 1} />)}
       <ProviderCredit item={item} library={libraries?.find((l) => l.id === item.library_id)} />
       {dialogs}
     </Page>

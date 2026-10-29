@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import type { Item } from '@/lib/api';
 import { ResumeCard } from './EpisodeCard';
 import { PosterCard, ThumbCard } from './PosterCard';
@@ -28,6 +29,7 @@ export function MediaRow({
   loading,
   error,
   onRetry,
+  cardProps,
 }: {
   title: string;
   items: Item[];
@@ -41,6 +43,7 @@ export function MediaRow({
   loading?: boolean;
   error?: unknown;
   onRetry?: () => void;
+  cardProps?: (item: Item) => Pick<ComponentProps<typeof PosterCard>, 'hover' | 'onSelect' | 'selected'>;
 }) {
   return (
     <RowShell title={title} href={href} empty={items.length === 0} loading={loading} error={error} onRetry={onRetry}>
@@ -48,15 +51,16 @@ export function MediaRow({
         style === 'poster' ? (
           <PosterCard
             key={item.id}
+            {...cardProps?.(item)}
             item={item}
             className={cardClass(style)}
             overrides={seasonPosters && item.images?.season_primary ? { image: item.images.season_primary } : undefined}
             onRemove={onRemove}
           />
         ) : play ? (
-          <ResumeCard key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
+          <ResumeCard {...cardProps?.(item)} key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
         ) : (
-          <ThumbCard key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
+          <ThumbCard {...cardProps?.(item)} key={item.id} item={item} className={cardClass(style)} arc={style === 'arc'} onRemove={onRemove} />
         ),
       )}
     </RowShell>

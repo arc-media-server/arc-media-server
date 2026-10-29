@@ -155,6 +155,7 @@ func New(d Deps) http.Handler {
 
 	// Every profile: watching.
 	user, admin := s.signedIn, s.adminOnly
+	mux.HandleFunc("POST /api/transcoder/detect", admin(s.detectHardware))
 	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
 	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
