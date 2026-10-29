@@ -1,29 +1,21 @@
 import * as fmt from '@/lib/format';
 import { useTranslation } from 'react-i18next';
-import { number } from '@/lib/format';
 import type { Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 /**
- * A title's scores from other sites: IMDb, Rotten Tomatoes' critics and Metacritic, as Plex shows
+ * A title's scores from other sites: Rotten Tomatoes' critics and Metacritic, as Plex shows
  * them. TMDB's audience score stands in when there are none. Returns null when there's nothing.
  */
 export function Scores({ item }: { item: Item }) {
   const { t } = useTranslation('titles');
   const rt = item.rotten_tomatoes;
   const mc = item.metacritic;
-  const imdb = item.imdb_rating;
-  if (!imdb && rt == null && mc == null) {
+  if (rt == null && mc == null) {
     return item.rating ? <span title={t('titles:scores.audience')}>★ {fmt.fixed(item.rating, 1)}</span> : null;
   }
   return (
     <span className="flex items-center gap-3">
-      {!!imdb && (
-        <span className="flex items-center gap-1.5" title={item.imdb_votes ? t('titles:scores.votes', { count: item.imdb_votes, value: number(item.imdb_votes) }) : 'IMDb'}>
-          <span className="rounded-[3px] bg-[#f5c518] px-1 text-[10px] font-black leading-[15px] tracking-tight text-black">IMDb</span>
-          <span className="text-foreground/85">{fmt.fixed(imdb, 1)}</span>
-        </span>
-      )}
       {rt != null && (
         <span className="flex items-center gap-1.5" title={rt >= 60 ? t('titles:scores.fresh') : t('titles:scores.rotten')}>
           <Tomato fresh={rt >= 60} />

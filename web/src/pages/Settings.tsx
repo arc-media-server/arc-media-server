@@ -274,10 +274,6 @@ function ServerSettings() {
             />
           </Section>
           <Section sectionKey="Ratings" title={t("serverSettings:settings.ratings")} hint={t("serverSettings:settings.scoresFromOtherSites")}>
-            <Row
-              label={t("serverSettings:settings.imdb")}
-              description={t("serverSettings:settings.updatedWeeklyFromImdb")}
-            />
             <KeyRow
               label={t("serverSettings:settings.rottenTomatoesAndMetacritic")}
               description={t("serverSettings:settings.criticsScoresFromOmdb")}

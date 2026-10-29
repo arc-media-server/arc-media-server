@@ -252,6 +252,9 @@ _Doesn't block development; must be done before AMS is shared or published._
 
 ## Later
 
+- IMDb ratings are paused (29 October): revisit removing retained ingestion code and choose rating
+  sources after licensing/coverage review; see [Rating sources](docs/RATING-SOURCES.md).
+
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
