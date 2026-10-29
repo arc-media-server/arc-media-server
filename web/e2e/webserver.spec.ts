@@ -362,3 +362,19 @@ test('web server: a Chromecast that refuses the original gets a 1080p version, r
   expect(heights).toEqual([1080]);
   await closePlayer(page);
 });
+
+test('sidebar library actions share scan and repair confirmations', async ({ page, media }) => {
+  await addLibrary(page, media.movies);
+  const library = (await (await page.request.get('/api/libraries')).json())[0];
+  await page.goto('/');
+  const sidebar = page.locator('aside');
+  await sidebar.getByRole('button', { name: 'More for ' + library.name, exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Reanalyze files…', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText(library.name);
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.goto('/settings');
+  await expect(page.getByText('On this page', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toHaveCount(0);
+});
