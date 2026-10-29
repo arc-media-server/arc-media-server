@@ -67,4 +67,3 @@ test('hardware detection explains unavailable encoding and offers recoverable Re
   await page.request.post('/api/auth/profile', { data: { id: viewer.id } });
   expect((await page.request.post('/api/transcoder/detect')).status()).toBe(403);
 });
-
