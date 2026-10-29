@@ -364,7 +364,7 @@ func (s *Server) listPlaying(w http.ResponseWriter, r *http.Request) {
 		d.Item = toDTO(*it)
 		if it.Kind == "episode" {
 			if series, err := s.store.GetItem(ctx, it.ParentID); err == nil && series != nil {
-				pos, _, _ := s.orderPositions(ctx, p.userID, series)
+				pos, _, _ := s.orderPositions(ctx, series)
 				d.Item = s.episodeDTO(*it, series, pos)
 			}
 		}

@@ -60,15 +60,15 @@ function initialValue(item: Item, field: TextField): string {
 }
 
 /** The Edit dialog: correct an item's details (edited fields are locked) and choose its artwork. */
-export function EditDetailsDialog({ item, open, onOpenChange, initialTab }: { item: Item; initialTab?: 'ordering'; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function EditDetailsDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <EditForm item={item} initialTab={initialTab} onDone={() => onOpenChange(false)} />}
+      {open && <EditForm item={item} onDone={() => onOpenChange(false)} />}
     </Dialog>
   );
 }
 
-function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'ordering'; onDone: () => void }) {
+function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const { t } = useTranslation('details');
   const orderLabels = {
     tmdb_aired: t('details:sourceOrder.tmdbAired'),
@@ -82,7 +82,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
   const [comparing,setComparing] = useState(false);
   const orders = useQuery({ queryKey:['orderings',item.id],queryFn:()=>api.orderings(item.id),enabled:item.kind==='series' });
   const [display,setDisplay] = useState<number|null|undefined>(undefined);
-  const [specials,setSpecials] = useState<boolean|null|undefined>(undefined);
+  const [specials,setSpecials] = useState<boolean|undefined>(undefined);
   const specs = fieldsFor(item.kind);
   const [values, setValues] = useState(() => Object.fromEntries(specs.map((s) => [s.field, initialValue(item, s.field)])) as Record<TextField, string>);
   const [locked, setLocked] = useState(() => new Set<LockableField>(item.locked_fields));
@@ -97,13 +97,13 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
   // Movies and shows have artwork to choose; episodes just their details.
   // Episodes and movies also have their skip markers.
   const tabs: ('details' | ArtworkType | 'seasons' | 'markers' | 'ordering')[] =
-    !admin ? ['ordering'] : item.kind === 'episode'
+    item.kind === 'episode'
       ? ['details', 'poster', 'markers']
       : item.kind === 'series'
         ? ['details', 'ordering', 'poster', 'backdrop', 'logo', 'seasons']
         : ['details', 'poster', 'backdrop', 'logo', 'markers'];
   const [markerEdit, setMarkerEdit] = useState<{ edit: MarkerEdit | null; valid: boolean }>({ edit: null, valid: true });
-  const [tab, setTab] = useState<(typeof tabs)[number]>(initialTab ?? 'details');
+  const [tab, setTab] = useState<(typeof tabs)[number]>('details');
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
   // Season names and summaries belong to the episode order being viewed, as on the show's page.
@@ -123,7 +123,6 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         if(display!==undefined) await api.setDisplayOrdering(item.id,display);
         if(specials!==undefined) await api.setInlineSpecials(item.id,specials);
       };
-      if(!admin){await saveOrdering();return;}
       const locksChanged = locked.size !== item.locked_fields.length || item.locked_fields.some(f => !locked.has(f));
       const edit: ItemEdit = locksChanged ? { locked_fields: [...locked] } : {};
       for (const s of specs) {
@@ -232,7 +231,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
         </div>
       )}
       {tab === 'ordering' && <div className="space-y-6">
-        {admin && <><p className="text-sm text-muted">{t('details:editDetails.providerExplanation', { provider: library?.details_provider === 'tvdb' ? 'TheTVDB' : 'TMDB' })}</p>        {item.kind === 'series' && (
+        <p className="text-sm text-muted">{t('details:editDetails.providerExplanation', { provider: library?.details_provider === 'tvdb' ? 'TheTVDB' : 'TMDB' })}</p>        {item.kind === 'series' && (
           <label className="col-span-2 block">
             <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editDetails.fileEpisodeOrder")}</span>
             <select aria-label={t("details:editDetails.fileEpisodeOrder")} aria-describedby={`${item.id}-file-order-help`} value={source} onChange={(e) => setSource(e.target.value as SourceOrdering | '')} className={inputClass}>
@@ -246,20 +245,18 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
             <span id={`${item.id}-file-order-help`} className="mt-1.5 block text-xs text-subtle">{t("details:editDetails.howFilesAreNumbered")}</span>
           </label>
         )}
-</>}
         {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>{t("details:editDetails.retry")}</Button></p>}
         {orders.data && <EpisodeOrderingFields
           orderings={orders.data.orderings}
           selected={display === undefined ? orders.data.display_choice_id ?? orders.data.display_ordering_id : display ?? 0}
           pending={save.isPending}
-          admin={admin}
           onSelect={setDisplay}
-          specials={specials === undefined
-            ? (!admin && !orders.data.specials_overridden ? 'inherit' : orders.data.inline_specials ? 'on' : 'off')
-            : specials === null ? 'inherit' : specials ? 'on' : 'off'}
+          specials={specials ?? orders.data.inline_specials}
           onSpecials={setSpecials}
           onCompare={orders.data.orderings.length > 1 ? () => setComparing(true) : undefined}
-          fileOrder={orderLabels[(source || library?.source_ordering || 'tmdb_aired') as keyof typeof orderLabels]}
+          defaultLabel={source
+            ? t('details:episodeOrdering.showFileOrder', { order: orderLabels[source] })
+            : t('details:episodeOrdering.libraryDefault', { order: orderLabels[library?.source_ordering || 'tmdb_aired'] })}
         />}
 
       </div>}

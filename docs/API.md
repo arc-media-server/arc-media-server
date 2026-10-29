@@ -186,8 +186,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/playback` | profile | {"caps": {...}, "file_id", "audio_stream", "start_ms"} decides how to play a movie or episode on this player and, unless it can play the file as it is, starts converting it. Starting again (e.g. to seek or change audio track) ends the player's previous conversion. |
 | POST | `/api/items/{id}/playback-options` | profile | Resolves the edition/version and source track choices without starting a stream, conversion, progress or preference update. Send {"caps": {...}} and optionally "file_id" or "edition" as for playback. |
 | GET | `/api/items/{id}/subtitles` | profile | ?file=<id> lists a file's subtitle tracks. |
-| GET | `/api/items/{id}/subtitles/search` | profile | ?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first. |
-| POST | `/api/items/{id}/subtitles/download` | profile | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |
+| GET | `/api/items/{id}/subtitles/search` | admin | ?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first. |
+| POST | `/api/items/{id}/subtitles/download` | admin | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |
 | GET | `/api/items/{id}/subtitles/{track}` | profile | ?file= returns a subtitle track's cues as JSON, for the web player to show. |
 | GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). |
 | GET | `/api/items/{id}/trickplay` | profile | ?file=<id> describes a file's timeline thumbnails and where its sheets are. Until they're made it's 404, and the file moves up the queue. |
@@ -359,15 +359,15 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/series/{id}/seasons` | profile | ?ordering=<id>&missing=1 Arranges the series' episodes by an ordering (the display ordering by default). Episodes you have that the ordering doesn't place are returned in "unplaced" rather than hidden. |
 | GET | `/api/series/{id}/seasons/{n}/image` | profile | Is a season's poster: the file in the show's folder if there is one, otherwise the provider's. |
 | GET | `/api/series/{id}/orderings` | profile | Available orderings and the one in use. |
-| PUT | `/api/series/{id}/display-ordering` | profile | {"ordering_id": 12} (null resets). The choice is the current profile's own; the admin's choice is also the default for profiles that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode mapping first. |
-| PATCH | `/api/series/{id}/specials` | profile | {"inline_specials": true\|false\|null}. null restores inheritance (or Off for the admin's server default). This changes display/ playback traversal only; manual/custom placements and original numbering remain authoritative. |
+| PUT | `/api/series/{id}/display-ordering` | admin | {"ordering_id": 12} (null goes back to the file order) sets the order a series is shown in, for everyone. Choosing an ordering from the other provider triggers a thorough episode mapping first. |
+| PATCH | `/api/series/{id}/specials` | admin | {"inline_specials": true\|false\|null} (null is Off) places specials between regular episodes, for everyone. This changes display/playback traversal only; manual/custom placements and original numbering remain authoritative. |
 | POST | `/api/series/{id}/orderings` | admin | {"name": "...", "copy_from": <ordering id>} creates a custom ordering starting as a copy of another. |
 | DELETE | `/api/series/{id}/orderings/{oid}` | admin | (custom orderings only) |
 | PUT | `/api/series/{id}/orderings/{oid}/entries/{eid}` | admin | {"season_number": 1, "episode_number": 5} Manually positions an episode. Manual positions survive metadata refreshes. |
 | DELETE | `/api/series/{id}/orderings/{oid}/entries/{eid}` | admin | Removes a manual position; provider orderings restore their own on the next refresh. |
 | POST | `/api/series/{id}/refresh` | admin | ?deep=1 re-fetches metadata and orderings now. |
 | GET | `/api/series/{id}/season-art` | admin | Lists a show's seasons (in aired order, which season posters belong to) with the poster each uses. |
-| PATCH | `/api/series/{id}/seasons/{n}` | admin | ?ordering=<id> {"name", "overview", "locked_fields"} changes a season's name and summary in an episode order (the profile's display order by default). Fields sent are locked so refreshes keep them; "locked_fields" replaces the locked set. |
+| PATCH | `/api/series/{id}/seasons/{n}` | admin | ?ordering=<id> {"name", "overview", "locked_fields"} changes a season's name and summary in an episode order (the show's display order by default). Fields sent are locked so refreshes keep them; "locked_fields" replaces the locked set. |
 | GET | `/api/series/{id}/seasons/{n}/artwork` | admin | Lists the posters TMDB has for a season. |
 | PUT | `/api/series/{id}/seasons/{n}/artwork` | admin | {"path": "/abc.jpg"} uses a TMDB poster for a season; a null path goes back to automatic. |
 | POST | `/api/series/{id}/seasons/{n}/artwork` | admin | With an image as the body uses it as the season's poster. |

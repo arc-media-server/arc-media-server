@@ -7,12 +7,9 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
-/** Episode ordering: profiles find it in the show's ⋯ More menu, the server owner in Edit. */
+/** Episode ordering is the server owner's, in Edit, Metadata & ordering. */
 async function openOrdering(page: Page) {
  await page.getByRole('button',{name:'More',exact:true}).click();
- await page.getByRole('menu').waitFor();
- const item = page.getByRole('menuitem',{name:'Episode ordering…',exact:true});
- if (await item.count()) { await item.click(); return; }
  await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
@@ -347,7 +344,7 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.goto('/series/' + item.id);
   await openOrdering(page);
 
-  await expect(page.getByText('Your choice also sets the server default', {exact:true})).toBeVisible();
+  await expect(page.getByText('Applies to every profile', {exact:true})).toBeVisible();
   await chooseDisplay(page, /Story Order/);
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await expect(page.getByText('Ordering save failed', { exact: true })).toBeVisible();
@@ -361,7 +358,7 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await openOrdering(page);
-  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Match file episode order');
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Library default (');
 });
 
 test('mobile profiles, settings sections and player controls remain usable', async ({ page }, info) => {
@@ -491,7 +488,7 @@ test('playback failures can retry without reopening the title', async ({ page })
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
-test('comparison keeps selections on failure and profiles can return to inherited order', async ({ page }) => {
+test('comparison keeps selections on failure and only the server owner changes the order', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
   await openOrdering(page);
@@ -511,18 +508,15 @@ test('comparison keeps selections on failure and profiles can return to inherite
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Order viewer', color: 'blue' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
   await page.reload();
-  await openOrdering(page);
-
-  await expect(page.getByText('Your profile only', { exact: true })).toBeVisible();
-  await chooseDisplay(page, /Aired Order/);
-  await page.getByRole('button',{name:'Save',exact:true}).click();
-  await openOrdering(page);
-  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Aired Order');
-
-  await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
-  await page.getByRole('button',{name:'Save',exact:true}).click();
-  await openOrdering(page);
-  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Use server default');
+  // A profile sees the owner's order and has no way to change it.
+  await page.getByRole('button',{name:'More',exact:true}).click();
+  await page.getByRole('menu').waitFor();
+  await expect(page.getByRole('menuitem',{name:'Edit…',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('menuitem',{name:'Episode ordering…',exact:true})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  const orders = (await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).orderings as { id: number }[];
+  expect((await page.request.put(`/api/series/${item.id}/display-ordering`, { data: { ordering_id: orders.find(o => o.id !== inherited)!.id } })).status()).toBe(403);
+  expect((await page.request.put(`/api/series/${item.id}/display-ordering`, { data: { ordering_id: null } })).status()).toBe(403);
   expect((await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id).toBe(inherited);
 });
 
