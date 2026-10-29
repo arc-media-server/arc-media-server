@@ -1248,6 +1248,7 @@ export const api = {
     request<{ path: string; trail: { name: string; path: string }[]; folders: { name: string; path: string; count: number; cover_id?: string; cover?: string }[]; items: Item[] }>(
       'GET', `/api/libraries/${libraryId}/folders${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   emptyTrash: (libraryId: number) => request<{ removed: number }>('POST', `/api/libraries/${libraryId}/empty-trash`),
+  emptyTrashSafely: (id: number) => request<{ removed: number; skipped?: 'busy' | 'scan_required' }>('POST', `/api/libraries/${id}/empty-trash?safe=1`),
   removeItem: (id: string) => request<void>('DELETE', `/api/items/${id}`),
 };
 
