@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen } from 'lucide-react';
-import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering } from '@/lib/api';
+import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering, type Ordering, type SeasonsResponse, type OrderingsResponse } from '@/lib/api';
 import { applyArtwork, applySeasonArtwork, ArtworkPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 import { SeasonsPanel, seasonEdit, type SeasonText } from '@/components/EditSeasons';
 import { orderings } from '@/components/LibraryEditor';
@@ -69,6 +69,9 @@ export function EditDetailsDialog({ item, open, onOpenChange }: { item: Item; op
 }
 
 function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
+  // Keep metadata edits relative to the opening values even if a partially saved
+  // source refresh updates the page caches while this form remains open.
+  const [initialItem] = useState(item);
   const { t } = useTranslation('details');
   const orderLabels = {
     tmdb_aired: t('details:sourceOrder.tmdbAired'),
@@ -81,7 +84,10 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const admin = useIsAdmin();
   const [comparing,setComparing] = useState(false);
   const orders = useQuery({ queryKey:['orderings',item.id],queryFn:()=>api.orderings(item.id),enabled:item.kind==='series' });
-  const [display,setDisplay] = useState<number|null|undefined>(undefined);
+  const [display,setDisplay] = useState<number|undefined>(undefined);
+  // A file-order edit picks its named display order. Resolve again after refresh,
+  // because the new provider/order may not have been stored before this Save.
+  const [displaySource, setDisplaySource] = useState<SourceOrdering | '' | undefined>(undefined);
   const [specials,setSpecials] = useState<boolean|undefined>(undefined);
   const specs = fieldsFor(item.kind);
   const [values, setValues] = useState(() => Object.fromEntries(specs.map((s) => [s.field, initialValue(item, s.field)])) as Record<TextField, string>);
@@ -89,9 +95,21 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [genres, setGenres] = useState<string[]>(() => item.genres ?? []);
   const [source, setSource] = useState<SourceOrdering | ''>(() => item.source_ordering ?? '');
   const library = useLibraries().data?.find((l) => l.id === item.library_id);
-  const genresChanged = genres.join('\n') !== (item.genres ?? []).join('\n');
+  const matchingDisplay = (available: Ordering[], sourceOrder: string) =>
+    available.find(o => o.source === sourceOrder && !o.source_ref)?.id;
+  const selectedDisplay = displaySource !== undefined
+    ? matchingDisplay(orders.data?.orderings ?? [], displaySource || library?.source_ordering || '') ?? 0
+    : display ?? orders.data?.display_ordering_id ?? 0;
+  const chooseDisplay = (id: number) => { setDisplay(id); setDisplaySource(undefined); };
+  const chooseSource = (value: SourceOrdering | '') => {
+    if (value === source) return;
+    setSource(value);
+    setDisplay(undefined);
+    setDisplaySource(value);
+  };
+  const genresChanged = genres.join('\n') !== (initialItem.genres ?? []).join('\n');
   const [labels, setLabels] = useState<string[]>(() => item.labels ?? []);
-  const labelsChanged = labels.join('\n') !== (item.labels ?? []).join('\n');
+  const labelsChanged = labels.join('\n') !== (initialItem.labels ?? []).join('\n');
   const allLabels = useQuery({ queryKey: ['labels'], queryFn: api.labels, enabled: item.kind !== 'episode' });
 
   // Movies and shows have artwork to choose; episodes just their details.
@@ -119,23 +137,41 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
 
   const save = useMutation({
     mutationFn: async () => {
-      const saveOrdering = async () => {
-        if(display!==undefined) await api.setDisplayOrdering(item.id,display);
+      const saveOrdering = async (refreshedOrders?: OrderingsResponse) => {
+        let savedOrders: OrderingsResponse | undefined;
+        if (displaySource !== undefined) {
+          const refreshed = refreshedOrders ?? await api.orderings(item.id);
+          const desired = displaySource || refreshed.source_ordering;
+          const matching = matchingDisplay(refreshed.orderings, desired);
+          if (!matching) throw new Error(t('details:episodeOrdering.fileOrderUnavailable', { order: orderLabels[desired as SourceOrdering] ?? desired }));
+          savedOrders = await api.setDisplayOrdering(item.id, matching);
+        } else if (display !== undefined) savedOrders = await api.setDisplayOrdering(item.id, display);
+        if (savedOrders) qc.setQueryData(['orderings', item.id], savedOrders);
         if(specials!==undefined) await api.setInlineSpecials(item.id,specials);
       };
-      const locksChanged = locked.size !== item.locked_fields.length || item.locked_fields.some(f => !locked.has(f));
+      const locksChanged = locked.size !== initialItem.locked_fields.length || initialItem.locked_fields.some(f => !locked.has(f));
       const edit: ItemEdit = locksChanged ? { locked_fields: [...locked] } : {};
       for (const s of specs) {
         const v = values[s.field].trim();
-        if (v === initialValue(item, s.field).trim()) continue;
+        if (v === initialValue(initialItem, s.field).trim()) continue;
         if (s.field === 'year' || s.field === 'runtime_min') edit[s.field] = v ? Number(v) : 0;
         else edit[s.field] = v;
       }
       if (genresChanged) edit.genres = genres;
       if (labelsChanged) edit.labels = labels;
-      if (item.kind === 'series' && source !== (item.source_ordering ?? '')) edit.source_ordering = source;
+      if (item.kind === 'series' && (source !== (item.source_ordering ?? '') || displaySource !== undefined)) edit.source_ordering = source;
       let updated = item;
-      if (Object.keys(edit).length) { setSaving('details'); updated = await api.editItem(item.id, edit); }
+      if (Object.keys(edit).length) {
+        setSaving('details');
+        updated = await api.editItem(item.id, edit);
+        // A source refresh can succeed before a later display/artwork save fails.
+        // Keep the item cache truthful so Cancel/retry and reverting the source
+        // compare against what the server actually saved, not the opening value.
+        if (edit.source_ordering !== undefined) {
+          qc.setQueryData(['item', item.id], updated);
+          qc.setQueriesData<SeasonsResponse>({ queryKey: ['seasons', item.id] }, old => old ? { ...old, series: updated } : old);
+        }
+      }
       if (markerEdit.edit) {
         setSaving('markers');
         await api.setItemMarkers(item.id, markerEdit.edit);
@@ -157,7 +193,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         await applySeasonArtwork(item.id, Number(season), change);
       }
       // Fields just unlocked should go back to the online value straight away.
-      if (item.locked_fields.some((f) => !locked.has(f))) {
+      if (initialItem.locked_fields.some((f) => !locked.has(f))) {
         setSaving('unlocked');
         try {
           updated = await api.refreshItem(item.id);
@@ -165,7 +201,18 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
           // Keep the saved edit; the value updates on the next refresh.
         }
       }
-      await saveOrdering();
+      try {
+        const refreshedOrders = edit.source_ordering !== undefined ? await api.orderings(item.id) : undefined;
+        if (refreshedOrders) qc.setQueryData(['orderings', item.id], refreshedOrders);
+        await saveOrdering(refreshedOrders);
+      }
+      catch (error) {
+        if (edit.source_ordering !== undefined) {
+          const detail = error instanceof Error ? error.message : String(error);
+          throw new Error(t('details:episodeOrdering.partialSave', { error: detail }));
+        }
+        throw error;
+      }
       return updated;
     },
     onSuccess: (updated) => {
@@ -234,7 +281,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         <p className="text-sm text-muted">{t('details:editDetails.providerExplanation', { provider: library?.details_provider === 'tvdb' ? 'TheTVDB' : 'TMDB' })}</p>        {item.kind === 'series' && (
           <label className="col-span-2 block">
             <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t("details:editDetails.fileEpisodeOrder")}</span>
-            <select aria-label={t("details:editDetails.fileEpisodeOrder")} aria-describedby={`${item.id}-file-order-help`} value={source} onChange={(e) => setSource(e.target.value as SourceOrdering | '')} className={inputClass}>
+            <select aria-label={t("details:editDetails.fileEpisodeOrder")} aria-describedby={`${item.id}-file-order-help`} value={source} onChange={(e) => chooseSource(e.target.value as SourceOrdering | '')} className={inputClass}>
               <option value="">{t('details:editDetails.defaultOrder', { order: orderLabels[library?.source_ordering || 'tmdb_aired'] })}</option>
               {orderings.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -248,19 +295,17 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>{t("details:editDetails.retry")}</Button></p>}
         {orders.data && <EpisodeOrderingFields
           orderings={orders.data.orderings}
-          selected={display === undefined ? orders.data.display_choice_id ?? orders.data.display_ordering_id : display ?? 0}
+          selected={selectedDisplay}
           pending={save.isPending}
-          onSelect={setDisplay}
+          onSelect={chooseDisplay}
           specials={specials ?? orders.data.inline_specials}
           onSpecials={setSpecials}
-          onCompare={orders.data.orderings.length > 1 ? () => setComparing(true) : undefined}
-          defaultLabel={source
-            ? t('details:episodeOrdering.showFileOrder', { order: orderLabels[source] })
-            : t('details:episodeOrdering.libraryDefault', { order: orderLabels[library?.source_ordering || 'tmdb_aired'] })}
+          onCompare={selectedDisplay > 0 && orders.data.orderings.length > 1 ? () => setComparing(true) : undefined}
+          unavailableLabel={displaySource !== undefined ? orderLabels[displaySource || library?.source_ordering || 'tmdb_aired'] : t('details:episodeOrdering.noOrdersAvailable')}
         />}
 
       </div>}
-      {comparing && <CompareOrdersDialog seriesId={item.id} orderings={orders.data?.orderings??[]} current={display??orders.data?.display_ordering_id??0} open onOpenChange={setComparing} onUse={async id=>{const data=await api.setDisplayOrdering(item.id,id);qc.setQueryData(["orderings",item.id],data);setDisplay(undefined);await qc.invalidateQueries({queryKey:["seasons",item.id]});}} />}
+      {comparing && <CompareOrdersDialog seriesId={item.id} orderings={orders.data?.orderings ?? []} current={selectedDisplay} staged open onOpenChange={setComparing} onUse={chooseDisplay} />}
       {tab === 'seasons' && (
         <SeasonsPanel
           item={item}

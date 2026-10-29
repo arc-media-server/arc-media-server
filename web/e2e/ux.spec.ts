@@ -355,10 +355,10 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.reload();
   await openOrdering(page);
 
-  await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
+  await chooseDisplay(page, /TMDB.*Aired Order/);
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await openOrdering(page);
-  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Library default (');
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('TMDB · Aired Order');
 });
 
 test('internet streaming quality is saved to the profile and only limits streams away from home', async ({ page }, info) => {
@@ -512,22 +512,29 @@ test('playback failures can retry without reopening the title', async ({ page })
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
-test('comparison keeps selections on failure and only the server owner changes the order', async ({ page }) => {
+test('comparison stages selections until Save, preserves Retry and remains owner-only', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
   await openOrdering(page);
 
   await page.getByRole('button', { name: 'Compare orders…',exact:true }).click();
   const dialog = page.getByRole('dialog', { name: 'Compare Episode Orders', exact: true });
-  await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Comparison save unavailable' } }));
+  const before = await (await page.request.get(`/api/series/${item.id}/orderings`)).json();
   await dialog.getByRole('button', { name: 'Use Story Order', exact: true }).click();
-  await expect(dialog.getByText('Comparison save unavailable', { exact: true })).toBeVisible();
-  await expect(dialog).toBeVisible();
-  await page.unroute('**/display-ordering');
-  await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
+  expect((await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id).toBe(before.display_ordering_id);
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await openOrdering(page);
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('TMDB · Aired Order');
+  await page.getByRole('button', { name: 'Compare orders…',exact:true }).click();
+  await dialog.getByRole('button', { name: 'Use Story Order', exact: true }).click();
+  await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Comparison save unavailable' } }));
   await page.getByRole('button',{name:'Save',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Edit',exact:true}).getByRole('alert')).toContainText('Comparison save unavailable');
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Story Order');
+  await page.unroute('**/display-ordering');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
   const inherited=(await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id;
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Order viewer', color: 'blue' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBe(true);
