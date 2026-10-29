@@ -165,15 +165,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		if err != nil {
 			detail = "Database upkeep did not complete"
-			log.Warn("database upkeep failed", "err", err)
 		}
 		return detail, err
 	})
 	go bg.RunUpkeep(ctx, "cache", func(ctx context.Context, allowed func() bool) (string, error) {
 		result, err := upkeep.CleanCaches(ctx, st, dataDir, allowed)
-		if err != nil {
-			log.Warn("cache cleanup failed", "err", err)
-		}
 		return result.String(), err
 	})
 	backups.Allowed = func() bool { return bg.Ready("backup") && !bg.Forced("backup") }

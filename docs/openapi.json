@@ -206,6 +206,9 @@
           "pending": {
             "type": "integer"
           },
+          "requested": {
+            "type": "boolean"
+          },
           "state": {
             "type": "string"
           },
@@ -1279,8 +1282,14 @@
           "last_success_at": {
             "type": "integer"
           },
+          "paused": {
+            "type": "boolean"
+          },
           "started_at": {
             "type": "integer"
+          },
+          "stopped": {
+            "type": "boolean"
           }
         },
         "required": [

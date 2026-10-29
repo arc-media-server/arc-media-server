@@ -402,7 +402,7 @@ export type ProcessingMode = 'off' | 'scheduled' | 'added';
 /** How many of a title's files have intro/credits markers, and how many were checked (Library Health). */
 export interface MarkerCoverage { id: string; title: string; kind: 'series' | 'movie'; files: number; intros: number; credits: number; checked: number }
 
-export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean; last_run?: { started_at: number; finished_at: number; last_success_at: number; detail: string; error?: string } }
+export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean; requested?: boolean; last_run?: { started_at: number; finished_at: number; last_success_at: number; detail: string; error?: string; paused?: boolean; stopped?: boolean } }
 
 export interface ActivityTask {
   can_stop?: boolean;
