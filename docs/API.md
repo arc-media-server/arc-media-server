@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-174 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+176 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -229,6 +229,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/libraries/{id}/folders` | profile | ?path= browses an Other videos library folder by folder: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder. |
 | GET | `/api/libraries/{id}/recent-shows` | profile | ?limit=24 is a TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself. |
 | GET | `/api/libraries/{id}/recommended` | profile | Is a library's Recommended view for the profile, in this order: Continue Watching (what it's part-way through here and the next episode of shows it's watching), Recently Released, Recently Added, Start Watching (shows not started), "Because you watched" rows for its recent titles, Top Rated, Recently Watched (episodes, in a TV library), Rediscover (finished more than six months ago), more of its favourite genres, the top titles of a genre and of an actor or director (both changing daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre, person_id, role) rather than a title; rows without anything are left out. |
+| GET | `/api/libraries/{id}/recommended/layout` | admin | Returns the library's shared row-family order, visibility and style . |
+| PUT | `/api/libraries/{id}/recommended/layout` | admin | {"rows":[{"type","hidden","style"}]} sets shared Recommended rows . Empty rows resets defaults; omitted/new families remain visible. Styles: poster, thumb, arc or empty for automatic. |
 | POST | `/api/libraries` | admin | {"name", "kind", "paths", "source_ordering"} adds a library and starts scanning it. |
 | PATCH | `/api/libraries/{id}` | admin | {"name", "paths", "source_ordering", "trickplay"} changes a library (not its kind) and rescans it. |
 | DELETE | `/api/libraries/{id}` | admin | Removes a library and everything AMS knows about it, after backing up the database. Media files aren't touched. |
