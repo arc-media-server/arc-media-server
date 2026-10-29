@@ -60,6 +60,26 @@ func TestEmptyTrashAccessAndRealSafetyBackup(t *testing.T) {
 				}
 			}
 			s.backups = backup.New(backupDir, s.store, s.log)
+			// Batch cleanup never falls back to individual confirmation: without fresh
+			// scan proof it skips, even if the request is from an administrator.
+			for _, token := range []string{"viewer", "owner"} {
+				r := httptest.NewRequest("POST", fmt.Sprintf("/api/libraries/%d/empty-trash?safe=1", lib), nil)
+				r.SetPathValue("id", fmt.Sprint(lib))
+				r.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+				w := httptest.NewRecorder()
+				s.adminOnly(s.emptyTrash)(w, r)
+				want := http.StatusForbidden
+				if token == "owner" {
+					want = http.StatusOK
+				}
+				if w.Code != want || (token == "owner" && !strings.Contains(w.Body.String(), `"skipped":"scan_required"`)) {
+					t.Fatalf("safe cleanup %s: %d %s", token, w.Code, w.Body.String())
+				}
+			}
+			if item, err := s.store.GetItem(ctx, id); err != nil || item == nil {
+				t.Fatalf("unsafe batch deleted item: %v %v", item, err)
+			}
+
 			for _, token := range []string{"viewer", "owner"} {
 				r := httptest.NewRequest("POST", fmt.Sprintf("/api/libraries/%d/empty-trash", lib), nil)
 				r.SetPathValue("id", fmt.Sprint(lib))

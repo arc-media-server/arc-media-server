@@ -237,7 +237,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/libraries/{id}/health` | admin | Reports everything in a library worth a look: unidentified items, unreadable, unrecognised and missing files, duplicates and missing episodes. watch_problem describes failed folder notifications and the configured scheduled fallback. |
 | GET | `/api/libraries/{id}/markers` | admin | Lists the library's shows and movies with how many of their files have intro and credits markers and how many have been checked, for Library Health. |
 | POST | `/api/libraries/{id}/compatibility` | admin | {"caps": {...}} says how a library's titles would play on a player that can play those things: how many directly, repackaged or converted, why, and which titles need converting. |
-| POST | `/api/libraries/{id}/empty-trash` | admin | Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. |
+| POST | `/api/libraries/{id}/empty-trash` | admin | Forgets everything in a library whose files are gone (after backing up the database). Media files aren't touched. ?safe=1 additionally requires fresh complete-scan proof and readable unchanged roots; unsafe/busy libraries return a skipped reason. |
 
 ### library-previews
 
