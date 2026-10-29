@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const detailedDuration = 30 * time.Minute
+const detailedDuration = 2 * time.Hour
 
 type Status struct {
 	Detailed     bool       `json:"detailed"`
@@ -18,7 +18,7 @@ type Status struct {
 
 func (b *Buffer) Level() *slog.LevelVar { return &b.level }
 
-// SetDetailed enables extra records for thirty minutes, with no restart or database write.
+// SetDetailed enables extra records for two hours, with no restart or database write.
 func (b *Buffer) SetDetailed(enabled bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

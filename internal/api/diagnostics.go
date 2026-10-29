@@ -20,7 +20,7 @@ func (s *Server) getDiagnostics(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.logs.Status())
 }
 
-// setDiagnostics: PATCH /api/diagnostics {"detailed":true} enables detailed logs for thirty minutes; false stops them (admin).
+// setDiagnostics: PATCH /api/diagnostics {"detailed":true} enables detailed logs for two hours; false stops them (admin).
 func (s *Server) setDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.logs == nil {
 		writeError(w, http.StatusServiceUnavailable, "diagnostics unavailable")
@@ -40,7 +40,7 @@ func (s *Server) setDiagnostics(w http.ResponseWriter, r *http.Request) {
 	s.getDiagnostics(w, r)
 }
 
-// downloadDiagnostics: GET /api/diagnostics/download exports redacted retained logs and build information as a ZIP (admin). No database, settings dump or media files are included.
+// downloadDiagnostics: GET /api/diagnostics/download exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP (admin). No database, settings dump or media files are included.
 func (s *Server) downloadDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.logs == nil {
 		writeError(w, http.StatusServiceUnavailable, "diagnostics unavailable")
@@ -70,16 +70,18 @@ func (s *Server) downloadDiagnostics(w http.ResponseWriter, r *http.Request) {
 	manifest, _ := json.MarshalIndent(map[string]any{
 		"version": s.version, "revision": revision, "modified_build": dirty, "go": runtime.Version(),
 		"os": runtime.GOOS, "architecture": runtime.GOARCH, "exported_at": time.Now().UTC(),
-		"logging": s.logs.Status(), "contents": "Redacted logs and build information only. Logs may contain profile/media names and filesystem paths.",
+		"logging": s.logs.Status(), "contents": "Redacted logs, build information, tracked request stages and bounded goroutine call stacks. Names and filesystem paths may be included.",
 		"database": database, "cpu_count": runtime.NumCPU(), "goroutines": runtime.NumGoroutine(),
 	}, "", "  ")
 	manifest = []byte(s.logs.Redact(string(manifest)))
+	requests, _ := json.MarshalIndent(s.requests.snapshot(), "", "  ")
+	stacks := []byte(s.logs.Redact(string(goroutineSnapshot())))
 	var out bytes.Buffer
 	z := zip.NewWriter(&out)
 	for _, entry := range []struct {
 		name string
 		data []byte
-	}{{"manifest.json", manifest}, {"logs.jsonl", data}} {
+	}{{"manifest.json", manifest}, {"logs.jsonl", data}, {"requests.json", requests}, {"goroutines.txt", stacks}} {
 		f, e := z.Create(entry.name)
 		if e != nil {
 			s.fail(w, e)

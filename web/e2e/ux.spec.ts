@@ -667,6 +667,12 @@ test('diagnostics can be enabled, downloaded and retained across restart with ad
   await expect(page.getByText('Diagnostics unavailable', { exact: true })).toBeVisible();
   await page.unroute('**/api/diagnostics');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByText('Record extra detail for troubleshooting. Turns off automatically after 2 hours.', { exact: true })).toBeVisible();
+  const diagnosticStatus = await (await page.request.get('/api/diagnostics')).json();
+  const remaining = new Date(diagnosticStatus.until).getTime() - Date.now();
+  expect(remaining).toBeGreaterThan(119 * 60 * 1000);
+  expect(remaining).toBeLessThanOrEqual(120 * 60 * 1000);
+  await expect(page.getByText(/^Detailed logging ends at /)).toBeVisible();
   await expect(toggle).toBeChecked();
   await page.reload(); await expect(toggle).toBeChecked();
   await page.route('**/api/diagnostics/download', r => r.fulfill({ status: 503 }));

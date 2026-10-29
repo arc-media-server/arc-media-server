@@ -111,6 +111,7 @@ func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		ctx := context.WithValue(r.Context(), userKey, u)
+		requestStage(r, "handling request", 0)
 		h(w, r.WithContext(context.WithValue(ctx, sessionKey, se.TokenHash)))
 	}
 }

@@ -42,7 +42,7 @@ func TestDiagnosticsExportAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(z.File) != 2 {
+	if len(z.File) != 4 {
 		t.Fatal("unexpected diagnostic contents")
 	}
 	for _, f := range z.File {
