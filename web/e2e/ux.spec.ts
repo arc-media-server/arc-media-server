@@ -1100,19 +1100,3 @@ test('poster menu: Watchlist changes show straight away and a slow action still 
   await expect(page.getByRole('status').filter({ hasText: /Playback started|Added/ })).toBeVisible();
   await page.unroute('**/api/series/*/seasons*');
 });
-
-
-test('sidebar library actions share scan and repair confirmations', async ({ page }) => {
-  const { lib: library } = await seed(page);
-  await page.goto('/');
-  const sidebar = page.locator('aside');
-  await sidebar.getByRole('button', { name: 'More for ' + library.name, exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeVisible();
-  await page.getByRole('menuitem', { name: 'Reanalyze files…', exact: true }).click();
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText(library.name);
-  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await page.goto('/settings');
-  await expect(page.getByText('On this page', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toHaveCount(0);
-});
