@@ -9,7 +9,6 @@ export function sortLabels(): Record<ItemSort, string> {
     release: i18n.t('filters:sort.release'),
     year: i18n.t('filters:sort.year'),
     rating: i18n.t('filters:sort.rating'),
-    imdb: i18n.t('filters:sort.imdb'),
     critics: i18n.t('filters:sort.critics'),
     runtime: i18n.t('filters:sort.runtime'),
     shuffle: i18n.t('filters:sort.shuffle'),
@@ -21,7 +20,7 @@ export function sortDirections(sort: Exclude<ItemSort, 'shuffle'>): [string, str
   switch (sort) {
     case 'title': return [i18n.t('filters:direction.aToZ'), i18n.t('filters:direction.zToA')];
     case 'added': case 'release': case 'year': return [i18n.t('filters:direction.newest'), i18n.t('filters:direction.oldest')];
-    case 'rating': case 'imdb': case 'critics': return [i18n.t('filters:direction.highest'), i18n.t('filters:direction.lowest')];
+    case 'rating': case 'critics': return [i18n.t('filters:direction.highest'), i18n.t('filters:direction.lowest')];
     case 'runtime': return [i18n.t('filters:direction.longest'), i18n.t('filters:direction.shortest')];
     case 'watched': return [i18n.t('filters:direction.mostRecent'), i18n.t('filters:direction.leastRecent')];
   }
@@ -35,10 +34,9 @@ export function sortSummary(sort: ItemSort): string {
     release: i18n.t('filters:sortSummary.release'),
     year: i18n.t('filters:sortSummary.year'),
     rating: i18n.t('filters:sortSummary.rating'),
-    imdb: i18n.t('filters:sortSummary.imdb'),
     critics: i18n.t('filters:sortSummary.critics'),
     runtime: i18n.t('filters:sortSummary.runtime'),
     shuffle: i18n.t('filters:sortSummary.shuffle'),
   };
-  return labels[sort];
+  return labels[sort] ?? labels.title;
 }

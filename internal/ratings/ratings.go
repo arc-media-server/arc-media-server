@@ -1,5 +1,5 @@
-// Package ratings fetches other sites' ratings: IMDb's from its free daily ratings file, and Rotten
-// Tomatoes' and Metacritic's from OMDb when there's a key for it.
+// Package ratings fetches Rotten Tomatoes' and Metacritic's scores from OMDb when
+// configured. The retained IMDb dataset implementation is currently disabled.
 package ratings
 
 import (
@@ -37,7 +37,7 @@ const (
 	omdbPerHour = 40
 )
 
-// Manager keeps titles' IMDb, Rotten Tomatoes and Metacritic ratings up to date in the background.
+// Manager keeps Rotten Tomatoes and Metacritic ratings up to date in the background.
 type Manager struct {
 	store *store.Store
 	dir   string
@@ -105,26 +105,8 @@ func (m *Manager) Run(ctx context.Context) {
 }
 
 func (m *Manager) pass(ctx context.Context) {
-	info, err := os.Stat(m.file())
-	stale := err != nil || time.Since(info.ModTime()) > imdbEvery
-	// The first download happens straight away; later ones wait for the maintenance window.
-	if stale && (err != nil || m.Window.Open()) {
-		task := m.Activity.Start("ratings", "Updating IMDb ratings")
-		task.Detail("Downloading IMDb's ratings file")
-		err := m.download(ctx)
-		if err == nil {
-			err = m.applyIMDb(ctx, task)
-		}
-		task.Finish(err)
-		if err != nil && ctx.Err() == nil {
-			m.log.Warn("updating IMDb ratings failed", "err", err)
-		}
-	} else if err == nil {
-		// New titles get their IMDb rating from the file already here.
-		if err := m.applyIMDb(ctx, nil); err != nil && ctx.Err() == nil {
-			m.log.Warn("reading IMDb ratings failed", "err", err)
-		}
-	}
+	// IMDb ingestion is paused: neither download nor apply a cached dataset. See
+	// docs/RATING-SOURCES.md before restoring this path or removing it permanently.
 	if err := m.fetchCritics(ctx); err != nil && ctx.Err() == nil {
 		m.log.Warn("fetching critics' ratings failed", "err", err)
 	}
