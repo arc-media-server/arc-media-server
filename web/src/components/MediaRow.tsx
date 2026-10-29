@@ -13,7 +13,7 @@ export function cardClass(style: CardStyle) {
 }
 
 /**
- * A titled, horizontally scrolling row of posters, landscape thumbnails or Arc thumbnails, with visible controls whenever
+ * A titled, horizontally scrolling row of posters, landscape thumbnails or backdrop cards, with visible controls whenever
  * the content overflows. With `play`, thumbnails play what they show (Continue Watching, Up Next) instead of
  * opening it.
  */

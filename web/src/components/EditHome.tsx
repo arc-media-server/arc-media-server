@@ -294,7 +294,7 @@ function runtimeLabel(min: number) {
 
 function lookLabels() { return { series: i18n.t('home:look.series'), season: i18n.t('home:look.season'), thumb: i18n.t('home:look.thumb'), arc: i18n.t('home:look.arc'), poster: i18n.t('home:look.poster') }; }
 
-/** How a row's cards look: posters (the show's or the season's, for rows with episodes), thumbnails or Arc thumbnails. */
+/** How a row's cards look: posters (the show's or the season's, for rows with episodes), thumbnails or backdrops. */
 function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Partial<RowLook>) => void }) {
   const { t } = useTranslation('home');
   const labels = lookLabels();

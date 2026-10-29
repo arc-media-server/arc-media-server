@@ -23,3 +23,7 @@ Checks: `npx tsc -b`, production build, `go vet ./...`, `go test ./...`, `npm ru
 Playwright home-navigation, ux and i18n journeys (38 passed). Visual check: screenshots of
 Continue Watching with Arc thumbnails at 1440px and 390px (logo, title fallback, progress bar) and
 the Edit Home menu.
+
+Renamed (owner, 28 October): the style is now called **Backdrops** in the app, matching the other
+choices, which are named after what the card shows. The saved value stays `"arc"`, so rows already
+set to it keep working unchanged.
