@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arc's mark (web/public/icon.svg): an arc over a dot, on a 512 grid. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:pathData="M136,336a120,120 0,0 1,240 0"
+        android:strokeWidth="48"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="136"
+                android:startY="216"
+                android:endX="376"
+                android:endY="364">
+                <item android:offset="0" android:color="#FFC4B5FD" />
+                <item android:offset="1" android:color="#FF7C68FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M256,336m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="228"
+                android:startY="308"
+                android:endX="284"
+                android:endY="364">
+                <item android:offset="0" android:color="#FFC4B5FD" />
+                <item android:offset="1" android:color="#FF7C68FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
