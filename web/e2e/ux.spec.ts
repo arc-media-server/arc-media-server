@@ -769,6 +769,41 @@ test('compact playback carries on to the next episode after its countdown', asyn
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
+test('hardware detection explains unavailable encoding and offers recoverable Retest', async ({ page }) => {
+  let checking = false;
+  let available = false;
+  await page.route('**/api/settings', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const settings = await response.json();
+    await route.fulfill({ response, json: { ...settings, transcoder: { checked: true, checking, tone_mapping: true,
+      hw_encoder: available ? 'h264_vaapi' : '', hw_label: available ? 'VA-API' : '',
+      attempts: [{ encoder: 'h264_vaapi', device: '/dev/dri/renderD129', error: available ? '' : 'Driver initialization failed' }] } } });
+  });
+  let fail = true;
+  await page.route('**/api/transcoder/detect', async route => {
+    if (fail) return route.fulfill({ status: 503, json: { error: 'Detection temporarily unavailable' } });
+    checking = true;
+    return route.fulfill({ status: 202, json: { started: true } });
+  });
+  await page.goto('/settings?section=playback');
+  const retest = page.getByRole('button', { name: 'Retest hardware encoding', exact: true });
+  await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeDisabled();
+  await page.getByText('Hardware detection details', { exact: true }).click();
+  await expect(page.getByText(/Driver initialization failed/)).toBeVisible();
+  await retest.click();
+  await expect(page.getByText('Detection temporarily unavailable', { exact: true })).toBeVisible();
+  fail = false;
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(retest).toBeDisabled();
+  checking = false; available = true;
+  await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeEnabled();
+  await page.unroute('**/api/transcoder/detect');
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Hardware viewer', color: 'blue' } })).json();
+  await page.request.post('/api/auth/profile', { data: { id: viewer.id } });
+  expect((await page.request.post('/api/transcoder/detect')).status()).toBe(403);
+});
+
 test('diagnostics can be enabled, downloaded and retained across restart with admin protection', async ({ page }, info) => {
   await page.goto('/settings?section=maintenance');
   const toggle = page.getByRole('switch', { name: 'Detailed logging', exact: true });

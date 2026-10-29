@@ -45,8 +45,11 @@ type Options struct {
 	BurnSubtitle int
 	// When re-encoding: a hardware H.264 encoder to use (e.g. h264_nvenc), "" for the CPU, and
 	// whether to map HDR to SDR.
-	HWEncoder string
-	ToneMap   bool
+	HWEncoder  string
+	HWDevice   string
+	HWDriver   string
+	HWLowPower bool
+	ToneMap    bool
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// Who started it and for what, for the server's own checks.
@@ -60,13 +63,16 @@ type Session struct {
 	OffsetMS int64
 	Options  Options
 
-	dir      string
-	cancel   context.CancelFunc
-	done     chan struct{}
-	mu       sync.Mutex
-	err      error
-	stderr   bytes.Buffer
-	lastSeen time.Time
+	dir           string
+	cancel        context.CancelFunc
+	done          chan struct{}
+	detectMu      sync.Mutex
+	probeHardware func(context.Context, string, []string, string) ([]byte, error)
+	renderNodes   func() []string
+	mu            sync.Mutex
+	err           error
+	stderr        bytes.Buffer
+	lastSeen      time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
 	proc       *os.Process
@@ -77,9 +83,12 @@ type Session struct {
 
 // Manager runs sessions.
 type Manager struct {
-	ffmpeg func() string
-	probe  func() string
-	log    *slog.Logger
+	detectMu      sync.Mutex
+	probeHardware func(context.Context, string, []string, string) ([]byte, error)
+	renderNodes   func() []string
+	ffmpeg        func() string
+	probe         func() string
+	log           *slog.Logger
 
 	mu       sync.Mutex
 	dir      string // where sessions write, chosen in Settings
@@ -157,6 +166,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	// Reserve capacity through registration. Releasing the lock before starting the process
 	// lets simultaneous requests all observe the same free slot.
 	defer m.mu.Unlock()
+	if opts.HWEncoder != "" && opts.HWEncoder == m.caps.HWEncoder && opts.HWDevice == "" {
+		opts.HWDevice, opts.HWDriver, opts.HWLowPower = m.caps.HWDevice, m.caps.HWDriver, m.caps.HWLowPower
+	}
 	dir, max := m.dir, m.maxVideo
 	if max > 0 && !opts.CopyVideo {
 		n := 0
@@ -183,6 +195,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	cmd := exec.CommandContext(ctx, bin, args...)
+	if opts.HWDriver != "" {
+		cmd.Env = withVADriver(os.Environ(), opts.HWDriver)
+	}
 	cmd.Stderr = &s.stderr
 	if err := cmd.Start(); err != nil {
 		cancel()
@@ -213,7 +228,14 @@ func buildArgs(o Options, start float64, dir string) []string {
 	a := []string{"-hide_banner", "-nostdin", "-v", "error"}
 	encode := !o.CopyVideo
 	if encode && o.HWEncoder == "h264_vaapi" {
-		a = append(a, "-vaapi_device", "/dev/dri/renderD128")
+		device := o.HWDevice
+		if device == "" {
+			device = "/dev/dri/renderD128"
+		}
+		a = append(a, "-vaapi_device", device)
+	}
+	if encode && o.HWEncoder == "h264_qsv" && o.HWDevice != "" {
+		a = append(a, "-qsv_device", o.HWDevice)
 	}
 	if encode && o.HWEncoder != "" {
 		// Decode on the graphics card too when it can; frames come back for filtering.
@@ -326,6 +348,9 @@ func encoderArgs(o Options) []string {
 	}
 	k, max, buf := strconv.Itoa(kbps)+"k", strconv.Itoa(kbps*3/2)+"k", strconv.Itoa(kbps*2)+"k"
 	a := []string{"-c:v", o.HWEncoder, "-b:v", k, "-maxrate", max, "-bufsize", buf}
+	if o.HWLowPower {
+		a = append(a, "-low_power", "1")
+	}
 	switch o.HWEncoder {
 	case "h264_nvenc":
 		a = append(a, "-preset", "p4", "-profile:v", "high", "-pix_fmt", "yuv420p", "-forced-idr", "1")
