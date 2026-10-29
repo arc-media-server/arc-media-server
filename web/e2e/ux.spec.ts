@@ -769,6 +769,33 @@ test('compact playback carries on to the next episode after its countdown', asyn
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
+test('maintenance Run explains accepted, queued, waiting, running and finished states', async ({ page }) => {
+  let task = { kind: 'database', title: 'Optimize database', enabled: true, requested: false,
+    state: 'scheduled', detail: 'Waiting for maintenance', pending: 0, completed: 0, failed: 0,
+    last_run: undefined as undefined | { started_at: number; finished_at: number; last_success_at: number; detail: string } };
+  await page.route('**/api/maintenance', route => route.fulfill({ json: [task] }));
+  let requests = 0;
+  await page.route('**/api/maintenance/database/run', async route => {
+    requests++;
+    task = { ...task, requested: true, state: 'queued', detail: 'Run requested; waiting for an available background task slot' };
+    await route.fulfill({ status: 202, json: { queued: true } });
+  });
+  await page.goto('/settings?section=maintenance');
+  const run = page.getByRole('button', { name: 'Run Optimize database now', exact: true });
+  await run.click();
+  await expect(page.getByText('Queued', { exact: true })).toBeVisible();
+  await expect(run).toBeDisabled();
+  expect(requests).toBe(1);
+  task = { ...task, state: 'paused', detail: 'Waiting for playback or scanning' };
+  await expect(page.getByText('Waiting for playback or scanning', { exact: false })).toBeVisible();
+  task = { ...task, state: 'running', detail: 'Checking database integrity' };
+  await expect(page.getByText('Running', { exact: true })).toBeVisible();
+  task = { ...task, requested: false, state: 'completed', detail: 'Next automatic run is weekly',
+    last_run: { started_at: 100, finished_at: 110, last_success_at: 110, detail: 'Compaction not needed' } };
+  await expect(page.getByText(/Last result.*Compaction not needed/)).toBeVisible();
+  await expect(run).toBeEnabled();
+});
+
 test('diagnostics can be enabled, downloaded and retained across restart with admin protection', async ({ page }, info) => {
   await page.goto('/settings?section=maintenance');
   const toggle = page.getByRole('switch', { name: 'Detailed logging', exact: true });

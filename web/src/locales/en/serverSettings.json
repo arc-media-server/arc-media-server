@@ -185,8 +185,11 @@
   "scheduledWork": {
     "tasks": "Tasks",
     "runNow": "Run now",
+    "stopped": "Stopped",
+    "accepted": "Run requested. Progress and the result will appear here.",
+    "queued": "Queued",
     "running": "Running",
-    "paused": "Paused while something plays or scans",
+    "paused": "Waiting",
     "failed": "Needs attention",
     "runTask": "Run {{task}} now",
     "result": "Last result · {{time}} · {{detail}}"
