@@ -82,7 +82,7 @@ func TestSetMatchAnswersBeforeEpisodesAreFetched(t *testing.T) {
 	start := time.Now()
 	s.setMatch(w, r)
 	took := time.Since(start)
-	if w.Code != http.StatusAccepted {
+	if w.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
 	var got struct {
