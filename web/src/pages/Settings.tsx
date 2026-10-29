@@ -14,7 +14,7 @@ import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionG
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
@@ -114,8 +114,9 @@ function ProfileSettings() {
         />
       </Section>
       <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
-        <ToggleRow setting="show_home_hero" label={t("profileSettings:settings.showHomeHero")} description={t("profileSettings:settings.showTheLargeFeatured")}
-          checked={p.show_home_hero !== false} busy={busy} onChange={v => update.mutate({ show_home_hero: v })} />
+        <Row label={t("profileSettings:settings.homeRows")} description={t("profileSettings:settings.homeRowsHint")}>
+          <Link to="/?edit=1" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>{t("profileSettings:settings.editHome")}</Link>
+        </Row>
       </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
       <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>

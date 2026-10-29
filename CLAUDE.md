@@ -64,6 +64,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Keep working without check-ins. For product decisions, pick a sensible default that is easy to
   change and log it on #80 ("Decisions waiting for the owner"). Only stop for risky or
   irreversible things.
+- Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
+  logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
+  and share the existing one rather than writing a second copy.
 - Necessary configuration belongs in the web UI, never config files (#66). Choose good automatic
   defaults and keep advanced choices and implementation details (worker counts, cache knobs) out
   of ordinary flows.
