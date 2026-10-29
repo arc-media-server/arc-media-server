@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import * as fmt from '@/lib/format';
 import { kindUnit } from '@/lib/kinds';
 import { sortDirections, sortLabels } from '@/lib/filter-labels';
+import { browseFilterKeys, readBrowseState, rememberBrowseState } from '@/lib/browse-state';
 import { countUnit } from '@/lib/browsing-labels';
 import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
@@ -84,12 +85,23 @@ export function LibraryPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const profileId = useAuth().data?.profile?.id;
+  const navigation = useNavigationType();
+  const browseEntry = useRef<{ scope: string; key: string } | undefined>(undefined);
   useEffect(() => {
-    if (!profileId || params.toString()) return;
-    try { const saved = localStorage.getItem(`arc-browse:${profileId}:${id}`); if (saved) setParams(new URLSearchParams(saved), { replace: true }); } catch { /* private browsing may disable storage */ }
-    // Restore only when opening a library, not when clearing its filters.
+    const scope = `${profileId}:${id}`;
+    const entered = browseEntry.current?.scope !== scope ||
+      (browseEntry.current.key !== location.key && navigation !== 'REPLACE');
+    browseEntry.current = { scope, key: location.key };
+    if (!entered || !profileId || !id || params.toString()) return;
+    const saved = readBrowseState(profileId, id);
+    if (saved) setParams(saved, { replace: true });
+    // Explicit links win. In-page replacements (clear, tabs, consumed letter
+    // jumps) must not resurrect remembered filters, including on the same route.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, profileId]);
+  }, [id, profileId, location.key, navigation]);
+  const rememberBrowse = (next: URLSearchParams) => {
+    if (profileId && id) rememberBrowseState(profileId, id, next);
+  };
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
   // A letter from an older link (?letter=s) jumps there once the titles load.
   const letterParam = params.get('letter')?.toLowerCase() ?? '';
@@ -109,7 +121,8 @@ export function LibraryPage() {
   const filtered = Object.values(filters).some(Boolean);
   const clearFilters = () => {
     const next = new URLSearchParams(params);
-    for (const key of Object.keys(filters)) next.delete(key);
+    for (const key of browseFilterKeys) next.delete(key);
+    rememberBrowse(next);
     setParams(next, { replace: true });
   };
   const reverse = params.get('reverse') === '1';
@@ -242,10 +255,7 @@ export function LibraryPage() {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
-    if (profileId && (key === 'sort' || key === 'reverse')) {
-      const saved = new URLSearchParams(); saved.set('sort', next.get('sort') || 'title'); if (next.has('reverse')) saved.set('reverse', '1');
-      try { localStorage.setItem(`arc-browse:${profileId}:${id}`, saved.toString()); } catch { /* storage is optional */ }
-    }
+    if (key === 'sort' || key === 'reverse') rememberBrowse(next);
     setParams(next, { replace: true });
   };
 
@@ -274,6 +284,7 @@ export function LibraryPage() {
       if (value) next.set(key, value);
       else next.delete(key);
     }
+    rememberBrowse(next);
     setParams(next, { replace: true });
   };
 
