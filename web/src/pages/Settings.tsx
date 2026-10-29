@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
-import { EmptyTrashControl } from '@/components/EmptyTrashTask';
+import { EmptyTrashControl, EmptyTrashAllButton } from '@/components/EmptyTrashTask';
 import { MaintenanceTasks } from '@/components/ScheduledWork';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
@@ -568,7 +568,7 @@ function ServerSettings() {
                   description: t('serverSettings:tasks.emptyTrashDescription'),
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
                   feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
-                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">{t("serverSettings:settings.chooseLibrary")}</Link>,
+                  action: <EmptyTrashAllButton />,
                 },
               ]}
             />
