@@ -48,7 +48,7 @@ The owner works from more than one PC (Windows). On a fresh clone:
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
 - **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
-- **Apps:** the Android TV app lives in its own repository, arc-media-server/arc-android-tv
+- **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android
   (Kotlin, Compose for TV, Media3), and uses only `/api/v1`; API gaps it needs are fixed here.
 - **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
 
