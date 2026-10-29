@@ -93,8 +93,11 @@ GET /activity 200 .scheduled[].last_run.detail string
 GET /activity 200 .scheduled[].last_run.error string
 GET /activity 200 .scheduled[].last_run.finished_at integer
 GET /activity 200 .scheduled[].last_run.last_success_at integer
+GET /activity 200 .scheduled[].last_run.paused boolean
 GET /activity 200 .scheduled[].last_run.started_at integer
+GET /activity 200 .scheduled[].last_run.stopped boolean
 GET /activity 200 .scheduled[].pending integer
+GET /activity 200 .scheduled[].requested boolean
 GET /activity 200 .scheduled[].state string
 GET /activity 200 .scheduled[].title string
 GET /auth/link/{poll}
@@ -1144,8 +1147,11 @@ GET /libraries/{id}/recommended 200 .rows[].items[].year integer
 GET /libraries/{id}/recommended 200 .rows[].name string
 GET /libraries/{id}/recommended 200 .rows[].person_id integer
 GET /libraries/{id}/recommended 200 .rows[].role string
+GET /libraries/{id}/recommended 200 .rows[].style string
 GET /libraries/{id}/recommended 200 .rows[].title string
 GET /libraries/{id}/recommended 200 .rows[].type string
+GET /libraries/{id}/recommended/layout
+GET /libraries/{id}/recommended/layout 200
 GET /libraries/{id}/scan
 GET /libraries/{id}/scan 200
 GET /libraries/{id}/scan 200 .done integer
@@ -1362,8 +1368,11 @@ GET /maintenance 200 [].last_run.detail string
 GET /maintenance 200 [].last_run.error string
 GET /maintenance 200 [].last_run.finished_at integer
 GET /maintenance 200 [].last_run.last_success_at integer
+GET /maintenance 200 [].last_run.paused boolean
 GET /maintenance 200 [].last_run.started_at integer
+GET /maintenance 200 [].last_run.stopped boolean
 GET /maintenance 200 [].pending integer
+GET /maintenance 200 [].requested boolean
 GET /maintenance 200 [].state string
 GET /maintenance 200 [].title string
 GET /maintenance/window
@@ -3491,6 +3500,8 @@ POST /series/{id}/seasons/{n}/artwork
 POST /series/{id}/seasons/{n}/artwork 200
 POST /transcode/{sid}/ping
 POST /transcode/{sid}/ping 204
+POST /transcoder/detect
+POST /transcoder/detect 202
 POST /webhooks
 POST /webhooks 200
 POST /webhooks 200 .created_at integer
@@ -3754,6 +3765,13 @@ PUT /items/{id}/rating
 PUT /items/{id}/rating 204
 PUT /items/{id}/watchlist
 PUT /items/{id}/watchlist 204
+PUT /libraries/{id}/recommended/layout
+PUT /libraries/{id}/recommended/layout 200
+PUT /libraries/{id}/recommended/layout 200 .rows array
+PUT /libraries/{id}/recommended/layout 200 .rows[] object
+PUT /libraries/{id}/recommended/layout 200 .rows[].hidden boolean
+PUT /libraries/{id}/recommended/layout 200 .rows[].style string
+PUT /libraries/{id}/recommended/layout 200 .rows[].type string
 PUT /playlists/{id}/order
 PUT /playlists/{id}/order 204
 PUT /series/{id}/display-ordering

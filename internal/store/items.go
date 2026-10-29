@@ -719,7 +719,14 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 	var orderArgs []any
 	switch q.Sort {
 	case "added":
-		order = "added_at DESC, sort_title"
+		date, dateArgs := recentDateSQL(q.Access)
+		sequence, sequenceArgs := recentSequenceSQL(q.Access)
+		direction := " DESC"
+		if q.Reverse {
+			direction = " ASC"
+		}
+		order = date + direction + ", " + sequence + direction + ", sort_title ASC"
+		orderArgs = append(append(orderArgs, dateArgs...), sequenceArgs...)
 	case "year":
 		order = "year DESC, sort_title"
 	case "release":
@@ -742,7 +749,7 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 		order = "(items.rowid * 2654435761 + ?) % 4294967291"
 		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
 	}
-	if q.Reverse && q.Sort != "shuffle" {
+	if q.Reverse && q.Sort != "shuffle" && q.Sort != "added" {
 		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
 		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
 		order = strings.ReplaceAll(order, " DESC", " __DESC__")
@@ -861,7 +868,9 @@ func itemFilter(q ItemQuery) (string, []any) {
 		where = append(where, c+")")
 	}
 	if q.AddedWithinDays > 0 {
-		where = append(where, "added_at >= ?")
+		date, dateArgs := recentDateSQL(q.Access)
+		where = append(where, date+" >= ?")
+		args = append(args, dateArgs...)
 		args = append(args, time.Now().Add(-time.Duration(q.AddedWithinDays)*24*time.Hour).Unix())
 	}
 	if q.MinRuntime > 0 {

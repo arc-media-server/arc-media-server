@@ -35,6 +35,7 @@ func (s *Server) similar(w http.ResponseWriter, r *http.Request) {
 // recommendedRow is one row of a library's Recommended view. Clients title it from its type and
 // parameters, in the profile's language.
 type recommendedRow struct {
+	Style string `json:"style,omitempty"`
 	// What the row is: continue, recently_released, recently_added, start_watching,
 	// because_you_watched, top_rated, recently_watched, rediscover, more_in_genre, top_in_genre,
 	// top_by_person or top_unwatched.
@@ -84,6 +85,12 @@ func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	layout, err := s.readRecommendedLayout(r, lib.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	rows = arrangeRecommended(rows, layout)
 	// Per request, so detail only (recorded while detailed logging is on).
 	s.log.Debug("recommended rows", "library", lib.Name, "rows", len(rows), "took", time.Since(started).Round(time.Millisecond))
 	writeJSON(w, http.StatusOK, recommendedResponse{Rows: rows})

@@ -145,21 +145,36 @@ func (s *Server) healthSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // emptyTrash: POST /api/libraries/{id}/empty-trash forgets everything in a library whose files are
-// gone (after backing up the database). Media files aren't touched.
+// gone (after backing up the database). Media files aren't touched. ?safe=1 additionally requires
+// fresh complete-scan proof and readable unchanged roots; unsafe/busy libraries return a skipped reason.
 func (s *Server) emptyTrash(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
 		return
 	}
-	n, err := s.scanner.EmptyTrash(r.Context(), lib.ID, false, func(ctx context.Context) error {
+	safe := r.URL.Query().Get("safe") == "1"
+	n, err := s.scanner.EmptyTrash(r.Context(), lib.ID, safe, func(ctx context.Context) error {
 		_, err := s.backups.Create(ctx, backup.ReasonBeforeDelete)
 		return err
-	}, nil)
+	}, func() bool { return true })
+	if safe && (errors.Is(err, scanner.ErrLibraryBusy) || errors.Is(err, scanner.ErrTrashUnsafe)) {
+		reason := "scan_required"
+		if errors.Is(err, scanner.ErrLibraryBusy) {
+			reason = "busy"
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"removed": 0, "skipped": reason})
+		return
+	}
 	if errors.Is(err, scanner.ErrLibraryBusy) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
+	if errors.Is(err, context.Canceled) {
+		writeError(w, http.StatusConflict, "Trash cleanup stopped")
+		return
+	}
 	if errors.Is(err, scanner.ErrTrashBackup) {
+		s.log.Warn("library trash cleanup failed", "library", lib.Name, "err", err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -167,7 +182,6 @@ func (s *Server) emptyTrash(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	s.log.Info("removed titles whose files are gone", "library", lib.Name, "count", n)
 	writeJSON(w, http.StatusOK, map[string]int64{"removed": n})
 }
 

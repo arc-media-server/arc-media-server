@@ -93,7 +93,9 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
           <span>{p.device}</span>
           <span className="text-subtle">{p.address}</span>
           <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted ring-1 ring-border">
-            {p.method === 'direct' ? t("reports:dashboard.directPlay") : p.throttled ? t("reports:dashboard.convertingThrottled") : t("reports:dashboard.converting")}
+            {p.method === 'direct' ? t("reports:dashboard.directPlay") : p.method === 'remux'
+              ? p.throttled ? t('reports:dashboard.directStreamThrottled') : t('reports:dashboard.directStream')
+              : p.throttled ? t('reports:dashboard.transcodingThrottled') : t('reports:dashboard.transcoding')}
           </span>
         </div>
         <div className="mt-auto flex items-center gap-3 text-[12px] tabular-nums text-muted">

@@ -1,8 +1,18 @@
-## What changed
-<!-- What and why, in plain words. Link the change note (docs/changes/…) and any #80 decisions. -->
+## Change
 
-## Logging
-<!-- What this logs (see CLAUDE.md, "Logging"): outcomes at Info, failures at Warn/Error, detail at Debug only. "None needed" is fine for UI-only changes. -->
+Describe the user problem and resulting behaviour.
 
-## Checks run
-<!-- Actual results: go vet/test, npx tsc -b, npm run build, browser journeys (and the full suite for broad changes). -->
+## Validation
+
+List actual checks and material limits. Do not claim production/device acceptance from fixtures.
+
+## Logging and diagnostics
+
+- [ ] Failures and stalls are diagnosable, or explain why no additional logging is needed.
+- [ ] Meaningful outcomes/decisions have appropriate context; expected cancellation/empty results
+      are not errors, and failures are not duplicated across layers.
+- [ ] Detail is debug-only; hot paths avoid info floods and expensive disabled-log preparation.
+      Repeated warnings/diagnostic collection are bounded.
+- [ ] No secrets, bodies, raw URLs/query strings or SQL arguments are recorded.
+
+What is logged, when, and what are the volume/performance bounds?

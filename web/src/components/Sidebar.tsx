@@ -4,7 +4,7 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useIsAdmin } from '@/lib/auth';
 import { usePrefs } from '@/lib/home';
 import { navigationLibraries } from '@/lib/library-navigation';
 import { isSettingsPath } from '@/lib/settings-navigation';
@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { usePlaybackQueue } from './Player';
 import { ActivityButton } from '@/components/Activity';
+import { LibraryMenu } from '@/components/LibraryMenu';
+import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { NewsButton } from '@/components/News';
 
 export function useLibraries() {
@@ -39,8 +41,8 @@ export function ArcLogo({ className }: { className?: string }) {
     <svg viewBox="0 0 32 32" className={className} aria-hidden>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#c4b5fd" />
-          <stop offset="1" stopColor="#7c68ff" />
+          <stop offset="0" stopColor="#7fdccd" />
+          <stop offset="1" stopColor="#0b7d72" />
         </linearGradient>
       </defs>
       <path d="M5 24a11 11 0 0 1 22 0" fill="none" stroke={`url(#${id})`} strokeWidth="4.5" strokeLinecap="round" />
@@ -174,6 +176,7 @@ export function Sidebar() {
   const { data } = useLibraries();
   const prefs = usePrefs();
   const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
+  const admin = useIsAdmin();
   const { pathname } = useLocation();
 
   return (
@@ -197,17 +200,19 @@ export function Sidebar() {
         </div>
         {!!libraries?.length && (
           <div>
-            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p>
+            <div className="flex items-center justify-between"><p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p><LibraryNavigationSettings /></div>
             <div className="space-y-0.5">
               {libraries.map((lib) => (
+                <div key={lib.id} className="flex items-center [&>a]:min-w-0 [&>a]:flex-1">
                 <NavItem
-                  key={lib.id}
                   to={`/library/${lib.id}`}
                   icon={createElement(kindIcon(lib.kind))}
                   busy={lib.scan.running}
                 >
                   {lib.name}
                 </NavItem>
+                {admin && <LibraryMenu lib={lib} compact />}
+                </div>
               ))}
             </div>
           </div>
@@ -238,6 +243,7 @@ export function MobileBar() {
         <NewsButton />
         <ActivityButton />
         <Link to="/settings" aria-label={t('navigation.settings')} aria-current={isSettingsPath(pathname) ? 'page' : undefined} className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground', isSettingsPath(pathname) && 'bg-surface-3 text-foreground')}><Settings className="size-[18px]" /></Link>
+        <LibraryNavigationSettings />
         <ProfileMenu compact />
       </div>
       <div className="flex min-w-0 items-center">

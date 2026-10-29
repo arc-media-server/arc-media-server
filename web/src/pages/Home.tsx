@@ -1,6 +1,6 @@
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Link, useSearchParams } from 'react-router';
@@ -10,15 +10,20 @@ import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library, ty
 import { resolveRows, rowTitle, rowHref, rowQuery, usePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
 import { runtime } from '@/lib/format';
 import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
-import { cardClass, MediaRow, RowShell, type CardStyle } from '@/components/MediaRow';
+import { cardClass, MediaRow as SharedMediaRow, RowShell, type CardStyle } from '@/components/MediaRow';
 import { PosterCard, ThumbCard, type CardOverrides } from '@/components/PosterCard';
 import { useRemoveFromContinue } from '@/components/CardMenu';
+import { HomeActionsProvider, HomeRowActions } from '@/components/HomeRowActions';
 import { EditHomeDialog } from '@/components/EditHome';
 import { EmptyState, ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
 import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+
+function MediaRow(props: ComponentProps<typeof SharedMediaRow>) {
+  return <HomeRowActions items={props.items} title={props.title}>{cardProps => <SharedMediaRow {...props} cardProps={cardProps} />}</HomeRowActions>;
+}
 
 function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; style: CardStyle; showsOnly: boolean; seasonPosters: boolean }) {
   const { t } = useTranslation('home');
@@ -30,17 +35,17 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   });
   const cards = useQuery({ queryKey: ['items', 'recent-shows', lib.id], queryFn: () => api.recentShows(lib.id), enabled: grouped });
   const title = t('rows.recent', { name: lib.name });
-  const href = `/library/${lib.id}`;
+  const href = `/library/${lib.id}?sort=added`;
   if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} loading={titles.isPending} error={titles.error} onRetry={() => void titles.refetch()} href={href} style={style} />;
   return (
-    <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
+    <HomeRowActions items={cards.data?.map(c => c.item) ?? []} title={title}>{cardProps => <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
       {cards.data?.map((c) => {
         const key = `${c.type}:${c.item.id}:${c.season_number ?? ''}`;
         const overrides = recentOverrides(c, style, seasonPosters);
-        if (style === 'poster') return <PosterCard key={key} item={c.item} overrides={overrides} className={cardClass(style)} />;
-        return <ThumbCard key={key} item={c.item} overrides={overrides} className={cardClass(style)} arc={style === 'arc'} />;
+        if (style === 'poster') return <PosterCard {...cardProps(c.item)} key={key} item={c.item} overrides={overrides} className={cardClass(style)} />;
+        return <ThumbCard {...cardProps(c.item)} key={key} item={c.item} overrides={overrides} className={cardClass(style)} arc={style === 'arc'} />;
       })}
-    </RowShell>
+    </RowShell>}</HomeRowActions>
   );
 }
 
@@ -179,7 +184,7 @@ export function Home() {
   }
 
   return (
-    <Page className="relative pb-16">
+    <HomeActionsProvider><Page className="relative pb-36">
       {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
       {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
       {prefs.data && (
@@ -205,7 +210,7 @@ export function Home() {
         </div>
       )}
       <EditHomeDialog rows={rows} libraries={libraries} open={editing} onOpenChange={setEditing} />
-    </Page>
+    </Page></HomeActionsProvider>
   );
 }
 
