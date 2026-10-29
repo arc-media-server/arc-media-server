@@ -30,3 +30,7 @@ Driver/package references: https://github.com/intel/media-driver and
 https://packages.debian.org/bookworm/intel-media-va-driver . Debian retains package copyright/
 licence notices. Free driver builds and host firmware can have capability limits; failed actual
 trials remain unavailable and provide their error rather than enabling a listed encoder blindly.
+
+API-reference follow-up: regenerated both docs/API.md and docs/openapi.json after the UI build;
+`go test ./internal/apidoc` passed. The local combined-PR check caught the stale machine-readable
+reference before handoff. No product behaviour changed in this follow-up.
