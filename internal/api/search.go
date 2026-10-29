@@ -127,7 +127,7 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 			}
 			var pos map[string][2]int
 			if sr != nil {
-				pos, _, _ = s.orderPositions(ctx, currentUserID(r), sr)
+				pos, _, _ = s.orderPositions(ctx, sr)
 			}
 			res.Episodes = append(res.Episodes, s.episodeDTO(ep, sr, pos))
 		}

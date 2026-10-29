@@ -183,7 +183,7 @@ func (s *Server) setPlayed(w http.ResponseWriter, r *http.Request) {
 }
 
 // seriesEpisodeIDs returns a series' episodes on disk: all of them, or one season of the
-// profile's display ordering.
+// show's display ordering.
 func (s *Server) seriesEpisodeIDs(r *http.Request, series *store.Item, season *int) ([]string, error) {
 	ctx := r.Context()
 	available, err := s.store.AvailableChildren(ctx, series.ID)
@@ -201,11 +201,11 @@ func (s *Server) seriesEpisodeIDs(r *http.Request, series *store.Item, season *i
 	if err != nil {
 		return nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return nil, err
 	}
-	entries, err := s.store.DisplayEntries(ctx, oid, currentUserID(r))
+	entries, err := s.store.DisplayEntries(ctx, oid)
 	if err != nil {
 		return nil, err
 	}
@@ -240,18 +240,18 @@ func (s *Server) episodeDTO(ep store.Item, series *store.Item, positions map[str
 	return d
 }
 
-// orderPositions returns where each episode of a series sits in the profile's episode order
-// (its first position), and the entries in order.
-func (s *Server) orderPositions(ctx context.Context, userID string, series *store.Item) (map[string][2]int, []store.OrderingEntry, error) {
+// orderPositions returns where each episode of a series sits in its episode order (its first
+// position), and the entries in order.
+func (s *Server) orderPositions(ctx context.Context, series *store.Item) (map[string][2]int, []store.OrderingEntry, error) {
 	lib, err := s.store.GetLibrary(ctx, series.LibraryID)
 	if err != nil || lib == nil {
 		return nil, nil, err
 	}
-	oid, err := s.store.DisplayOrdering(ctx, series.ID, userID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
+	oid, err := s.store.DisplayOrdering(ctx, series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil || oid == 0 {
 		return map[string][2]int{}, nil, err
 	}
-	entries, err := s.store.DisplayEntries(ctx, oid, userID)
+	entries, err := s.store.DisplayEntries(ctx, oid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -325,10 +325,9 @@ func mergeHome(inProgress, upNext []homeEntry, limit int) []homeEntry {
 	return out
 }
 
-// writeHome sends home entries with their episode numbers (in the profile's order) and watch state.
+// writeHome sends home entries with their episode numbers (in the series' order) and watch state.
 func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []homeEntry) {
 	ctx := r.Context()
-	userID := currentUserID(r)
 	out := make([]itemDTO, 0, len(entries))
 	series := map[string]*store.Item{}
 	positions := map[string]map[string][2]int{}
@@ -348,7 +347,7 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 			}
 			pos := map[string][2]int{}
 			if sr != nil {
-				if pos, _, err = s.orderPositions(ctx, userID, sr); err != nil {
+				if pos, _, err = s.orderPositions(ctx, sr); err != nil {
 					s.fail(w, err)
 					return
 				}
@@ -421,7 +420,7 @@ func (s *Server) upNext(r *http.Request) ([]homeEntry, error) {
 		} else if !ok {
 			continue
 		}
-		_, entries, err := s.orderPositions(ctx, userID, series)
+		_, entries, err := s.orderPositions(ctx, series)
 		if err != nil {
 			return nil, err
 		}
@@ -493,7 +492,7 @@ func (s *Server) nextEpisode(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	pos, entries, err := s.orderPositions(ctx, currentUserID(r), series)
+	pos, entries, err := s.orderPositions(ctx, series)
 	if err != nil {
 		s.fail(w, err)
 		return

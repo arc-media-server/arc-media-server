@@ -158,7 +158,7 @@ func TestFullProviderRefreshAndSourceSwitchPreservesEpisode(t *testing.T) {
 		if err != nil || len(entries) != 1 || entries[0].EpisodeID != id || !entries[0].Locked || entries[0].Season != 3 || entries[0].Episode != 7 {
 			t.Fatalf("%s lost manual placement: %+v %v", source, entries, err)
 		}
-		got, err := st.DisplayOrdering(ctx, show, "", source)
+		got, err := st.DisplayOrdering(ctx, show, source)
 		if err != nil || got != custom {
 			t.Fatalf("%s lost display order: %d %v", source, got, err)
 		}

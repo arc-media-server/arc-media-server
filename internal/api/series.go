@@ -61,17 +61,17 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	display, err := s.store.DisplayOrdering(r.Context(), series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering))
+	display, err := s.store.DisplayOrdering(r.Context(), series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering))
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	choice, err := s.store.DisplayChoice(r.Context(), series.ID, currentUserID(r), currentUser(r) != nil && currentUser(r).IsAdmin)
+	choice, err := s.store.DisplayChoice(r.Context(), series.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	inline, overridden, err := s.store.InlineSpecials(r.Context(), series.ID, currentUserID(r))
+	inline, err := s.store.InlineSpecials(r.Context(), series.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -82,13 +82,12 @@ func (s *Server) listOrderings(w http.ResponseWriter, r *http.Request) {
 		"source_ordering":     cmp.Or(series.SourceOrdering, lib.SourceOrdering),
 		"orderings":           orderings,
 		"inline_specials":     inline,
-		"specials_overridden": overridden,
 	})
 }
 
-// setSpecials: PATCH /api/series/{id}/specials {"inline_specials": true|false|null}.
-// null restores inheritance (or Off for the admin's server default). This changes display/
-// playback traversal only; manual/custom placements and original numbering remain authoritative.
+// setSpecials: PATCH /api/series/{id}/specials {"inline_specials": true|false|null} (null is Off)
+// places specials between regular episodes, for everyone. This changes display/playback
+// traversal only; manual/custom placements and original numbering remain authoritative.
 func (s *Server) setSpecials(w http.ResponseWriter, r *http.Request) {
 	series, _, ok := s.seriesFromPath(w, r)
 	if !ok {
@@ -106,17 +105,16 @@ func (s *Server) setSpecials(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "inline_specials must be true, false or null")
 		return
 	}
-	if err := s.store.SetInlineSpecials(r.Context(), series.ID, currentUserID(r), currentUser(r).IsAdmin, enabled); err != nil {
+	if err := s.store.SetInlineSpecials(r.Context(), series.ID, enabled); err != nil {
 		s.fail(w, err)
 		return
 	}
 	s.listOrderings(w, r)
 }
 
-// setDisplayOrdering: PUT /api/series/{id}/display-ordering {"ordering_id": 12} (null resets).
-// The choice is the current profile's own; the admin's choice is also the default for profiles
-// that haven't chosen. Choosing an ordering from the other provider triggers a thorough episode
-// mapping first.
+// setDisplayOrdering: PUT /api/series/{id}/display-ordering {"ordering_id": 12} (null goes back
+// to the file order) sets the order a series is shown in, for everyone. Choosing an ordering from
+// the other provider triggers a thorough episode mapping first.
 func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 	series, lib, ok := s.seriesFromPath(w, r)
 	if !ok {
@@ -129,17 +127,10 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	user := currentUser(r)
-	users := []string{user.ID}
-	if user.IsAdmin {
-		users = append(users, "")
-	}
 	if body.OrderingID == nil {
-		for _, u := range users {
-			if err := s.store.ClearDisplayOrdering(r.Context(), series.ID, u); err != nil {
-				s.fail(w, err)
-				return
-			}
+		if err := s.store.ClearDisplayOrdering(r.Context(), series.ID, ""); err != nil {
+			s.fail(w, err)
+			return
 		}
 		s.listOrderings(w, r)
 		return
@@ -155,12 +146,7 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apply := func(ctx context.Context) error {
-		for _, u := range users {
-			if err := s.store.SetDisplayOrdering(ctx, series.ID, u, o.ID); err != nil {
-				return err
-			}
-		}
-		return nil
+		return s.store.SetDisplayOrdering(ctx, series.ID, "", o.ID)
 	}
 	if o.Source != "custom" && o.Source != "file" && !strings.HasPrefix(o.Source, sourceProvider(cmp.Or(series.SourceOrdering, lib.SourceOrdering))) {
 		if err := s.scanner.RefreshSeries(r.Context(), lib, series.ID, true, apply); err != nil {
@@ -217,7 +203,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	oid, _ := strconv.ParseInt(q.Get("ordering"), 10, 64)
 	if oid == 0 {
 		var err error
-		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
+		if oid, err = s.store.DisplayOrdering(ctx, series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
 			s.fail(w, err)
 			return
 		}
@@ -253,7 +239,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 	seasons := []*seasonDTO{}
 	placed := map[string]bool{}
 	if ordering != nil {
-		entries, err := s.store.DisplayEntries(ctx, ordering.ID, currentUserID(r))
+		entries, err := s.store.DisplayEntries(ctx, ordering.ID)
 		if err != nil {
 			s.fail(w, err)
 			return
@@ -511,7 +497,7 @@ func (s *Server) unmatched(w http.ResponseWriter, r *http.Request) {
 }
 
 // editSeason: PATCH /api/series/{id}/seasons/{n}?ordering=<id> {"name", "overview", "locked_fields"}
-// changes a season's name and summary in an episode order (the profile's display order by default).
+// changes a season's name and summary in an episode order (the show's display order by default).
 // Fields sent are locked so refreshes keep them; "locked_fields" replaces the locked set.
 func (s *Server) editSeason(w http.ResponseWriter, r *http.Request) {
 	series, lib, ok := s.seriesFromPath(w, r)
@@ -526,7 +512,7 @@ func (s *Server) editSeason(w http.ResponseWriter, r *http.Request) {
 	}
 	oid, _ := strconv.ParseInt(r.URL.Query().Get("ordering"), 10, 64)
 	if oid == 0 {
-		if oid, err = s.store.DisplayOrdering(ctx, series.ID, currentUserID(r), cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
+		if oid, err = s.store.DisplayOrdering(ctx, series.ID, cmp.Or(series.SourceOrdering, lib.SourceOrdering)); err != nil {
 			s.fail(w, err)
 			return
 		}

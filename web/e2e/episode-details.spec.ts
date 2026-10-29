@@ -7,12 +7,9 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
-/** Episode ordering: profiles find it in the show's ⋯ More menu, the server owner in Edit. */
+/** Episode ordering is the server owner's, in Edit, Metadata & ordering. */
 async function openOrdering(page: Page) {
  await page.getByRole('button',{name:'More',exact:true}).click();
- await page.getByRole('menu').waitFor();
- const item = page.getByRole('menuitem',{name:'Episode ordering…',exact:true});
- if (await item.count()) { await item.click(); return; }
  await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
@@ -171,7 +168,7 @@ test('episode details: unavailable request Retry and spoiler protection do not s
   await expect(page.locator('video')).toHaveCount(0);
 });
 
-test('inline specials: imported hints, save Retry, traversal, unknown fallback and profile inheritance', async ({ page, media }, info) => {
+test('inline specials: imported hints, save Retry, traversal, unknown fallback and the owner’s choice for every profile', async ({ page, media }, info) => {
   const { series, episodes } = await importShow(page, media.specials);
   const first = episodes.find(e => e.title === 'Opening')!;
   const special = episodes.find(e => e.title === 'Interlude')!;
@@ -197,11 +194,10 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   const user = await (await page.request.post('/api/profiles', { data: { name: 'Other viewer' } })).json();
   expect((await page.request.post('/api/auth/profile', { data: { id: user.id } })).ok()).toBeTruthy();
   await page.reload();
-  await menu(); await expect(page.getByRole('combobox',{name:'Specials in seasons',exact:true})).toHaveValue('inherit');
-  await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('off'); await page.getByRole('button',{name:'Save',exact:true}).click();
-  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toHaveCount(0);
-  await menu(); await page.getByRole('combobox',{name:'Specials in seasons',exact:true}).selectOption('inherit'); await page.getByRole('button',{name:'Save',exact:true}).click();
+  // Other profiles follow the owner's choice and can't change it.
   await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+  expect((await page.request.patch(`/api/series/${series.id}/specials`, { data: { inline_specials: false } })).status()).toBe(403);
+  expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(true);
 });
 
 test('season names and summaries are edited from Edit, Seasons, for the order being viewed', async ({ page, media }) => {
