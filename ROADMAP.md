@@ -157,6 +157,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 _Arc has its own clients; the API is open for anyone to build more._
 - [x] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
 - [ ] Native apps (tvOS, iOS, Android TV) (#63)
+  - Android TV: first slice in `clients/android-tv` (sign-in code, profiles, Home, details, playback); not yet checked on a real TV (`docs/changes/2026-10-29-android-tv-app.md`)
 
 ### 19. Quick wins and server resources ✅
 _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource graphs._

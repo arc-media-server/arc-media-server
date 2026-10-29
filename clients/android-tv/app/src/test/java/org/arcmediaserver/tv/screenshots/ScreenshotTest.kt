@@ -45,6 +45,7 @@ import org.robolectric.annotation.GraphicsMode
  * Renders each screen at a TV's 1920x1080 (960x540dp at xhdpi) on the JVM, into
  * app/screenshots/tv-*.png: `./gradlew recordRoborazziDebug`. Look at them after UI changes.
  */
+@OptIn(coil3.annotation.ExperimentalCoilApi::class)
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w960dp-h540dp-land-television-xhdpi")

@@ -158,6 +158,7 @@ internal/insights/   watch-history stats: activity overview and a profile's year
 internal/search/     search normalising and fuzzy scoring (accents, case, small typos)
 internal/webui/      embeds web/ build output (internal/webui/dist)
 web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
+clients/android-tv/  the Android TV app (Kotlin, Compose for TV, Media3) on /api/v1; see its README
 tools/testmedia/     generates a fake test library
 tools/apidoc/        regenerates docs/API.md from internal/api (internal/apidoc; a test fails when it's stale)
 tools/scanbench/     times first scans against a stand-in TMDB with slow disks simulated (AMS_TMDB_URL, AMS_PROBE_DELAY_MS)
