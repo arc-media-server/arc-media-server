@@ -17212,6 +17212,62 @@
         "x-arc-access": "profile"
       }
     },
+    "/transcoder/detect": {
+      "post": {
+        "description": "Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected.\n\nWho may call it: **admin**.",
+        "operationId": "detectHardware",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Accepted; the work continues in the background"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Starts one bounded hardware encoding recheck",
+        "tags": [
+          "Transcoder"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
     "/watchlist": {
       "get": {
         "description": "Is the profile's watchlist, most recently added first.\n\nWho may call it: **profile**.",

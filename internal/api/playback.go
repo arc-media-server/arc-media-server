@@ -2,6 +2,7 @@ package api
 
 import (
 	"ams/internal/auth"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -753,7 +754,13 @@ func (s *Server) transcoderCaps() transcode.Capabilities {
 	if s.transcoder == nil {
 		return transcode.Capabilities{}
 	}
-	return s.transcoder.Caps()
+	caps := s.transcoder.Caps()
+	if s.logs != nil {
+		for i := range caps.Attempts {
+			caps.Attempts[i].Error = s.logs.Redact(caps.Attempts[i].Error)
+		}
+	}
+	return caps
 }
 
 // compatibility: POST /api/libraries/{id}/compatibility {"caps": {...}} says how a library's titles
@@ -962,4 +969,15 @@ func (s *Server) logPlayback(r *http.Request, fileID int64, method string, reaso
 		how = method
 	}
 	s.log.Info("playback", "title", title, "profile", name, "device", deviceName(r.UserAgent()), "method", how, "because", strings.Join(reasons, ", "))
+}
+
+// detectHardware: POST /api/transcoder/detect starts one bounded hardware encoding recheck (admin).
+// Repeated requests while detection is running reuse that job. No media files are inspected.
+func (s *Server) detectHardware(w http.ResponseWriter, r *http.Request) {
+	if s.transcoder == nil {
+		writeError(w, http.StatusServiceUnavailable, "transcoding unavailable")
+		return
+	}
+	started := s.transcoder.RequestDetect(context.WithoutCancel(r.Context()))
+	writeJSON(w, http.StatusAccepted, map[string]bool{"started": started})
 }
