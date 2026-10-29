@@ -743,6 +743,8 @@ export interface Prefs {
   audio_language?: string;
   /** Skip intros and recaps without asking. */
   auto_skip?: boolean;
+  /** Internet streaming quality (kbit/s, one of `qualities`): the most a stream away from home may use; absent/0 for Maximum. Never applies at home. */
+  remote_quality_kbps?: number;
   /** When subtitles turn on by themselves (Plex's subtitle mode); absent: in the language last chosen. */
   subtitle_mode?: SubtitleMode;
   /** How subtitles look; absent fields use the defaults. */

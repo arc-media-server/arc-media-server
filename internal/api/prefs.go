@@ -39,6 +39,9 @@ type prefs struct {
 	ThemeMusic *bool `json:"theme_music,omitempty"`
 	// Skip intros and recaps without asking (off unless turned on).
 	AutoSkip bool `json:"auto_skip"`
+	// Internet streaming quality, as Plex's: the most a stream away from home may use (kbit/s, one
+	// of the player's quality limits), or 0 for Maximum. Never applies on the home network.
+	RemoteQualityKbps int `json:"remote_quality_kbps,omitempty"`
 	// When subtitles turn on by themselves, as Plex's subtitle mode: "" in the language last chosen,
 	// "manual" only when picked (forced ones still show), "foreign" when the audio isn't in the
 	// subtitle language, "always" whenever there are some in it.
@@ -115,6 +118,9 @@ func (p *prefs) validate() error {
 	}
 	if len(p.AudioLanguage) > 8 {
 		return fmt.Errorf("audio_language is a language code like \"jpn\"")
+	}
+	if p.RemoteQualityKbps != 0 && !slices.Contains(qualityLimits, p.RemoteQualityKbps) {
+		return fmt.Errorf("remote_quality_kbps is 0 (Maximum) or one of %v", qualityLimits)
 	}
 	if !slices.Contains([]string{"", "manual", "foreign", "always"}, p.SubtitleMode) {
 		return fmt.Errorf(`subtitle_mode is "", "manual", "foreign" or "always"`)
@@ -260,6 +266,9 @@ func (s *Server) profileFromPath(w http.ResponseWriter, r *http.Request) (*store
 // updatePrefs: PATCH /api/me/prefs changes only the fields sent, e.g. {"library_order": [2,1]},
 // {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all.
 // An empty library_order resets navigation order; watched_percent 0 resets completion to 90%.
+// remote_quality_kbps is the profile's internet streaming quality: 0 for Maximum, or one of 20000,
+// 12000, 8000, 4000, 3000, 2000, 1500 or 720 (kbit/s) to limit streams away from home (the lower of
+// it and the server's remote limit applies; never on the home network).
 func (s *Server) updatePrefs(w http.ResponseWriter, r *http.Request) {
 	s.patchPrefs(w, r, currentUserID(r))
 }
@@ -321,6 +330,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		AutoPlay         *bool          `json:"auto_play"`
 		ThemeMusic       *bool          `json:"theme_music"`
 		AutoSkip         *bool          `json:"auto_skip"`
+		RemoteQuality    *int           `json:"remote_quality_kbps"`
 		SubtitleMode     *string        `json:"subtitle_mode"`
 		SubtitleStyle    *subtitleStyle `json:"subtitle_style"`
 		Home             []homeRow      `json:"home"`
@@ -355,6 +365,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.AutoSkip != nil {
 		p.AutoSkip = *body.AutoSkip
+	}
+	if body.RemoteQuality != nil {
+		p.RemoteQualityKbps = *body.RemoteQuality
 	}
 	if body.SubtitleMode != nil {
 		p.SubtitleMode = *body.SubtitleMode

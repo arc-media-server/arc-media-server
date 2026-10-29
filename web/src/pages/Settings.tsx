@@ -91,6 +91,12 @@ function ProfileSettings() {
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </Row>
+        <Row setting="remote_quality_kbps" label={t("profileSettings:settings.internetStreamingQuality")} description={t("profileSettings:settings.internetStreamingQualityHint")}>
+          <select aria-label={t("profileSettings:settings.internetStreamingQuality")} value={p.remote_quality_kbps ?? 0} disabled={busy} onChange={(e) => update.mutate({ remote_quality_kbps: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            <option value={0}>{t("profileSettings:settings.maximumQuality")}</option>
+            {qualities.map((q) => <option key={q} value={q}>{qualityName(q)}</option>)}
+          </select>
+        </Row>
         <ToggleRow
           setting="auto_play" label={t("profileSettings:settings.autoPlay")}
           description={t("profileSettings:settings.playTheNextEpisode")}

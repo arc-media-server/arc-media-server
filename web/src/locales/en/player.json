@@ -30,6 +30,8 @@
     "quality": "Quality",
     "automatic": "Automatic",
     "original": "Original",
+    "maximumCapped": "Maximum ({{quality}})",
+    "awayFromHomeLimit": "Away from home, streams are limited to {{quality}}.",
     "adaptsToPlaybackDelivery": "Adapts to playback delivery. Changes may briefly rebuffer.",
     "chapters": "Chapters",
     "playbackQueue": "Playback queue",

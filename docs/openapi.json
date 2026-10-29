@@ -1932,6 +1932,9 @@
             },
             "type": "array"
           },
+          "remote_quality_kbps": {
+            "type": "integer"
+          },
           "show_home_hero": {
             "type": "boolean"
           },
@@ -12620,7 +12623,7 @@
         "x-arc-access": "profile"
       },
       "patch": {
-        "description": "Changes only the fields sent, e.g. {\"library_order\": [2,1]}, {\"watched_percent\": 95}, {\"hide_spoilers\": true} or {\"home\": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%.\n\nWho may call it: **profile**.",
+        "description": "Changes only the fields sent, e.g. {\"library_order\": [2,1]}, {\"watched_percent\": 95}, {\"hide_spoilers\": true} or {\"home\": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%. remote_quality_kbps is the profile's internet streaming quality: 0 for Maximum, or one of 20000, 12000, 8000, 4000, 3000, 2000, 1500 or 720 (kbit/s) to limit streams away from home (the lower of it and the server's remote limit applies; never on the home network).\n\nWho may call it: **profile**.",
         "operationId": "updatePrefs",
         "requestBody": {
           "content": {
@@ -12650,6 +12653,9 @@
                       "type": "integer"
                     },
                     "type": "array"
+                  },
+                  "remote_quality_kbps": {
+                    "type": "integer"
                   },
                   "show_home_hero": {
                     "type": "boolean"
@@ -12683,6 +12689,7 @@
                   "hide_spoilers",
                   "home",
                   "library_order",
+                  "remote_quality_kbps",
                   "show_home_hero",
                   "split_up_next",
                   "subtitle_language",
@@ -14685,6 +14692,9 @@
                     },
                     "type": "array"
                   },
+                  "remote_quality_kbps": {
+                    "type": "integer"
+                  },
                   "show_home_hero": {
                     "type": "boolean"
                   },
@@ -14717,6 +14727,7 @@
                   "hide_spoilers",
                   "home",
                   "library_order",
+                  "remote_quality_kbps",
                   "show_home_hero",
                   "split_up_next",
                   "subtitle_language",
