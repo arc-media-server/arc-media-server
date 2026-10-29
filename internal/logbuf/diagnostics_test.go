@@ -19,15 +19,21 @@ func TestDetailedLoggingExpiresAfterRenewal(t *testing.T) {
 		defer b.Close()
 		log := slog.New(b.Wrap(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: b.Level()})))
 		b.SetDetailed(true)
+		if until := b.Status().Until; until == nil || until.Sub(time.Now()) != 2*time.Hour {
+			t.Fatal("detailed window must be two hours")
+		}
 		log.Debug("enabled")
-		time.Sleep(29 * time.Minute)
+		time.Sleep(119 * time.Minute)
+		if !b.Status().Detailed {
+			t.Fatal("logging expired before two hours")
+		}
 		b.SetDetailed(true)
 		time.Sleep(2 * time.Minute)
 		synctest.Wait()
 		if !b.Status().Detailed {
 			t.Fatal("old timer disabled renewed diagnostics")
 		}
-		time.Sleep(28 * time.Minute)
+		time.Sleep(118 * time.Minute)
 		synctest.Wait()
 		log.Debug("expired")
 		log.Info("normal")

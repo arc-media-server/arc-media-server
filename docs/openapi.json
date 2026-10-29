@@ -5749,7 +5749,7 @@
         "x-arc-access": "admin"
       },
       "patch": {
-        "description": "{\"detailed\":true} enables detailed logs for thirty minutes; false stops them .\n\nWho may call it: **admin**.",
+        "description": "{\"detailed\":true} enables detailed logs for two hours; false stops them .\n\nWho may call it: **admin**.",
         "operationId": "setDiagnostics",
         "requestBody": {
           "content": {
@@ -5821,7 +5821,7 @@
             "description": "Not available right now"
           }
         },
-        "summary": "Enables detailed logs for thirty minutes; false stops them ",
+        "summary": "Enables detailed logs for two hours; false stops them ",
         "tags": [
           "Diagnostics"
         ],
@@ -5830,7 +5830,7 @@
     },
     "/diagnostics/download": {
       "get": {
-        "description": "Exports redacted retained logs and build information as a ZIP . No database, settings dump or media files are included.\n\nWho may call it: **admin**.",
+        "description": "Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP . No database, settings dump or media files are included.\n\nWho may call it: **admin**.",
         "operationId": "downloadDiagnostics",
         "responses": {
           "200": {
@@ -5880,7 +5880,7 @@
             "description": "Not available right now"
           }
         },
-        "summary": "Exports redacted retained logs and build information as a ZIP",
+        "summary": "Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP",
         "tags": [
           "Diagnostics"
         ],
