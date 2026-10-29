@@ -520,6 +520,36 @@ test('comparison keeps selections on failure and only the server owner changes t
   expect((await (await page.request.get(`/api/series/${item.id}/orderings`)).json()).display_ordering_id).toBe(inherited);
 });
 
+test('paused IMDb ratings hide stale scores and sort choices while provider and personal scores remain', async ({ page }) => {
+  const { item, lib } = await seed(page);
+  let critics = false;
+  await page.route('**/api/items/' + item.id, async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), rating: 7.4,
+      imdb_rating: 9.9, imdb_votes: 12345,
+      rotten_tomatoes: critics ? 83 : null, metacritic: critics ? 71 : null } });
+  });
+  await page.goto('/movie/' + item.id);
+  await expect(page.getByRole('heading', { name: item.title, exact: true })).toBeVisible();
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('★ 7.4', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: '5 stars', exact: true })).toBeVisible();
+  critics = true;
+  await page.reload();
+  await expect(page.getByText('83%', { exact: true })).toBeVisible();
+  await expect(page.locator('[title="Metacritic"]')).toContainText('71');
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
+  // Saved pre-pause IMDb browse URLs recover to an available sort.
+  await page.goto('/library/' + lib.id + '?sort=imdb');
+  await page.getByRole('button', { name: 'Sort by Title', exact: true }).click();
+  await expect(page.getByRole('menuitemradio', { name: /IMDb/ })).toHaveCount(0);
+  await expect(page.getByRole('menuitemradio', { name: 'Title', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.goto('/settings?section=library');
+  await expect(page.getByText('Rotten Tomatoes and Metacritic', { exact: true })).toBeVisible();
+  await expect(page.getByText('IMDb', { exact: true })).toHaveCount(0);
+});
+
 test('ratings, watchlist and metadata refresh failures explain and recover', async ({ page }) => {
   const { item } = await seed(page);
   await page.goto('/movie/' + item.id);

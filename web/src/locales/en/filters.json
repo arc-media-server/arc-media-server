@@ -73,7 +73,6 @@
     "release": "Release Date",
     "year": "Year",
     "rating": "Rating",
-    "imdb": "IMDb Rating",
     "critics": "Rotten Tomatoes",
     "runtime": "Length",
     "shuffle": "Shuffle"
@@ -85,7 +84,6 @@
     "release": "by release date",
     "year": "by year",
     "rating": "by rating",
-    "imdb": "by imdb rating",
     "critics": "by rotten tomatoes",
     "runtime": "by length",
     "shuffle": "shuffled"

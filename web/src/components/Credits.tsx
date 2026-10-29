@@ -92,7 +92,7 @@ export function CastRow({ credits, title }: { credits?: Credit[]; title?: string
 /** The rating, age rating and genres for the meta line under a title. */
 export function detailParts(item: Item) {
   return {
-    rating: item.imdb_rating || item.rotten_tomatoes != null || item.metacritic != null || item.rating ? <Scores item={item} /> : undefined,
+    rating: item.rotten_tomatoes != null || item.metacritic != null || item.rating ? <Scores item={item} /> : undefined,
     contentRating: item.content_rating,
     genres: (item.genres ?? []).slice(0, 3).join(', '),
   };
