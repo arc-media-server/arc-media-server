@@ -2417,6 +2417,57 @@
         ],
         "type": "object"
       },
+      "RecommendedResponse": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendedRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "RecommendedRow": {
+        "properties": {
+          "genre": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "person_id": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          },
+          "style": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "title",
+          "type"
+        ],
+        "type": "object"
+      },
       "RemoteStatus": {
         "properties": {
           "double_nat": {
@@ -8670,7 +8721,7 @@
         "x-arc-access": "admin"
       },
       "put": {
-        "description": "{\"provider\": \"tmdb\", \"id\": 603} identifies an item as the chosen provider entry. A movie's metadata is fetched before it answers (200 with the item). For a show it fetches only the chosen entry's own details and answers 202 with the item and `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the background, which then links its files to the new episodes. The item keeps its previous match if the chosen entry can't be fetched.\n\nWho may call it: **admin**.",
+        "description": "{\"provider\": \"tmdb\", \"id\": 603} identifies an item as the chosen provider entry and answers with the item. A movie's metadata is fetched before it answers. For a show it fetches only the chosen entry's own details and adds `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the background, which then links its files to the new episodes. The item keeps its previous match if the chosen entry can't be fetched.\n\nWho may call it: **admin**.",
         "operationId": "setMatch",
         "parameters": [
           {
@@ -8714,16 +8765,6 @@
               }
             },
             "description": "OK"
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Matched"
-                }
-              }
-            },
-            "description": "Accepted; the work continues in the background"
           },
           "400": {
             "content": {
@@ -8796,7 +8837,7 @@
             "description": "A service Arc relies on failed"
           }
         },
-        "summary": "Identifies an item as the chosen provider entry",
+        "summary": "Identifies an item as the chosen provider entry and answers with the item",
         "tags": [
           "Items"
         ],
@@ -11883,7 +11924,7 @@
     },
     "/libraries/{id}/recommended": {
       "get": {
-        "description": "Is a library's Recommended view for the profile, in this order: Continue Watching (what it's part-way through here and the next episode of shows it's watching), Recently Released, Recently Added, Start Watching (shows not started), \"Because you watched\" rows for its recent titles, Top Rated, Recently Watched (episodes, in a TV library), Rediscover (finished more than six months ago), more of its favourite genres, the top titles of a genre and of an actor or director (both changing daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre, person_id, role) rather than a title; rows without anything are left out.\n\nWho may call it: **profile**.",
+        "description": "Is a library's Recommended view for the profile, in this order: Continue Watching (what it's part-way through here and the next episode of shows it's watching), Recently Released, Recently Added, Start Watching (shows not started), \"Because you watched\" rows for its recent titles, Top Rated, Recently Watched (episodes, in a TV library), Rediscover (finished more than six months ago), more of its favourite genres, the top titles of a genre and of an actor or director (both changing daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre, person_id, role) for the app to title in the viewer's language, plus an English title for apps written before rows had a type; rows without anything are left out.\n\nWho may call it: **profile**.",
         "operationId": "recommended",
         "parameters": [
           {
@@ -11900,8 +11941,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/RecommendedResponse"
                 }
               }
             },

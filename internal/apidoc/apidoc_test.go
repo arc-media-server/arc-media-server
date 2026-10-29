@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +54,37 @@ func TestDocsDoNotCompareWithPlex(t *testing.T) {
 		}
 		for _, m := range compare.FindAllIndex(data, -1) {
 			t.Errorf("docs/%s compares with Plex: %q", name, data[max(0, m[0]-60):min(len(data), m[1]+40)])
+		}
+	}
+}
+
+// The v1 promise: nothing in docs/api-v1-contract.txt may disappear or change type, and the file
+// records everything the code answers with (so new fields are protected from then on).
+func TestV1ContractKept(t *testing.T) {
+	recorded, current, err := contract(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string]bool{}
+	for _, l := range current {
+		have[l] = true
+	}
+	var broken []string
+	for _, l := range recorded {
+		if !have[l] {
+			broken = append(broken, l)
+		}
+	}
+	if len(broken) > 0 {
+		t.Fatalf("these /api/v1 promises are broken (apps may rely on them); restore them, or delete the lines from docs/api-v1-contract.txt only if the break is deliberate:\n%s", strings.Join(broken, "\n"))
+	}
+	known := map[string]bool{}
+	for _, l := range recorded {
+		known[l] = true
+	}
+	for _, l := range current {
+		if !known[l] {
+			t.Fatalf("docs/api-v1-contract.txt is out of date (%q is new): run `go run ./tools/apidoc`", l)
 		}
 	}
 }

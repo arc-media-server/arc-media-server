@@ -71,6 +71,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
   logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
   and share the existing one rather than writing a second copy.
+- The /api/v1 promise is enforced: `docs/api-v1-contract.txt` lists every endpoint, success status
+  and response field apps may rely on, and a test fails if one disappears or changes type. Add
+  fields instead of renaming or removing them; delete a contract line only for a deliberate break.
 - Necessary configuration belongs in the web UI, never config files (#66). Choose good automatic
   defaults and keep advanced choices and implementation details (worker counts, cache knobs) out
   of ordinary flows.
@@ -173,7 +176,7 @@ go vet ./... && go test ./...
 go run ./cmd/ams                                    # data in ./data, serves http://127.0.0.1:8099
 cd web && npm run dev                               # UI hot reload; proxies /api to :8099
 cd web && npx tsc -b                                # type-check the UI
-go run ./tools/apidoc                               # after API changes: rewrites docs/API.md + docs/openapi.json
+go run ./tools/apidoc                               # after API changes: rewrites docs/API.md + docs/openapi.json, adds to docs/api-v1-contract.txt
 ```
 
 - Settings (incl. API keys) live in the database; this PC's `data/ams.db` already has the owner's keys.
