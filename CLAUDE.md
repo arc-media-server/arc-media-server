@@ -69,6 +69,12 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
   logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
   and share the existing one rather than writing a second copy.
+- Logging (owner, 29 October): every feature logs enough to troubleshoot it, without slowing Arc.
+  Info: one line per outcome of background work (started/finished, with counts and duration) and
+  decisions worth explaining later (e.g. why playback converts). Warn/Error: every failure, with
+  what failed (title, provider, error). Per-item and per-request detail only at Debug (recorded
+  while Settings' detailed logging is on). Nothing at Info or above inside per-file, per-request
+  or per-segment loops; never keys, passwords or tokens. Each PR says what it logs.
 - Necessary configuration belongs in the web UI, never config files (#66). Choose good automatic
   defaults and keep advanced choices and implementation details (worker counts, cache knobs) out
   of ordinary flows.
