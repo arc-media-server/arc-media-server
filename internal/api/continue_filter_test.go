@@ -118,7 +118,7 @@ func TestContinueWatchingFiltersBeforeLimiting(t *testing.T) {
 				r := httptest.NewRequest("GET", "/api/home/continue", nil)
 				r = r.WithContext(context.WithValue(r.Context(), userKey, u))
 				s := &Server{store: st}
-				items, err := s.inProgress(r)
+				items, err := s.inProgress(r, access(r))
 				if err != nil || len(items) != 1 || items[0].item.ID != wanted {
 					t.Fatalf("older visible resume should survive 30 filtered titles: got %v err=%v", items, err)
 				}

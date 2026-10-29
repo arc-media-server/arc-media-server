@@ -1,10 +1,11 @@
+import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { ListChecks, ChevronDown, MoreHorizontal, FolderSearch, Layers, Loader2, Plus, RefreshCw, Sparkles } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
-import { api, type ItemQuery, type ItemSort, type Library, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
+import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
 import { cn } from '@/lib/utils';
 import * as fmt from '@/lib/format';
@@ -15,6 +16,7 @@ import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/compone
 import { PosterGrid, PosterGridSkeleton } from '@/components/PosterCard';
 import { VideoFolders } from '@/components/VideoFolders';
 import { MediaRow } from '@/components/MediaRow';
+import { useRemoveFromContinue } from '@/components/CardMenu';
 import { SelectionBar } from '@/components/BulkEdit';
 import { useLibraries } from '@/components/Sidebar';
 import { useAuth, useIsAdmin } from '@/lib/auth';
@@ -349,9 +351,7 @@ export function LibraryPage() {
               </EmptyState>
             </div>
           ) : (
-            recommended.data.rows.map((row) => (
-              <MediaRow key={row.title} title={row.title} items={row.items} href={row.genre ? `/library/${id}?genre=${encodeURIComponent(row.genre)}&unwatched=1` : undefined} />
-            ))
+            recommended.data.rows.map((row) => <RecommendedRowView key={`${row.type}:${row.name ?? ''}`} row={row} lib={lib!} />)
           )}
         </div>
       )}
@@ -456,6 +456,57 @@ export function LibraryPage() {
       )}
     </Page>
   );
+}
+
+/** A Recommended row's title, in the profile's language, from what the server says it is. */
+function recommendedTitle(row: RecommendedRow, lib: Library) {
+  const shows = lib.kind === 'shows';
+  const name = row.name ?? '';
+  switch (row.type) {
+    case 'continue': return i18n.t('library:recommendedRows.continue');
+    case 'recently_released': return i18n.t('library:recommendedRows.recentlyReleased');
+    case 'recently_added': return i18n.t('library:recommendedRows.recentlyAdded', { name: row.name ?? lib.name });
+    case 'start_watching': return i18n.t('library:recommendedRows.startWatching');
+    case 'because_you_watched': return i18n.t('library:recommendedRows.becauseYouWatched', { title: name });
+    case 'top_rated': return shows ? i18n.t('library:recommendedRows.topRatedShows') : i18n.t('library:recommendedRows.topRatedMovies');
+    case 'recently_watched': return shows ? i18n.t('library:recommendedRows.recentlyWatchedEpisodes') : i18n.t('library:recommendedRows.recentlyWatched');
+    case 'rediscover': return i18n.t('library:recommendedRows.rediscover');
+    case 'more_in_genre': return i18n.t('library:recommendedRows.moreInGenre', { genre: name });
+    case 'top_in_genre': return shows ? i18n.t('library:recommendedRows.topShowsInGenre', { genre: name }) : i18n.t('library:recommendedRows.topMoviesInGenre', { genre: name });
+    case 'top_by_person':
+      if (row.role === 'director') return shows ? i18n.t('library:recommendedRows.topShowsBy', { name }) : i18n.t('library:recommendedRows.topMoviesBy', { name });
+      return shows ? i18n.t('library:recommendedRows.topShowsWith', { name }) : i18n.t('library:recommendedRows.topMoviesWith', { name });
+    case 'top_unwatched': return i18n.t('library:recommendedRows.topUnwatched');
+  }
+}
+
+/** Where a Recommended row's "see all" goes: the library view showing the same list, or the person. */
+function recommendedHref(row: RecommendedRow, lib: Library) {
+  const base = `/library/${lib.id}`;
+  const genre = encodeURIComponent(row.genre ?? '');
+  switch (row.type) {
+    case 'recently_released': return `${base}?sort=release`;
+    case 'recently_added': return `${base}?sort=added`;
+    case 'top_rated': return `${base}?sort=rating`;
+    case 'recently_watched': return `${base}?sort=watched`;
+    case 'more_in_genre': return `${base}?genre=${genre}&unwatched=1`;
+    case 'top_in_genre': return `${base}?genre=${genre}&sort=rating`;
+    case 'top_by_person': return row.person_id ? `/person/${row.person_id}` : undefined;
+    case 'top_unwatched': return `${base}?sort=rating&unwatched=1`;
+    default: return undefined;
+  }
+}
+
+function RecommendedRowView({ row, lib }: { row: RecommendedRow; lib: Library }) {
+  const remove = useRemoveFromContinue();
+  const title = recommendedTitle(row, lib);
+  const href = recommendedHref(row, lib);
+  // Carrying on and episodes use landscape thumbnails, as on Home; Continue Watching plays.
+  if (row.type === 'continue') {
+    return <MediaRow title={title} items={row.items} style="thumb" play error={remove.error} onRetry={() => { if (remove.variables) remove.mutate(remove.variables); }} onRemove={(i) => remove.mutate(i)} />;
+  }
+  const episodes = row.items.some((i) => i.kind === 'episode');
+  return <MediaRow title={title} items={row.items} href={href} style={episodes ? 'thumb' : 'poster'} />;
 }
 
 /**

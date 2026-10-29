@@ -834,6 +834,32 @@ func itemFilter(q ItemQuery) (string, []any) {
 			ELSE NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND u.played = 1) END`)
 		args = append(args, q.UserID, q.UserID)
 	}
+	if q.UserID != "" && (q.Unstarted || q.Played || q.PlayedBefore > 0) {
+		if q.Unstarted {
+			c, a := watchedSQL(q.UserID, "(u.played = 1 OR u.position_ms > 0)")
+			where = append(where, "NOT "+c)
+			args = append(args, a...)
+		}
+		if q.Played || q.PlayedBefore > 0 {
+			c, a := watchedSQL(q.UserID, "u.played = 1")
+			where = append(where, c)
+			args = append(args, a...)
+		}
+		if q.PlayedBefore > 0 {
+			c, a := watchedSQL(q.UserID, "u.last_played_at >= ?", q.PlayedBefore)
+			where = append(where, "NOT "+c)
+			args = append(args, a...)
+		}
+	}
+	if q.PersonID != 0 {
+		c := "EXISTS (SELECT 1 FROM item_people p WHERE p.item_id = items.id AND p.person_id = ?"
+		args = append(args, q.PersonID)
+		if q.PersonRole != "" {
+			c += " AND p.role = ?"
+			args = append(args, q.PersonRole)
+		}
+		where = append(where, c+")")
+	}
 	if q.AddedWithinDays > 0 {
 		where = append(where, "added_at >= ?")
 		args = append(args, time.Now().Add(-time.Duration(q.AddedWithinDays)*24*time.Hour).Unix())
@@ -863,6 +889,17 @@ func itemFilter(q ItemQuery) (string, []any) {
 		where = append(where, "("+strings.Join(about, " OR ")+")")
 	}
 	return strings.Join(where, " AND "), args
+}
+
+// watchedSQL is a condition that a profile has a watch-state row matching cond (on alias u) for a
+// title: for a show, any of its episodes; otherwise the item itself.
+func watchedSQL(userID, cond string, condArgs ...any) (string, []any) {
+	sql := `(CASE WHEN items.kind = 'series' THEN EXISTS (
+			SELECT 1 FROM items e JOIN user_item_data u ON u.item_id = e.id AND u.user_id = ?
+			WHERE e.parent_id = items.id AND ` + cond + `)
+		ELSE EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND ` + cond + `) END)`
+	args := append([]any{userID}, condArgs...)
+	return sql, append(append(args, userID), condArgs...)
 }
 
 // LetterCount is how many titles in a listing start with one character of their sort title:
