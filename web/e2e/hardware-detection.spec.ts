@@ -1,23 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import type { Item, Library } from '../src/lib/api';
-type Fixtures = { movies: string; shows: string; empty: string; playback: string };
 const password = 'Arc-browser-test-123';
-let media: Fixtures;
 
 test.beforeEach(async ({ page }) => {
   const r = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
   if (!r.ok) throw new Error(await r.text());
-  media = await r.json();
+  await r.json();
   await page.context().route('**/*', route => { const u = new URL(route.request().url()); return u.hostname === '127.0.0.1' || u.protocol === 'data:' ? route.continue() : route.abort(); });
   await setup(page);
 });
-async function seed(page: Page, shows = false) {
-  const r = await page.request.post('/api/libraries', { data: { name: shows ? 'Audit TV' : 'Audit Movies', kind: shows ? 'shows' : 'movies', paths: [shows ? media.shows : media.movies] } });
-  expect(r.ok()).toBe(true); const lib: Library = await r.json();
-  await expect.poll(async () => (await (await page.request.get('/api/libraries/' + lib.id + '/scan')).json()).running, { timeout: 30000 }).toBe(false);
-  const items: Item[] = (await (await page.request.get('/api/items?library_id=' + lib.id)).json()).items;
-  return { lib, item: items.find((i: Item) => i.title === (shows ? 'Arc Show' : 'Arc Movie'))!, items };
-}
 async function setup(page: Page) {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Welcome to Arc' })).toBeVisible();

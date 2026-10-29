@@ -1,4 +1,5 @@
-// Command apidoc regenerates docs/API.md and docs/openapi.json from internal/api. Run it from the repository root:
+// Command apidoc regenerates docs/API.md and docs/openapi.json from internal/api, and adds to the v1
+// contract (docs/api-v1-contract.txt). Run it from the repository root:
 //
 //	go run ./tools/apidoc
 package main
@@ -16,6 +17,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err := apidoc.WriteOpenAPI("."); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := apidoc.WriteContract("."); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

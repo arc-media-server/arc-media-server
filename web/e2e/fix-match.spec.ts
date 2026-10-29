@@ -70,7 +70,7 @@ test('fix match: the dialog closes at once and the show updates when its episode
   const dialog = await openFixMatch(page, show.id);
   const answered = page.waitForResponse(r => r.url().endsWith(`/api/items/${show.id}/match`) && r.request().method() === 'PUT');
   await dialog.getByRole('button', { name: 'Use This', exact: true }).click();
-  expect((await answered).status()).toBe(202);
+  expect((await answered).status()).toBe(200);
   // Closed while the episode lists are still held: the show's own details are already there.
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('heading', { name: 'Arc Show', exact: true })).toBeVisible();

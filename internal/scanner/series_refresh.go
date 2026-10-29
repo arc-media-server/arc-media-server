@@ -66,15 +66,24 @@ func (s *Scanner) refreshSeries(ctx context.Context, lib *store.Library, id stri
 		task.Finish(e)
 		return e
 	}
+	title := id
+	if item != nil {
+		title = item.Title
+	}
 	if task == nil {
-		title := id
-		if item != nil {
-			title = item.Title
-		}
 		task = s.Activity.Start("refresh", "Refreshing "+title)
 	}
 	s.registerTask(lib.ID, task)
 	defer func() { s.mu.Lock(); delete(s.tasks, lib.ID); s.mu.Unlock(); task.Finish(err) }()
+	started := time.Now()
+	defer func() {
+		switch {
+		case err == nil:
+			s.log.Info("show refreshed", "show", title, "library", lib.Name, "deep", deep, "took", time.Since(started).Round(time.Millisecond))
+		case !errors.Is(err, context.Canceled):
+			s.log.Warn("refreshing show failed", "show", title, "library", lib.Name, "err", err)
+		}
+	}()
 	if err = work.Err(); err != nil {
 		return err
 	}
