@@ -102,7 +102,11 @@ func (s *Server) searchMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 // setMatch: PUT /api/items/{id}/match {"provider": "tmdb", "id": 603} identifies an item as the
-// chosen provider entry and fetches its metadata.
+// chosen provider entry. A movie's metadata is fetched before it answers (200 with the item).
+// For a show it fetches only the chosen entry's own details and answers 202 with the item and
+// `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the
+// background, which then links its files to the new episodes. The item keeps its previous
+// match if the chosen entry can't be fetched.
 func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
@@ -117,11 +121,7 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `send {"provider": "tmdb" or "tvdb", "id": <number>}`)
 		return
 	}
-	if s.scanner.Running() && it.Kind == "series" {
-		writeError(w, http.StatusConflict, "a library scan is running; try again when it finishes")
-		return
-	}
-	err := s.scanner.SetMatch(r.Context(), it, body.Provider, body.ID)
+	taskID, err := s.scanner.SetMatch(r.Context(), it, body.Provider, body.ID)
 	switch {
 	case errors.Is(err, scanner.ErrNoProvider):
 		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(body.Provider)+" API key in Settings to use it")
@@ -137,5 +137,31 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "couldn't fetch the new match: "+err.Error())
 		return
 	}
-	s.getItem(w, r)
+	updated, err := s.store.GetItem(r.Context(), it.ID)
+	if err != nil || updated == nil {
+		s.fail(w, err)
+		return
+	}
+	d := toDTO(*updated)
+	if d.Files, err = s.store.ItemFiles(r.Context(), it.ID); err == nil {
+		err = s.addDetails(r, &d)
+	}
+	if err == nil {
+		err = s.fillUserData(r, []*itemDTO{&d})
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if it.Kind == "series" {
+		writeJSON(w, http.StatusAccepted, matchedDTO{itemDTO: d, MatchTaskID: taskID})
+		return
+	}
+	writeJSON(w, http.StatusOK, matchedDTO{itemDTO: d})
+}
+
+// matchedDTO is an item just matched, with the Activity task still fetching its details.
+type matchedDTO struct {
+	itemDTO
+	MatchTaskID int64 `json:"match_task_id,omitempty"`
 }

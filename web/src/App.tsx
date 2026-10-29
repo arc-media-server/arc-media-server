@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Compass } from 'lucide-react';
 import { MobileBar, Sidebar } from './components/Sidebar';
 import { PlayerProvider } from './components/Player';
+import { MatchUpdates } from './components/FixMatch';
 import { EmptyState, Page } from './components/Page';
 import { Home } from './pages/Home';
 import { LibraryPage } from './pages/Library';
@@ -41,6 +42,7 @@ export function App() {
         <ProfileTheme />
         <Sidebar />
         <MobileBar />
+        <MatchUpdates />
         <main className="min-h-dvh md:pl-[248px]">
           <Routes>
             <Route path="/" element={<Home />} />

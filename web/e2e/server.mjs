@@ -20,6 +20,21 @@ let resetting = false;
 let metadataDelayMS = 0;
 let releaseMetadata;
 let metadataGate = Promise.resolve();
+// Fix Match journeys hold or fail only a show's episode lists ("episodes"), or only the quick
+// lookup of a chosen show's own record ("summary").
+let releaseEpisodes;
+let episodesGate = Promise.resolve();
+let failing = '';
+function holdEpisodes(hold) {
+  if (hold && !releaseEpisodes) episodesGate = new Promise(resolve => { releaseEpisodes = resolve; });
+  if (!hold) { releaseEpisodes?.(); releaseEpisodes = undefined; episodesGate = Promise.resolve(); }
+}
+function metadataPart(url) {
+  const append = url.searchParams.get('append_to_response') ?? '';
+  if (append.startsWith('season/') || url.pathname.includes('/episode_group/') || url.pathname.includes('/episodes/')) return 'episodes';
+  if (append === 'external_ids' && url.pathname.startsWith('/tmdb/tv/')) return 'summary';
+  return '';
+}
 function holdMetadata(hold) {
   if (hold && !releaseMetadata) metadataGate = new Promise(resolve => { releaseMetadata = resolve; });
   if (!hold) { releaseMetadata?.(); releaseMetadata = undefined; metadataGate = Promise.resolve(); }
@@ -65,6 +80,8 @@ async function stopApp() {
 async function reset(restart = false) {
   metadataDelayMS = 0;
   holdMetadata(false);
+  holdEpisodes(false);
+  failing = '';
   await stopApp();
   const data = join(root, `data-${restart ? generation : ++generation}`);
   child = spawn(binary, ['-data', data, '-config', 'none'], {
@@ -162,6 +179,13 @@ const server = createServer(async (req, res) => {
       return json(200, { path: folder });
     }
     if (url.pathname === '/metadata-hold' && req.method === 'POST') { holdMetadata(url.searchParams.get('hold') === '1'); return json(200, { held: !!releaseMetadata }); }
+    if (url.pathname === '/metadata-hold-episodes' && req.method === 'POST') { holdEpisodes(url.searchParams.get('hold') === '1'); return json(200, { held: !!releaseEpisodes }); }
+    if (url.pathname === '/metadata-fail' && req.method === 'POST') {
+      const part = url.searchParams.get('part') ?? '';
+      if (!['', 'episodes', 'summary'].includes(part)) return json(400, { error: 'Invalid fixture part' });
+      failing = part;
+      return json(200, { failing });
+    }
     if (url.pathname === '/metadata-delay' && req.method === 'POST') {
       const ms = Number(url.searchParams.get('ms'));
       if (!Number.isFinite(ms) || ms < 0 || ms > 3000) return json(400, { error: 'Invalid fixture delay' });
@@ -188,6 +212,9 @@ const server = createServer(async (req, res) => {
     }
     const body = metadata(url);
     if (body) await metadataGate;
+    const part = body ? metadataPart(url) : '';
+    if (part === 'episodes') await episodesGate;
+    if (part && part === failing) return json(400, { error: `Fixture ${part} failure` });
     if (body && metadataDelayMS) await new Promise(resolve => setTimeout(resolve, metadataDelayMS));
     json(body ? 200 : 404, body ?? { error: `No test fixture for ${url.pathname}` });
   } catch (err) { console.error(err); json(500, { error: String(err) }); }

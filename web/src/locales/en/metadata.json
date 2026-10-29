@@ -70,7 +70,12 @@
     "readShowFolder": "Read the show from its folder name",
     "readShowFile": "Read the show from its file name",
     "readMovieFolder": "Read the movie from its folder name",
-    "readMovieFile": "Read the movie from its file name"
+    "readMovieFile": "Read the movie from its file name",
+    "updating": "Updating {{title}} from {{provider}}…",
+    "updated": "Updated {{title}} from {{provider}}",
+    "updateFailed": "Couldn't fetch all of {{title}}'s details from {{provider}}: {{error}}",
+    "tryAgain": "Try again",
+    "dismiss": "Dismiss"
   },
   "markersPanel": {
     "noneSetByYou": "None, set by you",

@@ -9,8 +9,6 @@
     "showsAndTheirEpisode": "Shows and their episode orders.",
     "ratings": "Ratings",
     "scoresFromOtherSites": "Scores from other sites, shown on title pages and available as sorts.",
-    "imdb": "IMDb",
-    "updatedWeeklyFromImdb": "Updated weekly from IMDb's free ratings file. No key needed.",
     "rottenTomatoesAndMetacritic": "Rotten Tomatoes and Metacritic",
     "criticsScoresFromOmdb": "Critics' scores from OMDb. A free key covers 1,000 titles a day.",
     "libraryScanning": "Library scanning",

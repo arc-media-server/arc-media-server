@@ -645,7 +645,7 @@ export interface RecommendedRow {
   role?: 'actor' | 'director';
 }
 
-export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'imdb' | 'critics' | 'runtime' | 'watched' | 'shuffle';
+export type ItemSort = 'title' | 'added' | 'year' | 'release' | 'rating' | 'critics' | 'runtime' | 'watched' | 'shuffle';
 export type Resolution = '4k' | '1080' | '720' | 'sd';
 
 export interface Facet {
@@ -766,6 +766,8 @@ export interface Prefs {
   audio_language?: string;
   /** Skip intros and recaps without asking. */
   auto_skip?: boolean;
+  /** Internet streaming quality (kbit/s, one of `qualities`): the most a stream away from home may use; absent/0 for Maximum. Never applies at home. */
+  remote_quality_kbps?: number;
   /** When subtitles turn on by themselves (Plex's subtitle mode); absent: in the language last chosen. */
   subtitle_mode?: SubtitleMode;
   /** How subtitles look; absent fields use the defaults. */
@@ -1222,8 +1224,9 @@ export const api = {
     if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? res.statusText, res.status);
     return (await res.json()) as Item;
   },
+  /** For a show the answer comes once it's identified; `match_task_id` is the Activity task fetching the rest. */
   setMatch: (id: string, provider: Provider, matchId: number) =>
-    request<Item>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
+    request<Item & { match_task_id?: number }>('PUT', `/api/items/${id}/match`, { provider, id: matchId }),
 
   seasons: (seriesId: string, opts: { ordering?: number; missing?: boolean } = {}) =>
     request<SeasonsResponse>(

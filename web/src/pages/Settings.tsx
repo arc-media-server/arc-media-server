@@ -14,7 +14,7 @@ import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionG
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
@@ -91,6 +91,12 @@ function ProfileSettings() {
             {subtitleLanguages(p.audio_language ?? '').map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </Row>
+        <Row setting="remote_quality_kbps" label={t("profileSettings:settings.internetStreamingQuality")} description={t("profileSettings:settings.internetStreamingQualityHint")}>
+          <select aria-label={t("profileSettings:settings.internetStreamingQuality")} value={p.remote_quality_kbps ?? 0} disabled={busy} onChange={(e) => update.mutate({ remote_quality_kbps: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
+            <option value={0}>{t("profileSettings:settings.maximumQuality")}</option>
+            {qualities.map((q) => <option key={q} value={q}>{qualityName(q)}</option>)}
+          </select>
+        </Row>
         <ToggleRow
           setting="auto_play" label={t("profileSettings:settings.autoPlay")}
           description={t("profileSettings:settings.playTheNextEpisode")}
@@ -114,8 +120,9 @@ function ProfileSettings() {
         />
       </Section>
       <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
-        <ToggleRow setting="show_home_hero" label={t("profileSettings:settings.showHomeHero")} description={t("profileSettings:settings.showTheLargeFeatured")}
-          checked={p.show_home_hero !== false} busy={busy} onChange={v => update.mutate({ show_home_hero: v })} />
+        <Row label={t("profileSettings:settings.homeRows")} description={t("profileSettings:settings.homeRowsHint")}>
+          <Link to="/?edit=1" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>{t("profileSettings:settings.editHome")}</Link>
+        </Row>
       </Section>
       <LibraryNavigationSettings prefs={p} update={update} />
       <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>
@@ -274,10 +281,6 @@ function ServerSettings() {
             />
           </Section>
           <Section sectionKey="Ratings" title={t("serverSettings:settings.ratings")} hint={t("serverSettings:settings.scoresFromOtherSites")}>
-            <Row
-              label={t("serverSettings:settings.imdb")}
-              description={t("serverSettings:settings.updatedWeeklyFromImdb")}
-            />
             <KeyRow
               label={t("serverSettings:settings.rottenTomatoesAndMetacritic")}
               description={t("serverSettings:settings.criticsScoresFromOmdb")}

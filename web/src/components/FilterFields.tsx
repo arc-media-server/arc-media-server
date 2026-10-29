@@ -63,7 +63,7 @@ export function FilterFields({
           </Field>
         )}
         <Field label={t('order')}>
-          <select value={f.sort ?? 'title'} onChange={(e) => set({ sort: e.target.value as ItemSort })} className={inputClass}>
+          <select value={f.sort && f.sort in sortLabels() ? f.sort : 'title'} onChange={(e) => set({ sort: e.target.value as ItemSort })} className={inputClass}>
             {Object.entries(sortLabels()).map(([k, label]) => (
               <option key={k} value={k}>
                 {label}

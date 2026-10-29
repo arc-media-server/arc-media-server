@@ -83,7 +83,7 @@ native TV and phone apps are planned.
   the background: titles show with posters within seconds, file details follow.
 - Matching from TMDB and TheTVDB with Plex/Jellyfin-style naming, scene release names and
   `{tmdb-123}` / `{imdb-tt…}` tags. Fix Match shows exactly what Arc read and searched for.
-- Cast and crew, studios, scores (IMDb, Rotten Tomatoes, Metacritic), age ratings for each
+- Cast and crew, studios, scores (Rotten Tomatoes and Metacritic with an OMDb key; metadata-provider scores otherwise), age ratings for each
   library's region, and metadata in 35+ languages, set per library.
 - Edit anything; edited fields are locked so refreshes never undo them. Choose or upload
   posters, backgrounds, logos and season posters. Local artwork and NFO IDs are respected.
