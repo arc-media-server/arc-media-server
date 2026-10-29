@@ -107,17 +107,25 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
   const playback = usePlaybackQueue();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  // A deliberate profile change must not carry the old profile's browse query
+  // into the new one. Initial sign-in deep links remain untouched.
+  const clearBrowseQuery = () => {
+    if (/^\/library\/\d+$/.test(location.pathname)) navigate(location.pathname, { replace: true });
+  };
   const { data: status } = useAuth();
   const profile = status?.profile;
   if (!profile) return null;
   const leave = async () => {
     await playback.stop();
     await api.leaveProfile();
+    clearBrowseQuery();
     qc.resetQueries();
   };
   const signOut = async () => {
     await playback.stop();
     await api.logout();
+    clearBrowseQuery();
     qc.resetQueries();
   };
   return (
