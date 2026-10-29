@@ -24,3 +24,7 @@ was temporary. No owner cleanup or production acceptance is claimed.
 Logging: the scanner retains its successful cleanup summary; removed the duplicate API success
 line. Backup failure logs once at the API boundary; expected cancellation returns a conflict
 without an error log. Skip outcomes are ordinary results, not warning floods.
+
+API-reference follow-up: regenerated both docs/API.md and docs/openapi.json after the UI build;
+`go test ./internal/apidoc` passed. The local combined-PR check caught the stale machine-readable
+reference before handoff. No product behaviour changed in this follow-up.
