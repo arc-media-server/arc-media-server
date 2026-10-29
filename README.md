@@ -176,8 +176,9 @@ go run ./cmd/ams                                  # serves http://127.0.0.1:8099
 - `ams -reset-password` sets a new admin password if you've forgotten it.
 - `AMS_TMDB_API_KEY`, `AMS_TVDB_API_KEY`, `AMS_FFPROBE` and `AMS_LISTEN` override the app's
   settings, for containers.
-- Troubleshooting: Settings › Maintenance & diagnostics turns on detailed logging for 30 minutes
-  and downloads redacted logs. `-debug` does the same at startup.
+- Troubleshooting: Settings › Maintenance & diagnostics turns on detailed logging for 2 hours
+  and downloads redacted logs, request-stage snapshots and bounded runtime call stacks.
+  `-debug` enables the same two-hour window at startup.
 
 ### Development
 

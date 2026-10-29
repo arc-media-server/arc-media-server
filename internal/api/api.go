@@ -83,6 +83,7 @@ type Deps struct {
 }
 
 type Server struct {
+	requests     requestDiagnostics
 	watchProblem func(int64) string
 	background   *background.Manager
 
@@ -414,11 +415,13 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 // listLibraries: GET /api/libraries. Libraries with their size and scan status.
 func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
+	requestStage(r, "loading libraries", 0)
 	libs, err := s.store.ListLibraries(r.Context())
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	requestStage(r, "counting library titles", 0)
 	counts, err := s.store.LibraryCounts(r.Context())
 	if err != nil {
 		s.fail(w, err)
@@ -434,13 +437,16 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 	acc := access(r)
 	for _, l := range libs {
 		if acc.LibraryAllowed(l.ID) {
+			requestStage(r, "reading scanner status", l.ID)
 			out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
 		}
 	}
+	requestStage(r, "writing library response", 0)
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store.Library, bool) {
+	requestStage(r, "loading library and checking access", 0)
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid library id")
@@ -461,6 +467,7 @@ func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store
 // scanStatus: GET /api/libraries/{id}/scan. Scan progress.
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
 	if lib, ok := s.libraryFromPath(w, r); ok {
+		requestStage(r, "reading scanner status", lib.ID)
 		writeJSON(w, http.StatusOK, s.scanner.Status(lib.ID))
 	}
 }
@@ -548,6 +555,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.Item, bool) {
+	requestStage(r, "loading title and checking access", 0)
 	it, err := s.store.GetItem(r.Context(), r.PathValue("id"))
 	if err != nil {
 		s.fail(w, err)
@@ -810,20 +818,32 @@ func versioned(next http.Handler) http.Handler {
 
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := "unmatched route"
+		if mux, ok := next.(*http.ServeMux); ok {
+			_, pattern := mux.Handler(r)
+			if pattern != "" {
+				route = pattern
+			}
+		}
+		r, finish := s.watchRequest(r, route)
+		defer finish()
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK, home: auth.IsLocal(r)}
 		next.ServeHTTP(rec, r)
 		took := time.Since(start)
-		route := r.Pattern
-		if route == "" {
-			route = "unmatched route"
-		}
 		level, message := slog.LevelDebug, "http"
 		if rec.status >= 500 {
 			level, message = slog.LevelWarn, "request failed"
-		} else if took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead {
+		} else if (took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead) || (trackRequest(route) && took >= requestWarningAfter) {
 			level, message = slog.LevelWarn, "slow request"
 		}
-		s.log.Log(r.Context(), level, message, "method", r.Method, "route", route, "status", rec.status, "took", took.Round(time.Millisecond))
+		if s.log.Enabled(r.Context(), level) {
+			attrs := []any{"method", r.Method, "route", route, "status", rec.status, "took", took.Round(time.Millisecond)}
+			if t, ok := r.Context().Value(requestTraceKey{}).(*requestTrace); ok {
+				p := t.snapshot()
+				attrs = append(attrs, "request_id", p.RequestID, "stage", p.Stage)
+			}
+			s.log.Log(r.Context(), level, message, attrs...)
+		}
 	})
 }
