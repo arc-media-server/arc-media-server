@@ -13,7 +13,7 @@ async function openOrdering(page: Page) {
  await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
-import type { Item, SeasonsResponse } from '../src/lib/api';
+import type { Item, SeasonsResponse, OrderingsResponse } from '../src/lib/api';
 
 const test = base.extend<{ media: { specials: string } }>({
   media: async ({ page }, use) => {
@@ -51,6 +51,9 @@ async function importShow(page: Page, path: string) {
 
 test('metadata ordering: staged file order, Retry, scoped refresh and independent display on phone', async ({page,media},info)=>{
   const {series,episodes}=await importShow(page,media.specials);
+  const initialOrders: OrderingsResponse = await (await page.request.get(`/api/series/${series.id}/orderings`)).json();
+  const tvdb = initialOrders.orderings.find(o => o.source === 'tvdb_aired')!;
+  expect(initialOrders.display_choice_id).toBe(0);
   const first=episodes.find(e=>e.title==='Opening')!;
   const before=await (await page.request.get(`/api/items/${first.id}`)).json();
   expect((await page.request.put(`/api/items/${first.id}/progress`,{data:{position_ms:70000,duration_ms:120000,state:'stopped'}})).ok()).toBeTruthy();
@@ -58,9 +61,12 @@ test('metadata ordering: staged file order, Retry, scoped refresh and independen
   const open=()=>openOrdering(page);
   const dialog=page.getByRole('dialog',{name:'Edit',exact:true});
   await open();
+  await expect(dialog.getByRole('combobox',{name:'Display order',exact:true})).toHaveValue(String(initialOrders.display_ordering_id));
+  await expect(dialog.getByRole('combobox',{name:'Display order',exact:true}).locator('option[value="inherit"]')).toHaveCount(0);
   await expect(dialog.getByText('Details From',{exact:true})).toHaveCount(0);
   await expect(dialog.getByText(/come from the library’s metadata provider, TMDB/)).toBeVisible();
   await dialog.getByRole('combobox',{name:'File episode order',exact:true}).selectOption('tvdb_aired');
+  await expect(dialog.getByRole('combobox',{name:'Display order',exact:true})).toHaveValue(String(tvdb.id));
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
   expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering??'').toBe('');
   let fail=true;
@@ -72,6 +78,8 @@ test('metadata ordering: staged file order, Retry, scoped refresh and independen
   fail=false;await dialog.getByRole('button',{name:'Retry',exact:true}).click();
   await expect(dialog).not.toBeVisible();
   expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
+  const savedOrders: OrderingsResponse = await (await page.request.get(`/api/series/${series.id}/orderings`)).json();
+  expect(savedOrders.display_choice_id).toBe(tvdb.id);
   const status=await (await page.request.get(`/api/libraries/${series.library_id}/scan`)).json();
   expect(status).toMatchObject({operation:'refresh',running:false,files_seen:0,files_probed:0});
   const after=await (await page.request.get(`/api/items/${first.id}`)).json();
@@ -231,4 +239,101 @@ test('season names and summaries are edited from Edit, Seasons, for the order be
   const season = saved.seasons.find(s => s.season_number === 1)!;
   expect(season.name).toBe('The First Run');
   expect([...season.locked_fields].sort()).toEqual(['name', 'overview']);
+});
+
+test('named display choices preserve inherited storage and a manual choice after a file-order edit wins', async ({ page, media }) => {
+  const { series } = await importShow(page, media.specials);
+  const url = `/api/series/${series.id}/orderings`;
+  const initial: OrderingsResponse = await (await page.request.get(url)).json();
+  const tmdb = initial.orderings.find(o => o.source === 'tmdb_aired')!;
+  const tvdb = initial.orderings.find(o => o.source === 'tvdb_aired')!;
+  let writes = 0;
+  page.on('request', r => { if (r.method() === 'PUT' && r.url().endsWith('/display-ordering')) writes++; });
+  await page.goto(`/series/${series.id}`);
+  await openOrdering(page);
+  const display = page.getByRole('combobox', { name: 'Display order', exact: true });
+  await expect(display).toHaveValue(String(tmdb.id));
+  await expect(display.locator('option').filter({ hasText: /file episode order|Library default/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  expect(writes).toBe(0);
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(0);
+  await openOrdering(page);
+  await page.getByRole('combobox', { name: 'File episode order', exact: true }).selectOption('tvdb_aired');
+  await expect(display).toHaveValue(String(tvdb.id));
+  await display.selectOption(String(tmdb.id));
+  await page.getByRole('button', { name: 'Compare orders…', exact: true }).click();
+  const comparison = page.getByRole('dialog', { name: 'Compare Episode Orders', exact: true });
+  await expect(comparison.getByRole('combobox').first()).toHaveValue(String(tmdb.id));
+  await comparison.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).not.toBeVisible();
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(tmdb.id);
+  // Reopening and saving unrelated details must retain the explicitly different display.
+  await openOrdering(page);
+  await expect(display).toHaveValue(String(tmdb.id));
+  await page.getByRole('tab', { name: 'Details', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Edit', exact: true }).getByRole('textbox').first().fill('Fixture Show edited');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).not.toBeVisible();
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(tmdb.id);
+});
+
+test('a display save failure after a file-order refresh explains partial saves and Cancel preserves the actual saved state', async ({ page, media }) => {
+  const { series } = await importShow(page, media.specials);
+  const url = `/api/series/${series.id}/orderings`;
+  const initial: OrderingsResponse = await (await page.request.get(url)).json();
+  const tmdb = initial.orderings.find(o => o.source === 'tmdb_aired')!;
+  expect((await page.request.put(`/api/series/${series.id}/display-ordering`, { data: { ordering_id: tmdb.id } })).ok()).toBe(true);
+  await page.goto(`/series/${series.id}`);
+  await openOrdering(page);
+  await page.getByRole('combobox', { name: 'File episode order', exact: true }).selectOption('tvdb_aired');
+  await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Display write unavailable' } }));
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit', exact: true });
+  await expect(edit.getByRole('alert')).toContainText('The file episode order was saved');
+  await expect(edit.getByRole('alert')).toContainText('Cancel closes this dialog without undoing changes already saved');
+  await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_aired');
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(tmdb.id);
+  await page.unroute('**/display-ordering');
+  await openOrdering(page);
+  await expect(page.getByRole('combobox', { name: 'File episode order', exact: true })).toHaveValue('tvdb_aired');
+  await expect(page.getByRole('combobox', { name: 'Display order', exact: true })).toHaveValue(String(tmdb.id));
+  await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Legacy inherited rows also display the new effective named order after a partial save.
+  expect((await page.request.put(`/api/series/${series.id}/display-ordering`, { data: { ordering_id: null } })).ok()).toBe(true);
+  await page.reload();
+  await openOrdering(page);
+  await page.getByRole('combobox', { name: 'File episode order', exact: true }).selectOption('tmdb_aired');
+  await page.route('**/display-ordering', r => r.fulfill({ status: 503, json: { error: 'Display write unavailable' } }));
+  await edit.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(edit.getByRole('alert')).toContainText('The file episode order was saved');
+  await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(0);
+  await page.unroute('**/display-ordering');
+  await openOrdering(page);
+  await expect(page.getByRole('combobox', { name: 'File episode order', exact: true })).toHaveValue('tmdb_aired');
+  await expect(page.getByRole('combobox', { name: 'Display order', exact: true })).toHaveValue(String(tmdb.id));
+});
+
+test('an unavailable named file display reports partial state and can recover to an available display on Retry', async ({ page, media }) => {
+  const { series } = await importShow(page, media.specials);
+  const url = `/api/series/${series.id}/orderings`;
+  const initial: OrderingsResponse = await (await page.request.get(url)).json();
+  const tvdb = initial.orderings.find(o => o.source === 'tvdb_aired')!;
+  expect(initial.orderings.some(o => o.source === 'tvdb_dvd')).toBe(false);
+  await page.goto(`/series/${series.id}`);
+  await openOrdering(page);
+  await page.getByRole('combobox', { name: 'File episode order', exact: true }).selectOption('tvdb_dvd');
+  const display = page.getByRole('combobox', { name: 'Display order', exact: true });
+  await expect(display.locator('option:checked')).toHaveText('TheTVDB DVD order');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit', exact: true });
+  await expect(edit.getByRole('alert')).toContainText('TheTVDB DVD order is not available as a display order');
+  expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering).toBe('tvdb_dvd');
+  await display.selectOption(String(tvdb.id));
+  await edit.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(edit).not.toBeVisible();
+  expect((await (await page.request.get(url)).json()).display_choice_id).toBe(tvdb.id);
 });

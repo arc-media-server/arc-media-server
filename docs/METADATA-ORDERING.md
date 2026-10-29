@@ -11,23 +11,38 @@ single-show refresh scope and the Recently Added episode-sample cutoff.
 | TV library, Advanced | Metadata provider | TMDB (default) or TheTVDB for show-level title, description, artwork, cast and details |
 | TV library, Advanced | File episode order | Default interpretation of filenames; also selects episode titles, descriptions, stills, runtime and supported credits from that numbering provider |
 | Edit Show, Metadata & ordering | File episode order | Library default or per-show TMDB aired / TVDB aired, DVD or absolute override |
-| Edit Show, Metadata & ordering | Display order | Presentation/playback traversal of identified episodes; Follow file order or another available provider/custom order |
+| Edit Show, Metadata & ordering | Display order | Named provider/custom order for presentation and playback traversal of identified episodes |
 
 Display order and Specials in seasons are full-width native form fields matching File episode
-order. Compare orders is a separate button. The form distinguishes a saved display choice from
-its inherited effective order, so Follow file order / Use server default are shown accurately.
+order. These server-wide choices are administrator-only and apply to every profile (owner
+clarification in PR #276); ordinary profiles cannot change them. Episode-order controls live in
+Edit Show, Metadata & ordering.
 
-The season area has an Episode ordering… shortcut to this same dialog. Ordinary profiles
-can change display order/specials for themselves; file numbering and library metadata remain
-administrator-only. The administrator's display choice also sets the existing server default.
-Use server default restores profile inheritance. Show-specials inheritance and stable mapped
-placement hints remain; custom/manual placements keep their behavior.
+Owner clarification, 29 October: the web shows the resolved named display order rather than a
+second “This show’s file episode order” or “Library default” display choice. Opening Edit or
+saving unrelated fields does not turn old inherited state into an explicit setting and does
+not replace an existing explicit/custom display choice. Changing File episode order selects its
+matching named display order; the owner can choose a different display order afterward in the
+same editing session. Saving a file-order change refreshes only that show, resolves the matching
+stored order after refresh, and saves the named display choice. Returning File episode order to
+Library default resolves the actual library source rather than guessing a provider.
 
-File order, display order and specials changes are staged until Save. Cancel leaves them alone.
-Compare Orders retains its explicit Use action and recoverable failure/Retry; Use applies the
-selected view immediately. Save/Retry failures stay visible in the dialog. There is no separate
-per-show metadata-provider control. Episode credits now follow episode/file provider rather
-than the library's show provider; unsupported/missing provider credits stay empty.
+File order, display order and specials are staged until Save. Compare orders is a separate button;
+inside Edit, its Use action returns the selected order to the form, and outer Save applies it.
+Cancel discards unsaved comparison/form selections. Compare previews the staged named display
+order. If a newly selected source has no stored order yet, its name is shown pending the save;
+Compare is unavailable until there is an actual order to preview.
+
+Save/Retry failures remain visible. Saving is not a transaction across provider requests and
+settings: a successful file-order refresh can precede a display-save failure. The item cache is
+updated after the source response so Cancel/reopening shows the actual saved source, and the
+error explains that Cancel does not roll back changes already saved. A missing matching named
+order is reported, rather than silently pinning an unrelated fallback; choose another available
+display or Retry. Existing null display-order API requests and inherited database rows remain
+supported for compatibility; no migration resets existing choices.
+
+There is no separate per-show metadata-provider control. Episode credits follow the episode/file
+provider rather than the library’s show provider; unsupported/missing provider credits stay empty.
 
 ## Safe refresh scope
 
