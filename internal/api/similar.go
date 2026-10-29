@@ -38,7 +38,10 @@ type recommendedRow struct {
 	// What the row is: continue, recently_released, recently_added, start_watching,
 	// because_you_watched, top_rated, recently_watched, rediscover, more_in_genre, top_in_genre,
 	// top_by_person or top_unwatched.
-	Type  string    `json:"type"`
+	Type string `json:"type"`
+	// An English title, kept for apps written against v1 before rows had a type. Apps should title
+	// rows themselves from type and the fields below, in the viewer's language.
+	Title string    `json:"title"`
 	Items []itemDTO `json:"items"`
 	// The title (because_you_watched), genre or person a row is about, or the library's name
 	// (recently_added).
@@ -48,6 +51,11 @@ type recommendedRow struct {
 	// The person of top_by_person (for their page) and how they're credited: actor or director.
 	PersonID int64  `json:"person_id,omitempty"`
 	Role     string `json:"role,omitempty"`
+}
+
+// recommendedResponse is a library's Recommended view.
+type recommendedResponse struct {
+	Rows []recommendedRow `json:"rows"`
 }
 
 // Recommended rows show this many titles each.
@@ -63,7 +71,8 @@ const rediscoverAfter = 182 * 24 * time.Hour
 // (episodes, in a TV library), Rediscover (finished more than six months ago), more of its
 // favourite genres, the top titles of a genre and of an actor or director (both changing
 // daily), and the best rated it hasn't seen. Each row has a type and parameters (name, genre,
-// person_id, role) rather than a title; rows without anything are left out.
+// person_id, role) for the app to title in the viewer's language, plus an English title for apps
+// written before rows had a type; rows without anything are left out.
 func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
@@ -77,7 +86,7 @@ func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 	}
 	// Per request, so detail only (recorded while detailed logging is on).
 	s.log.Debug("recommended rows", "library", lib.Name, "rows", len(rows), "took", time.Since(started).Round(time.Millisecond))
-	writeJSON(w, http.StatusOK, map[string]any{"rows": rows})
+	writeJSON(w, http.StatusOK, recommendedResponse{Rows: rows})
 }
 
 func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recommendedRow, error) {
@@ -93,6 +102,7 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 	rows := []recommendedRow{}
 	add := func(row recommendedRow) {
 		if len(row.Items) > 0 {
+			row.Title = englishRowTitle(row, kind == "series")
 			rows = append(rows, row)
 		}
 	}
@@ -260,4 +270,45 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 	}
 	add(recommendedRow{Type: "top_unwatched", Items: items})
 	return rows, nil
+}
+
+// englishRowTitle is a row's title in English, as the web app's English catalog words it.
+func englishRowTitle(r recommendedRow, shows bool) string {
+	what := "Movies"
+	if shows {
+		what = "Shows"
+	}
+	switch r.Type {
+	case "continue":
+		return "Continue Watching"
+	case "recently_released":
+		return "Recently Released"
+	case "recently_added":
+		return "Recently Added in " + r.Name
+	case "start_watching":
+		return "Start Watching"
+	case "because_you_watched":
+		return "Because you watched " + r.Name
+	case "top_rated":
+		return "Top Rated " + what
+	case "recently_watched":
+		if shows {
+			return "Recently Watched Episodes"
+		}
+		return "Recently Watched"
+	case "rediscover":
+		return "Rediscover"
+	case "more_in_genre":
+		return "More in " + r.Genre
+	case "top_in_genre":
+		return "Top " + what + " in " + r.Genre
+	case "top_by_person":
+		if r.Role == "director" {
+			return "Top " + what + " by " + r.Name
+		}
+		return "Top " + what + " with " + r.Name
+	case "top_unwatched":
+		return "Top Unwatched"
+	}
+	return ""
 }

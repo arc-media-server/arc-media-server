@@ -102,10 +102,10 @@ func (s *Server) searchMatches(w http.ResponseWriter, r *http.Request) {
 }
 
 // setMatch: PUT /api/items/{id}/match {"provider": "tmdb", "id": 603} identifies an item as the
-// chosen provider entry. A movie's metadata is fetched before it answers (200 with the item).
-// For a show it fetches only the chosen entry's own details and answers 202 with the item and
-// `match_task_id`: the Activity task fetching its seasons, episodes and episode orders in the
-// background, which then links its files to the new episodes. The item keeps its previous
+// chosen provider entry and answers with the item. A movie's metadata is fetched before it answers.
+// For a show it fetches only the chosen entry's own details and adds `match_task_id`: the Activity
+// task fetching its seasons, episodes and episode orders in the background, which then links its
+// files to the new episodes. The item keeps its previous
 // match if the chosen entry can't be fetched.
 func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
@@ -153,11 +153,8 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if it.Kind == "series" {
-		writeJSON(w, http.StatusAccepted, matchedDTO{itemDTO: d, MatchTaskID: taskID})
-		return
-	}
-	writeJSON(w, http.StatusOK, matchedDTO{itemDTO: d})
+	// 200 for shows too (the v1 promise): the background part is reported by match_task_id.
+	writeJSON(w, http.StatusOK, matchedDTO{itemDTO: d, MatchTaskID: taskID})
 }
 
 // matchedDTO is an item just matched, with the Activity task still fetching its details.
