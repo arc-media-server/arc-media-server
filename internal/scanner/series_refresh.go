@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"ams/internal/activity"
 	"ams/internal/store"
 )
 
@@ -14,7 +15,15 @@ var ErrLibraryBusy = errors.New("the library is busy; retry when its current wor
 
 // RefreshSeries reserves the existing library slot, optionally saves a numbering change,
 // then refreshes/relinks this show's known files only. It never discovers media or probes files.
-func (s *Scanner) RefreshSeries(ctx context.Context, lib *store.Library, id string, deep bool, before func(context.Context) error) (err error) {
+func (s *Scanner) RefreshSeries(ctx context.Context, lib *store.Library, id string, deep bool, before func(context.Context) error) error {
+	return s.refreshSeries(ctx, lib, id, deep, before, nil)
+}
+
+// refreshSeries is RefreshSeries reporting to an Activity task the caller already started (nil
+// starts "Refreshing <title>"). It finishes the task, unless the library is busy: then it returns
+// ErrLibraryBusy and leaves the task untouched for the caller to try again with.
+func (s *Scanner) refreshSeries(ctx context.Context, lib *store.Library, id string, deep bool, before func(context.Context) error,
+	task *activity.Handle) (err error) {
 	s.mu.Lock()
 	if st := s.status[lib.ID]; st != nil && st.Running {
 		s.mu.Unlock()
@@ -22,6 +31,7 @@ func (s *Scanner) RefreshSeries(ctx context.Context, lib *store.Library, id stri
 	}
 	if err := s.ctx.Err(); err != nil {
 		s.mu.Unlock()
+		task.Finish(err)
 		return err
 	}
 	work, cancel := context.WithCancel(ctx)
@@ -53,13 +63,16 @@ func (s *Scanner) RefreshSeries(ctx context.Context, lib *store.Library, id stri
 
 	item, e := s.store.GetItem(work, id)
 	if e != nil {
+		task.Finish(e)
 		return e
 	}
-	title := id
-	if item != nil {
-		title = item.Title
+	if task == nil {
+		title := id
+		if item != nil {
+			title = item.Title
+		}
+		task = s.Activity.Start("refresh", "Refreshing "+title)
 	}
-	task := s.Activity.Start("refresh", "Refreshing "+title)
 	s.registerTask(lib.ID, task)
 	defer func() { s.mu.Lock(); delete(s.tasks, lib.ID); s.mu.Unlock(); task.Finish(err) }()
 	if err = work.Err(); err != nil {
