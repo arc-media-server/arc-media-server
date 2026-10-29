@@ -216,13 +216,12 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
-  await nav.getByRole('link', { name: 'Converting', exact: true }).click();
+  await page.getByRole('heading', { name: 'Converting', exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
   await expect(playback).toBeInViewport();
   await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
-  await page.goBack(); // Subsection anchor, then group selection both participate in history.
-  await page.goBack();
+  await page.goBack(); // Group selection participates in browser history.
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
   for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
     await page.goto('/settings?section=' + group);

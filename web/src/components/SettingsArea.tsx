@@ -4,7 +4,7 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useIsAdmin } from '@/lib/auth';
-import { mediaToolsNeeded, selectedSettingsSection, settingsNavigation, settingsSectionTitle, settingsSections } from '@/lib/settings-navigation';
+import { selectedSettingsSection, settingsNavigation } from '@/lib/settings-navigation';
 import { cn } from '@/lib/utils';
 import { inputClass } from '@/components/ui/field';
 
@@ -21,14 +21,10 @@ export function SettingsArea() {
     queryKey: ['health-summary'], enabled: admin,
     queryFn: async () => Object.values(await api.healthSummary()).reduce((a, b) => a + b, 0),
   });
-  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings, enabled: admin });
   useEffect(() => { window.scrollTo(0, 0); }, [selected]);
 
   // Avoid mounting management tools or issuing their queries for ordinary profiles.
   if (!admin) return location.pathname === '/settings' ? <Outlet /> : <Navigate to="/settings" replace />;
-  const titles = location.pathname !== '/settings' ? [] : selected === 'profile'
-    ? ['Playback', 'Home', 'Subtitles', 'Display']
-    : Object.keys(settingsSections).filter(title => settingsSections[title] === section && (title !== 'Media tools' || mediaToolsNeeded(settings.data)));
   return (
     <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:items-start">
       <nav aria-label={t('settings.sectionsLabel')} className="sticky top-0 z-30 bg-background/95 px-6 py-3 backdrop-blur-xl md:px-10 lg:top-6 lg:ml-6 lg:mt-10 lg:max-h-[calc(100dvh-48px)] lg:overflow-y-auto lg:rounded-2xl lg:bg-surface lg:p-3">
@@ -50,10 +46,7 @@ export function SettingsArea() {
               {link.id === 'health' && !!health.data && <span aria-label={t('settings.libraryIssues', { count: health.data })} className="shrink-0 rounded-full bg-warning/15 px-1.5 text-[11px] font-semibold text-warning">{health.data}</span>}
             </Link>)}
           </div>)}
-          {titles.length > 0 && <div className="mt-4 border-t border-border pt-3">
-            <p className="mb-2 px-3 text-xs text-subtle">{t('settings.onThisPage')}</p>
-            {titles.map(title => <a key={title} href={'#settings-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-')} className="block rounded-lg px-3 py-1.5 text-xs text-muted hover:text-foreground">{settingsSectionTitle(title)}</a>)}
-          </div>}
+
         </div>
       </nav>
       <div className="min-w-0"><Outlet /></div>

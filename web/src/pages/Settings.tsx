@@ -1,7 +1,6 @@
 import i18n from '@/i18n';
 import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
-import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,7 +13,7 @@ import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionG
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
@@ -119,12 +118,6 @@ function ProfileSettings() {
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
-      <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
-        <Row label={t("profileSettings:settings.homeRows")} description={t("profileSettings:settings.homeRowsHint")}>
-          <Link to="/?edit=1" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>{t("profileSettings:settings.editHome")}</Link>
-        </Row>
-      </Section>
-      <LibraryNavigationSettings prefs={p} update={update} />
       <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>
         <Row setting="subtitle_mode" label={t("profileSettings:settings.showSubtitles")} description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
