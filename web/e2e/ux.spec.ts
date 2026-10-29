@@ -867,8 +867,8 @@ test('source labels keep HDR and profile-based audio with their own movie versio
   const { item } = await seed(page);
   const original = await (await page.request.get('/api/items/' + item.id)).json();
   const base = original.files[0];
-  const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, streams: [
-    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled', aspect_ratio: 2.39 },
+  const file = (id: number, edition: string, plus: boolean, dv: boolean, audioProfile: string) => ({ ...base, id, edition, bitrate: 12500000, streams: [
+    { index: 0, kind: 'video', codec: 'hevc', width: 3840, height: 2160, is_default: true, is_forced: false, color_transfer: 'smpte2084', dolby_vision: dv, hdr10_plus: plus, hdr_probe_status: 'sampled', aspect_ratio: 2.39, bitrate: 10000000, frame_rate: 23.976, bit_depth: 10, dolby_vision_profile: 8, color_primaries: 'bt2020' },
     { index: 1, kind: 'audio', codec: 'truehd', profile: audioProfile, channels: 8, language: 'eng', is_default: true, is_forced: false },
   ] });
   const files = [file(101, 'Cinema', true, true, 'Dolby TrueHD + Dolby Atmos'), file(102, 'Standard', false, false, '')];
@@ -885,9 +885,15 @@ test('source labels keep HDR and profile-based audio with their own movie versio
     await expect(hero.getByText('Dolby TrueHD 7.1', { exact: true })).toBeVisible();
     await expect(hero.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
     await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Media information for ' + item.title, exact: true }).click();
     await expect(page.getByText('3840×2160 · 2.39:1', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Video bitrate: 10.0 Mb/s', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('23.976 fps', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('10-bit', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Dolby Vision profile 8', { exact: true }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`source-formats-${width}.png`), fullPage: true });
+    await page.keyboard.press('Escape');
   }
   files[1].edition = 'Cinema';
   await page.goto('/movie/' + item.id);
@@ -899,7 +905,7 @@ test('source labels keep HDR and profile-based audio with their own movie versio
 test('series file details show episode source tracks without claiming series-wide HDR', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  const button = page.getByRole('button', { name: /^File details for / }).first();
+  const button = page.getByRole('button', { name: /^Media information for / }).first();
   await expect(button).toBeVisible();
   // Intercept only the on-demand item read; the series and episode list remain real.
   await page.route('**/api/items/*', async r => {
@@ -914,7 +920,7 @@ test('series file details show episode source tracks without claiming series-wid
     ] })) } });
   });
   await button.click();
-  const dialog = page.getByRole('dialog', { name: /^File details:/ });
+  const dialog = page.getByRole('dialog', { name: /^Media information:/ });
   await expect(dialog.getByText(/1080p · HEVC · HLG/)).toBeVisible();
   await expect(dialog.getByText('Dolby Digital+ Atmos · 5.1', { exact: true })).toBeVisible();
   await expect(dialog.getByText('DTS-HD MA · DTS:X · 7.1', { exact: true })).toBeVisible();
@@ -1100,4 +1106,17 @@ test('poster menu: Watchlist changes show straight away and a slow action still 
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: /Playback started|Added/ })).toBeVisible();
   await page.unroute('**/api/series/*/seasons*');
+});
+
+
+test('Dashboard distinguishes direct play, direct stream and transcoding', async ({ page }) => {
+  const { item } = await seed(page);
+  await page.route('**/api/playing', r => r.fulfill({ json: ['direct', 'remux', 'transcode'].map((method, i) => ({
+    id: 'playing-' + i, item, profile: { id: 'admin', name: 'Admin', color: '#888' }, method, state: 'playing', device: 'Fixture', address: '127.0.0.1', started_at: 1,
+    position_ms: 0, duration_ms: 120000, throttled: method === 'transcode',
+  })) }));
+  await page.goto('/dashboard');
+  await expect(page.getByText('Direct Play', { exact: true })).toBeVisible();
+  await expect(page.getByText('Direct Stream', { exact: true })).toBeVisible();
+  await expect(page.getByText('Transcoding (throttled)', { exact: true })).toBeVisible();
 });

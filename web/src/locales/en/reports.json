@@ -8,9 +8,7 @@
     "activity": "Activity",
     "stop": "Stop",
     "unknownProfile": "Unknown profile",
-    "directPlay": "Direct play",
-    "convertingThrottled": "Converting (throttled)",
-    "converting": "Converting",
+    "directPlay": "Direct Play",
     "messageToShowThem": "Message to show them (optional)",
     "serverLog": "Server Log",
     "copied": "Copied",
@@ -21,7 +19,11 @@
     "thisProfile": "this profile",
     "stopDescription": "Playback stops on {{name}}'s {{device}}. Where they got to is saved, and they can start again in a minute.",
     "logLimit": "Shows the latest {{lines}} lines. Enable detailed logging or download retained logs in Settings → Maintenance & recovery.",
-    "logError": "Couldn't load the log: {{error}}"
+    "logError": "Couldn't load the log: {{error}}",
+    "directStream": "Direct Stream",
+    "directStreamThrottled": "Direct Stream (throttled)",
+    "transcoding": "Transcoding",
+    "transcodingThrottled": "Transcoding (throttled)"
   },
   "insights": {
     "insights": "Insights",
