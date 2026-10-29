@@ -158,3 +158,24 @@ test('adaptive: stored manual quality, explicit Original and Automatic survive r
   await page.keyboard.press('Escape');
   await player.getByRole('button', { name: 'Close player', exact: true }).click();
 });
+
+test('adaptive: the profile internet streaming quality caps a stream away from home and the menu says so', async ({ page, movie }, info) => {
+  test.setTimeout(120000);
+  expect((await page.request.patch('/api/me/prefs', { data: { remote_quality_kbps: 2000 } })).ok()).toBeTruthy();
+  const plans: PlaybackPlan[] = [];
+  page.on('response', async r => { if (r.url().endsWith('/playback') && r.request().method() === 'POST' && r.ok()) plans.push(await r.json()); });
+  // A visitor through an untrusted forwarder counts as away from home.
+  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': '203.0.113.9' });
+  const { player } = await openPlayer(page, movie);
+  await expect.poll(() => plans.length).toBeGreaterThan(0);
+  expect(plans[0]).toMatchObject({ method: 'transcode', server_limit_kbps: 2000 });
+  expect(plans[0].reasons).toContain('quality set to 2 Mbps 720p');
+  await player.hover(); await player.getByRole('button', { name: 'Quality', exact: true }).click();
+  await expect(page.getByRole('menuitemradio', { name: 'Maximum (2 Mbps 720p)', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitemradio', { name: /^(2|3|4|8|12|20) Mbps/ })).toHaveCount(0);
+  await expect(page.getByRole('menuitemradio', { name: /^1.5 Mbps/ })).toBeVisible();
+  await expect(page.getByText('Away from home, streams are limited to 2 Mbps 720p.', { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('internet-quality-player.png') });
+  await page.keyboard.press('Escape');
+  await player.getByRole('button', { name: 'Close player', exact: true }).click();
+});

@@ -361,6 +361,30 @@ test('profile preferences and display orders explain failed saves and retry', as
   await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Library default (');
 });
 
+test('internet streaming quality is saved to the profile and only limits streams away from home', async ({ page }, info) => {
+  const { item } = await seed(page);
+  await page.goto('/settings');
+  const quality = page.getByRole('combobox', { name: 'Internet streaming quality', exact: true });
+  await expect(quality.locator('option:checked')).toHaveText('Maximum');
+  await expect(page.getByText(/If quality is set too high, videos will start slowly and pause frequently\. Only applies away from home/)).toBeVisible();
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/me/prefs') && r.request().method() === 'PATCH' && r.ok());
+  await quality.selectOption({ label: '4 Mbps 720p' });
+  expect((await (await saved).json()).remote_quality_kbps).toBe(4000);
+  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('internet-quality-setting.png') });
+  await page.reload();
+  await expect(quality.locator('option:checked')).toHaveText('4 Mbps 720p');
+  expect((await page.request.patch('/api/me/prefs', { data: { remote_quality_kbps: 5000 } })).status()).toBe(400);
+  // The playback decision: capped away from home (through an untrusted forwarder), not at home.
+  const plan = async (headers: Record<string, string>) => (await (await page.request.post('/api/items/' + item.id + '/playback', { headers, data: { caps: { containers: ['mp4', 'mkv'], video: ['h264', 'hevc'], audio: ['aac', 'ac3'] } } })).json()).server_limit_kbps;
+  expect(await plan({ 'X-Forwarded-For': '203.0.113.9' })).toBe(4000);
+  expect(await plan({})).toBe(0);
+  await quality.selectOption({ label: 'Maximum' });
+  await page.reload();
+  await expect(quality.locator('option:checked')).toHaveText('Maximum');
+  expect(await plan({ 'X-Forwarded-For': '203.0.113.9' })).toBe(0);
+});
+
 test('mobile profiles, settings sections and player controls remain usable', async ({ page }, info) => {
   const { item } = await seed(page);
   await page.request.post('/api/profiles', { data: { name: 'Audit Household with a long name', color: 'blue' } });
