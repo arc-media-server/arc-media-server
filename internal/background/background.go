@@ -25,6 +25,7 @@ type Status struct {
 	Completed int                   `json:"completed"`
 	Failed    int                   `json:"failed"`
 	Enabled   bool                  `json:"enabled"`
+	Requested bool                  `json:"requested,omitempty"`
 	LastRun   *store.MaintenanceRun `json:"last_run,omitempty"`
 }
 
@@ -169,6 +170,7 @@ func (m *Manager) RunNow(ctx context.Context, kind string) error {
 	m.force[kind] = id
 	wake := m.wake[kind]
 	m.mu.Unlock()
+	m.logger().Info("maintenance requested", "kind", kind)
 	if wake != nil {
 		wake()
 	}
@@ -277,11 +279,14 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 	out := []Status{}
 	for _, kind := range []string{"analysis", "previews", "markers", "metadata", "backup", "empty_trash", "database", "cache"} {
 		mode := m.Mode(kind)
+		requested := m.Forced(kind)
 		state, detail := "scheduled", "Waiting for maintenance"
 		if mode == "off" {
 			state, detail = "off", "Disabled"
 		} else if m.busy() {
 			state, detail = "paused", "Waiting for playback or scanning"
+		} else if requested {
+			state, detail = "queued", "Run requested; waiting for an available background task slot"
 		} else if m.Window.OpenAt(m.now()) {
 			state, detail = "queued", "Ready for eligible work"
 		}
@@ -298,10 +303,10 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 		m.mu.Lock()
 		complete := m.completed[kind]
 		m.mu.Unlock()
-		if complete && pending == 0 && done > 0 && state == "queued" {
+		if !requested && complete && pending == 0 && done > 0 && state == "queued" {
 			state, detail = "completed", "Completed work is remembered"
 		}
-		if mode != "off" && failed > 0 && pending == 0 {
+		if !requested && mode != "off" && failed > 0 && pending == 0 {
 			state, detail = "failed", "Some work will retry later"
 		}
 		var lastRun *store.MaintenanceRun
@@ -311,8 +316,12 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 				state, detail = "failed", "Could not read the last maintenance result"
 			} else if last.StartedAt > 0 {
 				lastRun = &last
-				if mode != "off" && state != "running" {
-					if last.Error != "" {
+				if !requested && mode != "off" && state != "running" {
+					if last.Stopped {
+						state, detail = "stopped", last.Detail
+					} else if last.Paused {
+						state, detail = "paused", last.Detail
+					} else if last.Error != "" {
 						state, detail = "failed", last.Error
 					} else if last.FinishedAt > 0 && last.LastSuccessAt > m.now().Add(-7*24*time.Hour).Unix() {
 						state, detail = "completed", "Next automatic run is weekly"
@@ -320,7 +329,7 @@ func (m *Manager) Snapshot(ctx context.Context) []Status {
 				}
 			}
 		}
-		out = append(out, Status{Kind: kind, Title: titles[kind], State: state, Detail: detail, Pending: pending, Completed: done, Failed: failed, Enabled: mode != "off", LastRun: lastRun})
+		out = append(out, Status{Kind: kind, Title: titles[kind], State: state, Detail: detail, Pending: pending, Completed: done, Failed: failed, Enabled: mode != "off", Requested: requested, LastRun: lastRun})
 	}
 	return out
 }

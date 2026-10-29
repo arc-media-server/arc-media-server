@@ -68,6 +68,9 @@ export interface Stream {
   dolby_vision?: boolean;
   dolby_vision_profile?: number;
   hdr10_plus?: boolean;
+  bitrate?: number;
+  frame_rate?: number;
+  pix_fmt?: string;
   /** sampled means a bounded read, never proof of whole-file absence. */
   hdr_probe_status?: '' | 'stream' | 'sampled' | 'unavailable';
   language?: string;
@@ -402,7 +405,7 @@ export type ProcessingMode = 'off' | 'scheduled' | 'added';
 /** How many of a title's files have intro/credits markers, and how many were checked (Library Health). */
 export interface MarkerCoverage { id: string; title: string; kind: 'series' | 'movie'; files: number; intros: number; credits: number; checked: number }
 
-export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean; last_run?: { started_at: number; finished_at: number; last_success_at: number; detail: string; error?: string } }
+export interface ScheduledTask { kind: string; title: string; state: string; detail: string; pending: number; completed: number; failed: number; enabled: boolean; requested?: boolean; last_run?: { started_at: number; finished_at: number; last_success_at: number; detail: string; error?: string; paused?: boolean; stopped?: boolean } }
 
 export interface ActivityTask {
   can_stop?: boolean;
@@ -478,7 +481,7 @@ export interface Playback {
   extra?: string;
   device: string;
   address: string;
-  method: 'direct' | 'transcode';
+  method: PlaybackMethod;
   /** The conversion is far enough ahead and waits for the viewer. */
   throttled?: boolean;
   position_ms: number;
@@ -922,7 +925,7 @@ export interface ServerSettings {
   opensubtitles_api_key: string;
   opensubtitles_username: string;
   /** What this server's FFmpeg can do. */
-  transcoder: { hw_encoder: string; hw_label: string; tone_mapping: boolean; checked: boolean };
+  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[] };
   port: number;
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
@@ -1052,6 +1055,7 @@ export const api = {
   setDefaultHome: (home: HomeRow[]) => request<{ home: HomeRow[] }>('PUT', '/api/home/default', { home }),
   deleteProfile: (id: string) => request<void>('DELETE', `/api/profiles/${id}`),
   settings: () => request<ServerSettings>('GET', '/api/settings'),
+  detectHardware: () => request<{started: boolean}>('POST', '/api/transcoder/detect'),
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
@@ -1253,6 +1257,7 @@ export const api = {
     request<{ path: string; trail: { name: string; path: string }[]; folders: { name: string; path: string; count: number; cover_id?: string; cover?: string }[]; items: Item[] }>(
       'GET', `/api/libraries/${libraryId}/folders${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   emptyTrash: (libraryId: number) => request<{ removed: number }>('POST', `/api/libraries/${libraryId}/empty-trash`),
+  emptyTrashSafely: (id: number) => request<{ removed: number; skipped?: 'busy' | 'scan_required' }>('POST', `/api/libraries/${id}/empty-trash?safe=1`),
   removeItem: (id: string) => request<void>('DELETE', `/api/items/${id}`),
 };
 

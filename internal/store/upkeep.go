@@ -140,6 +140,8 @@ func checkIntegrity(ctx context.Context, conn *sql.Conn) error {
 
 // MaintenanceRun is independent of per-file background revisions and survives restarts.
 type MaintenanceRun struct {
+	Stopped       bool   `json:"stopped,omitempty"`
+	Paused        bool   `json:"paused,omitempty"`
 	StartedAt     int64  `json:"started_at"`
 	FinishedAt    int64  `json:"finished_at"`
 	LastSuccessAt int64  `json:"last_success_at"`

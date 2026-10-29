@@ -71,7 +71,7 @@ func (s *Server) downloadDiagnostics(w http.ResponseWriter, r *http.Request) {
 		"version": s.version, "revision": revision, "modified_build": dirty, "go": runtime.Version(),
 		"os": runtime.GOOS, "architecture": runtime.GOARCH, "exported_at": time.Now().UTC(),
 		"logging": s.logs.Status(), "contents": "Redacted logs, build information, tracked request stages and bounded goroutine call stacks. Names and filesystem paths may be included.",
-		"database": database, "cpu_count": runtime.NumCPU(), "goroutines": runtime.NumGoroutine(),
+		"transcoder": s.transcoderCaps(), "database": database, "cpu_count": runtime.NumCPU(), "goroutines": runtime.NumGoroutine(),
 	}, "", "  ")
 	manifest = []byte(s.logs.Redact(string(manifest)))
 	requests, _ := json.MarshalIndent(s.requests.snapshot(), "", "  ")

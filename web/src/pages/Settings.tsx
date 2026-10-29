@@ -1,7 +1,6 @@
 import i18n from '@/i18n';
 import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
-import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,12 +13,12 @@ import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionG
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ImportDialog } from '@/components/ImportDialog';
 import { qualities, qualityName } from '@/lib/playback';
 import { Webhooks } from '@/components/Webhooks';
-import { EmptyTrashControl } from '@/components/EmptyTrashTask';
+import { EmptyTrashControl, EmptyTrashAllButton } from '@/components/EmptyTrashTask';
 import { MaintenanceTasks } from '@/components/ScheduledWork';
 import { OptimizedList } from '@/components/Optimize';
 import { DevicesList } from '@/components/Devices';
@@ -119,12 +118,6 @@ function ProfileSettings() {
           onChange={(v) => update.mutate({ theme_music: v })}
         />
       </Section>
-      <Section sectionKey="Home" title={t("profileSettings:settings.home")} hint={t("profileSettings:settings.forYourProfileOnly")}>
-        <Row label={t("profileSettings:settings.homeRows")} description={t("profileSettings:settings.homeRowsHint")}>
-          <Link to="/?edit=1" className={buttonVariants({ variant: 'secondary', size: 'sm' })}>{t("profileSettings:settings.editHome")}</Link>
-        </Row>
-      </Section>
-      <LibraryNavigationSettings prefs={p} update={update} />
       <Section sectionKey="Subtitles" title={t("profileSettings:settings.subtitles")} hint={t("profileSettings:settings.choosingSubtitlesInThe")}>
         <Row setting="subtitle_mode" label={t("profileSettings:settings.showSubtitles")} description={subtitleModeHints[p.subtitle_mode ?? '']}>
           <select
@@ -242,7 +235,8 @@ function ServerSettings() {
     added: t('serverSettings:detectionHelp.added'),
   };
   const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings, refetchInterval: q => q.state.data?.transcoder.checking ? 2000 : false });
+ const detect = useMutation({mutationFn:api.detectHardware,onSuccess:()=>{qc.setQueryData<ServerSettings>(['settings'],old=>old?{...old,transcoder:{...old.transcoder,checking:true}}:old);void qc.invalidateQueries({queryKey:['settings']});}});
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
   const update = useMutation({
     mutationFn: (patch: Patch) => api.updateSettings(patch),
@@ -408,16 +402,24 @@ function ServerSettings() {
             <ToggleRow
               setting="hw_accel" label={t("serverSettings:settings.useHardwareAcceleration")}
               description={
-                !s.transcoder.checked
+                (!s.transcoder.checked || s.transcoder.checking)
                   ? t("serverSettings:settings.checkingThisComputer")
                   : s.transcoder.hw_encoder
                     ? t('serverSettings:settings.hardwareDescription', { hardware: s.transcoder.hw_label })
                     : t("serverSettings:settings.noSupportedGraphicsCard")
               }
               checked={s.hw_accel && !!s.transcoder.hw_encoder}
-              busy={update.isPending || !s.transcoder.hw_encoder}
+              busy={update.isPending || s.transcoder.checking || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
+            <div className="space-y-2 px-5 py-3">
+              <Button variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>
+              <ErrorNotice error={detect.error} onRetry={()=>detect.mutate()} />
+              {!!s.transcoder.attempts?.length && <details className="text-xs text-muted">
+                <summary className="cursor-pointer">{t('serverSettings:settings.hardwareDetectionDetails')}</summary>
+                <ul className="mt-2 space-y-2 break-words">{s.transcoder.attempts.map((a,i)=><li key={i}>{[a.encoder,a.device,a.driver].filter(Boolean).join(' · ')}{a.error ? `: ${a.error}` : `: ${t('serverSettings:settings.hardwareTestPassed')}`}</li>)}</ul>
+              </details>}
+            </div>
             <ToggleRow
               setting="tone_mapping" label={t("serverSettings:settings.hdrToneMapping")}
               description={
@@ -566,7 +568,7 @@ function ServerSettings() {
                   description: t('serverSettings:tasks.emptyTrashDescription'),
                   control: <EmptyTrashControl enabled={s.empty_trash_enabled} busy={update.isPending} onChange={v => update.mutateAsync({ empty_trash_enabled: v })} />,
                   feedback: <SaveFeedback settings={['empty_trash_enabled']} />,
-                  action: <Link className="ml-auto inline-flex h-8 shrink-0 items-center rounded-lg bg-surface-2 px-3 text-[13px] font-medium hover:bg-surface-3 sm:ml-0" to="/libraries">{t("serverSettings:settings.chooseLibrary")}</Link>,
+                  action: <EmptyTrashAllButton />,
                 },
               ]}
             />
