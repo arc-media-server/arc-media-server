@@ -7,10 +7,14 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
-/** Episode ordering lives in the show's ⋯ More menu. */
+/** Episode ordering: profiles find it in the show's ⋯ More menu, the server owner in Edit. */
 async function openOrdering(page: Page) {
  await page.getByRole('button',{name:'More',exact:true}).click();
- await page.getByRole('menuitem',{name:'Episode ordering…',exact:true}).click();
+ await page.getByRole('menu').waitFor();
+ const item = page.getByRole('menuitem',{name:'Episode ordering…',exact:true});
+ if (await item.count()) { await item.click(); return; }
+ await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
+ await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
 import type { Item, SeasonsResponse } from '../src/lib/api';
 
@@ -58,7 +62,7 @@ test('metadata ordering: staged file order, Retry, scoped refresh and independen
   const dialog=page.getByRole('dialog',{name:'Edit',exact:true});
   await open();
   await expect(dialog.getByText('Details From',{exact:true})).toHaveCount(0);
-  await expect(dialog.getByText(/Show information follows the library’s TMDB/)).toBeVisible();
+  await expect(dialog.getByText(/come from the library’s metadata provider, TMDB/)).toBeVisible();
   await dialog.getByRole('combobox',{name:'File episode order',exact:true}).selectOption('tvdb_aired');
   await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
   expect((await (await page.request.get(`/api/items/${series.id}`)).json()).source_ordering??'').toBe('');

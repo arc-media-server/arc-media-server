@@ -68,8 +68,8 @@ export function useAnalyzeItem(item?: Item) {
 
 /**
  * The "⋯" button on a movie or show page, as Plex's: Play next, Add to queue and Add to Playlist
- * for anyone who can play the title, a show's episode ordering for every profile (each chooses
- * their own), then the server owner's tools.
+ * for anyone who can play the title, a show's episode ordering for profiles without Edit (each
+ * chooses their own), then the server owner's tools.
  */
 export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: {
   item: Item; admin: boolean; playable: boolean; edition?: string; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -78,7 +78,7 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
   const { t } = useTranslation('titles');
   const queue = useQueueActions(item, edition);
   const [playlist, setPlaylist] = useState(false);
-  const ordering = item.kind === 'series';
+  const ordering = item.kind === 'series' && !admin;
   if (!admin && !playable && !ordering) return null;
   return (
     <span className="inline-flex max-w-full flex-wrap items-center gap-2">
@@ -102,8 +102,9 @@ export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, re
 
 /**
  * The items of a title's "⋯" menu: queue and playlist actions for anyone who can play it, any
- * `extra` items, a show's episode ordering (every profile chooses its own), then the server
- * owner's tools. Shared by the title page and poster cards.
+ * `extra` items, a show's episode ordering for profiles without Edit (the server owner finds it
+ * in Edit, Metadata & ordering), then the server owner's tools. Shared by the title page and
+ * poster cards.
  */
 export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refreshing, onAnalyze, analyzing, onQueue, onPlaylist, extra }: {
   item: Item; admin: boolean; playable: boolean; onOpen: (d: Exclude<Dialog, null>) => void;
@@ -121,13 +122,13 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
         </>
       )}
       {extra}
-      {item.kind === 'series' && (
+      {item.kind === 'series' && !admin && (
         <>
           {(playable || extra) && <DropdownMenuSeparator />}
           <DropdownMenuItem onSelect={() => onOpen('ordering')}><ListOrdered className="size-4 text-muted" /> {t('titles:itemActions.episodeOrdering')}</DropdownMenuItem>
         </>
       )}
-      {(playable || extra || item.kind === 'series') && admin && <DropdownMenuSeparator />}
+      {(playable || extra) && admin && <DropdownMenuSeparator />}
       {admin && (
         <>
           {onRefresh && !isLocalVideo(item) && <DropdownMenuItem disabled={refreshing} onSelect={onRefresh}><RefreshCw className="size-4 text-muted" />{refreshing ? t('titles:itemActions.refreshingMetadata') : t('titles:itemActions.refreshMetadata')}</DropdownMenuItem>}

@@ -7,10 +7,14 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
-/** Episode ordering lives in the show's ⋯ More menu. */
+/** Episode ordering: profiles find it in the show's ⋯ More menu, the server owner in Edit. */
 async function openOrdering(page: Page) {
  await page.getByRole('button',{name:'More',exact:true}).click();
- await page.getByRole('menuitem',{name:'Episode ordering…',exact:true}).click();
+ await page.getByRole('menu').waitFor();
+ const item = page.getByRole('menuitem',{name:'Episode ordering…',exact:true});
+ if (await item.count()) { await item.click(); return; }
+ await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
+ await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
 import type { Item, Library } from '../src/lib/api';
 type Fixtures = { movies: string; shows: string; empty: string; playback: string };
@@ -357,7 +361,7 @@ test('profile preferences and display orders explain failed saves and retry', as
   await page.getByRole('combobox',{name:'Display order',exact:true}).selectOption('inherit');
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await openOrdering(page);
-  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Follow file order');
+  await expect(page.getByRole('combobox',{name:'Display order',exact:true}).locator('option:checked')).toContainText('Match file episode order');
 });
 
 test('mobile profiles, settings sections and player controls remain usable', async ({ page }, info) => {

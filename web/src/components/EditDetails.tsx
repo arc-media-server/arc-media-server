@@ -259,6 +259,7 @@ function EditForm({ item, onDone, initialTab }: { item: Item; initialTab?: 'orde
             : specials === null ? 'inherit' : specials ? 'on' : 'off'}
           onSpecials={setSpecials}
           onCompare={orders.data.orderings.length > 1 ? () => setComparing(true) : undefined}
+          fileOrder={orderLabels[(source || library?.source_ordering || 'tmdb_aired') as keyof typeof orderLabels]}
         />}
 
       </div>}
