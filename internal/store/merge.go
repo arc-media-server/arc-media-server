@@ -33,6 +33,9 @@ func (s *Store) MergeItems(ctx context.Context, targetID string, sourceIDs []str
 		if src == targetID {
 			continue
 		}
+		if err := copyArrival(ctx, tx, targetID, src); err != nil {
+			return err
+		}
 		steps := []string{
 			// Files: keep each one's part, and remember the choice.
 			`UPDATE media_files SET item_override = ?1 WHERE id IN (SELECT file_id FROM item_files WHERE item_id = ?2)`,
@@ -95,6 +98,9 @@ func (s *Store) SplitItem(ctx context.Context, it *Item, title func(path string)
 		if _, err := tx.ExecContext(ctx, `INSERT INTO items (id, library_id, kind, match_key, title, sort_title, year,
 				added_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, it.LibraryID, it.Kind, "split:"+id, name, SortTitle(name), year, now, now); err != nil {
+			return nil, err
+		}
+		if err := copyArrival(ctx, tx, id, it.ID); err != nil {
 			return nil, err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE item_files SET item_id = ? WHERE item_id = ? AND file_id = ?`, id, it.ID, f.ID); err != nil {
@@ -206,6 +212,9 @@ func (s *Store) MergeSeries(ctx context.Context, targetID string, sourceIDs []st
 // profile has watch state on both, the one with more progress is kept: watched wins, then the
 // higher play count, then whichever was played last; a rating or watchlist mark on either stays.
 func mergeInto(ctx context.Context, tx *sql.Tx, targetID, sourceID string) error {
+	if err := copyArrival(ctx, tx, targetID, sourceID); err != nil {
+		return err
+	}
 	steps := []string{
 		`UPDATE media_files SET item_override = ?1 WHERE item_override = ?2`,
 		`UPDATE OR IGNORE item_files SET item_id = ?1 WHERE item_id = ?2`,
