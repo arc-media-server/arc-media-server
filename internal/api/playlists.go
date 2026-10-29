@@ -153,7 +153,7 @@ func (s *Server) playlistItems(r *http.Request, p *store.Playlist) ([]playlistEn
 				sr, _ = s.store.GetItem(ctx, it.ParentID)
 				series[it.ParentID] = sr
 				if sr != nil {
-					positions[sr.ID], _, _ = s.orderPositions(ctx, currentUserID(r), sr)
+					positions[sr.ID], _, _ = s.orderPositions(ctx, sr)
 				}
 			}
 			d = s.episodeDTO(it, sr, positions[it.ParentID])
@@ -263,7 +263,7 @@ func (s *Server) orderedEpisodeIDs(r *http.Request, series *store.Item) ([]strin
 	if err != nil {
 		return nil, err
 	}
-	_, entries, err := s.orderPositions(ctx, currentUserID(r), series)
+	_, entries, err := s.orderPositions(ctx, series)
 	if err != nil {
 		return nil, err
 	}

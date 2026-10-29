@@ -121,7 +121,7 @@ func TestUnequalCataloguesFollowFileOrderWithoutDiscovery(t *testing.T) {
 		placed := map[string]bool{}
 		for _, o := range orders {
 			if o.Source == "tvdb_aired" {
-				entries, err := st.DisplayEntries(ctx, o.ID, "")
+				entries, err := st.DisplayEntries(ctx, o.ID)
 				if err != nil {
 					t.Fatal(err)
 				}

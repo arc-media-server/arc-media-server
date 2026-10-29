@@ -44,6 +44,7 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { ErrorNotice } from './Page';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
+import { useIsAdmin } from '@/lib/auth';
 import { CastSession, chooseChromecast, useCastAvailable, type CastText } from './Cast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -315,6 +316,8 @@ function PlayerOverlay({
   const lastSubtitle = useRef<SubtitleTrack | null>(null);
   // The panel for finding subtitles online.
   const [searching, setSearching] = useState(false);
+  // Downloading a subtitle adds it for every profile (and uses the server's OpenSubtitles quota).
+  const admin = useIsAdmin();
   // Seconds until the next item in the queue starts, once this one has ended.
   const [upNextIn, setUpNextIn] = useState<number | null>(null);
   const hideTimer = useRef<number>(undefined);
@@ -1148,7 +1151,7 @@ function PlayerOverlay({
       {upNextIn !== null && next && (
         <UpNext item={next} seconds={upNextIn} compact={minimized} onTick={() => setUpNextIn((n) => (n === null ? null : n - 1))} onPlay={onNext} onCancel={() => setUpNextIn(null)} />
       )}
-      {searching && planState && item.itemId && (
+      {admin && searching && planState && item.itemId && (
         <SubtitleSearch
           itemId={item.itemId}
           fileId={planState.file_id}
@@ -1261,7 +1264,7 @@ function PlayerOverlay({
                   <DropdownMenuItem disabled={subtitleOffsetMS === 0} onSelect={(e) => { e.preventDefault(); shiftSubtitles(null); }}>{t("player:player.resetSubtitleTiming")}</DropdownMenuItem>
                 </>}
                 {subtitle?.image && <p className="max-w-64 px-2.5 py-1.5 text-xs text-white/60">{t("player:player.timingAdjustmentIsAvailable")}</p>}
-                {item.itemId && (
+                {admin && item.itemId && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

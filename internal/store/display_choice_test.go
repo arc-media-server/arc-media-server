@@ -2,7 +2,7 @@ package store
 
 import "testing"
 
-func TestDisplayChoiceKeepsInheritanceSeparateFromEffectiveOrder(t *testing.T) {
+func TestDisplayChoiceIsTheServerDefault(t *testing.T) {
 	ctx := t.Context()
 	st := openTest(t)
 	lib, err := st.SyncLibrary(ctx, "Shows", "shows", "tmdb_aired", []string{t.TempDir()})
@@ -21,29 +21,29 @@ func TestDisplayChoiceKeepsInheritanceSeparateFromEffectiveOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check := func(user string, admin bool, choice, effective int64) {
+	check := func(choice, effective int64) {
 		t.Helper()
-		got, err := st.DisplayChoice(ctx, id, user, admin)
+		got, err := st.DisplayChoice(ctx, id)
 		if err != nil || got != choice {
 			t.Fatalf("saved choice=%d want %d (%v)", got, choice, err)
 		}
-		got, err = st.DisplayOrdering(ctx, id, user, "tmdb_aired")
+		got, err = st.DisplayOrdering(ctx, id, "tmdb_aired")
 		if err != nil || got != effective {
 			t.Fatalf("effective=%d want %d (%v)", got, effective, err)
 		}
 	}
-	check("owner", true, 0, aired)
+	check(0, aired)
 	if err := st.SetDisplayOrdering(ctx, id, "", story); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", false, 0, story)
-	check("owner", true, story, story)
+	check(story, story)
+	// A profile's old row (from when profiles could choose) is kept but no longer read.
 	if err := st.SetDisplayOrdering(ctx, id, "viewer", aired); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", false, aired, aired)
-	if err := st.ClearDisplayOrdering(ctx, id, "viewer"); err != nil {
+	check(story, story)
+	if err := st.ClearDisplayOrdering(ctx, id, ""); err != nil {
 		t.Fatal(err)
 	}
-	check("viewer", false, 0, story)
+	check(0, aired)
 }

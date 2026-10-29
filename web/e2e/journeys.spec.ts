@@ -7,12 +7,9 @@ async function chooseDisplay(page: Page, label: RegExp) {
  await select.selectOption(value);
 }
 
-/** Episode ordering: profiles find it in the show's ⋯ More menu, the server owner in Edit. */
+/** Episode ordering is the server owner's, in Edit, Metadata & ordering. */
 async function openOrdering(page: Page) {
  await page.getByRole('button',{name:'More',exact:true}).click();
- await page.getByRole('menu').waitFor();
- const item = page.getByRole('menuitem',{name:'Episode ordering…',exact:true});
- if (await item.count()) { await item.click(); return; }
  await page.getByRole('menuitem',{name:'Edit…',exact:true}).click();
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
