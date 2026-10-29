@@ -18,6 +18,7 @@ export function CompareOrdersDialog({
   open,
   onOpenChange,
   onUse,
+  staged = false,
 }: {
   seriesId: string;
   orderings: Ordering[];
@@ -25,10 +26,11 @@ export function CompareOrdersDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUse: (orderingId: number) => void | Promise<unknown>;
+  staged?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <Comparison seriesId={seriesId} orderings={orderings} current={current} onClose={() => onOpenChange(false)} onUse={onUse} />}
+      {open && <Comparison seriesId={seriesId} orderings={orderings} current={current} staged={staged} onClose={() => onOpenChange(false)} onUse={onUse} />}
     </Dialog>
   );
 }
@@ -64,12 +66,14 @@ function Comparison({
   current,
   onClose,
   onUse,
+  staged,
 }: {
   seriesId: string;
   orderings: Ordering[];
   current: number;
   onClose: () => void;
   onUse: (orderingId: number) => void | Promise<unknown>;
+  staged: boolean;
 }) {
   const { t } = useTranslation('details');
   const [left, setLeft] = useState(current);
@@ -106,7 +110,7 @@ function Comparison({
   return (
     <DialogContent
       title={t("details:compareOrders.compareEpisodeOrders")}
-      description={t("details:compareOrders.seeWhereEachOf")}
+      description={staged ? t("details:compareOrders.stagedDescription") : t("details:compareOrders.seeWhereEachOf")}
       className="w-[min(820px,calc(100vw-32px))]"
       footer={
         <>
@@ -116,15 +120,15 @@ function Comparison({
             disabled={right === current || apply.isPending}
             onClick={() => apply.mutate()}
           >
-            {right === current ? t("details:compareOrders.alreadyInUse") : t('details:compareOrders.useOrder', { name: nameOf(right) })}
+            {right === current ? (staged ? t("details:compareOrders.alreadySelected") : t("details:compareOrders.alreadyInUse")) : t('details:compareOrders.useOrder', { name: nameOf(right) })}
           </Button>
         </>
       }
     >
       <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <OrderSelect orderings={orderings} value={left} current={current} onChange={setLeft} />
+        <OrderSelect orderings={orderings} value={left} current={current} staged={staged} onChange={setLeft} />
         <ArrowRight className="size-4 text-subtle" />
-        <OrderSelect orderings={orderings} value={right} current={current} onChange={setRight} />
+        <OrderSelect orderings={orderings} value={right} current={current} staged={staged} onChange={setRight} />
       </div>
       <div className="mb-3 flex items-center justify-between gap-3 text-sm">
         <p className="text-muted">
@@ -173,7 +177,7 @@ function Comparison({
   );
 }
 
-function OrderSelect({ orderings, value, current, onChange }: { orderings: Ordering[]; value: number; current: number; onChange: (id: number) => void }) {
+function OrderSelect({ orderings, value, current, staged, onChange }: { orderings: Ordering[]; value: number; current: number; staged: boolean; onChange: (id: number) => void }) {
   const { t } = useTranslation('details');
   return (
     <select
@@ -185,7 +189,7 @@ function OrderSelect({ orderings, value, current, onChange }: { orderings: Order
         <option key={o.id} value={o.id}>
           {o.name}
           {o.description ? ` (${o.description})` : ''}
-          {o.id === current ? t("details:compareOrders.inUse") : ''}
+          {o.id === current ? (staged ? t("details:compareOrders.selected") : t("details:compareOrders.inUse")) : ''}
         </option>
       ))}
     </select>

@@ -45,9 +45,7 @@
   },
   "episodeOrdering": {
     "displayOrder": "Display order",
-    "libraryDefault": "Library default ({{order}})",
-    "showFileOrder": "This show’s file episode order ({{order}})",
-    "changesBrowsingAndPlayback": "Changes browsing and playback sequence. Your files keep the same episode identities.",
+    "changesBrowsingAndPlayback": "Changes browsing and playback sequence. Changing File episode order selects its matching display order; you can then choose a different display order here. Changes apply when you save.",
     "compareOrders": "Compare orders…",
     "specialsInSeasons": "Specials in seasons",
     "on": "On",
@@ -57,7 +55,10 @@
     "custom": "Custom",
     "fileNames": "From file names",
     "episodes_one": "{{count}} episode",
-    "episodes_other": "{{count}} episodes"
+    "episodes_other": "{{count}} episodes",
+    "noOrdersAvailable": "No display orders available",
+    "fileOrderUnavailable": "{{order}} is not available as a display order. Choose an available display order or retry the save.",
+    "partialSave": "The file episode order was saved, but saving the display settings did not finish. {{error}} Retry to finish; Cancel closes this dialog without undoing changes already saved."
   },
   "compareOrders": {
     "compareEpisodeOrders": "Compare Episode Orders",
@@ -76,7 +77,10 @@
     "samePlace_one": "All {{count}} episode are in the same place.",
     "samePlace_other": "All {{count}} episodes are in the same place.",
     "differentPlace_one": "{{count}} of {{episodes}} is in a different place.",
-    "differentPlace_other": "{{count}} of {{episodes}} are in a different place."
+    "differentPlace_other": "{{count}} of {{episodes}} are in a different place.",
+    "stagedDescription": "Compare where each episode appears. Choose Use to return your selection to Edit, then Save to apply it. Your files are not touched.",
+    "alreadySelected": "Already selected",
+    "selected": " · selected"
   },
   "fields": {
     "releaseDate": "Release Date",
