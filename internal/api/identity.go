@@ -58,6 +58,7 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 	add("playback", true, false) // direct streams do not require a converter
 	add("transcoding", s.transcoder != nil, false)
 	add("playlists", true, false)
+	add("play_queues", true, false)
 	add("collections", true, false)
 	add("artwork_palette", s.artwork != nil, false)
 	add("subtitle_delivery", s.subtitles != nil, false)
