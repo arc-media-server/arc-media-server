@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, type MouseEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bookmark, BookmarkCheck, Check, Circle, Loader2, MoreVertical, Pencil, Play } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Check, Circle, Loader2, MoreVertical, Pencil, Play, X } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useIsAdmin } from '@/lib/auth';
@@ -57,13 +57,17 @@ export function CardScrim() {
  * A poster's hover actions, as Plex's: a small circle to start choosing titles, Play in the
  * middle, the pencil to edit and "⋯" for everything else (also on right-click). Touch screens keep the controls visible.
  */
-export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpen }: {
+export function CardActions({ item, title, hover, landscape, arc, menuOpen, onMenuOpen, onRemove }: {
   item: Item;
   title: string;
   hover: CardHover;
   landscape?: boolean;
+  /** A Backdrops card (4:3), so the controls sit on its artwork rather than a 16:9 one. */
+  arc?: boolean;
   menuOpen: boolean;
   onMenuOpen: (open: boolean) => void;
+  /** On a Continue Watching or Up Next card: Remove from Continue Watching, in the card's ⋯. */
+  onRemove?: (item: Item) => void;
 }) {
   const { t } = useTranslation('common');
   const play = usePlayer();
@@ -84,7 +88,7 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
       className={cn(
         // Rides up with the artwork on hover, so the controls stay lined up with the badge.
         'pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none',
-        landscape ? 'aspect-video' : 'aspect-[2/3]',
+        arc ? 'aspect-[4/3]' : landscape ? 'aspect-video' : 'aspect-[2/3]',
       )}
     >
       {hover.onSelect && (
@@ -127,7 +131,7 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
           <Pencil className="size-4" />
         </button>
       )}
-      <CardMenu item={item} title={title} open={menuOpen} onOpenChange={onMenuOpen} />
+      <CardMenu item={item} title={title} open={menuOpen} onOpenChange={onMenuOpen} onRemove={onRemove} />
     </div>
   );
 }
@@ -137,7 +141,7 @@ export function CardActions({ item, title, hover, landscape, menuOpen, onMenuOpe
  * while an action from it finishes or a dialog is open. Results show as a short note here, so
  * they survive the menu closing.
  */
-function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+function CardMenu({ item, title, open, onOpenChange, onRemove }: { item: Item; title: string; open: boolean; onOpenChange: (open: boolean) => void; onRemove?: (item: Item) => void }) {
   const { t } = useTranslation('common');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
@@ -157,7 +161,7 @@ function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: stri
           <MoreVertical className="size-4" />
         </button>
       </DropdownMenuTrigger>
-      {(open || busy) && <CardMenuBody item={item} open={open} onBusy={setBusy} onNote={setNote} />}
+      {(open || busy) && <CardMenuBody item={item} open={open} onBusy={setBusy} onNote={setNote} onRemove={onRemove} />}
       {note && (
         <p role="status" className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[calc(100vw-32px)] rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-2xl">
           {note}
@@ -167,7 +171,7 @@ function CardMenu({ item, title, open, onOpenChange }: { item: Item; title: stri
   );
 }
 
-function CardMenuBody({ item, open, onBusy, onNote }: { item: Item; open: boolean; onBusy: (busy: boolean) => void; onNote: (note: string) => void }) {
+function CardMenuBody({ item, open, onBusy, onNote, onRemove }: { item: Item; open: boolean; onBusy: (busy: boolean) => void; onNote: (note: string) => void; onRemove?: (item: Item) => void }) {
   const { t } = useTranslation('titles');
   const admin = useIsAdmin();
   const queue = useQueueActions(item);
@@ -227,6 +231,11 @@ function CardMenuBody({ item, open, onBusy, onNote }: { item: Item; open: boolea
                   {listed ? <BookmarkCheck className="size-4 text-muted" /> : <Bookmark className="size-4 text-muted" />}
                   {listed ? t('titles:cardMenu.removeFromWatchlist') : t('titles:rating.addWatchlist')}
                 </DropdownMenuItem>
+                {onRemove && (
+                  <DropdownMenuItem onSelect={() => onRemove(item)}>
+                    <X className="size-4 text-muted" /> {t('titles:cardMenu.removeFromContinueWatching')}
+                  </DropdownMenuItem>
+                )}
               </>
             }
           />

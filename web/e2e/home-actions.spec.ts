@@ -67,3 +67,25 @@ test('Home cards share library actions and scope bulk selection to loaded row ti
   await expect(phoneCard.getByRole('button', { name: 'More for ' + item.title, exact: true })).toBeVisible();
   await touch.close();
 });
+
+test('Continue Watching backdrop cards have one play button and Remove in their ⋯', async ({ page }, info) => {
+  const { item } = await seed(page);
+  expect((await page.request.put(`/api/items/${item.id}/progress`, { data: { position_ms: 70000, duration_ms: 120000, state: 'stopped' } })).ok()).toBeTruthy();
+  expect((await page.request.patch('/api/me/prefs', { data: { home: [{ id: 'continue', style: 'arc' }] } })).ok()).toBeTruthy();
+  await page.goto('/');
+  const row = page.getByRole('region', { name: 'Continue Watching' }).or(page.locator('section').filter({ has: page.getByRole('heading', { name: 'Continue Watching', exact: true }) })).first();
+  const card = row.locator('[data-item="' + item.id + '"]').or(row.locator('.group').filter({ hasText: item.title })).first();
+  await card.hover();
+  // One play button over the artwork: the card's own hint gives way to the shared controls
+  // (the artwork itself also plays when clicked, so it's a "Play" button too).
+  await expect(card.locator('svg.lucide-play')).toHaveCount(1);
+  // The controls sit on the 4:3 artwork: the ⋯ is in its bottom right corner.
+  const art = await card.getByRole('button', { name: 'Play ' + item.title, exact: true }).first().boundingBox();
+  const more = await card.getByRole('button', { name: 'More for ' + item.title, exact: true }).boundingBox();
+  expect(art!.y + art!.height - (more!.y + more!.height)).toBeLessThan(16);
+  await expect(card.getByRole('button', { name: 'More for ' + item.title, exact: true })).toHaveCount(1);
+  await page.screenshot({ path: info.outputPath('continue-backdrop.png') });
+  await card.getByRole('button', { name: 'More for ' + item.title, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Remove from Continue Watching', exact: true }).click();
+  await expect.poll(async () => (await (await page.request.get('/api/home/continue')).json()).some((i: Item) => i.id === item.id)).toBe(false);
+});
