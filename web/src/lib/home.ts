@@ -97,8 +97,17 @@ function rowLibrary(r: ResolvedRow) {
   return r.type === 'recent' ? r.library : undefined;
 }
 
+/**
+ * Whether the profile chooses the row's card style: only the rows carrying on watching (owner,
+ * 30 October, as Plex). Every other row keeps its usual look; a style saved for one earlier is ignored.
+ */
+export function choosesLook(type: ResolvedRow['type']) {
+  return type === 'continue' || type === 'next-up';
+}
+
 function look(type: ResolvedRow['type'], saved?: HomeRow, library?: Library): RowLook {
-  return { style: saved?.style ?? defaultStyle(type, library), showsOnly: !!saved?.shows_only, posters: saved?.posters ?? defaultPosters(type) };
+  const chosen = choosesLook(type) ? saved : undefined;
+  return { style: chosen?.style ?? defaultStyle(type, library), showsOnly: !!saved?.shows_only, posters: chosen?.posters ?? defaultPosters(type) };
 }
 
 function builtIn(id: string, libraries: Library[], saved?: HomeRow): ResolvedRow | null {
@@ -122,37 +131,48 @@ export function defaultRowIds(libraries: Library[]) {
 }
 
 /**
- * The rows to show, in the profile's order. Built-in rows it hasn't placed (e.g. a new library's)
- * go where they'd be by default; rows for things that no longer exist are dropped.
+ * The rows to show. Their order follows the profile's library order, as Plex's Home follows its
+ * pinned libraries (owner, 30 October): carrying on watching, the watchlist and anything seasonal
+ * first, then each library's newest followed by its own filter rows, then collections and
+ * playlists. [libraries] must be in the profile's order (navigationLibraries). The saved layout
+ * says which rows exist, which are hidden and how the carrying-on rows look; rows for things that
+ * no longer exist are dropped.
  */
 export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow[] {
-  const out: ResolvedRow[] = [];
-  const placed = new Set<string>();
+  const byId = new Map(saved.map((r) => [r.id, r]));
+  const rows: ResolvedRow[] = [];
+  for (const id of defaultRowIds(libraries)) {
+    const b = builtIn(id, libraries, byId.get(id));
+    if (b) rows.push({ ...b, hidden: !!byId.get(id)?.hidden } as ResolvedRow);
+  }
   for (const r of saved) {
     if (r.id.startsWith('collection:') || r.id.startsWith('playlist:')) {
       const type = r.id.startsWith('collection:') ? 'collection' : 'playlist';
-      out.push({ id: r.id, hidden: !!r.hidden, type, title: r.title || (type === 'collection' ? i18n.t('home:rowEditor.collection') : i18n.t('playlists:kind.manual')), ref: r.id.slice(type.length + 1), ...look(type, r) });
+      rows.push({ id: r.id, hidden: !!r.hidden, type, title: r.title || (type === 'collection' ? i18n.t('home:rowEditor.collection') : i18n.t('playlists:kind.manual')), ref: r.id.slice(type.length + 1), ...look(type, r) });
     } else if (r.id.startsWith('custom:')) {
       if (!r.filter || !r.title) continue;
       const library = libraries.find((l) => l.id === r.filter!.library_id);
       if (!library) continue;
-      out.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r) });
-    } else {
-      const b = builtIn(r.id, libraries, r);
-      if (b) out.push({ ...b, hidden: !!r.hidden } as ResolvedRow);
+      rows.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r) });
     }
-    placed.add(r.id);
   }
-  const defaults = defaultRowIds(libraries);
-  defaults.forEach((id, i) => {
-    if (placed.has(id)) return;
-    const b = builtIn(id, libraries)!;
-    // After the row that comes before it by default, or first.
-    const prev = defaults.slice(0, i).reverse().find((p) => out.some((r) => r.id === p));
-    const at = prev ? out.findIndex((r) => r.id === prev) + 1 : 0;
-    out.splice(at, 0, b);
-  });
-  return out;
+  return arrangeRows(rows, libraries);
+}
+
+/** Puts rows in Home's order for [libraries] (in the profile's order), keeping ties as they were. */
+export function arrangeRows(rows: ResolvedRow[], libraries: Library[]): ResolvedRow[] {
+  const top = ['continue', 'next-up', 'watchlist', 'seasonal'];
+  const libraryRank = new Map(libraries.map((l, i) => [l.id, i]));
+  const rank = (r: ResolvedRow): [number, number] => {
+    if (top.includes(r.type)) return [0, top.indexOf(r.type)];
+    const lib = r.type === 'recent' ? r.library : r.type === 'custom' ? r.library : undefined;
+    if (lib) return [1 + (libraryRank.get(lib.id) ?? libraries.length), r.type === 'recent' ? 0 : 1];
+    return [2 + libraries.length, 0];
+  };
+  return rows
+    .map((r, i) => ({ r, i, k: rank(r) }))
+    .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.i - b.i)
+    .map((x) => x.r);
 }
 
 /** The rows a layout shows: without Up Next when it's part of Continue Watching. */

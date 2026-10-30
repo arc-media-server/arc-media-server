@@ -6,11 +6,12 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Square, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
 import { useLibraries } from '@/components/Sidebar';
-import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
+import { arrangeRows, choosesLook, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
+import { navigationLibraries } from '@/lib/library-navigation';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions } from '@/pages/Library';
-import { ReorderList } from './ArrangeRow';
+import { LibraryReorderDialog, useLibraryReorder } from './LibraryReorder';
 import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -26,7 +27,7 @@ import {
 import { Field, inputClass } from '@/components/ui/field';
 import { FilterFields, FilterPreview } from '@/components/FilterFields';
 
-/** Reorder, hide and add rows on the profile's home page. */
+/** Hide, add and style rows on the profile's home page; [libraries] in the profile's order. */
 export function EditHomeDialog({
   rows,
   libraries,
@@ -48,6 +49,7 @@ export function EditHomeDialog({
           libraries={libraries}
           initialSplit={!!prefs.data?.split_up_next}
           initialHero={prefs.data.show_home_hero !== false}
+          canReorderLibraries
           onSave={(patch) => update.mutateAsync(patch)}
           onDone={() => onOpenChange(false)}
         />
@@ -68,17 +70,19 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
   const prefs = useQuery({
     queryKey: key,
     enabled: open && !!target,
-    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default' | 'show_home_hero'>> =>
+    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default' | 'show_home_hero' | 'library_order'>> =>
       target?.kind === 'profile' ? api.profilePrefs(target.id) : { ...(await api.defaultHome()), split_up_next: false },
   });
   const ready = open && target && prefs.data && libraries;
+  // Their Home follows their own library order; the default home, the server's.
+  const ordered = libraries ? navigationLibraries(libraries, prefs.data?.library_order) : [];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {ready && (
         <Editor
           key={key.join(':')}
-          initial={resolveRows(prefs.data!.home, libraries!)}
-          libraries={libraries!}
+          initial={resolveRows(prefs.data!.home, ordered)}
+          libraries={ordered}
           initialSplit={!!prefs.data!.split_up_next}
           showSplit={target!.kind === 'profile'}
           initialHero={target!.kind === 'profile' ? prefs.data!.show_home_hero !== false : undefined}
@@ -107,6 +111,7 @@ function Editor({
   initialSplit,
   showSplit = true,
   initialHero,
+  canReorderLibraries = false,
   title,
   description,
   onSave,
@@ -118,6 +123,8 @@ function Editor({
   showSplit?: boolean;
   /** Whether Home shows the featured banner; leave it out where there's no profile (the default home). */
   initialHero?: boolean;
+  /** The profile's own Home: its library order, which Home follows, can be changed from here. */
+  canReorderLibraries?: boolean;
   title?: string;
   description?: string;
   onSave: (patch: Partial<Prefs>) => Promise<unknown>;
@@ -129,14 +136,7 @@ function Editor({
   const [split, setSplit] = useState(initialSplit);
   const [hero, setHero] = useState(initialHero);
   const save = useMutation({ mutationFn: onSave, onSuccess: onDone });
-  // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
-  const reorder = (shown: ResolvedRow[]) => {
-    if (split) return setRows(shown);
-    const upNext = rows.find((r) => r.type === 'next-up');
-    const next = [...shown];
-    if (upNext) next.splice(next.findIndex((r) => r.type === 'continue') + 1, 0, upNext);
-    setRows(next);
-  };
+  const libraryOrder = useLibraryReorder();
 
   if (editing) {
     const existing = editing === 'new' ? undefined : (editing as Extract<ResolvedRow, { type: 'custom' }>);
@@ -149,10 +149,7 @@ function Editor({
           const id = `${kind}:${ref}`;
           setRows((rs) => {
             if (rs.some((r) => r.id === id)) return rs;
-            const at = rs.findIndex((r) => r.type !== 'continue' && r.type !== 'next-up');
-            const next = [...rs];
-            next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: kind, title, ref, style: 'poster', showsOnly: false, posters: 'series' });
-            return next;
+            return [...rs, { id, hidden: false, type: kind, title, ref, style: 'poster', showsOnly: false, posters: 'series' }];
           });
           setEditing(null);
         }}
@@ -162,13 +159,8 @@ function Editor({
             setRows((rs) => rs.map((r) => (r.id === existing.id ? { ...existing, title, filter, library } : r)));
           } else {
             const id = `custom:${Date.now().toString(36)}`;
-            // New rows go after carrying on watching, where they're seen.
-            setRows((rs) => {
-              const at = rs.findIndex((r) => r.type !== 'continue' && r.type !== 'next-up');
-              const next = [...rs];
-              next.splice(at < 0 ? rs.length : at, 0, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false, posters: 'series' });
-              return next;
-            });
+            // A filter row goes after its library's newest (arrangeRows).
+            setRows((rs) => [...rs, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false, posters: 'series' }]);
           }
           setEditing(null);
         }}
@@ -184,7 +176,9 @@ function Editor({
       footer={
         <>
           {save.error && <p className="mr-auto text-sm text-warning">{save.error.message}</p>}
-          <Button variant="ghost" className="mr-auto" onClick={() => setRows(resolveRows([], libraries).map(base => rows.find(r => r.id === base.id) ?? base).concat(rows.filter(r => r.type === 'custom' || r.type === 'collection' || r.type === 'playlist')))}>{t('editor.resetOrder')}</Button>
+          {canReorderLibraries && libraryOrder.canReorder && (
+            <Button variant="ghost" className="mr-auto" onClick={libraryOrder.start}>{t('common:libraryOrder.reorder')}</Button>
+          )}
           <Button variant="secondary" onClick={() => setEditing('new')}>
             <Plus />{' '}{t('editor.addRow')}</Button>
           <Button
@@ -193,8 +187,7 @@ function Editor({
             onClick={() => {
               // An untouched default layout is saved as "default", so later changes to it apply.
               const saved = toSaved(rows);
-              const isDefault =
-                rows.every((r) => !r.hidden && r.type !== 'custom' && isDefaultLook(r)) && rows.map((r) => r.id).join() === defaultRowIds(libraries).join();
+              const isDefault = rows.every((r) => !r.hidden && r.type !== 'custom' && r.type !== 'collection' && r.type !== 'playlist' && isDefaultLook(r));
               const patch: Partial<Prefs> = { home: isDefault ? [] : saved };
               if (showSplit) patch.split_up_next = split;
               if (hero !== undefined) patch.show_home_hero = hero;
@@ -231,8 +224,9 @@ function Editor({
           }}
         />
       </label>
-      <ReorderList items={visibleRows(rows, split)} keyOf={(r) => r.id} titleOf={rowTitle} onReorder={reorder} className="space-y-1.5">
-        {(r) => (
+      <ul className="space-y-1.5">
+        {arrangeRows(visibleRows(rows, split), libraries).map((r) => (
+          <li key={r.id} className="flex items-center gap-2 rounded-2xl bg-surface-2/70 py-2 pl-4 pr-2 ring-1 ring-border">
           <RowItem
             row={r}
             merged={!split}
@@ -241,8 +235,10 @@ function Editor({
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
             onDelete={r.type === 'custom' || r.type === 'collection' || r.type === 'playlist' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
           />
-        )}
-      </ReorderList>
+          </li>
+        ))}
+      </ul>
+      {canReorderLibraries && <LibraryReorderDialog reorder={libraryOrder} />}
     </DialogContent>
   );
 }
@@ -381,7 +377,7 @@ function RowItem({
           <Layers />
         </Button>
       )}
-      <LookMenu row={row} onChange={onChange} />
+      {choosesLook(row.type) && <LookMenu row={row} onChange={onChange} />}
       {onEdit && (
         <Button variant="ghost" size="icon" aria-label={t('rowActions.edit', { title: rowTitle(row) })} onClick={onEdit}>
           <Pencil />
