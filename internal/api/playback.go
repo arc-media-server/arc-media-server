@@ -24,6 +24,15 @@ import (
 
 // clientCaps is what the player can play, as it reports it.
 type clientCaps struct {
+	// Omitted limits preserve legacy browser defaults. HDRFormats nil means unspecified;
+	// an explicit empty array means SDR only. Passthrough is usable only for direct files.
+	MaxBitDepth         int                 `json:"max_bit_depth,omitempty"`
+	MaxAudioChannels    int                 `json:"max_audio_channels,omitempty"`
+	HDRFormats          []string            `json:"hdr_formats" api:"optional"`
+	DolbyVisionProfiles []int               `json:"dolby_vision_profiles" api:"optional"`
+	VideoProfiles       map[string][]string `json:"video_profiles,omitempty"`
+	AudioPassthrough    []string            `json:"audio_passthrough,omitempty"`
+
 	Containers []string `json:"containers"` // mp4, webm, mkv
 	Video      []string `json:"video"`      // h264, hevc, vp9, av1
 	Audio      []string `json:"audio"`      // aac, mp3, opus, flac, ac3, eac3, vorbis
@@ -34,9 +43,12 @@ type clientCaps struct {
 func (c clientCaps) has(list []string, v string) bool { return slices.Contains(list, v) }
 
 type decision struct {
-	Method    string
-	CopyAudio bool
-	Reasons   []string
+	Method        string
+	CopyAudio     bool
+	Reasons       []string
+	ReasonCodes   []string
+	NeedsToneMap  bool
+	UnsupportedDV bool
 }
 
 // containerFamily maps ffprobe's container name to the names players report.
@@ -140,27 +152,67 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 	d := decision{Method: "direct"}
 	videoOK := video != nil && caps.has(caps.Video, video.Codec) &&
 		// Browsers can't decode 10-bit H.264 (Hi10P), though they say they play H.264.
-		!(video.Codec == "h264" && video.BitDepth > 8)
+		!(video.Codec == "h264" && video.BitDepth > 8 && caps.MaxBitDepth < video.BitDepth)
 	switch {
 	case video == nil:
 		d.Reasons = append(d.Reasons, "no video found")
+		d.ReasonCodes = append(d.ReasonCodes, "no_video")
 	case !videoOK && video.Codec == "h264":
 		d.Reasons = append(d.Reasons, "10-bit H.264 video")
+		d.ReasonCodes = append(d.ReasonCodes, "video_codec")
 	case !videoOK:
 		d.Reasons = append(d.Reasons, codecName(video.Codec)+" video")
+		d.ReasonCodes = append(d.ReasonCodes, "video_codec")
+	}
+	if video != nil {
+		reject := func(code, reason string) {
+			videoOK = false
+			d.ReasonCodes = append(d.ReasonCodes, code)
+			d.Reasons = append(d.Reasons, reason)
+		}
+		if caps.MaxBitDepth > 0 && video.BitDepth > caps.MaxBitDepth {
+			reject("video_bit_depth", "video bit depth exceeds player limit")
+		}
+		if caps.MaxHeight > 0 && max(video.Height, video.Width*9/16) > caps.MaxHeight*11/10 {
+			reject("video_height", "video exceeds player height limit")
+		}
+		if profiles, limited := caps.VideoProfiles[video.Codec]; limited && !slices.ContainsFunc(profiles, func(p string) bool { return strings.EqualFold(p, video.Profile) }) {
+			reject("video_profile", "video profile not supported")
+		}
+		format := sourceHDRFormat(video)
+		if caps.HDRFormats != nil && format != "" {
+			supported := slices.Contains(caps.HDRFormats, format) || format == "hdr10_plus" && slices.Contains(caps.HDRFormats, "hdr10")
+			if format == "dolby_vision" && caps.DolbyVisionProfiles != nil && !slices.Contains(caps.DolbyVisionProfiles, video.DolbyVisionProfile) {
+				supported = false
+			}
+			if !supported {
+				reject("hdr_output", "source HDR format not supported")
+				d.NeedsToneMap = true
+				d.UnsupportedDV = format == "dolby_vision"
+			}
+		}
 	}
 	if fam := containerFamily(f.Container); !caps.has(caps.Containers, fam) {
 		d.Reasons = append(d.Reasons, strings.ToUpper(fam)+" file")
+		d.ReasonCodes = append(d.ReasonCodes, "container")
 	}
-	audioOK := audio == nil || caps.has(caps.Audio, audio.Codec)
+	audioOK := audio == nil || (caps.has(caps.Audio, audio.Codec) || caps.has(caps.AudioPassthrough, audio.Codec))
+	if audio != nil && caps.MaxAudioChannels > 0 && audio.Channels > caps.MaxAudioChannels {
+		audioOK = false
+		d.Reasons = append(d.Reasons, "audio exceeds player channel limit")
+		d.ReasonCodes = append(d.ReasonCodes, "audio_channels")
+	}
 	if !audioOK {
 		d.Reasons = append(d.Reasons, codecName(audio.Codec)+" audio")
+		d.ReasonCodes = append(d.ReasonCodes, "audio_codec")
 	}
 	if audio == nil && defaultAudio(f) != nil {
 		d.Reasons = append(d.Reasons, "audio disabled")
+		d.ReasonCodes = append(d.ReasonCodes, "audio_disabled")
 	}
 	if audio != nil && audio != defaultAudio(f) {
 		d.Reasons = append(d.Reasons, "another audio track chosen")
+		d.ReasonCodes = append(d.ReasonCodes, "audio_selection")
 	}
 	// Copied audio must be something every HLS player handles: AAC in stereo or less.
 	d.CopyAudio = audio != nil && audio.Codec == "aac" && audio.Channels <= 2 && audioOK
@@ -197,6 +249,11 @@ type optimizedPlaybackDTO struct {
 }
 
 type playbackPlan struct {
+	DecisionOnly  bool     `json:"decision_only,omitempty"`
+	CanStart      *bool    `json:"can_start,omitempty"`
+	NeedsAnalysis bool     `json:"needs_analysis,omitempty"`
+	ReasonCodes   []string `json:"reason_codes,omitempty"`
+
 	Optimized *optimizedPlaybackDTO `json:"optimized,omitempty"`
 	Method    string                `json:"method"` // direct, remux or transcode
 	Reasons   []string              `json:"reasons"`
@@ -236,7 +293,17 @@ type playbackPlan struct {
 // "start_ms"} decides how to play a movie or episode on this player and, unless it can play the
 // file as it is, starts converting it. Starting again (e.g. to seek or change audio track) ends
 // the player's previous conversion.
-func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
+func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) { s.servePlayback(w, r, false) }
+
+// playbackPreview: POST /api/items/{id}/playback-preview accepts the playback request and
+// returns its decision without probing, starting a stream/conversion, changing playback state
+// or preferences. No URL/session is allocated. Unanalysed files return needs_analysis=true.
+func (s *Server) playbackPreview(w http.ResponseWriter, r *http.Request) { s.servePlayback(w, r, true) }
+
+func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview bool) {
+	if preview {
+		w.Header().Set("Cache-Control", "private, no-store")
+	}
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
 		return
@@ -254,11 +321,19 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		// Without file_id, play this edition (e.g. "Director's Cut"; "" for the standard one).
 		Edition string `json:"edition" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.StartMS < 0 {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&body); err != nil || body.StartMS < 0 {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id", "audio_stream", "start_ms"`)
 		return
 	}
-	files, f := s.playbackFile(w, r, it.ID, body.FileID, body.Edition, body.Caps)
+	if err := body.Caps.validate(); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	if body.FileID < 0 || body.MaxKbps < 0 || body.MaxKbps > 200000 || body.AudioStream != nil && *body.AudioStream < -1 {
+		writeError(w, 400, "invalid file_id or max_kbps")
+		return
+	}
+	files, f := s.selectPlaybackFile(w, r, it.ID, body.FileID, body.Edition, body.Caps, !preview)
 	if f == nil {
 		return
 	}
@@ -267,7 +342,21 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if preview && (!f.Probed || len(f.Streams) == 0) {
+		can := false
+		writeJSON(w, 200, playbackPlan{Method: "unknown", DecisionOnly: true, CanStart: &can, NeedsAnalysis: true, FileID: f.ID, Reasons: []string{"file needs analysis"}, ReasonCodes: []string{"needs_analysis"}, AudioTracks: []audioTrackDTO{}, SubtitleTracks: []subtitles.Track{}, Versions: versions(files)})
+		return
+	}
 	video := videoStream(f)
+	if video == nil {
+		if preview {
+			can := false
+			writeJSON(w, 200, playbackPlan{Method: "unavailable", DecisionOnly: true, CanStart: &can, FileID: f.ID, Reasons: []string{"no video found"}, ReasonCodes: []string{"no_video"}})
+		} else {
+			writeError(w, 422, "no video found")
+		}
+		return
+	}
 	audio := defaultAudio(f)
 	if body.AudioStream == nil {
 		audio = s.playbackDefaultAudio(r, f)
@@ -294,6 +383,7 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		burn = t.StreamIndex
 		d.Method = "transcode"
 		d.Reasons = append(d.Reasons, "picture subtitles shown")
+		d.ReasonCodes = append(d.ReasonCodes, "subtitle_burn")
 	}
 	// Away from home, streams keep within the remote limits (Settings > Remote Access).
 	serverLimit := s.remoteLimit(r, it.ID)
@@ -306,12 +396,13 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		if f.Bitrate == 0 || f.Bitrate > int64(body.MaxKbps)*1000*11/10 || video.Height > limitHeight*11/10 {
 			d.Method = "transcode"
 			d.Reasons = append(d.Reasons, fmt.Sprintf("quality set to %s", qualityName(body.MaxKbps)))
+			d.ReasonCodes = append(d.ReasonCodes, "quality_limit")
 		} else {
 			limitHeight = 0 // the file is already within the limit
 		}
 	}
 
-	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, DurationMS: f.DurationMS, FileID: f.ID,
+	out := playbackPlan{Method: d.Method, Reasons: d.Reasons, ReasonCodes: d.ReasonCodes, DurationMS: f.DurationMS, FileID: f.ID,
 		AudioStream: -1, AudioTracks: []audioTrackDTO{}, SubtitleTracks: s.subtitleTracks(f), BurnSubtitle: body.BurnSubtitle,
 		Versions: versions(files), SourceKbps: int(f.Bitrate / 1000), ServerLimitKbps: serverLimit}
 	if video != nil {
@@ -351,13 +442,33 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 			if o.AudioStream >= 0 {
 				out.Optimized.Audio = &audioTrackDTO{Index: 1, Language: o.AudioLanguage, Title: o.AudioTitle, Codec: "aac", Channels: 2, Default: true}
 			}
+			out.ReasonCodes = []string{"optimized_copy"}
+			if preview {
+				s.writePlaybackPreview(w, out, true)
+				return
+			}
 			s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
 			s.logPlayback(r, f.ID, out.Method, out.Reasons)
 			writeJSON(w, http.StatusOK, out)
 			return
 		}
 	}
-	s.logPlayback(r, f.ID, d.Method, d.Reasons)
+	if d.NeedsToneMap && (d.UnsupportedDV || s.transcoder == nil || !s.settings().ToneMap || !s.transcoder.Caps().ToneMapping) {
+		out.ReasonCodes = append(out.ReasonCodes, "hdr_conversion_unavailable")
+		if preview {
+			s.writePlaybackPreview(w, out, false)
+		} else {
+			writeError(w, 422, "source HDR format cannot be safely converted for this player's reported capabilities")
+		}
+		return
+	}
+	if preview && d.Method == "direct" {
+		s.writePlaybackPreview(w, out, true)
+		return
+	}
+	if !preview {
+		s.logPlayback(r, f.ID, d.Method, d.Reasons)
+	}
 	if d.Method == "direct" {
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0
@@ -365,7 +476,21 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, out)
 		return
 	}
+	if !conversionSupported(body.Caps, d, audio) {
+		out.ReasonCodes = append(out.ReasonCodes, "conversion_output_unsupported")
+		if preview {
+			s.writePlaybackPreview(w, out, false)
+		} else {
+			writeError(w, 422, "player cannot play this server's conversion output")
+		}
+		return
+	}
 	if s.transcoder == nil {
+		if preview {
+			out.ReasonCodes = append(out.ReasonCodes, "conversion_unavailable")
+			s.writePlaybackPreview(w, out, false)
+			return
+		}
 		writeError(w, http.StatusServiceUnavailable, "this server can't convert files")
 		return
 	}
@@ -389,6 +514,11 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 			opts.HWEncoder = caps.HWEncoder
 		}
 		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
+	}
+	if preview {
+		out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
+		s.writePlaybackPreview(w, out, true)
+		return
 	}
 	sess, err := s.startConversion(r, opts)
 	if errors.Is(err, transcode.ErrBusy) {
@@ -820,6 +950,10 @@ func (s *Server) compatibility(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}}`)
 		return
 	}
+	if err := body.Caps.validate(); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
 	ctx := r.Context()
 	byItem, err := s.store.LibraryItemFiles(ctx, lib.ID)
 	if err != nil {
@@ -913,8 +1047,11 @@ func (s *Server) remoteLimit(r *http.Request, itemID string) int {
 
 // playbackFile resolves source files without starting playback or conversion.
 func (s *Server) playbackFile(w http.ResponseWriter, r *http.Request, itemID string, fileID int64, edition string, caps clientCaps) ([]store.MediaFile, *store.MediaFile) {
+	return s.selectPlaybackFile(w, r, itemID, fileID, edition, caps, true)
+}
+func (s *Server) selectPlaybackFile(w http.ResponseWriter, r *http.Request, itemID string, fileID int64, edition string, caps clientCaps, probe bool) ([]store.MediaFile, *store.MediaFile) {
 	files, err := s.store.ItemFiles(r.Context(), itemID)
-	if err == nil && s.scanner != nil {
+	if err == nil && probe && s.scanner != nil {
 		// A title played before its scan got to reading its files: read them now.
 		var read bool
 		if read, err = s.scanner.EnsureProbed(r.Context(), files); err == nil && read {
@@ -978,6 +1115,10 @@ func (s *Server) playbackOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id" or "edition"`)
+		return
+	}
+	if err := body.Caps.validate(); err != nil {
+		writeError(w, 400, err.Error())
 		return
 	}
 	files, f := s.playbackFile(w, r, it.ID, body.FileID, body.Edition, body.Caps)

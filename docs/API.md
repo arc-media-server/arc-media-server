@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-192 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+193 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -203,6 +203,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1` keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/items/{id}` | profile | Item details with files and streams. |
 | GET | `/api/items/{id}/stream` | profile | Serves the original file with HTTP range support (direct play). ?file=<id> selects a specific part or version; otherwise the first available file is used. |
+| POST | `/api/items/{id}/playback-preview` | profile | Accepts the playback request and returns its decision without probing, starting a stream/conversion, changing playback state or preferences. No URL/session is allocated. Unanalysed files return needs_analysis=true. |
 | POST | `/api/items/{id}/playback` | profile | {"caps": {...}, "file_id", "audio_stream", "start_ms"} decides how to play a movie or episode on this player and, unless it can play the file as it is, starts converting it. Starting again (e.g. to seek or change audio track) ends the player's previous conversion. |
 | POST | `/api/items/{id}/playback-options` | profile | Resolves the edition/version and source track choices without starting a stream, conversion, progress or preference update. Send {"caps": {...}} and optionally "file_id" or "edition" as for playback. |
 | GET | `/api/items/{id}/subtitles` | profile | ?file=<id> lists a file's subtitle tracks. |
