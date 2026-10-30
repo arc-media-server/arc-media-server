@@ -547,14 +547,26 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	resp := map[string]any{"total": total, "items": out, "offset": offset}
+	resp := itemPage{Total: total, Items: out, Offset: offset}
 	if q.Get("letters") == "1" {
-		if resp["letters"], err = s.store.TitleLetters(r.Context(), query); err != nil {
+		if resp.Letters, err = s.store.TitleLetters(r.Context(), query); err != nil {
 			s.fail(w, err)
 			return
 		}
+		if resp.Letters == nil {
+			resp.Letters = []store.LetterCount{}
+		}
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// itemPage is a page of GET /api/items (typed, so the v1 contract lists its fields). Letters is
+// there only with letters=1.
+type itemPage struct {
+	Total   int                 `json:"total"`
+	Items   []itemDTO           `json:"items"`
+	Offset  int                 `json:"offset"`
+	Letters []store.LetterCount `json:"letters,omitempty"`
 }
 
 func (s *Server) itemFromPath(w http.ResponseWriter, r *http.Request) (*store.Item, bool) {

@@ -957,6 +957,34 @@
         ],
         "type": "object"
       },
+      "ItemPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "letters": {
+            "items": {
+              "$ref": "#/components/schemas/LetterCount"
+            },
+            "type": "array"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "offset",
+          "total"
+        ],
+        "type": "object"
+      },
       "Keyed": {
         "properties": {
           "id": {
@@ -973,6 +1001,21 @@
           "id",
           "plays",
           "watched_ms"
+        ],
+        "type": "object"
+      },
+      "LetterCount": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "letter": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "letter"
         ],
         "type": "object"
       },
@@ -7402,8 +7445,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ItemPage"
                 }
               }
             },
