@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-189 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+190 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -128,6 +128,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/diagnostics` | admin | Reports temporary detailed logging and bounded retention . |
 | PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for two hours; false stops them . |
 | GET | `/api/diagnostics/download` | admin | Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP . No database, settings dump or media files are included. |
+
+### events
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/events` | profile | Is a profile-authenticated Server-Sent Events stream. "invalidate" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions are admin-only. "resync" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds. |
 
 ### extras
 

@@ -48,12 +48,21 @@ type Operation struct {
 
 // Tracker holds the running tasks and the last few finished ones. A nil Tracker tracks nothing.
 type Tracker struct {
+	onChange      func()
 	mu            sync.Mutex
 	next          int64
 	nextOperation int64
 	running       []*Task
 	recent        []Task
 	cancels       map[int64]func()
+}
+
+// SetOnChange installs a cheap nonblocking invalidation hook; it must never call back into Tracker.
+func (t *Tracker) SetOnChange(fn func()) { t.mu.Lock(); defer t.mu.Unlock(); t.onChange = fn }
+func (t *Tracker) changedLocked() {
+	if t.onChange != nil {
+		t.onChange()
+	}
 }
 
 // NewRunID seeds exact-in-JavaScript numeric IDs independently for each server lifetime.
@@ -80,6 +89,7 @@ func (h *Handle) Cancellable(cancel func()) {
 	}
 	h.t.cancels[h.task.ID] = cancel
 	h.task.CanStop = true
+	h.t.changedLocked()
 }
 
 func (h *Handle) Stopping() { h.set(func(t *Task) { t.Stopping = true }) }
@@ -104,6 +114,7 @@ func (t *Tracker) Stop(id int64) bool {
 			return true
 		}
 		task.Stopping = true
+		t.changedLocked()
 		t.mu.Unlock()
 		cancel()
 		return true
@@ -134,6 +145,7 @@ func (t *Tracker) Start(kind, title string) *Handle {
 	t.next++
 	task := &Task{ID: t.next, Kind: kind, Title: title, StartedAt: time.Now()}
 	t.running = append(t.running, task)
+	t.changedLocked()
 	return &Handle{t: t, task: task}
 }
 
@@ -143,6 +155,7 @@ func (h *Handle) set(fn func(*Task)) {
 	}
 	h.t.mu.Lock()
 	fn(h.task)
+	h.t.changedLocked()
 	h.t.mu.Unlock()
 }
 
@@ -174,6 +187,7 @@ func (h *Handle) Work(stage, subject, detail string) *Work {
 	h.t.nextOperation++
 	id := h.t.nextOperation
 	h.task.Current = append(h.task.Current, Operation{ID: id, Stage: stage, Subject: subject, Detail: detail})
+	h.t.changedLocked()
 	return &Work{h: h, id: id}
 }
 
@@ -224,6 +238,7 @@ func (h *Handle) Finish(err error) {
 	t := h.t
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	defer t.changedLocked()
 	h.task.FinishedAt = time.Now()
 	h.task.Current = nil
 	delete(t.cancels, h.task.ID)
@@ -261,6 +276,7 @@ func (h *Handle) Discard() {
 	t := h.t
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	defer t.changedLocked()
 	delete(t.cancels, h.task.ID)
 	for i, r := range t.running {
 		if r == h.task {

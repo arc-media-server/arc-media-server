@@ -27,6 +27,7 @@ import (
 	"ams/internal/background"
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/events"
 	"ams/internal/logbuf"
 	"ams/internal/markers"
 	"ams/internal/metadata"
@@ -122,7 +123,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer st.Close()
+	changes := events.New()
 	tasks := activity.New()
+	tasks.SetOnChange(func() { changes.Publish(events.Event{Topic: "activity", Admin: true}) })
 	notifier := notify.New(st, log)
 	// The maintenance window; its hours come from the settings below.
 	window := schedule.New(2, 5)
@@ -301,6 +304,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// After each scan, download new artwork so it's there offline.
 	var skips *markers.Manager // set below; scans finishing wake it
 	sc.OnFinish = func(libraryID int64) {
+		changes.Publish(events.Event{Topic: "library", LibraryID: libraryID})
 		bg.Wake("previews")
 		bg.Wake("analysis")
 		bg.Wake("markers")
@@ -568,7 +572,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Background: bg, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
+		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
 			bg.Reset(ctx)

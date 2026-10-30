@@ -22,6 +22,7 @@ import (
 	"ams/internal/artwork"
 	"ams/internal/auth"
 	"ams/internal/backup"
+	"ams/internal/events"
 	"ams/internal/logbuf"
 	"ams/internal/metadata"
 	"ams/internal/opensubtitles"
@@ -38,6 +39,7 @@ import (
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
+	Events       *events.Hub
 	WatchProblem func(int64) string
 
 	Store   *store.Store
@@ -84,9 +86,11 @@ type Deps struct {
 }
 
 type Server struct {
-	requests     requestDiagnostics
-	watchProblem func(int64) string
-	background   *background.Manager
+	events         *events.Hub
+	eventHeartbeat time.Duration
+	requests       requestDiagnostics
+	watchProblem   func(int64) string
+	background     *background.Manager
 
 	store            *store.Store
 	scanner          *scanner.Scanner
@@ -145,6 +149,10 @@ func New(d Deps) http.Handler {
 	}
 	mux := http.NewServeMux()
 	s.revision = d.Revision
+	s.events = d.Events
+	if s.events == nil {
+		s.events = events.New()
+	}
 
 	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
@@ -166,6 +174,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
 	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
+	mux.HandleFunc("GET /api/events", user(s.eventStream))
 	mux.HandleFunc("GET /api/identity", user(s.identity))
 	mux.HandleFunc("GET /api/capabilities", user(s.capabilities))
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
@@ -870,6 +879,9 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK, home: auth.IsLocal(r)}
 		next.ServeHTTP(rec, r)
+		if rec.status >= 200 && rec.status < 300 {
+			s.publishMutation(r, route)
+		}
 		took := time.Since(start)
 		level, message := slog.LevelDebug, "http"
 		if rec.status >= 500 {
