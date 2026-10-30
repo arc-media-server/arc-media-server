@@ -565,6 +565,29 @@
         ],
         "type": "object"
       },
+      "Colors": {
+        "properties": {
+          "bottom_left": {
+            "type": "string"
+          },
+          "bottom_right": {
+            "type": "string"
+          },
+          "top_left": {
+            "type": "string"
+          },
+          "top_right": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bottom_left",
+          "bottom_right",
+          "top_left",
+          "top_right"
+        ],
+        "type": "object"
+      },
       "Converted": {
         "properties": {
           "item": {
@@ -1779,6 +1802,43 @@
           "movies",
           "people",
           "shows"
+        ],
+        "type": "object"
+      },
+      "PaletteResponse": {
+        "properties": {
+          "algorithm": {
+            "type": "string"
+          },
+          "artwork_type": {
+            "type": "string"
+          },
+          "artwork_url": {
+            "type": "string"
+          },
+          "artwork_version": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "color_space": {
+            "type": "string"
+          },
+          "colors": {
+            "$ref": "#/components/schemas/Colors"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "artwork_type",
+          "artwork_url",
+          "artwork_version",
+          "available",
+          "color_space"
         ],
         "type": "object"
       },
@@ -8280,6 +8340,89 @@
           "Items"
         ],
         "x-arc-access": "admin"
+      }
+    },
+    "/items/{id}/artwork/palette": {
+      "get": {
+        "description": "Returns cached regional sRGB hex colours for a title's selected artwork (profile). ?type=backdrop (default) prefers a backdrop, falling back to primary only if no backdrop is configured; ?type=primary uses its poster/still. Missing or undecodable artwork answers 200 with available=false and a reason, never a theme-colour guess.\n\nWho may call it: **profile**.",
+        "operationId": "artworkPalette",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaletteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Returns cached regional sRGB hex colours for a title's selected artwork",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
       }
     },
     "/items/{id}/artwork/{type}": {
