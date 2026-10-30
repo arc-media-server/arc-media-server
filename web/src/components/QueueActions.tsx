@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { ListVideo, Loader2 } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { nowPlayingFor, usePlaybackQueue } from './Player';
-import { ErrorNotice } from './Page';
-import { Button } from './ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 /** Queue choices share the current profile's display order and resume state. */
 /** Adding a movie, episode or every available episode of a show to the playback queue. */
@@ -27,19 +23,4 @@ export function useQueueActions(item: Item, edition?: string) {
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
   return { add, busy, error, notice };
-}
-
-export function QueueActions({ item, edition, compact = false }: { item: Item; edition?: string; compact?: boolean }) {
-  const { t } = useTranslation('titles');
-  const { add, busy, error, notice } = useQueueActions(item, edition);
-  return (
-    <span className="inline-flex max-w-full flex-wrap items-center gap-2" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="secondary" size={compact ? 'icon' : 'lg'} className={compact ? undefined : 'size-12 rounded-2xl px-0'} disabled={busy} title={t("titles:queueActions.playbackQueueWhatPlays")} aria-label={t('titles:queueActions.queueTitle', { title: item.title })}>{busy ? <Loader2 className="animate-spin" /> : <ListVideo />}</Button></DropdownMenuTrigger>
-        <DropdownMenuContent><DropdownMenuItem onSelect={() => void add(true)}>{t("titles:queueActions.playNext")}</DropdownMenuItem><DropdownMenuItem onSelect={() => void add(false)}>{t("titles:queueActions.addToQueue")}</DropdownMenuItem></DropdownMenuContent>
-      </DropdownMenu>
-      <span role="status" className="text-xs text-muted empty:hidden">{notice}</span>
-      <ErrorNotice error={error} />
-    </span>
-  );
 }
