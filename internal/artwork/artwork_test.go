@@ -2,12 +2,14 @@ package artwork
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestCacheDownloadsOnceAndPrunes(t *testing.T) {
@@ -93,5 +95,46 @@ func TestFullSourceForBanners(t *testing.T) {
 	}
 	if got := Sources("movie", "primary", "/p.jpg"); len(got) != 1 {
 		t.Errorf("poster sources = %v, want one", got)
+	}
+}
+
+func TestCancelledDownloadWaiterDoesNotCancelSharedFetch(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		w.Header().Set("Content-Type", "image/png")
+		w.Write([]byte("fixture"))
+	}))
+	defer server.Close()
+	cache := New(t.TempDir(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		f, err := cache.Open(ctx, server.URL+"/art.png")
+		if f != nil {
+			f.Close()
+		}
+		done <- err
+	}()
+	<-started
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("waiter: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled request kept waiting")
+	}
+	close(release)
+	f, err := cache.Open(t.Context(), server.URL+"/art.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	if !cache.Has(server.URL + "/art.png") {
+		t.Fatal("shared cache was not filled")
 	}
 }

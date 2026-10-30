@@ -84,8 +84,9 @@ type Cache struct {
 	http *http.Client
 	log  *slog.Logger
 
-	mu       sync.Mutex
-	inflight map[string]*fetch
+	mu            sync.Mutex
+	inflight      map[string]*fetch
+	downloadSlots chan struct{}
 }
 
 type fetch struct {
@@ -95,10 +96,11 @@ type fetch struct {
 
 func New(dir string, log *slog.Logger) *Cache {
 	return &Cache{
-		dir:      dir,
-		http:     &http.Client{Timeout: 30 * time.Second},
-		log:      log,
-		inflight: map[string]*fetch{},
+		dir:           dir,
+		http:          &http.Client{Timeout: 30 * time.Second},
+		log:           log,
+		inflight:      map[string]*fetch{},
+		downloadSlots: make(chan struct{}, 4),
 	}
 }
 
@@ -138,16 +140,29 @@ func (c *Cache) download(ctx context.Context, sourceURL, key string) error {
 	c.inflight[key] = f
 	c.mu.Unlock()
 
-	// Not tied to one request: a viewer navigating away shouldn't cancel a download others wait on.
+	// Not tied to one request: a viewer navigating away should stop waiting immediately,
+	// while shared downloads can still fill the cache for the next view. Bound active downloads.
 	dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
-	f.err = c.fetchToDisk(dctx, sourceURL, key)
-	cancel()
-
-	c.mu.Lock()
-	delete(c.inflight, key)
-	c.mu.Unlock()
-	close(f.done)
-	return f.err
+	go func() {
+		defer cancel()
+		select {
+		case c.downloadSlots <- struct{}{}:
+			f.err = c.fetchToDisk(dctx, sourceURL, key)
+			<-c.downloadSlots
+		case <-dctx.Done():
+			f.err = dctx.Err()
+		}
+		c.mu.Lock()
+		delete(c.inflight, key)
+		close(f.done)
+		c.mu.Unlock()
+	}()
+	select {
+	case <-f.done:
+		return f.err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (c *Cache) fetchToDisk(ctx context.Context, sourceURL, key string) error {
@@ -254,6 +269,9 @@ func (c *Cache) Prune(inUse []string) (int, error) {
 			return err
 		}
 		if d.IsDir() {
+			if p == c.PaletteDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		name := d.Name()
@@ -338,3 +356,6 @@ func ContentName(sourceURL string) string {
 	}
 	return "image"
 }
+
+// PaletteDir is the bounded derived palette cache, removed with the artwork cache.
+func (c *Cache) PaletteDir() string { return filepath.Join(c.dir, "palettes") }
