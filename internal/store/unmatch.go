@@ -124,6 +124,7 @@ func (s *Store) Unmatch(ctx context.Context, id, title string, year int, episode
  AND NOT EXISTS(SELECT 1 FROM user_item_data WHERE item_id=items.id)
  AND NOT EXISTS(SELECT 1 FROM play_history WHERE item_id=items.id)
  AND NOT EXISTS(SELECT 1 FROM playlist_entries WHERE item_id=items.id)
+ AND NOT EXISTS(SELECT 1 FROM play_queue_entries WHERE item_id=items.id)
  AND NOT EXISTS(SELECT 1 FROM collection_items WHERE item_id=items.id)`, id)
 	if err != nil {
 		return err

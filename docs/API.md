@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-183 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+187 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -317,6 +317,15 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 |---|---|---|---|
 | GET | `/api/people/{id}/image` | profile | Serves a person's photo from the artwork cache. |
 | GET | `/api/people/{id}` | profile | Is someone and the titles in the libraries they're in. |
+
+### play-queues
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/play-queues` | profile | Creates this device/profile's queue from item_ids (movies, episodes or expanded shows) or playlist_id. Playlist contents are snapshotted. Replacing an existing queue requires replace_id and revision. Up to 1000 entries including duplicates. Does not start/stop playback or change watched state. |
+| GET | `/api/play-queues/{id}` | profile | Retrieves only this device/profile's queue. The id "current" recovers it after app restart. Queues expire after seven inactive days. Restricted or missing entries retain opaque entry IDs but expose no item IDs or metadata. |
+| PATCH | `/api/play-queues/{id}` | profile | Requires revision and operation: append/next with item_ids; remove/reorder with entry_ids; select with entry_id; clear, advance, shuffle or unshuffle. Reorder protects the current/past prefix; clear drops upcoming entries. Queue position changes never remotely control a player; clients start/stop playback separately. |
+| DELETE | `/api/play-queues/{id}` | profile | ?revision=<revision> deletes this device/profile's queue. The client stops its own player separately. Session revocation also deletes queues. |
 
 ### playing
 
