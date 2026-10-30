@@ -212,6 +212,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/items/{id}/subtitles/download", admin(s.downloadSubtitles))
 	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}", user(s.subtitleCues))
 	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}/vtt", user(s.subtitleVTT))
+	mux.HandleFunc("GET /api/items/{id}/subtitles/{track}/ass", user(s.subtitleASS))
 	mux.HandleFunc("GET /api/items/{id}/trickplay", user(s.trickplayInfo))
 	mux.HandleFunc("GET /api/items/{id}/trickplay/{file}/{sheet}", user(s.trickplaySheet))
 	mux.HandleFunc("GET /api/transcode/{sid}/{file}", user(s.transcodeFile))

@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-177 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+178 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -190,6 +190,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/subtitles/download` | admin | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |
 | GET | `/api/items/{id}/subtitles/{track}` | profile | ?file= returns a subtitle track's cues as JSON, for the web player to show. |
 | GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). |
+| GET | `/api/items/{id}/subtitles/{track}/ass` | profile | ?file=&shift_ms= returns an ASS/SSA track as its own script, for players that draw it with libass (keeping its fonts, colours, positions and effects): shifted as /vtt is, with the fonts the video carries packed into a [Fonts] section (up to 40 MB of them). Other tracks answer 400; use /vtt for those. |
 | GET | `/api/items/{id}/trickplay` | profile | ?file=<id> describes a file's timeline thumbnails and where its sheets are. Until they're made it's 404, and the file moves up the queue. |
 | GET | `/api/items/{id}/trickplay/{file}/{sheet}` | profile | Is one sheet of thumbnails. |
 | GET | `/api/items/{id}/images/{type}` | profile | Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. A backdrop with ?size=full is the full-resolution picture, for full-width banners. |
