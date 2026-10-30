@@ -502,6 +502,48 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(webVTT(cues, shift)))
 }
 
+// subtitleASS: GET /api/items/{id}/subtitles/{track}/ass?file=&shift_ms= returns an ASS/SSA track
+// as its own script, for players that draw it with libass (keeping its fonts, colours, positions
+// and effects): shifted as /vtt is, with the fonts the video carries packed into a [Fonts]
+// section (up to 40 MB of them). Other tracks answer 400; use /vtt for those.
+func (s *Server) subtitleASS(w http.ResponseWriter, r *http.Request) {
+	fileID, _ := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
+	_, f, ok := s.itemFile(w, r, fileID)
+	if !ok {
+		return
+	}
+	t, ok := s.findSubtitle(f, r.PathValue("track"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such subtitle track")
+		return
+	}
+	if !t.IsASS() {
+		writeError(w, http.StatusBadRequest, "this track isn't ASS or SSA; use /vtt")
+		return
+	}
+	if s.subtitles == nil {
+		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
+		return
+	}
+	script, err := s.subtitles.Script(r.Context(), f, t)
+	if err != nil {
+		if r.Context().Err() == nil {
+			s.log.Warn("subtitle script failed", "file", f.ID, "track", t.ID, "err", err)
+		}
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	// Without its fonts the script still plays, in similar system fonts.
+	fonts, err := s.subtitles.Fonts(r.Context(), f)
+	if err != nil && r.Context().Err() == nil {
+		s.log.Warn("subtitle fonts unavailable", "file", f.ID, "err", err)
+	}
+	shift, _ := strconv.ParseInt(r.URL.Query().Get("shift_ms"), 10, 64)
+	w.Header().Set("Content-Type", "text/x-ssa; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(subtitles.PackScript(script, shift, fonts))
+}
+
 // readSubtitle reads the text subtitle track named in the path for the ?file= (or first present)
 // file of the item, writing an error if it can't.
 func (s *Server) readSubtitle(w http.ResponseWriter, r *http.Request) (subtitles.Track, []subtitles.Cue, bool) {

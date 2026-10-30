@@ -10455,6 +10455,117 @@
         "x-arc-access": "profile"
       }
     },
+    "/items/{id}/subtitles/{track}/ass": {
+      "get": {
+        "description": "?file=&shift_ms= returns an ASS/SSA track as its own script, for players that draw it with libass (keeping its fonts, colours, positions and effects): shifted as /vtt is, with the fonts the video carries packed into a [Fonts] section (up to 40 MB of them). Other tracks answer 400; use /vtt for those.\n\nWho may call it: **profile**.",
+        "operationId": "subtitleASS",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "track",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "file",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "shift_ms",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "The file or stream"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Can't be processed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Returns an ASS/SSA track as its own script, for players that draw it with libass",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/items/{id}/subtitles/{track}/vtt": {
       "get": {
         "description": "?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go).\n\nWho may call it: **profile**.",
