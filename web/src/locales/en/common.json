@@ -187,5 +187,11 @@
     "edit": "Edit {{title}}",
     "play": "Play {{title}}",
     "more": "More for {{title}}"
+  },
+  "libraryOrder": {
+    "reorder": "Reorder libraries…",
+    "title": "Reorder libraries",
+    "hint": "Drag libraries into the order you want, or use the arrows. The order is just for your profile.",
+    "reset": "Reset to server order"
   }
 }

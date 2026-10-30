@@ -2,7 +2,6 @@ import { sortSummary } from '@/lib/filter-labels';
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { Reorder } from 'motion/react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Square, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
@@ -11,7 +10,7 @@ import { defaultRowIds, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seaso
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { resolutions } from '@/pages/Library';
-import { ArrangeRow } from './ArrangeRow';
+import { ReorderList } from './ArrangeRow';
 import { ErrorNotice } from './Page';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -129,7 +128,6 @@ function Editor({
   const [editing, setEditing] = useState<ResolvedRow | 'new' | null>(null);
   const [split, setSplit] = useState(initialSplit);
   const [hero, setHero] = useState(initialHero);
-  const [announcement, announce] = useState('');
   const save = useMutation({ mutationFn: onSave, onSuccess: onDone });
   // Reordering only sees the rows on show; Up Next keeps its place after Continue Watching.
   const reorder = (shown: ResolvedRow[]) => {
@@ -140,14 +138,6 @@ function Editor({
     setRows(next);
   };
 
-  const moveRow = (id: string, delta: number) => {
-    const shown = visibleRows(rows, split);
-    const from = shown.findIndex(r => r.id === id), to = from + delta;
-    if (from < 0 || to < 0 || to >= shown.length) return;
-    [shown[from], shown[to]] = [shown[to], shown[from]];
-    reorder(shown);
-    announce(t('editor.position', { title: rowTitle(shown[to]), position: to + 1, total: shown.length }));
-  };
   if (editing) {
     const existing = editing === 'new' ? undefined : (editing as Extract<ResolvedRow, { type: 'custom' }>);
     return (
@@ -241,22 +231,18 @@ function Editor({
           }}
         />
       </label>
-      <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
-      <Reorder.Group axis="y" values={visibleRows(rows, split)} onReorder={reorder} className="space-y-1.5">
-        {visibleRows(rows, split).map((r, index, shown) => (
+      <ReorderList items={visibleRows(rows, split)} keyOf={(r) => r.id} titleOf={rowTitle} onReorder={reorder} className="space-y-1.5">
+        {(r) => (
           <RowItem
-            key={r.id}
             row={r}
             merged={!split}
-            onMoveUp={index > 0 ? () => moveRow(r.id, -1) : undefined}
-            onMoveDown={index < shown.length - 1 ? () => moveRow(r.id, 1) : undefined}
             onToggle={() => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, hidden: !x.hidden } : x)))}
             onChange={(patch) => setRows((rs) => rs.map((x) => (x.id === r.id ? ({ ...x, ...patch } as ResolvedRow) : x)))}
             onEdit={r.type === 'custom' ? () => setEditing(r) : undefined}
             onDelete={r.type === 'custom' || r.type === 'collection' || r.type === 'playlist' ? () => setRows((rs) => rs.filter((x) => x.id !== r.id)) : undefined}
           />
-        ))}
-      </Reorder.Group>
+        )}
+      </ReorderList>
     </DialogContent>
   );
 }
@@ -346,8 +332,8 @@ function LookMenu({ row, onChange }: { row: ResolvedRow; onChange: (patch: Parti
   );
 }
 
+/** A row's summary and look controls, inside the shared reorder row. */
 function RowItem({
-  onMoveUp, onMoveDown,
   row,
   merged,
   onToggle,
@@ -359,8 +345,6 @@ function RowItem({
   merged: boolean;
   onToggle: () => void;
   onChange: (patch: Partial<RowLook>) => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
@@ -376,7 +360,7 @@ function RowItem({
       <ListVideo className="size-4" />
     ) : null;
   return (
-    <ArrangeRow value={row} title={rowTitle(row)} onMoveUp={onMoveUp} onMoveDown={onMoveDown}>
+    <>
       <div className={cn('min-w-0 flex-1', row.hidden && 'opacity-45')}>
         <p className="flex items-center gap-1.5 truncate text-sm font-medium">
           {icon && <span className="text-accent">{icon}</span>}
@@ -411,7 +395,7 @@ function RowItem({
       <Button variant="ghost" size="icon" aria-label={row.hidden ? t('rowActions.show', { title: rowTitle(row) }) : t('rowActions.hide', { title: rowTitle(row) })} onClick={onToggle}>
         {row.hidden ? <EyeOff className="text-subtle" /> : <Eye />}
       </Button>
-    </ArrangeRow>
+    </>
   );
 }
 
