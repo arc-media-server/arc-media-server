@@ -912,6 +912,8 @@ export interface ResourceSample {
 }
 
 export interface ServerSettings {
+  /** The server's friendly name, e.g. "Living Room" (apps show it; separate from its address). */
+  server_name?: string;
   tmdb_api_key: string;
   tvdb_api_key: string;
   ffprobe_path: string;
@@ -1029,6 +1031,32 @@ function query(params: object): string {
   return s ? `?${s}` : '';
 }
 
+/** What this server supports (GET /api/capabilities); a missing key means it doesn't advertise it. */
+export interface Capabilities {
+  api_version: number;
+  features: Record<string, { supported: boolean; available: boolean; allowed: boolean }>;
+}
+
+/** A play queue entry; one whose title is gone or no longer allowed carries only its id. */
+export interface PlayQueueEntry { id: string; available: boolean; item_id?: string; item?: Item }
+
+/** This device and profile's play queue, kept by the server so it survives a reload. */
+export interface PlayQueue {
+  id: string;
+  revision: number;
+  /** Empty once the queue has played through. */
+  current_entry_id: string;
+  shuffled: boolean;
+  expires_at: number;
+  entries: PlayQueueEntry[];
+}
+
+export type PlayQueueEdit =
+  | { operation: 'append' | 'next'; item_ids: string[] }
+  | { operation: 'remove' | 'reorder'; entry_ids: string[] }
+  | { operation: 'select'; entry_id: string }
+  | { operation: 'clear' | 'advance' | 'shuffle' | 'unshuffle' };
+
 export const api = {
   diagnostics: () => request<{ detailed: boolean; until?: string; persistent: boolean; storage_error?: string }>('GET', '/api/diagnostics'),
   downloadDiagnostics: async () => { const r = await fetch('/api/diagnostics/download'); if (!r.ok) throw new Error(i18n.t('common:errors.downloadDiagnostics')); return r.blob(); },
@@ -1059,7 +1087,7 @@ export const api = {
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'empty_trash_enabled' | 'database_upkeep_enabled' | 'cache_cleanup_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'trusted_proxies' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'server_name' | 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'empty_trash_enabled' | 'database_upkeep_enabled' | 'cache_cleanup_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'trusted_proxies' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),
@@ -1100,6 +1128,15 @@ export const api = {
   items: (q: ItemQuery) => request<{ total: number; items: Item[]; offset?: number; letters?: LetterCount[] }>('GET', `/api/items${query(q)}`),
   item: (id: string) => request<Item>('GET', `/api/items/${id}`),
   mergeItems: (targetId: string, itemIds: string[]) => request<void>('POST', '/api/items/merge', { target_id: targetId, item_ids: itemIds }),
+  /** Unmatch a show: back to its file names, until Fix Match identifies it again (admin). */
+  unmatchItem: (id: string) => request<Item>('POST', `/api/items/${id}/unmatch`),
+  capabilities: () => request<Capabilities>('GET', '/api/capabilities'),
+  createPlayQueue: (itemIds: string[], replace?: { id: string; revision: number }) =>
+    request<PlayQueue>('POST', '/api/play-queues', { item_ids: itemIds, ...(replace && { replace_id: replace.id, revision: replace.revision }) }),
+  currentPlayQueue: () => request<PlayQueue>('GET', '/api/play-queues/current'),
+  playQueue: (id: string) => request<PlayQueue>('GET', `/api/play-queues/${encodeURIComponent(id)}`),
+  editPlayQueue: (id: string, revision: number, edit: PlayQueueEdit) => request<PlayQueue>('PATCH', `/api/play-queues/${encodeURIComponent(id)}`, { revision, ...edit }),
+  deletePlayQueue: (id: string, revision: number) => request<void>('DELETE', `/api/play-queues/${encodeURIComponent(id)}?revision=${revision}`),
   splitItem: (id: string) => request<{ item_ids: string[] }>('POST', `/api/items/${id}/split`),
   editItems: (edit: BulkEdit) => request<void>('POST', '/api/items/bulk', edit),
   editItem: (id: string, edit: ItemEdit) => request<Item>('PATCH', `/api/items/${id}`, edit),

@@ -486,15 +486,71 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await expect(queue.locator('ol li').nth(1)).toContainText('Second Chapter');
   await queue.getByRole('button', { name: 'Remove Second Chapter from queue', exact: true }).click();
   await expect(queue.locator('ol li')).toHaveCount(2);
+  // The server keeps the same queue for this device, so a reload can pick it up.
+  await expect.poll(() => serverQueue(page)).toEqual(['First Chapter', 'Arc Movie']);
   expect(starts).toBe(1);
   expect(await video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(65);
   await page.screenshot({ path: info.outputPath('editable-queue.png') });
   await queue.getByRole('button', { name: 'Clear upcoming', exact: true }).click();
   await expect(queue.locator('ol li')).toHaveCount(1);
+  await expect.poll(() => serverQueue(page)).toEqual(['First Chapter']);
   await queue.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
+  // Closing the player is a deliberate stop: the server's queue goes too.
+  await expect.poll(async () => (await page.request.get('/api/play-queues/current')).status()).toBe(404);
   await expect.poll(async () => (await (await page.request.get('/api/home/continue')).json()).some((i: Item) => i.title === 'First Chapter' && (i.user_data?.position_ms || 0) > 65_000)).toBe(true);
 });
+
+test('the server name is set in Access settings and is what apps are told', async ({ page }) => {
+  await page.goto('/settings?section=access');
+  const name = page.getByRole('textbox', { name: 'Server name', exact: true });
+  await name.fill('  Living Room  ');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect.poll(async () => (await (await page.request.get('/api/identity')).json()).name).toBe('Living Room');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Server name', exact: true })).toHaveValue('Living Room');
+});
+
+test('a reload offers the queue this device was playing, to resume or dismiss', async ({ page }, info) => {
+  const shows = await seed(page, true);
+  await page.goto('/series/' + shows.item.id);
+  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
+  const video = page.locator('video');
+  const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+  await expect.poll(() => serverQueue(page)).toEqual(['First Chapter', 'Second Chapter']);
+  await page.reload();
+  const offer = page.getByRole('region', { name: 'Pick up your queue', exact: true });
+  await expect(offer).toContainText('First Chapter and 1 more');
+  await page.screenshot({ path: info.outputPath('recovered-queue.png') });
+  await offer.getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect(offer).toBeHidden();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Playback queue', exact: true }).click();
+  const queue = page.getByRole('dialog', { name: 'Playback queue', exact: true });
+  await expect(queue.locator('ol li')).toHaveCount(2);
+  await expect(queue.locator('ol li').nth(1)).toContainText('Second Chapter');
+  // Next moves the server's queue on too.
+  await queue.getByRole('button', { name: 'Play Second Chapter now', exact: true }).click();
+  // (Auto-Play may already have added the following episode after it, on the server too.)
+  await expect.poll(async () => (await serverQueue(page))[0]).toBe('Second Chapter');
+  // Leaving the player some other way (a reload) and dismissing the offer discards it.
+  await page.reload();
+  await page.getByRole('region', { name: 'Pick up your queue', exact: true }).getByRole('button', { name: 'Dismiss queue', exact: true }).click();
+  await expect.poll(async () => (await page.request.get('/api/play-queues/current')).status()).toBe(404);
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('region', { name: 'Pick up your queue', exact: true })).toHaveCount(0);
+});
+
+/** The server's play queue for this browser, from the current title on (titles only). */
+async function serverQueue(page: Page) {
+  const r = await page.request.get('/api/play-queues/current');
+  if (!r.ok()) return [];
+  const q: { current_entry_id: string; entries: { id: string; item?: Item }[] } = await r.json();
+  return q.entries.slice(Math.max(0, q.entries.findIndex(e => e.id === q.current_entry_id))).map(e => e.item?.title ?? '');
+}
 
 test('playback failures can retry without reopening the title', async ({ page }) => {
   const { item } = await seed(page);

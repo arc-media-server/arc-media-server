@@ -256,6 +256,9 @@ function ServerSettings() {
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
         <>
+          <Section sectionKey="General" title={t("serverSettings:settings.general")} hint={t("serverSettings:settings.generalHint")}>
+            <ServerNameRow value={s.server_name ?? ''} onSave={(v) => update.mutateAsync({ server_name: v })} />
+          </Section>
           <Section sectionKey="Online metadata" title={t("serverSettings:settings.onlineMetadata")} hint={t("serverSettings:settings.whereArcGetsDetails")}>
             <KeyRow
               label={t("serverSettings:settings.tmdb")}
@@ -1083,6 +1086,35 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
         </div>
       )}
     </>
+  );
+}
+
+/** The server's friendly name (Plex's "Friendly name"): how apps and the sign-in pages call it. */
+function ServerNameRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+  const { t } = useTranslation('serverSettings');
+  const [text, setText] = useState(value);
+  const [error, setError] = useState('');
+  const save = async (v: string) => {
+    setError('');
+    try {
+      await onSave(v.trim());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <Row
+      setting="server_name"
+      label={t("serverSettings:settings.serverName")}
+      description={<>{t("serverSettings:settings.serverNameHint")}{error && <span role="alert" className="mt-1 block text-warning">{error}</span>}</>}
+    >
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void save(text); }}>
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={80} aria-label={t("serverSettings:settings.serverName")} className={`${inputClass} w-56`} />
+        {text.trim() !== value && text.trim() !== '' && (
+          <Button size="sm" variant="primary" type="submit">{t("common:actions.save")}</Button>
+        )}
+      </form>
+    </Row>
   );
 }
 
