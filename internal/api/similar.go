@@ -40,6 +40,7 @@ type recommendedRow struct {
 	ID       string `json:"id"`
 	ItemsURL string `json:"items_url"`
 	HasMore  bool   `json:"has_more"`
+	sourceID string
 	query    *store.ItemQuery
 	total    int
 
@@ -125,7 +126,7 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 		row.query, row.total = nextQuery, nextTotal
 		nextQuery, nextTotal = nil, 0
 		if len(row.Items) > 0 {
-			sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d/%s", row.Type, row.Name, row.Genre, row.PersonID, row.Role)))
+			sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d/%s/%s", row.Type, row.Name, row.Genre, row.PersonID, row.Role, row.sourceID)))
 			row.ID = fmt.Sprintf("%x", sum[:12])
 			row.ItemsURL = fmt.Sprintf("/api/v1/libraries/%d/recommended/rows/%s", lib.ID, row.ID)
 			row.HasMore = row.total > len(row.Items) || (row.query == nil && (len(row.Items) >= limit || row.Type == "because_you_watched"))
@@ -212,6 +213,13 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 		return nil, err
 	}
 	for _, t := range recent {
+		visible, err := s.store.CanSee(ctx, &t, acc)
+		if err != nil {
+			return nil, err
+		}
+		if !visible {
+			continue
+		}
 		similar, err := s.store.Similar(ctx, &t, acc, limit)
 		if err != nil {
 			return nil, err
@@ -219,7 +227,7 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 		if items, err = unseen(similar); err != nil {
 			return nil, err
 		}
-		add(recommendedRow{Type: "because_you_watched", Items: items, Name: t.Title})
+		add(recommendedRow{Type: "because_you_watched", Items: items, Name: t.Title, sourceID: t.ID})
 	}
 
 	if items, err = list(store.ItemQuery{Sort: "rating"}); err != nil {

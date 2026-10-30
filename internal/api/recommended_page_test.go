@@ -3,6 +3,7 @@ package api
 import (
 	"ams/internal/auth"
 	"ams/internal/store"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
@@ -87,5 +88,67 @@ func TestRecommendedContinuationAndHiddenRows(t *testing.T) {
 	}
 	if w = get(fmt.Sprintf("/api/v1/libraries/%d/recommended", hidden)); w.Code != 403 && w.Code != 404 {
 		t.Fatal("denied library accessible", w.Code)
+	}
+}
+
+func TestRecommendedSourceIdentityAndCurrentAccess(t *testing.T) {
+	s, u := securityServer(t)
+	ctx := t.Context()
+	lib, _ := s.store.SyncLibrary(ctx, "Source identity", "movies", "tmdb_aired", nil)
+	for i := range 4 {
+		id, _, err := s.store.EnsureItem(ctx, &store.Item{LibraryID: lib, Kind: "movie", Title: "Same name"}, fmt.Sprint(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		file, err := s.store.SaveFile(ctx, &store.MediaFile{LibraryID: lib, Path: fmt.Sprintf("/fixture/%d.mkv", i)}, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.store.SetFileItems(ctx, file, []string{id}, 0)
+		s.store.SetItemDetails(ctx, id, []string{"Drama", "Comedy"}, nil)
+		if i < 2 {
+			s.store.SetPlayed(ctx, u.ID, []string{id}, true)
+		}
+		pg := "PG"
+		s.store.EditItem(ctx, id, store.ItemEdit{ContentRating: &pg})
+		if i == 0 {
+			rating := "18"
+			s.store.EditItem(ctx, id, store.ItemEdit{ContentRating: &rating})
+		}
+	}
+	r := httptest.NewRequest("GET", "/", nil)
+	r = r.WithContext(context.WithValue(r.Context(), userKey, u))
+	library, _ := s.store.GetLibrary(ctx, lib)
+	rows, err := s.recommendedRows(r, library)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	count := 0
+	for _, row := range rows {
+		if row.Type == "because_you_watched" {
+			if seen[row.ID] {
+				t.Fatal("duplicate source row ID")
+			}
+			seen[row.ID] = true
+			count++
+		}
+	}
+	if count != 2 {
+		t.Fatal("expected both sources", count)
+	}
+	u.MaxAge = 12
+	rows, err = s.recommendedRows(r, library)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count = 0
+	for _, row := range rows {
+		if row.Type == "because_you_watched" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatal("restricted watched source retained", count)
 	}
 }
