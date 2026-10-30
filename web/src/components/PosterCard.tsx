@@ -75,8 +75,8 @@ export function PosterCard({
   return (
     <div className={cn('group relative scroll-mt-4', className)} data-item={item.id}
       onContextMenu={hover && !onSelect ? (e) => { e.preventDefault(); setMenuOpen(true); } : undefined}>
-      {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
-      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={false} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
+      {onRemove && !(hover && !onSelect) && <ContinueCardMenu item={item} onRemove={onRemove} />}
+      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={false} menuOpen={menuOpen} onMenuOpen={setMenuOpen} onRemove={onRemove} />}
       {onSelect ? (
         <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full cursor-pointer text-left outline-none">
           {card}
@@ -157,8 +157,8 @@ export function ThumbCard({
   return (
     <div className={cn('group relative scroll-mt-4', className)} data-item={item.id}
       onContextMenu={hover && !onSelect ? (e) => { e.preventDefault(); setMenuOpen(true); } : undefined}>
-      {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
-      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={true} menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
+      {onRemove && !(hover && !onSelect) && <ContinueCardMenu item={item} onRemove={onRemove} />}
+      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape={true} arc={arc} menuOpen={menuOpen} onMenuOpen={setMenuOpen} onRemove={onRemove} />}
       {onSelect ? (
         <button type="button" onClick={onSelect} aria-pressed={!!selected} className="block w-full cursor-pointer text-left outline-none">
           {card}
