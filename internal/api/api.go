@@ -257,6 +257,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
 	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
 	mux.HandleFunc("GET /api/items/{id}/similar", user(s.similar))
+	mux.HandleFunc("GET /api/libraries/{id}/recommended/rows/{row}", user(s.recommendedPage))
 	mux.HandleFunc("GET /api/libraries/{id}/recommended", user(s.recommended))
 	mux.HandleFunc("GET /api/libraries/{id}/recommended/layout", admin(s.getRecommendedLayout))
 	mux.HandleFunc("PUT /api/libraries/{id}/recommended/layout", admin(s.setRecommendedLayout))
