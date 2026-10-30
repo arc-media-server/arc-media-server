@@ -204,6 +204,8 @@ generated from the code, and a running server describes itself at `/api/openapi.
 See [artwork and collection automation](docs/AUTOMATION.md) for integration examples and
 [remote quality](docs/REMOTE-QUALITY.md) for playback limits and upload measurements.
 
+Apps can request [server-generated artwork palettes](docs/ARTWORK-PALETTES.md) for ambient backgrounds.
+
 ## Credits
 
 Movie and TV information and images come from [TMDB](https://www.themoviedb.org) and

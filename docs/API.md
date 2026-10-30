@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-178 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+179 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -205,6 +205,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
 | POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
+| GET | `/api/items/{id}/artwork/palette` | profile | Returns cached regional sRGB hex colours for a title's selected artwork (profile). ?type=backdrop (default) prefers a backdrop, falling back to primary only if no backdrop is configured; ?type=primary uses its poster/still. Missing or undecodable artwork answers 200 with available=false and a reason, never a theme-colour guess. |
 | PUT | `/api/items/{id}/artwork` | admin | {"type": "poster", "path": "/abc.jpg"} uses a TMDB image and locks it. A null path goes back to automatic artwork. |
 | POST | `/api/items/{id}/artwork/{type}` | admin | With an image as the body (JPEG, PNG or WebP, up to 20 MB) uses it as the poster or background. It's kept in AMS's data folder. |
 | GET | `/api/items/{id}/match` | admin | Explains how an item was identified: what was read from its file and folder names, and every search made with what it found. |
