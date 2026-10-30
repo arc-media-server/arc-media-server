@@ -65,6 +65,7 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 	add("activity", s.activity != nil, true)
 	add("maintenance", s.background != nil, true)
 	add("metadata_edit", true, true)
+	add("unmatch_show", s.scanner != nil, true)
 	add("artwork_upload", s.uploadsDir != "", true)
 	add("library_scan", s.scanner != nil, true)
 	writeJSON(w, 200, serverCapabilities{APIVersion: APIVersion, Features: features})

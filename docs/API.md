@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-182 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+183 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -215,6 +215,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | DELETE | `/api/items/{id}` | admin | Forgets a movie, episode or show whose files are all gone (after backing up the database). Refused if any of its files is still there. |
 | PATCH | `/api/items/{id}` | admin | Edits metadata (including genres and labels; labels are never locked); edited fields are locked. locked_fields replaces the locked set. For a show, source_ordering changes file numbering (empty follows the library). Show details use the library metadata provider; legacy details_provider inputs are rejected. Episode metadata follows file numbering. Display order is changed separately through the series API. |
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
+| POST | `/api/items/{id}/unmatch` | admin | Removes all metadata and artwork references, manual metadata overrides and display orders from a show and its episodes. Restores filename labels and file order, preserves IDs, files, source numbering, history, manual collections and playlists. Scans/refreshes keep it unmatched until an explicit Fix Match succeeds. No media, uploaded artwork files, probes or markers are deleted. Only series IDs are accepted. |
 | POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
 | GET | `/api/items/{id}/artwork/palette` | profile | Returns cached regional sRGB hex colours for a title's selected artwork (profile). ?type=backdrop (default) prefers a backdrop, falling back to primary only if no backdrop is configured; ?type=primary uses its poster/still. Missing or undecodable artwork answers 200 with available=false and a reason, never a theme-colour guess. |

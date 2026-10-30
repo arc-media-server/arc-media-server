@@ -223,6 +223,7 @@ GET /collections/{id} 200 .items[].last_aired string
 GET /collections/{id} 200 .items[].library_id integer
 GET /collections/{id} 200 .items[].locked_fields array
 GET /collections/{id} 200 .items[].locked_fields[] string
+GET /collections/{id} 200 .items[].match_suppressed boolean
 GET /collections/{id} 200 .items[].metacritic integer
 GET /collections/{id} 200 .items[].metadata_state string
 GET /collections/{id} 200 .items[].next_aired string
@@ -370,6 +371,7 @@ GET /home/continue 200 [].last_aired string
 GET /home/continue 200 [].library_id integer
 GET /home/continue 200 [].locked_fields array
 GET /home/continue 200 [].locked_fields[] string
+GET /home/continue 200 [].match_suppressed boolean
 GET /home/continue 200 [].metacritic integer
 GET /home/continue 200 [].metadata_state string
 GET /home/continue 200 [].next_aired string
@@ -483,6 +485,7 @@ GET /home/next-up 200 [].last_aired string
 GET /home/next-up 200 [].library_id integer
 GET /home/next-up 200 [].locked_fields array
 GET /home/next-up 200 [].locked_fields[] string
+GET /home/next-up 200 [].match_suppressed boolean
 GET /home/next-up 200 [].metacritic integer
 GET /home/next-up 200 [].metadata_state string
 GET /home/next-up 200 [].next_aired string
@@ -643,6 +646,7 @@ GET /items 200 .items[].last_aired string
 GET /items 200 .items[].library_id integer
 GET /items 200 .items[].locked_fields array
 GET /items 200 .items[].locked_fields[] string
+GET /items 200 .items[].match_suppressed boolean
 GET /items 200 .items[].metacritic integer
 GET /items 200 .items[].metadata_state string
 GET /items 200 .items[].next_aired string
@@ -759,6 +763,7 @@ GET /items/{id} 200 .last_aired string
 GET /items/{id} 200 .library_id integer
 GET /items/{id} 200 .locked_fields array
 GET /items/{id} 200 .locked_fields[] string
+GET /items/{id} 200 .match_suppressed boolean
 GET /items/{id} 200 .metacritic integer
 GET /items/{id} 200 .metadata_state string
 GET /items/{id} 200 .next_aired string
@@ -901,6 +906,7 @@ GET /items/{id}/next 200 .last_aired string
 GET /items/{id}/next 200 .library_id integer
 GET /items/{id}/next 200 .locked_fields array
 GET /items/{id}/next 200 .locked_fields[] string
+GET /items/{id}/next 200 .match_suppressed boolean
 GET /items/{id}/next 200 .metacritic integer
 GET /items/{id}/next 200 .metadata_state string
 GET /items/{id}/next 200 .next_aired string
@@ -1018,6 +1024,7 @@ GET /items/{id}/similar 200 [].last_aired string
 GET /items/{id}/similar 200 [].library_id integer
 GET /items/{id}/similar 200 [].locked_fields array
 GET /items/{id}/similar 200 [].locked_fields[] string
+GET /items/{id}/similar 200 [].match_suppressed boolean
 GET /items/{id}/similar 200 [].metacritic integer
 GET /items/{id}/similar 200 [].metadata_state string
 GET /items/{id}/similar 200 [].next_aired string
@@ -1275,6 +1282,7 @@ GET /libraries/{id}/recent-shows 200 [].item.last_aired string
 GET /libraries/{id}/recent-shows 200 [].item.library_id integer
 GET /libraries/{id}/recent-shows 200 [].item.locked_fields array
 GET /libraries/{id}/recent-shows 200 [].item.locked_fields[] string
+GET /libraries/{id}/recent-shows 200 [].item.match_suppressed boolean
 GET /libraries/{id}/recent-shows 200 [].item.metacritic integer
 GET /libraries/{id}/recent-shows 200 [].item.metadata_state string
 GET /libraries/{id}/recent-shows 200 [].item.next_aired string
@@ -1393,6 +1401,7 @@ GET /libraries/{id}/recommended 200 .rows[].items[].last_aired string
 GET /libraries/{id}/recommended 200 .rows[].items[].library_id integer
 GET /libraries/{id}/recommended 200 .rows[].items[].locked_fields array
 GET /libraries/{id}/recommended 200 .rows[].items[].locked_fields[] string
+GET /libraries/{id}/recommended 200 .rows[].items[].match_suppressed boolean
 GET /libraries/{id}/recommended 200 .rows[].items[].metacritic integer
 GET /libraries/{id}/recommended 200 .rows[].items[].metadata_state string
 GET /libraries/{id}/recommended 200 .rows[].items[].next_aired string
@@ -1535,6 +1544,7 @@ GET /libraries/{id}/unmatched 200 [].last_aired string
 GET /libraries/{id}/unmatched 200 [].library_id integer
 GET /libraries/{id}/unmatched 200 [].locked_fields array
 GET /libraries/{id}/unmatched 200 [].locked_fields[] string
+GET /libraries/{id}/unmatched 200 [].match_suppressed boolean
 GET /libraries/{id}/unmatched 200 [].metacritic integer
 GET /libraries/{id}/unmatched 200 [].metadata_state string
 GET /libraries/{id}/unmatched 200 [].next_aired string
@@ -1875,6 +1885,7 @@ GET /playing 200 [].item.last_aired string
 GET /playing 200 [].item.library_id integer
 GET /playing 200 [].item.locked_fields array
 GET /playing 200 [].item.locked_fields[] string
+GET /playing 200 [].item.match_suppressed boolean
 GET /playing 200 [].item.metacritic integer
 GET /playing 200 [].item.metadata_state string
 GET /playing 200 [].item.next_aired string
@@ -2032,6 +2043,7 @@ GET /playlists/{id} 200 .entries[].item.last_aired string
 GET /playlists/{id} 200 .entries[].item.library_id integer
 GET /playlists/{id} 200 .entries[].item.locked_fields array
 GET /playlists/{id} 200 .entries[].item.locked_fields[] string
+GET /playlists/{id} 200 .entries[].item.match_suppressed boolean
 GET /playlists/{id} 200 .entries[].item.metacritic integer
 GET /playlists/{id} 200 .entries[].item.metadata_state string
 GET /playlists/{id} 200 .entries[].item.next_aired string
@@ -2276,6 +2288,7 @@ GET /search 200 .episodes[].last_aired string
 GET /search 200 .episodes[].library_id integer
 GET /search 200 .episodes[].locked_fields array
 GET /search 200 .episodes[].locked_fields[] string
+GET /search 200 .episodes[].match_suppressed boolean
 GET /search 200 .episodes[].metacritic integer
 GET /search 200 .episodes[].metadata_state string
 GET /search 200 .episodes[].next_aired string
@@ -2392,6 +2405,7 @@ GET /search 200 .movies[].last_aired string
 GET /search 200 .movies[].library_id integer
 GET /search 200 .movies[].locked_fields array
 GET /search 200 .movies[].locked_fields[] string
+GET /search 200 .movies[].match_suppressed boolean
 GET /search 200 .movies[].metacritic integer
 GET /search 200 .movies[].metadata_state string
 GET /search 200 .movies[].next_aired string
@@ -2510,6 +2524,7 @@ GET /search 200 .shows[].last_aired string
 GET /search 200 .shows[].library_id integer
 GET /search 200 .shows[].locked_fields array
 GET /search 200 .shows[].locked_fields[] string
+GET /search 200 .shows[].match_suppressed boolean
 GET /search 200 .shows[].metacritic integer
 GET /search 200 .shows[].metadata_state string
 GET /search 200 .shows[].next_aired string
@@ -2757,6 +2772,7 @@ GET /watchlist 200 [].last_aired string
 GET /watchlist 200 [].library_id integer
 GET /watchlist 200 [].locked_fields array
 GET /watchlist 200 [].locked_fields[] string
+GET /watchlist 200 [].match_suppressed boolean
 GET /watchlist 200 [].metacritic integer
 GET /watchlist 200 [].metadata_state string
 GET /watchlist 200 [].next_aired string
@@ -2908,6 +2924,7 @@ PATCH /items/{id} 200 .last_aired string
 PATCH /items/{id} 200 .library_id integer
 PATCH /items/{id} 200 .locked_fields array
 PATCH /items/{id} 200 .locked_fields[] string
+PATCH /items/{id} 200 .match_suppressed boolean
 PATCH /items/{id} 200 .metacritic integer
 PATCH /items/{id} 200 .metadata_state string
 PATCH /items/{id} 200 .next_aired string
@@ -3260,6 +3277,7 @@ POST /collections/{id}/artwork/{type} 200 .items[].last_aired string
 POST /collections/{id}/artwork/{type} 200 .items[].library_id integer
 POST /collections/{id}/artwork/{type} 200 .items[].locked_fields array
 POST /collections/{id}/artwork/{type} 200 .items[].locked_fields[] string
+POST /collections/{id}/artwork/{type} 200 .items[].match_suppressed boolean
 POST /collections/{id}/artwork/{type} 200 .items[].metacritic integer
 POST /collections/{id}/artwork/{type} 200 .items[].metadata_state string
 POST /collections/{id}/artwork/{type} 200 .items[].next_aired string
@@ -3521,6 +3539,7 @@ POST /items/{id}/artwork/{type} 200 .last_aired string
 POST /items/{id}/artwork/{type} 200 .library_id integer
 POST /items/{id}/artwork/{type} 200 .locked_fields array
 POST /items/{id}/artwork/{type} 200 .locked_fields[] string
+POST /items/{id}/artwork/{type} 200 .match_suppressed boolean
 POST /items/{id}/artwork/{type} 200 .metacritic integer
 POST /items/{id}/artwork/{type} 200 .metadata_state string
 POST /items/{id}/artwork/{type} 200 .next_aired string
@@ -3746,6 +3765,7 @@ POST /items/{id}/refresh 200 .last_aired string
 POST /items/{id}/refresh 200 .library_id integer
 POST /items/{id}/refresh 200 .locked_fields array
 POST /items/{id}/refresh 200 .locked_fields[] string
+POST /items/{id}/refresh 200 .match_suppressed boolean
 POST /items/{id}/refresh 200 .metacritic integer
 POST /items/{id}/refresh 200 .metadata_state string
 POST /items/{id}/refresh 200 .next_aired string
@@ -3782,6 +3802,117 @@ POST /items/{id}/split
 POST /items/{id}/split 200
 POST /items/{id}/subtitles/download
 POST /items/{id}/subtitles/download 200
+POST /items/{id}/unmatch
+POST /items/{id}/unmatch 200
+POST /items/{id}/unmatch 200 .added_at integer
+POST /items/{id}/unmatch 200 .collections array
+POST /items/{id}/unmatch 200 .collections[] object
+POST /items/{id}/unmatch 200 .collections[].id string
+POST /items/{id}/unmatch 200 .collections[].kind string
+POST /items/{id}/unmatch 200 .collections[].title string
+POST /items/{id}/unmatch 200 .content_rating string
+POST /items/{id}/unmatch 200 .credits array
+POST /items/{id}/unmatch 200 .credits[] object
+POST /items/{id}/unmatch 200 .credits[].character string
+POST /items/{id}/unmatch 200 .credits[].episode_count integer
+POST /items/{id}/unmatch 200 .credits[].image string
+POST /items/{id}/unmatch 200 .credits[].name string
+POST /items/{id}/unmatch 200 .credits[].person_id integer
+POST /items/{id}/unmatch 200 .credits[].role string
+POST /items/{id}/unmatch 200 .details_provider string
+POST /items/{id}/unmatch 200 .episode_number integer
+POST /items/{id}/unmatch 200 .extras array
+POST /items/{id}/unmatch 200 .extras[] object
+POST /items/{id}/unmatch 200 .extras[].duration_ms integer
+POST /items/{id}/unmatch 200 .extras[].id string
+POST /items/{id}/unmatch 200 .extras[].item_id string
+POST /items/{id}/unmatch 200 .extras[].kind string
+POST /items/{id}/unmatch 200 .extras[].stream_url string
+POST /items/{id}/unmatch 200 .extras[].title string
+POST /items/{id}/unmatch 200 .files array
+POST /items/{id}/unmatch 200 .files[] object
+POST /items/{id}/unmatch 200 .files[].bitrate integer
+POST /items/{id}/unmatch 200 .files[].container string
+POST /items/{id}/unmatch 200 .files[].duration_ms integer
+POST /items/{id}/unmatch 200 .files[].edition string
+POST /items/{id}/unmatch 200 .files[].id integer
+POST /items/{id}/unmatch 200 .files[].missing boolean
+POST /items/{id}/unmatch 200 .files[].part integer
+POST /items/{id}/unmatch 200 .files[].path string
+POST /items/{id}/unmatch 200 .files[].probe_error string
+POST /items/{id}/unmatch 200 .files[].size integer
+POST /items/{id}/unmatch 200 .files[].streams array
+POST /items/{id}/unmatch 200 .files[].streams[] object
+POST /items/{id}/unmatch 200 .files[].streams[].aspect_ratio number
+POST /items/{id}/unmatch 200 .files[].streams[].bit_depth integer
+POST /items/{id}/unmatch 200 .files[].streams[].bitrate integer
+POST /items/{id}/unmatch 200 .files[].streams[].channel_layout string
+POST /items/{id}/unmatch 200 .files[].streams[].channels integer
+POST /items/{id}/unmatch 200 .files[].streams[].codec string
+POST /items/{id}/unmatch 200 .files[].streams[].color_primaries string
+POST /items/{id}/unmatch 200 .files[].streams[].color_transfer string
+POST /items/{id}/unmatch 200 .files[].streams[].dolby_vision boolean
+POST /items/{id}/unmatch 200 .files[].streams[].dolby_vision_profile integer
+POST /items/{id}/unmatch 200 .files[].streams[].frame_rate number
+POST /items/{id}/unmatch 200 .files[].streams[].hdr10_plus boolean
+POST /items/{id}/unmatch 200 .files[].streams[].hdr_probe_status string
+POST /items/{id}/unmatch 200 .files[].streams[].height integer
+POST /items/{id}/unmatch 200 .files[].streams[].index integer
+POST /items/{id}/unmatch 200 .files[].streams[].is_default boolean
+POST /items/{id}/unmatch 200 .files[].streams[].is_forced boolean
+POST /items/{id}/unmatch 200 .files[].streams[].kind string
+POST /items/{id}/unmatch 200 .files[].streams[].language string
+POST /items/{id}/unmatch 200 .files[].streams[].pix_fmt string
+POST /items/{id}/unmatch 200 .files[].streams[].profile string
+POST /items/{id}/unmatch 200 .files[].streams[].title string
+POST /items/{id}/unmatch 200 .files[].streams[].width integer
+POST /items/{id}/unmatch 200 .genres array
+POST /items/{id}/unmatch 200 .genres[] string
+POST /items/{id}/unmatch 200 .id string
+POST /items/{id}/unmatch 200 .images object
+POST /items/{id}/unmatch 200 .imdb_id string
+POST /items/{id}/unmatch 200 .imdb_rating number
+POST /items/{id}/unmatch 200 .imdb_votes integer
+POST /items/{id}/unmatch 200 .kind string
+POST /items/{id}/unmatch 200 .labels array
+POST /items/{id}/unmatch 200 .labels[] string
+POST /items/{id}/unmatch 200 .last_aired string
+POST /items/{id}/unmatch 200 .library_id integer
+POST /items/{id}/unmatch 200 .locked_fields array
+POST /items/{id}/unmatch 200 .locked_fields[] string
+POST /items/{id}/unmatch 200 .match_suppressed boolean
+POST /items/{id}/unmatch 200 .metacritic integer
+POST /items/{id}/unmatch 200 .metadata_state string
+POST /items/{id}/unmatch 200 .next_aired string
+POST /items/{id}/unmatch 200 .original_language string
+POST /items/{id}/unmatch 200 .original_title string
+POST /items/{id}/unmatch 200 .overview string
+POST /items/{id}/unmatch 200 .parent_id string
+POST /items/{id}/unmatch 200 .rating number
+POST /items/{id}/unmatch 200 .release_date string
+POST /items/{id}/unmatch 200 .rotten_tomatoes integer
+POST /items/{id}/unmatch 200 .runtime_min integer
+POST /items/{id}/unmatch 200 .season_number integer
+POST /items/{id}/unmatch 200 .series_title string
+POST /items/{id}/unmatch 200 .sort_title string
+POST /items/{id}/unmatch 200 .source_ordering string
+POST /items/{id}/unmatch 200 .status string
+POST /items/{id}/unmatch 200 .stream_url string
+POST /items/{id}/unmatch 200 .studio string
+POST /items/{id}/unmatch 200 .tagline string
+POST /items/{id}/unmatch 200 .theme_url string
+POST /items/{id}/unmatch 200 .title string
+POST /items/{id}/unmatch 200 .tmdb_id integer
+POST /items/{id}/unmatch 200 .tvdb_id integer
+POST /items/{id}/unmatch 200 .unwatched_count integer
+POST /items/{id}/unmatch 200 .user_data object
+POST /items/{id}/unmatch 200 .user_data.last_played_at integer
+POST /items/{id}/unmatch 200 .user_data.play_count integer
+POST /items/{id}/unmatch 200 .user_data.played boolean
+POST /items/{id}/unmatch 200 .user_data.position_ms integer
+POST /items/{id}/unmatch 200 .user_data.rating integer
+POST /items/{id}/unmatch 200 .user_data.watchlisted boolean
+POST /items/{id}/unmatch 200 .year integer
 POST /libraries
 POST /libraries 201
 POST /libraries 201 .collection_grid string
@@ -3879,6 +4010,7 @@ POST /libraries/{id}/compatibility 200 .converted[].item.last_aired string
 POST /libraries/{id}/compatibility 200 .converted[].item.library_id integer
 POST /libraries/{id}/compatibility 200 .converted[].item.locked_fields array
 POST /libraries/{id}/compatibility 200 .converted[].item.locked_fields[] string
+POST /libraries/{id}/compatibility 200 .converted[].item.match_suppressed boolean
 POST /libraries/{id}/compatibility 200 .converted[].item.metacritic integer
 POST /libraries/{id}/compatibility 200 .converted[].item.metadata_state string
 POST /libraries/{id}/compatibility 200 .converted[].item.next_aired string
@@ -4187,6 +4319,7 @@ PUT /collections/{id}/artwork 200 .items[].last_aired string
 PUT /collections/{id}/artwork 200 .items[].library_id integer
 PUT /collections/{id}/artwork 200 .items[].locked_fields array
 PUT /collections/{id}/artwork 200 .items[].locked_fields[] string
+PUT /collections/{id}/artwork 200 .items[].match_suppressed boolean
 PUT /collections/{id}/artwork 200 .items[].metacritic integer
 PUT /collections/{id}/artwork 200 .items[].metadata_state string
 PUT /collections/{id}/artwork 200 .items[].next_aired string
@@ -4301,6 +4434,7 @@ PUT /items/{id}/artwork 200 .last_aired string
 PUT /items/{id}/artwork 200 .library_id integer
 PUT /items/{id}/artwork 200 .locked_fields array
 PUT /items/{id}/artwork 200 .locked_fields[] string
+PUT /items/{id}/artwork 200 .match_suppressed boolean
 PUT /items/{id}/artwork 200 .metacritic integer
 PUT /items/{id}/artwork 200 .metadata_state string
 PUT /items/{id}/artwork 200 .next_aired string
@@ -4413,6 +4547,7 @@ PUT /items/{id}/match 200 .last_aired string
 PUT /items/{id}/match 200 .library_id integer
 PUT /items/{id}/match 200 .locked_fields array
 PUT /items/{id}/match 200 .locked_fields[] string
+PUT /items/{id}/match 200 .match_suppressed boolean
 PUT /items/{id}/match 200 .match_task_id integer
 PUT /items/{id}/match 200 .metacritic integer
 PUT /items/{id}/match 200 .metadata_state string
