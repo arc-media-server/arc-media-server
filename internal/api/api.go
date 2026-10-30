@@ -219,6 +219,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/items/bulk", admin(s.editItems))
 	mux.HandleFunc("POST /api/items/merge", admin(s.mergeItems))
 	mux.HandleFunc("POST /api/items/{id}/split", admin(s.splitItem))
+	mux.HandleFunc("GET /api/libraries/{id}/filters", user(s.filterDiscovery))
 	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
 	mux.HandleFunc("GET /api/items/lookup", user(s.lookupItems))
 	mux.HandleFunc("POST /api/items/batch", user(s.batchItems))
@@ -556,6 +557,27 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("about"); v != "" {
 		query.About = strings.Split(v, ",")
 	}
+	f := rowFilter{VideoCodec: q.Get("video_codec"), AudioCodec: q.Get("audio_codec"), DynamicRange: q.Get("dynamic_range"), WatchState: q.Get("watch_state"), PersonRole: q.Get("person_role"), Unwatched: query.Unwatched}
+	var filterErr error
+	if raw := q.Get("audio_channels"); raw != "" {
+		f.AudioChannels, filterErr = strconv.Atoi(raw)
+		if filterErr != nil || f.AudioChannels < 1 {
+			writeError(w, 400, "audio_channels must be 1–32")
+			return
+		}
+	}
+	if raw := q.Get("person_id"); raw != "" {
+		f.PersonID, filterErr = strconv.ParseInt(raw, 10, 64)
+		if filterErr != nil || f.PersonID < 1 {
+			writeError(w, 400, "person_id must be positive")
+			return
+		}
+	}
+	if err := f.validateExtended(); err != nil {
+		writeError(w, 400, err.Error())
+		return
+	}
+	f.applyExtended(&query)
 	if query.Sort != "" && !store.ItemSorts[query.Sort] {
 		writeError(w, http.StatusBadRequest, "unknown sort")
 		return

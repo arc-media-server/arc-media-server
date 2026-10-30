@@ -94,6 +94,7 @@ func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int
 	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
 		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
 		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: 500}
+	f.applyExtended(&q)
 	if lib.Kind == "shows" {
 		q.Kind = "series"
 	}

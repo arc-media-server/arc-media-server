@@ -52,6 +52,7 @@ func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.P
 	q := store.ItemQuery{LibraryID: lib.ID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
 		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
 		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: smartLimit}
+	f.applyExtended(&q)
 	if lib.Kind == "shows" {
 		q.Kind = "series"
 	}
@@ -96,6 +97,9 @@ func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.P
 
 // smartFilter checks a smart playlist's filter: a library the profile can see.
 func (s *Server) smartFilter(r *http.Request, f *rowFilter) (string, error) {
+	if err := f.validateExtended(); err != nil {
+		return "", err
+	}
 	lib, err := s.store.GetLibrary(r.Context(), f.LibraryID)
 	if err != nil {
 		return "", err

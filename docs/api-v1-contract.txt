@@ -133,7 +133,10 @@ GET /collections/{id} 200 .collection.locked_fields[] string
 GET /collections/{id} 200 .collection.overview string
 GET /collections/{id} 200 .collection.smart_filter object
 GET /collections/{id} 200 .collection.smart_filter.added_within integer
+GET /collections/{id} 200 .collection.smart_filter.audio_channels integer
+GET /collections/{id} 200 .collection.smart_filter.audio_codec string
 GET /collections/{id} 200 .collection.smart_filter.decade integer
+GET /collections/{id} 200 .collection.smart_filter.dynamic_range string
 GET /collections/{id} 200 .collection.smart_filter.genre string
 GET /collections/{id} 200 .collection.smart_filter.label string
 GET /collections/{id} 200 .collection.smart_filter.language string
@@ -141,9 +144,13 @@ GET /collections/{id} 200 .collection.smart_filter.library_id integer
 GET /collections/{id} 200 .collection.smart_filter.max_runtime integer
 GET /collections/{id} 200 .collection.smart_filter.min_rating number
 GET /collections/{id} 200 .collection.smart_filter.min_runtime integer
+GET /collections/{id} 200 .collection.smart_filter.person_id integer
+GET /collections/{id} 200 .collection.smart_filter.person_role string
 GET /collections/{id} 200 .collection.smart_filter.resolution string
 GET /collections/{id} 200 .collection.smart_filter.sort string
 GET /collections/{id} 200 .collection.smart_filter.unwatched boolean
+GET /collections/{id} 200 .collection.smart_filter.video_codec string
+GET /collections/{id} 200 .collection.smart_filter.watch_state string
 GET /collections/{id} 200 .collection.sort_title string
 GET /collections/{id} 200 .collection.title string
 GET /collections/{id} 200 .collection.tmdb_id integer
@@ -1280,7 +1287,10 @@ GET /libraries/{id}/collections 200 [].locked_fields[] string
 GET /libraries/{id}/collections 200 [].overview string
 GET /libraries/{id}/collections 200 [].smart_filter object
 GET /libraries/{id}/collections 200 [].smart_filter.added_within integer
+GET /libraries/{id}/collections 200 [].smart_filter.audio_channels integer
+GET /libraries/{id}/collections 200 [].smart_filter.audio_codec string
 GET /libraries/{id}/collections 200 [].smart_filter.decade integer
+GET /libraries/{id}/collections 200 [].smart_filter.dynamic_range string
 GET /libraries/{id}/collections 200 [].smart_filter.genre string
 GET /libraries/{id}/collections 200 [].smart_filter.label string
 GET /libraries/{id}/collections 200 [].smart_filter.language string
@@ -1288,9 +1298,13 @@ GET /libraries/{id}/collections 200 [].smart_filter.library_id integer
 GET /libraries/{id}/collections 200 [].smart_filter.max_runtime integer
 GET /libraries/{id}/collections 200 [].smart_filter.min_rating number
 GET /libraries/{id}/collections 200 [].smart_filter.min_runtime integer
+GET /libraries/{id}/collections 200 [].smart_filter.person_id integer
+GET /libraries/{id}/collections 200 [].smart_filter.person_role string
 GET /libraries/{id}/collections 200 [].smart_filter.resolution string
 GET /libraries/{id}/collections 200 [].smart_filter.sort string
 GET /libraries/{id}/collections 200 [].smart_filter.unwatched boolean
+GET /libraries/{id}/collections 200 [].smart_filter.video_codec string
+GET /libraries/{id}/collections 200 [].smart_filter.watch_state string
 GET /libraries/{id}/collections 200 [].sort_title string
 GET /libraries/{id}/collections 200 [].title string
 GET /libraries/{id}/collections 200 [].tmdb_id integer
@@ -1317,6 +1331,21 @@ GET /libraries/{id}/facets 200 .resolutions[] object
 GET /libraries/{id}/facets 200 .resolutions[].count integer
 GET /libraries/{id}/facets 200 .resolutions[].value string
 GET /libraries/{id}/facets 200 .unmatched integer
+GET /libraries/{id}/filters
+GET /libraries/{id}/filters 200
+GET /libraries/{id}/filters 200 .facets_url string
+GET /libraries/{id}/filters 200 .filters array
+GET /libraries/{id}/filters 200 .filters[] object
+GET /libraries/{id}/filters 200 .filters[].facet string
+GET /libraries/{id}/filters 200 .filters[].key string
+GET /libraries/{id}/filters 200 .filters[].maximum integer
+GET /libraries/{id}/filters 200 .filters[].minimum integer
+GET /libraries/{id}/filters 200 .filters[].operator string
+GET /libraries/{id}/filters 200 .filters[].type string
+GET /libraries/{id}/filters 200 .filters[].values array
+GET /libraries/{id}/filters 200 .filters[].values[] string
+GET /libraries/{id}/filters 200 .sorts array
+GET /libraries/{id}/filters 200 .sorts[] string
 GET /libraries/{id}/folders
 GET /libraries/{id}/folders 200
 GET /libraries/{id}/health
@@ -1928,7 +1957,10 @@ GET /me/prefs 200 .home array
 GET /me/prefs 200 .home[] object
 GET /me/prefs 200 .home[].filter object
 GET /me/prefs 200 .home[].filter.added_within integer
+GET /me/prefs 200 .home[].filter.audio_channels integer
+GET /me/prefs 200 .home[].filter.audio_codec string
 GET /me/prefs 200 .home[].filter.decade integer
+GET /me/prefs 200 .home[].filter.dynamic_range string
 GET /me/prefs 200 .home[].filter.genre string
 GET /me/prefs 200 .home[].filter.label string
 GET /me/prefs 200 .home[].filter.language string
@@ -1936,9 +1968,13 @@ GET /me/prefs 200 .home[].filter.library_id integer
 GET /me/prefs 200 .home[].filter.max_runtime integer
 GET /me/prefs 200 .home[].filter.min_rating number
 GET /me/prefs 200 .home[].filter.min_runtime integer
+GET /me/prefs 200 .home[].filter.person_id integer
+GET /me/prefs 200 .home[].filter.person_role string
 GET /me/prefs 200 .home[].filter.resolution string
 GET /me/prefs 200 .home[].filter.sort string
 GET /me/prefs 200 .home[].filter.unwatched boolean
+GET /me/prefs 200 .home[].filter.video_codec string
+GET /me/prefs 200 .home[].filter.watch_state string
 GET /me/prefs 200 .home[].hidden boolean
 GET /me/prefs 200 .home[].id string
 GET /me/prefs 200 .home[].posters string
@@ -2313,7 +2349,10 @@ GET /playlists 200 [].images array
 GET /playlists 200 [].images[] string
 GET /playlists 200 [].smart_filter object
 GET /playlists 200 [].smart_filter.added_within integer
+GET /playlists 200 [].smart_filter.audio_channels integer
+GET /playlists 200 [].smart_filter.audio_codec string
 GET /playlists 200 [].smart_filter.decade integer
+GET /playlists 200 [].smart_filter.dynamic_range string
 GET /playlists 200 [].smart_filter.genre string
 GET /playlists 200 [].smart_filter.label string
 GET /playlists 200 [].smart_filter.language string
@@ -2321,9 +2360,13 @@ GET /playlists 200 [].smart_filter.library_id integer
 GET /playlists 200 [].smart_filter.max_runtime integer
 GET /playlists 200 [].smart_filter.min_rating number
 GET /playlists 200 [].smart_filter.min_runtime integer
+GET /playlists 200 [].smart_filter.person_id integer
+GET /playlists 200 [].smart_filter.person_role string
 GET /playlists 200 [].smart_filter.resolution string
 GET /playlists 200 [].smart_filter.sort string
 GET /playlists 200 [].smart_filter.unwatched boolean
+GET /playlists 200 [].smart_filter.video_codec string
+GET /playlists 200 [].smart_filter.watch_state string
 GET /playlists 200 [].title string
 GET /playlists 200 [].updated_at integer
 GET /playlists/{id}
@@ -2450,7 +2493,10 @@ GET /playlists/{id} 200 .playlist.images array
 GET /playlists/{id} 200 .playlist.images[] string
 GET /playlists/{id} 200 .playlist.smart_filter object
 GET /playlists/{id} 200 .playlist.smart_filter.added_within integer
+GET /playlists/{id} 200 .playlist.smart_filter.audio_channels integer
+GET /playlists/{id} 200 .playlist.smart_filter.audio_codec string
 GET /playlists/{id} 200 .playlist.smart_filter.decade integer
+GET /playlists/{id} 200 .playlist.smart_filter.dynamic_range string
 GET /playlists/{id} 200 .playlist.smart_filter.genre string
 GET /playlists/{id} 200 .playlist.smart_filter.label string
 GET /playlists/{id} 200 .playlist.smart_filter.language string
@@ -2458,9 +2504,13 @@ GET /playlists/{id} 200 .playlist.smart_filter.library_id integer
 GET /playlists/{id} 200 .playlist.smart_filter.max_runtime integer
 GET /playlists/{id} 200 .playlist.smart_filter.min_rating number
 GET /playlists/{id} 200 .playlist.smart_filter.min_runtime integer
+GET /playlists/{id} 200 .playlist.smart_filter.person_id integer
+GET /playlists/{id} 200 .playlist.smart_filter.person_role string
 GET /playlists/{id} 200 .playlist.smart_filter.resolution string
 GET /playlists/{id} 200 .playlist.smart_filter.sort string
 GET /playlists/{id} 200 .playlist.smart_filter.unwatched boolean
+GET /playlists/{id} 200 .playlist.smart_filter.video_codec string
+GET /playlists/{id} 200 .playlist.smart_filter.watch_state string
 GET /playlists/{id} 200 .playlist.title string
 GET /playlists/{id} 200 .playlist.updated_at integer
 GET /preroll/{n}
@@ -2491,7 +2541,10 @@ GET /profiles/{id}/prefs 200 .home array
 GET /profiles/{id}/prefs 200 .home[] object
 GET /profiles/{id}/prefs 200 .home[].filter object
 GET /profiles/{id}/prefs 200 .home[].filter.added_within integer
+GET /profiles/{id}/prefs 200 .home[].filter.audio_channels integer
+GET /profiles/{id}/prefs 200 .home[].filter.audio_codec string
 GET /profiles/{id}/prefs 200 .home[].filter.decade integer
+GET /profiles/{id}/prefs 200 .home[].filter.dynamic_range string
 GET /profiles/{id}/prefs 200 .home[].filter.genre string
 GET /profiles/{id}/prefs 200 .home[].filter.label string
 GET /profiles/{id}/prefs 200 .home[].filter.language string
@@ -2499,9 +2552,13 @@ GET /profiles/{id}/prefs 200 .home[].filter.library_id integer
 GET /profiles/{id}/prefs 200 .home[].filter.max_runtime integer
 GET /profiles/{id}/prefs 200 .home[].filter.min_rating number
 GET /profiles/{id}/prefs 200 .home[].filter.min_runtime integer
+GET /profiles/{id}/prefs 200 .home[].filter.person_id integer
+GET /profiles/{id}/prefs 200 .home[].filter.person_role string
 GET /profiles/{id}/prefs 200 .home[].filter.resolution string
 GET /profiles/{id}/prefs 200 .home[].filter.sort string
 GET /profiles/{id}/prefs 200 .home[].filter.unwatched boolean
+GET /profiles/{id}/prefs 200 .home[].filter.video_codec string
+GET /profiles/{id}/prefs 200 .home[].filter.watch_state string
 GET /profiles/{id}/prefs 200 .home[].hidden boolean
 GET /profiles/{id}/prefs 200 .home[].id string
 GET /profiles/{id}/prefs 200 .home[].posters string
@@ -2561,7 +2618,10 @@ GET /search 200 .collections[].locked_fields[] string
 GET /search 200 .collections[].overview string
 GET /search 200 .collections[].smart_filter object
 GET /search 200 .collections[].smart_filter.added_within integer
+GET /search 200 .collections[].smart_filter.audio_channels integer
+GET /search 200 .collections[].smart_filter.audio_codec string
 GET /search 200 .collections[].smart_filter.decade integer
+GET /search 200 .collections[].smart_filter.dynamic_range string
 GET /search 200 .collections[].smart_filter.genre string
 GET /search 200 .collections[].smart_filter.label string
 GET /search 200 .collections[].smart_filter.language string
@@ -2569,9 +2629,13 @@ GET /search 200 .collections[].smart_filter.library_id integer
 GET /search 200 .collections[].smart_filter.max_runtime integer
 GET /search 200 .collections[].smart_filter.min_rating number
 GET /search 200 .collections[].smart_filter.min_runtime integer
+GET /search 200 .collections[].smart_filter.person_id integer
+GET /search 200 .collections[].smart_filter.person_role string
 GET /search 200 .collections[].smart_filter.resolution string
 GET /search 200 .collections[].smart_filter.sort string
 GET /search 200 .collections[].smart_filter.unwatched boolean
+GET /search 200 .collections[].smart_filter.video_codec string
+GET /search 200 .collections[].smart_filter.watch_state string
 GET /search 200 .collections[].sort_title string
 GET /search 200 .collections[].title string
 GET /search 200 .collections[].tmdb_id integer
@@ -3191,7 +3255,10 @@ PATCH /collections/{id} 200 .locked_fields[] string
 PATCH /collections/{id} 200 .overview string
 PATCH /collections/{id} 200 .smart_filter object
 PATCH /collections/{id} 200 .smart_filter.added_within integer
+PATCH /collections/{id} 200 .smart_filter.audio_channels integer
+PATCH /collections/{id} 200 .smart_filter.audio_codec string
 PATCH /collections/{id} 200 .smart_filter.decade integer
+PATCH /collections/{id} 200 .smart_filter.dynamic_range string
 PATCH /collections/{id} 200 .smart_filter.genre string
 PATCH /collections/{id} 200 .smart_filter.label string
 PATCH /collections/{id} 200 .smart_filter.language string
@@ -3199,9 +3266,13 @@ PATCH /collections/{id} 200 .smart_filter.library_id integer
 PATCH /collections/{id} 200 .smart_filter.max_runtime integer
 PATCH /collections/{id} 200 .smart_filter.min_rating number
 PATCH /collections/{id} 200 .smart_filter.min_runtime integer
+PATCH /collections/{id} 200 .smart_filter.person_id integer
+PATCH /collections/{id} 200 .smart_filter.person_role string
 PATCH /collections/{id} 200 .smart_filter.resolution string
 PATCH /collections/{id} 200 .smart_filter.sort string
 PATCH /collections/{id} 200 .smart_filter.unwatched boolean
+PATCH /collections/{id} 200 .smart_filter.video_codec string
+PATCH /collections/{id} 200 .smart_filter.watch_state string
 PATCH /collections/{id} 200 .sort_title string
 PATCH /collections/{id} 200 .title string
 PATCH /collections/{id} 200 .tmdb_id integer
@@ -3348,7 +3419,10 @@ PATCH /me/prefs 200 .home array
 PATCH /me/prefs 200 .home[] object
 PATCH /me/prefs 200 .home[].filter object
 PATCH /me/prefs 200 .home[].filter.added_within integer
+PATCH /me/prefs 200 .home[].filter.audio_channels integer
+PATCH /me/prefs 200 .home[].filter.audio_codec string
 PATCH /me/prefs 200 .home[].filter.decade integer
+PATCH /me/prefs 200 .home[].filter.dynamic_range string
 PATCH /me/prefs 200 .home[].filter.genre string
 PATCH /me/prefs 200 .home[].filter.label string
 PATCH /me/prefs 200 .home[].filter.language string
@@ -3356,9 +3430,13 @@ PATCH /me/prefs 200 .home[].filter.library_id integer
 PATCH /me/prefs 200 .home[].filter.max_runtime integer
 PATCH /me/prefs 200 .home[].filter.min_rating number
 PATCH /me/prefs 200 .home[].filter.min_runtime integer
+PATCH /me/prefs 200 .home[].filter.person_id integer
+PATCH /me/prefs 200 .home[].filter.person_role string
 PATCH /me/prefs 200 .home[].filter.resolution string
 PATCH /me/prefs 200 .home[].filter.sort string
 PATCH /me/prefs 200 .home[].filter.unwatched boolean
+PATCH /me/prefs 200 .home[].filter.video_codec string
+PATCH /me/prefs 200 .home[].filter.watch_state string
 PATCH /me/prefs 200 .home[].hidden boolean
 PATCH /me/prefs 200 .home[].id string
 PATCH /me/prefs 200 .home[].posters string
@@ -3530,7 +3608,10 @@ PATCH /profiles/{id}/prefs 200 .home array
 PATCH /profiles/{id}/prefs 200 .home[] object
 PATCH /profiles/{id}/prefs 200 .home[].filter object
 PATCH /profiles/{id}/prefs 200 .home[].filter.added_within integer
+PATCH /profiles/{id}/prefs 200 .home[].filter.audio_channels integer
+PATCH /profiles/{id}/prefs 200 .home[].filter.audio_codec string
 PATCH /profiles/{id}/prefs 200 .home[].filter.decade integer
+PATCH /profiles/{id}/prefs 200 .home[].filter.dynamic_range string
 PATCH /profiles/{id}/prefs 200 .home[].filter.genre string
 PATCH /profiles/{id}/prefs 200 .home[].filter.label string
 PATCH /profiles/{id}/prefs 200 .home[].filter.language string
@@ -3538,9 +3619,13 @@ PATCH /profiles/{id}/prefs 200 .home[].filter.library_id integer
 PATCH /profiles/{id}/prefs 200 .home[].filter.max_runtime integer
 PATCH /profiles/{id}/prefs 200 .home[].filter.min_rating number
 PATCH /profiles/{id}/prefs 200 .home[].filter.min_runtime integer
+PATCH /profiles/{id}/prefs 200 .home[].filter.person_id integer
+PATCH /profiles/{id}/prefs 200 .home[].filter.person_role string
 PATCH /profiles/{id}/prefs 200 .home[].filter.resolution string
 PATCH /profiles/{id}/prefs 200 .home[].filter.sort string
 PATCH /profiles/{id}/prefs 200 .home[].filter.unwatched boolean
+PATCH /profiles/{id}/prefs 200 .home[].filter.video_codec string
+PATCH /profiles/{id}/prefs 200 .home[].filter.watch_state string
 PATCH /profiles/{id}/prefs 200 .home[].hidden boolean
 PATCH /profiles/{id}/prefs 200 .home[].id string
 PATCH /profiles/{id}/prefs 200 .home[].posters string
@@ -3641,7 +3726,10 @@ POST /collections 201 .locked_fields[] string
 POST /collections 201 .overview string
 POST /collections 201 .smart_filter object
 POST /collections 201 .smart_filter.added_within integer
+POST /collections 201 .smart_filter.audio_channels integer
+POST /collections 201 .smart_filter.audio_codec string
 POST /collections 201 .smart_filter.decade integer
+POST /collections 201 .smart_filter.dynamic_range string
 POST /collections 201 .smart_filter.genre string
 POST /collections 201 .smart_filter.label string
 POST /collections 201 .smart_filter.language string
@@ -3649,9 +3737,13 @@ POST /collections 201 .smart_filter.library_id integer
 POST /collections 201 .smart_filter.max_runtime integer
 POST /collections 201 .smart_filter.min_rating number
 POST /collections 201 .smart_filter.min_runtime integer
+POST /collections 201 .smart_filter.person_id integer
+POST /collections 201 .smart_filter.person_role string
 POST /collections 201 .smart_filter.resolution string
 POST /collections 201 .smart_filter.sort string
 POST /collections 201 .smart_filter.unwatched boolean
+POST /collections 201 .smart_filter.video_codec string
+POST /collections 201 .smart_filter.watch_state string
 POST /collections 201 .sort_title string
 POST /collections 201 .title string
 POST /collections 201 .tmdb_id integer
@@ -3672,7 +3764,10 @@ POST /collections/{id}/artwork/{type} 200 .collection.locked_fields[] string
 POST /collections/{id}/artwork/{type} 200 .collection.overview string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter object
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.added_within integer
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.audio_channels integer
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.audio_codec string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.decade integer
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.dynamic_range string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.genre string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.label string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.language string
@@ -3680,9 +3775,13 @@ POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.library_id in
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.max_runtime integer
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.min_rating number
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.min_runtime integer
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.person_id integer
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.person_role string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.resolution string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.sort string
 POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.unwatched boolean
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.video_codec string
+POST /collections/{id}/artwork/{type} 200 .collection.smart_filter.watch_state string
 POST /collections/{id}/artwork/{type} 200 .collection.sort_title string
 POST /collections/{id}/artwork/{type} 200 .collection.title string
 POST /collections/{id}/artwork/{type} 200 .collection.tmdb_id integer
@@ -4861,7 +4960,10 @@ POST /playlists 201 .images array
 POST /playlists 201 .images[] string
 POST /playlists 201 .smart_filter object
 POST /playlists 201 .smart_filter.added_within integer
+POST /playlists 201 .smart_filter.audio_channels integer
+POST /playlists 201 .smart_filter.audio_codec string
 POST /playlists 201 .smart_filter.decade integer
+POST /playlists 201 .smart_filter.dynamic_range string
 POST /playlists 201 .smart_filter.genre string
 POST /playlists 201 .smart_filter.label string
 POST /playlists 201 .smart_filter.language string
@@ -4869,9 +4971,13 @@ POST /playlists 201 .smart_filter.library_id integer
 POST /playlists 201 .smart_filter.max_runtime integer
 POST /playlists 201 .smart_filter.min_rating number
 POST /playlists 201 .smart_filter.min_runtime integer
+POST /playlists 201 .smart_filter.person_id integer
+POST /playlists 201 .smart_filter.person_role string
 POST /playlists 201 .smart_filter.resolution string
 POST /playlists 201 .smart_filter.sort string
 POST /playlists 201 .smart_filter.unwatched boolean
+POST /playlists 201 .smart_filter.video_codec string
+POST /playlists 201 .smart_filter.watch_state string
 POST /playlists 201 .title string
 POST /playlists 201 .updated_at integer
 POST /playlists/{id}/items
@@ -4949,7 +5055,10 @@ PUT /collections/{id}/artwork 200 .collection.locked_fields[] string
 PUT /collections/{id}/artwork 200 .collection.overview string
 PUT /collections/{id}/artwork 200 .collection.smart_filter object
 PUT /collections/{id}/artwork 200 .collection.smart_filter.added_within integer
+PUT /collections/{id}/artwork 200 .collection.smart_filter.audio_channels integer
+PUT /collections/{id}/artwork 200 .collection.smart_filter.audio_codec string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.decade integer
+PUT /collections/{id}/artwork 200 .collection.smart_filter.dynamic_range string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.genre string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.label string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.language string
@@ -4957,9 +5066,13 @@ PUT /collections/{id}/artwork 200 .collection.smart_filter.library_id integer
 PUT /collections/{id}/artwork 200 .collection.smart_filter.max_runtime integer
 PUT /collections/{id}/artwork 200 .collection.smart_filter.min_rating number
 PUT /collections/{id}/artwork 200 .collection.smart_filter.min_runtime integer
+PUT /collections/{id}/artwork 200 .collection.smart_filter.person_id integer
+PUT /collections/{id}/artwork 200 .collection.smart_filter.person_role string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.resolution string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.sort string
 PUT /collections/{id}/artwork 200 .collection.smart_filter.unwatched boolean
+PUT /collections/{id}/artwork 200 .collection.smart_filter.video_codec string
+PUT /collections/{id}/artwork 200 .collection.smart_filter.watch_state string
 PUT /collections/{id}/artwork 200 .collection.sort_title string
 PUT /collections/{id}/artwork 200 .collection.title string
 PUT /collections/{id}/artwork 200 .collection.tmdb_id integer
