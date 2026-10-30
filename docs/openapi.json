@@ -1232,6 +1232,20 @@
         ],
         "type": "object"
       },
+      "ItemBatch": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ItemPage": {
         "properties": {
           "items": {
@@ -7879,6 +7893,80 @@
         "x-arc-access": "profile"
       }
     },
+    "/items/batch": {
+      "post": {
+        "description": "{\"ids\":[...]} retrieves up to 100 item details in requested order (duplicates retained). Unknown/restricted IDs are omitted identically, without missing counts. Same metadata/files/watch fields as individual item GET. This is read-only despite POST.\n\nWho may call it: **profile**.",
+        "operationId": "batchItems",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "ids": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "ids"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemBatch"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Retrieves up to 100 item details in requested order",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/items/bulk": {
       "post": {
         "description": "Changes many movies and shows at once: {\"item_ids\": [...], \"add_genres\": [...], \"remove_genres\": [...], \"add_labels\": [...], \"remove_labels\": [...], \"content_rating\": \"15\", \"locks\": \"all\" | \"none\", \"played\": true, \"refresh\": true} Every field but item_ids is optional. \"played\" is for the current profile. \"refresh\" fetches their metadata again in the background (it shows in Activity).\n\nWho may call it: **admin**.",
@@ -7996,6 +8084,103 @@
           "Items"
         ],
         "x-arc-access": "admin"
+      }
+    },
+    "/items/lookup": {
+      "get": {
+        "description": "?provider=tmdb|tvdb|imdb&provider_id=... returns all matching accessible identities. Optional kind=movie|series|episode, library_id, limit (1–100, default 50) and offset (0 or greater). Missing and restricted matches both produce an empty page. No provider request, scan or probe is started, and existing offline identities may be returned.\n\nWho may call it: **profile**.",
+        "operationId": "lookupItems",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "library_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Returns all matching accessible identities",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
       }
     },
     "/items/merge": {

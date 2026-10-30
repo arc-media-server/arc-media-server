@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-187 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+189 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -192,6 +192,8 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/bulk` | admin | Changes many movies and shows at once: {"item_ids": [...], "add_genres": [...], "remove_genres": [...], "add_labels": [...], "remove_labels": [...], "content_rating": "15", "locks": "all" \| "none", "played": true, "refresh": true} Every field but item_ids is optional. "played" is for the current profile. "refresh" fetches their metadata again in the background (it shows in Activity). |
 | POST | `/api/items/merge` | admin | {"target_id", "item_ids": [...]} makes several movies one, as versions of the target, or several shows one (store.MergeSeries), all from one library. Watch state, history and collections move with them. Shows must number their episode files the same way; merging them holds the library's work slot, then refreshes the kept show. |
 | POST | `/api/items/{id}/split` | admin | Gives each version of a movie but the first its own title; they're identified at the scan that starts straight after. |
+| GET | `/api/items/lookup` | profile | ?provider=tmdb\|tvdb\|imdb&provider_id=... returns all matching accessible identities. Optional kind=movie\|series\|episode, library_id, limit (1–100, default 50) and offset (0 or greater). Missing and restricted matches both produce an empty page. No provider request, scan or probe is started, and existing offline identities may be returned. |
+| POST | `/api/items/batch` | profile | {"ids":[...]} retrieves up to 100 item details in requested order (duplicates retained). Unknown/restricted IDs are omitted identically, without missing counts. Same metadata/files/watch fields as individual item GET. This is read-only despite POST. |
 | GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1` keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
 | GET | `/api/items/{id}` | profile | Item details with files and streams. |
 | GET | `/api/items/{id}/stream` | profile | Serves the original file with HTTP range support (direct play). ?file=<id> selects a specific part or version; otherwise the first available file is used. |
