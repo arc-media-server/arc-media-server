@@ -57,6 +57,11 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 	add("browse", true, false)
 	add("item_lookup", true, false)
 	add("item_batch", true, false)
+	add("recommendation_pages", true, false)
+	add("rich_filters", true, false)
+	add("filter_discovery", true, false)
+	add("playback_preview", true, false)
+	add("native_playback_caps", true, false)
 	add("playback_options", true, false)
 	add("playback", true, false) // direct streams do not require a converter
 	add("transcoding", s.transcoder != nil, false)

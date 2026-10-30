@@ -774,11 +774,35 @@
             },
             "type": "array"
           },
+          "audio_passthrough": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "containers": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "dolby_vision_profiles": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "hdr_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max_audio_channels": {
+            "type": "integer"
+          },
+          "max_bit_depth": {
+            "type": "integer"
           },
           "max_height": {
             "type": "integer"
@@ -788,6 +812,15 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "video_profiles": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object"
           }
         },
         "required": [
@@ -2386,11 +2419,17 @@
           "burn_subtitle": {
             "type": "string"
           },
+          "can_start": {
+            "type": "boolean"
+          },
           "chapters": {
             "items": {
               "$ref": "#/components/schemas/Chapter"
             },
             "type": "array"
+          },
+          "decision_only": {
+            "type": "boolean"
           },
           "duration_ms": {
             "type": "integer"
@@ -2413,11 +2452,20 @@
           "method": {
             "type": "string"
           },
+          "needs_analysis": {
+            "type": "boolean"
+          },
           "offset_ms": {
             "type": "integer"
           },
           "optimized": {
             "$ref": "#/components/schemas/OptimizedPlayback"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "reasons": {
             "items": {
@@ -10120,6 +10168,16 @@
             },
             "description": "Not found"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Can't be processed"
+          },
           "500": {
             "content": {
               "application/json": {
@@ -10272,6 +10330,145 @@
           }
         },
         "summary": "Resolves the edition/version and source track choices without starting a stream, conversion, progress or preference u…",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/items/{id}/playback-preview": {
+      "post": {
+        "description": "Accepts the playback request and returns its decision without probing, starting a stream/conversion, changing playback state or preferences. No URL/session is allocated. Unanalysed files return needs_analysis=true.\n\nWho may call it: **profile**.",
+        "operationId": "playbackPreview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "audio_stream": {
+                    "type": "integer"
+                  },
+                  "burn_subtitle": {
+                    "type": "string"
+                  },
+                  "caps": {
+                    "$ref": "#/components/schemas/InputClientCaps"
+                  },
+                  "edition": {
+                    "type": "string"
+                  },
+                  "file_id": {
+                    "type": "integer"
+                  },
+                  "max_kbps": {
+                    "type": "integer"
+                  },
+                  "start_ms": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "caps"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackPlan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Can't be processed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Accepts the playback request and returns its decision without probing, starting a stream/conversion, changing playbac…",
         "tags": [
           "Items"
         ],
