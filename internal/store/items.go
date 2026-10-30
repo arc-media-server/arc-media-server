@@ -829,6 +829,10 @@ func itemFilter(q ItemQuery) (string, []any) {
 				AND MAX(st.height, st.width * 9 / 16) >= ? AND MAX(st.height, st.width * 9 / 16) < ?)`)
 		args = append(args, h[0], h[1])
 	}
+	if c, a := mediaFilter(q); c != "" {
+		where = append(where, c)
+		args = append(args, a...)
+	}
 	if q.Unmatched {
 		where = append(where, unmatchedSQL)
 	}

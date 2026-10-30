@@ -146,6 +146,9 @@ type Stream struct {
 
 // ItemQuery filters ListItems. Zero values mean "no filter".
 type ItemQuery struct {
+	VideoCodec, AudioCodec, DynamicRange string
+	AudioChannels                        int
+
 	LibraryID int64
 	Kind      string
 	Search    string
