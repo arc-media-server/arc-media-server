@@ -620,6 +620,65 @@
         ],
         "type": "object"
       },
+      "FilterDescriptor": {
+        "properties": {
+          "facet": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "maximum": {
+            "type": "integer"
+          },
+          "minimum": {
+            "type": "integer"
+          },
+          "operator": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "operator",
+          "type"
+        ],
+        "type": "object"
+      },
+      "FilterDiscoveryResponse": {
+        "properties": {
+          "facets_url": {
+            "type": "string"
+          },
+          "filters": {
+            "items": {
+              "$ref": "#/components/schemas/FilterDescriptor"
+            },
+            "type": "array"
+          },
+          "sorts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "facets_url",
+          "filters",
+          "sorts"
+        ],
+        "type": "object"
+      },
       "GenreResult": {
         "properties": {
           "count": {
@@ -971,8 +1030,17 @@
           "added_within": {
             "type": "integer"
           },
+          "audio_channels": {
+            "type": "integer"
+          },
+          "audio_codec": {
+            "type": "string"
+          },
           "decade": {
             "type": "integer"
+          },
+          "dynamic_range": {
+            "type": "string"
           },
           "genre": {
             "type": "string"
@@ -995,6 +1063,12 @@
           "min_runtime": {
             "type": "integer"
           },
+          "person_id": {
+            "type": "integer"
+          },
+          "person_role": {
+            "type": "string"
+          },
           "resolution": {
             "type": "string"
           },
@@ -1003,6 +1077,12 @@
           },
           "unwatched": {
             "type": "boolean"
+          },
+          "video_codec": {
+            "type": "string"
+          },
+          "watch_state": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -2979,8 +3059,17 @@
           "added_within": {
             "type": "integer"
           },
+          "audio_channels": {
+            "type": "integer"
+          },
+          "audio_codec": {
+            "type": "string"
+          },
           "decade": {
             "type": "integer"
+          },
+          "dynamic_range": {
+            "type": "string"
           },
           "genre": {
             "type": "string"
@@ -3003,6 +3092,12 @@
           "min_runtime": {
             "type": "integer"
           },
+          "person_id": {
+            "type": "integer"
+          },
+          "person_role": {
+            "type": "string"
+          },
           "resolution": {
             "type": "string"
           },
@@ -3011,6 +3106,12 @@
           },
           "unwatched": {
             "type": "boolean"
+          },
+          "video_codec": {
+            "type": "string"
+          },
+          "watch_state": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -7807,7 +7908,28 @@
           },
           {
             "in": "query",
+            "name": "audio_channels",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "audio_codec",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "decade",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dynamic_range",
             "schema": {
               "type": "string"
             }
@@ -7898,6 +8020,20 @@
           },
           {
             "in": "query",
+            "name": "person_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "person_role",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "schema": {
               "type": "string"
@@ -7934,6 +8070,20 @@
           {
             "in": "query",
             "name": "unwatched",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "video_codec",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "watch_state",
             "schema": {
               "type": "string"
             }
@@ -12612,6 +12762,79 @@
           }
         },
         "summary": "Lists the genres, decades and resolutions a library's titles can be filtered by, with counts",
+        "tags": [
+          "Libraries"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/libraries/{id}/filters": {
+      "get": {
+        "description": "Describes supported browsing and smart-row filter keys/types/operators. Enum values are supported choices, not availability counts. Fetch facets_url for access-controlled genre/language/label/decade/resolution availability. Media filters are source properties; audio/video constraints match one present file and one stream of each kind, including accessible child episodes for a series. Dynamic range precedence is Dolby Vision, HDR10+, HLG, HDR10, known SDR, unknown; this does not describe output capability.\n\nWho may call it: **profile**.",
+        "operationId": "filterDiscovery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterDiscoveryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Describes supported browsing and smart-row filter keys/types/operators",
         "tags": [
           "Libraries"
         ],

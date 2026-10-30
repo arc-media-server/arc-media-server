@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-191 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+192 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -247,6 +247,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/libraries/{id}/scan` | profile | Scan progress. |
 | POST | `/api/libraries/{id}/work` | admin | Starts {"operation":"refresh"\|"analyze"}. Refresh refetches known titles regardless of age; analyze rereads known present files, not folders. Both preserve locked metadata/history and share the library's scan/maintenance lease. |
 | POST | `/api/libraries/{id}/stop` | admin | Stops {"job_id":...} only. It cancels queued follow-ups, never reconciles unvisited media, and leaves future triggers enabled. |
+| GET | `/api/libraries/{id}/filters` | profile | Describes supported browsing and smart-row filter keys/types/operators. Enum values are supported choices, not availability counts. Fetch facets_url for access-controlled genre/language/label/decade/resolution availability. Media filters are source properties; audio/video constraints match one present file and one stream of each kind, including accessible child episodes for a series. Dynamic range precedence is Dolby Vision, HDR10+, HLG, HDR10, known SDR, unknown; this does not describe output capability. |
 | GET | `/api/libraries/{id}/facets` | profile | Lists the genres, decades and resolutions a library's titles can be filtered by, with counts. |
 | GET | `/api/libraries/{id}/collections` | profile | Lists a library's collections. |
 | GET | `/api/libraries/{id}/folders` | profile | ?path= browses an Other videos library folder by folder: the folders inside path (none: the top) and the videos directly in it, oldest first. A library with several folders starts with one entry per folder. |
