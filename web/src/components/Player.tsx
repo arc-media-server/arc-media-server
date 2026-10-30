@@ -1,7 +1,7 @@
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import type HlsType from 'hls.js';
 import { AdaptiveQuality } from '@/lib/adaptive-quality';
@@ -34,7 +34,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { api, ApiError, type SubtitleStyle, type Chapter, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
+import { api, ApiError, type PlayQueue, type PlayQueueEntry, type SubtitleStyle, type Chapter, type Item, type PlaybackPlan, type PlayerCaps, type SubtitleCue, type SubtitleTrack, type TrickplayInfo } from '@/lib/api';
 import { episodeCode } from './WatchState';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import * as fmt from '@/lib/format';
@@ -44,7 +44,8 @@ import { Dialog, DialogContent } from './ui/dialog';
 import { ErrorNotice } from './Page';
 import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
-import { useIsAdmin } from '@/lib/auth';
+import { useAuth, useIsAdmin } from '@/lib/auth';
+import { maxQueueEntries, QueueMirror } from '@/lib/play-queue';
 import { CastSession, chooseChromecast, useCastAvailable, type CastText } from './Cast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -65,10 +66,20 @@ export interface NowPlaying {
   selection?: { fileId: number; audioStream?: number; subtitle?: string | null; burnSubtitle?: string };
 }
 
-interface QueuedItem extends NowPlaying { queueId: string }
+interface QueuedItem extends NowPlaying {
+  queueId: string;
+  /** The server queue's entry for this title, once the server has answered. */
+  entryId?: string;
+  /** Sent to the server's queue (its entry id may still be on the way). */
+  mirrored?: boolean;
+  /** The server's queue holds a title that is gone or no longer allowed: shown, skipped, removable. */
+  unavailable?: boolean;
+}
 interface QueueState { items: QueuedItem[]; index: number }
 interface QueueControls {
   state: QueueState | null;
+  /** Set when the server's queue changed elsewhere and the upcoming list was reloaded from it. */
+  notice: string;
   enqueue: (items: NowPlaying[], next: boolean) => void;
   move: (id: string, delta: number) => void;
   remove: (id: string) => void;
@@ -76,10 +87,37 @@ interface QueueControls {
   jump: (id: string) => void;
   stop: () => Promise<void>;
 }
-const QueueContext = createContext<QueueControls>({ state: null, enqueue: () => {}, move: () => {}, remove: () => {}, clear: () => {}, jump: () => {}, stop: async () => {} });
+const QueueContext = createContext<QueueControls>({ state: null, notice: '', enqueue: () => {}, move: () => {}, remove: () => {}, clear: () => {}, jump: () => {}, stop: async () => {} });
 export const usePlaybackQueue = () => useContext(QueueContext);
 let queueSequence = 0;
 const queued = (item: NowPlaying): QueuedItem => ({ ...item, queueId: 'queue-' + (++queueSequence) });
+const mirrorable = (item: NowPlaying) => !!item.itemId && !item.preroll;
+
+/** A server queue entry as something the player can play (or skip, when it is unavailable). */
+function entryItem(entry: PlayQueueEntry): QueuedItem {
+  const item = entry.available && entry.item ? nowPlayingFor(entry.item) : { title: i18n.t('player:player.unavailableEntry') };
+  return { ...queued(item), entryId: entry.id, mirrored: true, unavailable: !entry.available || !entry.item };
+}
+
+/** Gives entry ids to the titles sent to the server that don't have one yet, in order. */
+function withEntries(q: QueueState | null, server: PlayQueue): QueueState | null {
+  if (!q) return q;
+  const known = new Set(q.items.map((i) => i.entryId).filter(Boolean));
+  const fresh = server.entries.filter((e) => !known.has(e.id));
+  if (!fresh.length || !q.items.some((i) => i.mirrored && !i.entryId)) return q;
+  let next = 0;
+  return { ...q, items: q.items.map((i) => (i.mirrored && !i.entryId && fresh[next] ? { ...i, entryId: fresh[next++].id } : i)) };
+}
+
+/** Follows the server's queue for what comes after the current title, which carries on playing. */
+function reconciled(q: QueueState | null, server: PlayQueue | null): QueueState | null {
+  if (!q || !server) return q;
+  const current = q.items[q.index];
+  const anchor = current?.entryId ?? server.current_entry_id;
+  const at = server.entries.findIndex((e) => e.id === anchor);
+  const upcoming = at >= 0 ? server.entries.slice(at + 1) : server.entries;
+  return { ...q, items: [...q.items.slice(0, q.index + 1), ...upcoming.map(entryItem)] };
+}
 
 const PlayerContext = createContext<(item: NowPlaying, queue?: NowPlaying[]) => void>(() => {});
 
@@ -97,6 +135,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation('player');
   const qc = useQueryClient();
   const [queue, setQueue] = useState<QueueState | null>(null);
+  const [notice, setNotice] = useState('');
+  const [recovered, setRecovered] = useState<PlayQueue | null>(null);
+  // The queue is kept on the server too (for this device and profile) when it supports that,
+  // so a reload can pick it up again; otherwise it lives in this page only.
+  const profileId = useAuth().data?.profile?.id;
+  const capabilities = useQuery({ queryKey: ['capabilities', profileId], queryFn: api.capabilities, enabled: !!profileId, staleTime: Infinity, retry: false });
+  const playQueues = capabilities.data?.features.play_queues;
+  const serverQueues = !!(playQueues?.available && playQueues.allowed);
+  const serverQueuesRef = useRef(serverQueues);
+  serverQueuesRef.current = serverQueues;
+  const [mirror] = useState(() => new QueueMirror(
+    (server) => setQueue((q) => withEntries(q, server)),
+    (server) => {
+      setQueue((q) => reconciled(q, server));
+      setNotice(server ? i18n.t('player:player.queueReloaded') : i18n.t('player:player.queueExpired'));
+    },
+  ));
+  // Lists the server should hold: every title one it can play, within its size limit.
+  const track = useCallback((items: QueuedItem[]) => {
+    const ok = serverQueuesRef.current && items.length > 0 && items.length <= maxQueueEntries && items.every(mirrorable);
+    return { items: ok ? items.map((i) => ({ ...i, mirrored: true })) : items, ok };
+  }, []);
   const [minimized, setMinimized] = useState(false);
   const [blockedNextFor, blockNext] = useState('');
   const playGeneration = useRef(0);
@@ -104,8 +164,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const registerFlush = useCallback((fn: (() => void | Promise<unknown>) | null) => { flushReport.current = fn; }, []);
   const play = useCallback((item: NowPlaying, list?: NowPlaying[]) => {
     const generation = ++playGeneration.current;
-    setMinimized(false); blockNext('');
-    const start = list?.length ? { items: list.map(queued), index: Math.max(0, list.indexOf(item)) } : { items: [queued(item)], index: 0 };
+    setMinimized(false); blockNext(''); setNotice(''); setRecovered(null);
+    const tracked = track(list?.length ? list.map(queued) : [queued(item)]);
+    const start = { items: tracked.items, index: list?.length ? Math.max(0, list.indexOf(item)) : 0 };
+    let created: PlayQueue | null = null;
+    if (tracked.ok) {
+      mirror.start(start.items.map((i) => i.itemId!)).then((server) => {
+        if (generation !== playGeneration.current) return;
+        created = server;
+        if (server) setQueue((q) => withEntries(q, server));
+        else setQueue((q) => q && { ...q, items: q.items.map((i) => ({ ...i, mirrored: false })) }); // carries on in this page only
+      });
+    } else mirror.end();
     // A movie played from the start gets the pre-roll videos set in Settings first.
     if (!item.itemId || item.preroll || (item.startMS ?? 0) > 0) {
       setQueue(start);
@@ -116,17 +186,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .catch(() => [])
       .then((clips) => {
         if (generation !== playGeneration.current) return;
-        if (!clips.length) return setQueue(start);
         const prerolls = clips.map((c) => queued({ title: c.title, subtitle: t('player:player.beforeTitle', { title: item.title }), src: c.url, preroll: true }));
-        setQueue({ items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index });
+        const state = { items: [...start.items.slice(0, start.index), ...prerolls, ...start.items.slice(start.index)], index: start.index };
+        // The server may have answered first: its entries are given out now instead.
+        setQueue(created ? withEntries(state, created) : state);
       });
-  }, []);
+  }, [mirror, track]);
   const go = useCallback((delta: number) => setQueue((q) => (q && q.items[q.index + delta] ? { ...q, index: q.index + delta } : q)), []);
   // Auto-Play: an episode with nothing queued after it carries on with the next one in the
   // profile's episode order (the countdown, Next and Shift+N then work as in a playlist).
   const autoPlay = usePrefs().data?.auto_play !== false;
   const current = queue?.items[queue.index];
   const hasNext = !!queue?.items[queue.index + 1];
+  // The server's queue follows the title playing here (Advance after one ends, Select for a jump).
+  useEffect(() => {
+    if (current?.entryId) mirror.moveTo(current.entryId);
+  }, [current?.entryId, mirror]);
+  // After a reload, this device's queue can be picked up where it was.
+  useEffect(() => {
+    setRecovered(null);
+    if (!serverQueues || mirror.active) return;
+    let cancelled = false;
+    api
+      .currentPlayQueue()
+      .then((q) => {
+        const at = q.entries.findIndex((e) => e.id === q.current_entry_id);
+        if (!cancelled && !mirror.active && at >= 0 && q.entries.slice(at).some((e) => e.available)) setRecovered(q);
+      })
+      .catch(() => undefined); // 404: nothing to pick up
+    return () => {
+      cancelled = true;
+    };
+  }, [serverQueues, profileId, mirror]);
+  const resume = (q: PlayQueue) => {
+    playGeneration.current++;
+    setRecovered(null); setMinimized(false); blockNext(''); setNotice('');
+    mirror.adopt(q);
+    setQueue({ items: q.entries.map(entryItem), index: Math.max(0, q.entries.findIndex((e) => e.id === q.current_entry_id)) });
+  };
+  const discard = (q: PlayQueue) => {
+    setRecovered(null);
+    api.deletePlayQueue(q.id, q.revision).catch(() => undefined);
+  };
   useEffect(() => {
     if (!current?.itemId || hasNext || !autoPlay || current.queueId === blockedNextFor) return;
     let cancelled = false;
@@ -134,51 +235,70 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .nextEpisode(current.itemId)
       .then((ep) => {
         if (cancelled || !ep?.stream_url) return;
-        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, queued(nowPlayingFor(ep, true))] } : q));
+        const added = { ...queued(nowPlayingFor(ep, true)), mirrored: mirror.active };
+        setQueue((q) => (q && q.items[q.index] === current && !q.items[q.index + 1] ? { ...q, items: [...q.items, added] } : q));
+        if (added.mirrored) mirror.edit({ operation: 'append', item_ids: [ep.id] });
       })
       .catch(() => undefined); // playing on is a nicety; the episode itself plays regardless
     return () => {
       cancelled = true;
     };
-  }, [current, hasNext, autoPlay, blockedNextFor]);
-  const close = useCallback(() => {
+  }, [current, hasNext, autoPlay, blockedNextFor, mirror]);
+  // Closing the player discards the queue; leaving the profile keeps it to pick up later.
+  const close = useCallback((keep = false) => {
     playGeneration.current++;
     setQueue(null);
+    setNotice('');
+    if (keep) mirror.release();
+    else mirror.end();
     // Watched state and Continue Watching have changed.
     window.setTimeout(() => {
       for (const key of ['item', 'items', 'seasons', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
     }, 300);
-  }, [qc]);
+  }, [qc, mirror]);
+  // An entry the server can no longer play is skipped (it stays listed until it's removed).
+  useEffect(() => {
+    if (!current?.unavailable) return;
+    if (hasNext) go(1);
+    else close();
+  }, [current, hasNext, go, close]);
   const controls: QueueControls = {
     state: queue,
-    stop: async () => { await flushReport.current?.(); close(); },
+    notice,
+    stop: async () => { await flushReport.current?.(); close(true); },
     enqueue: (items, next) => {
       if (!items.length) return;
       if (!queue) { play(items[0], items); return; }
+      const added = items.map(queued);
+      const tracked = mirror.active ? track(added) : { items: added, ok: false };
       setQueue(q => {
         if (!q) return q;
         const updated = [...q.items];
-        updated.splice(next ? q.index + 1 : updated.length, 0, ...items.map(queued));
+        updated.splice(next ? q.index + 1 : updated.length, 0, ...tracked.items);
         return { ...q, items: updated };
       });
+      if (tracked.ok) mirror.edit({ operation: next ? 'next' : 'append', item_ids: tracked.items.map(i => i.itemId!) });
     },
-    move: (id, delta) => setQueue(q => {
-      if (!q) return q;
-      const from = q.items.findIndex(i => i.queueId === id), to = from + delta;
-      if (from <= q.index || to <= q.index || to >= q.items.length) return q;
-      const items = [...q.items]; [items[from], items[to]] = [items[to], items[from]];
-      return { ...q, items };
-    }),
+    move: (id, delta) => {
+      if (!queue) return;
+      const from = queue.items.findIndex(i => i.queueId === id), to = from + delta;
+      if (from <= queue.index || to <= queue.index || to >= queue.items.length) return;
+      const items = [...queue.items]; [items[from], items[to]] = [items[to], items[from]];
+      setQueue({ ...queue, items });
+      mirror.reorder(items.flatMap(i => (i.entryId ? [i.entryId] : [])));
+    },
     remove: id => {
       if (current) blockNext(current.queueId);
-      setQueue(q => {
-        if (!q) return q;
-        const at = q.items.findIndex(i => i.queueId === id);
-        if (at <= q.index) return q;
-        return { ...q, items: q.items.filter(i => i.queueId !== id) };
-      });
+      const entry = queue?.items.find((i, at) => i.queueId === id && at > queue.index);
+      if (!entry) return;
+      setQueue(q => q && { ...q, items: q.items.filter(i => i.queueId !== id) });
+      if (entry.entryId) mirror.edit({ operation: 'remove', entry_ids: [entry.entryId] });
     },
-    clear: () => { if (current) blockNext(current.queueId); setQueue(q => q ? { ...q, items: q.items.slice(0, q.index + 1) } : q); },
+    clear: () => {
+      if (current) blockNext(current.queueId);
+      setQueue(q => q ? { ...q, items: q.items.slice(0, q.index + 1) } : q);
+      mirror.edit({ operation: 'clear' });
+    },
     jump: id => setQueue(q => { const index = q?.items.findIndex(i => i.queueId === id) ?? -1; return q && index >= 0 ? { ...q, index } : q; }),
   };
   return (
@@ -186,20 +306,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <PlayerContext.Provider value={play}>
       {children}
       <AnimatePresence>
-        {queue && (
+        {queue && !queue.items[queue.index].unavailable && (
           <PlayerOverlay
             key={queue.items[queue.index].queueId}
             item={queue.items[queue.index]}
             next={queue.items[queue.index + 1]}
             onNext={() => go(1)}
             onPrevious={queue.index > 0 && !queue.items[queue.index - 1].preroll ? () => go(-1) : undefined}
-            onClose={close}
+            onClose={() => close()}
             registerFlush={registerFlush}
             minimized={minimized}
             onMinimize={() => setMinimized(m => !m)}
           />
         )}
       </AnimatePresence>
+      {recovered && !queue && <RecoveredQueue queue={recovered} onResume={() => resume(recovered)} onDismiss={() => discard(recovered)} />}
     </PlayerContext.Provider>
     </QueueContext.Provider>
   );
@@ -1412,8 +1533,9 @@ function PlayerOverlay({
       {minimized && <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-black/70 p-2"><ControlButton label={paused ? t("player:player.playSpace") : t("player:player.pauseSpace")} onClick={togglePlay}>{paused ? <Play /> : <Pause />}</ControlButton>{next && <ControlButton label={t('player:player.nextTitle', { title: next.title })} onClick={onNext}><SkipForward /></ControlButton>}<ControlButton label={t("player:player.playbackQueue")} onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton></div>}
       <Dialog open={queueOpen} onOpenChange={setQueueOpen}>
         <DialogContent title={t("player:player.playbackQueue")} description={t("player:player.arrangeWhatPlaysNext")} overlayClassName="z-[120]" className="z-[121]" footer={<Button variant="secondary" disabled={!next} onClick={queue.clear}>{t("player:player.clearUpcoming")}</Button>}>
+          {queue.notice && <p role="status" className="mb-3 text-sm text-muted">{queue.notice}</p>}
           <ol className="space-y-3">
-            {queue.state?.items.slice(queue.state.index).map((entry, i, items) => <li key={entry.queueId} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3">
+            {queue.state?.items.slice(queue.state.index).map((entry, i, items) => <li key={entry.queueId} className={cn('flex flex-wrap items-center gap-2 rounded-xl bg-surface-2 p-3', entry.unavailable && 'opacity-60')}>
               <div className="min-w-0 flex-1 basis-40"><p className="break-words text-sm font-medium">{entry.title}</p><p className="text-xs text-muted">{i === 0 ? t("player:player.nowPlaying") : t("player:player.upNext")}{entry.subtitle ? ' · ' + entry.subtitle : ''}</p></div>
               {i > 0 && <div className="flex gap-1"><Button size="icon" variant="ghost" aria-label={t('player:player.moveUp', { title: entry.title })} disabled={i === 1} onClick={() => queue.move(entry.queueId, -1)}><ArrowUp /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.moveDown', { title: entry.title })} disabled={i === items.length - 1} onClick={() => queue.move(entry.queueId, 1)}><ArrowDown /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.playNowTitle', { title: entry.title })} onClick={() => { queue.jump(entry.queueId); setQueueOpen(false); }}><Play /></Button><Button size="icon" variant="ghost" aria-label={t('player:player.removeQueue', { title: entry.title })} onClick={() => queue.remove(entry.queueId)}><Trash2 /></Button></div>}
             </li>)}
@@ -1527,6 +1649,27 @@ function UpNext({ item, seconds, compact = false, onTick, onPlay, onCancel }: { 
         <Button variant="primary" size="sm" onClick={onPlay}>
           <Play className="fill-current" /> {t("player:player.playNow")}</Button>
         <Button variant="glass" size="sm" onClick={onCancel}>{t("player:player.cancel")}</Button>
+      </div>
+    </div>
+  );
+}
+
+/** After a reload, the queue this device was playing, to carry on with or put away. */
+function RecoveredQueue({ queue, onResume, onDismiss }: { queue: PlayQueue; onResume: () => void; onDismiss: () => void }) {
+  const { t } = useTranslation('player');
+  const at = queue.entries.findIndex((e) => e.id === queue.current_entry_id);
+  const upcoming = queue.entries.slice(at);
+  const first = upcoming.find((e) => e.available && e.item)?.item;
+  return (
+    <div role="region" aria-label={t('player:player.recoveredQueue')} className="fixed bottom-4 right-4 left-4 z-[90] flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-2xl shadow-black/40 sm:left-auto sm:max-w-sm">
+      <ListVideo className="size-5 shrink-0 text-accent" />
+      <div className="min-w-0 flex-1 basis-40">
+        <p className="text-sm font-medium">{t('player:player.recoveredQueue')}</p>
+        <p className="truncate text-xs text-muted">{first && (upcoming.length > 1 ? t('player:player.recoveredQueueMore', { title: first.title, count: upcoming.length - 1 }) : first.title)}</p>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" variant="accent" onClick={onResume}><Play className="size-4" />{t('player:player.resumeQueue')}</Button>
+        <Button size="icon" variant="ghost" aria-label={t('player:player.dismissQueue')} onClick={onDismiss}><X /></Button>
       </div>
     </div>
   );
