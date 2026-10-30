@@ -919,6 +919,36 @@
         ],
         "type": "object"
       },
+      "InputQueueMutation": {
+        "properties": {
+          "entry_id": {
+            "type": "string"
+          },
+          "entry_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operation",
+          "revision"
+        ],
+        "type": "object"
+      },
       "InputRecommendedLook": {
         "properties": {
           "hidden": {
@@ -2161,6 +2191,40 @@
         ],
         "type": "object"
       },
+      "PlayQueue": {
+        "properties": {
+          "current_entry_id": {
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/QueueEntry"
+            },
+            "type": "array"
+          },
+          "expires_at": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "shuffled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current_entry_id",
+          "entries",
+          "expires_at",
+          "id",
+          "revision",
+          "shuffled"
+        ],
+        "type": "object"
+      },
       "Playback": {
         "properties": {
           "address": {
@@ -2624,6 +2688,27 @@
           "library_ids",
           "max_age",
           "name"
+        ],
+        "type": "object"
+      },
+      "QueueEntry": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "item_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id"
         ],
         "type": "object"
       },
@@ -14473,6 +14558,361 @@
         "summary": "Serves a person's photo from the artwork cache",
         "tags": [
           "People"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/play-queues": {
+      "post": {
+        "description": "Creates this device/profile's queue from item_ids (movies, episodes or expanded shows) or playlist_id. Playlist contents are snapshotted. Replacing an existing queue requires replace_id and revision. Up to 1000 entries including duplicates. Does not start/stop playback or change watched state.\n\nWho may call it: **profile**.",
+        "operationId": "createPlayQueue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "item_ids": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "playlist_id": {
+                    "type": "string"
+                  },
+                  "replace_id": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayQueue"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Creates this device/profile's queue from item_ids",
+        "tags": [
+          "Play queues"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/play-queues/{id}": {
+      "delete": {
+        "description": "?revision=<revision> deletes this device/profile's queue. The client stops its own player separately. Session revocation also deletes queues.\n\nWho may call it: **profile**.",
+        "operationId": "deletePlayQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Deletes this device/profile's queue",
+        "tags": [
+          "Play queues"
+        ],
+        "x-arc-access": "profile"
+      },
+      "get": {
+        "description": "Retrieves only this device/profile's queue. The id \"current\" recovers it after app restart. Queues expire after seven inactive days. Restricted or missing entries retain opaque entry IDs but expose no item IDs or metadata.\n\nWho may call it: **profile**.",
+        "operationId": "getPlayQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayQueue"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Retrieves only this device/profile's queue",
+        "tags": [
+          "Play queues"
+        ],
+        "x-arc-access": "profile"
+      },
+      "patch": {
+        "description": "Requires revision and operation: append/next with item_ids; remove/reorder with entry_ids; select with entry_id; clear, advance, shuffle or unshuffle. Reorder protects the current/past prefix; clear drops upcoming entries. Queue position changes never remotely control a player; clients start/stop playback separately.\n\nWho may call it: **profile**.",
+        "operationId": "mutatePlayQueue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputQueueMutation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayQueue"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Requires revision and operation: append/next with item_ids; remove/reorder with entry_ids; select with entry_id; clea…",
+        "tags": [
+          "Play queues"
         ],
         "x-arc-access": "profile"
       }
