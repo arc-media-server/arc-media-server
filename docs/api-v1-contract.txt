@@ -286,6 +286,8 @@ GET /diagnostics 200 .storage_error string
 GET /diagnostics 200 .until string
 GET /diagnostics/download
 GET /diagnostics/download 200
+GET /events
+GET /events 200
 GET /extras/{id}/stream
 GET /extras/{id}/stream 200
 GET /folders
