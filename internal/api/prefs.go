@@ -82,6 +82,14 @@ type homeRow struct {
 
 // rowFilter is the same set of filters as browsing a library (GET /api/items).
 type rowFilter struct {
+	VideoCodec    string `json:"video_codec,omitempty"`
+	AudioCodec    string `json:"audio_codec,omitempty"`
+	AudioChannels int    `json:"audio_channels,omitempty"`
+	DynamicRange  string `json:"dynamic_range,omitempty"`
+	WatchState    string `json:"watch_state,omitempty"`
+	PersonID      int64  `json:"person_id,omitempty"`
+	PersonRole    string `json:"person_role,omitempty"`
+
 	LibraryID   int64   `json:"library_id,omitempty"`
 	Genre       string  `json:"genre,omitempty"`
 	Language    string  `json:"language,omitempty"`
@@ -168,6 +176,9 @@ func (p *prefs) validate() error {
 		f := r.Filter
 		if f == nil || f.LibraryID == 0 {
 			return fmt.Errorf("choose which library %q shows", r.Title)
+		}
+		if err := f.validateExtended(); err != nil {
+			return err
 		}
 		if f.Sort != "" && !store.ItemSorts[f.Sort] {
 			return fmt.Errorf("unknown sort %q", f.Sort)
