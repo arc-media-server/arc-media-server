@@ -419,7 +419,7 @@ test('mobile profiles, settings sections and player controls remain usable', asy
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
-test('custom Home rows open complete filtered results and reorder by keyboard', async ({ page }) => {
+test('custom Home rows open complete filtered results and follow the library order', async ({ page }) => {
   const { lib, item } = await seed(page);
   expect((await page.request.patch('/api/me/prefs', { data: { home: [{ id: 'custom:ux', title: 'Short movies', filter: { library_id: lib.id, max_runtime: 90, added_within: 30, min_rating: 8, sort: 'added' } }] } })).ok()).toBe(true);
   await page.route('**/api/items?*', r => {
@@ -439,15 +439,12 @@ test('custom Home rows open complete filtered results and reorder by keyboard', 
   await page.keyboard.press('Escape');
   await page.goto('/?edit=1');
   const dialog = page.getByRole('dialog', { name: 'Edit Home', exact: true });
-  const up = dialog.getByRole('button', { name: 'Move Watchlist up', exact: true });
-  await up.focus(); await page.keyboard.press('Enter');
-  await expect(dialog.getByRole('status')).toContainText('Watchlist, position 1');
-  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).home[0].id).toBe('watchlist');
-  await page.reload();
-  await page.getByRole('button', { name: 'Edit Home', exact: true }).first().click();
-  await expect(page.getByRole('button', { name: 'Move Watchlist up', exact: true })).toBeDisabled();
+  // Rows follow the library order (owner, 30 October): none is moved on its own, and a filter
+  // row sits under its library's newest.
+  await expect(dialog.getByRole('button', { name: 'Move Watchlist up', exact: true })).toHaveCount(0);
+  const titles = await dialog.locator('li p.font-medium').allTextContents();
+  expect(titles.indexOf('Short movies')).toBe(titles.indexOf(`Recently Added in ${lib.name}`) + 1);
+  expect(titles[0]).toBe('Continue Watching');
 });
 
 test('profile preference load failures offer recovery', async ({ page }) => {
