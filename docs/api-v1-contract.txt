@@ -107,6 +107,10 @@ GET /auth/status
 GET /auth/status 200
 GET /backups
 GET /backups 200
+GET /capabilities
+GET /capabilities 200
+GET /capabilities 200 .api_version integer
+GET /capabilities 200 .features object
 GET /cast/{token}/{rest}
 GET /cast/{token}/{rest} 200
 GET /cast/{token}/{rest} 204
@@ -511,6 +515,12 @@ GET /home/next-up 200 [].user_data.position_ms integer
 GET /home/next-up 200 [].user_data.rating integer
 GET /home/next-up 200 [].user_data.watchlisted boolean
 GET /home/next-up 200 [].year integer
+GET /identity
+GET /identity 200
+GET /identity 200 .api_version integer
+GET /identity 200 .id string
+GET /identity 200 .name string
+GET /identity 200 .version string
 GET /imports/{id}
 GET /imports/{id} 200
 GET /imports/{id} 200 .accounts array
@@ -3053,6 +3063,8 @@ PATCH /series/{id}/seasons/{n}
 PATCH /series/{id}/seasons/{n} 204
 PATCH /series/{id}/specials
 PATCH /series/{id}/specials 200
+PATCH /settings
+PATCH /settings 200
 POST /activity/{id}/stop
 POST /activity/{id}/stop 202
 POST /auth/friend

@@ -106,7 +106,7 @@ func (s *Server) chooseArtwork(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Type string  `json:"type"`
-		Path *string `json:"path"`
+		Path *string `json:"path" api:"nullable"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
