@@ -521,6 +521,9 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 			}
 			responses[strconv.Itoa(status)] = resp
 		}
+		if r.handler == "eventStream" {
+			responses["200"] = map[string]any{"description": "Server-Sent Events: invalidate and resync hints; see docs/EVENTS-API.md", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
+		}
 		if info.binary && responses["200"] == nil && responses["206"] == nil {
 			responses["200"] = map[string]any{"description": "The file or stream", "content": map[string]any{"application/octet-stream": map[string]any{}}}
 		}
