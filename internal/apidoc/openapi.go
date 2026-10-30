@@ -148,6 +148,12 @@ func (a *analyzer) walk(fn *ast.FuncDecl, info *handlerInfo, seen map[*ast.FuncD
 			if p, ok := ti.TypeOf(call.Args[0]).(*types.Pointer); ok {
 				info.request = p.Elem()
 			}
+		case name == "Unmarshal" && recv == "json" && len(call.Args) == 2 && info.request != nil && info.request.String() == "encoding/json.RawMessage":
+			if ptr, ok := ti.TypeOf(call.Args[1]).(*types.Pointer); ok {
+				if _, typed := ptr.Elem().Underlying().(*types.Struct); typed {
+					info.request = ptr.Elem()
+				}
+			}
 		case name == "ReadAll" && len(call.Args) == 1 && strings.Contains(exprString(call.Args[0]), "r.Body"):
 			info.upload = true
 		case name == "Get" && len(call.Args) == 1 && isURLValues(ti.TypeOf(call.Fun.(*ast.SelectorExpr).X)):
@@ -246,6 +252,7 @@ func (a *analyzer) status(e ast.Expr) (int, bool) {
 type schemas struct {
 	components map[string]any
 	names      map[*types.TypeName]string
+	input      bool
 }
 
 func (s *schemas) of(t types.Type) map[string]any {
@@ -269,6 +276,9 @@ func (s *schemas) of(t types.Type) map[string]any {
 			name, ok := s.names[obj]
 			if !ok {
 				name = s.name(obj)
+				if s.input {
+					name = "Input" + name
+				}
 				s.names[obj] = name
 				s.components[name] = map[string]any{} // placeholder while recursing
 				s.components[name] = s.of(named.Underlying())
@@ -342,7 +352,23 @@ func (s *schemas) fields(st *types.Struct, props map[string]any, required *[]str
 			name = f.Name()
 		}
 		props[name] = s.of(f.Type())
-		if !strings.Contains(opts, "omitempty") && !strings.Contains(opts, "omitzero") {
+		inputTags := reflect.StructTag(st.Tag(i)).Get("api")
+		if s.input && strings.Contains(inputTags, "deprecated") {
+			props[name].(map[string]any)["deprecated"] = true
+			props[name].(map[string]any)["description"] = reflect.StructTag(st.Tag(i)).Get("description")
+		}
+		if s.input && strings.Contains(inputTags, "nullable") {
+			props[name] = map[string]any{"anyOf": []any{props[name], map[string]any{"type": "null"}}}
+		}
+		requiredField := !strings.Contains(opts, "omitempty") && !strings.Contains(opts, "omitzero")
+		if s.input {
+			_, pointer := f.Type().(*types.Pointer)
+			requiredField = !pointer && requiredField && !strings.Contains(inputTags, "optional")
+			if strings.Contains(inputTags, "required") {
+				requiredField = true
+			}
+		}
+		if requiredField {
 			*required = append(*required, name)
 		}
 	}
@@ -436,6 +462,7 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 			"needs": map[string]any{"type": "string", "description": "What to do next, e.g. pin, password or stopped"},
 		},
 	}
+	inputs := &schemas{components: sch.components, names: map[*types.TypeName]string{}, input: true}
 	paths := map[string]map[string]any{}
 	opIDs := map[string]int{}
 	var missing []string
@@ -481,7 +508,7 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 			op["parameters"] = params
 		}
 		if info.request != nil {
-			op["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": sch.of(info.request)}}}
+			op["requestBody"] = map[string]any{"required": true, "content": map[string]any{"application/json": map[string]any{"schema": inputs.of(info.request)}}}
 		} else if info.upload {
 			op["requestBody"] = map[string]any{"required": true, "description": "The file itself as the request body",
 				"content": map[string]any{"application/octet-stream": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}
