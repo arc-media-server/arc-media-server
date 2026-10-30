@@ -132,7 +132,11 @@ func (s *Store) DeleteOrphanEpisodes(ctx context.Context, seriesID string) (int6
 		DELETE FROM items WHERE parent_id = ? AND kind = 'episode'
 			AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.item_id = items.id)
 			AND NOT EXISTS (SELECT 1 FROM ordering_entries e WHERE e.episode_id = items.id)
-			AND NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.item_id = items.id)`, seriesID)
+			AND NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.item_id = items.id)
+ AND NOT EXISTS (SELECT 1 FROM play_queue_entries q WHERE q.item_id = items.id)
+ AND NOT EXISTS (SELECT 1 FROM playlist_entries p WHERE p.item_id = items.id)
+ AND NOT EXISTS (SELECT 1 FROM play_history h WHERE h.item_id = items.id)
+ AND NOT EXISTS (SELECT 1 FROM collection_items c WHERE c.item_id = items.id)`, seriesID)
 	if err != nil {
 		return 0, err
 	}
