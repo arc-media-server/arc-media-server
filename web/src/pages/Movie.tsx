@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { CollectionRows } from '@/components/Collections';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Info, Play, RotateCcw } from 'lucide-react';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { api } from '@/lib/api';
-import { SourceFilesButton } from '@/components/SourceFormats';
+import { MediaInfoDialog } from '@/components/SourceFormats';
 import * as fmt from '@/lib/format';
 import { ProviderCredit } from '@/components/ProviderCredits';
 import { useLibraries } from '@/components/Sidebar';
@@ -37,6 +38,7 @@ export function MoviePage() {
   const libraries = useLibraries().data;
   // The edition chosen on this page (for titles with several); undefined until one is picked.
   const [edition, setEdition] = useState<string>();
+  const [mediaInfo, setMediaInfo] = useState(false);
   const refresh = useMutation({
     mutationFn: () => api.refreshItem(id!),
     onSuccess: (updated) => {
@@ -137,11 +139,12 @@ export function MoviePage() {
             </Button>
           )}
           {playable && <PlaybackOptionsButton item={{ title: item.title, subtitle: [item.year, currentEdition].filter(Boolean).join(' · ') || undefined, itemId: item.id, src: item.stream_url!, startMS: resumeAt, edition: currentEdition }} />}
-          <SourceFilesButton id={item.id} title={item.title} />
           <TrailerButton extras={item.extras} title={item.title} />
           <WatchedButton itemId={item.id} watched={!!item.user_data?.played} />
           <WatchlistButton item={item} />
-          <MoreMenu item={item} admin={admin} playable={!!playable} edition={currentEdition} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing} />
+          <MoreMenu item={item} admin={admin} playable={!!playable} edition={currentEdition} onOpen={openDialog} onRefresh={() => refresh.mutate()} refreshing={refresh.isPending} onAnalyze={analysis.analyze} analyzing={analysis.analyzing}
+            extra={<DropdownMenuItem onSelect={() => setMediaInfo(true)}><Info className="size-4 text-muted" /> {t('titles:mediaInfo.menuItem')}</DropdownMenuItem>} />
+          <MediaInfoDialog id={item.id} title={item.title} open={mediaInfo} onOpenChange={setMediaInfo} />
         </div>
         <div className="mt-6 grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(200px,0.6fr)]">
           {(item.tagline || item.overview) && <div className="min-w-0">

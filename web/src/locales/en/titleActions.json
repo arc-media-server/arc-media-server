@@ -133,7 +133,6 @@
     "pictureSubtitlesRequireVideo": "Picture subtitles require video conversion.",
     "automaticUsesYourProfile": "Automatic uses your profile preferences, falling back to this file’s available tracks. Choosing another version resets its track choices.",
     "languageChoicesAreRemembered": "Language choices are remembered when you play, just like in the player. Arc may adapt audio or video for this browser; source formats do not guarantee device output.",
-    "forTitle": "Playback options for {{title}}",
     "automaticTrack": "Automatic — {{track}}",
     "unsupportedTrack": "{{track}} · Not supported in this browser"
   }

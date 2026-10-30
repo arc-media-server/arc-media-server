@@ -919,12 +919,26 @@ test('source labels keep HDR and profile-based audio with their own movie versio
     await expect(hero.getByText('Dolby TrueHD 7.1', { exact: true })).toBeVisible();
     await expect(hero.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
     await expect(hero.getByText('TrueHD Atmos 7.1', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Media information for ' + item.title, exact: true }).click();
-    await expect(page.getByText('3840×2160 · 2.39:1', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Video bitrate: 10.0 Mb/s', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('23.976 fps', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('10-bit', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Dolby Vision profile 8', { exact: true }).first()).toBeVisible();
+    // Media Info is in the title's More menu, as in Plex; every value is labelled.
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Media Info…', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Media Info', exact: true });
+    await expect(dialog.getByText('3840×2160 · 4K', { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText('2.39:1', { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText('10.0 Mb/s', { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText('23.976 fps', { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText('10-bit', { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText('Dolby Vision profile 8 · HDR10+', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('HDR10', { exact: true })).toBeVisible();
+    for (const label of ['Codec', 'Resolution', 'Aspect ratio', 'Frame rate', 'Bit depth', 'HDR', 'Bitrate', 'Container', 'Size', 'Overall bitrate'])
+      await expect(dialog.getByRole('term').filter({ hasText: new RegExp(`^${label}$`) }).first()).toBeVisible();
+    await expect(dialog.getByText('—', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText(/HDR inspection/)).toHaveCount(0);
+    // The raw values wait under Advanced, worded plainly.
+    await expect(dialog.getByText('Checked from a sample of frames').first()).toBeHidden();
+    await dialog.getByText('Advanced', { exact: true }).first().click();
+    await expect(dialog.getByText('Checked from a sample of frames').first()).toBeVisible();
+    await expect(dialog.getByText('bt2020', { exact: true }).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`source-formats-${width}.png`), fullPage: true });
     await page.keyboard.press('Escape');
@@ -939,7 +953,7 @@ test('source labels keep HDR and profile-based audio with their own movie versio
 test('series file details show episode source tracks without claiming series-wide HDR', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  const button = page.getByRole('button', { name: /^Media information for / }).first();
+  const button = page.getByRole('main').getByRole('button', { name: /^More for / }).first();
   await expect(button).toBeVisible();
   // Intercept only the on-demand item read; the series and episode list remain real.
   await page.route('**/api/items/*', async r => {
@@ -954,13 +968,17 @@ test('series file details show episode source tracks without claiming series-wid
     ] })) } });
   });
   await button.click();
-  const dialog = page.getByRole('dialog', { name: /^Media information:/ });
-  await expect(dialog.getByText(/1080p · HEVC · HLG/)).toBeVisible();
-  await expect(dialog.getByText('Dolby Digital+ Atmos · 5.1', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('DTS-HD MA · DTS:X · 7.1', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Dolby TrueHD · 7.1', { exact: true })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Media Info…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Media Info', exact: true });
+  await expect(dialog.getByText('1920×1080 · 1080p', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('HEVC', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('HLG', { exact: true })).toBeVisible();
+  const audio = dialog.getByRole('row');
+  await expect(audio.filter({ hasText: 'Dolby Digital+ Atmos' })).toContainText('5.1');
+  await expect(audio.filter({ hasText: 'DTS-HD MA · DTS:X' })).toContainText('7.1');
+  await expect(audio.filter({ hasText: 'Dolby TrueHD' })).toContainText('7.1');
   await expect(dialog.getByText('Dolby Vision', { exact: true })).toHaveCount(0);
-  await expect(dialog.getByText(/Source formats; playback output depends/)).toBeVisible();
+  await expect(dialog.getByText(/what plays depends on your device/)).toBeVisible();
   await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
 });
 

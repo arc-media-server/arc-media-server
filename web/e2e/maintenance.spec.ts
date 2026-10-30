@@ -291,15 +291,22 @@ for (const shows of [false, true]) {
     await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toHaveCount(0);
     // Queue and playlist actions live in More, as in Plex, above the server owner's tools.
     await expect(page.getByRole('button', { name: `Queue ${item.title}`, exact: true })).toHaveCount(0);
-    await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(shows ? 3 : 0); // only the episode rows' own buttons
+    await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(0); // episode rows keep theirs in More too
     await page.getByRole('button', { name: 'More', exact: true }).click();
     // The server owner sets a show's episode ordering in Edit, so it isn't repeated here.
-    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', ...(shows ? [] : ['Media Info…']), 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
     // The generated movie is really read by FFprobe: its 160×90 frame is 16:9.
-    if (!shows) await expect(page.getByText('160×90 · 16:9', { exact: true })).toBeVisible();
+    if (!shows) {
+      await page.getByRole('button', { name: 'More', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Media Info…', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Media Info', exact: true });
+      await expect(dialog.getByText('160×90 · SD', { exact: true })).toBeVisible();
+      await expect(dialog.getByText('16:9', { exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
     await page.screenshot({ path: info.outputPath('title-actions-desktop.png') });
     await page.setViewportSize({ width: 390, height: 900 });
     await page.screenshot({ path: info.outputPath('title-actions-phone.png') });
@@ -590,7 +597,31 @@ test('title pages: a profile without admin rights still gets More with queue and
   expect((await page.request.post('/api/auth/profile', { data: { id: (await created.json()).id } })).ok()).toBeTruthy();
   await page.goto(`/movie/${item.id}`);
   await page.getByRole('button', { name: 'More', exact: true }).click();
-  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…']);
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Media Info…']);
   await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Add to Playlist', exact: true })).toBeVisible();
+});
+
+test('episode rows: only Watched and More show, and a profile without admin rights gets More without the owner’s tools', async ({ page, media }, info) => {
+  const lib = await library(page, media.shows, true);
+  const show = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=series`)).json()).items[0];
+  const seasons = await (await page.request.get(`/api/series/${show.id}/seasons`)).json();
+  const episode = seasons.seasons.flatMap((s: { episodes: { title: string; available: boolean }[] }) => s.episodes).find((e: { available: boolean }) => e.available);
+  const created = await page.request.post('/api/profiles', { data: { name: 'Viewer', color: 'blue' } });
+  expect(created.ok()).toBeTruthy();
+  expect((await page.request.post('/api/auth/profile', { data: { id: (await created.json()).id } })).ok()).toBeTruthy();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/series/${show.id}`);
+  const more = page.getByRole('button', { name: `More for ${episode.title}`, exact: true });
+  const actions = more.locator('../..');
+  await expect(more).toBeVisible();
+  expect(await actions.getByRole('button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label'))))
+    .toEqual(['Mark as Watched', `More for ${episode.title}`]);
+  await more.click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Playback options…', 'Episode details…', 'Media Info…']);
+  await page.screenshot({ path: info.outputPath('episode-more-viewer.png') });
+  await page.getByRole('menuitem', { name: 'Media Info…', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Media Info', exact: true });
+  await expect(dialog.getByRole('term').filter({ hasText: /^Container$/ })).toBeVisible();
+  await expect(page.locator('video')).toHaveCount(0);
 });

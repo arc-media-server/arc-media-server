@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ListMusic, ListVideo, Loader2, Plus } from 'lucide-react';
+import { Check, ListVideo, Loader2, Plus } from 'lucide-react';
 import { api, type Item, type Playlist } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { ErrorNotice } from '@/components/Page';
@@ -28,33 +28,6 @@ export function PlaylistCover({ playlist, className }: { playlist: Playlist; cla
         </div>
       )}
     </div>
-  );
-}
-
-/** An "Add to Playlist" button that opens the picker. */
-export function AddToPlaylistButton({ item, label, className, size = 'lg' }: { item: Item; label?: boolean; className?: string; size?: 'sm' | 'lg' | 'icon' }) {
-  const { t } = useTranslation('playlists');
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button
-        variant="secondary"
-        size={size}
-        className={cn(!label && size === 'lg' && 'size-12 rounded-2xl px-0', className)}
-        title={t('picker.hint')}
-        aria-label={t('picker.title')}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(true);
-        }}
-      >
-        <ListMusic /> {label && t('picker.title')}
-      </Button>
-      {/* React events bubble out of the dialog's portal: keep them from the row it sits in (an episode row plays on click). */}
-      <span className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        <AddToPlaylistDialog item={item} open={open} onOpenChange={setOpen} />
-      </span>
-    </>
   );
 }
 

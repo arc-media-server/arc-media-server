@@ -167,9 +167,11 @@ test('preplay: episode header and keyboard row choices target the selected episo
   const dialog = page.getByRole('dialog', { name: 'Playback options', exact: true });
   await expect(dialog).toContainText('First Chapter');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  const row = page.getByRole('button', { name: 'Playback options for First Chapter', exact: true });
-  await row.focus();
-  await page.keyboard.press('Space');
+  // An episode's playback options are in its More menu; choosing them by keyboard doesn't start playback.
+  await page.getByRole('button', { name: 'More for First Chapter', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Playback options…', exact: true }).focus();
+  await page.keyboard.press('Enter');
   const subtitle = dialog.getByRole('combobox', { name: 'Subtitles', exact: true });
   await expect(subtitle).toBeEnabled();
   const french = await subtitle.getByRole('option', { name: /^French/ }).getAttribute('value');
