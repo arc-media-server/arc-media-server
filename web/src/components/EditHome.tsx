@@ -6,7 +6,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { CalendarHeart, ChevronLeft, Eye, EyeOff, Filter, Layers, ListVideo, Pencil, Plus, RectangleHorizontal, RectangleVertical, Square, Trash2 } from 'lucide-react';
 import { api, type Library, type Prefs, type RowFilter } from '@/lib/api';
 import { useLibraries } from '@/components/Sidebar';
-import { arrangeRows, choosesLook, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
+import { arrangeRows, choosesLook, defaultStyle, hasEpisodes, isDefaultLook, resolveRows, rowTitle, seasons, toSaved, usePrefs, useUpdatePrefs, visibleRows, type ResolvedRow, type RowLook } from '@/lib/home';
 import { navigationLibraries } from '@/lib/library-navigation';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -160,7 +160,7 @@ function Editor({
           } else {
             const id = `custom:${Date.now().toString(36)}`;
             // A filter row goes after its library's newest (arrangeRows).
-            setRows((rs) => [...rs, { id, hidden: false, type: 'custom', title, filter, library, style: 'poster', showsOnly: false, posters: 'series' }]);
+            setRows((rs) => [...rs, { id, hidden: false, type: 'custom', title, filter, library, style: defaultStyle('custom', library), showsOnly: false, posters: 'series' }]);
           }
           setEditing(null);
         }}
