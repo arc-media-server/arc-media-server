@@ -6416,6 +6416,59 @@
         "x-arc-access": "admin"
       }
     },
+    "/events": {
+      "get": {
+        "description": "Is a profile-authenticated Server-Sent Events stream. \"invalidate\" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions are admin-only. \"resync\" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.\n\nWho may call it: **profile**.",
+        "operationId": "eventStream",
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-Sent Events: invalidate and resync hints; see docs/EVENTS-API.md"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          }
+        },
+        "summary": "A profile-authenticated Server-Sent Events stream",
+        "tags": [
+          "Events"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/extras/{id}/stream": {
       "get": {
         "description": "Plays a trailer or other extra (direct play), if the profile may see the title it belongs to.\n\nWho may call it: **profile**.",
