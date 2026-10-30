@@ -31,11 +31,13 @@ export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, se
   const blur = hideSpoilers && art === item.images?.primary;
   const href = isEpisode ? `/series/${item.parent_id}` : `/movie/${item.id}`;
   const left = remaining(item);
+  const actions = hover && !onSelect ? hover : undefined;
 
   return (
     <div className={cn('group relative', className)}>
-      {hover && !onSelect && <CardActions item={item} title={title} hover={hover} landscape menuOpen={menuOpen} onMenuOpen={setMenuOpen} />}
-      {onRemove && <ContinueCardMenu item={item} onRemove={onRemove} />}
+      {/* The shared controls (play, ⋯ with Remove) when the card has them; else Remove on its own. */}
+      {actions && <CardActions item={item} title={title} hover={actions} landscape arc={arc} menuOpen={menuOpen} onMenuOpen={setMenuOpen} onRemove={onRemove} />}
+      {onRemove && !actions && <ContinueCardMenu item={item} onRemove={onRemove} />}
       <button
         type="button"
         onClick={onSelect ?? (() =>
@@ -51,10 +53,13 @@ export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, se
         ) : (
           <Artwork src={art} alt="" kind="still" icon={isEpisode ? 'tv' : 'film'} fallbackTitle={title} className={cn(blur && 'scale-110 blur-xl')} />
         )}
+        {/* Its own play hint only without the shared controls, which bring their own. */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-300 group-hover:bg-black/30">
-          <span className="flex size-11 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
-            <Play className="ml-0.5 size-5 fill-current" />
-          </span>
+          {!actions && (
+            <span className="flex size-11 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition-all duration-300 group-hover:scale-100 group-hover:opacity-100">
+              <Play className="ml-0.5 size-5 fill-current" />
+            </span>
+          )}
         </div>
         <ProgressBar value={progressOf(item)} />
         {onSelect && <span className={cn("absolute left-2 top-2", selectCircle(!!selected))}><Check className="size-4" /></span>}
