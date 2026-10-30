@@ -89,6 +89,30 @@ test('fix match: the dialog closes at once and the show updates when its episode
   expect(after.find((e: { id: string }) => e.id === first.id)).toMatchObject({ title: 'First Chapter', user_data: { position_ms: 75000 } });
 });
 
+test('unmatch: a matched show goes back to its file names after a confirmation, keeping progress', async ({ page, media: _media, folder }, info) => {
+  const show = await unmatchedShow(page, folder);
+  const [first] = await episodes(page, show.id);
+  expect((await page.request.put(`/api/items/${first.id}/progress`, { data: { position_ms: 75000, duration_ms: 120000, state: 'stopped' } })).ok()).toBeTruthy();
+  const dialog = await openFixMatch(page, show.id);
+  await dialog.getByRole('button', { name: 'Use This', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Updated Arc Show from TMDB' })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Unmatch…', exact: true }).click();
+  const confirm = page.getByRole('alertdialog').or(page.getByRole('dialog')).filter({ hasText: 'Unmatch Arc Show?' });
+  await expect(confirm).toContainText('Your files are untouched');
+  await page.screenshot({ path: info.outputPath('unmatch-confirm.png') });
+  await confirm.getByRole('button', { name: 'Unmatch', exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Mystery Programme', exact: true })).toBeVisible();
+  // Unmatch is gone from the menu once the show is unmatched; Fix Match stays.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Fix Match…', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Unmatch…', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  const after = await episodes(page, show.id);
+  expect(after.some((e: { user_data?: { position_ms?: number } }) => e.user_data?.position_ms === 75000)).toBe(true);
+});
+
 test('fix match: a failure fetching the episodes shows on the page and can be retried', async ({ page, media: _media, folder }, info) => {
   const show = await unmatchedShow(page, folder);
   expect((await fetch(`${fixture}/metadata-fail?part=episodes`, { method: 'POST' })).ok).toBe(true);

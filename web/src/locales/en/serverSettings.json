@@ -141,7 +141,11 @@
     "prerollFound_other": "{{count}} videos found",
     "accountName": "Signed in as {{username}}",
     "notifications": "Notifications",
-    "openSubtitles": "OpenSubtitles"
+    "openSubtitles": "OpenSubtitles",
+    "general": "General",
+    "generalHint": "What this server is called.",
+    "serverName": "Server name",
+    "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters."
   },
   "diagnostics": {
     "detailedLogging": "Detailed logging",
