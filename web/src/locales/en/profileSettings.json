@@ -55,16 +55,6 @@
     "profileDescription": "Your preferences follow your profile.",
     "serverDescription": "Server settings apply to everyone. Only admins can change these."
   },
-  "libraryNavigationSettings": {
-    "libraryOrder": "Library order",
-    "theOrderOfLibraries": "The order of libraries in your sidebar and menus.",
-    "resetLibraryOrder": "Reset library order",
-    "moveUp": "Move {{name}} up",
-    "moveDown": "Move {{name}} down",
-    "cancel": "Cancel",
-    "save": "Save",
-    "dragHint": "Drag libraries to reorder them, or use the up and down buttons. Changes apply to your profile after saving."
-  },
   "providerCredits": {
     "thisProductUsesThe": "This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and show details, artwork and cast come from The Movie Database (TMDB).",
     "details": "Details from <provider/>",

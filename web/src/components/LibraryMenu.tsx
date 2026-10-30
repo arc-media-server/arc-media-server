@@ -8,10 +8,12 @@ import * as fmt from '@/lib/format';
 import { ErrorNotice } from '@/components/Page';
 import { LibraryEditorDialog } from '@/components/LibraryEditor';
 import { LibraryWorkDialogs, LibraryWorkItems, useLibraryWork } from '@/components/LibraryWork';
+import { ReorderLibrariesItem, quietMenuTrigger } from '@/components/LibraryReorder';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-export function LibraryMenu({ lib, onSelect, selectable = false, compact = false }: { lib: Library; onSelect?: () => void; selectable?: boolean; compact?: boolean }) {
+/** A library's ⋯ actions; `compact` is the sidebar's quiet version, which can also start reordering. */
+export function LibraryMenu({ lib, onSelect, selectable = false, compact = false, onReorder }: { lib: Library; onSelect?: () => void; selectable?: boolean; compact?: boolean; onReorder?: () => void }) {
   const { t } = useTranslation('library');
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -51,7 +53,7 @@ export function LibraryMenu({ lib, onSelect, selectable = false, compact = false
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={t('library:libraryActions', { name: lib.name })}><MoreHorizontal /></Button>
+          <Button variant="ghost" size="icon" data-library-menu={compact ? lib.id : undefined} className={compact ? quietMenuTrigger : undefined} aria-label={t('library:libraryActions', { name: lib.name })}><MoreHorizontal /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted">
           {selectable && (
@@ -70,6 +72,10 @@ export function LibraryMenu({ lib, onSelect, selectable = false, compact = false
           <DropdownMenuItem onSelect={() => navigate('/profiles')}>
             <Users /> {t('libraryManagement:libraryWork.manageAccess')}
           </DropdownMenuItem>
+          {onReorder && <>
+            <DropdownMenuSeparator />
+            <ReorderLibrariesItem onSelect={onReorder} />
+          </>}
         </DropdownMenuContent>
       </DropdownMenu>
       <LibraryEditorDialog library={lib} open={editOpen} onOpenChange={setEditOpen} />

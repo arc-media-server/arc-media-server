@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { createElement, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createElement, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
@@ -21,7 +21,7 @@ import {
 import { usePlaybackQueue } from './Player';
 import { ActivityButton } from '@/components/Activity';
 import { LibraryMenu } from '@/components/LibraryMenu';
-import { LibraryNavigationSettings } from '@/components/LibraryNavigationSettings';
+import { LibraryOrderMenu, LibraryReorderDialog, ReorderLibrariesItem, SidebarLibraryReorder, useLibraryReorder } from '@/components/LibraryReorder';
 import { NewsButton } from '@/components/News';
 
 export function useLibraries() {
@@ -104,7 +104,7 @@ function NavItem({ to, icon, children, busy, active }: { to: string; icon: React
 }
 
 /** The current profile, with Switch Profile and Sign Out. */
-function ProfileMenu({ compact }: { compact?: boolean }) {
+function ProfileMenu({ compact, onReorderLibraries }: { compact?: boolean; onReorderLibraries?: () => void }) {
   const { t } = useTranslation('common');
   const playback = usePlaybackQueue();
   const qc = useQueryClient();
@@ -157,6 +157,7 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
           <Tv className="size-4 text-muted" />{' '}{t('profile.linkDevice')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/settings')}>
           <Settings className="size-4 text-muted" />{' '}{t('navigation.settings')}</DropdownMenuItem>
+        {onReorderLibraries && <ReorderLibrariesItem onSelect={onReorderLibraries} />}
         <DropdownMenuSeparator />
         {!status.friend && (status.profiles.length > 1 || !status.password_session) && (
           <DropdownMenuItem onSelect={leave}>
@@ -173,11 +174,26 @@ function ProfileMenu({ compact }: { compact?: boolean }) {
 
 export function Sidebar() {
   const { t } = useTranslation('common');
-  const { data } = useLibraries();
-  const prefs = usePrefs();
-  const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
+  const reorder = useLibraryReorder();
+  const libraries = reorder.ordered;
   const admin = useIsAdmin();
   const { pathname } = useLocation();
+  const section = useRef<HTMLDivElement>(null);
+  // Which library's ⋯ started arranging, so focus goes back there afterwards.
+  const origin = useRef<number | null>(null);
+  const startReorder = (id: number) => { origin.current = id; reorder.start(); };
+  const returnFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = section.current;
+      (el?.querySelector<HTMLElement>(`[data-library-menu="${origin.current}"]`) ?? el?.querySelector<HTMLElement>('a'))?.focus();
+    });
+  }, []);
+  // Done, Cancel and Escape all leave editing; focus then goes back to the ⋯.
+  const wasEditing = useRef(false);
+  useEffect(() => {
+    if (wasEditing.current && !reorder.editing) returnFocus();
+    wasEditing.current = reorder.editing;
+  }, [reorder.editing, returnFocus]);
 
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
@@ -198,23 +214,27 @@ export function Sidebar() {
           <NavItem to="/watchlist" icon={<Bookmark />}>{t('navigation.watchlist')}</NavItem>
           <NavItem to="/playlists" icon={<ListVideo />}>{t('navigation.playlists')}</NavItem>
         </div>
-        {!!libraries?.length && (
-          <div>
-            <div className="flex items-center justify-between"><p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p><LibraryNavigationSettings /></div>
-            <div className="space-y-0.5">
-              {libraries.map((lib) => (
-                <div key={lib.id} className="flex items-center [&>a]:min-w-0 [&>a]:flex-1">
-                <NavItem
-                  to={`/library/${lib.id}`}
-                  icon={createElement(kindIcon(lib.kind))}
-                  busy={lib.scan.running}
-                >
-                  {lib.name}
-                </NavItem>
-                {admin && <LibraryMenu lib={lib} compact />}
-                </div>
-              ))}
-            </div>
+        {!!libraries.length && (
+          <div ref={section}>
+            <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p>
+            {reorder.editing ? (
+              <SidebarLibraryReorder reorder={reorder} />
+            ) : (
+              <div className="space-y-0.5">
+                {libraries.map((lib) => (
+                  <div key={lib.id} className="group flex items-center gap-0.5 [&>a]:min-w-0 [&>a]:flex-1">
+                    <NavItem to={`/library/${lib.id}`} icon={createElement(kindIcon(lib.kind))} busy={lib.scan.running}>
+                      {lib.name}
+                    </NavItem>
+                    {admin ? (
+                      <LibraryMenu lib={lib} compact onReorder={reorder.canReorder ? () => startReorder(lib.id) : undefined} />
+                    ) : reorder.canReorder && (
+                      <LibraryOrderMenu lib={lib} onReorder={() => startReorder(lib.id)} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </nav>
@@ -232,6 +252,7 @@ export function MobileBar() {
   const { data } = useLibraries();
   const prefs = usePrefs();
   const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
+  const reorder = useLibraryReorder();
   const { pathname } = useLocation();
   const link = ({ isActive }: { isActive: boolean }) =>
     cn('shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors', isActive ? 'bg-foreground text-background' : 'bg-surface-2 text-muted');
@@ -243,8 +264,7 @@ export function MobileBar() {
         <NewsButton />
         <ActivityButton />
         <Link to="/settings" aria-label={t('navigation.settings')} aria-current={isSettingsPath(pathname) ? 'page' : undefined} className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground', isSettingsPath(pathname) && 'bg-surface-3 text-foreground')}><Settings className="size-[18px]" /></Link>
-        <LibraryNavigationSettings />
-        <ProfileMenu compact />
+        <ProfileMenu compact onReorderLibraries={reorder.canReorder ? reorder.start : undefined} />
       </div>
       <div className="flex min-w-0 items-center">
       <nav className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 py-3">
@@ -258,6 +278,7 @@ export function MobileBar() {
         ))}
       </nav>
       </div>
+      <LibraryReorderDialog reorder={reorder} />
     </div>
   );
 }

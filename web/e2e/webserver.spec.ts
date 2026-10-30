@@ -46,7 +46,13 @@ async function focusedPlayback(page: Page) {
   await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
 }
 
-test('web server: library order saves per profile, retries and never grants library access', async ({ page, media }, info) => {
+test('web server: libraries reorder in place per profile, retry a failed save and never grant access', async ({ page, media }, info) => {
+  // Optional "after" screenshots for review, dark theme.
+  const shots = process.env.ARC_SHOTS;
+  const shot = async (name: string, target: { screenshot: (o: { path: string }) => Promise<unknown> } = page) => {
+    await target.screenshot({ path: shots ? `${shots}/${name}.png` : info.outputPath(`${name}.png`) });
+  };
+  await page.emulateMedia({ colorScheme: 'dark' });
   const libs: Library[] = [];
   for (const [name, kind, path] of [['Films', 'movies', media.movies], ['Series', 'shows', media.shows]]) {
     const response = await page.request.post('/api/libraries', { data: { name, kind, paths: [path] } });
@@ -54,47 +60,121 @@ test('web server: library order saves per profile, retries and never grants libr
     const lib = await response.json(); libs.push(lib);
     await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
   }
-  await page.goto('/settings');
-  await page.locator('aside').getByRole('button', { name: 'Library order', exact: true }).click();
-  const region = page.getByRole('dialog', { name: 'Library order', exact: true });
+  await page.goto('/');
+  const sidebar = page.locator('aside');
+  const navLinks = page.locator('aside nav a[href^="/library/"]');
   const original = ['Films', 'Series'];
-  await expect(page.locator('aside nav a[href^="/library/"]')).toHaveText(original);
+  await expect(navLinks).toHaveText(original);
+  // No grip icon or separate order button: reordering lives in each library's ⋯.
+  await expect(page.getByRole('button', { name: 'Library order', exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole('button', { name: /^Drag / })).toHaveCount(0);
+  await shot('sidebar-rest', sidebar);
+  await sidebar.getByRole('link', { name: 'Series', exact: true }).hover();
+  await shot('sidebar-hover', sidebar);
+
   let fail = true;
   await page.route('**/api/me/prefs', route => route.request().method() === 'PATCH' && fail && route.request().postDataJSON().library_order
     ? route.fulfill({ status: 503, json: { error: 'Order save unavailable' } }) : route.continue());
-  await region.getByRole('button', { name: 'Move Series up', exact: true }).click();
-  // Draft reordering does not change navigation before Save.
-  await expect(page.locator('aside nav a[href^="/library/"]')).toHaveText(original);
-  await region.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(region.getByRole('alert')).toContainText('Order save unavailable');
-  await expect.poll(() => page.locator('aside nav a[href^="/library/"]').allTextContents()).toEqual(original);
+  await sidebar.getByRole('button', { name: 'More for Series', exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Scan library files', exact: true })).toBeVisible();
+  await shot('admin-menu');
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  const list = sidebar.getByRole('list', { name: 'Reorder libraries', exact: true });
+  await expect(list).toBeVisible();
+  // Editing hides the ⋯ buttons and starts at the first row's controls.
+  await expect(sidebar.getByRole('button', { name: /^More for / })).toHaveCount(0);
+  await expect(sidebar.getByRole('button', { name: 'Drag Films', exact: true })).toBeFocused();
+  // Cancel (and Escape) discard the draft.
+  await sidebar.getByRole('button', { name: 'Move Series up', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
+  await sidebar.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(navLinks).toHaveText(original);
+  await expect(sidebar.getByRole('button', { name: 'More for Series', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Move Films down', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(navLinks).toHaveText(original);
+
+  // Keyboard reorder, a failed save keeps the draft, Retry saves it.
+  await sidebar.getByRole('button', { name: 'More for Films', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Move Films down', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
+  await expect(sidebar.getByRole('status').filter({ hasText: 'position' })).toHaveText('Films, position 2 of 2');
+  await page.waitForTimeout(600); // let the move animation settle for the screenshot
+  await shot('sidebar-reorder', sidebar);
+  await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(sidebar.getByRole('alert')).toContainText('Order save unavailable');
+  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
   expect((await (await page.request.get('/api/me/prefs')).json()).library_order).toBeUndefined();
   fail = false;
-  await region.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect.poll(() => page.locator('aside nav a[href^="/library/"]').allTextContents()).toEqual(['Series', 'Films']);
+  await sidebar.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(list).toHaveCount(0);
+  await expect(navLinks).toHaveText(['Series', 'Films']);
   await page.reload();
+  await expect(navLinks).toHaveText(['Series', 'Films']);
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order).toEqual([libs[1].id, libs[0].id]);
-  await page.screenshot({ path: info.outputPath('library-order-desktop.png') });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(['Series', 'Films']);
-  await page.getByRole('button', { name: 'Library order', exact: true }).filter({ visible: true }).click();
-  await expect(region).toBeVisible();
+
+  // Reset to server order saves no preference.
+  await sidebar.getByRole('button', { name: 'More for Films', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Reset to server order', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveText(original);
+  await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(navLinks).toHaveText(original);
+  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order ?? []).toEqual([]);
+
+  // Phones: the profile menu opens the same list in a dialog.
+  await page.setViewportSize({ width: 430, height: 932 });
+  const bar = page.locator('div.glass').filter({ has: page.getByRole('button', { name: 'Profile: Admin', exact: true }) }).first();
+  await expect(page.getByRole('button', { name: 'Library order', exact: true })).toHaveCount(0);
+  await shot('phone-bar', bar);
+  await page.getByRole('button', { name: 'Profile: Admin', exact: true }).filter({ visible: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true })).toBeVisible();
+  await shot('phone-profile-menu');
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Reorder libraries', exact: true });
+  await sheet.getByRole('button', { name: 'Move Series up', exact: true }).click();
+  await expect(sheet.getByRole('listitem')).toHaveText(['Series', 'Films']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: info.outputPath('library-order-phone.png'), fullPage: true });
-  await region.getByRole('button', { name: 'Cancel', exact: true }).click();
-  const response = await page.request.post('/api/profiles', { data: { name: 'Limited', library_ids: [libs[0].id] } });
-  expect(response.ok()).toBeTruthy();
-  const viewer = await response.json();
-  expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBeTruthy();
+  await page.waitForTimeout(600);
+  await shot('phone-reorder');
+  await sheet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(original);
+  await page.getByRole('button', { name: 'Profile: Admin', exact: true }).filter({ visible: true }).click();
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Move Series up', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(['Series', 'Films']);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // A profile without library management reorders its own libraries through a ⋯ of its own.
+  const family = await (await page.request.post('/api/profiles', { data: { name: 'Family', library_ids: [libs[0].id, libs[1].id] } })).json();
+  const limited = await (await page.request.post('/api/profiles', { data: { name: 'Limited', library_ids: [libs[0].id] } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: family.id } })).ok()).toBeTruthy();
+  await page.reload();
+  await expect(navLinks).toHaveText(original);
+  await sidebar.getByRole('button', { name: 'More for Films', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Reorder libraries…']);
+  await shot('viewer-menu');
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Move Films down', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(navLinks).toHaveText(['Series', 'Films']);
+  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order).toEqual([libs[1].id, libs[0].id]);
+
   // An inaccessible ID in the preference must not add that library to navigation.
+  expect((await page.request.post('/api/auth/profile', { data: { id: limited.id } })).ok()).toBeTruthy();
   expect((await page.request.patch('/api/me/prefs', { data: { library_order: [libs[1].id, libs[0].id] } })).ok()).toBeTruthy();
   await page.reload();
-  await expect.poll(() => page.locator('nav:visible a[href^="/library/"]').allTextContents()).toEqual(['Films']);
+  await expect(navLinks).toHaveText(['Films']);
+  // One library has nothing to reorder, so it has no ⋯.
+  await expect(sidebar.getByRole('button', { name: /^More for / })).toHaveCount(0);
   expect((await (await page.request.get(`/api/items?library_id=${libs[1].id}`)).json()).items).toEqual([]);
-  await page.getByRole('button', { name: 'Library order', exact: true }).filter({ visible: true }).click();
-  await region.getByRole('button', { name: 'Reset library order', exact: true }).click();
-  await region.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order ?? []).toEqual([]);
 });
 
 test('web server: watched threshold preserves resume until the selected boundary and keeps old history', async ({ page, media }, info) => {
