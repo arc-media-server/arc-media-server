@@ -211,6 +211,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/items/merge", admin(s.mergeItems))
 	mux.HandleFunc("POST /api/items/{id}/split", admin(s.splitItem))
 	mux.HandleFunc("GET /api/libraries/{id}/facets", user(s.libraryFacets))
+	mux.HandleFunc("GET /api/items/lookup", user(s.lookupItems))
+	mux.HandleFunc("POST /api/items/batch", user(s.batchItems))
 	mux.HandleFunc("GET /api/items", user(s.listItems))
 	mux.HandleFunc("GET /api/items/{id}", user(s.getItem))
 	mux.HandleFunc("GET /api/items/{id}/stream", user(s.stream))
@@ -623,22 +625,29 @@ func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	files, err := s.store.ItemFiles(r.Context(), it.ID)
+	d, err := s.itemDetails(r, it)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	d := toDTO(*it)
-	d.Files = files
-	if err := s.addDetails(r, &d); err != nil {
-		s.fail(w, err)
-		return
-	}
-	if err := s.fillUserData(r, []*itemDTO{&d}); err != nil {
-		s.fail(w, err)
-		return
-	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+// itemDetails is shared by single and bounded batch reads; it performs no matching/probing.
+func (s *Server) itemDetails(r *http.Request, it *store.Item) (itemDTO, error) {
+	d := toDTO(*it)
+	files, err := s.store.ItemFiles(r.Context(), it.ID)
+	if err != nil {
+		return d, err
+	}
+	d.Files = files
+	if err = s.addDetails(r, &d); err != nil {
+		return d, err
+	}
+	if err = s.fillUserData(r, []*itemDTO{&d}); err != nil {
+		return d, err
+	}
+	return d, nil
 }
 
 var videoMIME = map[string]string{
