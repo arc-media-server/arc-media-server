@@ -221,7 +221,13 @@ func (s *Server) getPlaylist(w http.ResponseWriter, r *http.Request) {
 	for _, e := range entries {
 		p.DurationMS += int64(e.Item.RuntimeMin) * 60000
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"playlist": toPlaylistDTO(*p), "entries": entries})
+	writeJSON(w, http.StatusOK, playlistPage{Playlist: toPlaylistDTO(*p), Entries: entries})
+}
+
+// playlistPage is a playlist and its titles in order (typed, so the v1 contract lists its fields).
+type playlistPage struct {
+	Playlist playlistDTO        `json:"playlist"`
+	Entries  []playlistEntryDTO `json:"entries"`
 }
 
 // playlistItemIDs turns movies, episodes and shows (all their episodes, in the profile's episode

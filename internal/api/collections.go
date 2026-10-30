@@ -200,7 +200,13 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	if len(items) > 0 {
 		first = &items[0]
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"collection": s.collectionDTO(*c, first), "items": out})
+	writeJSON(w, http.StatusOK, collectionPage{Collection: s.collectionDTO(*c, first), Items: out})
+}
+
+// collectionPage is a collection and its titles (typed, so the v1 contract lists its fields).
+type collectionPage struct {
+	Collection collectionDTO `json:"collection"`
+	Items      []itemDTO     `json:"items"`
 }
 
 // collectionImage: GET /api/collections/{id}/images/{primary|backdrop} is a collection's poster or background
