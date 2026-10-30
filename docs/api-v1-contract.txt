@@ -783,6 +783,20 @@ GET /items/{id} 200 .user_data.watchlisted boolean
 GET /items/{id} 200 .year integer
 GET /items/{id}/artwork
 GET /items/{id}/artwork 200
+GET /items/{id}/artwork/palette
+GET /items/{id}/artwork/palette 200
+GET /items/{id}/artwork/palette 200 .algorithm string
+GET /items/{id}/artwork/palette 200 .artwork_type string
+GET /items/{id}/artwork/palette 200 .artwork_url string
+GET /items/{id}/artwork/palette 200 .artwork_version string
+GET /items/{id}/artwork/palette 200 .available boolean
+GET /items/{id}/artwork/palette 200 .color_space string
+GET /items/{id}/artwork/palette 200 .colors object
+GET /items/{id}/artwork/palette 200 .colors.bottom_left string
+GET /items/{id}/artwork/palette 200 .colors.bottom_right string
+GET /items/{id}/artwork/palette 200 .colors.top_left string
+GET /items/{id}/artwork/palette 200 .colors.top_right string
+GET /items/{id}/artwork/palette 200 .reason string
 GET /items/{id}/images/{type}
 GET /items/{id}/images/{type} 200
 GET /items/{id}/markers

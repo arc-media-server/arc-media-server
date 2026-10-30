@@ -25,6 +25,7 @@ import (
 	"ams/internal/logbuf"
 	"ams/internal/metadata"
 	"ams/internal/opensubtitles"
+	"ams/internal/palette"
 	"ams/internal/scanner"
 	"ams/internal/settings"
 	"ams/internal/store"
@@ -90,6 +91,9 @@ type Server struct {
 	store            *store.Store
 	scanner          *scanner.Scanner
 	artwork          *artwork.Cache
+	palettes         *palette.Cache
+	paletteLogMu     sync.Mutex
+	paletteWarned    time.Time
 	backups          *backup.Manager
 	afterRestore     func(context.Context) error
 	librariesChanged func()
@@ -135,6 +139,9 @@ func New(d Deps) http.Handler {
 			}
 			return false
 		})
+	}
+	if s.artwork != nil {
+		s.palettes = palette.New(s.artwork.PaletteDir())
 	}
 	mux := http.NewServeMux()
 	s.revision = d.Revision
@@ -309,6 +316,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/items/{id}/refresh", admin(s.refreshItem))
 	mux.HandleFunc("POST /api/items/{id}/analyze", admin(s.analyzeItem))
 	mux.HandleFunc("GET /api/items/{id}/artwork", admin(s.listArtwork))
+	mux.HandleFunc("GET /api/items/{id}/artwork/palette", user(s.artworkPalette))
 	mux.HandleFunc("PUT /api/items/{id}/artwork", admin(s.chooseArtwork))
 	mux.HandleFunc("POST /api/items/{id}/artwork/{type}", admin(s.uploadArtwork))
 	mux.HandleFunc("GET /api/items/{id}/match", admin(s.matchInfo))
