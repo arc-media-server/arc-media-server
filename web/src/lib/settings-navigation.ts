@@ -7,7 +7,7 @@ export const settingsSections: Record<string, SettingsGroup> = {
   'Moving in': 'library', 'Notifications': 'library',
   'Media tools': 'playback', 'Intro & credit detection': 'playback', 'Pre-roll': 'playback',
   'Subtitle downloads': 'playback', 'Converting': 'playback', 'Optimized Versions': 'playback',
-  'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
+  'General': 'access', 'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
   'Scheduled tasks': 'maintenance', 'Diagnostics': 'maintenance',
 };
 

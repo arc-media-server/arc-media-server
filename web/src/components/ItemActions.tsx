@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, SearchX, Split, RefreshCw } from 'lucide-react';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useQueueActions } from '@/components/QueueActions';
 import { AddToPlaylistDialog } from '@/components/Playlists';
 
-type Dialog = 'edit' | 'match' | 'collection' | 'split' | 'optimize' | null;
+type Dialog = 'edit' | 'match' | 'unmatch' | 'collection' | 'split' | 'optimize' | null;
 
 /** Versions of a movie that could be split into titles of their own (parts of one version count once). */
 export function splitVersions(item: Item) {
@@ -34,6 +34,7 @@ export function useItemDialogs(item: Item | undefined) {
       <FixMatchDialog item={item} open={open === 'match'} onOpenChange={(o) => setOpen(o ? 'match' : null)} />
       <AddToCollectionDialog item={item} library={library} open={open === 'collection'} onOpenChange={(o) => setOpen(o ? 'collection' : null)} />
       <SplitDialog item={item} open={open === 'split'} onOpenChange={(o) => setOpen(o ? 'split' : null)} />
+      <UnmatchDialog item={item} open={open === 'unmatch'} onOpenChange={(o) => setOpen(o ? 'unmatch' : null)} />
       <OptimizeDialog items={[item]} open={open === 'optimize'} onOpenChange={(o) => setOpen(o ? 'optimize' : null)} />
     </>
   );
@@ -145,6 +146,11 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
               <SearchCheck className="size-4 text-muted" /> {t('titles:itemActions.fixMatch')}
             </DropdownMenuItem>
           )}
+          {item.kind === 'series' && !isLocalVideo(item) && item.metadata_state !== 'unmatched' && (
+            <DropdownMenuItem onSelect={() => onOpen('unmatch')}>
+              <SearchX className="size-4 text-muted" /> {t('titles:itemActions.unmatch')}
+            </DropdownMenuItem>
+          )}
           {!isLocalVideo(item) && (
             <DropdownMenuItem onSelect={() => onOpen('optimize')}>
               <Gauge className="size-4 text-muted" /> {t('titles:itemActions.optimize')}
@@ -158,6 +164,38 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Unmatch (a show): back to what its file names say, with downloaded details and artwork, manual
+ * edits and display orders reset. Files, watch history, playlists and manual collections stay.
+ * Refreshing doesn't undo it; Fix Match identifies it again.
+ */
+function UnmatchDialog({ item, open, onOpenChange }: { item: Item; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { t } = useTranslation('titles');
+  const qc = useQueryClient();
+  const unmatch = useMutation({
+    mutationFn: () => api.unmatchItem(item.id),
+    onSuccess: () => {
+      for (const key of ['item', 'items', 'seasons', 'libraries', 'recent-shows']) qc.invalidateQueries({ queryKey: [key] });
+      onOpenChange(false);
+    },
+  });
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('titles:itemActions.unmatchTitle', { title: item.title })}
+      confirmLabel={t('titles:itemActions.unmatchConfirm')}
+      destructive
+      busy={unmatch.isPending}
+      error={unmatch.error?.message}
+      onConfirm={() => unmatch.mutate()}
+    >
+      <p>{t('titles:itemActions.unmatchResets')}</p>
+      <p>{t('titles:itemActions.unmatchKeeps')}</p>
+    </ConfirmDialog>
   );
 }
 
