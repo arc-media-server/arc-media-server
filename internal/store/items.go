@@ -14,7 +14,7 @@ const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_tit
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
 	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired,
-	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider`
+	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider, match_suppressed`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -28,7 +28,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
 		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired,
-		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider}
+		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider, &it.MatchSuppressed}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -184,7 +184,7 @@ func (s *Store) ItemsWithMetadataState(ctx context.Context, libraryID int64, kin
 // RetryUnmatched revisits old uncertain/no-result titles during reconciliation, not every
 // watcher event. Locked metadata and user edits are preserved by the normal match writer.
 func (s *Store) RetryUnmatched(ctx context.Context, libraryID int64, before int64) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET metadata_state = 'pending' WHERE library_id = ? AND kind IN ('movie', 'series') AND metadata_state = 'unmatched' AND updated_at < ?`, libraryID, before)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET metadata_state = 'pending' WHERE library_id = ? AND kind IN ('movie', 'series') AND metadata_state = 'unmatched' AND match_suppressed = 0 AND updated_at < ?`, libraryID, before)
 	return err
 }
 
@@ -227,13 +227,13 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 			`+keepIfLocked("poster")+`, `+keepIfLocked("backdrop")+`, `+keepIfLocked("logo")+`,
 			`+keepIfLocked("tagline")+`, `+keepIfLocked("content_rating")+`, `+keepIfLocked("studio")+`, rating = ?,
 			original_language = ?, show_status = ?, last_aired = ?, next_aired = ?,
-			metadata_state = ?, updated_at = ?
+			metadata_state = ?, match_suppressed = CASE WHEN ? = 'matched' THEN 0 ELSE ? END, updated_at = ?
 		WHERE id = ? AND metadata_state <> 'locked'`,
 		it.Title, SortTitle(it.Title), it.OriginalTitle, it.Year, it.Overview, it.RuntimeMin,
 		it.ReleaseDate, it.TMDBID, it.TVDBID, it.IMDBID, it.PosterPath, it.BackdropPath, it.LogoPath,
 		it.Tagline, it.ContentRating, it.Studio, it.Rating,
 		it.OriginalLanguage, it.ShowStatus, it.LastAired, it.NextAired,
-		it.MetadataState, time.Now().Unix(), it.ID)
+		it.MetadataState, it.MetadataState, it.MatchSuppressed, time.Now().Unix(), it.ID)
 	if err != nil {
 		return err
 	}
@@ -243,13 +243,13 @@ func (s *Store) UpdateMetadata(ctx context.Context, it *Item) error {
 // SetLocalTheme records the theme tune found next to a show or movie ("" for none).
 func (s *Store) SetLocalTheme(ctx context.Context, id, path string) error {
 	var same bool
-	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items WHERE id = ? AND local_theme = ?)`, id, path).Scan(&same); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items WHERE id = ? AND match_suppressed = 0 AND local_theme = ?)`, id, path).Scan(&same); err != nil {
 		return err
 	}
 	if same {
 		return nil
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_theme = ? WHERE id = ? AND local_theme <> ?`, path, id, path)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_theme = ? WHERE id = ? AND match_suppressed = 0 AND local_theme <> ?`, path, id, path)
 	return err
 }
 
@@ -263,7 +263,7 @@ func (s *Store) SetLocalArt(ctx context.Context, id, poster, backdrop, logo stri
 		return nil
 	}
 	_, err := s.db.ExecContext(ctx, `UPDATE items SET local_poster = ?, local_backdrop = ?, local_logo = ?
-		WHERE id = ? AND (local_poster <> ? OR local_backdrop <> ? OR local_logo <> ?)`,
+		WHERE id = ? AND match_suppressed = 0 AND (local_poster <> ? OR local_backdrop <> ? OR local_logo <> ?)`,
 		poster, backdrop, logo, id, poster, backdrop, logo)
 	return err
 }
@@ -277,7 +277,7 @@ func (s *Store) AdoptIDs(ctx context.Context, id string, tmdbID, tvdbID int64, i
 			tvdb_id = CASE WHEN ? <> 0 THEN ? ELSE tvdb_id END,
 			imdb_id = CASE WHEN ? <> '' THEN ? ELSE imdb_id END,
 			metadata_state = 'pending', synced_at = 0
-		WHERE id = ? AND metadata_state IN ('pending', 'unmatched')
+		WHERE id = ? AND match_suppressed = 0 AND metadata_state IN ('pending', 'unmatched')
 			AND (tmdb_id <> ? OR tvdb_id <> ? OR imdb_id <> ?)
 			AND NOT (? = 0 AND ? = 0 AND ? = '')`,
 		tmdbID, tmdbID, tvdbID, tvdbID, imdbID, imdbID, id, tmdbID, tvdbID, imdbID, tmdbID, tvdbID, imdbID)
@@ -546,7 +546,7 @@ func (s *Store) MatchInfo(ctx context.Context, id string) (string, error) {
 // item goes back to pending until its metadata is fetched with the new ids.
 func (s *Store) SetProviderIDs(ctx context.Context, id string, tmdbID, tvdbID int64, imdbID string) error {
 	_, err := s.db.ExecContext(ctx, `
-		UPDATE items SET tmdb_id = ?, tvdb_id = ?, imdb_id = ?, synced_at = 0,
+		UPDATE items SET tmdb_id = ?, tvdb_id = ?, imdb_id = ?, synced_at = 0, match_suppressed = 0,
 			metadata_state = CASE metadata_state WHEN 'locked' THEN 'locked' ELSE 'pending' END, updated_at = ?
 		WHERE id = ?`, tmdbID, tvdbID, imdbID, time.Now().Unix(), id)
 	return err

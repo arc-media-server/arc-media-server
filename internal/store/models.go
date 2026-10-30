@@ -24,24 +24,25 @@ type Library struct {
 }
 
 type Item struct {
-	ID            string `json:"id"`
-	LibraryID     int64  `json:"library_id"`
-	Kind          string `json:"kind"`
-	ParentID      string `json:"parent_id,omitempty"`
-	Title         string `json:"title"`
-	SortTitle     string `json:"sort_title"`
-	OriginalTitle string `json:"original_title,omitempty"`
-	Year          int    `json:"year,omitempty"`
-	Overview      string `json:"overview,omitempty"`
-	RuntimeMin    int    `json:"runtime_min,omitempty"`
-	ReleaseDate   string `json:"release_date,omitempty"`
-	TMDBID        int64  `json:"tmdb_id,omitempty"`
-	TVDBID        int64  `json:"tvdb_id,omitempty"`
-	IMDBID        string `json:"imdb_id,omitempty"`
-	PosterPath    string `json:"-"`
-	BackdropPath  string `json:"-"`
-	MetadataState string `json:"metadata_state"`
-	AddedAt       int64  `json:"added_at"`
+	ID              string `json:"id"`
+	LibraryID       int64  `json:"library_id"`
+	Kind            string `json:"kind"`
+	ParentID        string `json:"parent_id,omitempty"`
+	Title           string `json:"title"`
+	SortTitle       string `json:"sort_title"`
+	OriginalTitle   string `json:"original_title,omitempty"`
+	Year            int    `json:"year,omitempty"`
+	Overview        string `json:"overview,omitempty"`
+	RuntimeMin      int    `json:"runtime_min,omitempty"`
+	ReleaseDate     string `json:"release_date,omitempty"`
+	TMDBID          int64  `json:"tmdb_id,omitempty"`
+	TVDBID          int64  `json:"tvdb_id,omitempty"`
+	IMDBID          string `json:"imdb_id,omitempty"`
+	PosterPath      string `json:"-"`
+	BackdropPath    string `json:"-"`
+	MetadataState   string `json:"metadata_state"`
+	MatchSuppressed bool   `json:"match_suppressed"`
+	AddedAt         int64  `json:"added_at"`
 	// Fields provider refreshes leave alone, because the user edited or locked them.
 	LockedFields []string `json:"locked_fields"`
 

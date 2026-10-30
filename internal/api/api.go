@@ -316,6 +316,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("DELETE /api/backups/{name}", admin(s.deleteBackup))
 	mux.HandleFunc("PATCH /api/items/{id}", admin(s.editItem))
 	mux.HandleFunc("POST /api/items/{id}/refresh", admin(s.refreshItem))
+	mux.HandleFunc("POST /api/items/{id}/unmatch", admin(s.unmatchItem))
 	mux.HandleFunc("POST /api/items/{id}/analyze", admin(s.analyzeItem))
 	mux.HandleFunc("GET /api/items/{id}/artwork", admin(s.listArtwork))
 	mux.HandleFunc("GET /api/items/{id}/artwork/palette", user(s.artworkPalette))

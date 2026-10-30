@@ -104,6 +104,15 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 			}
 		}
 	}
+	// Explicitly unmatched titles still discover/link new files, but never re-import metadata.
+	existing, err := s.store.GetItem(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing.MatchSuppressed {
+		_, err := s.linkEpisodeFiles(ctx, lib, id, g.files, true)
+		return err
+	}
 	// Local artwork and tvshow.nfo ids from the show's folder (before looking it up, so the ids are used).
 	if g.folder != "" {
 		art := seriesArt(g.folder)
@@ -216,6 +225,9 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	}
 	if series == nil {
 		return fmt.Errorf("series %s not found", seriesID)
+	}
+	if series.MatchSuppressed {
+		return nil
 	}
 	if currentWork(ctx) == nil {
 		var finish func()
@@ -771,9 +783,30 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 	for index, f := range files {
 		currentWork(ctx).Update("Checking episode links", "Using saved episode metadata")
 		currentWork(ctx).Progress(index, len(files))
+		if series.MatchSuppressed && len(links[f.fileID]) > 0 {
+			// An explicit reset never reassigns an already-linked file, especially when an
+			// old multi-episode/date mapping cannot be reconstructed without a provider.
+			continue
+		}
 		var ids []string
 		missing := false
 		switch {
+		case f.ep.AirDate != "" && series.MatchSuppressed:
+			// Keep stable existing identities; new date-named files become visible unplaced
+			// entries without asking providers to interpret their dates.
+			for _, link := range links[f.fileID] {
+				ids = append(ids, link.ItemID)
+			}
+			if len(ids) == 0 {
+				id, _, e := s.store.EnsureItem(ctx, &store.Item{LibraryID: lib.ID, Kind: "episode", ParentID: seriesID, Title: f.ep.AirDate}, "ep:"+seriesID+":file:date"+f.ep.AirDate)
+				if e != nil {
+					return 0, e
+				}
+				if e = s.store.SetMetadataState(ctx, id, "unmatched"); e != nil {
+					return 0, e
+				}
+				ids = []string{id}
+			}
 		case f.ep.AirDate != "":
 			if byDate == nil {
 				byDate = map[string][]string{}
@@ -834,6 +867,9 @@ func (s *Scanner) linkEpisodeFiles(ctx context.Context, lib *store.Library, seri
 		stem := strings.TrimSuffix(filepath.Base(f.path), filepath.Ext(f.path))
 		thumb := image(stem+"-thumb", stem)
 		for _, id := range dedupe(ids) {
+			if series.MatchSuppressed {
+				continue
+			}
 			if err := s.store.SetLocalArt(ctx, id, thumb, "", ""); err != nil {
 				return 0, err
 			}
