@@ -1,15 +1,13 @@
 import { Trans, useTranslation } from 'react-i18next';
-import { SourceFilesButton } from '@/components/SourceFormats';
-import { EpisodeDetailsButton } from '@/components/EpisodeDetails';
-import { QueueActions } from '@/components/QueueActions';
+import { MediaInfoDialog } from '@/components/SourceFormats';
+import { EpisodeDetailsDialog } from '@/components/EpisodeDetails';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, Eye, EyeOff, MoreHorizontal, Pencil, Play, Shuffle } from 'lucide-react';
+import { AlertTriangle, BookOpen, Eye, EyeOff, Info, Play, Shuffle, SlidersHorizontal } from 'lucide-react';
 import { api, type SeasonEpisode } from '@/lib/api';
 import { nextToPlay } from '@/lib/next-episode';
-import { EditDetailsDialog } from '@/components/EditDetails';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { episodeQueue, shuffled } from '@/lib/shuffle';
@@ -24,21 +22,15 @@ import { useThemeMusic } from '@/components/ThemeMusic';
 import { ExtrasRow, TrailerButton } from '@/components/Extras';
 import { CollectionRows } from '@/components/Collections';
 import { useLibraries } from '@/components/Sidebar';
-import { AddToPlaylistButton } from '@/components/Playlists';
 import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { nowPlayingFor, usePlayer } from '@/components/Player';
-import { PlaybackOptionsButton } from '@/components/PlaybackOptions';
+import { PlaybackOptionsButton, PlaybackOptionsDialog } from '@/components/PlaybackOptions';
 import { Button } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
 import { SimilarRow } from '@/components/Similar';
 import { episodeCode, ProgressBar, progressOf } from '@/components/WatchState';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 const UNPLACED = -1;
 
@@ -48,7 +40,6 @@ export function SeriesPage() {
   const qc = useQueryClient();
   const [showMissing, setShowMissing] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
-  const [editingEpisode, setEditingEpisode] = useState<SeasonEpisode | null>(null);
   const libraries = useLibraries().data;
   const scanning = libraries?.some((library) => library.scan.running) ?? false;
   const wasScanning = useRef(scanning);
@@ -241,7 +232,7 @@ export function SeriesPage() {
               episode={ep}
               seriesTitle={series.title}
               unplaced={season === UNPLACED}
-              onEdit={admin ? () => setEditingEpisode(ep) : undefined}
+              admin={admin}
             />
           ))}
         </motion.div>
@@ -251,9 +242,6 @@ export function SeriesPage() {
       <ExtrasRow extras={series.extras} title={series.title} />
       <ProviderCredit item={series} library={libraries?.find((l) => l.id === series.library_id)} />
       {dialogs}
-      {editingEpisode && (
-        <EditDetailsDialog item={editingEpisode} open onOpenChange={(o) => !o && setEditingEpisode(null)} />
-      )}
 
     </Page>
   );
@@ -274,16 +262,23 @@ function PlayButton({ episode, seriesTitle }: { episode: SeasonEpisode; seriesTi
   );
 }
 
+type EpisodeDialog = 'details' | 'media' | 'playback' | null;
+
+/**
+ * An episode: clicking it plays. Only Watched and "⋯" sit on the row, always visible (no
+ * hide-on-hover); the rest is in the episode's "⋯", the title page's menu: Play next, Add to
+ * queue, Add to Playlist, Playback options, Episode details, Media Info, then the owner's tools.
+ */
 function EpisodeRow({
   episode: ep,
   seriesTitle,
   unplaced,
-  onEdit,
+  admin,
 }: {
   episode: SeasonEpisode;
   seriesTitle: string;
   unplaced: boolean;
-  onEdit?: () => void;
+  admin: boolean;
 }) {
   const { t } = useTranslation('titles');
   const play = usePlayer();
@@ -291,6 +286,10 @@ function EpisodeRow({
   const onPlay = () => playable && playEpisode(play, ep, seriesTitle);
   const watched = !!ep.user_data?.played;
   const hideSpoilers = useSpoilerGuard()(ep);
+  const item = { ...ep, series_title: seriesTitle };
+  const { open: openDialog, dialogs } = useItemDialogs(item);
+  const [dialog, setDialog] = useState<EpisodeDialog>(null);
+  const close = (o: boolean) => { if (!o) setDialog(null); };
 
   return (
     <div
@@ -328,47 +327,19 @@ function EpisodeRow({
       {playable && <button type="button" aria-label={t('titles:series.playEpisode', { title: ep.title })} onClick={onPlay}
         className="absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent" />}
       </div>
-      <div className="flex max-w-full flex-none flex-wrap content-start items-center justify-end gap-2 self-end xl:self-start xl:flex-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
-      <EpisodeDetailsButton episode={ep} />
-      {ep.available && <SourceFilesButton id={ep.id} title={ep.title} />}
-      {playable && <PlaybackOptionsButton compact item={nowPlayingFor({ ...ep, series_title: seriesTitle })} />}
-      {ep.available && <QueueActions item={{ ...ep, series_title: seriesTitle }} compact />}
-      {ep.available && (
-        <AddToPlaylistButton
-          item={{ ...ep, series_title: seriesTitle }}
-          size="icon"
-          className="mt-0.5 size-8 shrink-0 bg-transparent hover:bg-surface-2 [&_svg]:size-4"
-        />
-      )}
-      {ep.available && (
-        <WatchedButton
-          itemId={ep.id}
-          watched={watched}
-          size="sm"
-          variant="ghost"
-          className="mt-0.5 shrink-0"
-        />
-      )}
-      {onEdit && (
-        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={t('titles:series.moreEpisode', { title: ep.title })}
-                className="mt-0.5 size-8 shrink-0  [&_svg]:size-4"
-              >
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onEdit}>
-                <Pencil className="size-4 text-muted" /> {t("titles:series.edit")}</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+      <div className="flex max-w-full flex-none items-center justify-end gap-1 self-end xl:self-start" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        {ep.available && <WatchedButton itemId={ep.id} watched={watched} size="sm" variant="ghost" className="mt-0.5 shrink-0" />}
+        <MoreMenu item={item} admin={admin} playable={!!ep.available} onOpen={openDialog} compact
+          label={t('titles:series.moreEpisode', { title: ep.title })}
+          extra={<>
+            {playable && <DropdownMenuItem onSelect={() => setDialog('playback')}><SlidersHorizontal className="size-4 text-muted" /> {t('titles:itemActions.playbackOptions')}</DropdownMenuItem>}
+            <DropdownMenuItem onSelect={() => setDialog('details')}><BookOpen className="size-4 text-muted" /> {t('titles:itemActions.episodeDetails')}</DropdownMenuItem>
+            {ep.available && <DropdownMenuItem onSelect={() => setDialog('media')}><Info className="size-4 text-muted" /> {t('titles:mediaInfo.menuItem')}</DropdownMenuItem>}
+          </>} />
+        {dialogs}
+        {playable && <PlaybackOptionsDialog item={nowPlayingFor(item)} open={dialog === 'playback'} onOpenChange={close} />}
+        <EpisodeDetailsDialog episode={ep} open={dialog === 'details'} onOpenChange={close} />
+        {ep.available && <MediaInfoDialog id={ep.id} title={ep.title} open={dialog === 'media'} onOpenChange={close} />}
       </div>
     </div>
   );

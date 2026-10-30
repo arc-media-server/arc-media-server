@@ -8,23 +8,28 @@ import { audioLabel, chooseSubtitle, playerCaps, subtitleLabel, versionLabel } f
 import { usePlayer, type NowPlaying } from '@/components/Player';
 import { ErrorNotice } from '@/components/Page';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { Field, inputClass } from '@/components/ui/field';
 
 /** A deliberate preplay path; the ordinary Play button keeps its automatic defaults. */
-export function PlaybackOptionsButton({ item, compact = false }: { item: NowPlaying; compact?: boolean }) {
+export function PlaybackOptionsButton({ item }: { item: NowPlaying }) {
   const { t } = useTranslation('titleActions');
   const [open, setOpen] = useState(false);
+  return <>
+    <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" onClick={() => setOpen(true)}
+      title={t("titleActions:playbackOptions.playbackOptions")} aria-label={t("titleActions:playbackOptions.playbackOptions")}>
+      <SlidersHorizontal />
+    </Button>
+    <PlaybackOptionsDialog item={item} open={open} onOpenChange={setOpen} />
+  </>;
+}
+
+/** Playback options as a dialog of its own, for opening from a "⋯" menu (an episode's). */
+export function PlaybackOptionsDialog({ item, open, onOpenChange }: { item: NowPlaying; open: boolean; onOpenChange: (o: boolean) => void }) {
   const play = usePlayer();
-  return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogTrigger asChild>
-      <Button variant={compact ? 'ghost' : 'secondary'} size={compact ? 'icon' : 'lg'} className={compact ? undefined : 'size-12 rounded-2xl px-0'}
-        title={t("titleActions:playbackOptions.playbackOptions")} aria-label={compact ? t('titleActions:playbackOptions.forTitle', { title: item.title }) : t("titleActions:playbackOptions.playbackOptions")}>
-        <SlidersHorizontal className={compact ? 'size-4' : undefined} />
-      </Button>
-    </DialogTrigger>
+  return <Dialog open={open} onOpenChange={onOpenChange}>
     {open && <Options key={`${item.itemId}:${item.edition ?? ''}`} item={item} onPlay={(selection, edition) => {
-      setOpen(false);
+      onOpenChange(false);
       play({ ...item, selection, edition, subtitle: edition || (item.edition ? undefined : item.subtitle) });
     }} />}
   </Dialog>;

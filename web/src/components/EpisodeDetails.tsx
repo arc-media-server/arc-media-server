@@ -1,22 +1,17 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { useSpoilerGuard } from '@/lib/home';
 import { CastRow, CrewLine } from '@/components/Credits';
 import { ErrorNotice } from '@/components/Page';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 
-/** Read details independently of Play, including unavailable episodes. */
-export function EpisodeDetailsButton({ episode }: { episode: Item }) {
+/** Read details independently of Play, including unavailable episodes; opened from the episode's "⋯". */
+export function EpisodeDetailsDialog({ episode, open, onOpenChange }: { episode: Item; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('titles');
-  const [open, setOpen] = useState(false);
   const hidden = useSpoilerGuard()(episode);
   const detail = useQuery({ queryKey: ['item', episode.id], queryFn: () => api.item(episode.id), enabled: open && !hidden, staleTime: 0 });
-  return <Dialog open={open} onOpenChange={setOpen}>
-    <Button variant="ghost" size="icon" title={t("titles:episodeDetails.episodeDetails")} aria-label={t('titles:episodeDetails.forTitle', { title: episode.title })} onClick={() => setOpen(true)}><BookOpen /></Button>
+  return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title={episode.title} description={t("titles:episodeDetails.episodeDetails")}>
       {hidden ? <p className="py-4 text-sm text-muted">{t("titles:episodeDetails.descriptionAndGuestAppearances")}</p> : <>
         <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />
