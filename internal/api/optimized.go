@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 
 	"ams/internal/optimize"
 	"ams/internal/store"
@@ -142,6 +144,12 @@ func (s *Server) deleteOptimized(w http.ResponseWriter, r *http.Request) {
 // optimizedFor picks a finished optimized copy of a file this player can play as it is (MP4,
 // H.264, AAC), within a height limit (0 for none), or nil.
 func (s *Server) optimizedFor(r *http.Request, f *store.MediaFile, caps clientCaps, maxHeight, maxKbps int, audio *store.Stream) *store.Optimized {
+	if caps.MaxBitDepth > 0 && caps.MaxBitDepth < 8 || caps.MaxAudioChannels > 0 && caps.MaxAudioChannels < 2 {
+		return nil
+	}
+	if profiles, limited := caps.VideoProfiles["h264"]; limited && !slices.ContainsFunc(profiles, func(p string) bool { return strings.EqualFold(p, "High") }) {
+		return nil
+	}
 	if !caps.has(caps.Containers, "mp4") || !caps.has(caps.Video, "h264") || !caps.has(caps.Audio, "aac") {
 		return nil
 	}
