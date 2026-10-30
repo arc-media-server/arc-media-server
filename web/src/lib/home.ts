@@ -92,9 +92,9 @@ export function hasEpisodes(r: ResolvedRow) {
   return r.type === 'continue' || r.type === 'next-up' || r.type === 'playlist' || (r.type === 'recent' && r.library.kind === 'shows');
 }
 
-/** The library a Recently Added row is for. */
+/** The library a Recently Added or filter row is for. */
 function rowLibrary(r: ResolvedRow) {
-  return r.type === 'recent' ? r.library : undefined;
+  return r.type === 'recent' || r.type === 'custom' ? r.library : undefined;
 }
 
 /**
@@ -153,7 +153,7 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
       if (!r.filter || !r.title) continue;
       const library = libraries.find((l) => l.id === r.filter!.library_id);
       if (!library) continue;
-      rows.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r) });
+      rows.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r, library) });
     }
   }
   return arrangeRows(rows, libraries);

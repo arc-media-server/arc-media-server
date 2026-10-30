@@ -16,6 +16,8 @@ by season. Its drag handles, move buttons and Reset Order are gone.
 Only the rows carrying on watching (Continue Watching and Up Next) have a card style choice
 (posters, season posters, thumbnails, backdrops). Every other row shows its usual look; a style
 saved earlier for one is ignored and dropped on the next save.
+A filter row from a home videos library now defaults to thumbnails, as that library's Recently
+Added does (it used to default to posters on the web and thumbnails on the TV).
 
 **Why.** Owner, 30 October: "the row ordering should be based on the library ordering rather
 than each row moved independently; posters style should be changeable only for the continue
