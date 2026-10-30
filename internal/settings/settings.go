@@ -14,6 +14,7 @@ import (
 
 // Settings are the server-wide settings.
 type Settings struct {
+	ServerName                                                  string
 	loadedScanHours, loadedScanMinutes                          int
 	ScanAutomatic, ScanPartial, ScanOnStart                     bool
 	ScanIntervalMinutes                                         int
@@ -151,6 +152,12 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 	}
 	var s Settings
 	var err error
+	if s.ServerName, err = get("server_name"); err != nil {
+		return s, err
+	}
+	if s.ServerName == "" {
+		s.ServerName = "Arc Media Server"
+	}
 	if s.TMDBKey, err = get(keyTMDB); err != nil {
 		return s, err
 	}
@@ -360,6 +367,7 @@ func ValidScanInterval(h int) bool { return h == 0 || h == 1 || h == 2 || h == 6
 // Save stores the settings.
 func Save(ctx context.Context, st *store.Store, s Settings) error {
 	for key, v := range map[string]string{
+		"server_name":    s.ServerName,
 		keyScanAutomatic: boolString(s.ScanAutomatic), keyScanPartial: boolString(s.ScanPartial), keyScanOnStart: boolString(s.ScanOnStart), keyScanInterval: strconv.Itoa(s.ScanMinutes() / 60),
 		"scan_interval_minutes": strconv.Itoa(s.ScanMinutes()), "analysis_enabled": boolString(s.AnalysisEnabled), "metadata_refresh_enabled": boolString(s.MetadataRefreshEnabled), "auto_backups_enabled": boolString(s.AutoBackupsEnabled), "empty_trash_enabled": boolString(s.EmptyTrashEnabled), "database_upkeep_enabled": boolString(s.DatabaseUpkeepEnabled), "cache_cleanup_enabled": boolString(s.CacheCleanupEnabled), "preview_mode": s.PreviewMode, "detection_mode": s.DetectionMode,
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,

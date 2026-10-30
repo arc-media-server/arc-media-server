@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"ams/internal/auth"
 	"ams/internal/remote"
@@ -249,10 +251,10 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name        string `json:"name"`
 		Password    string `json:"password"`
-		LocalBypass bool   `json:"local_bypass"`
-		TMDBKey     string `json:"tmdb_api_key"`
-		TVDBKey     string `json:"tvdb_api_key"`
-		Region      string `json:"region"`
+		LocalBypass bool   `json:"local_bypass" api:"optional"`
+		TMDBKey     string `json:"tmdb_api_key" api:"optional"`
+		TVDBKey     string `json:"tvdb_api_key" api:"optional"`
+		Region      string `json:"region" api:"optional"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -315,7 +317,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Password string `json:"password"`
 		// An app signing in: its name, e.g. "Living Room Apple TV". It gets a token back.
-		Device string `json:"device"`
+		Device string `json:"device" api:"optional"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -353,8 +355,8 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var body struct {
 		ID       string `json:"id"`
-		PIN      string `json:"pin"`
-		Password string `json:"password"`
+		PIN      string `json:"pin" api:"optional"`
+		Password string `json:"password" api:"optional"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -749,6 +751,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 	ff := s.ffprobeStatus()
 	return map[string]any{
 		"tmdb_api_key": maskKey(st.TMDBKey),
+		"server_name":  serverDisplayName(st.ServerName),
 		"tvdb_api_key": maskKey(st.TVDBKey),
 		"ffprobe_path": st.FFprobePath,
 		"ffprobe":      ff,
@@ -882,6 +885,7 @@ func (r *settingsRecorder) WriteHeader(status int) {
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
+		ServerName             *string  `json:"server_name"`
 		TMDBKey                *string  `json:"tmdb_api_key"`
 		TVDBKey                *string  `json:"tvdb_api_key"`
 		FFprobePath            *string  `json:"ffprobe_path"`
@@ -950,6 +954,18 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next := s.settings()
+	if value, present := fields["server_name"]; present && string(value) == "null" {
+		writeError(w, 400, "server_name cannot be null")
+		return
+	}
+	if body.ServerName != nil {
+		name := strings.TrimSpace(*body.ServerName)
+		if name == "" || utf8.RuneCountInString(name) > 80 || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+			writeError(w, 400, "server_name must be 1 to 80 characters without control characters")
+			return
+		}
+		next.ServerName = name
+	}
 	if body.ScanAutomatic != nil {
 		next.ScanAutomatic = *body.ScanAutomatic
 	}

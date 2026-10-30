@@ -28,7 +28,7 @@ type clientCaps struct {
 	Video      []string `json:"video"`      // h264, hevc, vp9, av1
 	Audio      []string `json:"audio"`      // aac, mp3, opus, flac, ac3, eac3, vorbis
 	// The largest picture worth sending (e.g. the screen's height); 0 for no limit.
-	MaxHeight int `json:"max_height"`
+	MaxHeight int `json:"max_height" api:"optional"`
 }
 
 func (c clientCaps) has(list []string, v string) bool { return slices.Contains(list, v) }
@@ -243,16 +243,16 @@ func (s *Server) startPlayback(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Caps        clientCaps `json:"caps"`
-		FileID      int64      `json:"file_id"`
-		AudioStream *int       `json:"audio_stream"`
-		StartMS     int64      `json:"start_ms"`
+		FileID      int64      `json:"file_id" api:"optional"`
+		AudioStream *int       `json:"audio_stream" api:"optional"`
+		StartMS     int64      `json:"start_ms" api:"optional"`
 		// A picture subtitle track to burn into the video (which means converting it).
-		BurnSubtitle string `json:"burn_subtitle"`
+		BurnSubtitle string `json:"burn_subtitle" api:"optional"`
 		// A quality limit chosen in the player, in kbit/s (e.g. 4000 for "4 Mbps 720p"); 0 for the
 		// original.
-		MaxKbps int `json:"max_kbps"`
+		MaxKbps int `json:"max_kbps" api:"optional"`
 		// Without file_id, play this edition (e.g. "Director's Cut"; "" for the standard one).
-		Edition string `json:"edition"`
+		Edition string `json:"edition" api:"optional"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.StartMS < 0 {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id", "audio_stream", "start_ms"`)
@@ -973,8 +973,8 @@ func (s *Server) playbackOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		Caps    clientCaps `json:"caps"`
-		FileID  int64      `json:"file_id"`
-		Edition string     `json:"edition"`
+		FileID  int64      `json:"file_id" api:"optional"`
+		Edition string     `json:"edition" api:"optional"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, `send {"caps": {...}} and optionally "file_id" or "edition"`)
@@ -990,8 +990,8 @@ func (s *Server) playbackOptions(w http.ResponseWriter, r *http.Request) {
 		index = audio.Index
 	}
 	writeJSON(w, http.StatusOK, struct {
-		FileID         int64             `json:"file_id"`
-		AudioStream    int               `json:"audio_stream"`
+		FileID         int64             `json:"file_id" api:"optional"`
+		AudioStream    int               `json:"audio_stream" api:"optional"`
 		AudioTracks    []audioTrackDTO   `json:"audio_tracks"`
 		SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
 		Versions       []versionDTO      `json:"versions"`
