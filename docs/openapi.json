@@ -528,6 +528,24 @@
         ],
         "type": "object"
       },
+      "CollectionPage": {
+        "properties": {
+          "collection": {
+            "$ref": "#/components/schemas/Collection"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "collection",
+          "items"
+        ],
+        "type": "object"
+      },
       "CollectionRef": {
         "properties": {
           "id": {
@@ -2067,6 +2085,39 @@
           "images",
           "title",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "PlaylistEntry": {
+        "properties": {
+          "entry_id": {
+            "type": "integer"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          }
+        },
+        "required": [
+          "entry_id",
+          "item"
+        ],
+        "type": "object"
+      },
+      "PlaylistPage": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PlaylistEntry"
+            },
+            "type": "array"
+          },
+          "playlist": {
+            "$ref": "#/components/schemas/Playlist"
+          }
+        },
+        "required": [
+          "entries",
+          "playlist"
         ],
         "type": "object"
       },
@@ -4791,8 +4842,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/CollectionPage"
                 }
               }
             },
@@ -5050,8 +5100,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/CollectionPage"
                 }
               }
             },
@@ -5154,8 +5203,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/CollectionPage"
                 }
               }
             },
@@ -14167,8 +14215,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/PlaylistPage"
                 }
               }
             },
