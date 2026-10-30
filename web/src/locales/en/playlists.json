@@ -30,7 +30,6 @@
     "heading": "Delete {{title}}?"
   },
   "picker": {
-    "hint": "Save to a playlist",
     "title": "Add to Playlist",
     "stale": "Showing the last loaded playlists. They may be out of date.",
     "loading": "Loading playlists…",

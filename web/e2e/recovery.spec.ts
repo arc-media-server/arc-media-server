@@ -152,8 +152,10 @@ test('recovery: episode Space and Enter activate once without nested-action play
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
   await expect(page.locator('video')).toHaveCount(0);
   const row = episode.locator('..').locator('..');
-  await row.getByRole('button', { name: 'Add to Playlist', exact: true }).focus();
-  await page.keyboard.press('Space');
+  await row.getByRole('button', { name: /^More for /, exact: false }).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Add to Playlist…', exact: true }).focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog', { name: 'Add to Playlist', exact: true })).toBeVisible();
   expect(starts).toBe(2);
   await page.keyboard.press('Escape');

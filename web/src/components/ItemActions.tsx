@@ -67,29 +67,37 @@ export function useAnalyzeItem(item?: Item) {
 }
 
 /**
- * The "⋯" button on a movie or show page, as Plex's: Play next, Add to queue and Add to Playlist
- * for anyone who can play the title, then the server owner's tools (a show's episode ordering is
- * in Edit, Metadata & ordering).
+ * The "⋯" button on a movie, show or episode, as Plex's: Play next, Add to queue and Add to
+ * Playlist for anyone who can play the title, any `extra` items (Media Info, an episode's
+ * playback options and details), then the server owner's tools (a show's episode ordering is in
+ * Edit, Metadata & ordering). `compact` is the small trigger an episode row uses.
  */
-export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing }: {
+export function MoreMenu({ item, admin, playable, edition, onOpen, onRefresh, refreshing, onAnalyze, analyzing, extra, compact, label }: {
   item: Item; admin: boolean; playable: boolean; edition?: string; onOpen: (d: Exclude<Dialog, null>) => void;
   onRefresh?: () => void; refreshing?: boolean; onAnalyze?: () => void; analyzing?: boolean;
+  extra?: ReactNode; compact?: boolean; label?: string;
 }) {
   const { t } = useTranslation('titles');
   const queue = useQueueActions(item, edition);
   const [playlist, setPlaylist] = useState(false);
-  if (!admin && !playable) return null;
+  if (!admin && !playable && !extra) return null;
+  const name = label ?? t('titles:itemActions.more');
   return (
-    <span className="inline-flex max-w-full flex-wrap items-center gap-2">
+    <span className={compact ? 'inline-flex max-w-full flex-row-reverse flex-wrap items-center gap-2' : 'inline-flex max-w-full flex-wrap items-center gap-2'}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="lg" className="w-12 px-0" title={t('titles:itemActions.more')} aria-label={t('titles:itemActions.more')} disabled={queue.busy}>
-            {queue.busy ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
-          </Button>
+          {compact
+            ? <Button variant="ghost" size="icon" className="size-8 shrink-0 [&_svg]:size-4" title={t('titles:itemActions.more')} aria-label={name} disabled={queue.busy}>
+                {queue.busy ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
+              </Button>
+            : <Button variant="secondary" size="lg" className="w-12 px-0" title={name} aria-label={name} disabled={queue.busy}>
+                {queue.busy ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
+              </Button>}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align={compact ? 'end' : 'start'} className="min-w-52">
           <MoreMenuItems item={item} admin={admin} playable={playable} onOpen={onOpen} onRefresh={onRefresh} refreshing={refreshing}
-            onAnalyze={onAnalyze} analyzing={analyzing} onQueue={(next) => void queue.add(next)} onPlaylist={() => setPlaylist(true)} />
+            onAnalyze={onAnalyze} analyzing={analyzing} onQueue={(next) => void queue.add(next)} onPlaylist={() => setPlaylist(true)}
+            extra={extra && <>{playable && <DropdownMenuSeparator />}{extra}</>} />
         </DropdownMenuContent>
       </DropdownMenu>
       <span role="status" className="text-xs text-muted empty:hidden">{queue.notice}</span>
@@ -127,10 +135,12 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
           <DropdownMenuItem onSelect={() => onOpen('edit')}>
             <Pencil className="size-4 text-muted" /> {t('titles:itemActions.edit')}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onOpen('collection')}>
-            <Layers className="size-4 text-muted" /> {t('titles:itemActions.addToCollection')}
-          </DropdownMenuItem>
-          {!isLocalVideo(item) && (
+          {item.kind !== 'episode' && (
+            <DropdownMenuItem onSelect={() => onOpen('collection')}>
+              <Layers className="size-4 text-muted" /> {t('titles:itemActions.addToCollection')}
+            </DropdownMenuItem>
+          )}
+          {!isLocalVideo(item) && item.kind !== 'episode' && (
             <DropdownMenuItem onSelect={() => onOpen('match')}>
               <SearchCheck className="size-4 text-muted" /> {t('titles:itemActions.fixMatch')}
             </DropdownMenuItem>

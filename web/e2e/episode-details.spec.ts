@@ -113,23 +113,27 @@ test('episode details: imported credits/counts, keyboard/phone, provider switchi
   expect((await page.request.put(`/api/items/${ep.id}/progress`, { data: { position_ms: 70000, duration_ms: 120000, state: 'stopped' } })).ok()).toBeTruthy();
   await page.goto(`/series/${series.id}`);
   await expect(page.getByText('14 episodes', { exact: true })).toBeVisible();
-  const details = page.getByRole('button', { name: 'Details for My opening', exact: true });
-  const actions = details.locator('..');
+  // Only Watched and More sit on an episode row, always visible; the rest is in More.
+  const more = page.getByRole('button', { name: 'More for My opening', exact: true });
+  const actions = more.locator('../..');
+  const openDetails = async () => { await more.click(); await page.getByRole('menuitem', { name: 'Episode details…', exact: true }).click(); };
   for (const width of [1440, 1280, 1100, 1024, 900, 640, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await details.scrollIntoViewIfNeeded();
-    await details.hover();
+    await more.scrollIntoViewIfNeeded();
     const boxes = await actions.getByRole('button').evaluateAll(buttons => buttons.map(button => {
       const r = button.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
     }));
-    expect(boxes).toHaveLength(7);
+    expect(boxes).toHaveLength(2);
+    expect(await actions.getByRole('button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label')))).toEqual(['Mark as Watched', 'More for My opening']);
     expect(Math.max(...boxes.map(b => b.y)) - Math.min(...boxes.map(b => b.y)), `single action row at ${width}px`).toBeLessThan(6);
     expect((await page.getByRole('heading', { name: 'My opening', exact: true }).locator('..').boundingBox())!.width, `readable episode text at ${width}px`).toBeGreaterThanOrEqual(180);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`episode-actions-${width}.png`) });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
-  await details.focus(); await page.keyboard.press('Enter');
+  await more.focus(); await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Playback options…', 'Episode details…', 'Media Info…', 'Edit…', 'Optimize…']);
+  await page.getByRole('menuitem', { name: 'Episode details…', exact: true }).focus(); await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'My opening', exact: true });
   await expect(dialog.getByText('Fixture Director', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Fixture Writer', { exact: true })).toBeVisible();
@@ -145,14 +149,14 @@ test('episode details: imported credits/counts, keyboard/phone, provider switchi
   expect(changed.credits ?? []).toEqual([]);
   expect(changed.title).toBe('My opening'); expect(changed.user_data.position_ms).toBe(70000);
   expect(changed.files.map((f: { id: number }) => f.id)).toEqual(before.files.map((f: { id: number }) => f.id));
-  await details.click();
+  await openDetails();
   await expect(dialog).toContainText('No cast or crew supplied by the file episode order provider.');
   await expect(dialog.getByText('Fixture Guest', { exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
   expect((await page.request.patch(`/api/items/${series.id}`, { data: { source_ordering: 'tmdb_aired' } })).ok()).toBeTruthy();
   const restored = await (await page.request.get(`/api/items/${ep.id}`)).json();
   expect(restored.credits).toHaveLength(3); expect(restored.title).toBe('My opening');
-  await details.click();
+  await openDetails();
   await expect(dialog.getByText('Fixture Guest', { exact: true })).toBeVisible();
 });
 
@@ -162,7 +166,8 @@ test('episode details: unavailable request Retry and spoiler protection do not s
   await page.route('**/api/items/*', route => route.request().method() === 'GET' && fail
     ? route.fulfill({ status: 503, json: { error: 'Episode details unavailable' } }) : route.continue());
   await page.goto(`/series/${series.id}`);
-  await page.getByRole('button', { name: 'Details for Opening', exact: true }).click();
+  await page.getByRole('button', { name: 'More for Opening', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Episode details…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Opening', exact: true });
   await expect(dialog.getByRole('alert')).toContainText('Episode details unavailable');
   fail = false; await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
@@ -170,7 +175,8 @@ test('episode details: unavailable request Retry and spoiler protection do not s
   await page.keyboard.press('Escape');
   expect((await page.request.patch('/api/me/prefs', { data: { hide_spoilers: true } })).ok()).toBeTruthy();
   await page.reload();
-  await page.getByRole('button', { name: 'Details for Opening', exact: true }).click();
+  await page.getByRole('button', { name: 'More for Opening', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Episode details…', exact: true }).click();
   await expect(dialog).toContainText('Description and guest appearances hidden until you watch it.');
   await expect(dialog.getByText('Fixture Guest', { exact: true })).toHaveCount(0);
   await expect(page.locator('video')).toHaveCount(0);
@@ -189,7 +195,7 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   await expect(page.getByRole('alert')).toContainText('Specials save unavailable');
   expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(false);
   fail = false; await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More for Interlude', exact: true })).toBeVisible();
   await expect(page.getByText('Special 1', { exact: true })).toBeVisible();
   const next = await (await page.request.get(`/api/items/${first.id}/next`)).json(); expect(next.id).toBe(special.id);
   expect((await (await page.request.get(`/api/items/${special.id}/next`)).json()).id).toBe(last.id);
@@ -203,7 +209,7 @@ test('inline specials: imported hints, save Retry, traversal, unknown fallback a
   expect((await page.request.post('/api/auth/profile', { data: { id: user.id } })).ok()).toBeTruthy();
   await page.reload();
   // Other profiles follow the owner's choice and can't change it.
-  await expect(page.getByRole('button', { name: 'Details for Interlude', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More for Interlude', exact: true })).toBeVisible();
   expect((await page.request.patch(`/api/series/${series.id}/specials`, { data: { inline_specials: false } })).status()).toBe(403);
   expect((await (await page.request.get(`/api/series/${series.id}/orderings`)).json()).inline_specials).toBe(true);
 });
