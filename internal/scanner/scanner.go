@@ -193,8 +193,9 @@ type Scanner struct {
 	// Titles a library preview identified, so adding the library doesn't search for them again.
 	remembered remembered
 	// The latest Fix Match of each show still being fetched in the background, by item id.
-	matching map[string]int64
-	matchGen int64
+	manualMatch sync.Mutex // serializes explicit Match/Unmatch admission, not background scanning
+	matching    map[string]int64
+	matchGen    int64
 }
 
 // New creates a scanner. Background scans stop when ctx is cancelled.
@@ -1172,6 +1173,9 @@ func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error)
 	it, err := s.store.GetItem(ctx, itemID)
 	if err != nil || it == nil {
 		return false, err
+	}
+	if it.MatchSuppressed {
+		return false, nil
 	}
 	if it.MetadataState == "locked" {
 		return true, nil // a home video: nothing to look up
