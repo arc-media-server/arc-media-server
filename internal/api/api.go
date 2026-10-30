@@ -166,6 +166,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
 	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
+	mux.HandleFunc("GET /api/identity", user(s.identity))
+	mux.HandleFunc("GET /api/capabilities", user(s.capabilities))
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
 	mux.HandleFunc("GET /api/libraries/{id}/scan", user(s.scanStatus))
 	mux.HandleFunc("POST /api/libraries/{id}/work", admin(s.startLibraryWork))

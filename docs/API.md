@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-179 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+182 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -77,6 +77,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/backups` | admin | Takes a manual backup now. |
 | POST | `/api/backups/{name}/restore` | admin | Replaces the database with a backup. The current state is saved as a backup first. Refused while a scan is running. |
 | DELETE | `/api/backups/{name}` | admin | Deletes a backup. |
+
+### capabilities
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/capabilities` | profile | Describes implemented API features, runtime availability and the selected profile's role permission. Item/library restrictions are still checked on every operation. Missing feature keys mean unsupported. Availability is a point-in-time hint, not a promise of provider/network/device compatibility; no credentials or paths are exposed. |
 
 ### cast
 
@@ -152,6 +158,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/home/default` | admin | Is the home layout for profiles that haven't arranged their own ([] for Arc's own). |
 | PUT | `/api/home/default` | admin | {"home": [...]} sets it ([] goes back to Arc's own). |
 
+### identity
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/identity` | profile | Returns this server's persistent identity and friendly name. Requires a selected profile. Rename through PATCH /settings {"server_name":"Living room"}. A database restore preserves its identity; independently running cloned servers must not be treated as a single instance. IDs do not establish trust or provide remote discovery. |
+
 ### imports
 
 | Method | Path | Who | What it does |
@@ -201,7 +213,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | PUT | `/api/items/{id}/rating` | profile | {"rating": 1-10, or 0 to clear} is the profile's own rating of a movie, show or episode (half stars out of five). |
 | PUT | `/api/items/{id}/watchlist` | profile | {"on": true} puts a movie or show on the profile's watchlist, or takes it off. |
 | DELETE | `/api/items/{id}` | admin | Forgets a movie, episode or show whose files are all gone (after backing up the database). Refused if any of its files is still there. |
-| PATCH | `/api/items/{id}` | admin | Edits metadata (incl. `genres` and `labels`; labels are never locked); edited fields are locked. `locked_fields` replaces the locked set. For a show, `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider` where its details come from (`""` TMDB, or `tvdb`). |
+| PATCH | `/api/items/{id}` | admin | Edits metadata (including genres and labels; labels are never locked); edited fields are locked. locked_fields replaces the locked set. For a show, source_ordering changes file numbering (empty follows the library). Show details use the library metadata provider; legacy details_provider inputs are rejected. Episode metadata follows file numbering. Display order is changed separately through the series API. |
 | POST | `/api/items/{id}/refresh` | admin | Fetches metadata again now. Locked fields are kept. Episodes refresh their whole series. |
 | POST | `/api/items/{id}/analyze` | admin | Rereads a movie's or episode's files, or every episode of a show. It runs in the background under the library's lease (stoppable from Activity) and keeps watch history, markers and edits. |
 | GET | `/api/items/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for a movie or show, with the ones in use and whether they were chosen by hand. |
@@ -381,6 +393,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/settings` | admin | Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`); `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit). |
+| PATCH | `/api/settings` | admin |  |
 
 ### stats
 

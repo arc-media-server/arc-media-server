@@ -16,11 +16,6 @@ import (
 
 var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
-// editItem: PATCH /api/items/{id} changes metadata by hand. Each field sent is set and locked so
-// refreshes keep it; "locked_fields" replaces the locked set (leave a field out to unlock it).
-//
-//	{"title": "Alien", "year": 1979, "locked_fields": ["title", "year", "poster"]}
-//
 // cleanLabels trims labels and drops blanks and repeats (ignoring case), up to 50.
 func cleanLabels(in []string) []string {
 	out := []string{}
@@ -44,10 +39,11 @@ func (s *Server) listLabels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, labels)
 }
 
-// editItem: PATCH /api/items/{id}. Edits metadata (incl. `genres` and `labels`; labels are never
-// locked); edited fields are locked. `locked_fields` replaces the locked set. For a show,
-// `source_ordering` sets its episode numbering (`""` for its library's) and `details_provider`
-// where its details come from (`""` TMDB, or `tvdb`).
+// editItem: PATCH /api/items/{id}. Edits metadata (including genres and labels; labels are
+// never locked); edited fields are locked. locked_fields replaces the locked set. For a show,
+// source_ordering changes file numbering (empty follows the library). Show details use the
+// library metadata provider; legacy details_provider inputs are rejected. Episode metadata
+// follows file numbering. Display order is changed separately through the series API.
 func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemFromPath(w, r)
 	if !ok {
@@ -69,7 +65,7 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		// A show's episode numbering; "" follows its library.
 		SourceOrdering *string `json:"source_ordering"`
 		// Where a show's details come from: "" for TMDB, or "tvdb".
-		DetailsProvider *string   `json:"details_provider"`
+		DetailsProvider *string   `json:"details_provider" api:"deprecated" description:"Legacy input is rejected; choose the metadata provider in library settings."`
 		LockedFields    *[]string `json:"locked_fields"`
 	}
 	dec := json.NewDecoder(r.Body)

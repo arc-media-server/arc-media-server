@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -20,26 +21,78 @@ type route struct {
 	method, path, access, handler string
 }
 
-var routeRe = regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) (/api/[^"]*)", (?:(user|admin)\()?s\.(\w+)\)?\)`)
-
-// routes reads the routes registered in api.go, in order.
+// routes inspects registrations structurally. Unknown wrappers fail generation rather than
+// silently removing endpoints from the public API contract.
 func routes(apiDir string) ([]route, error) {
-	data, err := os.ReadFile(filepath.Join(apiDir, "api.go"))
+	file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(apiDir, "api.go"), nil, 0)
 	if err != nil {
 		return nil, err
 	}
 	var out []route
-	for _, m := range routeRe.FindAllStringSubmatch(string(data), -1) {
-		access := "anyone"
-		switch m[3] {
-		case "user":
-			access = "profile"
-		case "admin":
-			access = "admin"
+	var routeErr error
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
 		}
-		out = append(out, route{method: m[1], path: m[2], access: access, handler: m[4]})
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != "HandleFunc" || len(call.Args) != 2 {
+			return true
+		}
+		receiver, ok := sel.X.(*ast.Ident)
+		if !ok || receiver.Name != "mux" {
+			return true
+		}
+		literal, ok := call.Args[0].(*ast.BasicLit)
+		if !ok {
+			routeErr = fmt.Errorf("API route pattern must be a literal")
+			return false
+		}
+		pattern, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			routeErr = err
+			return false
+		}
+		method, path, found := strings.Cut(pattern, " ")
+		if !found || !strings.HasPrefix(path, "/api/") {
+			return true
+		} // catch-all and web UI
+		handler, access, err := routeHandler(call.Args[1], "anyone")
+		if err != nil {
+			routeErr = fmt.Errorf("%s: %w", pattern, err)
+			return false
+		}
+		out = append(out, route{method: method, path: path, access: access, handler: handler})
+		return false
+	})
+	return out, routeErr
+}
+
+func routeHandler(expr ast.Expr, access string) (string, string, error) {
+	switch e := expr.(type) {
+	case *ast.SelectorExpr:
+		if receiver, ok := e.X.(*ast.Ident); ok && receiver.Name == "s" {
+			return e.Sel.Name, access, nil
+		}
+	case *ast.CallExpr:
+		if len(e.Args) != 1 {
+			break
+		}
+		if wrapper, ok := e.Fun.(*ast.Ident); ok && (wrapper.Name == "user" || wrapper.Name == "admin") {
+			if wrapper.Name == "user" {
+				access = "profile"
+			} else {
+				access = "admin"
+			}
+			return routeHandler(e.Args[0], access)
+		}
+		if wrapper, ok := e.Fun.(*ast.SelectorExpr); ok && wrapper.Sel.Name == "logSettingChanges" {
+			if receiver, ok := wrapper.X.(*ast.Ident); ok && receiver.Name == "s" {
+				return routeHandler(e.Args[0], access)
+			}
+		}
 	}
-	return out, nil
+	return "", "", fmt.Errorf("unsupported API handler/wrapper; teach the route extractor before adding it")
 }
 
 // handlerDocs maps each Server method to its doc comment.

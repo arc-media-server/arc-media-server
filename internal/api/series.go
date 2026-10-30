@@ -121,7 +121,7 @@ func (s *Server) setDisplayOrdering(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		OrderingID *int64 `json:"ordering_id"`
+		OrderingID *int64 `json:"ordering_id" api:"nullable"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
