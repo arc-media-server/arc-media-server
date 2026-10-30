@@ -2785,6 +2785,36 @@
         ],
         "type": "object"
       },
+      "RecommendedItemsPage": {
+        "properties": {
+          "bounded": {
+            "type": "boolean"
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bounded",
+          "has_more",
+          "items",
+          "offset",
+          "total"
+        ],
+        "type": "object"
+      },
       "RecommendedLook": {
         "properties": {
           "hidden": {
@@ -2821,11 +2851,20 @@
           "genre": {
             "type": "string"
           },
+          "has_more": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/Item"
             },
             "type": "array"
+          },
+          "items_url": {
+            "type": "string"
           },
           "name": {
             "type": "string"
@@ -2847,7 +2886,10 @@
           }
         },
         "required": [
+          "has_more",
+          "id",
           "items",
+          "items_url",
           "title",
           "type"
         ],
@@ -13166,6 +13208,101 @@
           "Libraries"
         ],
         "x-arc-access": "admin"
+      }
+    },
+    "/libraries/{id}/recommended/rows/{row}": {
+      "get": {
+        "description": "?limit=50&offset=20 continues a current visible row using its opaque id. Limit 1–100, offset 0–10000000. Missing/hidden/replaced daily rows return 404; refetch recommended to discover current IDs. Ordinary rows page their full filtered library; curated rows page at most 500 candidates (Continue Watching uses the existing 30 in-progress / 40 series windows). No provider calls.\n\nWho may call it: **profile**.",
+        "operationId": "recommendedPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendedItemsPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Continues a current visible row using its opaque id",
+        "tags": [
+          "Libraries"
+        ],
+        "x-arc-access": "profile"
       }
     },
     "/libraries/{id}/scan": {
