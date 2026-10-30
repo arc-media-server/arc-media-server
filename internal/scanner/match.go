@@ -141,6 +141,16 @@ var ErrNotFound = errors.New("not found")
 // and in the show's match explanation, and Refresh metadata or the next scheduled refresh
 // fetches the rest.
 func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string, id int64) (taskID int64, err error) {
+	s.manualMatch.Lock()
+	defer s.manualMatch.Unlock()
+	current, readErr := s.store.GetItem(ctx, it.ID)
+	if readErr != nil {
+		return 0, readErr
+	}
+	if current == nil {
+		return 0, ErrNotFound
+	}
+	it = current
 	tr := &metadata.Trace{Steps: []metadata.Step{{Provider: provider, Kind: "chosen", Picked: id,
 		Results: []metadata.Candidate{}, Note: "Chosen by you."}}}
 	if it.MetadataState == "locked" {

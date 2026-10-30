@@ -24,42 +24,14 @@ func (s *Scanner) RefreshSeries(ctx context.Context, lib *store.Library, id stri
 // ErrLibraryBusy and leaves the task untouched for the caller to try again with.
 func (s *Scanner) refreshSeries(ctx context.Context, lib *store.Library, id string, deep bool, before func(context.Context) error,
 	task *activity.Handle) (err error) {
-	s.mu.Lock()
-	if st := s.status[lib.ID]; st != nil && st.Running {
-		s.mu.Unlock()
-		return ErrLibraryBusy
-	}
-	if err := s.ctx.Err(); err != nil {
-		s.mu.Unlock()
-		task.Finish(err)
-		return err
-	}
-	work, cancel := context.WithCancel(ctx)
-	stop := context.AfterFunc(s.ctx, cancel)
-	s.nextJob++
-	s.jobs[lib.ID] = &jobControl{id: s.nextJob, ctx: work, cancel: cancel}
-	s.status[lib.ID] = &Status{JobID: s.nextJob, Operation: "refresh", Running: true, StartedAt: time.Now(), Phase: "Refreshing selected show"}
-	s.wg.Add(1)
-	s.mu.Unlock()
-	defer s.wg.Done()
-	defer func() {
-		stop()
-		cancel()
-		s.update(lib.ID, func(st *Status) {
-			st.FinishedAt = time.Now()
-			if errors.Is(err, context.Canceled) || st.Stopping {
-				st.Stopped = true
-				st.Stopping = false
-				st.Phase = "Stopped"
-			} else if err != nil {
-				st.Error = err.Error()
-			}
-		})
-		s.finishLibraryWork(lib.ID)
-		if s.OnFinish != nil {
-			s.OnFinish(lib.ID)
+	work, release, e := s.beginScopedWork(ctx, lib.ID, "refresh", "Refreshing selected show")
+	if e != nil {
+		if !errors.Is(e, ErrLibraryBusy) {
+			task.Finish(e)
 		}
-	}()
+		return e
+	}
+	defer func() { release(err) }()
 
 	item, e := s.store.GetItem(work, id)
 	if e != nil {
@@ -155,4 +127,44 @@ func (s *Scanner) finishLibraryWork(libraryID int64) {
 		delete(s.pendingPaths, libraryID)
 		s.startLocked(libraryID, next...)
 	}
+}
+
+// beginScopedWork shares discovery's single library lease and exact-run cancellation machinery.
+func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phase string) (context.Context, func(error), error) {
+	s.mu.Lock()
+	if st := s.status[id]; st != nil && st.Running {
+		s.mu.Unlock()
+		return nil, nil, ErrLibraryBusy
+	}
+	if err := s.ctx.Err(); err != nil {
+		s.mu.Unlock()
+		return nil, nil, err
+	}
+	work, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(s.ctx, cancel)
+	s.nextJob++
+	s.jobs[id] = &jobControl{id: s.nextJob, ctx: work, cancel: cancel}
+	s.status[id] = &Status{JobID: s.nextJob, Operation: operation, Running: true, StartedAt: time.Now(), Phase: phase}
+	s.wg.Add(1)
+	s.mu.Unlock()
+	return work, func(err error) {
+		defer s.wg.Done()
+		stop()
+		cancel()
+		s.update(id, func(st *Status) {
+			st.FinishedAt = time.Now()
+			if errors.Is(err, context.Canceled) || st.Stopping {
+				st.Stopped = true
+				st.Stopping = false
+				st.Phase = "Stopped"
+			} else if err != nil {
+				st.Error = err.Error()
+			}
+		})
+		s.finishLibraryWork(id)
+		if s.OnFinish != nil {
+			s.OnFinish(id)
+		}
+	}, nil
+
 }

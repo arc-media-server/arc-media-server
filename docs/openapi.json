@@ -1107,6 +1107,9 @@
             },
             "type": "array"
           },
+          "match_suppressed": {
+            "type": "boolean"
+          },
           "metacritic": {
             "type": "integer"
           },
@@ -1192,6 +1195,7 @@
           "kind",
           "library_id",
           "locked_fields",
+          "match_suppressed",
           "metadata_state",
           "sort_title",
           "title"
@@ -1670,6 +1674,9 @@
             },
             "type": "array"
           },
+          "match_suppressed": {
+            "type": "boolean"
+          },
           "match_task_id": {
             "type": "integer"
           },
@@ -1758,6 +1765,7 @@
           "kind",
           "library_id",
           "locked_fields",
+          "match_suppressed",
           "metadata_state",
           "sort_title",
           "title"
@@ -11266,6 +11274,109 @@
           "Items"
         ],
         "x-arc-access": "profile"
+      }
+    },
+    "/items/{id}/unmatch": {
+      "post": {
+        "description": "Removes all metadata and artwork references, manual metadata overrides and display orders from a show and its episodes. Restores filename labels and file order, preserves IDs, files, source numbering, history, manual collections and playlists. Scans/refreshes keep it unmatched until an explicit Fix Match succeeds. No media, uploaded artwork files, probes or markers are deleted. Only series IDs are accepted.\n\nWho may call it: **admin**.",
+        "operationId": "unmatchItem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Removes all metadata and artwork references, manual metadata overrides and display orders from a show and its episodes",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "admin"
       }
     },
     "/items/{id}/watchlist": {

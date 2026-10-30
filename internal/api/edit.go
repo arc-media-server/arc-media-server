@@ -169,6 +169,10 @@ func (s *Server) refreshItem(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if it.MatchSuppressed {
+		writeError(w, 409, "This title was explicitly unmatched; choose Fix Match before refreshing metadata")
+		return
+	}
 	ctx := r.Context()
 	var err error
 	var task *activity.Handle
