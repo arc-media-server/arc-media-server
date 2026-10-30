@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"slices"
 	"time"
@@ -35,6 +37,13 @@ func (s *Server) similar(w http.ResponseWriter, r *http.Request) {
 // recommendedRow is one row of a library's Recommended view. Clients title it from its type and
 // parameters, in the profile's language.
 type recommendedRow struct {
+	ID       string `json:"id"`
+	ItemsURL string `json:"items_url"`
+	HasMore  bool   `json:"has_more"`
+	sourceID string
+	query    *store.ItemQuery
+	total    int
+
 	Style string `json:"style,omitempty"`
 	// What the row is: continue, recently_released, recently_added, start_watching,
 	// because_you_watched, top_rated, recently_watched, rediscover, more_in_genre, top_in_genre,
@@ -97,6 +106,10 @@ func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recommendedRow, error) {
+	return s.recommendedRowsLimit(r, lib, recommendedLimit)
+}
+
+func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit int) ([]recommendedRow, error) {
 	ctx := r.Context()
 	userID := currentUserID(r)
 	acc := access(r)
@@ -107,19 +120,28 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 	now := time.Now()
 	day := int(now.Unix() / 86400)
 	rows := []recommendedRow{}
+	var nextQuery *store.ItemQuery
+	var nextTotal int
 	add := func(row recommendedRow) {
+		row.query, row.total = nextQuery, nextTotal
+		nextQuery, nextTotal = nil, 0
 		if len(row.Items) > 0 {
+			sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d/%s/%s", row.Type, row.Name, row.Genre, row.PersonID, row.Role, row.sourceID)))
+			row.ID = fmt.Sprintf("%x", sum[:12])
+			row.ItemsURL = fmt.Sprintf("/api/v1/libraries/%d/recommended/rows/%s", lib.ID, row.ID)
+			row.HasMore = row.total > len(row.Items) || (row.query == nil && (len(row.Items) >= limit || row.Type == "because_you_watched"))
 			row.Title = englishRowTitle(row, kind == "series")
 			rows = append(rows, row)
 		}
 	}
 	// list lists the library's titles (or episodes) with the profile's watch state.
 	list := func(q store.ItemQuery) ([]itemDTO, error) {
-		q.LibraryID, q.UserID, q.Access, q.Limit = lib.ID, userID, acc, recommendedLimit
+		q.LibraryID, q.UserID, q.Access, q.Limit = lib.ID, userID, acc, limit
 		if q.Kind == "" {
 			q.Kind = kind
 		}
-		items, _, err := s.store.ListItems(ctx, q)
+		items, total, err := s.store.ListItems(ctx, q)
+		nextQuery, nextTotal = &q, total
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +187,7 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 			return nil, err
 		}
 	}
-	items, err := s.homeDTOs(r, mergeHome(inProgress, next, recommendedLimit))
+	items, err := s.homeDTOs(r, mergeHome(inProgress, next, limit))
 	if err != nil {
 		return nil, err
 	}
@@ -191,14 +213,21 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 		return nil, err
 	}
 	for _, t := range recent {
-		similar, err := s.store.Similar(ctx, &t, acc, recommendedLimit)
+		visible, err := s.store.CanSee(ctx, &t, acc)
+		if err != nil {
+			return nil, err
+		}
+		if !visible {
+			continue
+		}
+		similar, err := s.store.Similar(ctx, &t, acc, limit)
 		if err != nil {
 			return nil, err
 		}
 		if items, err = unseen(similar); err != nil {
 			return nil, err
 		}
-		add(recommendedRow{Type: "because_you_watched", Items: items, Name: t.Title})
+		add(recommendedRow{Type: "because_you_watched", Items: items, Name: t.Title, sourceID: t.ID})
 	}
 
 	if items, err = list(store.ItemQuery{Sort: "rating"}); err != nil {
@@ -223,12 +252,8 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 		return nil, err
 	}
 	for _, g := range favourites {
-		found, _, err := s.store.ListItems(ctx, store.ItemQuery{LibraryID: lib.ID, Kind: kind, Genre: g, Sort: "shuffle",
-			Unwatched: true, UserID: userID, Access: acc, Limit: recommendedLimit})
+		items, err = list(store.ItemQuery{Genre: g, Sort: "shuffle", Unwatched: true})
 		if err != nil {
-			return nil, err
-		}
-		if items, err = unseen(found); err != nil {
 			return nil, err
 		}
 		add(recommendedRow{Type: "more_in_genre", Items: items, Name: g, Genre: g})
@@ -267,12 +292,8 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 		add(recommendedRow{Type: "top_by_person", Items: items, Name: p.Name, PersonID: p.ID, Role: p.Role})
 	}
 
-	top, _, err := s.store.ListItems(ctx, store.ItemQuery{LibraryID: lib.ID, Kind: kind, Sort: "rating", Unwatched: true,
-		UserID: userID, Access: acc, Limit: recommendedLimit})
+	items, err = list(store.ItemQuery{Sort: "rating", Unwatched: true})
 	if err != nil {
-		return nil, err
-	}
-	if items, err = unseen(top); err != nil {
 		return nil, err
 	}
 	add(recommendedRow{Type: "top_unwatched", Items: items})
