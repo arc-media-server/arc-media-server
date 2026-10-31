@@ -23,7 +23,18 @@
     "directStream": "Direct Stream",
     "directStreamThrottled": "Direct Stream (throttled)",
     "transcoding": "Transcoding",
-    "transcodingThrottled": "Transcoding (throttled)"
+    "transcodingThrottled": "Transcoding (throttled)",
+    "streamVideo": "Video",
+    "streamAudio": "Audio",
+    "streamWhy": "Why",
+    "streamAsItIs": "{{source}} (as it is)",
+    "streamConverted": "{{source}} → {{output}}",
+    "hardwareEncoder": "Hardware: {{encoder}}",
+    "cpuEncoder": "CPU (software)",
+    "toneMapped": "HDR mapped to SDR",
+    "subtitlesBurned": "Subtitles drawn into the video",
+    "convertedTo": "Converted to {{time}}",
+    "convertedAhead": "Converted to {{time}} ({{ahead}} ahead)"
   },
   "insights": {
     "insights": "Insights",
