@@ -36,7 +36,15 @@ type ctxKey int
 const (
 	userKey ctxKey = iota
 	sessionKey
+	deviceKey
 )
+
+// currentDevice is the name an app gave itself when it signed in (e.g. "Living Room TV"), or "" for
+// a browser.
+func currentDevice(r *http.Request) string {
+	d, _ := r.Context().Value(deviceKey).(string)
+	return d
+}
 
 // currentSession identifies the signed-in browser or device (its session's token hash).
 func currentSession(r *http.Request) string {
@@ -114,7 +122,8 @@ func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx := context.WithValue(r.Context(), userKey, u)
 		requestStage(r, "handling request", 0)
-		h(w, r.WithContext(context.WithValue(ctx, sessionKey, se.TokenHash)))
+		ctx = context.WithValue(ctx, sessionKey, se.TokenHash)
+		h(w, r.WithContext(context.WithValue(ctx, deviceKey, se.Device)))
 	}
 }
 
