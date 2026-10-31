@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"ams/internal/auth"
 	"ams/internal/store"
@@ -94,5 +96,94 @@ func TestCastSubtitleTrack(t *testing.T) {
 	}
 	if w := fetch(id); w.Code != http.StatusUnauthorized {
 		t.Fatalf("revoked session still served subtitles: %d", w.Code)
+	}
+}
+
+// A track that takes a while to read (the first time, out of a large video) doesn't hold the
+// player up: the WebVTT header comes at once, blank lines keep the connection alive, and the cues
+// follow. A player that gives up doesn't cancel the reading, so the next request is instant.
+func TestSlowSubtitleTrackAnswersAtOnce(t *testing.T) {
+	dir := t.TempDir()
+	runs := filepath.Join(dir, "runs")
+	fake := filepath.Join(dir, "ffmpeg")
+	// Stands in for FFmpeg reading a whole large file: slow, then the track as WebVTT.
+	script := "#!/bin/sh\ncat >/dev/null\necho run >> " + runs + "\nsleep 2\nprintf 'WEBVTT\\n\\n00:00:10.000 --> 00:00:12.000\\nHello\\n'\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldWait, oldAlive := vttWaitBeforeHeader, vttKeepAlive
+	vttWaitBeforeHeader, vttKeepAlive = 50*time.Millisecond, 300*time.Millisecond
+	defer func() { vttWaitBeforeHeader, vttKeepAlive = oldWait, oldAlive }()
+
+	s, u := securityServer(t)
+	s.subtitles = subtitles.NewCache(t.TempDir(), func() string { return fake })
+	ctx := context.Background()
+	media := t.TempDir()
+	lib, err := s.store.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{media})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _, err := s.store.EnsureItem(ctx, &store.Item{LibraryID: lib, Kind: "movie", Title: "Film"}, "film")
+	if err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(media, "Film.mp4")
+	os.WriteFile(video, []byte("clip"), 0o600)
+	os.WriteFile(filepath.Join(media, "Film.en.srt"), []byte("1\n00:00:10,000 --> 00:00:12,000\nHello\n"), 0o600)
+	fid, err := s.store.SaveFile(ctx, &store.MediaFile{LibraryID: lib, Path: video, Size: 4, ModTime: 1}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.SetFileItems(ctx, fid, []string{id}, 0); err != nil {
+		t.Fatal(err)
+	}
+	track := subtitles.Tracks(&store.MediaFile{Path: video})[0]
+	_, hash := auth.NewToken()
+	if err := s.store.CreateSession(ctx, hash, u.ID, "password", "review"); err != nil {
+		t.Fatal(err)
+	}
+	token := s.cast.add(&castGrant{userID: u.ID, session: hash, itemID: id})
+	rest := "api/items/" + id + "/subtitles/" + track.ID + "/vtt"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.SetPathValue("token", token)
+		r.SetPathValue("rest", rest)
+		s.castStream(w, r)
+	}))
+	defer srv.Close()
+	url := srv.URL + "/api/cast/" + token + "/" + rest
+
+	// A player that gives up after a moment still gets the header, well before the track is read.
+	quick, cancel := context.WithTimeout(ctx, 800*time.Millisecond)
+	req, _ := http.NewRequestWithContext(quick, "GET", url, nil)
+	started := time.Now()
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("no answer while the track is read: %v", err)
+	}
+	head := make([]byte, 7)
+	if _, err := io.ReadFull(res.Body, head); err != nil || string(head) != "WEBVTT\n" || time.Since(started) > time.Second {
+		t.Fatalf("header %q after %v: %v", head, time.Since(started), err)
+	}
+	res.Body.Close()
+	cancel()
+
+	// The reading carried on: once it's done, the track is served whole and FFmpeg isn't run again.
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		res, err := http.Get(url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if strings.Contains(string(body), "00:00:10.000 --> 00:00:12.000\nHello") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("cues never arrived: %q", body)
+		}
+	}
+	if b, _ := os.ReadFile(runs); strings.Count(string(b), "run") != 1 {
+		t.Fatalf("FFmpeg ran %d times, want once (the abandoned request shouldn't cancel it)", strings.Count(string(b), "run"))
 	}
 }

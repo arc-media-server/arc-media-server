@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"ams/internal/store"
 	"ams/internal/subtitles"
@@ -669,16 +671,97 @@ func (s *Server) subtitleCues(w http.ResponseWriter, r *http.Request) {
 // track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is
 // earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end
 // before 0 are left out. Cast devices fetch it through a cast link (see cast.go).
+//
+// Players wait for a subtitle file before they start the video, and reading a track out of a
+// large video the first time takes minutes (the whole file is read). So the answer starts at
+// once with the WebVTT header, stays alive with blank lines (which WebVTT allows between cues)
+// while the track is read, then carries the cues: the video starts straight away and the
+// subtitles follow.
 func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
-	_, cues, ok := s.readSubtitle(w, r)
+	fileID, _ := strconv.ParseInt(r.URL.Query().Get("file"), 10, 64)
+	_, f, ok := s.itemFile(w, r, fileID)
 	if !ok {
 		return
 	}
+	t, ok := s.findSubtitle(f, r.PathValue("track"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such subtitle track")
+		return
+	}
+	if s.subtitles == nil {
+		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
+		return
+	}
+	if t.Image {
+		writeError(w, http.StatusUnprocessableEntity, "picture subtitles are shown by burning them into the video")
+		return
+	}
 	shift, _ := strconv.ParseInt(r.URL.Query().Get("shift_ms"), 10, 64)
+	type result struct {
+		cues []subtitles.Cue
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		cues, err := s.subtitles.Cues(r.Context(), f, t)
+		done <- result{cues, err}
+	}()
 	w.Header().Set("Content-Type", "text/vtt; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write([]byte(webVTT(cues, shift)))
+	flusher, _ := w.(http.Flusher)
+	write := func(text string) bool {
+		if _, err := io.WriteString(w, text); err != nil {
+			return false
+		}
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return true
+	}
+	// Ready already (cached, or a file beside the video): the whole file in one answer.
+	select {
+	case res := <-done:
+		if res.err != nil {
+			writeError(w, http.StatusUnprocessableEntity, res.err.Error())
+			return
+		}
+		write(webVTT(res.cues, shift))
+		return
+	case <-time.After(vttWaitBeforeHeader):
+	}
+	if !write("WEBVTT\n") {
+		return
+	}
+	keepAlive := time.NewTicker(vttKeepAlive)
+	defer keepAlive.Stop()
+	for {
+		select {
+		case res := <-done:
+			if res.err != nil {
+				// Too late for an error status: the player gets a file without cues.
+				if r.Context().Err() == nil {
+					s.log.Warn("reading subtitles failed", "file", f.ID, "track", t.ID, "err", res.err)
+				}
+				return
+			}
+			write(strings.TrimPrefix(webVTT(res.cues, shift), "WEBVTT\n"))
+			return
+		case <-keepAlive.C:
+			if !write("\n") {
+				return
+			}
+		case <-r.Context().Done():
+			return
+		}
+	}
 }
+
+// How long /vtt waits for a track before answering with just the header, and how often it sends
+// a blank line after that to keep the player (and any proxy) from giving up on the connection.
+var (
+	vttWaitBeforeHeader = 500 * time.Millisecond
+	vttKeepAlive        = 10 * time.Second
+)
 
 // subtitleASS: GET /api/items/{id}/subtitles/{track}/ass?file=&shift_ms= returns an ASS/SSA track
 // as its own script, for players that draw it with libass (keeping its fonts, colours, positions
