@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-193 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+194 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -128,6 +128,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/diagnostics` | admin | Reports temporary detailed logging and bounded retention . |
 | PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for two hours; false stops them . |
 | GET | `/api/diagnostics/download` | admin | Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP . No database, settings dump or media files are included. |
+
+### discover
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/discover` | anyone | Lets an app on the home network find Arc without signing in: TV apps can't listen for broadcasts, so they try their network's addresses on Arc's port and list the servers that answer. Only answers requests from the home network (404 otherwise), and gives only the server's identity, name and version. |
 
 ### events
 

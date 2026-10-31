@@ -50,6 +50,8 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android
   (Kotlin, Compose for TV, Media3), and uses only `/api/v1`; API gaps it needs are fixed here.
+  The LG webOS / Samsung Tizen app goes in arc-media-server/arc-tv (one web app with Enact
+  Spotlight, packaged as .ipk and .wgt, each TV's own player); it also uses only `/api/v1`.
 - **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
 
 ## Workflow (owner, 26 October; applies to Claude and Codex alike)

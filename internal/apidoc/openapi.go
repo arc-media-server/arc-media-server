@@ -162,7 +162,7 @@ func (a *analyzer) walk(fn *ast.FuncDecl, info *handlerInfo, seen map[*ast.FuncD
 					info.query[v] = true
 				}
 			}
-		case name == "ServeContent" || name == "ServeFile" || name == "Copy" || name == "ServeHTTP":
+		case name == "ServeContent" || name == "ServeFile" || name == "Copy" || name == "ServeHTTP" || (name == "WriteString" && recv == "io"):
 			info.binary = true
 		case name == "Write" && isResponseWriter(ti.TypeOf(call.Fun.(*ast.SelectorExpr).X)):
 			info.binary = true

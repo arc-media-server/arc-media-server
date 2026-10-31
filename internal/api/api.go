@@ -156,6 +156,7 @@ func New(d Deps) http.Handler {
 
 	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /api/discover", s.discover)
 	mux.HandleFunc("GET /api/auth/status", s.authStatus)
 	mux.HandleFunc("POST /api/auth/setup", s.setup)
 	mux.HandleFunc("POST /api/auth/login", s.login)
@@ -357,7 +358,7 @@ func New(d Deps) http.Handler {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	mux.Handle("/", webui.Handler())
-	return versioned(s.logRequests(mux))
+	return appCORS(versioned(s.logRequests(mux)))
 }
 
 // itemDTO adds links and files to a stored item.
