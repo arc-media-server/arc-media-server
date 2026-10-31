@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { createElement, useEffect, useRef, useState } from 'react';
-import { ArrowDownUp, MoreHorizontal } from 'lucide-react';
+import { ArrowDownUp, Bookmark, MoreHorizontal } from 'lucide-react';
 import type { Library } from '@/lib/api';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { kindIcon } from '@/lib/kinds';
-import { navigationLibraries } from '@/lib/library-navigation';
+import { navEntryKey, navigationEntries, type NavEntry } from '@/lib/library-navigation';
 import { useLibraries } from './Sidebar';
 import { ReorderList } from './ArrangeRow';
 import { ErrorNotice } from './Page';
@@ -16,32 +16,37 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 export const quietMenuTrigger = 'size-8 text-subtle/80 group-hover:text-muted group-focus-within:text-muted hover:text-foreground focus-visible:text-foreground data-[state=open]:bg-surface-2 data-[state=open]:text-foreground';
 
 /**
- * Editing the profile's library order (`library_order`, a per-profile preference). Only the
- * libraries the server lists for this profile take part, and ones added later keep their server
- * order after the arranged ones.
+ * Editing the profile's navigation order: its libraries (`library_order`) with the Watchlist
+ * among them (`watchlist_position`), as Plex arranges its pinned sources; Home's rows follow.
+ * Only the libraries the server lists for this profile take part, and ones added later keep
+ * their server order after the arranged ones.
  */
 export function useLibraryReorder() {
   const libraries = useLibraries();
   const prefs = usePrefs();
   const update = useUpdatePrefs();
-  const [draft, setDraft] = useState<number[] | null>(null);
+  const [draft, setDraft] = useState<NavEntry[] | null>(null);
   const all = libraries.data ?? [];
-  const ordered = navigationLibraries(all, draft ?? prefs.data?.library_order);
+  const saved = navigationEntries(all, prefs.data?.library_order, prefs.data?.watchlist_position);
+  const entries = draft ?? saved;
+  const ordered = entries.flatMap(e => (e.kind === 'library' ? [e.library] : []));
   return {
     editing: draft !== null,
+    entries,
     ordered,
     pending: update.isPending,
     error: update.error,
-    canReorder: !!prefs.data && all.length > 1,
-    start: () => { update.reset(); setDraft(navigationLibraries(all, prefs.data?.library_order).map(l => l.id)); },
+    canReorder: !!prefs.data && all.length > 0,
+    start: () => { update.reset(); setDraft(saved); },
     cancel: () => { if (!update.isPending) { update.reset(); setDraft(null); } },
-    setOrder: (libs: Library[]) => setDraft(libs.map(l => l.id)),
-    reset: () => setDraft([]),
+    setOrder: (next: NavEntry[]) => setDraft(next),
+    reset: () => setDraft(navigationEntries(all)),
     save: () => {
       const ids = ordered.map(l => l.id);
       // The server's own order is saved as no preference, so it keeps following the server.
       const same = ids.join() === all.map(l => l.id).join();
-      update.mutate({ library_order: same ? [] : ids }, { onSuccess: () => setDraft(null) });
+      const at = entries.findIndex(e => e.kind === 'watchlist');
+      update.mutate({ library_order: same ? [] : ids, watchlist_position: Math.max(0, at) }, { onSuccess: () => setDraft(null) });
     },
   };
 }
@@ -51,11 +56,11 @@ export type LibraryReorder = ReturnType<typeof useLibraryReorder>;
 function Rows({ reorder, dense }: { reorder: LibraryReorder; dense?: boolean }) {
   const { t } = useTranslation('common');
   return (
-    <ReorderList items={reorder.ordered} keyOf={l => l.id} titleOf={l => l.name} onReorder={reorder.setOrder} disabled={reorder.pending} dense={dense}
+    <ReorderList items={reorder.entries} keyOf={navEntryKey} titleOf={e => (e.kind === 'watchlist' ? t('navigation.watchlist') : e.library.name)} onReorder={reorder.setOrder} disabled={reorder.pending} dense={dense}
       label={t('libraryOrder.title')} className={dense ? 'space-y-1' : 'space-y-1.5'}>
-      {lib => <>
-        <span className="shrink-0 text-muted [&_svg]:size-4">{createElement(kindIcon(lib.kind))}</span>
-        <span className={dense ? 'min-w-0 flex-1 truncate text-[13.5px] font-medium' : 'min-w-0 flex-1 break-words text-sm font-medium'}>{lib.name}</span>
+      {e => <>
+        <span className="shrink-0 text-muted [&_svg]:size-4">{e.kind === 'watchlist' ? <Bookmark /> : createElement(kindIcon(e.library.kind))}</span>
+        <span className={dense ? 'min-w-0 flex-1 truncate text-[13.5px] font-medium' : 'min-w-0 flex-1 break-words text-sm font-medium'}>{e.kind === 'watchlist' ? t('navigation.watchlist') : e.library.name}</span>
       </>}
     </ReorderList>
   );
@@ -128,13 +133,17 @@ export function ReorderLibrariesItem({ onSelect }: { onSelect: () => void }) {
   return <DropdownMenuItem onSelect={onSelect}><ArrowDownUp className="size-4 text-muted" />{' '}{t('libraryOrder.reorder')}</DropdownMenuItem>;
 }
 
-/** A profile without library management still gets a ⋯, holding just Reorder libraries. */
-export function LibraryOrderMenu({ lib, onReorder }: { lib: Library; onReorder: () => void }) {
-  const { t } = useTranslation('library');
+/**
+ * A ⋯ holding just Reorder libraries: for a profile without library management, and for the
+ * Watchlist (no [lib]), which moves among the libraries but has nothing else to manage.
+ */
+export function LibraryOrderMenu({ lib, onReorder }: { lib?: Library; onReorder: () => void }) {
+  const { t } = useTranslation(['library', 'common']);
+  const name = lib?.name ?? t('common:navigation.watchlist');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" data-library-menu={lib.id} aria-label={t('libraryActions', { name: lib.name })} className={quietMenuTrigger}><MoreHorizontal /></Button>
+        <Button variant="ghost" size="icon" data-library-menu={lib?.id ?? 'watchlist'} aria-label={t('library:libraryActions', { name })} className={quietMenuTrigger}><MoreHorizontal /></Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <ReorderLibrariesItem onSelect={onReorder} />
