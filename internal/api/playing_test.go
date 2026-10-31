@@ -106,3 +106,28 @@ func TestNowPlayingWatchTime(t *testing.T) {
 		t.Fatalf("on close: %+v", u)
 	}
 }
+
+// An app that signed in with a name shows by that name, not by its HTTP library's User-Agent.
+func TestNowPlayingUsesTheAppsName(t *testing.T) {
+	n := newNowPlaying()
+	r := httptest.NewRequest("GET", "/", nil)
+	r.Header.Set("User-Agent", "okhttp/5.5.1")
+	r = r.WithContext(context.WithValue(context.WithValue(r.Context(), sessionKey, "tv"), deviceKey, "Living Room TV"))
+	if why, _ := n.progress(r, "movie1", 5000, 60000, "playing"); why != "" {
+		t.Fatal(why)
+	}
+	if got := n.list()[0].device; got != "Living Room TV" {
+		t.Fatalf("device = %q", got)
+	}
+	browser := httptest.NewRequest("GET", "/", nil)
+	browser.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36 Edg/140.0")
+	browser = browser.WithContext(context.WithValue(browser.Context(), sessionKey, "pc"))
+	if why, _ := n.progress(browser, "movie2", 5000, 60000, "playing"); why != "" {
+		t.Fatal(why)
+	}
+	for _, p := range n.list() {
+		if p.itemID == "movie2" && p.device != "Edge on Windows" {
+			t.Fatalf("browser device = %q", p.device)
+		}
+	}
+}

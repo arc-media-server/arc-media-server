@@ -125,7 +125,8 @@ func (n *nowPlaying) touch(r *http.Request, itemID, extraID string) *playback {
 			extraID: extraID, started: now, streams: map[chan struct{}]bool{}}
 		n.byKey[key] = p
 	}
-	p.device, p.address, p.updated = deviceName(r.UserAgent()), clientIP(r), now
+	// An app is named as it signed in (Settings > Devices); a browser by its User-Agent.
+	p.device, p.address, p.updated = cmp.Or(currentDevice(r), deviceName(r.UserAgent())), clientIP(r), now
 	return p
 }
 
