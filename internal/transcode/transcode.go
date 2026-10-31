@@ -55,6 +55,8 @@ type Options struct {
 	ToneMap    bool
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
+	// The source video has Dolby Vision: copied video should keep it (checked once it's written).
+	DolbyVision bool
 	// Who started it and for what, for the server's own checks.
 	Owner, ItemID string
 }
@@ -92,6 +94,8 @@ type Manager struct {
 	ffmpeg        func() string
 	probe         func() string
 	log           *slog.Logger
+	// Whether the "Dolby Vision dropped" warning was logged this run.
+	dvWarning sync.Once
 
 	mu       sync.Mutex
 	dir      string // where sessions write, chosen in Settings
@@ -383,6 +387,7 @@ func (m *Manager) Ready(ctx context.Context, s *Session) error {
 	if _, err := s.Playlist(ctx); err != nil {
 		return err
 	}
+	m.checkDolbyVision(s)
 	if !s.Options.CopyVideo || s.Options.StartMS == 0 || ffprobe == "" {
 		return nil
 	}
@@ -397,6 +402,22 @@ func (m *Manager) Ready(ctx context.Context, s *Session) error {
 		s.OffsetMS = int64(v * 1000)
 	}
 	return nil
+}
+
+// checkDolbyVision warns (once per run) when copied Dolby Vision video came out without its
+// configuration box: FFmpeg before 6.1 drops it when packaging HLS, so players show the HDR10 base.
+func (m *Manager) checkDolbyVision(s *Session) {
+	if !s.Options.CopyVideo || !s.Options.DolbyVision {
+		return
+	}
+	init, err := os.ReadFile(filepath.Join(s.dir, "init.mp4"))
+	if err != nil || bytes.Contains(init, []byte("dvvC")) || bytes.Contains(init, []byte("dvcC")) || bytes.Contains(init, []byte("dvwC")) {
+		return
+	}
+	m.dvWarning.Do(func() {
+		m.log.Warn("FFmpeg didn't keep Dolby Vision when repackaging, so players get the HDR10 base; FFmpeg 6.1 or newer keeps it",
+			"session", s.ID)
+	})
 }
 
 // Get returns a running session and marks it as in use.
