@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -710,7 +709,7 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	flusher, _ := w.(http.Flusher)
 	write := func(text string) bool {
-		if _, err := io.WriteString(w, text); err != nil {
+		if _, err := w.Write([]byte(text)); err != nil {
 			return false
 		}
 		if flusher != nil {

@@ -11750,7 +11750,7 @@
     },
     "/items/{id}/subtitles/{track}/vtt": {
       "get": {
-        "description": "?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go).\n\nWho may call it: **profile**.",
+        "description": "?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). Players wait for a subtitle file before they start the video, and reading a track out of a large video the first time takes minutes (the whole file is read). So the answer starts at once with the WebVTT header, stays alive with blank lines (which WebVTT allows between cues) while the track is read, then carries the cues: the video starts straight away and the subtitles follow.\n\nWho may call it: **profile**.",
         "operationId": "subtitleVTT",
         "parameters": [
           {
