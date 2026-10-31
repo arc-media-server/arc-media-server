@@ -43,8 +43,12 @@ type clientCaps struct {
 func (c clientCaps) has(list []string, v string) bool { return slices.Contains(list, v) }
 
 type decision struct {
-	Method        string
-	CopyAudio     bool
+	Method    string
+	CopyAudio bool
+	// When the audio is converted: "eac3" or "ac3" to keep surround sound for a player that
+	// decodes it ("" for AAC stereo), and how many channels.
+	AudioCodec    string
+	AudioChannels int
 	Reasons       []string
 	ReasonCodes   []string
 	NeedsToneMap  bool
@@ -214,8 +218,25 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 		d.Reasons = append(d.Reasons, "another audio track chosen")
 		d.ReasonCodes = append(d.ReasonCodes, "audio_selection")
 	}
-	// Copied audio must be something every HLS player handles: AAC in stereo or less.
-	d.CopyAudio = audio != nil && audio.Codec == "aac" && audio.Channels <= 2 && audioOK
+	// Copied audio must be something the player decodes in a converted stream: AAC in stereo
+	// or less (every HLS player), or Dolby Digital (Plus) when the player says it decodes that.
+	dolby := audio != nil && (audio.Codec == "ac3" || audio.Codec == "eac3") && caps.has(caps.Audio, audio.Codec)
+	d.CopyAudio = audio != nil && audioOK && (audio.Codec == "aac" && audio.Channels <= 2 || dolby)
+	// Surround sound the player can't take as it is (TrueHD, DTS) becomes Dolby Digital Plus 5.1
+	// (or Dolby Digital) when the player decodes that, as Plex does, rather than AAC stereo.
+	if audio != nil && !d.CopyAudio && audio.Channels > 2 {
+		channels := min(audio.Channels, 6)
+		if caps.MaxAudioChannels > 0 {
+			channels = min(channels, caps.MaxAudioChannels)
+		}
+		switch {
+		case channels <= 2:
+		case caps.has(caps.Audio, "eac3"):
+			d.AudioCodec, d.AudioChannels = "eac3", channels
+		case caps.has(caps.Audio, "ac3"):
+			d.AudioCodec, d.AudioChannels = "ac3", channels
+		}
+	}
 	switch {
 	case len(d.Reasons) == 0:
 		d.Method = "direct"
@@ -248,6 +269,14 @@ type optimizedPlaybackDTO struct {
 	Audio             *audioTrackDTO `json:"audio,omitempty"`
 }
 
+// audioOutputDTO is the audio as the player receives it, for the player's stats and the
+// Dashboard: the codec (as ffprobe names it), channels, and whether Arc converted it.
+type audioOutputDTO struct {
+	Codec     string `json:"codec"`
+	Channels  int    `json:"channels"`
+	Converted bool   `json:"converted"`
+}
+
 type playbackPlan struct {
 	DecisionOnly  bool     `json:"decision_only,omitempty"`
 	CanStart      *bool    `json:"can_start,omitempty"`
@@ -267,6 +296,8 @@ type playbackPlan struct {
 	FileID      int64           `json:"file_id"`
 	AudioStream int             `json:"audio_stream"` // -1 for none
 	AudioTracks []audioTrackDTO `json:"audio_tracks"`
+	// The audio as sent (none when there's no audio track).
+	AudioOutput *audioOutputDTO `json:"audio_output,omitempty" api:"optional"`
 	// Subtitles: text ones are fetched as cues and drawn by the player; picture ones are burned
 	// in by asking again with "burn_subtitle".
 	SubtitleTracks []subtitles.Track `json:"subtitle_tracks"`
@@ -422,6 +453,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	}
 	if audio != nil {
 		out.AudioStream = audio.Index
+		out.AudioOutput = &audioOutputDTO{Codec: audio.Codec, Channels: audio.Channels}
 	}
 	out.AudioTracks = audioTracks(f)
 
@@ -439,8 +471,10 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			out.Method, out.Reasons = "direct", []string{fmt.Sprintf("the optimized %dp version", o.Quality)}
 			out.URL, out.OffsetMS = optimizedURL(it.ID, o), 0
 			out.Optimized = &optimizedPlaybackDTO{Quality: o.Quality, SourceAudioStream: o.AudioStream, DurationMS: o.DurationMS, Bitrate: o.Bitrate}
+			out.AudioOutput = nil // the copy's own audio, if it has any
 			if o.AudioStream >= 0 {
 				out.Optimized.Audio = &audioTrackDTO{Index: 1, Language: o.AudioLanguage, Title: o.AudioTitle, Codec: "aac", Channels: 2, Default: true}
+				out.AudioOutput = &audioOutputDTO{Codec: "aac", Channels: 2, Converted: true}
 			}
 			out.ReasonCodes = []string{"optimized_copy"}
 			if preview {
@@ -495,17 +529,26 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	opts := transcode.Options{Path: f.Path, StartMS: body.StartMS, VideoStream: video.Index, AudioStream: -1,
-		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
+		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
+		MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
 		VideoCodec: video.Codec, BurnSubtitle: burn,
 		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
 	}
 	if limitHeight > 0 {
-		// Leave room for the audio (AAC stereo) within the limit.
+		// Leave room for the audio (AAC stereo: a limited stream doesn't spend 640 kbit/s on
+		// surround) within the limit.
 		opts.VideoKbps = max(body.MaxKbps-160, 300)
+		opts.AudioCodec, opts.AudioChannels = "", 0
 		if opts.MaxHeight == 0 || limitHeight < opts.MaxHeight {
 			opts.MaxHeight = limitHeight
+		}
+	}
+	if audio != nil && !opts.CopyAudio {
+		out.AudioOutput = &audioOutputDTO{Codec: "aac", Channels: min(audio.Channels, 2), Converted: true}
+		if opts.AudioCodec != "" {
+			out.AudioOutput.Codec, out.AudioOutput.Channels = opts.AudioCodec, opts.AudioChannels
 		}
 	}
 	if d.Method == "transcode" {

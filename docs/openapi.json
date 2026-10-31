@@ -112,6 +112,25 @@
         ],
         "type": "object"
       },
+      "AudioOutput": {
+        "properties": {
+          "channels": {
+            "type": "integer"
+          },
+          "codec": {
+            "type": "string"
+          },
+          "converted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channels",
+          "codec",
+          "converted"
+        ],
+        "type": "object"
+      },
       "AudioTrack": {
         "properties": {
           "channel_layout": {
@@ -2407,6 +2426,9 @@
       },
       "PlaybackPlan": {
         "properties": {
+          "audio_output": {
+            "$ref": "#/components/schemas/AudioOutput"
+          },
           "audio_stream": {
             "type": "integer"
           },
