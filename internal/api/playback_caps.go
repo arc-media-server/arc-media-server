@@ -72,10 +72,13 @@ func (s *Server) writePlaybackPreview(w http.ResponseWriter, out playbackPlan, c
 // Converted output is fMP4 HLS; video encoding is 8-bit H.264, audio encoding AAC stereo.
 // Do not claim that a custom native capability set can consume a fallback it explicitly excludes.
 func conversionSupported(c clientCaps, d decision, audio *store.Stream) bool {
-	if !c.has(c.Containers, "mp4") {
+	// An empty list is how players ask for more after a stream failed (web/src/lib/playback.ts
+	// fallbackCaps): no containers means "repackage it", no video codecs "convert the video".
+	// It says nothing against Arc's fMP4/H.264 output; only a list that leaves those out does.
+	if len(c.Containers) > 0 && !c.has(c.Containers, "mp4") {
 		return false
 	}
-	if d.Method == "transcode" && (!c.has(c.Video, "h264") || c.MaxBitDepth > 0 && c.MaxBitDepth < 8) {
+	if d.Method == "transcode" && (len(c.Video) > 0 && !c.has(c.Video, "h264") || c.MaxBitDepth > 0 && c.MaxBitDepth < 8) {
 		return false
 	}
 	if d.Method == "transcode" {

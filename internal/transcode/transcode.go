@@ -84,6 +84,10 @@ type Session struct {
 	requested  int
 	paused     bool
 	throttling throttling
+	// pausedAt is the segment the player was on when the conversion paused; when the player
+	// moves on from it, the conversion resumes and makes at least one segment (more than
+	// madeAtResume) before it pauses again.
+	pausedAt, madeAtResume int
 }
 
 // Manager runs sessions.
