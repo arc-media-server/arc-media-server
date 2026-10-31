@@ -341,10 +341,10 @@ type playbackDTO struct {
 	Stream *streamDetail `json:"stream,omitempty" api:"optional"`
 	// For a conversion: how far into the file it has converted, to compare with the position.
 	ConvertedMS int64  `json:"converted_ms,omitempty"`
-	PositionMS int64  `json:"position_ms"`
-	DurationMS int64  `json:"duration_ms"`
-	State      string `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
-	StartedAt  int64  `json:"started_at"`
+	PositionMS  int64  `json:"position_ms"`
+	DurationMS  int64  `json:"duration_ms"`
+	State       string `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
+	StartedAt   int64  `json:"started_at"`
 }
 
 // listPlaying: GET /api/playing is what's being watched right now.

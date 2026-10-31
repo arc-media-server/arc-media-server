@@ -67,13 +67,23 @@ func (s *Session) throttle() {
 		made := s.segments()
 		s.mu.Lock()
 		at := max(s.requested, 0)
+		paused, pausedAt, madeAtResume := s.paused, s.pausedAt, s.madeAtResume
 		s.mu.Unlock()
 		ahead := time.Duration(made-1-at) * segmentSeconds * time.Second
 		switch {
-		case ahead >= s.throttling.pauseAhead:
-			s.setPaused(true)
-		case ahead <= s.throttling.resumeAhead:
+		case paused && (at > pausedAt || ahead <= s.throttling.resumeAhead):
+			// The player moved on. A fast conversion can pause several segments past pauseAhead
+			// (they finish between ticks), so waiting for it to fall back under the line would
+			// hold the playlist still for that long: resume, and make at least one more.
+			s.mu.Lock()
+			s.madeAtResume = made
+			s.mu.Unlock()
 			s.setPaused(false)
+		case !paused && ahead >= s.throttling.pauseAhead && made > madeAtResume:
+			s.mu.Lock()
+			s.pausedAt = at
+			s.mu.Unlock()
+			s.setPaused(true)
 		}
 	}
 }
