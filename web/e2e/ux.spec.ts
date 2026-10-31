@@ -1218,10 +1218,24 @@ test('Dashboard distinguishes direct play, direct stream and transcoding', async
   const { item } = await seed(page);
   await page.route('**/api/playing', r => r.fulfill({ json: ['direct', 'remux', 'transcode'].map((method, i) => ({
     id: 'playing-' + i, item, profile: { id: 'admin', name: 'Admin', color: '#888' }, method, state: 'playing', device: 'Fixture', address: '127.0.0.1', started_at: 1,
-    position_ms: 0, duration_ms: 120000, throttled: method === 'transcode',
+    position_ms: 60_000, duration_ms: 120000, throttled: method === 'transcode',
+    converted_ms: method === 'direct' ? undefined : 90_000,
+    stream: method === 'direct'
+      ? { video: 'HEVC 4K Dolby Vision', audio: 'Dolby Digital Plus 5.1' }
+      : method === 'remux'
+        ? { reasons: ['Dolby TrueHD audio'], video: 'HEVC 4K Dolby Vision', audio: 'Dolby TrueHD 7.1', audio_output: 'Dolby Digital Plus 5.1' }
+        : { reasons: ['HEVC video'], video: 'HEVC 4K HDR10', video_output: 'H.264 1080p', audio: 'Dolby TrueHD 7.1', audio_output: 'AAC Stereo', encoder: 'Intel Quick Sync (VA-API)', hardware: true, tone_mapped: true },
   })) }));
   await page.goto('/dashboard');
   await expect(page.getByText('Direct Play', { exact: true })).toBeVisible();
   await expect(page.getByText('Direct Stream', { exact: true })).toBeVisible();
   await expect(page.getByText('Transcoding (throttled)', { exact: true })).toBeVisible();
+  // Stream details: what's sent as it is, what's converted to what, why, by what, how far ahead.
+  await expect(page.getByText('HEVC 4K Dolby Vision (as it is)', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Dolby TrueHD 7.1 → Dolby Digital Plus 5.1', { exact: true })).toBeVisible();
+  await expect(page.getByText('HEVC 4K HDR10 → H.264 1080p', { exact: true })).toBeVisible();
+  await expect(page.getByText('Hardware: Intel Quick Sync (VA-API)', { exact: true })).toBeVisible();
+  await expect(page.getByText('HEVC video · HDR mapped to SDR', { exact: true })).toBeVisible();
+  await expect(page.getByText('Converted to 1:30 (0:30 ahead)', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('dashboard-stream-details.png'), fullPage: true });
 });

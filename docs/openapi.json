@@ -2376,6 +2376,9 @@
           "address": {
             "type": "string"
           },
+          "converted_ms": {
+            "type": "integer"
+          },
           "device": {
             "type": "string"
           },
@@ -2405,6 +2408,9 @@
           },
           "state": {
             "type": "string"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/StreamDetail"
           },
           "throttled": {
             "type": "boolean"
@@ -3506,6 +3512,41 @@
           "is_forced",
           "kind"
         ],
+        "type": "object"
+      },
+      "StreamDetail": {
+        "properties": {
+          "audio": {
+            "type": "string"
+          },
+          "audio_output": {
+            "type": "string"
+          },
+          "encoder": {
+            "type": "string"
+          },
+          "hardware": {
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "subtitles_burned": {
+            "type": "boolean"
+          },
+          "tone_mapped": {
+            "type": "boolean"
+          },
+          "video": {
+            "type": "string"
+          },
+          "video_output": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SubtitleStyle": {

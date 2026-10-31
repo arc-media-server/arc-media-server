@@ -484,10 +484,29 @@ export interface Playback {
   method: PlaybackMethod;
   /** The conversion is far enough ahead and waits for the viewer. */
   throttled?: boolean;
+  /** How it's sent (Plex's stream details); absent for plays started before the server knew. */
+  stream?: StreamDetail;
+  /** For a conversion: how far into the file it has converted. */
+  converted_ms?: number;
   position_ms: number;
   duration_ms: number;
   state: PlaybackState;
   started_at: number;
+}
+
+/** How a playback is sent: why, the file's video and audio and what the player gets, and the encoder. */
+export interface StreamDetail {
+  reasons?: string[];
+  video?: string;
+  audio?: string;
+  /** Absent when sent as it is. */
+  video_output?: string;
+  audio_output?: string;
+  /** The graphics card ("NVIDIA NVENC") or "CPU"; absent when no video is encoded. */
+  encoder?: string;
+  hardware?: boolean;
+  tone_mapped?: boolean;
+  subtitles_burned?: boolean;
 }
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
