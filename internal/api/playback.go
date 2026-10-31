@@ -481,7 +481,12 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 				s.writePlaybackPreview(w, out, true)
 				return
 			}
-			s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
+			optimized := streamDetail{Reasons: out.Reasons, Video: videoName(video), VideoOutput: fmt.Sprintf("H.264 %dp (optimized version)", o.Quality)}
+			if audio != nil {
+				optimized.Audio = audioName(audio.Codec, audio.Channels)
+				optimized.AudioOutput = audioName("aac", 2)
+			}
+			s.playing.setMethod(r, it.ID, "direct", "", optimized, s.transcoder)
 			s.logPlayback(r, f.ID, out.Method, out.Reasons)
 			writeJSON(w, http.StatusOK, out)
 			return
@@ -506,7 +511,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	if d.Method == "direct" {
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0
-		s.playing.setMethod(r, it.ID, "direct", "", s.transcoder)
+		s.playing.setMethod(r, it.ID, "direct", "", directDetail(video, audio, nil), s.transcoder)
 		writeJSON(w, http.StatusOK, out)
 		return
 	}
@@ -579,7 +584,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
-	s.playing.setMethod(r, it.ID, d.Method, sess.ID, s.transcoder)
+	s.playing.setMethod(r, it.ID, d.Method, sess.ID, conversionDetail(video, audio, d.Reasons, opts), s.transcoder)
 	out.HLS, out.SessionID, out.OffsetMS = true, sess.ID, sess.OffsetMS
 	out.URL = "/api/transcode/" + sess.ID + "/index.m3u8"
 	writeJSON(w, http.StatusOK, out)

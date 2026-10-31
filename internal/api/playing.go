@@ -51,9 +51,10 @@ type playback struct {
 	started    time.Time
 	updated    time.Time
 	streams    map[chan struct{}]bool // open stream requests, closed to cut them off
-	// direct, remux or transcode, and the conversion's session if there is one.
+	// direct, remux or transcode, the conversion's session if there is one, and how it's sent.
 	method    string
 	sessionID string
+	detail    streamDetail
 	// Watch history: time spent playing so far, when it was last counted, whether it got to the
 	// end, and its history row once it has one (adding is set while that row is being written).
 	watchedMS  int64
@@ -207,11 +208,11 @@ func (n *nowPlaying) refusalFor(r *http.Request, itemID string) string {
 
 // setMethod records how a player is playing an item, ending the conversion it was using before
 // (after a seek or a change of audio track).
-func (n *nowPlaying) setMethod(r *http.Request, itemID, method, sessionID string, tc *transcode.Manager) {
+func (n *nowPlaying) setMethod(r *http.Request, itemID, method, sessionID string, detail streamDetail, tc *transcode.Manager) {
 	n.mu.Lock()
 	p := n.touch(r, itemID, "")
 	old := p.sessionID
-	p.method, p.sessionID = method, sessionID
+	p.method, p.sessionID, p.detail = method, sessionID, detail
 	n.mu.Unlock()
 	if old != "" && old != sessionID && tc != nil {
 		tc.Stop(old)
@@ -334,7 +335,11 @@ type playbackDTO struct {
 	Address string     `json:"address"`
 	Method  string     `json:"method"` // direct, remux or transcode
 	// The conversion is far enough ahead of the viewer and waits for them (as Plex's "throttled").
-	Throttled  bool   `json:"throttled,omitempty"`
+	Throttled bool `json:"throttled,omitempty"`
+	// How it's sent: reasons, video and audio in and out, the encoder (absent for older plays).
+	Stream *streamDetail `json:"stream,omitempty" api:"optional"`
+	// For a conversion: how far into the file it has converted, to compare with the position.
+	ConvertedMS int64  `json:"converted_ms,omitempty"`
 	PositionMS int64  `json:"position_ms"`
 	DurationMS int64  `json:"duration_ms"`
 	State      string `json:"state"` // playing, paused or buffering (a stream is open but no report yet)
@@ -359,7 +364,11 @@ func (s *Server) listPlaying(w http.ResponseWriter, r *http.Request) {
 		if p.sessionID != "" && s.transcoder != nil {
 			if sess := s.transcoder.Peek(p.sessionID); sess != nil {
 				d.Throttled = sess.Throttled()
+				d.ConvertedMS = sess.ConvertedMS()
 			}
+		}
+		if detail := p.detail; detail.Video != "" || detail.Audio != "" || len(detail.Reasons) > 0 {
+			d.Stream = &detail
 		}
 		d.Item = toDTO(*it)
 		if it.Kind == "episode" {
