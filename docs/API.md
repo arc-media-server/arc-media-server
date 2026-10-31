@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-193 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+194 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -129,6 +129,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | PATCH | `/api/diagnostics` | admin | {"detailed":true} enables detailed logs for two hours; false stops them . |
 | GET | `/api/diagnostics/download` | admin | Exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP . No database, settings dump or media files are included. |
 
+### discover
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/discover` | anyone | Lets an app on the home network find Arc without signing in: TV apps can't listen for broadcasts, so they try their network's addresses on Arc's port and list the servers that answer. Only answers requests from the home network (404 otherwise), and gives only the server's identity, name and version. |
+
 ### events
 
 | Method | Path | Who | What it does |
@@ -210,7 +216,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items/{id}/subtitles/search` | admin | ?file=<id>&languages=en,fr finds subtitles online (OpenSubtitles) for a movie or episode, best first. |
 | POST | `/api/items/{id}/subtitles/download` | admin | {"file": <id>, "result": <file_id>, "language", "forced", "hearing_impaired"} downloads a subtitle found online and keeps it in Arc's data folder (never beside the video), returning the new track. |
 | GET | `/api/items/{id}/subtitles/{track}` | profile | ?file= returns a subtitle track's cues as JSON, for the web player to show. |
-| GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). |
+| GET | `/api/items/{id}/subtitles/{track}/vtt` | profile | ?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). Players wait for a subtitle file before they start the video, and reading a track out of a large video the first time takes minutes (the whole file is read). So the answer starts at once with the WebVTT header, stays alive with blank lines (which WebVTT allows between cues) while the track is read, then carries the cues: the video starts straight away and the subtitles follow. |
 | GET | `/api/items/{id}/subtitles/{track}/ass` | profile | ?file=&shift_ms= returns an ASS/SSA track as its own script, for players that draw it with libass (keeping its fonts, colours, positions and effects): shifted as /vtt is, with the fonts the video carries packed into a [Fonts] section (up to 40 MB of them). Other tracks answer 400; use /vtt for those. |
 | GET | `/api/items/{id}/trickplay` | profile | ?file=<id> describes a file's timeline thumbnails and where its sheets are. Until they're made it's 404, and the file moves up the queue. |
 | GET | `/api/items/{id}/trickplay/{file}/{sheet}` | profile | Is one sheet of thumbnails. |
