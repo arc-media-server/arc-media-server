@@ -14,14 +14,20 @@ import (
 // player catches up to within resumeAhead or asks for something not converted yet. Someone who
 // stops after ten minutes no longer leaves a whole film converted behind them, and a paused
 // viewer's conversion stops too. Seeking past what's converted still starts a new session.
+//
+// resumeAhead is one segment short of pauseAhead, so while someone watches, the playlist grows a
+// segment at a time rather than standing still. Players treat a live playlist that doesn't change
+// for a few segment lengths as stuck: Android's Media3 fails it after 3.5 target durations, which
+// with a minute-long pause made throttled streams spin and fall back to converting (owner's
+// Chromecast, 31 October).
 type throttling struct {
 	pauseAhead, resumeAhead, tick time.Duration
 }
 
-var defaultThrottling = throttling{pauseAhead: 120 * time.Second, resumeAhead: 60 * time.Second, tick: time.Second}
-
 // segmentSeconds is the length of each converted segment (-hls_time).
 const segmentSeconds = 6
+
+var defaultThrottling = throttling{pauseAhead: 120 * time.Second, resumeAhead: 120*time.Second - segmentSeconds*time.Second, tick: time.Second}
 
 // Requested records that the player fetched an output file: a media segment moves the point the
 // conversion keeps ahead of, and asking for one not made yet resumes it at once.
