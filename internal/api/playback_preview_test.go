@@ -180,3 +180,38 @@ func TestPlaybackPreviewOptimizedAndQualityDecisions(t *testing.T) {
 		t.Fatal("alternate track preview selected incompatible copy", p)
 	}
 }
+
+// Surround sound the player can't take as it is becomes Dolby Digital Plus (or Dolby Digital)
+// 5.1 when the player decodes that; Dolby Digital it decodes is copied; others get AAC stereo.
+func TestSurroundAudioConversion(t *testing.T) {
+	v := store.Stream{Kind: "video", Codec: "hevc", Height: 2160}
+	a := store.Stream{Kind: "audio", Codec: "truehd", Channels: 8}
+	f := &store.MediaFile{Container: "matroska", Streams: []store.Stream{v, a}}
+	vptr, aptr := &f.Streams[0], &f.Streams[1]
+	tv := clientCaps{Containers: []string{"mp4"}, Video: []string{"hevc"}, Audio: []string{"aac", "ac3", "eac3"}}
+	if d := decide(f, vptr, aptr, tv); d.Method != "remux" || d.CopyAudio || d.AudioCodec != "eac3" || d.AudioChannels != 6 {
+		t.Fatalf("TrueHD 7.1 for a TV with E-AC-3: %+v", d)
+	}
+	ac3Only := tv
+	ac3Only.Audio = []string{"aac", "ac3"}
+	if d := decide(f, vptr, aptr, ac3Only); d.AudioCodec != "ac3" || d.AudioChannels != 6 {
+		t.Fatalf("AC-3 only: %+v", d)
+	}
+	stereo := tv
+	stereo.MaxAudioChannels = 2
+	if d := decide(f, vptr, aptr, stereo); d.AudioCodec != "" {
+		t.Fatalf("a stereo player gets AAC stereo: %+v", d)
+	}
+	browser := tv
+	browser.Audio = []string{"aac", "opus"}
+	if d := decide(f, vptr, aptr, browser); d.AudioCodec != "" || d.CopyAudio {
+		t.Fatalf("no Dolby decoder: AAC stereo: %+v", d)
+	}
+	aptr.Codec, aptr.Channels = "eac3", 6
+	if d := decide(f, vptr, aptr, tv); !d.CopyAudio || d.AudioCodec != "" {
+		t.Fatalf("E-AC-3 the TV decodes is copied: %+v", d)
+	}
+	if d := decide(f, vptr, aptr, browser); d.CopyAudio {
+		t.Fatalf("E-AC-3 a browser can't decode is converted: %+v", d)
+	}
+}

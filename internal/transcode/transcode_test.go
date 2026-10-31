@@ -101,10 +101,14 @@ func TestFailedConversionStartReleasesCapacity(t *testing.T) {
 
 func TestBuildArgs(t *testing.T) {
 	copyArgs := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 2, CopyVideo: true, VideoCodec: "hevc", BurnSubtitle: -1}, 20, "out"), " ")
-	for _, want := range []string{"-ss 20.000 -noaccurate_seek -copyts -i in.mkv", "-map 0:0 -map 0:2", "-c:v copy -avoid_negative_ts disabled -tag:v hvc1", "-c:a aac -ac 2", "-hls_segment_type fmp4"} {
+	for _, want := range []string{"-ss 20.000 -noaccurate_seek -copyts -i in.mkv", "-map 0:0 -map 0:2", "-c:v copy -avoid_negative_ts disabled -tag:v hvc1 -strict unofficial", "-c:a aac -ac 2", "-hls_segment_type fmp4"} {
 		if !strings.Contains(copyArgs, want) {
 			t.Errorf("copy args missing %q:\n%s", want, copyArgs)
 		}
+	}
+	surround := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 1, CopyVideo: true, VideoCodec: "hevc", AudioCodec: "eac3", AudioChannels: 6, BurnSubtitle: -1}, 0, "out"), " ")
+	if !strings.Contains(surround, "-c:a eac3 -ac 6 -b:a 640k") {
+		t.Errorf("surround args: %s", surround)
 	}
 	enc := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, MaxHeight: 720, SourceHeight: 2160, VideoKbps: 4000, BurnSubtitle: -1}, 0, "out"), " ")
 	for _, want := range []string{"-c:v libx264", "-b:v 4000k", "scale=-2:720"} {
