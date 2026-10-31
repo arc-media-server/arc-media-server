@@ -83,10 +83,11 @@ test('web server: libraries reorder in place per profile, retry a failed save an
   await expect(list).toBeVisible();
   // Editing hides the ⋯ buttons and starts at the first row's controls.
   await expect(sidebar.getByRole('button', { name: /^More for / })).toHaveCount(0);
-  await expect(sidebar.getByRole('button', { name: 'Drag Films', exact: true })).toBeFocused();
+  // The Watchlist sits among the libraries and moves with them (as Plex's pinned sources).
+  await expect(sidebar.getByRole('button', { name: 'Drag Watchlist', exact: true })).toBeFocused();
   // Cancel (and Escape) discard the draft.
   await sidebar.getByRole('button', { name: 'Move Series up', exact: true }).click();
-  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
+  await expect(list.getByRole('listitem')).toHaveText(['Watchlist', 'Series', 'Films']);
   await sidebar.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(navLinks).toHaveText(original);
   await expect(sidebar.getByRole('button', { name: 'More for Series', exact: true })).toBeFocused();
@@ -101,13 +102,13 @@ test('web server: libraries reorder in place per profile, retry a failed save an
   await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
   await sidebar.getByRole('button', { name: 'Move Films down', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
-  await expect(sidebar.getByRole('status').filter({ hasText: 'position' })).toHaveText('Films, position 2 of 2');
+  await expect(list.getByRole('listitem')).toHaveText(['Watchlist', 'Series', 'Films']);
+  await expect(sidebar.getByRole('status').filter({ hasText: 'position' })).toHaveText('Films, position 3 of 3');
   await page.waitForTimeout(600); // let the move animation settle for the screenshot
   await shot('sidebar-reorder', sidebar);
   await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(sidebar.getByRole('alert')).toContainText('Order save unavailable');
-  await expect(list.getByRole('listitem')).toHaveText(['Series', 'Films']);
+  await expect(list.getByRole('listitem')).toHaveText(['Watchlist', 'Series', 'Films']);
   expect((await (await page.request.get('/api/me/prefs')).json()).library_order).toBeUndefined();
   fail = false;
   await sidebar.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
@@ -121,10 +122,27 @@ test('web server: libraries reorder in place per profile, retry a failed save an
   await sidebar.getByRole('button', { name: 'More for Films', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
   await sidebar.getByRole('button', { name: 'Reset to server order', exact: true }).click();
-  await expect(list.getByRole('listitem')).toHaveText(original);
+  await expect(list.getByRole('listitem')).toHaveText(['Watchlist', ...original]);
   await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(navLinks).toHaveText(original);
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_order ?? []).toEqual([]);
+
+  // The Watchlist has a ⋯ of its own to arrange from; moved last, it follows the libraries.
+  const entryLinks = page.locator('aside nav a[href^="/library/"], aside nav a[href="/watchlist"]');
+  await expect(entryLinks).toHaveText(['Watchlist', ...original]);
+  await sidebar.getByRole('button', { name: 'More for Watchlist', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Reorder libraries…']);
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Move Watchlist down', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Move Watchlist down', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(entryLinks).toHaveText([...original, 'Watchlist']);
+  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).watchlist_position).toBe(2);
+  await sidebar.getByRole('button', { name: 'More for Watchlist', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Reset to server order', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(entryLinks).toHaveText(['Watchlist', ...original]);
 
   // Phones: the profile menu opens the same list in a dialog.
   await page.setViewportSize({ width: 430, height: 932 });
@@ -137,7 +155,7 @@ test('web server: libraries reorder in place per profile, retry a failed save an
   await page.getByRole('menuitem', { name: 'Reorder libraries…', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Reorder libraries', exact: true });
   await sheet.getByRole('button', { name: 'Move Series up', exact: true }).click();
-  await expect(sheet.getByRole('listitem')).toHaveText(['Series', 'Films']);
+  await expect(sheet.getByRole('listitem')).toHaveText(['Watchlist', 'Series', 'Films']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.waitForTimeout(600);
   await shot('phone-reorder');
@@ -172,8 +190,10 @@ test('web server: libraries reorder in place per profile, retry a failed save an
   expect((await page.request.patch('/api/me/prefs', { data: { library_order: [libs[1].id, libs[0].id] } })).ok()).toBeTruthy();
   await page.reload();
   await expect(navLinks).toHaveText(['Films']);
-  // One library has nothing to reorder, so it has no ⋯.
-  await expect(sidebar.getByRole('button', { name: /^More for / })).toHaveCount(0);
+  // One library still moves around the Watchlist, so its ⋯ holds just Reorder.
+  await sidebar.getByRole('button', { name: 'More for Films', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['Reorder libraries…']);
+  await page.keyboard.press('Escape');
   expect((await (await page.request.get(`/api/items?library_id=${libs[1].id}`)).json()).items).toEqual([]);
 });
 

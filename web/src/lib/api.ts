@@ -761,6 +761,8 @@ export interface Prefs {
   show_home_hero?: boolean;
   /** Navigation order only; unavailable/unknown IDs never grant access. */
   library_order?: number[];
+  /** How many libraries come before the Watchlist in navigation (and on Home); absent is 0. */
+  watchlist_position?: number;
   /** Future progress threshold; absent/zero retains 90%. */
   watched_percent?: number;
   hide_spoilers: boolean;

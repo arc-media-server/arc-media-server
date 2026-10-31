@@ -149,7 +149,7 @@ export function Home() {
   const setEditing = (open: boolean) => setParams(open ? { edit: '1' } : {}, { replace: true });
   const split = !!prefs.data?.split_up_next;
   const showHero = !!prefs.data && prefs.data.show_home_hero !== false;
-  const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, navigationLibraries(libraries, prefs.data.library_order)) : []), [libraries, prefs.data, t]);
+  const rows = useMemo(() => (libraries && prefs.data ? resolveRows(prefs.data.home, navigationLibraries(libraries, prefs.data.library_order), prefs.data.watchlist_position) : []), [libraries, prefs.data, t]);
   // The banner: the most recently added titles with a backdrop, taking turns.
   const featuredQuery = useQuery({
     queryKey: ['featured', libraries?.map((l) => l.id)],
@@ -210,7 +210,7 @@ export function Home() {
             <SlidersHorizontal />{' '}{t('editor.title')}</Button>
         </div>
       )}
-      <EditHomeDialog rows={rows} libraries={navigationLibraries(libraries, prefs.data?.library_order)} open={editing} onOpenChange={setEditing} />
+      <EditHomeDialog rows={rows} libraries={navigationLibraries(libraries, prefs.data?.library_order)} watchlistAt={prefs.data?.watchlist_position} open={editing} onOpenChange={setEditing} />
     </Page></HomeActionsProvider>
   );
 }

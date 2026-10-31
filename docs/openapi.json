@@ -2672,6 +2672,9 @@
           },
           "watched_percent": {
             "type": "integer"
+          },
+          "watchlist_position": {
+            "type": "integer"
           }
         },
         "required": [
@@ -14670,6 +14673,9 @@
                   },
                   "watched_percent": {
                     "type": "integer"
+                  },
+                  "watchlist_position": {
+                    "type": "integer"
                   }
                 },
                 "required": [
@@ -17042,6 +17048,9 @@
                     "type": "boolean"
                   },
                   "watched_percent": {
+                    "type": "integer"
+                  },
+                  "watchlist_position": {
                     "type": "integer"
                   }
                 },

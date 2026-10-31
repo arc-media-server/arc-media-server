@@ -31,11 +31,11 @@ func TestNavigationAndCompletionPreferencesAreProfileScoped(t *testing.T) {
 		s.signedIn(handler)(w, r)
 		return w
 	}
-	w := call("first", "PATCH", "/api/me/prefs", `{"library_order":[8,2,999],"watched_percent":100}`, s.updatePrefs)
+	w := call("first", "PATCH", "/api/me/prefs", `{"library_order":[8,2,999],"watched_percent":100,"watchlist_position":2}`, s.updatePrefs)
 	if w.Code != 200 {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
 	}
-	for _, body := range []string{`{"library_order":[8,8]}`, `{"library_order":[-1]}`, `{"watched_percent":49}`, `{"watched_percent":101}`, `{"watched_percent":90.5}`} {
+	for _, body := range []string{`{"library_order":[8,8]}`, `{"library_order":[-1]}`, `{"watched_percent":49}`, `{"watched_percent":101}`, `{"watched_percent":90.5}`, `{"watchlist_position":-1}`, `{"watchlist_position":501}`} {
 		if w := call("first", "PATCH", "/api/me/prefs", body, s.updatePrefs); w.Code != 400 {
 			t.Fatalf("accepted %s: %d", body, w.Code)
 		}
@@ -45,7 +45,7 @@ func TestNavigationAndCompletionPreferencesAreProfileScoped(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &saved); err != nil {
 		t.Fatal(err)
 	}
-	if saved.WatchedPercent != 100 || len(saved.LibraryOrder) != 3 || saved.LibraryOrder[0] != 8 {
+	if saved.WatchedPercent != 100 || len(saved.LibraryOrder) != 3 || saved.LibraryOrder[0] != 8 || saved.WatchlistPosition != 2 {
 		t.Fatalf("invalid update changed prefs: %+v", saved)
 	}
 	w = call("second", "GET", "/api/me/prefs", "", s.getPrefs)
@@ -53,7 +53,7 @@ func TestNavigationAndCompletionPreferencesAreProfileScoped(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &untouched); err != nil {
 		t.Fatal(err)
 	}
-	if untouched.WatchedPercent != 0 || len(untouched.LibraryOrder) != 0 {
+	if untouched.WatchedPercent != 0 || len(untouched.LibraryOrder) != 0 || untouched.WatchlistPosition != 0 {
 		t.Fatalf("cross-profile preferences: %+v", untouched)
 	}
 	w = call("first", "PATCH", "/api/me/prefs", `{"library_order":[],"watched_percent":0}`, s.updatePrefs)
