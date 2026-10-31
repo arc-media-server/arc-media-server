@@ -31,11 +31,14 @@ import { FilterFields, FilterPreview } from '@/components/FilterFields';
 export function EditHomeDialog({
   rows,
   libraries,
+  watchlistAt,
   open,
   onOpenChange,
 }: {
   rows: ResolvedRow[];
   libraries: Library[];
+  /** How many libraries come before the Watchlist (its row follows it). */
+  watchlistAt?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -47,6 +50,7 @@ export function EditHomeDialog({
         <Editor
           initial={rows}
           libraries={libraries}
+          watchlistAt={watchlistAt}
           initialSplit={!!prefs.data?.split_up_next}
           initialHero={prefs.data.show_home_hero !== false}
           canReorderLibraries
@@ -70,7 +74,7 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
   const prefs = useQuery({
     queryKey: key,
     enabled: open && !!target,
-    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default' | 'show_home_hero' | 'library_order'>> =>
+    queryFn: async (): Promise<Pick<Prefs, 'home' | 'split_up_next' | 'home_is_default' | 'show_home_hero' | 'library_order' | 'watchlist_position'>> =>
       target?.kind === 'profile' ? api.profilePrefs(target.id) : { ...(await api.defaultHome()), split_up_next: false },
   });
   const ready = open && target && prefs.data && libraries;
@@ -81,8 +85,9 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
       {ready && (
         <Editor
           key={key.join(':')}
-          initial={resolveRows(prefs.data!.home, ordered)}
+          initial={resolveRows(prefs.data!.home, ordered, prefs.data!.watchlist_position)}
           libraries={ordered}
+          watchlistAt={prefs.data!.watchlist_position}
           initialSplit={!!prefs.data!.split_up_next}
           showSplit={target!.kind === 'profile'}
           initialHero={target!.kind === 'profile' ? prefs.data!.show_home_hero !== false : undefined}
@@ -108,6 +113,7 @@ export function EditOtherHomeDialog({ target, open, onOpenChange }: { target: Ho
 function Editor({
   initial,
   libraries,
+  watchlistAt = 0,
   initialSplit,
   showSplit = true,
   initialHero,
@@ -119,6 +125,7 @@ function Editor({
 }: {
   initial: ResolvedRow[];
   libraries: Library[];
+  watchlistAt?: number;
   initialSplit: boolean;
   showSplit?: boolean;
   /** Whether Home shows the featured banner; leave it out where there's no profile (the default home). */
@@ -225,7 +232,7 @@ function Editor({
         />
       </label>
       <ul className="space-y-1.5">
-        {arrangeRows(visibleRows(rows, split), libraries).map((r) => (
+        {arrangeRows(visibleRows(rows, split), libraries, watchlistAt).map((r) => (
           <li key={r.id} className="flex items-center gap-2 rounded-2xl bg-surface-2/70 py-2 pl-4 pr-2 ring-1 ring-border">
           <RowItem
             row={r}

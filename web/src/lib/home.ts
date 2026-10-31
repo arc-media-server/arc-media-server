@@ -132,13 +132,13 @@ export function defaultRowIds(libraries: Library[]) {
 
 /**
  * The rows to show. Their order follows the profile's library order, as Plex's Home follows its
- * pinned libraries (owner, 30 October): carrying on watching, the watchlist and anything seasonal
- * first, then each library's newest followed by its own filter rows, then collections and
- * playlists. [libraries] must be in the profile's order (navigationLibraries). The saved layout
+ * pinned libraries (owner, 30 October): carrying on watching and anything seasonal first, then
+ * each library's newest followed by its own filter rows, with the watchlist where it sits among
+ * the libraries in the sidebar (owner, 31 October), then collections and playlists. [libraries] must be in the profile's order (navigationLibraries). The saved layout
  * says which rows exist, which are hidden and how the carrying-on rows look; rows for things that
  * no longer exist are dropped.
  */
-export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow[] {
+export function resolveRows(saved: HomeRow[], libraries: Library[], watchlistAt = 0): ResolvedRow[] {
   const byId = new Map(saved.map((r) => [r.id, r]));
   const rows: ResolvedRow[] = [];
   for (const id of defaultRowIds(libraries)) {
@@ -156,15 +156,21 @@ export function resolveRows(saved: HomeRow[], libraries: Library[]): ResolvedRow
       rows.push({ id: r.id, hidden: !!r.hidden, type: 'custom', title: r.title, library, filter: r.filter, ...look('custom', r, library) });
     }
   }
-  return arrangeRows(rows, libraries);
+  return arrangeRows(rows, libraries, watchlistAt);
 }
 
-/** Puts rows in Home's order for [libraries] (in the profile's order), keeping ties as they were. */
-export function arrangeRows(rows: ResolvedRow[], libraries: Library[]): ResolvedRow[] {
-  const top = ['continue', 'next-up', 'watchlist', 'seasonal'];
+/**
+ * Puts rows in Home's order for [libraries] (in the profile's order), keeping ties as they were.
+ * The Watchlist's row sits where the Watchlist sits among the libraries in the sidebar
+ * ([watchlistAt] libraries before it), as Plex's Home follows its pinned sources.
+ */
+export function arrangeRows(rows: ResolvedRow[], libraries: Library[], watchlistAt = 0): ResolvedRow[] {
+  const top = ['continue', 'next-up', 'seasonal'];
   const libraryRank = new Map(libraries.map((l, i) => [l.id, i]));
   const rank = (r: ResolvedRow): [number, number] => {
     if (top.includes(r.type)) return [0, top.indexOf(r.type)];
+    // Before the rows of the library that follows it in the sidebar.
+    if (r.type === 'watchlist') return [1 + Math.max(0, Math.min(watchlistAt, libraries.length)), -1];
     const lib = r.type === 'recent' ? r.library : r.type === 'custom' ? r.library : undefined;
     if (lib) return [1 + (libraryRank.get(lib.id) ?? libraries.length), r.type === 'recent' ? 0 : 1];
     return [2 + libraries.length, 0];

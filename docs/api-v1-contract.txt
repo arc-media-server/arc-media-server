@@ -1997,6 +1997,7 @@ GET /me/prefs 200 .subtitle_style.size string
 GET /me/prefs 200 .theme string
 GET /me/prefs 200 .theme_music boolean
 GET /me/prefs 200 .watched_percent integer
+GET /me/prefs 200 .watchlist_position integer
 GET /me/year
 GET /me/year 200
 GET /me/year 200 .binge object
@@ -2581,6 +2582,7 @@ GET /profiles/{id}/prefs 200 .subtitle_style.size string
 GET /profiles/{id}/prefs 200 .theme string
 GET /profiles/{id}/prefs 200 .theme_music boolean
 GET /profiles/{id}/prefs 200 .watched_percent integer
+GET /profiles/{id}/prefs 200 .watchlist_position integer
 GET /remote
 GET /remote 200
 GET /remote 200 .double_nat boolean
@@ -3459,6 +3461,7 @@ PATCH /me/prefs 200 .subtitle_style.size string
 PATCH /me/prefs 200 .theme string
 PATCH /me/prefs 200 .theme_music boolean
 PATCH /me/prefs 200 .watched_percent integer
+PATCH /me/prefs 200 .watchlist_position integer
 PATCH /play-queues/{id}
 PATCH /play-queues/{id} 200
 PATCH /play-queues/{id} 200 .current_entry_id string
@@ -3648,6 +3651,7 @@ PATCH /profiles/{id}/prefs 200 .subtitle_style.size string
 PATCH /profiles/{id}/prefs 200 .theme string
 PATCH /profiles/{id}/prefs 200 .theme_music boolean
 PATCH /profiles/{id}/prefs 200 .watched_percent integer
+PATCH /profiles/{id}/prefs 200 .watchlist_position integer
 PATCH /series/{id}/seasons/{n}
 PATCH /series/{id}/seasons/{n} 204
 PATCH /series/{id}/specials

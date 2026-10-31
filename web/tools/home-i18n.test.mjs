@@ -64,3 +64,13 @@ test('language changes update built-ins without translating metadata, custom nam
     assert.equal(home.rowQuery(saved[0].filter, library).genre, 'Horror');
   } finally { await i18n.changeLanguage('en'); }
 });
+
+test("the Watchlist's Home row sits where the Watchlist sits among the libraries", () => {
+  const films = { id: 1, name: 'Films', kind: 'movies' };
+  const series = { id: 2, name: 'Series', kind: 'shows' };
+  const order = (at) => home.resolveRows([{ id: 'collection:c', title: 'Picks' }], [films, series], at).map(row => row.id).filter(id => id !== 'next-up' && id !== 'seasonal');
+  assert.deepEqual(order(undefined), ['continue', 'watchlist', 'recent:1', 'recent:2', 'collection:c']);
+  assert.deepEqual(order(1), ['continue', 'recent:1', 'watchlist', 'recent:2', 'collection:c']);
+  assert.deepEqual(order(2), ['continue', 'recent:1', 'recent:2', 'watchlist', 'collection:c']);
+  assert.deepEqual(order(9), ['continue', 'recent:1', 'recent:2', 'watchlist', 'collection:c']);
+});
