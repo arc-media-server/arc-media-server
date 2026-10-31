@@ -19,6 +19,9 @@ type prefs struct {
 	ShowHomeHero *bool `json:"show_home_hero,omitempty"`
 	// Library navigation order only; never changes library visibility or Home rows.
 	LibraryOrder []int64 `json:"library_order,omitempty"`
+	// Where the Watchlist sits among the libraries in navigation (as a pinned source in Plex):
+	// how many libraries come before it. Absent or 0 puts it first; its Home row follows it.
+	WatchlistPosition int `json:"watchlist_position,omitempty"`
 	// Percentage for future progress reports; zero keeps the existing 90% default.
 	WatchedPercent int `json:"watched_percent,omitempty"`
 	// Blur stills and hide descriptions of episodes the profile hasn't started.
@@ -110,6 +113,9 @@ func (p *prefs) validate() error {
 	}
 	if len(p.LibraryOrder) > 500 {
 		return fmt.Errorf("library_order is limited to 500 libraries")
+	}
+	if p.WatchlistPosition < 0 || p.WatchlistPosition > 500 {
+		return fmt.Errorf("watchlist_position is how many libraries come before the Watchlist (0–500)")
 	}
 	seenLibraries := map[int64]bool{}
 	for _, id := range p.LibraryOrder {
@@ -333,6 +339,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		ShowHomeHero     *bool          `json:"show_home_hero"`
 		HideSpoilers     *bool          `json:"hide_spoilers"`
 		LibraryOrder     *[]int64       `json:"library_order"`
+		WatchlistAt      *int           `json:"watchlist_position"`
 		WatchedPercent   *int           `json:"watched_percent"`
 		Theme            *string        `json:"theme"`
 		SubtitleLanguage *string        `json:"subtitle_language"`
@@ -358,6 +365,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	}
 	if body.LibraryOrder != nil {
 		p.LibraryOrder = *body.LibraryOrder
+	}
+	if body.WatchlistAt != nil {
+		p.WatchlistPosition = *body.WatchlistAt
 	}
 	if body.WatchedPercent != nil {
 		p.WatchedPercent = *body.WatchedPercent

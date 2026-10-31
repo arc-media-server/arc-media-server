@@ -3,10 +3,8 @@ import { createElement, useCallback, useEffect, useId, useRef, useState, type Re
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, type Library } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
-import { usePrefs } from '@/lib/home';
-import { navigationLibraries } from '@/lib/library-navigation';
 import { isSettingsPath } from '@/lib/settings-navigation';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
@@ -175,13 +173,13 @@ function ProfileMenu({ compact, onReorderLibraries }: { compact?: boolean; onReo
 export function Sidebar() {
   const { t } = useTranslation('common');
   const reorder = useLibraryReorder();
-  const libraries = reorder.ordered;
+  const entries = reorder.entries;
   const admin = useIsAdmin();
   const { pathname } = useLocation();
   const section = useRef<HTMLDivElement>(null);
   // Which library's ⋯ started arranging, so focus goes back there afterwards.
-  const origin = useRef<number | null>(null);
-  const startReorder = (id: number) => { origin.current = id; reorder.start(); };
+  const origin = useRef<number | 'watchlist' | null>(null);
+  const startReorder = (id: number | 'watchlist') => { origin.current = id; reorder.start(); };
   const returnFocus = useCallback(() => {
     requestAnimationFrame(() => {
       const el = section.current;
@@ -194,6 +192,20 @@ export function Sidebar() {
     if (wasEditing.current && !reorder.editing) returnFocus();
     wasEditing.current = reorder.editing;
   }, [reorder.editing, returnFocus]);
+
+  // A library's place in the list: its link, and its ⋯ (management, or just Reorder).
+  const libraryRow = (lib: Library) => (
+    <div key={lib.id} className="group flex items-center gap-0.5 [&>a]:min-w-0 [&>a]:flex-1">
+      <NavItem to={`/library/${lib.id}`} icon={createElement(kindIcon(lib.kind))} busy={lib.scan.running}>
+        {lib.name}
+      </NavItem>
+      {admin ? (
+        <LibraryMenu lib={lib} compact onReorder={reorder.canReorder ? () => startReorder(lib.id) : undefined} />
+      ) : reorder.canReorder && (
+        <LibraryOrderMenu lib={lib} onReorder={() => startReorder(lib.id)} />
+      )}
+    </div>
+  );
 
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
@@ -211,28 +223,22 @@ export function Sidebar() {
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
         <div className="space-y-0.5">
           <NavItem to="/" icon={<Home />}>{t('navigation.home')}</NavItem>
-          <NavItem to="/watchlist" icon={<Bookmark />}>{t('navigation.watchlist')}</NavItem>
           <NavItem to="/playlists" icon={<ListVideo />}>{t('navigation.playlists')}</NavItem>
         </div>
-        {!!libraries.length && (
+        {/* The Watchlist sits among the libraries and moves with them, as Plex's pinned sources. */}
+        {!!entries.length && (
           <div ref={section}>
             <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('navigation.libraries')}</p>
             {reorder.editing ? (
               <SidebarLibraryReorder reorder={reorder} />
             ) : (
               <div className="space-y-0.5">
-                {libraries.map((lib) => (
-                  <div key={lib.id} className="group flex items-center gap-0.5 [&>a]:min-w-0 [&>a]:flex-1">
-                    <NavItem to={`/library/${lib.id}`} icon={createElement(kindIcon(lib.kind))} busy={lib.scan.running}>
-                      {lib.name}
-                    </NavItem>
-                    {admin ? (
-                      <LibraryMenu lib={lib} compact onReorder={reorder.canReorder ? () => startReorder(lib.id) : undefined} />
-                    ) : reorder.canReorder && (
-                      <LibraryOrderMenu lib={lib} onReorder={() => startReorder(lib.id)} />
-                    )}
+                {entries.map((entry) => entry.kind === 'watchlist' ? (
+                  <div key="watchlist" className="group flex items-center gap-0.5 [&>a]:min-w-0 [&>a]:flex-1">
+                    <NavItem to="/watchlist" icon={<Bookmark />}>{t('navigation.watchlist')}</NavItem>
+                    {reorder.canReorder && <LibraryOrderMenu onReorder={() => startReorder('watchlist')} />}
                   </div>
-                ))}
+                ) : libraryRow(entry.library))}
               </div>
             )}
           </div>
@@ -249,9 +255,6 @@ export function Sidebar() {
 /** Compact top bar used instead of the sidebar on small screens. */
 export function MobileBar() {
   const { t } = useTranslation('common');
-  const { data } = useLibraries();
-  const prefs = usePrefs();
-  const libraries = navigationLibraries(data ?? [], prefs.data?.library_order);
   const reorder = useLibraryReorder();
   const { pathname } = useLocation();
   const link = ({ isActive }: { isActive: boolean }) =>
@@ -269,11 +272,12 @@ export function MobileBar() {
       <div className="flex min-w-0 items-center">
       <nav className="scrollbar-none flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 py-3">
         <NavLink to="/" end className={link}>{t('navigation.home')}</NavLink>
-        <NavLink to="/watchlist" className={link}>{t('navigation.watchlist')}</NavLink>
         <NavLink to="/playlists" className={link}>{t('navigation.playlists')}</NavLink>
-        {libraries?.map((lib) => (
-          <NavLink key={lib.id} to={`/library/${lib.id}`} className={link}>
-            {lib.name}
+        {reorder.entries.map((e) => e.kind === 'watchlist' ? (
+          <NavLink key="watchlist" to="/watchlist" className={link}>{t('navigation.watchlist')}</NavLink>
+        ) : (
+          <NavLink key={e.library.id} to={`/library/${e.library.id}`} className={link}>
+            {e.library.name}
           </NavLink>
         ))}
       </nav>
