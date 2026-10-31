@@ -215,3 +215,32 @@ func TestSurroundAudioConversion(t *testing.T) {
 		t.Fatalf("E-AC-3 a browser can't decode is converted: %+v", d)
 	}
 }
+
+// Players retry a failed stream with empty lists (web/src/lib/playback.ts fallbackCaps): no
+// containers to have it repackaged, no video codecs to have the video converted. Those must be
+// accepted; a list that names other formats but not fMP4/H.264 is still refused.
+func TestFallbackCapsStillConvert(t *testing.T) {
+	v := store.Stream{Kind: "video", Codec: "h264", Height: 1080}
+	a := store.Stream{Kind: "audio", Codec: "aac", Channels: 2}
+	f := &store.MediaFile{Container: "mov,mp4,m4a,3gp,3g2,mj2", Streams: []store.Stream{v, a}}
+	vptr, aptr := &f.Streams[0], &f.Streams[1]
+	full := clientCaps{Containers: []string{"mp4"}, Video: []string{"h264", "hevc"}, Audio: []string{"aac"}}
+	repackage := clientCaps{Containers: []string{}, Video: full.Video, Audio: full.Audio}
+	convert := clientCaps{Containers: []string{}, Video: []string{}, Audio: full.Audio}
+	for name, c := range map[string]clientCaps{"repackage": repackage, "convert": convert} {
+		d := decide(f, vptr, aptr, c)
+		if d.Method == "direct" {
+			t.Fatalf("%s: still direct", name)
+		}
+		if !conversionSupported(c, d, aptr) {
+			t.Fatalf("%s: a fallback request was refused (%s)", name, d.Method)
+		}
+	}
+	if d := decide(f, vptr, aptr, convert); d.Method != "transcode" {
+		t.Fatalf("no video codecs should convert the video, got %s", d.Method)
+	}
+	mkvOnly := clientCaps{Containers: []string{"mkv"}, Video: []string{"hevc"}, Audio: []string{"aac"}}
+	if conversionSupported(mkvOnly, decide(f, vptr, aptr, mkvOnly), aptr) {
+		t.Fatal("a player that names neither MP4 nor H.264 can't play Arc's conversions")
+	}
+}
