@@ -2,7 +2,6 @@ package transcode
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os/exec"
@@ -27,7 +26,7 @@ func TestConversionWaitsForThePlayer(t *testing.T) {
 	}
 	m := New(filepath.Join(dir, "sessions"), func() string { return ffmpeg }, func() string { return "" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	// Thresholds scaled down for a 3-minute clip; only this manager's sessions use them.
-	m.throttling = throttling{pauseAhead: 24 * time.Second, resumeAhead: 12 * time.Second, tick: 50 * time.Millisecond}
+	m.throttling = throttling{pauseAhead: 24 * time.Second, resumeAhead: 18 * time.Second, tick: 50 * time.Millisecond}
 	s, err := m.Start(Options{Path: clip, VideoStream: 0, AudioStream: -1, BurnSubtitle: -1, SourceHeight: 90})
 	if err != nil {
 		t.Fatal(err)
@@ -55,10 +54,14 @@ func TestConversionWaitsForThePlayer(t *testing.T) {
 	default:
 	}
 
-	// The player catches up: conversion resumes and pauses again further on.
-	s.Requested(fmt.Sprintf("s%05d.m4s", paused-1))
-	waitFor(t, "resume and convert more", func() bool { return s.segments() >= paused+3 })
+	// The player plays one more segment: conversion resumes at once and pauses again a segment
+	// on, so the playlist keeps growing while someone watches (a still one looks stuck to players).
+	s.Requested("s00001.m4s")
+	waitFor(t, "resume after one segment", func() bool { return s.segments() > paused })
 	waitFor(t, "pause again", s.Throttled)
+	if n := s.segments(); n > paused+3 {
+		t.Fatalf("made %d segments after the player moved one on (was %d), want about one", n, paused)
+	}
 
 	// Asking for a segment that isn't made yet resumes at once.
 	s.Requested("s00029.m4s")
@@ -85,5 +88,13 @@ func waitFor(t *testing.T, what string, ok func() bool) {
 			t.Fatalf("timed out waiting to %s", what)
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// While someone watches, a throttled playlist must grow at least every few segment lengths:
+// Media3 fails a live playlist that doesn't change for 3.5 target durations.
+func TestThrottlingResumesWithinOneSegment(t *testing.T) {
+	if gap := defaultThrottling.pauseAhead - defaultThrottling.resumeAhead; gap <= 0 || gap > segmentSeconds*time.Second {
+		t.Fatalf("pause/resume gap %v: the playlist would stand still for longer than a segment", gap)
 	}
 }
