@@ -143,11 +143,11 @@ type Cache struct {
 	ffmpeg func() string
 	mu     sync.Mutex
 	// One extraction per track at a time: a second request waits for the first.
-	running map[string]chan struct{}
+	running map[string]*extraction
 }
 
 func NewCache(dir string, ffmpeg func() string) *Cache {
-	return &Cache{dir: dir, ffmpeg: ffmpeg, running: map[string]chan struct{}{}}
+	return &Cache{dir: dir, ffmpeg: ffmpeg, running: map[string]*extraction{}}
 }
 
 // Cues returns a text track's cues, extracting them the first time (which reads the whole video
@@ -179,44 +179,47 @@ func (c *Cache) Cues(ctx context.Context, f *store.MediaFile, t Track) ([]Cue, e
 		}
 	}
 
-	for {
-		if b, err := os.ReadFile(path); err == nil {
-			var cues []Cue
-			if json.Unmarshal(b, &cues) == nil {
-				return cues, nil
+	if b, err := os.ReadFile(path); err == nil {
+		var cues []Cue
+		if json.Unmarshal(b, &cues) == nil {
+			return cues, nil
+		}
+	}
+	// One extraction per track at a time, run apart from whoever asked: a player that stops
+	// waiting (a timeout, closing the player) doesn't cancel it, so it's cached for next time
+	// instead of starting again from the beginning of a large file.
+	c.mu.Lock()
+	job := c.running[key]
+	if job == nil {
+		job = &extraction{done: make(chan struct{})}
+		c.running[key] = job
+		go func() {
+			// extract bounds itself (10 minutes).
+			job.cues, job.err = c.extract(context.Background(), src, t)
+			if job.err == nil && os.MkdirAll(dir, 0o755) == nil {
+				b, _ := json.Marshal(job.cues)
+				os.WriteFile(path, b, 0o644)
 			}
-		}
-		c.mu.Lock()
-		wait, busy := c.running[key]
-		if !busy {
-			c.running[key] = make(chan struct{})
-		}
-		c.mu.Unlock()
-		if !busy {
-			break
-		}
-		select {
-		case <-wait:
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
+			c.mu.Lock()
+			delete(c.running, key)
+			c.mu.Unlock()
+			close(job.done)
+		}()
 	}
-	defer func() {
-		c.mu.Lock()
-		close(c.running[key])
-		delete(c.running, key)
-		c.mu.Unlock()
-	}()
+	c.mu.Unlock()
+	select {
+	case <-job.done:
+		return job.cues, job.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
 
-	cues, err := c.extract(ctx, src, t)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(dir, 0o755); err == nil {
-		b, _ := json.Marshal(cues)
-		os.WriteFile(path, b, 0o644)
-	}
-	return cues, nil
+// extraction is one track being read out of its video, shared by everyone waiting for it.
+type extraction struct {
+	done chan struct{}
+	cues []Cue
+	err  error
 }
 
 func (c *Cache) extract(ctx context.Context, src string, t Track) ([]Cue, error) {
