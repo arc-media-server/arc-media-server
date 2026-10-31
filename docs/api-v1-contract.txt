@@ -293,6 +293,13 @@ GET /diagnostics 200 .storage_error string
 GET /diagnostics 200 .until string
 GET /diagnostics/download
 GET /diagnostics/download 200
+GET /discover
+GET /discover 200
+GET /discover 200 .api_version integer
+GET /discover 200 .id string
+GET /discover 200 .name string
+GET /discover 200 .product string
+GET /discover 200 .version string
 GET /events
 GET /events 200
 GET /extras/{id}/stream

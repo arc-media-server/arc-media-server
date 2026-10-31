@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+
+	"ams/internal/auth"
 	"strings"
 )
 
@@ -78,4 +80,30 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 	add("artwork_upload", s.uploadsDir != "", true)
 	add("library_scan", s.scanner != nil, true)
 	writeJSON(w, 200, serverCapabilities{APIVersion: APIVersion, Features: features})
+}
+
+type discoveredServer struct {
+	// Always "arc", so an app scanning the network can tell Arc apart from other servers.
+	Product    string `json:"product"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Version    string `json:"version"`
+	APIVersion int    `json:"api_version"`
+}
+
+// discover: GET /api/discover lets an app on the home network find Arc without signing in: TV
+// apps can't listen for broadcasts, so they try their network's addresses on Arc's port and list
+// the servers that answer. Only answers requests from the home network (404 otherwise), and gives
+// only the server's identity, name and version.
+func (s *Server) discover(w http.ResponseWriter, r *http.Request) {
+	if !auth.IsLocal(r) {
+		writeError(w, http.StatusNotFound, "no such endpoint")
+		return
+	}
+	id, err := s.store.Setting(r.Context(), "server_id")
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, discoveredServer{Product: "arc", ID: id, Name: serverDisplayName(s.settings().ServerName), Version: s.version, APIVersion: APIVersion})
 }

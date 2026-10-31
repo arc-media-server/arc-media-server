@@ -559,6 +559,33 @@
         ],
         "type": "object"
       },
+      "DiscoveredServer": {
+        "properties": {
+          "api_version": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "api_version",
+          "id",
+          "name",
+          "product",
+          "version"
+        ],
+        "type": "object"
+      },
       "Error": {
         "properties": {
           "error": {
@@ -6673,6 +6700,50 @@
         "x-arc-access": "admin"
       }
     },
+    "/discover": {
+      "get": {
+        "description": "Lets an app on the home network find Arc without signing in: TV apps can't listen for broadcasts, so they try their network's addresses on Arc's port and list the servers that answer. Only answers requests from the home network (404 otherwise), and gives only the server's identity, name and version.\n\nWho may call it: **anyone**.",
+        "operationId": "discover",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveredServer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "security": [],
+        "summary": "Lets an app on the home network find Arc without signing in: TV apps can't listen for broadcasts, so they try their n…",
+        "tags": [
+          "Discover"
+        ],
+        "x-arc-access": "anyone"
+      }
+    },
     "/events": {
       "get": {
         "description": "Is a profile-authenticated Server-Sent Events stream. \"invalidate\" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions are admin-only. \"resync\" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.\n\nWho may call it: **profile**.",
@@ -11750,7 +11821,7 @@
     },
     "/items/{id}/subtitles/{track}/vtt": {
       "get": {
-        "description": "?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go).\n\nWho may call it: **profile**.",
+        "description": "?file=&shift_ms= returns a text subtitle track as WebVTT, for a cast device to show itself. shift_ms moves every cue (negative is earlier): a converted stream's start point and the viewer's timing adjustment. Cues that end before 0 are left out. Cast devices fetch it through a cast link (see cast.go). Players wait for a subtitle file before they start the video, and reading a track out of a large video the first time takes minutes (the whole file is read). So the answer starts at once with the WebVTT header, stays alive with blank lines (which WebVTT allows between cues) while the track is read, then carries the cues: the video starts straight away and the subtitles follow.\n\nWho may call it: **profile**.",
         "operationId": "subtitleVTT",
         "parameters": [
           {

@@ -98,9 +98,10 @@ func requestToken(r *http.Request) string {
 	return ""
 }
 
-// bypassApplies reports whether this request may pick a profile without the password.
+// bypassApplies reports whether this request may pick a profile without the password. Never for a
+// cross-origin call (appCORS): any web page on the home network could make one.
 func (s *Server) bypassApplies(r *http.Request) bool {
-	return s.settings().LocalBypass && auth.IsLocal(r)
+	return s.settings().LocalBypass && auth.IsLocal(r) && !isCrossOriginApp(r)
 }
 
 // signedIn wraps handlers that need a profile.
