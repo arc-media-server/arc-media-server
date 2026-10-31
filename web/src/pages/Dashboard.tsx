@@ -34,7 +34,7 @@ export function DashboardPage() {
           {playing.data?.length === 0 && (
             <EmptyState icon={<MonitorPlay />} title={t("reports:dashboard.nothingIsPlaying")}>{t("reports:dashboard.whenSomeoneWatchesSomething")}</EmptyState>
           )}
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-3 2xl:grid-cols-2">
             {playing.data?.map((p) => <PlaybackCard key={p.id} playback={p} onStop={() => setStopping(p)} />)}
           </div>
         </section>
@@ -71,7 +71,7 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
 
   return (
     <div className="flex overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
-      <Link to={href} className="relative hidden w-48 shrink-0 sm:block">
+      <Link to={href} className="relative hidden w-40 shrink-0 sm:block">
         <Artwork src={image} alt="" kind="backdrop" className="absolute inset-0 size-full" fallbackTitle={title} />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
@@ -97,7 +97,13 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
               ? p.throttled ? t('reports:dashboard.directStreamThrottled') : t('reports:dashboard.directStream')
               : p.throttled ? t('reports:dashboard.transcodingThrottled') : t('reports:dashboard.transcoding')}
           </span>
+          {p.stream?.encoder && (
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', p.stream.hardware ? 'bg-accent/15 text-accent ring-accent/30' : 'bg-surface-2 text-muted ring-border')}>
+              {p.stream.hardware ? t('reports:dashboard.hardwareEncoder', { encoder: p.stream.encoder }) : t('reports:dashboard.cpuEncoder')}
+            </span>
+          )}
         </div>
+        {p.stream && <StreamDetails playback={p} />}
         <div className="mt-auto flex items-center gap-3 text-[12px] tabular-nums text-muted">
           <StateIcon className={cn('size-3.5 shrink-0 fill-current', p.state === 'buffering' && 'animate-spin fill-none')} aria-label={p.state} />
           <span>{fmt.clock(p.position_ms)}</span>
@@ -108,6 +114,38 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
         </div>
       </div>
     </div>
+  );
+}
+
+/** Plex-style stream details: video and audio from the file to the player, why, and how far converted. */
+function StreamDetails({ playback: p }: { playback: Playback }) {
+  const { t } = useTranslation('reports');
+  const s = p.stream!;
+  const flow = (source?: string, output?: string) =>
+    !source ? null : output ? t('reports:dashboard.streamConverted', { source, output }) : t('reports:dashboard.streamAsItIs', { source });
+  const notes = [s.tone_mapped && t('reports:dashboard.toneMapped'), s.subtitles_burned && t('reports:dashboard.subtitlesBurned')].filter(Boolean);
+  const rows: [string, string | null][] = [
+    [t('reports:dashboard.streamVideo'), flow(s.video, s.video_output)],
+    [t('reports:dashboard.streamAudio'), flow(s.audio, s.audio_output)],
+    [t('reports:dashboard.streamWhy'), s.reasons?.length ? [...s.reasons, ...notes].join(' · ') : notes.join(' · ') || null],
+  ];
+  const ahead = p.converted_ms ? p.converted_ms - p.position_ms : 0;
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12.5px]">
+      {rows.filter(([, v]) => v).map(([label, value]) => (
+        <div key={label} className="contents">
+          <dt className="text-subtle">{label}</dt>
+          <dd className="min-w-0 break-words text-muted">{value}</dd>
+        </div>
+      ))}
+      {!!p.converted_ms && (
+        <dd className="col-span-2 tabular-nums text-subtle">
+          {ahead > 0
+            ? t('reports:dashboard.convertedAhead', { time: fmt.clock(p.converted_ms), ahead: fmt.clock(ahead) })
+            : t('reports:dashboard.convertedTo', { time: fmt.clock(p.converted_ms) })}
+        </dd>
+      )}
+    </dl>
   );
 }
 

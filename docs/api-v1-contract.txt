@@ -2206,6 +2206,7 @@ GET /playing
 GET /playing 200
 GET /playing 200 [] object
 GET /playing 200 [].address string
+GET /playing 200 [].converted_ms integer
 GET /playing 200 [].device string
 GET /playing 200 [].duration_ms integer
 GET /playing 200 [].extra string
@@ -2338,6 +2339,17 @@ GET /playing 200 [].profile.max_age integer
 GET /playing 200 [].profile.name string
 GET /playing 200 [].started_at integer
 GET /playing 200 [].state string
+GET /playing 200 [].stream object
+GET /playing 200 [].stream.audio string
+GET /playing 200 [].stream.audio_output string
+GET /playing 200 [].stream.encoder string
+GET /playing 200 [].stream.hardware boolean
+GET /playing 200 [].stream.reasons array
+GET /playing 200 [].stream.reasons[] string
+GET /playing 200 [].stream.subtitles_burned boolean
+GET /playing 200 [].stream.tone_mapped boolean
+GET /playing 200 [].stream.video string
+GET /playing 200 [].stream.video_output string
 GET /playing 200 [].throttled boolean
 GET /playlists
 GET /playlists 200

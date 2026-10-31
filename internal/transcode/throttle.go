@@ -78,6 +78,12 @@ func (s *Session) throttle() {
 	}
 }
 
+// ConvertedMS is how far into the file the conversion has got: where it started plus the
+// segments finished (each about segmentSeconds long).
+func (s *Session) ConvertedMS() int64 {
+	return s.OffsetMS + int64(s.segments())*segmentSeconds*1000
+}
+
 // segments is how many media segments are finished (listed in the playlist).
 func (s *Session) segments() int {
 	b, err := os.ReadFile(filepath.Join(s.dir, "index.m3u8"))
