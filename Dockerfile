@@ -20,7 +20,9 @@ COPY . .
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X main.revision=$GIT_REVISION" -o /out/ams ./cmd/ams
 
-FROM debian:bookworm-slim
+# Debian trixie (13): its FFmpeg 7.1 keeps Dolby Vision when packaging HLS; bookworm's 5.1 drops it,
+# so repackaged Dolby Vision played as HDR10 (owner's test, 31 October).
+FROM debian:trixie-slim
 LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.source="https://github.com/arc-media-server/arc-media-server"
 # FFmpeg (with Chromaprint for intro detection, zimg for HDR tone mapping, VAAPI/NVENC for graphics
