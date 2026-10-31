@@ -34,8 +34,11 @@ type Options struct {
 	VideoStream, AudioStream int
 	// Copy the video as it is (remux), or re-encode it to H.264.
 	CopyVideo bool
-	// Copy the audio as it is (it's already AAC stereo), or convert it to AAC stereo.
-	CopyAudio bool
+	// Copy the audio as it is (AAC stereo, or Dolby Digital the player decodes), or convert it:
+	// to AudioCodec ("eac3" or "ac3", with AudioChannels) for surround sound, else AAC stereo.
+	CopyAudio     bool
+	AudioCodec    string
+	AudioChannels int
 	// When re-encoding: the largest height to output (0 keeps the source size) and the video
 	// bitrate in kbit/s (0 for a quality-based default).
 	MaxHeight    int
@@ -205,7 +208,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		return nil, fmt.Errorf("starting FFmpeg: %w", err)
 	}
 	m.log.Info("transcode started", "session", s.ID, "file", filepath.Base(opts.Path), "copy_video", opts.CopyVideo,
-		"copy_audio", opts.CopyAudio, "start", time.Duration(s.OffsetMS)*time.Millisecond)
+		"copy_audio", opts.CopyAudio, "audio_codec", opts.AudioCodec, "start", time.Duration(s.OffsetMS)*time.Millisecond)
 	m.log.Debug("ffmpeg", "args", strings.Join(args, " "))
 	s.proc = cmd.Process
 	go s.throttle()
@@ -291,6 +294,10 @@ func buildArgs(o Options, start float64, dir string) []string {
 			// Safari and Media Source Extensions want HEVC tagged hvc1.
 			a = append(a, "-tag:v", "hvc1")
 		}
+		// FFmpeg writes a copied stream's Dolby Vision configuration (dvcC/dvvC) into MP4 only
+		// when allowed "unofficial" boxes; without it a player sees plain HEVC and shows the
+		// HDR10 base layer instead of Dolby Vision. Streams without Dolby Vision are unaffected.
+		a = append(a, "-strict", "unofficial")
 	} else {
 		if filters := append(pre, post...); o.BurnSubtitle < 0 && len(filters) > 0 {
 			a = append(a, "-vf", strings.Join(filters, ","))
@@ -300,9 +307,12 @@ func buildArgs(o Options, start float64, dir string) []string {
 		a = append(a, "-force_key_frames", "expr:gte(t,n_forced*3)")
 	}
 	if o.AudioStream >= 0 {
-		if o.CopyAudio {
+		switch {
+		case o.CopyAudio:
 			a = append(a, "-c:a", "copy")
-		} else {
+		case (o.AudioCodec == "eac3" || o.AudioCodec == "ac3") && o.AudioChannels > 2:
+			a = append(a, "-c:a", o.AudioCodec, "-ac", strconv.Itoa(min(o.AudioChannels, 6)), "-b:a", "640k")
+		default:
 			a = append(a, "-c:a", "aac", "-ac", "2", "-b:a", "192k")
 		}
 	}

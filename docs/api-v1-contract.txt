@@ -4277,6 +4277,10 @@ POST /items/{id}/artwork/{type} 200 .user_data.watchlisted boolean
 POST /items/{id}/artwork/{type} 200 .year integer
 POST /items/{id}/playback
 POST /items/{id}/playback 200
+POST /items/{id}/playback 200 .audio_output object
+POST /items/{id}/playback 200 .audio_output.channels integer
+POST /items/{id}/playback 200 .audio_output.codec string
+POST /items/{id}/playback 200 .audio_output.converted boolean
 POST /items/{id}/playback 200 .audio_stream integer
 POST /items/{id}/playback 200 .audio_tracks array
 POST /items/{id}/playback 200 .audio_tracks[] object
@@ -4397,6 +4401,10 @@ POST /items/{id}/playback-options 200 .versions[].video_codec string
 POST /items/{id}/playback-options 200 .versions[].width integer
 POST /items/{id}/playback-preview
 POST /items/{id}/playback-preview 200
+POST /items/{id}/playback-preview 200 .audio_output object
+POST /items/{id}/playback-preview 200 .audio_output.channels integer
+POST /items/{id}/playback-preview 200 .audio_output.codec string
+POST /items/{id}/playback-preview 200 .audio_output.converted boolean
 POST /items/{id}/playback-preview 200 .audio_stream integer
 POST /items/{id}/playback-preview 200 .audio_tracks array
 POST /items/{id}/playback-preview 200 .audio_tracks[] object
