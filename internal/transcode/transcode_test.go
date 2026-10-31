@@ -263,3 +263,26 @@ func TestConvertHDR(t *testing.T) {
 	}
 	m.Stop(s.ID)
 }
+
+// Copied Dolby Vision that comes out without its configuration box is logged, once per run.
+func TestDolbyVisionDroppedIsLoggedOnce(t *testing.T) {
+	var logs strings.Builder
+	m := New(t.TempDir(), func() string { return "" }, func() string { return "" }, slog.New(slog.NewTextHandler(&logs, nil)))
+	session := func(init string, dv bool) *Session {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "init.mp4"), []byte(init), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return &Session{ID: "s", dir: dir, Options: Options{CopyVideo: true, DolbyVision: dv}}
+	}
+	m.checkDolbyVision(session("ftyp hvc1 hvcC dvvC", true))
+	m.checkDolbyVision(session("ftyp hvc1 hvcC", false))
+	if logs.Len() != 0 {
+		t.Fatalf("kept or no Dolby Vision is no warning: %s", logs.String())
+	}
+	m.checkDolbyVision(session("ftyp hvc1 hvcC", true))
+	m.checkDolbyVision(session("ftyp hvc1 hvcC", true))
+	if n := strings.Count(logs.String(), "didn't keep Dolby Vision"); n != 1 {
+		t.Fatalf("want one warning, got %d: %s", n, logs.String())
+	}
+}

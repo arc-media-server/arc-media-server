@@ -531,7 +531,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	opts := transcode.Options{Path: f.Path, StartMS: body.StartMS, VideoStream: video.Index, AudioStream: -1,
 		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
 		MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
-		VideoCodec: video.Codec, BurnSubtitle: burn,
+		VideoCodec: video.Codec, DolbyVision: video.DolbyVision, BurnSubtitle: burn,
 		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
