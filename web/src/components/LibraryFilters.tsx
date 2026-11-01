@@ -77,7 +77,7 @@ export function FiltersButton({ facets, filters, onChange, onClear, unmatched }:
       <Popover.Trigger asChild>
         <Button variant="secondary" size="sm" className="shrink-0" aria-label={count ? t('library:filtersOn', { count }) : t('library:filters')}>
           <SlidersHorizontal /> {t('library:filters')}
-          {count > 0 && <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-accent-strong text-[11px] font-semibold text-white">{count}</span>}
+          {count > 0 && <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-accent-strong text-[11px] font-semibold text-accent-foreground">{count}</span>}
         </Button>
       </Popover.Trigger>
       <Popover.Portal>

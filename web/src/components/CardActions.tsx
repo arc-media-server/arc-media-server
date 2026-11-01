@@ -35,13 +35,13 @@ const iconButton =
 export function selectCircle(selected: boolean) {
   return cn(
     'flex size-6 items-center justify-center rounded-full shadow-[0_1px_4px_rgb(0_0_0/0.35)] ring-2 ring-inset',
-    selected ? 'bg-accent-strong text-white ring-accent-strong' : 'bg-black/35 text-white/0 ring-white/95 backdrop-blur-sm',
+    selected ? 'bg-accent-strong text-accent-foreground ring-accent-strong' : 'bg-black/35 text-white/0 ring-white/95 backdrop-blur-sm',
   );
 }
 
 /** Hovering the circle (or tabbing to it): it fills with the accent, glows and previews the tick. */
 const selectCircleHover =
-  'hover:bg-accent-strong hover:text-white hover:ring-accent-strong hover:shadow-[0_0_0_3px_rgb(255_255_255/0.22),0_0_14px_2px_color-mix(in_srgb,var(--accent)_65%,transparent)] focus-visible:bg-accent-strong focus-visible:text-white focus-visible:ring-accent-strong active:scale-95 motion-reduce:active:scale-100';
+  'hover:bg-accent-strong hover:text-accent-foreground hover:ring-accent-strong hover:shadow-[0_0_0_3px_rgb(255_255_255/0.22),0_0_14px_2px_color-mix(in_srgb,var(--accent)_65%,transparent)] focus-visible:bg-accent-strong focus-visible:text-accent-foreground focus-visible:ring-accent-strong active:scale-95 motion-reduce:active:scale-100';
 
 /**
  * A soft shade over the artwork while a card's actions show, as Plex's, so the white controls read

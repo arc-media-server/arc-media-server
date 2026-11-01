@@ -134,7 +134,7 @@ function Tile({ type, src, selected, title, onClick }: { type: ArtworkType; src:
     >
       <img src={src} alt="" loading="lazy" className={cn('size-full', type === 'logo' ? 'object-contain' : 'object-cover')} />
       {selected && (
-        <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-accent-strong text-white shadow">
+        <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-accent-strong text-accent-foreground shadow">
           <Check className="size-3.5" strokeWidth={3} />
         </span>
       )}
