@@ -32,7 +32,7 @@ export function WatchBadge({ item, className }: { item: Item; className?: string
     <span
       className={cn(
         'absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-bold shadow-lg',
-        watched ? 'bg-black/55 text-white backdrop-blur' : 'bg-accent-strong text-white',
+        watched ? 'bg-black/55 text-white backdrop-blur' : 'bg-accent-strong text-accent-foreground',
         className,
       )}
       title={watched ? t('titles:watchState.watched') : t('titles:watchState.unwatched', { count })}

@@ -90,7 +90,7 @@ function Review({ y, faded }: { y: YearReview; faded: boolean }) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent-strong via-accent-strong/85 to-teal-950 p-8 text-white ring-1 ring-white/10 md:p-12"
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-700 via-zinc-800 to-zinc-950 p-8 text-white ring-1 ring-white/10 md:p-12"
       >
         {hours < 1 ? (
           topGenre

@@ -8,10 +8,10 @@ createApiReference('#docs', {
   url: '/api/openapi.json',
   // "Try it" requests go to this server, signed in as the current browser session.
   servers: [{ url: `${location.origin}/api/v1`, description: 'This Arc server' }],
-  // Arc's colours: Scalar's neutral theme with Arc's teal accent (web/src/index.css).
+  // Arc's colours: Scalar's neutral theme, black and white like the app (web/src/index.css).
   theme: 'default',
-  customCss: `.light-mode { --scalar-color-accent: #0b7d72; --scalar-background-accent: #0b7d721f; }
-.dark-mode { --scalar-color-accent: #2bb3a3; --scalar-background-accent: #2bb3a31f; }`,
+  customCss: `.light-mode { --scalar-color-accent: #1d1d1f; --scalar-background-accent: #1d1d1f1f; }
+.dark-mode { --scalar-color-accent: #f5f5f7; --scalar-background-accent: #f5f5f71f; }`,
   telemetry: false,
   withDefaultFonts: false,
   agent: { disabled: true },
