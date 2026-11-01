@@ -37,7 +37,7 @@ export function NewsButton({ className }: { className?: string }) {
       >
         <Bell className="size-[18px]" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-strong px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-strong px-1 text-[10px] font-semibold text-accent-foreground">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
