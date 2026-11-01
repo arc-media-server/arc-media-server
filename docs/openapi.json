@@ -5052,7 +5052,7 @@
     },
     "/cast": {
       "post": {
-        "description": "{\"url\"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt).\n\nWho may call it: **profile**.",
+        "description": "{\"url\"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's stream link (GET /api/extras/{id}/stream).\n\nWho may call it: **profile**.",
         "operationId": "castLink",
         "requestBody": {
           "content": {
@@ -5113,6 +5113,16 @@
               }
             },
             "description": "Not found"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
           }
         },
         "summary": "Turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it …",
