@@ -136,6 +136,15 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 	}
 	out := []Collection{}
 	for _, c := range all {
+		if c.Kind == "auto" {
+			dup, err := s.autoDuplicated(ctx, &c, all)
+			if err != nil {
+				return nil, err
+			}
+			if dup {
+				continue
+			}
+		}
 		switch c.Kind {
 		case "smart":
 			c.Count = -1
@@ -155,6 +164,32 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// autoDuplicated says whether an automatic (TMDB) collection is already covered by a manual one
+// of the same name in its library that holds every one of its titles, as happens when a Plex
+// import brings over Plex's copy of the same collection. Showing both would put the same row
+// twice on a title's page and two identical tiles in the library, so only the manual one shows;
+// an automatic collection with any title the manual one lacks stays, so nothing disappears.
+func (s *Store) autoDuplicated(ctx context.Context, auto *Collection, all []Collection) (bool, error) {
+	name := strings.TrimSpace(auto.Title)
+	for _, m := range all {
+		if m.Kind != "manual" || !strings.EqualFold(strings.TrimSpace(m.Title), name) {
+			continue
+		}
+		var missing int
+		err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items
+			WHERE library_id = ? AND kind = 'movie' AND tmdb_collection_id = ?
+			AND id NOT IN (SELECT item_id FROM collection_items WHERE collection_id = ?) AND `+playableSQL,
+			auto.LibraryID, auto.TMDBID, m.ID).Scan(&missing)
+		if err != nil {
+			return false, err
+		}
+		if missing == 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *Store) countMembers(ctx context.Context, c *Collection, acc Access) (int, error) {
@@ -339,9 +374,17 @@ func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Co
 	rows.Close()
 	var tmdbColl int64
 	s.db.QueryRowContext(ctx, `SELECT tmdb_collection_id FROM items WHERE id = ?`, it.ID).Scan(&tmdbColl)
+	// A title in a manual collection and an automatic one of the same name (Plex's copy of a TMDB
+	// collection, imported) gets one row for them, the manual one's.
+	inManual := map[string]bool{}
+	for _, c := range all {
+		if manual[c.ID] {
+			inManual[strings.ToLower(strings.TrimSpace(c.Title))] = true
+		}
+	}
 	out := []Collection{}
 	for _, c := range all {
-		if (c.Kind == "auto" && tmdbColl != 0 && c.TMDBID == tmdbColl) || manual[c.ID] {
+		if c.Kind == "auto" && tmdbColl != 0 && c.TMDBID == tmdbColl && !inManual[strings.ToLower(strings.TrimSpace(c.Title))] || manual[c.ID] {
 			out = append(out, c)
 		}
 	}
