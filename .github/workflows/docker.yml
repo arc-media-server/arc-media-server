@@ -7,6 +7,12 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    # A merge that only changes notes and docs (Markdown, the v1 contract list) builds nothing:
+    # the image would be the same. docs/openapi.json is embedded, so it still builds. Tags and
+    # manual runs always build.
+    paths-ignore:
+      - '**.md'
+      - 'docs/api-v1-contract.txt'
   workflow_dispatch:
     inputs:
       full_verification:
