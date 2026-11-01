@@ -20,6 +20,21 @@ type folderDTO struct {
 	Cover   string `json:"cover,omitempty"`
 }
 
+// folderCrumb is one folder on the way back up from the one shown.
+type folderCrumb struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// folderPage is one folder of an Other videos library: where it is, the way back up, the
+// folders inside it and its own videos.
+type folderPage struct {
+	Path    string        `json:"path"`
+	Trail   []folderCrumb `json:"trail"`
+	Folders []folderDTO   `json:"folders"`
+	Items   []itemDTO     `json:"items"`
+}
+
 // libraryFolders: GET /api/libraries/{id}/folders?path= browses an Other videos library folder by
 // folder: the folders inside path (none: the top) and the videos directly in it, oldest first.
 // A library with several folders starts with one entry per folder.
@@ -110,11 +125,7 @@ func (s *Server) libraryFolders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The way back up: each folder above, by name.
-	type crumb struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
-	}
-	trail := []crumb{}
+	trail := []folderCrumb{}
 	for i := 1; i <= len(want); i++ {
 		if i == 1 && len(lib.Paths) == 1 {
 			continue // the library itself is the top
@@ -126,9 +137,9 @@ func (s *Server) libraryFolders(w http.ResponseWriter, r *http.Request) {
 				name = filepath.Base(lib.Paths[n])
 			}
 		}
-		trail = append(trail, crumb{Name: name, Path: strings.Join(want[:i], "/")})
+		trail = append(trail, folderCrumb{Name: name, Path: strings.Join(want[:i], "/")})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"path": strings.Join(want, "/"), "trail": trail, "folders": outFolders, "items": dtos})
+	writeJSON(w, http.StatusOK, folderPage{Path: strings.Join(want, "/"), Trail: trail, Folders: outFolders, Items: dtos})
 }
 
 func equalPrefix(a, prefix []string) bool {
