@@ -1232,6 +1232,8 @@ GET /items/{id}/theme
 GET /items/{id}/theme 200
 GET /items/{id}/trickplay
 GET /items/{id}/trickplay 200
+GET /items/{id}/trickplay/{file}/bif
+GET /items/{id}/trickplay/{file}/bif 200
 GET /items/{id}/trickplay/{file}/{sheet}
 GET /items/{id}/trickplay/{file}/{sheet} 200
 GET /labels
