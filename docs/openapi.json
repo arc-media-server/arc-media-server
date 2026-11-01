@@ -725,6 +725,78 @@
         ],
         "type": "object"
       },
+      "Folder": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "cover": {
+            "type": "string"
+          },
+          "cover_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "name",
+          "path"
+        ],
+        "type": "object"
+      },
+      "FolderCrumb": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ],
+        "type": "object"
+      },
+      "FolderPage": {
+        "properties": {
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/Folder"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "trail": {
+            "items": {
+              "$ref": "#/components/schemas/FolderCrumb"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "folders",
+          "items",
+          "path",
+          "trail"
+        ],
+        "type": "object"
+      },
       "GenreResult": {
         "properties": {
           "count": {
@@ -13201,8 +13273,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/FolderPage"
                 }
               }
             },
