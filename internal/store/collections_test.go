@@ -120,3 +120,57 @@ func TestEditedCollectionSurvivesRefresh(t *testing.T) {
 		t.Errorf("after going back to automatic: %q", got.PosterPath)
 	}
 }
+
+// A Plex import brings over Plex's copy of a TMDB collection Arc already makes by itself. The two
+// show as one (the imported one) while it holds all the automatic one's titles; once the
+// automatic one has a title the copy lacks, both show in the library so that title isn't lost,
+// but a title in both still gets one row on its page.
+func TestImportedCopyOfAutomaticCollectionShowsOnce(t *testing.T) {
+	ctx := context.Background()
+	st := openTest(t)
+	lib, _ := st.SyncLibrary(ctx, "Movies", "movies", "tvdb_aired", []string{"/m"})
+	add := func(title string) string {
+		id, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		fid, _ := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/m/" + title, Size: 1, ModTime: 1}, 1, 1)
+		st.SetFileItems(ctx, fid, []string{id}, 0)
+		return id
+	}
+	one, two := add("Toy Story"), add("Toy Story 2")
+	ref := &CollectionRef{TMDBID: 10194, Name: "Toy Story Collection"}
+	for _, id := range []string{one, two} {
+		if err := st.SetMovieCollection(ctx, id, lib, ref); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := st.ImportCollection(ctx, lib, "toy story collection ", []string{two, one}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := st.Collections(ctx, lib, Access{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Kind != "manual" || list[0].Count != 2 {
+		t.Fatalf("library collections: %+v", list)
+	}
+	it, _ := st.GetItem(ctx, one)
+	if in, _ := st.ItemCollections(ctx, it, Access{}); len(in) != 1 || in[0].Kind != "manual" {
+		t.Fatalf("title's collections: %+v", in)
+	}
+
+	// A third film arrives that only TMDB's collection has: both show again.
+	three := add("Toy Story 3")
+	if err := st.SetMovieCollection(ctx, three, lib, ref); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ = st.Collections(ctx, lib, Access{}); len(list) != 2 {
+		t.Fatalf("with a title only TMDB's has: %+v", list)
+	}
+	it3, _ := st.GetItem(ctx, three)
+	if in, _ := st.ItemCollections(ctx, it3, Access{}); len(in) != 1 || in[0].Kind != "auto" {
+		t.Fatalf("the new film's collections: %+v", in)
+	}
+	// The first film is in both, and still gets one row on its page.
+	if in, _ := st.ItemCollections(ctx, it, Access{}); len(in) != 1 || in[0].Kind != "manual" {
+		t.Fatalf("title in both: %+v", in)
+	}
+}
