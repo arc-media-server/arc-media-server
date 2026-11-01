@@ -62,6 +62,8 @@ type Manager struct {
 	mu     sync.Mutex
 	urgent []int64
 	failed map[int64]bool
+	// One BIF file is cut at a time (they're made on request and kept).
+	bifMu sync.Mutex
 
 	// Activity, if set, is told while previews are being made.
 	Activity   *activity.Tracker
