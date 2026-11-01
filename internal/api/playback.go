@@ -15,6 +15,7 @@ import (
 	"ams/internal/store"
 	"ams/internal/subtitles"
 	"ams/internal/transcode"
+	"ams/internal/trickplay"
 )
 
 // How a file reaches the player:
@@ -995,7 +996,39 @@ func (s *Server) trickplayInfo(w http.ResponseWriter, r *http.Request) {
 	for i := range sheets {
 		sheets[i] = fmt.Sprintf("/api/items/%s/trickplay/%d/%d", it.ID, fileID, i)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"info": info, "sheets": sheets})
+	writeJSON(w, http.StatusOK, map[string]any{"info": info, "sheets": sheets,
+		"bif": fmt.Sprintf("/api/items/%s/trickplay/%d/bif", it.ID, fileID)})
+}
+
+// trickplayBIF: GET /api/items/{id}/trickplay/{file}/bif is the same thumbnails as one BIF file,
+// the format Roku's player shows while seeking. It's 404 until the thumbnails are made.
+func (s *Server) trickplayBIF(w http.ResponseWriter, r *http.Request) {
+	it, ok := s.itemFromPath(w, r)
+	if !ok {
+		return
+	}
+	fileID, _ := strconv.ParseInt(r.PathValue("file"), 10, 64)
+	if !s.itemHasFile(w, r, it.ID, fileID) {
+		return
+	}
+	if s.trickplay == nil {
+		writeError(w, http.StatusNotFound, "not made yet")
+		return
+	}
+	path, err := s.trickplay.BIF(fileID)
+	if errors.Is(err, trickplay.ErrNotMade) {
+		s.trickplay.Request(fileID)
+		writeError(w, http.StatusNotFound, "not made yet")
+		return
+	}
+	if err != nil {
+		s.log.Warn("trickplay BIF failed", "file", fileID, "err", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	http.ServeFile(w, r, path)
 }
 
 // trickplaySheet: GET /api/items/{id}/trickplay/{file}/{sheet} is one sheet of thumbnails.
