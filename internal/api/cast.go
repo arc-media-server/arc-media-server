@@ -69,11 +69,18 @@ var (
 	castTranscodeRe = regexp.MustCompile(`^/api/transcode/([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+)$`)
 	// A text subtitle track as WebVTT, which a Chromecast shows itself.
 	castSubtitleRe = regexp.MustCompile(`^/api/items/([0-9a-f]+)/subtitles/([A-Za-z0-9_-]+)/vtt$`)
+	// A trailer or other extra (an item's extras[].stream_url), for players that can't send the
+	// sign-in with a request (the Roku and LG/Samsung apps' players).
+	castExtraRe = regexp.MustCompile(`^/api/extras/([0-9a-f]+)/stream$`)
 )
+
+// castExtraGrant prefixes a grant's itemID when it's for an extra, so it never equals an item's.
+const castExtraGrant = "extra:"
 
 // castLink: POST /api/cast {"url"} turns a stream URL from POST /api/items/{id}/playback into a
 // link a cast device can open: absolute, at an address it can reach, with a token. It also takes a
-// text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt).
+// text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's
+// stream link (GET /api/extras/{id}/stream).
 func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		URL string `json:"url"`
@@ -92,6 +99,18 @@ func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 		itemID = m[1]
 	} else if m := castSubtitleRe.FindStringSubmatch(u.Path); m != nil {
 		itemID = m[1]
+	} else if m := castExtraRe.FindStringSubmatch(u.Path); m != nil {
+		e, err := s.store.GetExtra(r.Context(), m[1])
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		if e == nil {
+			writeError(w, http.StatusNotFound, "extra not found")
+			return
+		}
+		// The grant names the extra, so the link opens only that extra (not its title's file).
+		itemID = castExtraGrant + e.ID
 	} else if m := castTranscodeRe.FindStringSubmatch(u.Path); m != nil {
 		sess := s.transcoder.Get(m[1])
 		if sess == nil || sess.Options.Owner != currentSession(r) {
@@ -189,6 +208,11 @@ func (s *Server) castStream(w http.ResponseWriter, r *http.Request) {
 		r.SetPathValue("id", m[1])
 		r.SetPathValue("track", m[2])
 		s.subtitleVTT(w, r)
+		return
+	}
+	if m := castExtraRe.FindStringSubmatch(rest); m != nil && castExtraGrant+m[1] == g.itemID {
+		r.SetPathValue("id", m[1])
+		s.streamExtra(w, r)
 		return
 	}
 	if m := castTranscodeRe.FindStringSubmatch(rest); m != nil {
