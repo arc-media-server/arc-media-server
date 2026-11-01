@@ -12,7 +12,7 @@ export function Switch({ className, ...props }: ComponentPropsWithoutRef<typeof 
       )}
       {...props}
     >
-      <S.Thumb className="block size-5 translate-x-0.5 rounded-full bg-white shadow-md transition-transform duration-200 ease-smooth data-[state=checked]:translate-x-[18px]" />
+      <S.Thumb className="block size-5 translate-x-0.5 rounded-full bg-white shadow-md transition-transform duration-200 ease-smooth data-[state=checked]:translate-x-[18px] data-[state=checked]:bg-accent-foreground" />
     </S.Root>
   );
 }
