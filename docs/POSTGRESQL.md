@@ -126,6 +126,7 @@ on it. `DatabaseUpkeep.backend` is additive. Client help text should reflect the
 
 Actual results are recorded in the change note and /workspace/arc-cloud-evidence/postgres-implementation.
 Tests use disposable PostgreSQL instances, temporary stores, fake keys and local/generated media.
+Real verified TLS and certificate/hostname rejection were tested with a generated local fixture.
 Shared store fixtures run against PostgreSQL, while explicit SQLite migration/full-disk/physical
 page tests continue to run against SQLite; those are not PostgreSQL parity claims. The all-table
 fixture populates every persistent table and includes large integers, nulls, Unicode, HDR/audio
