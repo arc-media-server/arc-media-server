@@ -22,5 +22,41 @@ explicit tested upgrade path is supplied. Initial snapshot crash recovery can re
 pre-cutover cancellation; there is no live progress/cancel UI or guided reverse transfer. These
 limits keep #308 open rather than advertising all acceptance criteria complete.
 
-Validation results are recorded after final checks. Prepared tools and disposable PostgreSQL
-containers/temporary fixtures only; no owner database, keys, media, Unraid or persistent server.
+Recorded validation during implementation of 184ec72 (3 November); broad runs followed
+by final focused boundary/schema rechecks where noted:
+
+- Default SQLite full Go run: 35 packages, 580 test/subtest pass events, 12 explicit
+  PostgreSQL-only test skips, no failures (six additional packages contain no tests). PostgreSQL
+  cases ran separately, not credited as successful checks in the SQLite run.
+- Real PostgreSQL 16.10 and 18.0: three-package shared store/recovery/server suites passed
+  (112 test/subtest pass events each), followed by focused final schema/older-backup/role checks.
+  PostgreSQL 17.6 final three-package run: 116 test/subtest pass events, no failures; one optional
+  separate TLS-fixture skip was exercised successfully in its dedicated run.
+- All 43 persistent tables populated and copied with canonical checksums/counts, original source
+  byte preservation, ID continuity and working PostgreSQL backup/restore. Verified earlier-backup
+  upgrades modify only a disposable copy. Crash after target commit, pre-cutover failure/cancel,
+  middle-of-copy cancellation, secret boundaries, ordinary-role operation, reader isolation and
+  forward-only sequences on rollback passed. Real TLS cutover, wrong-host and untrusted-CA
+  rejection passed using a generated local test certificate.
+- Race: store/API/databaseconfig/datalock passed; the initial server test exceeded its two-second
+  HTTP client deadline during real bcrypt under race/load. A test-only ten-second deadline kept
+  the same outcome assertions; the server race recheck passed. Final copy/restore/schema/cancel
+  boundaries passed under race too. No data races were reported; the original failed run remains.
+- Production/app TypeScript, production UI build, E2E TypeScript, full vet, Linux embedded build
+  and Windows cross-build passed. The first Windows compile overlapped an import edit and was
+  discarded; final builds passed. Windows execution/ACL/durability acceptance is not claimed.
+- Full pinned-browser run: **150 passed, 8 failed, 0 skipped/retried** (158 journeys, 22m32s).
+  Seven failures reproduced on unchanged main product code: duplicate library-menu selectors,
+  Home card click interception, obsolete Edit Home link, stale maintenance menu expectations and
+  old quality help text. The remaining phone letter-rail timeout passed unchanged-main comparison
+  and an isolated changed-branch recheck. This does not erase its failed full-run result. No
+  product UI or browser assertions were changed. Baseline fixtures used separate ports only.
+
+Raw reports/summary: /workspace/arc-cloud-evidence/postgres-implementation. Initial schema/query,
+fixture compilation/permissions, wrong helper URL, login-status and TLS-message test failures
+were retained, corrected and rechecked; they are not claimed as clean passes. Full-browser raw
+reports retain failure details; auxiliary artifact directories were reused by later focused runs.
+
+Prepared tools, pgx 5.7.6 and disposable PostgreSQL images/temporary fixtures only. No owner
+DB/settings/keys/media, Unraid or production services were accessed. #308 remains open for the
+frontend, future-version upgrade implementation, deployment and sustained-use acceptance.
