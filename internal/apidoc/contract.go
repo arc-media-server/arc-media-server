@@ -32,19 +32,34 @@ func contractLines(openapi []byte) ([]string, error) {
 	seen := map[string]bool{}
 	add := func(s string) { seen[s] = true }
 	var walk func(prefix, path string, schema map[string]any, refs []string)
+	var visit func(prefix, path string, schema map[string]any, refs []string, emit bool)
 	walk = func(prefix, path string, schema map[string]any, refs []string) {
+		visit(prefix, path, schema, refs, true)
+	}
+	visit = func(prefix, path string, schema map[string]any, refs []string, emit bool) {
 		if ref, ok := schema["$ref"].(string); ok {
 			name := strings.TrimPrefix(ref, "#/components/schemas/")
 			if slices.Contains(refs, name) || len(refs) > 6 {
 				return // recursive types are covered at their first level
 			}
 			if target, ok := doc.Components.Schemas[name]; ok {
-				walk(prefix, path, target, append(refs, name))
+				visit(prefix, path, target, append(refs, name), emit)
+			}
+			return
+		}
+		if alternatives, ok := schema["anyOf"].([]any); ok {
+			if path != "" && emit {
+				add(fmt.Sprintf("%s %s %s", prefix, path, strings.Join(schemaKinds(schema, doc.Components.Schemas, nil), "|")))
+			}
+			for _, alternative := range alternatives {
+				if sub, ok := alternative.(map[string]any); ok {
+					visit(prefix, path, sub, refs, false)
+				}
 			}
 			return
 		}
 		typ, _ := schema["type"].(string)
-		if path != "" {
+		if path != "" && emit {
 			add(fmt.Sprintf("%s %s %s", prefix, path, cmpType(typ)))
 		}
 		switch typ {
@@ -53,6 +68,9 @@ func contractLines(openapi []byte) ([]string, error) {
 				walk(prefix, path+"[]", items, refs)
 			}
 		default:
+			if value, ok := schema["additionalProperties"].(map[string]any); ok && len(value) > 0 {
+				walk(prefix, path+"{}", value, refs)
+			}
 			props, _ := schema["properties"].(map[string]any)
 			for name, p := range props {
 				if ps, ok := p.(map[string]any); ok {
@@ -138,4 +156,33 @@ func WriteContract(root string) error {
 	}
 	all := slices.Compact(slices.Sorted(slices.Values(append(recorded, current...))))
 	return os.WriteFile(filepath.Join(root, "docs", contractFile), []byte(contractHeader+strings.Join(all, "\n")+"\n"), 0o644)
+}
+
+// schemaKinds preserves nullable/alternative response types without erasing their child fields.
+func schemaKinds(schema map[string]any, components map[string]map[string]any, seen []string) []string {
+	if ref, ok := schema["$ref"].(string); ok {
+		name := strings.TrimPrefix(ref, "#/components/schemas/")
+		if slices.Contains(seen, name) || len(seen) > 6 {
+			return []string{"any"}
+		}
+		if target, ok := components[name]; ok {
+			return schemaKinds(target, components, append(seen, name))
+		}
+	}
+	if list, ok := schema["anyOf"].([]any); ok {
+		out := []string{}
+		for _, alternative := range list {
+			if sub, ok := alternative.(map[string]any); ok {
+				for _, kind := range schemaKinds(sub, components, seen) {
+					if !slices.Contains(out, kind) {
+						out = append(out, kind)
+					}
+				}
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+	typ, _ := schema["type"].(string)
+	return []string{cmpType(typ)}
 }
