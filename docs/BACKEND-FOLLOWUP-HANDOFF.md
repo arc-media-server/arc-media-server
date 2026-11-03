@@ -64,7 +64,12 @@ Prepared Go 1.27.0/FFmpeg and local generated/temporary fixtures only; owner dat
 services were not used. Each PR records its own checks. #334 passed the full Go suite/vet,
 transcode race tests, embedded build, E2E TypeScript and five selected browser journeys after
 fixing a test synchronization race. #335 passed full Go/vet, focused API/apidoc race checks and
-embedded build. The background PR records its actual final checks in its change note.
+embedded build. The background branch passed all changed-package tests, full vet, focused worker/API race checks,
+full event-hub race tests and embedded build; its full Go run passed 31 packages and hit the
+unchanged transcode regression fixed in #334. All three PRs then applied cleanly together in a
+temporary detached checkout: all 32 test packages, full vet, API-doc regeneration consistency
+and embedded build passed. Merge #334 first. Earlier failed development attempts remain in
+local evidence; no hosted CI or device checks were substituted.
 
 No client/frontend or API schema changes are needed to consume background topics. Worker
 publications add no new I/O or goroutines and use existing bounded coalescing/replay. Existing
