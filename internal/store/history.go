@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"strings"
+	"time"
 )
 
 // Play is one viewing of a movie or episode.
@@ -31,16 +34,17 @@ const playCols = `id, user_id, item_id, kind, library_id, series_id, title, seri
 
 // AddPlay records a viewing and returns its id.
 func (s *Store) AddPlay(ctx context.Context, p Play) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `
+	var id int64
+	err := s.db.WriteRowContext(ctx, `
 		INSERT INTO play_history (user_id, item_id, kind, library_id, series_id, title, series_title, started_at,
 			ended_at, watched_ms, position_ms, duration_ms, completed, device, method)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 		p.UserID, p.ItemID, p.Kind, p.LibraryID, p.SeriesID, p.Title, p.SeriesTitle, p.StartedAt, p.EndedAt,
-		p.WatchedMS, p.PositionMS, p.DurationMS, boolInt(p.Completed), p.Device, p.Method)
+		p.WatchedMS, p.PositionMS, p.DurationMS, boolInt(p.Completed), p.Device, p.Method).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 // UpdatePlay records how a viewing has gone on. Once completed it stays completed.
@@ -115,19 +119,39 @@ func (s *Store) Plays(ctx context.Context, f PlayFilter) ([]Play, error) {
 
 // PlayYears lists the years a profile has viewings in, newest first (by local time).
 func (s *Store) PlayYears(ctx context.Context, userID string) ([]int, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT CAST(strftime('%Y', started_at, 'unixepoch', 'localtime') AS INTEGER)
-		FROM play_history WHERE user_id = ? ORDER BY 1 DESC`, userID)
+	return s.playYearsIn(ctx, userID, time.Local)
+}
+func (s *Store) playYearsIn(ctx context.Context, userID string, zone *time.Location) ([]int, error) {
+	var first, last sql.NullInt64
+	if err := s.db.QueryRowContext(ctx, "SELECT MIN(started_at),MAX(started_at) FROM play_history WHERE user_id=?", userID).Scan(&first, &last); err != nil {
+		return nil, err
+	}
+	out := []int{}
+	if !first.Valid {
+		return out, nil
+	}
+	minYear, maxYear := time.Unix(first.Int64, 0).In(zone).Year(), time.Unix(last.Int64, 0).In(zone).Year()
+	if minYear < 1 || maxYear > 9999 {
+		return nil, fmt.Errorf("watch history contains unsupported dates")
+	}
+	var values []string
+	args := []any{}
+	for year := maxYear; year >= minYear; year-- {
+		values = append(values, fmt.Sprintf("(%d,CAST(? AS BIGINT),CAST(? AS BIGINT))", year))
+		args = append(args, time.Date(year, 1, 1, 0, 0, 0, 0, zone).Unix(), time.Date(year+1, 1, 1, 0, 0, 0, 0, zone).Unix())
+	}
+	args = append(args, userID)
+	rows, err := s.db.QueryContext(ctx, "WITH years(y,start_at,end_at) AS (VALUES "+strings.Join(values, ",")+") SELECT y FROM years WHERE EXISTS(SELECT 1 FROM play_history WHERE user_id=? AND started_at>=years.start_at AND started_at<years.end_at) ORDER BY y DESC", args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []int{}
 	for rows.Next() {
-		var y int
-		if err := rows.Scan(&y); err != nil {
+		var year int
+		if err = rows.Scan(&year); err != nil {
 			return nil, err
 		}
-		out = append(out, y)
+		out = append(out, year)
 	}
 	return out, rows.Err()
 }

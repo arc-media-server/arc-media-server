@@ -9,6 +9,15 @@ import (
 
 func assertEpisodeReverseLookups(t *testing.T, st *Store) {
 	t.Helper()
+	if st.Backend() == "postgres" {
+		for _, index := range []string{"ordering_entries_episode", "user_item_data_item"} {
+			var n int
+			if err := st.db.QueryRowContext(t.Context(), "SELECT count(*) FROM pg_indexes WHERE schemaname=current_schema() AND indexname=?", index).Scan(&n); err != nil || n != 1 {
+				t.Fatalf("missing reverse-lookup index %s: %v", index, err)
+			}
+		}
+		return
+	}
 	for _, q := range []string{
 		`SELECT 1 FROM ordering_entries WHERE episode_id = 'fixture'`,
 		`SELECT 1 FROM user_item_data WHERE item_id = 'fixture'`,

@@ -655,8 +655,8 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
 		return out, err
 	}
-	if out.Labels, err = query(`SELECT l.label, COUNT(*) FROM item_labels l JOIN items ON items.id = l.item_id
-		WHERE ` + base + ` GROUP BY l.label ORDER BY l.label COLLATE NOCASE`); err != nil {
+	if out.Labels, err = query(`SELECT MIN(l.label), COUNT(*) FROM item_labels l JOIN items ON items.id = l.item_id
+		WHERE ` + base + ` GROUP BY lower(l.label) ORDER BY lower(l.label)`); err != nil {
 		return out, err
 	}
 	if out.Languages, err = query(`SELECT original_language, COUNT(*) FROM items
@@ -674,7 +674,7 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 			FROM (SELECT items.id, MAX(st.height, st.width * 9 / 16) AS h FROM items
 				JOIN item_files f ON f.item_id = items.id JOIN media_files m ON m.id = f.file_id
 				JOIN media_streams st ON st.file_id = m.id
-				WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = 'video' AND st.height > 0)
+				WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = 'video' AND st.height > 0) AS resolution_files
 			GROUP BY r ORDER BY MIN(h) DESC`); err != nil {
 			return out, err
 		}
@@ -736,7 +736,7 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 	case "imdb":
 		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
 	case "critics":
-		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
+		order = "rt_critics IS NULL, rt_critics DESC NULLS LAST, metacritic DESC NULLS LAST, sort_title"
 	case "runtime":
 		order = "runtime_min DESC, sort_title"
 	case "watched":
@@ -811,7 +811,7 @@ func itemFilter(q ItemQuery) (string, []any) {
 		args = append(args, q.Genre)
 	}
 	if q.Label != "" {
-		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND l.label = ?)")
+		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND lower(l.label) = lower(?))")
 		args = append(args, q.Label)
 	}
 	if q.Language != "" {

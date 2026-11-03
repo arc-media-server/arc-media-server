@@ -153,7 +153,7 @@ func (s *Server) publishMutation(r *http.Request, route string) {
 		return
 	}
 	path := r.URL.Path
-	if strings.HasSuffix(path, "/batch") || strings.HasSuffix(path, "/playback-options") || strings.HasSuffix(path, "/playback-preview") || strings.HasSuffix(path, "/compatibility") || strings.HasSuffix(path, "/ping") || strings.HasPrefix(path, "/api/auth/") {
+	if path == "/api/database/test" || strings.HasSuffix(path, "/batch") || strings.HasSuffix(path, "/playback-options") || strings.HasSuffix(path, "/playback-preview") || strings.HasSuffix(path, "/compatibility") || strings.HasSuffix(path, "/ping") || strings.HasPrefix(path, "/api/auth/") {
 		return
 	}
 	se := s.session(r)

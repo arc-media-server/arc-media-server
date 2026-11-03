@@ -282,6 +282,20 @@ GET /dashboard/resources 200 .samples[].mem_used integer
 GET /dashboard/resources 200 .samples[].net_away integer
 GET /dashboard/resources 200 .samples[].net_home integer
 GET /dashboard/resources 200 .samples[].t integer
+GET /database
+GET /database 200
+GET /database 200 .backend string
+GET /database 200 .backup_format string
+GET /database 200 .last_report object
+GET /database 200 .last_report.rows integer
+GET /database 200 .last_report.tables array
+GET /database 200 .last_report.tables[] object
+GET /database 200 .last_report.tables[].rows integer
+GET /database 200 .last_report.tables[].sha256 string
+GET /database 200 .last_report.tables[].table string
+GET /database 200 .last_report.verified boolean
+GET /database 200 .state string
+GET /database 200 .transfer_available boolean
 GET /devices
 GET /devices 200
 GET /devices 200 [] object
@@ -4046,6 +4060,14 @@ POST /collections/{id}/artwork/{type} 200 .items[].user_data.watchlisted boolean
 POST /collections/{id}/artwork/{type} 200 .items[].year integer
 POST /collections/{id}/items
 POST /collections/{id}/items 204
+POST /database/test
+POST /database/test 200
+POST /database/test 200 .can_create boolean
+POST /database/test 200 .empty boolean
+POST /database/test 200 .version integer
+POST /database/transfer
+POST /database/transfer 202
+POST /database/transfer 202 .state string
 POST /imports
 POST /imports 200
 POST /imports 200 .accounts array

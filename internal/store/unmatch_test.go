@@ -20,7 +20,11 @@ func TestUnmatchRollbackAndSavedReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Fail after the first item reset to establish transaction-wide rollback.
-	if _, err = st.db.Exec(`CREATE TRIGGER refuse_reset BEFORE DELETE ON item_genres BEGIN SELECT RAISE(ABORT,'fixture failure'); END`); err != nil {
+	failureSQL := `CREATE TRIGGER refuse_reset BEFORE DELETE ON item_genres BEGIN SELECT RAISE(ABORT,'fixture failure'); END`
+	if st.Backend() == "postgres" {
+		failureSQL = `CREATE FUNCTION fixture_refuse() RETURNS trigger LANGUAGE plpgsql AS $arc$ BEGIN RAISE EXCEPTION 'fixture failure'; END $arc$; CREATE TRIGGER refuse_reset BEFORE DELETE ON item_genres FOR EACH ROW EXECUTE FUNCTION fixture_refuse();`
+	}
+	if _, err = st.db.Exec(failureSQL); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = st.db.Exec("INSERT INTO item_genres(item_id,name) VALUES(?, 'Drama')", show); err != nil {
@@ -33,7 +37,11 @@ func TestUnmatchRollbackAndSavedReferences(t *testing.T) {
 	if got.MatchSuppressed || got.Title != "Provider" {
 		t.Fatalf("partial reset %+v", got)
 	}
-	if _, err = st.db.Exec("DROP TRIGGER refuse_reset"); err != nil {
+	dropSQL := "DROP TRIGGER refuse_reset"
+	if st.Backend() == "postgres" {
+		dropSQL += " ON item_genres"
+	}
+	if _, err = st.db.Exec(dropSQL); err != nil {
 		t.Fatal(err)
 	}
 	user, err := st.CreateUser(ctx, "Viewer", false, "blue", "", "")

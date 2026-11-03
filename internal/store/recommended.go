@@ -49,7 +49,7 @@ func (s *Store) FeaturedPeople(ctx context.Context, userID string, libraryID int
 		LEFT JOIN watched ON watched.item_id = items.id
 		WHERE items.library_id = ? AND items.kind = ? AND (p.role = 'director' OR (p.role = 'actor' AND p.ord < 10))
 			AND `+playableSQL, []any{userID, libraryID, libraryID, kind})
-	rows, err := s.db.QueryContext(ctx, q+` GROUP BY p.person_id, p.role HAVING COUNT(*) >= ?
+	rows, err := s.db.QueryContext(ctx, q+` GROUP BY p.person_id, pe.name, p.role HAVING COUNT(*) >= ?
 		ORDER BY 5 DESC, 4 DESC, pe.name, p.role LIMIT ?`, append(args, minTitles, limit)...)
 	if err != nil {
 		return nil, err

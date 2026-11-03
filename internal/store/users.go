@@ -193,7 +193,7 @@ func (s *Store) DeleteUser(ctx context.Context, id string) error {
 }
 
 func isUniqueViolation(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+	return err != nil && (strings.Contains(err.Error(), "UNIQUE constraint failed") || strings.Contains(err.Error(), "SQLSTATE 23505"))
 }
 
 // Session is a signed-in browser.

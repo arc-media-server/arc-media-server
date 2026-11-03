@@ -10,7 +10,7 @@ import (
 func TestOptimizeDatabaseSpaceGatesAndRealVacuum(t *testing.T) {
 	for _, mode := range []string{"enough space", "low space", "unknown space", "busy", "cancelled", "small freelist"} {
 		t.Run(mode, func(t *testing.T) {
-			st := openTest(t)
+			st := openSQLiteTest(t)
 			ctx := t.Context()
 			if _, err := st.db.ExecContext(ctx, "CREATE TABLE waste (data BLOB)"); err != nil {
 				t.Fatal(err)
@@ -76,7 +76,7 @@ func TestOptimizeDatabaseSpaceGatesAndRealVacuum(t *testing.T) {
 }
 
 func TestOptimizeDatabaseReportsCorruptIntegrity(t *testing.T) {
-	st := openTest(t)
+	st := openSQLiteTest(t)
 	ctx := t.Context()
 	conn, err := st.db.Conn(ctx)
 	if err != nil {

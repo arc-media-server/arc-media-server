@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"embed"
 	"encoding/hex"
 	"fmt"
@@ -27,8 +28,13 @@ type Options struct {
 var migrationsFS embed.FS
 
 type Store struct {
-	db          *database
-	sessionUses *sessionUseQueue
+	backend        string
+	pgLock         *sql.Conn
+	pgLockDB       *sql.DB
+	pgConfigID     string
+	db             *database
+	sessionUses    *sessionUseQueue
+	pgReadConfigID string
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.
@@ -77,7 +83,20 @@ func (s *Store) Close() error {
 	if s.sessionUses != nil {
 		s.sessionUses.stop()
 	}
-	return s.db.Close()
+	err := s.db.Close()
+	if s.pgLock != nil {
+		s.pgLock.Close()
+	}
+	if s.pgLockDB != nil {
+		s.pgLockDB.Close()
+	}
+	if s.pgReadConfigID != "" {
+		unregisterPGConfig(s.pgReadConfigID)
+	}
+	if s.pgConfigID != "" {
+		unregisterPGConfig(s.pgConfigID)
+	}
+	return err
 }
 
 // DatabaseStats exposes queue pressure without querying SQL or revealing stored values.
