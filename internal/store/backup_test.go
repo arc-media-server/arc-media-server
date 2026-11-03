@@ -59,7 +59,7 @@ func TestRestoreEarlierSchemaRebuildsRatingAges(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.Close()
-	s := openTest(t)
+	s := openSQLiteTest(t)
 	if err := s.RestoreFrom(ctx, p); err != nil {
 		t.Fatal(err)
 	}

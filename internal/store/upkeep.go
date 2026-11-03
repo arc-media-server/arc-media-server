@@ -15,6 +15,7 @@ import (
 var ErrIntegrity = errors.New("database integrity check failed")
 
 type DatabaseUpkeep struct {
+	Backend        string `json:"backend,omitempty"`
 	BeforeBytes    int64  `json:"before_bytes"`
 	AfterBytes     int64  `json:"after_bytes"`
 	Vacuumed       bool   `json:"vacuumed"`
@@ -25,6 +26,9 @@ type DatabaseUpkeep struct {
 // OptimizeDatabase joins the existing writer queue; it never replaces the open database.
 // WAL readers remain independent. VACUUM needs a dedicated connection, outside a transaction.
 func (s *Store) OptimizeDatabase(ctx context.Context, allowed func() bool) (DatabaseUpkeep, error) {
+	if s.Backend() == "postgres" {
+		return s.optimizePostgres(ctx, allowed)
+	}
 	return s.optimizeDatabase(ctx, allowed, diskspace.Available, 16<<20)
 }
 
@@ -186,4 +190,23 @@ func databaseBytes(path string) (int64, error) {
 		return 0, err
 	}
 	return total, nil
+}
+
+func (s *Store) optimizePostgres(ctx context.Context, allowed func() bool) (out DatabaseUpkeep, err error) {
+	out.Backend = "postgres"
+	out.VacuumSkipped = "PostgreSQL manages vacuuming; table statistics updated"
+	if allowed != nil && !allowed() {
+		return out, context.Canceled
+	}
+	if err = s.db.QueryRowContext(ctx, "SELECT pg_database_size(current_database())").Scan(&out.BeforeBytes); err != nil {
+		return out, err
+	}
+	if _, err = s.db.ExecContext(ctx, "ANALYZE"); err != nil {
+		return out, err
+	}
+	if allowed != nil && !allowed() {
+		return out, context.Canceled
+	}
+	err = s.db.QueryRowContext(ctx, "SELECT pg_database_size(current_database())").Scan(&out.AfterBytes)
+	return out, err
 }

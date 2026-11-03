@@ -46,6 +46,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   copies storage budget (#193, deferred). Decisions waiting for the owner are on #80.
 - **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
+- **Databases:** SQLite remains the default. Optional PostgreSQL 16–18 backend/API and verified
+  journaled transfer: `docs/POSTGRESQL.md`; Claude UI handoff: `docs/POSTGRESQL-UI-HANDOFF.md`.
+  #308 remains open for UI/deployment and future-version upgrade acceptance. PostgreSQL currently
+  requires its exact schema fingerprint; do not ship schema changes to it without a tested upgrade
+  path and pre-upgrade portable backup. Regenerating a fresh baseline alone is insufficient.
 - **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android

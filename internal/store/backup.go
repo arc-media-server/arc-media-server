@@ -14,6 +14,9 @@ import (
 // BackupTo writes a consistent, compacted copy of the database to path, which must not exist.
 // It's safe to call while AMS is in use.
 func (s *Store) BackupTo(ctx context.Context, path string) error {
+	if s.Backend() == "postgres" {
+		return s.backupPostgres(ctx, path)
+	}
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("backup %s already exists", path)
 	}
@@ -82,6 +85,9 @@ func CheckBackup(ctx context.Context, path string) error {
 // RestoreFrom replaces the whole database with the backup at path, while AMS keeps running,
 // then applies any migrations the backup predates. Call CheckBackup first.
 func (s *Store) RestoreFrom(ctx context.Context, path string) error {
+	if s.Backend() == "postgres" {
+		return s.restorePostgres(ctx, path)
+	}
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		return err

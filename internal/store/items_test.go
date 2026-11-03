@@ -2,12 +2,20 @@ package store
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 )
 
 func openTest(t *testing.T) *Store {
+	t.Helper()
+	if os.Getenv("ARC_TEST_POSTGRES") != "" {
+		return postgresFixture(t)
+	}
+	return openSQLiteTest(t)
+}
+func openSQLiteTest(t *testing.T) *Store {
 	t.Helper()
 	st, err := Open(context.Background(), filepath.Join(t.TempDir(), "ams.db"), Options{})
 	if err != nil {
