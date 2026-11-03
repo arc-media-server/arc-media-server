@@ -27,6 +27,8 @@ import (
 	"ams/internal/background"
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/databaseconfig"
+	"ams/internal/datalock"
 	"ams/internal/events"
 	"ams/internal/logbuf"
 	"ams/internal/markers"
@@ -59,6 +61,7 @@ func main() {
 	dataDir := flag.String("data", "", "folder for Arc's database, artwork cache and backups (default: data, or AMS_DATA)")
 	legacyConfig := flag.String("config", "ams.yaml", "an old config file to import settings from, once")
 	debug := flag.Bool("debug", false, "enable debug logging")
+	cancelTransfer := flag.Bool("cancel-database-transfer", false, "cancel a pending pre-cutover database move, retaining SQLite; never revert active PostgreSQL")
 	resetPassword := flag.Bool("reset-password", false, "forgot the password? set a new random one, print it and exit")
 	flag.Parse()
 
@@ -66,6 +69,28 @@ func main() {
 	log := slog.New(logs.Wrap(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logs.Level()})))
 	defer logs.Close()
 
+	if *cancelTransfer {
+		dir := *dataDir
+		if dir == "" {
+			dir = os.Getenv("AMS_DATA")
+		}
+		if dir == "" {
+			dir = "data"
+		}
+		release, err := datalock.Acquire(dir)
+		if err != nil {
+			log.Error("cancelling transfer failed", "err", err)
+			os.Exit(1)
+		}
+		err = databaseconfig.New(dir, log).Cancel()
+		release()
+		if err != nil {
+			log.Error("cancelling transfer failed", "err", err)
+			os.Exit(1)
+		}
+		log.Info("pending transfer cancelled; SQLite remains authoritative; target and safety backup retained")
+		return
+	}
 	if *resetPassword {
 		if err := resetAdminPassword(*dataDir); err != nil {
 			log.Error("resetting the password failed", "err", err)
@@ -73,12 +98,21 @@ func main() {
 		}
 		return
 	}
-	if err := run(*dataDir, *legacyConfig, log); err != nil {
-		log.Error("fatal", "err", err)
-		logs.Close()
-		os.Exit(1)
+	for {
+		err := run(*dataDir, *legacyConfig, log)
+		if errors.Is(err, errDatabaseRestart) {
+			continue
+		}
+		if err != nil {
+			log.Error("fatal", "err", err)
+			logs.Close()
+			os.Exit(1)
+		}
+		break
 	}
 }
+
+var errDatabaseRestart = errors.New("restart for database transfer")
 
 func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// An old config file is only read to import its settings (and, the first time, its data folder).
@@ -108,11 +142,20 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return err
 	}
+	releaseData, err := datalock.Acquire(dataDir)
+	if err != nil {
+		return err
+	}
+	defer releaseData()
+	database := databaseconfig.New(dataDir, log)
+	if err = database.Recover(ctx); err != nil {
+		return err
+	}
 	if err := logs.EnableArchive(filepath.Join(dataDir, "logs")); err != nil {
 		log.Warn("persistent logging unavailable", "err", err)
 	}
 	backupDir := filepath.Join(dataDir, "backups")
-	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{
+	st, err := database.Open(ctx, store.Options{
 		// A new AMS version is about to change the database: keep a copy of it as it was.
 		BeforeMigrate: func(s *store.Store) error {
 			_, err := backup.New(backupDir, s, log).Create(ctx, backup.ReasonBeforeUpgrade)
@@ -158,6 +201,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	go bg.RunUpkeep(ctx, "database", func(ctx context.Context, allowed func() bool) (string, error) {
 		result, err := st.OptimizeDatabase(ctx, allowed)
 		detail := fmt.Sprintf("Database size %s → %s; integrity checked; query statistics updated", upkeep.FormatBytes(result.BeforeBytes), upkeep.FormatBytes(result.AfterBytes))
+		if result.Backend == "postgres" {
+			detail = fmt.Sprintf("PostgreSQL database size %s → %s; table statistics updated; vacuuming managed by PostgreSQL", upkeep.FormatBytes(result.BeforeBytes), upkeep.FormatBytes(result.AfterBytes))
+		}
 		if result.Vacuumed {
 			detail += "; compacted"
 		} else if result.VacuumSkipped != "" {
@@ -572,7 +618,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
+		Store: st, Database: database, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
 			bg.Reset(ctx)
@@ -628,6 +674,16 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		},
 	})
 
+	apiHandler := handler
+	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if database.Transitioning() {
+			w.Header().Set("Retry-After", "5")
+			http.Error(w, "Arc is restarting for database maintenance", 503)
+			return
+		}
+		apiHandler.ServeHTTP(w, r)
+	})
+	restartingDatabase := false
 	ln, err := net.Listen("tcp", cfg.ListenAddress())
 	if err != nil {
 		return fmt.Errorf("can't listen on %s (is Arc already running?): %w", cfg.ListenAddress(), err)
@@ -641,6 +697,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		var next net.Listener
 		select {
 		case <-ctx.Done():
+		case <-database.Requested():
+			restartingDatabase = true
+			stop()
 		case next = <-listeners:
 		case err := <-served:
 			if !errors.Is(err, http.ErrServerClosed) {
@@ -648,7 +707,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			srv.Close()
+		}
 		cancel()
 		if next == nil {
 			break
@@ -657,6 +718,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	sc.Wait()
 	log.Info("stopped")
+	if restartingDatabase {
+		return errDatabaseRestart
+	}
 	return nil
 }
 
@@ -670,7 +734,12 @@ func resetAdminPassword(dataDir string) error {
 		dataDir = "data"
 	}
 	ctx := context.Background()
-	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{})
+	releaseData, err := datalock.Acquire(dataDir)
+	if err != nil {
+		return err
+	}
+	defer releaseData()
+	st, err := databaseconfig.New(dataDir, nil).Open(ctx, store.Options{})
 	if err != nil {
 		return err
 	}

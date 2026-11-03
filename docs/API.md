@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-195 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+198 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -113,6 +113,14 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/dashboard/resources` | admin | ?range=day is how busy the server has been: CPU, memory and data sent, every 2 seconds for the last 5 minutes, or each minute for the last day. |
+
+### database
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/database` | admin | Reports engine and portable backup/transfer status. Connection passwords and bootstrap contents are never returned. SQLite remains the default. |
+| POST | `/api/database/test` | admin | Checks PostgreSQL connectivity, verified TLS by default, supported version, target emptiness and schema-create privilege without changing data. |
+| POST | `/api/database/transfer` | admin | Explicitly confirms downtime, journals a SQLite-to-PostgreSQL move and restarts Arc through maintenance after requests/workers drain. The empty target is committed only after content/relationship validation; SQLite safety state is retained. No rescan/rematch is required. This endpoint never switches an active PostgreSQL installation back to stale SQLite. Poll database status after reconnect; passwords are write-only. |
 
 ### devices
 

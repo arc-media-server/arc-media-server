@@ -49,7 +49,7 @@ func scanOptimized(row interface{ Scan(...any) error }, o *Optimized) error {
 		&o.SourcePath, &o.SourceSize, &o.SourceMTime, &o.SourceMTimeNS, &o.JobID, &o.AudioStream, &o.AudioLanguage, &o.AudioTitle, &o.DurationMS, &o.Bitrate)
 }
 
-const optimizedFrom = ` FROM optimized_versions o JOIN item_files f ON f.file_id = o.file_id JOIN items i ON i.id = f.item_id`
+const optimizedFrom = ` FROM optimized_versions o JOIN item_files f ON f.file_id = o.file_id AND f.item_id=(SELECT MIN(representative.item_id) FROM item_files representative WHERE representative.file_id=o.file_id) JOIN items i ON i.id = f.item_id`
 
 // MatchesSource compares a copy's provenance with the saved file revision. Filesystem freshness
 // and artifact existence are checked separately, including at the final stream request.
@@ -165,7 +165,7 @@ func (s *Store) FileOptimized(ctx context.Context, fileID int64) ([]Optimized, e
 
 // OptimizedVersions lists every optimized copy, newest first.
 func (s *Store) OptimizedVersions(ctx context.Context) ([]Optimized, error) {
-	return s.optimizedList(ctx, ` GROUP BY o.file_id, o.quality ORDER BY o.created_at DESC`)
+	return s.optimizedList(ctx, ` ORDER BY o.created_at DESC`)
 }
 
 func (s *Store) optimizedList(ctx context.Context, where string, args ...any) ([]Optimized, error) {

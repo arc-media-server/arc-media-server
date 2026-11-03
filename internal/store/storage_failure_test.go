@@ -9,7 +9,7 @@ import (
 
 func TestSQLiteFullWriteIsAtomicAndStorageCanRecover(t *testing.T) {
 	ctx := context.Background()
-	st := openTest(t)
+	st := openSQLiteTest(t)
 	// max_page_count is connection-local. Exec uses the dedicated single writer,
 	// so its simulated capacity limit cannot be bypassed by another write connection.
 	if err := st.SetSetting(ctx, "fixture", "before"); err != nil {

@@ -535,6 +535,43 @@
         ],
         "type": "object"
       },
+      "DatabaseTransferResult": {
+        "properties": {
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      },
+      "DatabaseconfigStatus": {
+        "properties": {
+          "backend": {
+            "type": "string"
+          },
+          "backup_format": {
+            "type": "string"
+          },
+          "last_report": {
+            "$ref": "#/components/schemas/TransferReport"
+          },
+          "state": {
+            "type": "string"
+          },
+          "transfer_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backend",
+          "backup_format",
+          "state",
+          "transfer_available"
+        ],
+        "type": "object"
+      },
       "Delivery": {
         "properties": {
           "at": {
@@ -988,6 +1025,52 @@
           "item_ids",
           "kind",
           "library_id"
+        ],
+        "type": "object"
+      },
+      "InputConnection": {
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "tls_mode": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "host",
+          "password",
+          "port",
+          "tls_mode",
+          "username"
+        ],
+        "type": "object"
+      },
+      "InputDatabaseTransferInput": {
+        "properties": {
+          "confirm_downtime": {
+            "type": "boolean"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/InputConnection"
+          }
+        },
+        "required": [
+          "confirm_downtime",
+          "connection"
         ],
         "type": "object"
       },
@@ -2744,6 +2827,25 @@
         ],
         "type": "object"
       },
+      "PostgresPreflight": {
+        "properties": {
+          "can_create": {
+            "type": "boolean"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "can_create",
+          "empty",
+          "version"
+        ],
+        "type": "object"
+      },
       "Prefs": {
         "properties": {
           "audio_language": {
@@ -3687,6 +3789,25 @@
         ],
         "type": "object"
       },
+      "TableTransfer": {
+        "properties": {
+          "rows": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rows",
+          "sha256",
+          "table"
+        ],
+        "type": "object"
+      },
       "Task": {
         "properties": {
           "can_stop": {
@@ -3784,6 +3905,28 @@
           "hearing_impaired",
           "id",
           "image"
+        ],
+        "type": "object"
+      },
+      "TransferReport": {
+        "properties": {
+          "rows": {
+            "type": "integer"
+          },
+          "tables": {
+            "items": {
+              "$ref": "#/components/schemas/TableTransfer"
+            },
+            "type": "array"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rows",
+          "tables",
+          "verified"
         ],
         "type": "object"
       },
@@ -6477,6 +6620,225 @@
         "summary": "How busy the server has been: CPU, memory and data sent, every 2 seconds for the last 5 minutes, or each minute for t…",
         "tags": [
           "Dashboard"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
+    "/database": {
+      "get": {
+        "description": "Reports engine and portable backup/transfer status. Connection passwords and bootstrap contents are never returned. SQLite remains the default.\n\nWho may call it: **admin**.",
+        "operationId": "databaseStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseconfigStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Reports engine and portable backup/transfer status",
+        "tags": [
+          "Database"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
+    "/database/test": {
+      "post": {
+        "description": "Checks PostgreSQL connectivity, verified TLS by default, supported version, target emptiness and schema-create privilege without changing data.\n\nWho may call it: **admin**.",
+        "operationId": "databaseTest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputConnection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresPreflight"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Checks PostgreSQL connectivity, verified TLS by default, supported version, target emptiness and schema-create privil…",
+        "tags": [
+          "Database"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
+    "/database/transfer": {
+      "post": {
+        "description": "Explicitly confirms downtime, journals a SQLite-to-PostgreSQL move and restarts Arc through maintenance after requests/workers drain. The empty target is committed only after content/relationship validation; SQLite safety state is retained. No rescan/rematch is required. This endpoint never switches an active PostgreSQL installation back to stale SQLite. Poll database status after reconnect; passwords are write-only.\n\nWho may call it: **admin**.",
+        "operationId": "databaseTransfer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputDatabaseTransferInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseTransferResult"
+                }
+              }
+            },
+            "description": "Accepted; the work continues in the background"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now"
+          }
+        },
+        "summary": "Explicitly confirms downtime, journals a SQLite-to-PostgreSQL move and restarts Arc through maintenance after request…",
+        "tags": [
+          "Database"
         ],
         "x-arc-access": "admin"
       }

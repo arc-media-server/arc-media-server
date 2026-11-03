@@ -4,6 +4,7 @@ package api
 import (
 	"ams/internal/activity"
 	"ams/internal/background"
+	"ams/internal/databaseconfig"
 	"ams/internal/notify"
 	"ams/internal/optimize"
 	"ams/internal/remote"
@@ -39,6 +40,7 @@ import (
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
+	Database     *databaseconfig.Manager
 	Events       *events.Hub
 	WatchProblem func(int64) string
 
@@ -86,6 +88,7 @@ type Deps struct {
 }
 
 type Server struct {
+	database       *databaseconfig.Manager
 	events         *events.Hub
 	eventHeartbeat time.Duration
 	requests       requestDiagnostics
@@ -130,7 +133,7 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{database: d.Database, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
@@ -305,6 +308,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/stats", admin(s.statsOverview))
 	mux.HandleFunc("GET /api/stats/history", admin(s.statsHistory))
 	mux.HandleFunc("GET /api/stats/storage", admin(s.statsStorage))
+	mux.HandleFunc("GET /api/database", admin(s.databaseStatus))
+	mux.HandleFunc("POST /api/database/test", admin(s.databaseTest))
+	mux.HandleFunc("POST /api/database/transfer", admin(s.databaseTransfer))
 	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
 	mux.HandleFunc("PATCH /api/settings", admin(s.logSettingChanges(s.updateSettings)))
 	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))
