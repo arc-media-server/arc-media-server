@@ -5,6 +5,7 @@
 package artwork
 
 import (
+	"ams/internal/events"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -80,9 +81,11 @@ func Key(sourceURL string) string {
 }
 
 type Cache struct {
-	dir  string
-	http *http.Client
-	log  *slog.Logger
+	// Events is configured before workers start; invalidations contain no item metadata.
+	Events *events.Hub
+	dir    string
+	http   *http.Client
+	log    *slog.Logger
 
 	mu            sync.Mutex
 	inflight      map[string]*fetch
@@ -149,6 +152,9 @@ func (c *Cache) download(ctx context.Context, sourceURL, key string) error {
 		case c.downloadSlots <- struct{}{}:
 			f.err = c.fetchToDisk(dctx, sourceURL, key)
 			<-c.downloadSlots
+			if f.err == nil {
+				c.Events.Publish(events.Event{Topic: "artwork"})
+			}
 		case <-dctx.Done():
 			f.err = dctx.Err()
 		}
@@ -261,6 +267,11 @@ func (c *Cache) Prune(inUse []string) (int, error) {
 		}
 	}
 	removed := 0
+	defer func() {
+		if removed > 0 {
+			c.Events.Publish(events.Event{Topic: "artwork"})
+		}
+	}()
 	err := filepath.WalkDir(c.dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
