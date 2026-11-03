@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -150,5 +151,19 @@ func TestCastInheritsSessionRevocation(t *testing.T) {
 				t.Fatalf("invalidated cast still accepted: %d %s", w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+func TestAuthStatusEnvelopeKeepsNullAndEmptyCollections(t *testing.T) {
+	s, _ := securityServer(t)
+	r := httptest.NewRequest("GET", "http://arc/api/auth/status", nil)
+	w := httptest.NewRecorder()
+	s.authStatus(w, r)
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 8 || string(got["profile"]) != "null" || string(got["profiles"]) != "[]" || string(got["signed_in"]) != "false" {
+		t.Fatal("auth JSON changed", w.Body.String())
 	}
 }
