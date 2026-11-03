@@ -112,7 +112,8 @@ test('adaptive: pause during replan, exact tracks, seeking and readmission failu
   await expect.poll(() => plans.length).toBe(2);
   expect(plans[1].request).toMatchObject({ file_id: original.file_id, audio_stream: original.audio_stream });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
-  expect(await video.evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(1.25);
+  // Native loadedmetadata restores the rate after source replacement; paused may be true earlier.
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.playbackRate)).toBe(1.25);
   await player.getByRole('button', { name: 'Play (Space)', exact: true }).click();
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused && v.readyState >= 2)).toBe(true);
   await expect(page.locator('[data-subtitles]')).toHaveText('Adaptive French subtitle');
