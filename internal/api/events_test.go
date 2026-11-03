@@ -14,12 +14,12 @@ import (
 
 func TestEventPermissions(t *testing.T) {
 	u := &store.User{ID: "me", LibraryIDs: []int64{3}}
-	for _, e := range []events.Event{{Topic: "profile", UserID: "other"}, {Topic: "activity", Admin: true}, {Topic: "library", LibraryID: 4}} {
+	for _, e := range []events.Event{{Topic: "profile", UserID: "other"}, {Topic: "activity", Admin: true}, {Topic: "library", LibraryID: 4}, {Topic: "catalog", LibraryID: 4}, {Topic: "optimized", LibraryID: 4}, {Topic: "maintenance", Admin: true}} {
 		if eventAllowed(e, u) {
 			t.Fatal("private hint allowed", e)
 		}
 	}
-	for _, e := range []events.Event{{Topic: "profile", UserID: "me"}, {Topic: "library", LibraryID: 3}, {Topic: "resync"}} {
+	for _, e := range []events.Event{{Topic: "profile", UserID: "me"}, {Topic: "library", LibraryID: 3}, {Topic: "resync"}, {Topic: "catalog", LibraryID: 3}, {Topic: "optimized", LibraryID: 3}, {Topic: "artwork"}, {Topic: "previews"}, {Topic: "markers"}} {
 		if !eventAllowed(e, u) {
 			t.Fatal("own hint denied", e)
 		}
