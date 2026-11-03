@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -88,6 +89,10 @@ type Session struct {
 	// moves on from it, the conversion resumes and makes at least one segment (more than
 	// madeAtResume) before it pauses again.
 	pausedAt, madeAtResume int
+	throttleWake           chan struct{}
+	throttleDone           chan struct{}
+	outputWatcher          *fsnotify.Watcher
+	throttleFailure        func()
 }
 
 // Manager runs sessions.
@@ -99,7 +104,9 @@ type Manager struct {
 	probe         func() string
 	log           *slog.Logger
 	// Whether the "Dolby Vision dropped" warning was logged this run.
-	dvWarning sync.Once
+	dvWarning            sync.Once
+	throttleWatchWarning sync.Once
+	throttlePauseWarning sync.Once
 
 	mu       sync.Mutex
 	dir      string // where sessions write, chosen in Settings
@@ -195,12 +202,21 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	var b [8]byte
 	rand.Read(b[:])
 	s := &Session{ID: hex.EncodeToString(b[:]), Options: opts, OffsetMS: opts.StartMS, lastSeen: time.Now(),
-		done: make(chan struct{}), requested: -1, throttling: m.throttling}
+		done: make(chan struct{}), throttleWake: make(chan struct{}, 1), throttleDone: make(chan struct{}), requested: -1, throttling: m.throttling}
 	s.dir = filepath.Join(dir, s.ID)
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return nil, err
 	}
 
+	s.outputWatcher = s.watchOutput()
+	if s.outputWatcher == nil {
+		m.throttleWatchWarning.Do(func() { m.log.Warn("conversion output notifications unavailable; pacing uses periodic checks") })
+	}
+	s.throttleFailure = func() {
+		m.throttlePauseWarning.Do(func() {
+			m.log.Warn("conversion pacing could not suspend or resume the process; converting at normal speed")
+		})
+	}
 	args := buildArgs(opts, float64(opts.StartMS)/1000, s.dir)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -211,6 +227,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	}
 	cmd.Stderr = &s.stderr
 	if err := cmd.Start(); err != nil {
+		if s.outputWatcher != nil {
+			s.outputWatcher.Close()
+		}
 		cancel()
 		os.RemoveAll(s.dir)
 		return nil, fmt.Errorf("starting FFmpeg: %w", err)
@@ -227,6 +246,8 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 			s.err = fmt.Errorf("FFmpeg stopped: %s", lastLine(s.stderr.String()))
 			m.log.Warn("transcode failed", "session", s.ID, "err", s.err)
 		}
+		s.paused = false
+		s.proc = nil
 		s.mu.Unlock()
 		close(s.done)
 	}()
