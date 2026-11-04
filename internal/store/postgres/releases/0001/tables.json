@@ -1,0 +1,391 @@
+{
+  "arrival_clock": [
+    "id",
+    "sequence"
+  ],
+  "background_jobs": [
+    "file_id",
+    "kind",
+    "job_key",
+    "revision",
+    "state",
+    "error",
+    "updated_at"
+  ],
+  "collection_items": [
+    "collection_id",
+    "item_id",
+    "position"
+  ],
+  "collections": [
+    "id",
+    "library_id",
+    "kind",
+    "tmdb_id",
+    "title",
+    "sort_title",
+    "overview",
+    "poster_path",
+    "backdrop_path",
+    "filter",
+    "hidden",
+    "created_at",
+    "locked_fields",
+    "grid_mode"
+  ],
+  "continue_dismissed": [
+    "user_id",
+    "item_id",
+    "at"
+  ],
+  "episode_specials": [
+    "episode_id",
+    "before_episode_id"
+  ],
+  "extras": [
+    "id",
+    "item_id",
+    "file_id",
+    "kind",
+    "title"
+  ],
+  "item_aliases": [
+    "library_id",
+    "match_key",
+    "item_id"
+  ],
+  "item_alt_titles": [
+    "item_id",
+    "title"
+  ],
+  "item_arrivals": [
+    "item_id",
+    "added_at",
+    "sequence"
+  ],
+  "item_files": [
+    "item_id",
+    "file_id",
+    "part"
+  ],
+  "item_genres": [
+    "item_id",
+    "name"
+  ],
+  "item_keywords": [
+    "item_id",
+    "keyword"
+  ],
+  "item_labels": [
+    "item_id",
+    "label"
+  ],
+  "item_people": [
+    "item_id",
+    "person_id",
+    "role",
+    "character",
+    "ord",
+    "episode_count"
+  ],
+  "item_recommendations": [
+    "item_id",
+    "rank",
+    "tmdb_id"
+  ],
+  "items": [
+    "id",
+    "library_id",
+    "kind",
+    "parent_id",
+    "match_key",
+    "title",
+    "sort_title",
+    "original_title",
+    "year",
+    "overview",
+    "runtime_min",
+    "release_date",
+    "tmdb_id",
+    "tvdb_id",
+    "imdb_id",
+    "poster_path",
+    "backdrop_path",
+    "metadata_state",
+    "added_at",
+    "updated_at",
+    "synced_at",
+    "locked_fields",
+    "match_info",
+    "tagline",
+    "content_rating",
+    "studio",
+    "rating",
+    "min_age",
+    "local_poster",
+    "local_backdrop",
+    "tmdb_collection_id",
+    "logo_path",
+    "local_logo",
+    "source_ordering",
+    "original_language",
+    "show_status",
+    "last_aired",
+    "next_aired",
+    "imdb_rating",
+    "imdb_votes",
+    "rt_critics",
+    "metacritic",
+    "critics_at",
+    "local_theme",
+    "details_provider",
+    "match_suppressed"
+  ],
+  "libraries": [
+    "id",
+    "name",
+    "kind",
+    "source_ordering",
+    "created_at",
+    "trickplay",
+    "collection_min",
+    "metadata_language",
+    "videos",
+    "skip_intros",
+    "skip_credits",
+    "collection_grid",
+    "details_provider",
+    "rating_region"
+  ],
+  "library_paths": [
+    "library_id",
+    "path"
+  ],
+  "library_recommended": [
+    "library_id",
+    "layout"
+  ],
+  "media_chapters": [
+    "file_id",
+    "idx",
+    "start_ms",
+    "end_ms",
+    "title"
+  ],
+  "media_files": [
+    "id",
+    "library_id",
+    "path",
+    "size",
+    "mtime",
+    "container",
+    "duration_ms",
+    "bitrate",
+    "probed_at",
+    "probe_error",
+    "last_seen_at",
+    "missing_since",
+    "item_override",
+    "markers_checked_at",
+    "format_probe_version",
+    "local_marker_generation"
+  ],
+  "media_markers": [
+    "file_id",
+    "kind",
+    "start_ms",
+    "end_ms",
+    "source",
+    "updated_at"
+  ],
+  "media_streams": [
+    "file_id",
+    "idx",
+    "kind",
+    "codec",
+    "profile",
+    "language",
+    "title",
+    "width",
+    "height",
+    "channels",
+    "is_default",
+    "is_forced",
+    "pix_fmt",
+    "bit_depth",
+    "color_transfer",
+    "color_primaries",
+    "frame_rate",
+    "bitrate",
+    "channel_layout",
+    "dolby_vision",
+    "dolby_vision_profile",
+    "hdr10_plus",
+    "hdr_probe_status",
+    "aspect_ratio"
+  ],
+  "optimized_versions": [
+    "file_id",
+    "quality",
+    "path",
+    "size",
+    "status",
+    "error",
+    "created_at",
+    "source_path",
+    "source_size",
+    "source_mtime",
+    "source_mtime_ns",
+    "job_id",
+    "audio_stream",
+    "audio_language",
+    "audio_title",
+    "duration_ms",
+    "bitrate"
+  ],
+  "ordering_entries": [
+    "ordering_id",
+    "episode_id",
+    "season_number",
+    "episode_number",
+    "locked"
+  ],
+  "ordering_seasons": [
+    "ordering_id",
+    "season_number",
+    "name",
+    "overview",
+    "locked_fields"
+  ],
+  "orderings": [
+    "id",
+    "series_id",
+    "source",
+    "source_ref",
+    "name",
+    "updated_at",
+    "description"
+  ],
+  "people": [
+    "id",
+    "tmdb_id",
+    "name",
+    "profile_path"
+  ],
+  "play_history": [
+    "id",
+    "user_id",
+    "item_id",
+    "kind",
+    "library_id",
+    "series_id",
+    "title",
+    "series_title",
+    "started_at",
+    "ended_at",
+    "watched_ms",
+    "position_ms",
+    "duration_ms",
+    "completed",
+    "device",
+    "method"
+  ],
+  "play_queue_entries": [
+    "id",
+    "queue_id",
+    "item_id",
+    "position",
+    "original_position"
+  ],
+  "play_queues": [
+    "id",
+    "user_id",
+    "session_hash",
+    "revision",
+    "current_entry_id",
+    "shuffled",
+    "expires_at"
+  ],
+  "playlist_entries": [
+    "id",
+    "playlist_id",
+    "item_id",
+    "position"
+  ],
+  "playlists": [
+    "id",
+    "user_id",
+    "title",
+    "created_at",
+    "updated_at",
+    "filter"
+  ],
+  "schema_migrations": [
+    "version",
+    "applied_at"
+  ],
+  "season_art": [
+    "series_id",
+    "season_number",
+    "poster_path",
+    "local_poster",
+    "chosen_path"
+  ],
+  "series_display": [
+    "series_id",
+    "user_id",
+    "ordering_id"
+  ],
+  "series_specials": [
+    "series_id",
+    "user_id",
+    "inline"
+  ],
+  "sessions": [
+    "token_hash",
+    "user_id",
+    "via",
+    "user_agent",
+    "created_at",
+    "last_seen_at",
+    "device"
+  ],
+  "settings": [
+    "key",
+    "value"
+  ],
+  "user_item_data": [
+    "user_id",
+    "item_id",
+    "position_ms",
+    "played",
+    "play_count",
+    "last_played_at",
+    "user_rating",
+    "watchlisted_at"
+  ],
+  "users": [
+    "id",
+    "name",
+    "password_hash",
+    "is_admin",
+    "created_at",
+    "pin_hash",
+    "color",
+    "max_age",
+    "prefs",
+    "library_ids",
+    "exclude_labels",
+    "news_seen_at",
+    "is_friend",
+    "invite_hash",
+    "invite_expires"
+  ],
+  "webhooks": [
+    "id",
+    "name",
+    "url",
+    "events",
+    "created_at"
+  ]
+}

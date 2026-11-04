@@ -1,0 +1,2982 @@
+[
+  {
+    "kind": "column",
+    "name": "arc_postgres_schema.fingerprint",
+    "definition": "2:text:true::default:"
+  },
+  {
+    "kind": "column",
+    "name": "arc_postgres_schema.schema_version",
+    "definition": "5:bigint:true:::2"
+  },
+  {
+    "kind": "column",
+    "name": "arc_postgres_schema.singleton",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "arc_postgres_schema.transfer_id",
+    "definition": "3:text:true::default:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "arc_postgres_schema.transfer_report",
+    "definition": "4:text:true::default:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "arrival_clock.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "arrival_clock.sequence",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.error",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.file_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.job_key",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.kind",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.revision",
+    "definition": "4:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.state",
+    "definition": "5:text:true::C:'queued'::text"
+  },
+  {
+    "kind": "column",
+    "name": "background_jobs.updated_at",
+    "definition": "7:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "collection_items.collection_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collection_items.item_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collection_items.position",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "collections.backdrop_path",
+    "definition": "9:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.created_at",
+    "definition": "12:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "collections.filter",
+    "definition": "10:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.grid_mode",
+    "definition": "14:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.hidden",
+    "definition": "11:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "collections.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collections.kind",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collections.library_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "collections.locked_fields",
+    "definition": "13:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.overview",
+    "definition": "7:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.poster_path",
+    "definition": "8:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "collections.sort_title",
+    "definition": "6:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collections.title",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "collections.tmdb_id",
+    "definition": "4:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "continue_dismissed.at",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "continue_dismissed.item_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "continue_dismissed.user_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "episode_specials.before_episode_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "episode_specials.episode_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "extras.file_id",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "extras.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "extras.item_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "extras.kind",
+    "definition": "4:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "extras.title",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_aliases.item_id",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_aliases.library_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_aliases.match_key",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_alt_titles.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_alt_titles.title",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_arrivals.added_at",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_arrivals.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_arrivals.sequence",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_files.file_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_files.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_files.part",
+    "definition": "3:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "item_genres.arc_rowid",
+    "definition": "3:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "item_genres.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_genres.name",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_keywords.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_keywords.keyword",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_labels.arc_rowid",
+    "definition": "3:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "item_labels.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_labels.label",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.character",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.episode_count",
+    "definition": "6:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.ord",
+    "definition": "5:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.person_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_people.role",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_recommendations.item_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "item_recommendations.rank",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "item_recommendations.tmdb_id",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.added_at",
+    "definition": "19:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.arc_rowid",
+    "definition": "47:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "items.backdrop_path",
+    "definition": "17:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.content_rating",
+    "definition": "25:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.critics_at",
+    "definition": "43:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.details_provider",
+    "definition": "45:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.imdb_id",
+    "definition": "15:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.imdb_rating",
+    "definition": "39:double precision:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.imdb_votes",
+    "definition": "40:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.kind",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.last_aired",
+    "definition": "37:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.library_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.local_backdrop",
+    "definition": "30:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.local_logo",
+    "definition": "33:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.local_poster",
+    "definition": "29:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.local_theme",
+    "definition": "44:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.locked_fields",
+    "definition": "22:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.logo_path",
+    "definition": "32:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.match_info",
+    "definition": "23:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.match_key",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.match_suppressed",
+    "definition": "46:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.metacritic",
+    "definition": "42:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.metadata_state",
+    "definition": "18:text:true::C:'pending'::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.min_age",
+    "definition": "28:bigint:true:::'-1'::integer"
+  },
+  {
+    "kind": "column",
+    "name": "items.next_aired",
+    "definition": "38:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.original_language",
+    "definition": "35:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.original_title",
+    "definition": "8:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.overview",
+    "definition": "10:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.parent_id",
+    "definition": "4:text:false::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.poster_path",
+    "definition": "16:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.rating",
+    "definition": "27:double precision:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.release_date",
+    "definition": "12:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.rt_critics",
+    "definition": "41:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.runtime_min",
+    "definition": "11:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.show_status",
+    "definition": "36:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.sort_title",
+    "definition": "7:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.source_ordering",
+    "definition": "34:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.studio",
+    "definition": "26:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.synced_at",
+    "definition": "21:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.tagline",
+    "definition": "24:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "items.title",
+    "definition": "6:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "items.tmdb_collection_id",
+    "definition": "31:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.tmdb_id",
+    "definition": "13:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.tvdb_id",
+    "definition": "14:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "items.updated_at",
+    "definition": "20:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "items.year",
+    "definition": "9:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.collection_grid",
+    "definition": "12:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.collection_min",
+    "definition": "7:bigint:true:::2"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.created_at",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.details_provider",
+    "definition": "13:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.kind",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.metadata_language",
+    "definition": "8:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.name",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.rating_region",
+    "definition": "14:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.skip_credits",
+    "definition": "11:bigint:true:::1"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.skip_intros",
+    "definition": "10:bigint:true:::1"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.source_ordering",
+    "definition": "4:text:true::C:'tvdb_aired'::text"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.trickplay",
+    "definition": "6:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "libraries.videos",
+    "definition": "9:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "library_paths.library_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "library_paths.path",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "library_recommended.layout",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "library_recommended.library_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_chapters.end_ms",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_chapters.file_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_chapters.idx",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_chapters.start_ms",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_chapters.title",
+    "definition": "5:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.bitrate",
+    "definition": "8:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.container",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.duration_ms",
+    "definition": "7:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.format_probe_version",
+    "definition": "15:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.item_override",
+    "definition": "13:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.last_seen_at",
+    "definition": "11:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.library_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.local_marker_generation",
+    "definition": "16:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.markers_checked_at",
+    "definition": "14:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.missing_since",
+    "definition": "12:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.mtime",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.path",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.probe_error",
+    "definition": "10:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.probed_at",
+    "definition": "9:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_files.size",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.end_ms",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.file_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.kind",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.source",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.start_ms",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_markers.updated_at",
+    "definition": "6:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.aspect_ratio",
+    "definition": "24:double precision:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.bit_depth",
+    "definition": "14:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.bitrate",
+    "definition": "18:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.channel_layout",
+    "definition": "19:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.channels",
+    "definition": "10:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.codec",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.color_primaries",
+    "definition": "16:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.color_transfer",
+    "definition": "15:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.dolby_vision",
+    "definition": "20:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.dolby_vision_profile",
+    "definition": "21:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.file_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.frame_rate",
+    "definition": "17:double precision:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.hdr10_plus",
+    "definition": "22:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.hdr_probe_status",
+    "definition": "23:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.height",
+    "definition": "9:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.idx",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.is_default",
+    "definition": "11:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.is_forced",
+    "definition": "12:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.kind",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.language",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.pix_fmt",
+    "definition": "13:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.profile",
+    "definition": "5:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.title",
+    "definition": "7:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "media_streams.width",
+    "definition": "8:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.audio_language",
+    "definition": "14:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.audio_stream",
+    "definition": "13:bigint:true:::'-2'::integer"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.audio_title",
+    "definition": "15:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.bitrate",
+    "definition": "17:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.created_at",
+    "definition": "7:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.duration_ms",
+    "definition": "16:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.error",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.file_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.job_id",
+    "definition": "12:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.path",
+    "definition": "3:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.quality",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.size",
+    "definition": "4:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.source_mtime",
+    "definition": "10:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.source_mtime_ns",
+    "definition": "11:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.source_path",
+    "definition": "8:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.source_size",
+    "definition": "9:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "optimized_versions.status",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_entries.episode_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_entries.episode_number",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_entries.locked",
+    "definition": "5:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_entries.ordering_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_entries.season_number",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_seasons.locked_fields",
+    "definition": "5:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_seasons.name",
+    "definition": "3:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_seasons.ordering_id",
+    "definition": "1:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_seasons.overview",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "ordering_seasons.season_number",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.description",
+    "definition": "7:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.name",
+    "definition": "5:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.series_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.source",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.source_ref",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "orderings.updated_at",
+    "definition": "6:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "people.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "people.name",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "people.profile_path",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "people.tmdb_id",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.completed",
+    "definition": "14:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.device",
+    "definition": "15:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.duration_ms",
+    "definition": "13:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.ended_at",
+    "definition": "10:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.item_id",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.kind",
+    "definition": "4:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.library_id",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.method",
+    "definition": "16:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.position_ms",
+    "definition": "12:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.series_id",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.series_title",
+    "definition": "8:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.started_at",
+    "definition": "9:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.title",
+    "definition": "7:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.user_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_history.watched_ms",
+    "definition": "11:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "play_queue_entries.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_queue_entries.item_id",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_queue_entries.original_position",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_queue_entries.position",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_queue_entries.queue_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.current_entry_id",
+    "definition": "5:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.expires_at",
+    "definition": "7:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.revision",
+    "definition": "4:bigint:true:::1"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.session_hash",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.shuffled",
+    "definition": "6:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "play_queues.user_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "playlist_entries.id",
+    "definition": "1:bigint:true:d::"
+  },
+  {
+    "kind": "column",
+    "name": "playlist_entries.item_id",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "playlist_entries.playlist_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "playlist_entries.position",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.created_at",
+    "definition": "4:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.filter",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.title",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.updated_at",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "playlists.user_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "schema_migrations.applied_at",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "schema_migrations.version",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "season_art.chosen_path",
+    "definition": "5:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "season_art.local_poster",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "season_art.poster_path",
+    "definition": "3:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "season_art.season_number",
+    "definition": "2:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "season_art.series_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "series_display.ordering_id",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "series_display.series_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "series_display.user_id",
+    "definition": "2:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "series_specials.inline",
+    "definition": "3:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "series_specials.series_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "series_specials.user_id",
+    "definition": "2:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.created_at",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.device",
+    "definition": "7:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.last_seen_at",
+    "definition": "6:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.token_hash",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.user_agent",
+    "definition": "4:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.user_id",
+    "definition": "2:text:false::C:"
+  },
+  {
+    "kind": "column",
+    "name": "sessions.via",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "settings.key",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "settings.value",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.item_id",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.last_played_at",
+    "definition": "6:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.play_count",
+    "definition": "5:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.played",
+    "definition": "4:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.position_ms",
+    "definition": "3:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.user_id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.user_rating",
+    "definition": "7:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "user_item_data.watchlisted_at",
+    "definition": "8:bigint:false:::"
+  },
+  {
+    "kind": "column",
+    "name": "users.color",
+    "definition": "7:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.created_at",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "users.exclude_labels",
+    "definition": "11:text:true::C:'[]'::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "users.invite_expires",
+    "definition": "15:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "users.invite_hash",
+    "definition": "14:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.is_admin",
+    "definition": "4:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "users.is_friend",
+    "definition": "13:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "users.library_ids",
+    "definition": "10:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.max_age",
+    "definition": "8:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "users.name",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "users.news_seen_at",
+    "definition": "12:bigint:true:::0"
+  },
+  {
+    "kind": "column",
+    "name": "users.password_hash",
+    "definition": "3:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.pin_hash",
+    "definition": "6:text:true::C:''::text"
+  },
+  {
+    "kind": "column",
+    "name": "users.prefs",
+    "definition": "9:text:true::C:'{}'::text"
+  },
+  {
+    "kind": "column",
+    "name": "webhooks.created_at",
+    "definition": "5:bigint:true:::"
+  },
+  {
+    "kind": "column",
+    "name": "webhooks.events",
+    "definition": "4:text:true::C:'[]'::text"
+  },
+  {
+    "kind": "column",
+    "name": "webhooks.id",
+    "definition": "1:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "webhooks.name",
+    "definition": "2:text:true::C:"
+  },
+  {
+    "kind": "column",
+    "name": "webhooks.url",
+    "definition": "3:text:true::C:"
+  },
+  {
+    "kind": "constraint",
+    "name": "arc_postgres_schema.arc_postgres_schema_pkey",
+    "definition": "PRIMARY KEY (singleton)"
+  },
+  {
+    "kind": "constraint",
+    "name": "arc_postgres_schema.arc_postgres_schema_singleton_check",
+    "definition": "CHECK ((singleton = 1))"
+  },
+  {
+    "kind": "constraint",
+    "name": "arrival_clock.arrival_clock_id_check",
+    "definition": "CHECK ((id = 1))"
+  },
+  {
+    "kind": "constraint",
+    "name": "arrival_clock.arrival_clock_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "background_jobs.arc_background_jobs_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "background_jobs.background_jobs_pkey",
+    "definition": "PRIMARY KEY (kind, job_key)"
+  },
+  {
+    "kind": "constraint",
+    "name": "collection_items.arc_collection_items_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "collection_items.arc_collection_items_fk_1",
+    "definition": "FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "collection_items.collection_items_pkey",
+    "definition": "PRIMARY KEY (collection_id, item_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "collections.arc_collections_fk_0",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "collections.collections_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "continue_dismissed.arc_continue_dismissed_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "continue_dismissed.arc_continue_dismissed_fk_1",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "continue_dismissed.continue_dismissed_pkey",
+    "definition": "PRIMARY KEY (user_id, item_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "episode_specials.arc_episode_specials_fk_0",
+    "definition": "FOREIGN KEY (before_episode_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "episode_specials.arc_episode_specials_fk_1",
+    "definition": "FOREIGN KEY (episode_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "episode_specials.episode_specials_pkey",
+    "definition": "PRIMARY KEY (episode_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "extras.arc_extras_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "extras.arc_extras_fk_1",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "extras.extras_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_aliases.arc_item_aliases_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_aliases.arc_item_aliases_fk_1",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_aliases.item_aliases_pkey",
+    "definition": "PRIMARY KEY (library_id, match_key)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_alt_titles.arc_item_alt_titles_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_alt_titles.item_alt_titles_pkey",
+    "definition": "PRIMARY KEY (item_id, title)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_arrivals.arc_item_arrivals_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_arrivals.item_arrivals_pkey",
+    "definition": "PRIMARY KEY (item_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_files.arc_item_files_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_files.arc_item_files_fk_1",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_files.item_files_pkey",
+    "definition": "PRIMARY KEY (item_id, file_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_genres.arc_item_genres_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_genres.item_genres_arc_rowid_key",
+    "definition": "UNIQUE (arc_rowid)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_genres.item_genres_pkey",
+    "definition": "PRIMARY KEY (item_id, name)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_keywords.arc_item_keywords_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_keywords.item_keywords_pkey",
+    "definition": "PRIMARY KEY (item_id, keyword)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_labels.arc_item_labels_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_labels.item_labels_arc_rowid_key",
+    "definition": "UNIQUE (arc_rowid)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_labels.item_labels_pkey",
+    "definition": "PRIMARY KEY (item_id, label)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_people.arc_item_people_fk_0",
+    "definition": "FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_people.arc_item_people_fk_1",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_people.item_people_episode_count_check",
+    "definition": "CHECK ((episode_count \u003e= 0))"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_people.item_people_pkey",
+    "definition": "PRIMARY KEY (item_id, person_id, role)"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_recommendations.arc_item_recommendations_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "item_recommendations.item_recommendations_pkey",
+    "definition": "PRIMARY KEY (item_id, rank)"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.arc_items_fk_0",
+    "definition": "FOREIGN KEY (parent_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.arc_items_fk_1",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.items_arc_rowid_key",
+    "definition": "UNIQUE (arc_rowid)"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.items_kind_check",
+    "definition": "CHECK ((kind = ANY (ARRAY['movie'::text, 'series'::text, 'episode'::text])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.items_match_suppressed_check",
+    "definition": "CHECK ((match_suppressed = ANY (ARRAY[(0)::bigint, (1)::bigint])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.items_metadata_state_check",
+    "definition": "CHECK ((metadata_state = ANY (ARRAY['pending'::text, 'matched'::text, 'unmatched'::text, 'locked'::text])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "items.items_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "libraries.libraries_details_provider_check",
+    "definition": "CHECK ((details_provider = ANY (ARRAY[''::text, 'tvdb'::text])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "libraries.libraries_kind_check",
+    "definition": "CHECK ((kind = ANY (ARRAY['movies'::text, 'shows'::text])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "libraries.libraries_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "library_paths.arc_library_paths_fk_0",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "library_paths.library_paths_pkey",
+    "definition": "PRIMARY KEY (library_id, path)"
+  },
+  {
+    "kind": "constraint",
+    "name": "library_recommended.arc_library_recommended_fk_0",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "library_recommended.library_recommended_pkey",
+    "definition": "PRIMARY KEY (library_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_chapters.arc_media_chapters_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_chapters.media_chapters_pkey",
+    "definition": "PRIMARY KEY (file_id, idx)"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_files.arc_media_files_fk_0",
+    "definition": "FOREIGN KEY (library_id) REFERENCES libraries(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_files.media_files_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_markers.arc_media_markers_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_markers.media_markers_pkey",
+    "definition": "PRIMARY KEY (file_id, kind)"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_streams.arc_media_streams_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "media_streams.media_streams_pkey",
+    "definition": "PRIMARY KEY (file_id, idx)"
+  },
+  {
+    "kind": "constraint",
+    "name": "optimized_versions.arc_optimized_versions_fk_0",
+    "definition": "FOREIGN KEY (file_id) REFERENCES media_files(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "optimized_versions.optimized_versions_pkey",
+    "definition": "PRIMARY KEY (file_id, quality)"
+  },
+  {
+    "kind": "constraint",
+    "name": "ordering_entries.arc_ordering_entries_fk_0",
+    "definition": "FOREIGN KEY (episode_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "ordering_entries.arc_ordering_entries_fk_1",
+    "definition": "FOREIGN KEY (ordering_id) REFERENCES orderings(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "ordering_entries.ordering_entries_pkey",
+    "definition": "PRIMARY KEY (ordering_id, episode_id, season_number, episode_number)"
+  },
+  {
+    "kind": "constraint",
+    "name": "ordering_seasons.arc_ordering_seasons_fk_0",
+    "definition": "FOREIGN KEY (ordering_id) REFERENCES orderings(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "ordering_seasons.ordering_seasons_pkey",
+    "definition": "PRIMARY KEY (ordering_id, season_number)"
+  },
+  {
+    "kind": "constraint",
+    "name": "orderings.arc_orderings_fk_0",
+    "definition": "FOREIGN KEY (series_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "orderings.orderings_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "people.people_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_history.arc_play_history_fk_0",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_history.play_history_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queue_entries.arc_play_queue_entries_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queue_entries.arc_play_queue_entries_fk_1",
+    "definition": "FOREIGN KEY (queue_id) REFERENCES play_queues(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queue_entries.play_queue_entries_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queues.arc_play_queues_fk_0",
+    "definition": "FOREIGN KEY (session_hash) REFERENCES sessions(token_hash) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queues.arc_play_queues_fk_1",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "play_queues.play_queues_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "playlist_entries.arc_playlist_entries_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "playlist_entries.arc_playlist_entries_fk_1",
+    "definition": "FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "playlist_entries.playlist_entries_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "playlists.arc_playlists_fk_0",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "playlists.playlists_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "schema_migrations.schema_migrations_pkey",
+    "definition": "PRIMARY KEY (version)"
+  },
+  {
+    "kind": "constraint",
+    "name": "season_art.arc_season_art_fk_0",
+    "definition": "FOREIGN KEY (series_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "season_art.season_art_pkey",
+    "definition": "PRIMARY KEY (series_id, season_number)"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_display.arc_series_display_fk_0",
+    "definition": "FOREIGN KEY (ordering_id) REFERENCES orderings(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_display.arc_series_display_fk_1",
+    "definition": "FOREIGN KEY (series_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_display.series_display_pkey",
+    "definition": "PRIMARY KEY (series_id, user_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_specials.arc_series_specials_fk_0",
+    "definition": "FOREIGN KEY (series_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_specials.series_specials_inline_check",
+    "definition": "CHECK ((inline = ANY (ARRAY[(0)::bigint, (1)::bigint])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "series_specials.series_specials_pkey",
+    "definition": "PRIMARY KEY (series_id, user_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "sessions.arc_sessions_fk_0",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "sessions.sessions_pkey",
+    "definition": "PRIMARY KEY (token_hash)"
+  },
+  {
+    "kind": "constraint",
+    "name": "sessions.sessions_via_check",
+    "definition": "CHECK ((via = ANY (ARRAY['password'::text, 'local'::text, 'friend'::text])))"
+  },
+  {
+    "kind": "constraint",
+    "name": "settings.settings_pkey",
+    "definition": "PRIMARY KEY (key)"
+  },
+  {
+    "kind": "constraint",
+    "name": "user_item_data.arc_user_item_data_fk_0",
+    "definition": "FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "user_item_data.arc_user_item_data_fk_1",
+    "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED"
+  },
+  {
+    "kind": "constraint",
+    "name": "user_item_data.user_item_data_pkey",
+    "definition": "PRIMARY KEY (user_id, item_id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "users.users_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "constraint",
+    "name": "webhooks.webhooks_pkey",
+    "definition": "PRIMARY KEY (id)"
+  },
+  {
+    "kind": "function",
+    "name": "arc_equal(text, text)",
+    "definition": "CREATE OR REPLACE FUNCTION arc_equal(text, text)\n RETURNS boolean\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n SELECT arc_lower($1)=arc_lower($2)\n$function$\n"
+  },
+  {
+    "kind": "function",
+    "name": "arc_like(text, text)",
+    "definition": "CREATE OR REPLACE FUNCTION arc_like(text, text)\n RETURNS boolean\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n SELECT arc_lower($1) LIKE arc_lower($2) ESCAPE ''\n$function$\n"
+  },
+  {
+    "kind": "function",
+    "name": "arc_lower(text)",
+    "definition": "CREATE OR REPLACE FUNCTION arc_lower(text)\n RETURNS text\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n SELECT translate($1,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')\n$function$\n"
+  },
+  {
+    "kind": "function",
+    "name": "arc_not_like(text, text)",
+    "definition": "CREATE OR REPLACE FUNCTION arc_not_like(text, text)\n RETURNS boolean\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n SELECT NOT arc_like($1,$2)\n$function$\n"
+  },
+  {
+    "kind": "function",
+    "name": "instr(text, text)",
+    "definition": "CREATE OR REPLACE FUNCTION instr(text, text)\n RETURNS bigint\n LANGUAGE sql\n IMMUTABLE PARALLEL SAFE STRICT\nAS $function$\n SELECT strpos($1,$2)::bigint\n$function$\n"
+  },
+  {
+    "kind": "index",
+    "name": "arc_extras_unique_1",
+    "definition": "CREATE UNIQUE INDEX arc_extras_unique_1 ON extras USING btree (file_id)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_items_unique_8",
+    "definition": "CREATE UNIQUE INDEX arc_items_unique_8 ON items USING btree (library_id, match_key)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_libraries_unique_0",
+    "definition": "CREATE UNIQUE INDEX arc_libraries_unique_0 ON libraries USING btree (name)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_media_files_unique_2",
+    "definition": "CREATE UNIQUE INDEX arc_media_files_unique_2 ON media_files USING btree (path)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_orderings_unique_0",
+    "definition": "CREATE UNIQUE INDEX arc_orderings_unique_0 ON orderings USING btree (series_id, source, source_ref)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_people_unique_0",
+    "definition": "CREATE UNIQUE INDEX arc_people_unique_0 ON people USING btree (tmdb_id)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_play_queues_unique_2",
+    "definition": "CREATE UNIQUE INDEX arc_play_queues_unique_2 ON play_queues USING btree (user_id, session_hash)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_postgres_schema_pkey",
+    "definition": "CREATE UNIQUE INDEX arc_postgres_schema_pkey ON arc_postgres_schema USING btree (singleton)"
+  },
+  {
+    "kind": "index",
+    "name": "arc_users_unique_0",
+    "definition": "CREATE UNIQUE INDEX arc_users_unique_0 ON users USING btree (arc_lower(name))"
+  },
+  {
+    "kind": "index",
+    "name": "arrival_clock_pkey",
+    "definition": "CREATE UNIQUE INDEX arrival_clock_pkey ON arrival_clock USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "background_jobs_file",
+    "definition": "CREATE INDEX background_jobs_file ON background_jobs USING btree (file_id)"
+  },
+  {
+    "kind": "index",
+    "name": "background_jobs_pkey",
+    "definition": "CREATE UNIQUE INDEX background_jobs_pkey ON background_jobs USING btree (kind, job_key)"
+  },
+  {
+    "kind": "index",
+    "name": "collection_items_item",
+    "definition": "CREATE INDEX collection_items_item ON collection_items USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "collection_items_pkey",
+    "definition": "CREATE UNIQUE INDEX collection_items_pkey ON collection_items USING btree (collection_id, item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "collections_pkey",
+    "definition": "CREATE UNIQUE INDEX collections_pkey ON collections USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "collections_tmdb",
+    "definition": "CREATE UNIQUE INDEX collections_tmdb ON collections USING btree (library_id, tmdb_id) WHERE (tmdb_id \u003c\u003e 0)"
+  },
+  {
+    "kind": "index",
+    "name": "continue_dismissed_item",
+    "definition": "CREATE INDEX continue_dismissed_item ON continue_dismissed USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "continue_dismissed_pkey",
+    "definition": "CREATE UNIQUE INDEX continue_dismissed_pkey ON continue_dismissed USING btree (user_id, item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "episode_specials_pkey",
+    "definition": "CREATE UNIQUE INDEX episode_specials_pkey ON episode_specials USING btree (episode_id)"
+  },
+  {
+    "kind": "index",
+    "name": "episode_specials_target",
+    "definition": "CREATE INDEX episode_specials_target ON episode_specials USING btree (before_episode_id)"
+  },
+  {
+    "kind": "index",
+    "name": "extras_item",
+    "definition": "CREATE INDEX extras_item ON extras USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "extras_pkey",
+    "definition": "CREATE UNIQUE INDEX extras_pkey ON extras USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_aliases_item",
+    "definition": "CREATE INDEX item_aliases_item ON item_aliases USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_aliases_pkey",
+    "definition": "CREATE UNIQUE INDEX item_aliases_pkey ON item_aliases USING btree (library_id, match_key)"
+  },
+  {
+    "kind": "index",
+    "name": "item_alt_titles_pkey",
+    "definition": "CREATE UNIQUE INDEX item_alt_titles_pkey ON item_alt_titles USING btree (item_id, title)"
+  },
+  {
+    "kind": "index",
+    "name": "item_arrivals_pkey",
+    "definition": "CREATE UNIQUE INDEX item_arrivals_pkey ON item_arrivals USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_arrivals_sequence",
+    "definition": "CREATE INDEX item_arrivals_sequence ON item_arrivals USING btree (sequence)"
+  },
+  {
+    "kind": "index",
+    "name": "item_files_file",
+    "definition": "CREATE INDEX item_files_file ON item_files USING btree (file_id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_files_pkey",
+    "definition": "CREATE UNIQUE INDEX item_files_pkey ON item_files USING btree (item_id, file_id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_genres_arc_rowid_key",
+    "definition": "CREATE UNIQUE INDEX item_genres_arc_rowid_key ON item_genres USING btree (arc_rowid)"
+  },
+  {
+    "kind": "index",
+    "name": "item_genres_name",
+    "definition": "CREATE INDEX item_genres_name ON item_genres USING btree (name)"
+  },
+  {
+    "kind": "index",
+    "name": "item_genres_pkey",
+    "definition": "CREATE UNIQUE INDEX item_genres_pkey ON item_genres USING btree (item_id, name)"
+  },
+  {
+    "kind": "index",
+    "name": "item_keywords_keyword",
+    "definition": "CREATE INDEX item_keywords_keyword ON item_keywords USING btree (keyword)"
+  },
+  {
+    "kind": "index",
+    "name": "item_keywords_pkey",
+    "definition": "CREATE UNIQUE INDEX item_keywords_pkey ON item_keywords USING btree (item_id, keyword)"
+  },
+  {
+    "kind": "index",
+    "name": "item_labels_arc_rowid_key",
+    "definition": "CREATE UNIQUE INDEX item_labels_arc_rowid_key ON item_labels USING btree (arc_rowid)"
+  },
+  {
+    "kind": "index",
+    "name": "item_labels_folded",
+    "definition": "CREATE UNIQUE INDEX item_labels_folded ON item_labels USING btree (item_id, arc_lower(label))"
+  },
+  {
+    "kind": "index",
+    "name": "item_labels_label",
+    "definition": "CREATE INDEX item_labels_label ON item_labels USING btree (arc_lower(label))"
+  },
+  {
+    "kind": "index",
+    "name": "item_labels_pkey",
+    "definition": "CREATE UNIQUE INDEX item_labels_pkey ON item_labels USING btree (item_id, label)"
+  },
+  {
+    "kind": "index",
+    "name": "item_people_person",
+    "definition": "CREATE INDEX item_people_person ON item_people USING btree (person_id)"
+  },
+  {
+    "kind": "index",
+    "name": "item_people_pkey",
+    "definition": "CREATE UNIQUE INDEX item_people_pkey ON item_people USING btree (item_id, person_id, role)"
+  },
+  {
+    "kind": "index",
+    "name": "item_recommendations_pkey",
+    "definition": "CREATE UNIQUE INDEX item_recommendations_pkey ON item_recommendations USING btree (item_id, rank)"
+  },
+  {
+    "kind": "index",
+    "name": "items_arc_rowid_key",
+    "definition": "CREATE UNIQUE INDEX items_arc_rowid_key ON items USING btree (arc_rowid)"
+  },
+  {
+    "kind": "index",
+    "name": "items_library_kind",
+    "definition": "CREATE INDEX items_library_kind ON items USING btree (library_id, kind, sort_title)"
+  },
+  {
+    "kind": "index",
+    "name": "items_lookup_imdb",
+    "definition": "CREATE INDEX items_lookup_imdb ON items USING btree (arc_lower(imdb_id), kind, library_id, id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_lookup_tmdb",
+    "definition": "CREATE INDEX items_lookup_tmdb ON items USING btree (tmdb_id, kind, library_id, id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_lookup_tvdb",
+    "definition": "CREATE INDEX items_lookup_tvdb ON items USING btree (tvdb_id, kind, library_id, id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_parent",
+    "definition": "CREATE INDEX items_parent ON items USING btree (parent_id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_parent_added",
+    "definition": "CREATE INDEX items_parent_added ON items USING btree (parent_id, added_at DESC)"
+  },
+  {
+    "kind": "index",
+    "name": "items_parent_tmdb",
+    "definition": "CREATE INDEX items_parent_tmdb ON items USING btree (parent_id, tmdb_id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_parent_tvdb",
+    "definition": "CREATE INDEX items_parent_tvdb ON items USING btree (parent_id, tvdb_id)"
+  },
+  {
+    "kind": "index",
+    "name": "items_pkey",
+    "definition": "CREATE UNIQUE INDEX items_pkey ON items USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "libraries_pkey",
+    "definition": "CREATE UNIQUE INDEX libraries_pkey ON libraries USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "library_paths_pkey",
+    "definition": "CREATE UNIQUE INDEX library_paths_pkey ON library_paths USING btree (library_id, path)"
+  },
+  {
+    "kind": "index",
+    "name": "library_recommended_pkey",
+    "definition": "CREATE UNIQUE INDEX library_recommended_pkey ON library_recommended USING btree (library_id)"
+  },
+  {
+    "kind": "index",
+    "name": "media_chapters_pkey",
+    "definition": "CREATE UNIQUE INDEX media_chapters_pkey ON media_chapters USING btree (file_id, idx)"
+  },
+  {
+    "kind": "index",
+    "name": "media_files_format_pending",
+    "definition": "CREATE INDEX media_files_format_pending ON media_files USING btree (library_id, format_probe_version) WHERE (missing_since IS NULL)"
+  },
+  {
+    "kind": "index",
+    "name": "media_files_library",
+    "definition": "CREATE INDEX media_files_library ON media_files USING btree (library_id, last_seen_at)"
+  },
+  {
+    "kind": "index",
+    "name": "media_files_pkey",
+    "definition": "CREATE UNIQUE INDEX media_files_pkey ON media_files USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "media_markers_pkey",
+    "definition": "CREATE UNIQUE INDEX media_markers_pkey ON media_markers USING btree (file_id, kind)"
+  },
+  {
+    "kind": "index",
+    "name": "media_streams_pkey",
+    "definition": "CREATE UNIQUE INDEX media_streams_pkey ON media_streams USING btree (file_id, idx)"
+  },
+  {
+    "kind": "index",
+    "name": "optimized_versions_pkey",
+    "definition": "CREATE UNIQUE INDEX optimized_versions_pkey ON optimized_versions USING btree (file_id, quality)"
+  },
+  {
+    "kind": "index",
+    "name": "ordering_entries_episode",
+    "definition": "CREATE INDEX ordering_entries_episode ON ordering_entries USING btree (episode_id)"
+  },
+  {
+    "kind": "index",
+    "name": "ordering_entries_pkey",
+    "definition": "CREATE UNIQUE INDEX ordering_entries_pkey ON ordering_entries USING btree (ordering_id, episode_id, season_number, episode_number)"
+  },
+  {
+    "kind": "index",
+    "name": "ordering_entries_position",
+    "definition": "CREATE INDEX ordering_entries_position ON ordering_entries USING btree (ordering_id, season_number, episode_number)"
+  },
+  {
+    "kind": "index",
+    "name": "ordering_seasons_pkey",
+    "definition": "CREATE UNIQUE INDEX ordering_seasons_pkey ON ordering_seasons USING btree (ordering_id, season_number)"
+  },
+  {
+    "kind": "index",
+    "name": "orderings_pkey",
+    "definition": "CREATE UNIQUE INDEX orderings_pkey ON orderings USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "people_pkey",
+    "definition": "CREATE UNIQUE INDEX people_pkey ON people USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_history_item",
+    "definition": "CREATE INDEX play_history_item ON play_history USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_history_pkey",
+    "definition": "CREATE UNIQUE INDEX play_history_pkey ON play_history USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_history_started",
+    "definition": "CREATE INDEX play_history_started ON play_history USING btree (started_at)"
+  },
+  {
+    "kind": "index",
+    "name": "play_history_user",
+    "definition": "CREATE INDEX play_history_user ON play_history USING btree (user_id, started_at)"
+  },
+  {
+    "kind": "index",
+    "name": "play_queue_entries_item",
+    "definition": "CREATE INDEX play_queue_entries_item ON play_queue_entries USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_queue_entries_pkey",
+    "definition": "CREATE UNIQUE INDEX play_queue_entries_pkey ON play_queue_entries USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_queue_entries_queue",
+    "definition": "CREATE INDEX play_queue_entries_queue ON play_queue_entries USING btree (queue_id, \"position\")"
+  },
+  {
+    "kind": "index",
+    "name": "play_queues_expiry",
+    "definition": "CREATE INDEX play_queues_expiry ON play_queues USING btree (expires_at)"
+  },
+  {
+    "kind": "index",
+    "name": "play_queues_pkey",
+    "definition": "CREATE UNIQUE INDEX play_queues_pkey ON play_queues USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "play_queues_session",
+    "definition": "CREATE INDEX play_queues_session ON play_queues USING btree (session_hash)"
+  },
+  {
+    "kind": "index",
+    "name": "playlist_entries_item",
+    "definition": "CREATE INDEX playlist_entries_item ON playlist_entries USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "playlist_entries_pkey",
+    "definition": "CREATE UNIQUE INDEX playlist_entries_pkey ON playlist_entries USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "playlist_entries_playlist",
+    "definition": "CREATE INDEX playlist_entries_playlist ON playlist_entries USING btree (playlist_id, \"position\")"
+  },
+  {
+    "kind": "index",
+    "name": "playlists_pkey",
+    "definition": "CREATE UNIQUE INDEX playlists_pkey ON playlists USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "playlists_user",
+    "definition": "CREATE INDEX playlists_user ON playlists USING btree (user_id)"
+  },
+  {
+    "kind": "index",
+    "name": "schema_migrations_pkey",
+    "definition": "CREATE UNIQUE INDEX schema_migrations_pkey ON schema_migrations USING btree (version)"
+  },
+  {
+    "kind": "index",
+    "name": "season_art_pkey",
+    "definition": "CREATE UNIQUE INDEX season_art_pkey ON season_art USING btree (series_id, season_number)"
+  },
+  {
+    "kind": "index",
+    "name": "series_display_ordering",
+    "definition": "CREATE INDEX series_display_ordering ON series_display USING btree (ordering_id)"
+  },
+  {
+    "kind": "index",
+    "name": "series_display_pkey",
+    "definition": "CREATE UNIQUE INDEX series_display_pkey ON series_display USING btree (series_id, user_id)"
+  },
+  {
+    "kind": "index",
+    "name": "series_specials_pkey",
+    "definition": "CREATE UNIQUE INDEX series_specials_pkey ON series_specials USING btree (series_id, user_id)"
+  },
+  {
+    "kind": "index",
+    "name": "sessions_pkey",
+    "definition": "CREATE UNIQUE INDEX sessions_pkey ON sessions USING btree (token_hash)"
+  },
+  {
+    "kind": "index",
+    "name": "sessions_user",
+    "definition": "CREATE INDEX sessions_user ON sessions USING btree (user_id)"
+  },
+  {
+    "kind": "index",
+    "name": "settings_pkey",
+    "definition": "CREATE UNIQUE INDEX settings_pkey ON settings USING btree (key)"
+  },
+  {
+    "kind": "index",
+    "name": "user_item_data_item",
+    "definition": "CREATE INDEX user_item_data_item ON user_item_data USING btree (item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "user_item_data_pkey",
+    "definition": "CREATE UNIQUE INDEX user_item_data_pkey ON user_item_data USING btree (user_id, item_id)"
+  },
+  {
+    "kind": "index",
+    "name": "user_item_data_recent",
+    "definition": "CREATE INDEX user_item_data_recent ON user_item_data USING btree (user_id, last_played_at)"
+  },
+  {
+    "kind": "index",
+    "name": "user_item_data_watchlist",
+    "definition": "CREATE INDEX user_item_data_watchlist ON user_item_data USING btree (user_id, watchlisted_at) WHERE (watchlisted_at IS NOT NULL)"
+  },
+  {
+    "kind": "index",
+    "name": "users_pkey",
+    "definition": "CREATE UNIQUE INDEX users_pkey ON users USING btree (id)"
+  },
+  {
+    "kind": "index",
+    "name": "webhooks_pkey",
+    "definition": "CREATE UNIQUE INDEX webhooks_pkey ON webhooks USING btree (id)"
+  },
+  {
+    "kind": "operator",
+    "name": "!~@~(text,text)",
+    "definition": "arc_not_like:boolean"
+  },
+  {
+    "kind": "operator",
+    "name": "~==(text,text)",
+    "definition": "arc_equal:boolean"
+  },
+  {
+    "kind": "operator",
+    "name": "~@~(text,text)",
+    "definition": "arc_like:boolean"
+  },
+  {
+    "kind": "relation",
+    "name": "arc_postgres_schema",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "arrival_clock",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "arrival_clock_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "background_jobs",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "collection_items",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "collections",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "continue_dismissed",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "episode_specials",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "extras",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_aliases",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_alt_titles",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_arrivals",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_files",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_genres",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_genres_arc_rowid_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_keywords",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_labels",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_labels_arc_rowid_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_people",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "item_recommendations",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "items",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "items_arc_rowid_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "libraries",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "libraries_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "library_paths",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "library_recommended",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "media_chapters",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "media_files",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "media_files_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "media_markers",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "media_streams",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "optimized_versions",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "ordering_entries",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "ordering_seasons",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "orderings",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "orderings_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "people",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "people_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "play_history",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "play_history_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "play_queue_entries",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "play_queues",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "playlist_entries",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "playlist_entries_id_seq",
+    "definition": "S:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "playlists",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "schema_migrations",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "season_art",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "series_display",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "series_specials",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "sessions",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "settings",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "user_item_data",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "users",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "relation",
+    "name": "webhooks",
+    "definition": "r:false:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "arrival_clock_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "item_genres_arc_rowid_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "item_labels_arc_rowid_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "items_arc_rowid_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "libraries_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "media_files_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "orderings_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "people_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "play_history_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence",
+    "name": "playlist_entries_id_seq",
+    "definition": "bigint:1:1:1:9223372036854775807:1:false"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "arrival_clock_id_seq",
+    "definition": "arrival_clock.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "item_genres_arc_rowid_seq",
+    "definition": "item_genres.arc_rowid"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "item_labels_arc_rowid_seq",
+    "definition": "item_labels.arc_rowid"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "items_arc_rowid_seq",
+    "definition": "items.arc_rowid"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "libraries_id_seq",
+    "definition": "libraries.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "media_files_id_seq",
+    "definition": "media_files.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "orderings_id_seq",
+    "definition": "orderings.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "people_id_seq",
+    "definition": "people.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "play_history_id_seq",
+    "definition": "play_history.id"
+  },
+  {
+    "kind": "sequence_owner",
+    "name": "playlist_entries_id_seq",
+    "definition": "playlist_entries.id"
+  }
+]
