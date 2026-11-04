@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 // SeasonArt is a season's poster: the provider's path, a poster file next to the media, and one
@@ -122,13 +123,34 @@ func (s *Store) SeasonPosters(ctx context.Context, seriesID string) (map[int]Sea
 // RecentEpisodes selects recent shows before collecting their episodes. A large show cannot
 // consume an episode sample and starve other cards; complete selected groups retain their counts.
 func (s *Store) RecentEpisodes(ctx context.Context, libraryID int64, acc Access, limit int) ([]Item, error) {
-	q := `SELECT items.*,COALESCE((SELECT sequence FROM item_arrivals WHERE item_id=items.id),0) AS arrival_order FROM items WHERE library_id = ? AND kind = 'episode' AND ` + playableSQL
-	args := []any{libraryID}
-	q, args = acc.Where("items", q, args)
-	q = `WITH eligible AS NOT MATERIALIZED (` + q + `), ranked AS (
- SELECT id,parent_id,added_at,arrival_order,release_date,ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id) AS position FROM eligible
- ) SELECT ` + itemCols + ` FROM eligible WHERE parent_id IN (
- SELECT parent_id FROM ranked WHERE position=1 ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id LIMIT ?
- ) ORDER BY added_at DESC,arrival_order DESC,release_date DESC,id`
-	return s.queryItems(ctx, q, append(args, limit)...)
+	q, args := recentEpisodesQuery(libraryID, acc, limit)
+	return s.queryItems(ctx, q, args...)
+}
+
+func recentEpisodesQuery(libraryID int64, acc Access, limit int) (string, []any) {
+	// Rank one eligible episode per parent, using items_parent_added to stop early, rather than
+	// window-sorting every episode in the library. Recheck visibility when expanding full groups.
+	where := "library_id = ? AND kind = 'episode' AND " + playableSQL
+	conditions, accessArgs := acc.Conds("items")
+	if len(conditions) > 0 {
+		where += " AND " + strings.Join(conditions, " AND ")
+	}
+	arrivalOrder := `COALESCE((SELECT sequence FROM item_arrivals WHERE item_id=items.id),0)`
+	q := `WITH parents AS (SELECT DISTINCT parent_id FROM items WHERE library_id=? AND kind='episode'),
+ latest AS MATERIALIZED (
+ SELECT (SELECT items.id FROM items WHERE items.parent_id=p.parent_id AND ` + where + `
+ AND items.added_at=(SELECT recent.added_at FROM items recent WHERE recent.parent_id=p.parent_id AND ` + strings.ReplaceAll(where, "items.", "recent.") + ` ORDER BY recent.added_at DESC LIMIT 1)
+ ORDER BY ` + arrivalOrder + ` DESC,release_date DESC,id LIMIT 1) AS id FROM parents p
+ ), selected AS (
+ SELECT i.parent_id FROM latest l JOIN items i ON i.id=l.id LEFT JOIN item_arrivals a ON a.item_id=i.id
+ ORDER BY i.added_at DESC,COALESCE(a.sequence,0) DESC,i.release_date DESC,i.id LIMIT ?
+ ) SELECT ` + prefixCols("items.", itemCols) + ` FROM selected CROSS JOIN items WHERE items.parent_id=selected.parent_id AND ` + where + `
+ ORDER BY added_at DESC,` + arrivalOrder + ` DESC,release_date DESC,id`
+	args := []any{libraryID, libraryID}
+	args = append(args, accessArgs...)
+	args = append(args, libraryID)
+	args = append(args, accessArgs...)
+	args = append(args, limit, libraryID)
+	args = append(args, accessArgs...)
+	return q, args
 }
