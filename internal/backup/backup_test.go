@@ -244,3 +244,30 @@ func TestExpired(t *testing.T) {
 		t.Errorf("expired %d safety backups, want %d", gone["safety"], want)
 	}
 }
+
+func TestFreshSafetyBackupSurvivesFutureDatedRetention(t *testing.T) {
+	root := t.TempDir()
+	st, err := store.Open(t.Context(), filepath.Join(root, "arc.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	m := New(filepath.Join(root, "backups"), st, slog.New(slog.DiscardHandler))
+	if err = os.MkdirAll(m.Dir(), 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Existing backups may have timestamps ahead of the current clock after a clock correction.
+	for day := 1; day <= keepSafety; day++ {
+		name := "ams-2099010" + string(rune('0'+day)) + "-000000-before-upgrade.db"
+		if err = os.WriteFile(filepath.Join(m.Dir(), name), []byte("retained fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b, err := m.Create(t.Context(), ReasonBeforeUpgrade)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.CheckBackup(t.Context(), filepath.Join(m.Dir(), b.Name)); err != nil {
+		t.Fatal("fresh safety copy was pruned", err)
+	}
+}

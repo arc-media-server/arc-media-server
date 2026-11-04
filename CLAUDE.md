@@ -48,9 +48,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
 - **Databases:** SQLite remains the default. Optional PostgreSQL 16–18 backend/API and verified
   journaled transfer: `docs/POSTGRESQL.md`; Claude UI handoff: `docs/POSTGRESQL-UI-HANDOFF.md`.
-  #308 remains open for UI/deployment and future-version upgrade acceptance. PostgreSQL currently
-  requires its exact schema fingerprint; do not ship schema changes to it without a tested upgrade
-  path and pre-upgrade portable backup. Regenerating a fresh baseline alone is insufficient.
+  Recognised Arc schema releases upgrade automatically with verified historical-schema backups and
+  transactional native SQL: `docs/POSTGRESQL-UPGRADES.md`. Future schema changes must add a versioned
+  upgrade and cross-version preservation tests; regenerating a baseline alone is insufficient.
+  #308 remains open for UI/deployment acceptance. PostgreSQL engine/container upgrades stay manual.
 - **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android

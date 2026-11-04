@@ -91,11 +91,11 @@ func (s *Store) backupPostgres(ctx context.Context, path string) (err error) {
 			os.Remove(path + "-shm")
 		}
 	}()
-	dest, err := Open(ctx, path, Options{})
-	if err != nil {
-		return err
+	layout := currentPortableLayout()
+	if s.pgBackupRelease != nil {
+		layout = releasePortableLayout(*s.pgBackupRelease)
 	}
-	if err = dest.Close(); err != nil {
+	if err = initializePortableSchema(ctx, path, layout.migrations); err != nil {
 		return err
 	}
 	sqlite, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_txlock=immediate")
@@ -116,10 +116,10 @@ func (s *Store) backupPostgres(ctx context.Context, path string) (err error) {
 	if _, err = write.ExecContext(ctx, "PRAGMA defer_foreign_keys=ON"); err != nil {
 		return err
 	}
-	if err = clearPortable(ctx, write, false); err != nil {
+	if err = clearPortableLayout(ctx, write, false, layout); err != nil {
 		return err
 	}
-	if _, err = copyPortable(ctx, read, write, true, false); err != nil {
+	if _, err = copyPortableLayout(ctx, read, write, true, false, layout); err != nil {
 		return err
 	}
 	if err = write.Commit(); err != nil {
@@ -130,6 +130,15 @@ func (s *Store) backupPostgres(ctx context.Context, path string) (err error) {
 	}
 	if err = CheckBackup(ctx, path); err != nil {
 		return err
+	}
+	if err = sqlite.Close(); err != nil {
+		return err
+	}
+	if err = syncPortableFile(path); err != nil {
+		return err
+	}
+	if s.pgBackupRelease != nil {
+		s.pgUpgradeBackupVerified = true
 	}
 	complete = true
 	return nil
@@ -175,6 +184,9 @@ func (s *Store) restorePostgres(ctx context.Context, path string) error {
 	return s.syncMinAges(ctx)
 }
 func checkPortableSchema(ctx context.Context, src querySource) error {
+	return checkPortableSchemaLayout(ctx, src, currentPortableLayout())
+}
+func checkPortableSchemaLayout(ctx context.Context, src querySource, layout portableLayout) error {
 	rows, err := src.QueryContext(ctx, "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'")
 	if err != nil {
 		return err
@@ -186,7 +198,7 @@ func checkPortableSchema(ctx context.Context, src querySource) error {
 		if err = rows.Scan(&name); err != nil {
 			return err
 		}
-		if _, ok := pgColumns[name]; !ok {
+		if _, ok := layout.columns[name]; !ok {
 			return errors.New("SQLite contains an unsupported table; transfer requires the matching Arc schema")
 		}
 		seen[name] = true
@@ -207,11 +219,11 @@ func checkPortableSchema(ctx context.Context, src querySource) error {
 	if bad {
 		return errors.New("SQLite source has broken references; repair or restore it before transferring")
 	}
-	if len(seen) != len(pgColumns) {
+	if len(seen) != len(layout.columns) {
 		return errors.New("SQLite schema must match this Arc version before PostgreSQL transfer")
 	}
 	// Check names/order, not just the number of tables: no persistent column is silently lost.
-	for name, want := range pgColumns {
+	for name, want := range layout.columns {
 		r, e := src.QueryContext(ctx, "SELECT * FROM "+quoted(name)+" LIMIT 0")
 		if e != nil {
 			return e
@@ -228,13 +240,16 @@ func checkPortableSchema(ctx context.Context, src querySource) error {
 	return nil
 }
 func clearPortable(ctx context.Context, tx *sql.Tx, postgres bool) error {
+	return clearPortableLayout(ctx, tx, postgres, currentPortableLayout())
+}
+func clearPortableLayout(ctx context.Context, tx *sql.Tx, postgres bool, layout portableLayout) error {
 	// DELETE preserves old MVCC snapshots during live PostgreSQL restore. TRUNCATE does not.
 	if postgres {
 		if _, err := tx.ExecContext(ctx, "SET CONSTRAINTS ALL DEFERRED"); err != nil {
 			return err
 		}
 	}
-	for _, name := range tableNames() {
+	for _, name := range layout.tableNames() {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+quoted(name)); err != nil {
 			return err
 		}
@@ -243,14 +258,17 @@ func clearPortable(ctx context.Context, tx *sql.Tx, postgres bool) error {
 }
 
 func portableCols(table string, postgres bool) (selectCols, insertCols, order string) {
+	return currentPortableLayout().cols(table, postgres)
+}
+func (layout portableLayout) cols(table string, postgres bool) (selectCols, insertCols, order string) {
 	var cols []string
-	for _, c := range pgColumns[table] {
+	for _, c := range layout.columns[table] {
 		cols = append(cols, quoted(c))
 	}
 	orderFields := make([]string, len(cols))
 	for i, c := range cols {
 		collation := ""
-		if portableTextColumn(table, pgColumns[table][i]) {
+		if layout.text[table][layout.columns[table][i]] {
 			if postgres {
 				collation = ` COLLATE "C"`
 			} else {
@@ -260,7 +278,7 @@ func portableCols(table string, postgres bool) (selectCols, insertCols, order st
 		orderFields[i] = c + collation + " NULLS FIRST"
 	}
 	selectCols, insertCols = strings.Join(cols, ","), strings.Join(cols, ",")
-	if hasPortableRowID(table) {
+	if layout.rowID[table] {
 		col := "rowid"
 		if postgres {
 			col = "arc_rowid"
@@ -282,8 +300,11 @@ func canonicalRow(hash io.Writer, values []any) error {
 	return err
 }
 func tableDigest(ctx context.Context, src querySource, table string, postgres bool) (TableTransfer, error) {
+	return tableDigestLayout(ctx, src, table, postgres, currentPortableLayout())
+}
+func tableDigestLayout(ctx context.Context, src querySource, table string, postgres bool, layout portableLayout) (TableTransfer, error) {
 	out := TableTransfer{Table: table}
-	cols, _, order := portableCols(table, postgres)
+	cols, _, order := layout.cols(table, postgres)
 	rows, err := src.QueryContext(ctx, "SELECT "+cols+" FROM "+quoted(table)+" ORDER BY "+order)
 	if err != nil {
 		return out, err
@@ -312,10 +333,13 @@ func tableDigest(ctx context.Context, src querySource, table string, postgres bo
 	return out, rows.Err()
 }
 func copyPortable(ctx context.Context, src querySource, dest *sql.Tx, sourcePG, destPG bool) (TransferReport, error) {
+	return copyPortableLayout(ctx, src, dest, sourcePG, destPG, currentPortableLayout())
+}
+func copyPortableLayout(ctx context.Context, src querySource, dest *sql.Tx, sourcePG, destPG bool, layout portableLayout) (TransferReport, error) {
 	report := TransferReport{Tables: []TableTransfer{}}
-	for _, table := range tableNames() {
-		cols, _, order := portableCols(table, sourcePG)
-		_, target, _ := portableCols(table, destPG)
+	for _, table := range layout.tableNames() {
+		cols, _, order := layout.cols(table, sourcePG)
+		_, target, _ := layout.cols(table, destPG)
 		rows, err := src.QueryContext(ctx, "SELECT "+cols+" FROM "+quoted(table)+" ORDER BY "+order)
 		if err != nil {
 			return report, err
@@ -369,7 +393,7 @@ func copyPortable(ctx context.Context, src querySource, dest *sql.Tx, sourcePG, 
 		report.Rows += result.Rows
 	}
 	for _, want := range report.Tables {
-		got, err := tableDigest(ctx, dest, want.Table, destPG)
+		got, err := tableDigestLayout(ctx, dest, want.Table, destPG, layout)
 		if err != nil {
 			return report, err
 		}
@@ -382,12 +406,12 @@ func copyPortable(ctx context.Context, src querySource, dest *sql.Tx, sourcePG, 
 			return report, err
 		}
 		// Restore sequence high-water marks after preserving numeric/hidden row identities.
-		for _, table := range tableNames() {
+		for _, table := range layout.tableNames() {
 			for _, col := range []string{"id", "arc_rowid"} {
-				if col == "id" && !slices.Contains(pgColumns[table], "id") {
+				if col == "id" && !slices.Contains(layout.columns[table], "id") {
 					continue
 				}
-				if col == "arc_rowid" && !hasPortableRowID(table) {
+				if col == "arc_rowid" && !layout.rowID[table] {
 					continue
 				}
 				var seq sql.NullString
