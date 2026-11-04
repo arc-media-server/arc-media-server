@@ -36,10 +36,10 @@ func appCORS(next http.Handler) http.Handler {
 		}
 		h := w.Header()
 		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, ETag, Retry-After")
+		h.Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges, ETag, Retry-After, X-Request-ID")
 		if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
 			h.Set("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, PATCH, DELETE")
-			h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, If-None-Match")
+			h.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, If-None-Match, Last-Event-ID")
 			h.Set("Access-Control-Max-Age", "600")
 			w.WriteHeader(http.StatusNoContent)
 			return
