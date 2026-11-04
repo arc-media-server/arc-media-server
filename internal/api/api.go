@@ -457,7 +457,15 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	requestStage(r, "counting library titles", 0)
-	counts, err := s.store.LibraryCounts(r.Context())
+	acc := access(r)
+	visible := make([]store.Library, 0, len(libs))
+	for _, lib := range libs {
+		if acc.LibraryAllowed(lib.ID) {
+			visible = append(visible, lib)
+		}
+	}
+	libs = visible
+	counts, err := s.store.LibraryCountsFor(r.Context(), libs)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -469,12 +477,9 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		Scan  scanner.Status `json:"scan"`
 	}
 	out := make([]libDTO, 0, len(libs))
-	acc := access(r)
 	for _, l := range libs {
-		if acc.LibraryAllowed(l.ID) {
-			requestStage(r, "reading scanner status", l.ID)
-			out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
-		}
+		requestStage(r, "reading scanner status", l.ID)
+		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
 	}
 	requestStage(r, "writing library response", 0)
 	writeJSON(w, http.StatusOK, out)
