@@ -59,7 +59,9 @@ a prior successful test is not permission to overwrite a changed/nonempty target
 
 ## Frontend flow
 
-Show SQLite and "Move to PostgreSQL" only for an admin with transfer_available:true. Explain
+Detect `database_management` through `/capabilities` first: supported/available/allowed must all
+be true. This is a wiring/role hint, not a connection test. Show SQLite and "Move to PostgreSQL"
+only for an admin with transfer_available:true. Explain
 that this uses an existing empty database and needs a brief service interruption. Present a
 connection form, Test connection, safe inline validation and an explicit maintenance confirmation.
 Mention active playback/background work will stop, original SQLite/safety backup is retained,

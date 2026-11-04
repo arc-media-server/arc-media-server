@@ -55,6 +55,7 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 		features[key] = featureCapability{Supported: true, Available: available, Allowed: !admin || currentUser(r).IsAdmin}
 	}
 	add("identity", true, false)
+	add("database_management", s.database != nil, true)
 	add("change_events", s.events != nil, false)
 	add("browse", true, false)
 	add("item_lookup", true, false)

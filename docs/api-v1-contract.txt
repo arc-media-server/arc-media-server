@@ -269,6 +269,7 @@ GET /collections/{id}/artwork
 GET /collections/{id}/artwork 200
 GET /collections/{id}/images/{type}
 GET /collections/{id}/images/{type} 200
+GET /collections/{id}/images/{type} 206
 GET /dashboard/resources
 GET /dashboard/resources 200
 GET /dashboard/resources 200 .cores integer
@@ -318,6 +319,7 @@ GET /events
 GET /events 200
 GET /extras/{id}/stream
 GET /extras/{id}/stream 200
+GET /extras/{id}/stream 206
 GET /folders
 GET /folders 200
 GET /health
@@ -965,6 +967,7 @@ GET /items/{id}/artwork/palette 200 .colors.top_right string
 GET /items/{id}/artwork/palette 200 .reason string
 GET /items/{id}/images/{type}
 GET /items/{id}/images/{type} 200
+GET /items/{id}/images/{type} 206
 GET /items/{id}/markers
 GET /items/{id}/markers 200
 GET /items/{id}/match
@@ -1210,6 +1213,7 @@ GET /items/{id}/similar 200 [].user_data.watchlisted boolean
 GET /items/{id}/similar 200 [].year integer
 GET /items/{id}/stream
 GET /items/{id}/stream 200
+GET /items/{id}/stream 206
 GET /items/{id}/subtitles
 GET /items/{id}/subtitles 200
 GET /items/{id}/subtitles 200 [] object
@@ -1244,12 +1248,15 @@ GET /items/{id}/subtitles/{track}/vtt
 GET /items/{id}/subtitles/{track}/vtt 200
 GET /items/{id}/theme
 GET /items/{id}/theme 200
+GET /items/{id}/theme 206
 GET /items/{id}/trickplay
 GET /items/{id}/trickplay 200
 GET /items/{id}/trickplay/{file}/bif
 GET /items/{id}/trickplay/{file}/bif 200
+GET /items/{id}/trickplay/{file}/bif 206
 GET /items/{id}/trickplay/{file}/{sheet}
 GET /items/{id}/trickplay/{file}/{sheet} 200
+GET /items/{id}/trickplay/{file}/{sheet} 206
 GET /labels
 GET /labels 200
 GET /labels 200 [] string
@@ -2226,6 +2233,7 @@ GET /people/{id}
 GET /people/{id} 200
 GET /people/{id}/image
 GET /people/{id}/image 200
+GET /people/{id}/image 206
 GET /play-queues/{id}
 GET /play-queues/{id} 200
 GET /play-queues/{id} 200 .current_entry_id string
@@ -2674,6 +2682,7 @@ GET /playlists/{id} 200 .playlist.title string
 GET /playlists/{id} 200 .playlist.updated_at integer
 GET /preroll/{n}
 GET /preroll/{n} 200
+GET /preroll/{n} 206
 GET /profiles
 GET /profiles 200
 GET /profiles 200 [] object
@@ -3156,6 +3165,7 @@ GET /series/{id}/seasons/{n}/artwork
 GET /series/{id}/seasons/{n}/artwork 200
 GET /series/{id}/seasons/{n}/image
 GET /series/{id}/seasons/{n}/image 200
+GET /series/{id}/seasons/{n}/image 206
 GET /settings
 GET /settings 200
 GET /stats
@@ -3282,6 +3292,7 @@ GET /stats/storage
 GET /stats/storage 200
 GET /transcode/{sid}/{file}
 GET /transcode/{sid}/{file} 200
+GET /transcode/{sid}/{file} 206
 GET /watchlist
 GET /watchlist 200
 GET /watchlist 200 [] object
