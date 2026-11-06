@@ -1,8 +1,8 @@
 # Measured library-query improvements and contention investigation
 
 Owner requested backend investigation of slow watchlist writes/disappearing libraries and realistic
-large-library performance. Branch `codex/library-query-performance`, based on PostgreSQL schema-upgrade
-#339 at 0ca1d9b; GitHub main remained ad2f538. No owner database/media/server accessed.
+large-library performance. First on `codex/library-query-performance` (stacked on the PostgreSQL work);
+moved onto main on 6 November once PostgreSQL was parked (#308). No owner database/media/server accessed.
 
 Existing read/write separation, queued writers and asynchronous session timestamps held up in the
 fixtures: libraries/Home stayed available during scan-style touches, metadata/background-job updates
@@ -50,4 +50,10 @@ SQL/path/token logging or per-query info flood. No new dependencies/tools instal
 PostgreSQL and browser servers stopped. No full browser/container, actual owner deployment, real media,
 network/provider latency, sustained load or cold-storage acceptance. Original owner stall needs
 confirmation during normal use after deployment; capture fresh diagnostics while stalled if it returns.
-Raw evidence: `/workspace/arc-cloud-evidence/library-performance/REPORT.md`. PR follows #339; no PRs merged.
+Raw evidence: `/workspace/arc-cloud-evidence/library-performance/REPORT.md`. 
+
+## Moved onto main (6 November)
+
+PostgreSQL work is parked (#308), so this change was taken off the PostgreSQL branches and applied
+to main on its own. It applied without conflicts. On main, `go vet ./...` and `go test ./...`
+pass, with SQLite only. The PostgreSQL measurements above came from the earlier branch.
