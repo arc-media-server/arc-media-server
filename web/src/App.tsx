@@ -27,6 +27,8 @@ import { ProfilesPage } from './pages/Profiles';
 import { LinkDevicePage } from './components/Devices';
 import { AuthGate } from './components/auth/AuthGate';
 import { useProfileTheme } from './lib/theme';
+import { useLiveUpdates } from './lib/live-updates';
+import { useAuth } from './lib/auth';
 
 export function App() {
   const { t } = useTranslation('common');
@@ -40,6 +42,7 @@ export function App() {
     <AuthGate>
       <PlayerProvider>
         <ProfileTheme />
+        <LiveUpdates />
         <Sidebar />
         <MobileBar />
         <MatchUpdates />
@@ -85,5 +88,11 @@ export function App() {
 /** Keeps the page in the signed-in profile's chosen theme. */
 function ProfileTheme() {
   useProfileTheme();
+  return null;
+}
+
+/** Refreshes what's on screen when Arc says something changed (scans, other devices, artwork). */
+function LiveUpdates() {
+  useLiveUpdates(useAuth().data?.profile?.id);
   return null;
 }
