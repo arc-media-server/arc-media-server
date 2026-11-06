@@ -1,6 +1,7 @@
 package background
 
 import (
+	"ams/internal/events"
 	"context"
 	"errors"
 	"fmt"
@@ -68,6 +69,7 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 		m.upkeepStateFailure(kind, err)
 		return
 	}
+	defer m.Events.Publish(events.Event{Topic: "maintenance", Admin: true})
 	started := time.Now()
 	m.logger().Info("maintenance started", "kind", kind)
 	task := m.Activity.Start(kind, titles[kind])
