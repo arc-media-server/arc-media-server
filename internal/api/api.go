@@ -158,6 +158,7 @@ func New(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	s.revision = d.Revision
 	s.events = d.Events
+	s.wireWatchNotify()
 	if s.events == nil {
 		s.events = events.New()
 	}
@@ -188,6 +189,12 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/watch-together/join", user(s.joinWatchTogether))
 	mux.HandleFunc("GET /api/watch-together/time", user(s.watchTogetherTime))
 	mux.HandleFunc("GET /api/watch-together/current", user(s.currentWatchTogether))
+	mux.HandleFunc("GET /api/watch-together/people", user(s.peopleWatchTogether))
+	mux.HandleFunc("GET /api/watch-together/rooms", user(s.listWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/rooms", user(s.createInvitedWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/rooms/{id}/join", user(s.acceptWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/rooms/{id}/dismiss", user(s.dismissWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/{id}/people", user(s.inviteWatchTogether))
 	mux.HandleFunc("GET /api/watch-together/{id}", user(s.getWatchTogether))
 	mux.HandleFunc("POST /api/watch-together/{id}/leave", user(s.leaveWatchTogether))
 	mux.HandleFunc("POST /api/watch-together/{id}/commands", user(s.commandWatchTogether))

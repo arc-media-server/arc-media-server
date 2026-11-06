@@ -49,7 +49,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-205 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+211 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -458,6 +458,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/watch-together/join` | profile | {code} joins an unexpired invite only if the profile may play the current movie/episode. Wrong, expired and restricted invites all return 404. |
 | GET | `/api/watch-together/time` | profile | ?client_sent_ms=... echoes an optional integer client timestamp and server receive/send epoch milliseconds for midpoint/RTT clock estimation. |
 | GET | `/api/watch-together/current` | profile | Recovers only this device/profile's own active membership (404 if none). Use after reload or a lost create/join response; never lists rooms. |
+| GET | `/api/watch-together/people` | profile | ?item_id= lists who this profile may invite, and whether each may play the title. Names and colours only. |
+| GET | `/api/watch-together/rooms` | profile | Lists the rooms this profile made, was invited to or is in, newest first, for Home's Watch Together row. Rooms whose title it may not play are left out. Rooms are private: nobody else's appear. |
+| POST | `/api/watch-together/rooms` | profile | {item_id,start_ms,profile_ids} makes a room for the chosen people: nobody is in it until they join from their room lists (the host too). It waits an hour for them. Each person must be someone this profile may invite (GET .../people) and may play the title. The code is returned as for any room. |
+| POST | `/api/watch-together/rooms/{id}/join` | profile | Joins a room from this profile's list (no code), if it may play the room's title. Returns the personalized room. |
+| POST | `/api/watch-together/rooms/{id}/dismiss` | profile | Takes a room off this profile's list. Someone invited declines; the profile that made it cancels it for everyone. |
+| POST | `/api/watch-together/{id}/people` | profile | {profile_ids} invites more people to a room (host only, members only). Returns the personalized room with them in `invited`. |
 | GET | `/api/watch-together/{id}` | profile | Returns a member-only personalized timeline. A member denied a changed title remains present with available:false and no item/id metadata. |
 | POST | `/api/watch-together/{id}/leave` | profile | Leaves this device/profile only. The oldest remaining participant inherits host control. Personal playback/history is untouched. |
 | POST | `/api/watch-together/{id}/commands` | profile | {revision,action,position_ms,item_id}. Actions play/pause/seek/change_item are shared controls; only the host may end. Seek and item changes increment generation so readiness for older media/positions cannot release the barrier. A stale revision returns 409 with the current personalized room. No playback session is created. |

@@ -44,6 +44,11 @@ type watchRoomDTO struct {
 	ItemID       string           `json:"item_id,omitempty"`
 	Item         *watchItemDTO    `json:"item,omitempty"`
 	Participants []watchMemberDTO `json:"participants"`
+	// People invited by name who aren't in the room now.
+	Invited []watchInvitedDTO `json:"invited"`
+}
+type watchInvitedDTO struct {
+	Name string `json:"name"`
 }
 type watchInviteDTO struct {
 	Room              watchRoomDTO `json:"room"`
@@ -102,7 +107,10 @@ func (s *Server) watchView(r *http.Request, room watchtogether.Snapshot) (watchR
 	if err != nil {
 		return watchRoomDTO{}, err
 	}
-	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, HostID: room.HostID, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}}
+	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, HostID: room.HostID, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}, Invited: []watchInvitedDTO{}}
+	for _, p := range room.Invited {
+		out.Invited = append(out.Invited, watchInvitedDTO{Name: p.Name})
+	}
 	for _, p := range room.Members {
 		if p.Actor.Key() == actor.Key() {
 			out.SelfID = p.ID
