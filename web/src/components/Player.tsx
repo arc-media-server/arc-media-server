@@ -46,7 +46,9 @@ import { Button } from './ui/button';
 import { SubtitleSearch } from './SubtitleSearch';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { maxQueueEntries, QueueMirror } from '@/lib/play-queue';
+import { correction } from '@/lib/watch-together';
 import { CastSession, chooseChromecast, useCastAvailable, type CastText } from './Cast';
+import { TogetherMenu, TogetherWaiting, useTogetherNotice, useWatchTogether } from './WatchTogether';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 export interface NowPlaying {
@@ -64,6 +66,8 @@ export interface NowPlaying {
   preroll?: boolean;
   /** Explicit preplay choices belong to this source file, never another episode/version. */
   selection?: { fileId: number; audioStream?: number; subtitle?: string | null; burnSubtitle?: string };
+  /** Played in a Watch Together room: the room decides where and whether it plays. */
+  together?: boolean;
 }
 
 interface QueuedItem extends NowPlaying {
@@ -91,7 +95,7 @@ const QueueContext = createContext<QueueControls>({ state: null, notice: '', enq
 export const usePlaybackQueue = () => useContext(QueueContext);
 let queueSequence = 0;
 const queued = (item: NowPlaying): QueuedItem => ({ ...item, queueId: 'queue-' + (++queueSequence) });
-const mirrorable = (item: NowPlaying) => !!item.itemId && !item.preroll;
+const mirrorable = (item: NowPlaying) => !!item.itemId && !item.preroll && !item.together;
 
 /** A server queue entry as something the player can play (or skip, when it is unavailable). */
 function entryItem(entry: PlayQueueEntry): QueuedItem {
@@ -177,7 +181,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     } else mirror.end();
     // A movie played from the start gets the pre-roll videos set in Settings first.
-    if (!item.itemId || item.preroll || (item.startMS ?? 0) > 0) {
+    if (!item.itemId || item.preroll || item.together || (item.startMS ?? 0) > 0) {
       setQueue(start);
       return;
     }
@@ -193,6 +197,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
   }, [mirror, track]);
   const go = useCallback((delta: number) => setQueue((q) => (q && q.items[q.index + delta] ? { ...q, index: q.index + delta } : q)), []);
+  // Watch Together: the player plays the room's title, from where the room is.
+  const together = useWatchTogether();
+  const roomItem = together.room?.available ? together.room.item_id : undefined;
+  const followed = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const session = together.session;
+    if (!session || !roomItem) { followed.current = undefined; return; }
+    const key = session.room.id + ':' + roomItem + ':' + session.room.generation;
+    if (followed.current?.startsWith(session.room.id + ':' + roomItem + ':')) return; // already playing it
+    followed.current = key;
+    let cancelled = false;
+    api.item(roomItem).then((it) => {
+      if (cancelled) return;
+      play({ ...nowPlayingFor(it, true), startMS: session.expected(), together: true });
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [together.session, roomItem, play]);
   // Auto-Play: an episode with nothing queued after it carries on with the next one in the
   // profile's episode order (the countdown, Next and Shift+N then work as in a playlist).
   const autoPlay = usePrefs().data?.auto_play !== false;
@@ -245,8 +266,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [current, hasNext, autoPlay, blockedNextFor, mirror]);
   // Closing the player discards the queue; leaving the profile keeps it to pick up later.
+  const leaveRoom = together.leave;
+  const inRoom = !!together.session;
   const close = useCallback((keep = false) => {
     playGeneration.current++;
+    // Closing the player leaves the Watch Together room (the others carry on).
+    if (inRoom) void leaveRoom();
     setQueue(null);
     setNotice('');
     if (keep) mirror.release();
@@ -255,13 +280,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => {
       for (const key of ['item', 'items', 'seasons', 'continue', 'next-up']) qc.invalidateQueries({ queryKey: [key] });
     }, 300);
-  }, [qc, mirror]);
+  }, [qc, mirror, inRoom, leaveRoom]);
   // An entry the server can no longer play is skipped (it stays listed until it's removed).
   useEffect(() => {
     if (!current?.unavailable) return;
     if (hasNext) go(1);
     else close();
   }, [current, hasNext, go, close]);
+  // In a room, Up Next is the host's: everyone else follows when the host moves on.
+  const roomNext = (current: QueuedItem, nextItem: QueuedItem | undefined) => {
+    if (!current.together || !together.session) return nextItem;
+    return together.room?.host_id === together.room?.self_id ? nextItem : undefined;
+  };
   const controls: QueueControls = {
     state: queue,
     notice,
@@ -310,8 +340,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           <PlayerOverlay
             key={queue.items[queue.index].queueId}
             item={queue.items[queue.index]}
-            next={queue.items[queue.index + 1]}
-            onNext={() => go(1)}
+            next={roomNext(queue.items[queue.index], queue.items[queue.index + 1])}
+            onNext={() => {
+              const nextItem = queue.items[queue.index + 1];
+              // In a room the host moves everyone to the next title; the room then plays it here.
+              if (queue.items[queue.index].together && together.session && nextItem?.itemId) void together.session.changeItem(nextItem.itemId).catch(() => undefined);
+              else go(1);
+            }}
             onPrevious={queue.index > 0 && !queue.items[queue.index - 1].preroll ? () => go(-1) : undefined}
             onClose={() => close()}
             registerFlush={registerFlush}
@@ -355,6 +390,11 @@ function PlayerOverlay({
 }) {
   const { t } = useTranslation('player');
   const queue = usePlaybackQueue();
+  // Watch Together: in a room, Play/Pause and seeking go to the room, and this player follows it.
+  const together = useWatchTogether();
+  const session = item.together ? together.session : null;
+  const room = item.together ? together.room : null;
+  const togetherNotice = useTogetherNotice(room);
   const overlayRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (minimized) return;
@@ -863,7 +903,7 @@ function PlayerOverlay({
     return () => window.clearInterval(localValue);
   }, [planState?.session_id]);
 
-  const seekTo = useCallback(
+  const seekLocal = useCallback(
     (target: number) => {
       const v = video.current;
       const p = plan.current;
@@ -892,8 +932,20 @@ function PlayerOverlay({
     },
     [durationMS, load],
   );
+  // In a room a seek moves everyone: this player goes there at once (so repeated presses add up),
+  // and the room brings the others; if the room refuses, following it brings this one back.
+  const seekTo = useCallback(
+    (target: number) => {
+      if (!session) return seekLocal(target);
+      const dur = durationMS || (video.current?.duration || 0) * 1000;
+      const to = Math.max(0, dur ? Math.min(target, dur - 500) : target);
+      seekLocal(to);
+      void session.seek(to).catch(() => undefined);
+    },
+    [session, seekLocal, durationMS],
+  );
 
-  const togglePlay = useCallback(() => {
+  const toggleLocal = useCallback(() => {
     const v = video.current;
     if (!v) return;
     if (adaptiveLoading.current && requestedPosition.current !== null) {
@@ -908,6 +960,53 @@ function PlayerOverlay({
     if (v.paused) v.play().catch(() => {});
     else v.pause();
   }, []);
+  const togglePlay = useCallback(() => {
+    if (!session || !room) return toggleLocal();
+    void (room.state === 'paused' ? session.play() : session.pause()).catch(() => undefined);
+  }, [session, room, toggleLocal]);
+
+  // Follow the room: play or pause with it, and stay within half a second of where it should be
+  // (a small speed change for small drift, a jump for large) (docs/WATCH-TOGETHER-API.md).
+  const roomRef = useRef(room);
+  roomRef.current = room;
+  useEffect(() => {
+    if (!session) return;
+    const follow = () => {
+      const v = video.current;
+      const r = roomRef.current;
+      if (!v || !r || !r.available || loading || castOn.current) return;
+      const expected = session.expected();
+      const local = absMS();
+      if (r.state === 'playing') {
+        if (v.paused) { playIntent.current = true; v.play().catch(() => {}); }
+        const c = correction(local, expected);
+        if (c.kind === 'seek') { v.playbackRate = 1; seekLocal(c.to); }
+        else v.playbackRate = c.kind === 'rate' ? c.rate : 1;
+      } else {
+        v.playbackRate = 1;
+        if (!v.paused) { playIntent.current = false; v.pause(); }
+        if (Math.abs(local - expected) > 1000) seekLocal(expected);
+      }
+    };
+    follow();
+    const timer = window.setInterval(follow, 500);
+    return () => window.clearInterval(timer);
+  }, [session, room?.revision, room?.generation, loading, absMS, seekLocal]);
+
+  // What this player tells the room: where it is, and whether it's ready or still loading.
+  useEffect(() => {
+    if (!session) return;
+    session.setReporter(() => {
+      const v = video.current;
+      if (!v) return null;
+      const buffering = loading || v.seeking || v.readyState < 3;
+      return { positionMS: absMS(), state: buffering ? 'waiting' : v.paused ? 'paused' : 'playing', ready: !buffering };
+    });
+    return () => session.setReporter(undefined);
+  }, [session, loading, absMS]);
+  useEffect(() => {
+    session?.reportNow();
+  }, [session, loading]);
 
   // Picture-in-Picture: the video in a small floating window.
   const [pip, setPip] = useState(false);
@@ -1139,6 +1238,18 @@ function PlayerOverlay({
       onMouseMove={poke}
     >
       {trackNotice && <p role="status" className="absolute left-4 right-4 top-20 z-20 rounded-xl bg-black/80 p-3 text-sm text-white">{trackNotice}</p>}
+      {room?.state === 'waiting' && session && !minimized && <TogetherWaiting room={room} serverNow={() => session.serverNow()} />}
+      {room && !room.available && !minimized && (
+        <p role="status" className="absolute inset-x-4 top-24 z-20 mx-auto max-w-md rounded-xl bg-black/80 p-3 text-center text-sm text-white">{t('player:together.unavailable')}</p>
+      )}
+      {togetherNotice && !minimized && (
+        <p role="status" className="pointer-events-none absolute inset-x-0 top-24 z-20 mx-auto w-fit rounded-full bg-black/75 px-4 py-2 text-sm text-white ring-1 ring-white/15">{togetherNotice}</p>
+      )}
+      {item.together && !together.session && together.ended && !minimized && (
+        <p role="status" className="pointer-events-none absolute inset-x-0 top-24 z-20 mx-auto w-fit rounded-full bg-black/75 px-4 py-2 text-sm text-white ring-1 ring-white/15">
+          {together.ended === 'ended' ? t('player:together.endedByHost') : t('player:together.lost')}
+        </p>
+      )}
       {castFrom !== null && item.itemId ? (
         <CastSession
           itemId={item.itemId}
@@ -1249,6 +1360,10 @@ function PlayerOverlay({
           {item.subtitle && <p className="text-sm text-white/60">{item.subtitle}</p>}
         </div>
         <div className="pointer-events-auto flex shrink-0 gap-2">
+        {room && !minimized && (
+          <TogetherMenu room={room} invite={together.invite} onOpenChange={setMenuOpen}
+            onLeave={onClose} onEnd={() => void together.end().catch(() => undefined)} onRenew={() => void together.renew().catch(() => undefined)} />
+        )}
         <Button variant="glass" size="icon" aria-label={minimized ? t("player:player.expandPlayer") : t("player:player.minimizePlayer")} onClick={() => { if (!minimized && document.fullscreenElement) void document.exitFullscreen(); onMinimize(); }}>{minimized ? <Maximize /> : <Minimize />}</Button>
         <Button variant="glass" size="icon" className="pointer-events-auto" aria-label={t("player:player.closePlayer")} onClick={onClose}>
           <X />
@@ -1482,15 +1597,17 @@ function PlayerOverlay({
               </PlayerMenu>
             )}
             <ControlButton label={t("player:player.playbackQueue")} onClick={() => setQueueOpen(true)}><ListVideo /></ControlButton>
-            <PlayerMenu icon={<Gauge />} label={t("player:player.speed")} onOpenChange={setMenuOpen}>
-              <DropdownMenuLabel>{t("player:player.speed")}</DropdownMenuLabel>
-              {speeds.map((s) => (
-                <DropdownMenuItem key={s} onSelect={() => setRate(s)}>
-                  <span className="w-4">{s === rate && <Check className="size-4 text-accent" />}</span>
-                  {s === 1 ? t("player:player.normal") : `${s}×`}
-                </DropdownMenuItem>
-              ))}
-            </PlayerMenu>
+            {!session && (
+              <PlayerMenu icon={<Gauge />} label={t("player:player.speed")} onOpenChange={setMenuOpen}>
+                <DropdownMenuLabel>{t("player:player.speed")}</DropdownMenuLabel>
+                {speeds.map((s) => (
+                  <DropdownMenuItem key={s} onSelect={() => setRate(s)}>
+                    <span className="w-4">{s === rate && <Check className="size-4 text-accent" />}</span>
+                    {s === 1 ? t("player:player.normal") : `${s}×`}
+                  </DropdownMenuItem>
+                ))}
+              </PlayerMenu>
+            )}
             {planState && (
               <PlayerMenu icon={<Info />} label={t("player:player.playbackInfo")} onOpenChange={setMenuOpen}>
                 <DropdownMenuLabel>{methodLabel(planState).title}</DropdownMenuLabel>

@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { Compass } from 'lucide-react';
 import { MobileBar, Sidebar } from './components/Sidebar';
 import { PlayerProvider } from './components/Player';
+import { WatchTogetherProvider } from './components/WatchTogether';
 import { MatchUpdates } from './components/FixMatch';
 import { EmptyState, Page } from './components/Page';
 import { Home } from './pages/Home';
@@ -40,6 +41,7 @@ export function App() {
 
   return (
     <AuthGate>
+      <WatchTogetherProvider>
       <PlayerProvider>
         <ProfileTheme />
         <LiveUpdates />
@@ -81,6 +83,7 @@ export function App() {
           </Routes>
         </main>
       </PlayerProvider>
+      </WatchTogetherProvider>
     </AuthGate>
   );
 }

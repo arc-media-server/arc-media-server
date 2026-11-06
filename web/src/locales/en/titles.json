@@ -85,7 +85,8 @@
     "unmatchTitle": "Unmatch {{title}}?",
     "unmatchConfirm": "Unmatch",
     "unmatchResets": "Arc forgets what it downloaded for this show (details, artwork and episode names) along with any edits you made and its display orders. It's shown by its file names until you use Fix Match to identify it again; refreshing won't undo this.",
-    "unmatchKeeps": "Your files are untouched, and watch history, playlists and your own collections are kept."
+    "unmatchKeeps": "Your files are untouched, and watch history, playlists and your own collections are kept.",
+    "watchTogether": "Watch Together"
   },
   "cardMenu": {
     "removeFromContinueWatching": "Remove from Continue Watching",

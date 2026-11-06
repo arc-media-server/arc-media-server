@@ -34,7 +34,9 @@
     "toneMapped": "HDR mapped to SDR",
     "subtitlesBurned": "Subtitles drawn into the video",
     "convertedTo": "Converted to {{time}}",
-    "convertedAhead": "Converted to {{time}} ({{ahead}} ahead)"
+    "convertedAhead": "Converted to {{time}} ({{ahead}} ahead)",
+    "watchTogether_one": "Watch Together · {{count}} person",
+    "watchTogether_other": "Watch Together · {{count}} people"
   },
   "insights": {
     "insights": "Insights",

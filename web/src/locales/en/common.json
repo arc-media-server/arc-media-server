@@ -99,7 +99,8 @@
     "named": "Profile: {{name}}",
     "signOut": "Sign Out",
     "switchProfile": "Switch Profile",
-    "yearInReview": "Your Year in Review"
+    "yearInReview": "Your Year in Review",
+    "joinWatchTogether": "Join Watch Together…"
   },
   "rows": {
     "cards": "{{title}} cards",
