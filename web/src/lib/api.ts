@@ -690,7 +690,15 @@ export interface LibraryFacets {
   /** Original languages, most titles first. */
   languages: Facet[];
   labels: Facet[];
+  /** Media details of present files, most titles first (absent from older servers). */
+  video_codecs?: Facet[];
+  audio_codecs?: Facet[];
+  audio_channels?: Facet[];
+  dynamic_ranges?: Facet[];
 }
+
+export type DynamicRange = 'dolby_vision' | 'hdr10_plus' | 'hlg' | 'hdr10' | 'sdr' | 'unknown';
+export type WatchState = 'played' | 'unstarted';
 
 export interface ItemQuery {
   library_id?: number;
@@ -705,6 +713,14 @@ export interface ItemQuery {
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
+  /** ffprobe codec name, e.g. hevc or truehd. */
+  video_codec?: string;
+  audio_codec?: string;
+  /** Exact audio channel count: 6 is 5.1, 8 is 7.1. */
+  audio_channels?: number;
+  dynamic_range?: DynamicRange;
+  /** Watched, or not started at all (unwatched, which includes in progress, is `unwatched`). */
+  watch_state?: WatchState;
   /** Only titles Arc couldn't identify, and shows with episodes it couldn't place. */
   unmatched?: boolean;
   /** Added in the last this many days. */
@@ -737,6 +753,14 @@ export interface RowFilter {
   decade?: number;
   resolution?: Resolution;
   unwatched?: boolean;
+  /** ffprobe codec name, e.g. hevc or truehd. */
+  video_codec?: string;
+  audio_codec?: string;
+  /** Exact audio channel count: 6 is 5.1, 8 is 7.1. */
+  audio_channels?: number;
+  dynamic_range?: DynamicRange;
+  /** Watched, or not started at all (unwatched, which includes in progress, is `unwatched`). */
+  watch_state?: WatchState;
   added_within?: number;
   min_runtime?: number;
   max_runtime?: number;

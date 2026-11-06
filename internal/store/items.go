@@ -616,6 +616,14 @@ type LibraryFacets struct {
 	// Original languages (2-letter codes), most titles first.
 	Languages []Facet `json:"languages"`
 	Labels    []Facet `json:"labels"`
+	// Media details of the present files, by titles (a show counts once if any episode matches):
+	// ffprobe codec names (lower case), audio channel counts ("6" is 5.1) and dynamic ranges
+	// (dolby_vision, hdr10_plus, hlg, hdr10, sdr, unknown). Most titles first. Each value works
+	// as the matching /items filter (video_codec, audio_codec, audio_channels, dynamic_range).
+	VideoCodecs   []Facet `json:"video_codecs"`
+	AudioCodecs   []Facet `json:"audio_codecs"`
+	AudioChannels []Facet `json:"audio_channels"`
+	DynamicRanges []Facet `json:"dynamic_ranges"`
 }
 
 // Facet is one filter value and how many titles have it.
@@ -665,6 +673,46 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 	}
 	if out.Decades, err = query(`SELECT CAST(year / 10 * 10 AS TEXT), COUNT(*) FROM items
 		WHERE ` + base + ` AND year > 0 GROUP BY year / 10 ORDER BY year / 10 DESC`); err != nil {
+		return out, err
+	}
+	// Streams of each title's present files: a movie's own, or a show's accessible episodes'.
+	child, childArgs := acc.Conds("e")
+	identity := "(e.id = items.id OR (items.kind = 'series' AND e.parent_id = items.id))"
+	if len(child) > 0 {
+		identity += " AND " + strings.Join(child, " AND ")
+	}
+	media := func(value, streamKind, extra string) ([]Facet, error) {
+		q := `SELECT v, COUNT(DISTINCT id) FROM (SELECT items.id AS id, ` + value + ` AS v FROM items
+			JOIN items e ON ` + identity + `
+			JOIN item_files f ON f.item_id = e.id JOIN media_files m ON m.id = f.file_id
+			JOIN media_streams st ON st.file_id = m.id
+			WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = '` + streamKind + `'` + extra + `)
+			GROUP BY v ORDER BY COUNT(DISTINCT id) DESC, v`
+		rows, err := s.db.QueryContext(ctx, q, append(append([]any{}, childArgs...), args...)...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		out := []Facet{}
+		for rows.Next() {
+			var f Facet
+			if err := rows.Scan(&f.Value, &f.Count); err != nil {
+				return nil, err
+			}
+			out = append(out, f)
+		}
+		return out, rows.Err()
+	}
+	if out.VideoCodecs, err = media("LOWER(st.codec)", "video", " AND st.codec <> ''"); err != nil {
+		return out, err
+	}
+	if out.DynamicRanges, err = media(dynamicRangeSQL, "video", ""); err != nil {
+		return out, err
+	}
+	if out.AudioCodecs, err = media("LOWER(st.codec)", "audio", " AND st.codec <> ''"); err != nil {
+		return out, err
+	}
+	if out.AudioChannels, err = media("CAST(st.channels AS TEXT)", "audio", " AND st.channels > 0"); err != nil {
 		return out, err
 	}
 	out.Resolutions = []Facet{}
