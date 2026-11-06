@@ -145,6 +145,12 @@ func (a *analyzer) walk(fn *ast.FuncDecl, info *handlerInfo, seen map[*ast.FuncD
 					info.responses[status] = nil
 				}
 			}
+		case name == "decodeWatch" && recv == "" && len(call.Args) == 3:
+			// The bounded shared decoder receives the concrete request pointer at the call
+			// site. Its internal EOF check decodes an empty struct, not the request schema.
+			if p, ok := ti.TypeOf(call.Args[2]).(*types.Pointer); ok {
+				info.request = p.Elem()
+			}
 		case name == "Decode" && len(call.Args) == 1 && info.request == nil && isJSONDecoder(ti.TypeOf(call.Fun.(*ast.SelectorExpr).X)):
 			// Handlers decode only the request body with a JSON decoder.
 			if p, ok := ti.TypeOf(call.Args[0]).(*types.Pointer); ok {
@@ -529,8 +535,8 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 			}
 			responses[strconv.Itoa(status)] = resp
 		}
-		if r.handler == "eventStream" {
-			responses["200"] = map[string]any{"description": "Server-Sent Events: invalidate and resync hints; see docs/EVENTS-API.md", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
+		if r.handler == "eventStream" || r.handler == "watchTogetherEvents" {
+			responses["200"] = map[string]any{"description": "Server-Sent Events; see docs/EVENTS-API.md and docs/WATCH-TOGETHER-API.md", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
 		}
 		if info.binary && responses["200"] == nil && responses["206"] == nil {
 			responses["200"] = map[string]any{"description": "The file or stream", "content": map[string]any{"application/octet-stream": map[string]any{}}}
