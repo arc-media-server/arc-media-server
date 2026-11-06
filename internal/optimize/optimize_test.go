@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"ams/internal/events"
 	"ams/internal/store"
 )
 
@@ -264,6 +265,8 @@ func TestOptimizedRestartPrunesOnlyOwnedOutput(t *testing.T) {
 
 func TestInterruptedOptimizationResumes(t *testing.T) {
 	x := conversionTest(t)
+	x.m.Events = events.New()
+	_, cursor, _ := x.m.Events.Read("")
 	helperConverter(t, x)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -273,6 +276,10 @@ func TestInterruptedOptimizationResumes(t *testing.T) {
 	result := make(chan error, 1)
 	go func() { result <- x.m.convert(ctx, o, nil) }()
 	waitReady(t, watchdog, x.root)
+	hints, cursor, stale := x.m.Events.Read(cursor)
+	if stale || len(hints) != 1 || hints[0].Topic != "optimized" || hints[0].LibraryID != x.f.LibraryID {
+		t.Fatalf("claim hints: %+v", hints)
+	}
 	cancel()
 	select {
 	case err := <-result:
@@ -286,6 +293,10 @@ func TestInterruptedOptimizationResumes(t *testing.T) {
 	if err != nil || len(list) != 1 || list[0].Status != "converting" {
 		t.Fatalf("interrupted work not resumable: %+v %v", list, err)
 	}
+	hints, cursor, stale = x.m.Events.Read(cursor)
+	if stale || len(hints) != 1 || hints[0].Topic != "optimized" {
+		t.Fatalf("interruption hints: %+v", hints)
+	}
 	if err := x.st.ResetConverting(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -298,6 +309,15 @@ func TestInterruptedOptimizationResumes(t *testing.T) {
 	}
 	if err := x.m.convert(t.Context(), next, nil); err != nil {
 		t.Fatal(err)
+	}
+	hints, _, stale = x.m.Events.Read(cursor)
+	if stale || len(hints) != 2 {
+		t.Fatalf("completion hints: %+v", hints)
+	}
+	for _, hint := range hints {
+		if hint.Topic != "optimized" {
+			t.Fatalf("unexpected hint: %+v", hint)
+		}
 	}
 	copy := x.copy(t, 720)
 	if !Usable(&copy, x.f) {

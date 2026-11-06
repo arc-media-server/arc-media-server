@@ -12,15 +12,21 @@ func (s *Server) remoteStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.remote.Status(r.Context()))
 }
 
+type remoteCheckDTO struct {
+	Reachable bool    `json:"reachable"`
+	Error     *string `json:"error,omitempty"`
+}
+
 // remoteCheck: POST /api/remote/check (admin) tries to reach Arc at its outside address.
 func (s *Server) remoteCheck(w http.ResponseWriter, r *http.Request) {
 	if s.remote == nil {
 		writeError(w, http.StatusNotFound, "remote access isn't available")
 		return
 	}
-	out := map[string]any{"reachable": true}
+	out := remoteCheckDTO{Reachable: true}
 	if err := s.remote.Check(r.Context()); err != nil {
-		out = map[string]any{"reachable": false, "error": err.Error()}
+		message := err.Error()
+		out = remoteCheckDTO{Reachable: false, Error: &message}
 	}
 	writeJSON(w, http.StatusOK, out)
 }

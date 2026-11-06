@@ -34,13 +34,15 @@ import (
 	"ams/internal/sysstats"
 	"ams/internal/transcode"
 	"ams/internal/trickplay"
+	"ams/internal/watchtogether"
 	"ams/internal/webui"
 )
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
-	Events       *events.Hub
-	WatchProblem func(int64) string
+	WatchTogether *watchtogether.Manager
+	Events        *events.Hub
+	WatchProblem  func(int64) string
 
 	Store   *store.Store
 	Scanner *scanner.Scanner
@@ -86,6 +88,8 @@ type Deps struct {
 }
 
 type Server struct {
+	watchTogether  *watchtogether.Manager
+	watchRecheck   time.Duration
 	events         *events.Hub
 	eventHeartbeat time.Duration
 	requests       requestDiagnostics
@@ -147,6 +151,10 @@ func New(d Deps) http.Handler {
 	if s.artwork != nil {
 		s.palettes = palette.New(s.artwork.PaletteDir())
 	}
+	s.watchTogether = d.WatchTogether
+	if s.watchTogether == nil {
+		s.watchTogether = watchtogether.New(s.log)
+	}
 	mux := http.NewServeMux()
 	s.revision = d.Revision
 	s.events = d.Events
@@ -176,6 +184,17 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))
 	mux.HandleFunc("GET /api/diagnostics/download", admin(s.downloadDiagnostics))
 	mux.HandleFunc("GET /api/events", user(s.eventStream))
+	mux.HandleFunc("POST /api/watch-together", user(s.createWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/join", user(s.joinWatchTogether))
+	mux.HandleFunc("GET /api/watch-together/time", user(s.watchTogetherTime))
+	mux.HandleFunc("GET /api/watch-together/current", user(s.currentWatchTogether))
+	mux.HandleFunc("GET /api/watch-together/{id}", user(s.getWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/{id}/leave", user(s.leaveWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/{id}/commands", user(s.commandWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/{id}/heartbeat", user(s.heartbeatWatchTogether))
+	mux.HandleFunc("POST /api/watch-together/{id}/invite", user(s.renewWatchInvite))
+	mux.HandleFunc("GET /api/watch-together/{id}/events", user(s.watchTogetherEvents))
+
 	mux.HandleFunc("GET /api/identity", user(s.identity))
 	mux.HandleFunc("GET /api/capabilities", user(s.capabilities))
 	mux.HandleFunc("GET /api/libraries", user(s.listLibraries))
@@ -457,7 +476,15 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	requestStage(r, "counting library titles", 0)
-	counts, err := s.store.LibraryCounts(r.Context())
+	acc := access(r)
+	visible := make([]store.Library, 0, len(libs))
+	for _, lib := range libs {
+		if acc.LibraryAllowed(lib.ID) {
+			visible = append(visible, lib)
+		}
+	}
+	libs = visible
+	counts, err := s.store.LibraryCountsFor(r.Context(), libs)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -469,12 +496,9 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 		Scan  scanner.Status `json:"scan"`
 	}
 	out := make([]libDTO, 0, len(libs))
-	acc := access(r)
 	for _, l := range libs {
-		if acc.LibraryAllowed(l.ID) {
-			requestStage(r, "reading scanner status", l.ID)
-			out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
-		}
+		requestStage(r, "reading scanner status", l.ID)
+		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
 	}
 	requestStage(r, "writing library response", 0)
 	writeJSON(w, http.StatusOK, out)
@@ -894,6 +918,10 @@ func versioned(next http.Handler) http.Handler {
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = s.requestID(w, r)
+		if strings.HasPrefix(r.URL.Path, "/api/watch-together") {
+			w.Header().Set("Cache-Control", "private, no-store")
+			w.Header().Set("X-Arc-Server-Time-Ms", strconv.FormatInt(time.Now().UnixMilli(), 10))
+		}
 		route := "unmatched route"
 		if mux, ok := next.(*http.ServeMux); ok {
 			_, pattern := mux.Handler(r)

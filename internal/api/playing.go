@@ -328,6 +328,9 @@ func deviceName(ua string) string {
 }
 
 type playbackDTO struct {
+	WatchTogetherRoomID       string `json:"watch_together_room_id,omitempty"`
+	WatchTogetherParticipants int    `json:"watch_together_participants,omitempty"`
+
 	ID      string     `json:"id"`
 	Profile profileDTO `json:"profile"`
 	Item    itemDTO    `json:"item"`
@@ -362,6 +365,10 @@ func (s *Server) listPlaying(w http.ResponseWriter, r *http.Request) {
 		}
 		d := playbackDTO{ID: p.id, Profile: toProfile(user), Device: p.device, Address: p.address,
 			Method: cmp.Or(p.method, "direct"), PositionMS: p.positionMS, DurationMS: p.durationMS, StartedAt: p.started.Unix()}
+		if s.watchTogether != nil && p.extraID == "" {
+			session, _, _ := strings.Cut(p.key, "|")
+			d.WatchTogetherRoomID, d.WatchTogetherParticipants = s.watchTogether.PlayingInfo(session, p.userID, p.itemID)
+		}
 		if p.sessionID != "" && s.transcoder != nil {
 			if sess := s.transcoder.Peek(p.sessionID); sess != nil {
 				d.Throttled = sess.Throttled()

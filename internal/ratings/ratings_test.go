@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"ams/internal/events"
 	"ams/internal/store"
 )
 
@@ -93,6 +94,8 @@ func TestPassDoesNotDownloadOrApplyIMDb(t *testing.T) {
 			t.Setenv("AMS_OMDB_URL", srv.URL)
 			m := New(t.TempDir(), st, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			m.SetOMDbKey("fixture-key")
+			m.Events = events.New()
+			_, cursor, _ := m.Events.Read("")
 			if cached {
 				f, err := os.Create(m.file())
 				if err != nil {
@@ -110,6 +113,10 @@ func TestPassDoesNotDownloadOrApplyIMDb(t *testing.T) {
 				}
 			}
 			m.pass(ctx)
+			hints, _, stale := m.Events.Read(cursor)
+			if stale || len(hints) != 1 || hints[0].Topic != "catalog" || hints[0].LibraryID != lib {
+				t.Fatalf("critic update hints: %+v stale=%v", hints, stale)
+			}
 			if n := requests.Load(); n != 0 {
 				t.Fatalf("IMDb requests = %d, want none", n)
 			}

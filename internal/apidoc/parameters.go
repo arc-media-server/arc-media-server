@@ -29,6 +29,9 @@ func queryParameter(handler, name string) (map[string]any, error) {
 		schema["minimum"] = 1
 		schema["maximum"] = b[1]
 		schema["default"] = b[0]
+	case "client_sent_ms":
+		integer("The client's own send time in epoch milliseconds, echoed back for clock-offset and round-trip estimates (Watch Together). Optional; must be nonnegative.")
+		schema["minimum"] = 0
 	case "offset":
 		integer("Zero-based page offset; continue with returned offset + items.length. Browse clamps negative values to zero; lookup/recommendation reject invalid/out-of-range values.")
 		schema["minimum"] = 0

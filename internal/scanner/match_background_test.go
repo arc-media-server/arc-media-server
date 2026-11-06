@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"ams/internal/activity"
+	"ams/internal/events"
 	"ams/internal/metadata"
 	"ams/internal/store"
 )
@@ -73,6 +74,8 @@ func checkEpisodes(t *testing.T, st *store.Store, lib int64, show string) []stor
 func TestSetMatchReturnsBeforeEpisodesAreFetched(t *testing.T) {
 	ctx := context.Background()
 	st, s, lib, it, f := matchSetup(t, 0)
+	s.Events = events.New()
+	_, cursor, _ := s.Events.Read("")
 	release := f.hold()
 	defer release()
 
@@ -102,8 +105,16 @@ func TestSetMatchReturnsBeforeEpisodesAreFetched(t *testing.T) {
 		t.Fatal("Matching = false while the background part runs")
 	}
 
+	hints, cursor, stale := s.Events.Read(cursor)
+	if stale || len(hints) != 1 || hints[0].Topic != "catalog" || hints[0].LibraryID != lib {
+		t.Fatalf("quick match hints: %+v", hints)
+	}
 	release()
 	s.Wait()
+	hints, _, stale = s.Events.Read(cursor)
+	if stale || len(hints) != 1 || hints[0].Topic != "catalog" || hints[0].LibraryID != lib {
+		t.Fatalf("background completion hints: %+v", hints)
+	}
 	_, recent := s.Activity.Snapshot()
 	if task := findTask(recent, taskID); task == nil || task.Error != "" {
 		t.Fatalf("background task didn't finish cleanly: %+v", task)

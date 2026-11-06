@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"ams/internal/events"
 	"context"
 	"fmt"
 	"io/fs"
@@ -229,6 +230,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if series.MatchSuppressed {
 		return nil
 	}
+	defer s.Events.Publish(events.Event{Topic: "catalog", LibraryID: lib.ID})
 	if currentWork(ctx) == nil {
 		var finish func()
 		ctx, finish = s.working(ctx, lib.ID, "Refreshing series", activityTitle(series.Title, series.Year), "Updating known metadata")

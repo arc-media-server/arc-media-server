@@ -96,3 +96,36 @@ func TestGeneratedInputsDescribeActualPartialRequests(t *testing.T) {
 		t.Fatal("request rules weakened response contract")
 	}
 }
+
+func TestWatchTogetherInputSchemasAndStreamContent(t *testing.T) {
+	data, err := os.ReadFile("../../docs/openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err = json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	paths := doc["paths"].(map[string]any)
+	schemas := doc["components"].(map[string]any)["schemas"].(map[string]any)
+	for _, tc := range []struct {
+		path   string
+		fields []string
+	}{{"/watch-together", []string{"item_id", "start_ms"}}, {"/watch-together/join", []string{"code"}}, {"/watch-together/{id}/commands", []string{"revision", "action", "position_ms", "item_id"}}, {"/watch-together/{id}/heartbeat", []string{"generation", "position_ms", "state", "ready"}}} {
+		op := paths[tc.path].(map[string]any)["post"].(map[string]any)
+		schema := op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+		if ref, ok := schema["$ref"].(string); ok {
+			schema = schemas[ref[len("#/components/schemas/"):]].(map[string]any)
+		}
+		properties := schema["properties"].(map[string]any)
+		for _, field := range tc.fields {
+			if _, ok := properties[field]; !ok {
+				t.Errorf("%s missing input %s", tc.path, field)
+			}
+		}
+	}
+	content := paths["/watch-together/{id}/events"].(map[string]any)["get"].(map[string]any)["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)
+	if _, ok := content["text/event-stream"]; !ok {
+		t.Fatal("room events described as JSON")
+	}
+}
