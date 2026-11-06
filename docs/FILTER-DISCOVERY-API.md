@@ -30,6 +30,11 @@ HDR10, known SDR, then unknown. A DV source with an HDR10 base layer is classifi
 not counted again under HDR10. Missing probe metadata never silently becomes SDR. No actual
 output/HDR passthrough/Atmos capability is implied. No analysis/probe/provider work is triggered.
 
-No UI is added. Logging reuses bounded request diagnostics; no per-title info output. Fixture
+`GET /libraries/{id}/facets` lists the values a library actually has, with title counts, most
+titles first: `video_codecs` and `audio_codecs` (lower-case ffprobe names), `audio_channels` (as
+strings, "6" is 5.1) and `dynamic_ranges`. A show counts once through its accessible episodes, and
+the profile's access rules apply. Each value works as the matching `/items` filter, so apps can
+offer only what exists. The web app's Filters panel uses them (Video and audio) together with a
+Watch status choice, as do saved filters for custom Home rows, smart collections and playlists. Logging reuses bounded request diagnostics; no per-title info output. Fixture
 tests verify cross-file/track false positives, DV precedence, SDR/unknown, series access and
 validation. Real devices and large-owner-library timing are not validated.

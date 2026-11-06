@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams
 import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
 import { ChevronDown, FolderSearch, Layers, Loader2, Plus, Sparkles } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
-import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
+import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type DynamicRange, type Collection, type CollectionMode } from '@/lib/api';
 import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
 import { cn } from '@/lib/utils';
 import { kindUnit } from '@/lib/kinds';
@@ -114,6 +114,12 @@ export function LibraryPage() {
     min_runtime: Number(params.get('min_runtime')) || undefined,
     max_runtime: Number(params.get('max_runtime')) || undefined,
     min_rating: Number(params.get('min_rating')) || undefined,
+    video_codec: params.get('video_codec') || undefined,
+    audio_codec: params.get('audio_codec') || undefined,
+    audio_channels: Number(params.get('audio_channels')) || undefined,
+    dynamic_range: (params.get('dynamic_range') as DynamicRange) || undefined,
+    // The server refuses both together; an old link with both keeps Unwatched.
+    watch_state: params.get('unwatched') === '1' ? undefined : (['played', 'unstarted'] as const).find((w) => w === params.get('watch_state')),
   };
   const filtered = Object.values(filters).some(Boolean);
   const clearFilters = () => {
