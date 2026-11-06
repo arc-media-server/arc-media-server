@@ -2995,6 +2995,12 @@
           },
           "throttled": {
             "type": "boolean"
+          },
+          "watch_together_participants": {
+            "type": "integer"
+          },
+          "watch_together_room_id": {
+            "type": "string"
           }
         },
         "required": [
@@ -4661,6 +4667,156 @@
         "required": [
           "file_id",
           "size"
+        ],
+        "type": "object"
+      },
+      "WatchConflict": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "room": {
+            "$ref": "#/components/schemas/WatchRoom"
+          }
+        },
+        "required": [
+          "error",
+          "room"
+        ],
+        "type": "object"
+      },
+      "WatchInvite": {
+        "properties": {
+          "invite_code": {
+            "type": "string"
+          },
+          "invite_expires_at_ms": {
+            "type": "integer"
+          },
+          "room": {
+            "$ref": "#/components/schemas/WatchRoom"
+          }
+        },
+        "required": [
+          "invite_code",
+          "invite_expires_at_ms",
+          "room"
+        ],
+        "type": "object"
+      },
+      "WatchItem": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "type": "object"
+      },
+      "WatchMember": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "available",
+          "id",
+          "name",
+          "ready",
+          "state"
+        ],
+        "type": "object"
+      },
+      "WatchRoom": {
+        "properties": {
+          "at_ms": {
+            "type": "integer"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "changed_by": {
+            "type": "string"
+          },
+          "generation": {
+            "type": "integer"
+          },
+          "host_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/WatchItem"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/WatchMember"
+            },
+            "type": "array"
+          },
+          "position_ms": {
+            "type": "integer"
+          },
+          "rate": {
+            "type": "number"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "self_id": {
+            "type": "string"
+          },
+          "server_time_ms": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "wait_until_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "at_ms",
+          "available",
+          "generation",
+          "host_id",
+          "id",
+          "participants",
+          "position_ms",
+          "rate",
+          "revision",
+          "self_id",
+          "server_time_ms",
+          "state"
         ],
         "type": "object"
       },
@@ -7819,7 +7975,7 @@
                 }
               }
             },
-            "description": "Server-Sent Events: invalidate and resync hints; see docs/EVENTS-API.md"
+            "description": "Server-Sent Events; see docs/EVENTS-API.md and docs/WATCH-TOGETHER-API.md"
           },
           "400": {
             "content": {
@@ -22235,6 +22391,1079 @@
           "Transcoder"
         ],
         "x-arc-access": "admin"
+      }
+    },
+    "/watch-together": {
+      "post": {
+        "description": "{item_id,start_ms} creates a paused room and an expiring readable invite code. Up to 20 rooms/server, 10 participants/room, one active room per device/profile. Existing signed-in household profiles and friends are allowed. No stream starts.\n\nWho may call it: **profile**.",
+        "operationId": "createWatchTogether",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "item_id": {
+                    "type": "string"
+                  },
+                  "start_ms": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "item_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchInvite"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Creates a paused room and an expiring readable invite code",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/current": {
+      "get": {
+        "description": "Recovers only this device/profile's own active membership (404 if none). Use after reload or a lost create/join response; never lists rooms.\n\nWho may call it: **profile**.",
+        "operationId": "currentWatchTogether",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRoom"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Recovers only this device/profile's own active membership",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/join": {
+      "post": {
+        "description": "{code} joins an unexpired invite only if the profile may play the current movie/episode. Wrong, expired and restricted invites all return 404.\n\nWho may call it: **profile**.",
+        "operationId": "joinWatchTogether",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRoom"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Joins an unexpired invite only if the profile may play the current movie/episode",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/time": {
+      "get": {
+        "description": "?client_sent_ms=... echoes an optional integer client timestamp and server receive/send epoch milliseconds for midpoint/RTT clock estimation.\n\nWho may call it: **profile**.",
+        "operationId": "watchTogetherTime",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "client_sent_ms",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "client_sent_ms": {
+                      "type": "integer"
+                    },
+                    "server_received_ms": {
+                      "type": "integer"
+                    },
+                    "server_sent_ms": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "client_sent_ms",
+                    "server_received_ms",
+                    "server_sent_ms"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          }
+        },
+        "summary": "Echoes an optional integer client timestamp and server receive/send epoch milliseconds for midpoint/RTT clock estimation",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}": {
+      "get": {
+        "description": "Returns a member-only personalized timeline. A member denied a changed title remains present with available:false and no item/id metadata.\n\nWho may call it: **profile**.",
+        "operationId": "getWatchTogether",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRoom"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Returns a member-only personalized timeline",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}/commands": {
+      "post": {
+        "description": "{revision,action,position_ms,item_id}. Actions play/pause/seek/change_item are shared controls; only the host may end. Seek and item changes increment generation so readiness for older media/positions cannot release the barrier. A stale revision returns 409 with the current personalized room. No playback session is created.\n\nWho may call it: **profile**.",
+        "operationId": "commandWatchTogether",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "item_id": {
+                    "type": "string"
+                  },
+                  "position_ms": {
+                    "type": "integer"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "action",
+                  "revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRoom"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": ". Actions play/pause/seek/change_item are shared controls; only the host may end. Seek and item changes increment gen…",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}/events": {
+      "get": {
+        "description": "Is a private room SSE stream carrying full personalized room snapshots (event: room, id: revision). It does not consume /events slots. One stream/member (a reconnect replaces the older one), at most 200/server; initial/reconnect always sends the latest snapshot. Changes wake immediately; timeout transitions are checked every 200ms. Auth/access are freshly checked before each payload and at least every two seconds; revoked/switched sessions close. No tokens/codes in URLs. Thirty-minute streams, five-second write deadlines, no event queues.\n\nWho may call it: **profile**.",
+        "operationId": "watchTogetherEvents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-Sent Events; see docs/EVENTS-API.md and docs/WATCH-TOGETHER-API.md"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "A private room SSE stream carrying full personalized room snapshots",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}/heartbeat": {
+      "post": {
+        "description": "{generation,position_ms,state,ready} reports presence/readiness, never changes shared position or watch history. Up to four reports/second. Waiting defaults to ten seconds, then slow viewers catch up themselves. A stale seek/title generation returns 409 with current room state.\n\nWho may call it: **profile**.",
+        "operationId": "heartbeatWatchTogether",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "generation": {
+                    "type": "integer"
+                  },
+                  "position_ms": {
+                    "type": "integer"
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "generation",
+                  "position_ms",
+                  "ready",
+                  "state"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchRoom"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Reports presence/readiness, never changes shared position or watch history",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}/invite": {
+      "post": {
+        "description": "{revision} creates a fresh 15-minute code (host only), invalidating the old one. Codes are returned only at create/renew, never in GET.\n\nWho may call it: **profile**.",
+        "operationId": "renewWatchInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "revision": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchInvite"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Creates a fresh 15-minute code",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/watch-together/{id}/leave": {
+      "post": {
+        "description": "Leaves this device/profile only. The oldest remaining participant inherits host control. Personal playback/history is untouched.\n\nWho may call it: **profile**.",
+        "operationId": "leaveWatchTogether",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchConflict"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too many attempts; wait a moment"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server"
+          }
+        },
+        "summary": "Leaves this device/profile only",
+        "tags": [
+          "Watch together"
+        ],
+        "x-arc-access": "profile"
       }
     },
     "/watchlist": {
