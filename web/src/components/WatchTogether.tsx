@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Check, Copy, Crown, Loader2, LogOut, Users, X } from 'lucide-react';
+import { Check, Copy, Crown, Link2, Loader2, LogOut, Play, Users, X } from 'lucide-react';
 import { api, type Item } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatCode, normalizeCode, RoomError, RoomSession, rooms, type WatchParticipant, type WatchRoom } from '@/lib/watch-together';
@@ -55,6 +55,7 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
   const [invite, setInvite] = useState<Invite | null>(null);
   const [ended, setEnded] = useState<'ended' | 'gone' | null>(null);
   const [joining, setJoining] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
   const [recovered, setRecovered] = useState<WatchRoom | null>(null);
   const [startFailed, setStartFailed] = useState(false);
   const sessionRef = useRef<RoomSession | null>(null);
@@ -84,6 +85,18 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
     rooms.current().then((r) => { if (!cancelled && r && r.state !== 'ended') setRecovered(r); }).catch(() => undefined);
     return () => { cancelled = true; };
   }, [available, profileId]);
+
+  // An invite link (/?together=CODE) opens Join with the code filled in.
+  useEffect(() => {
+    if (!available) return;
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('together');
+    if (!code) return;
+    url.searchParams.delete('together');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    setJoinCode(normalizeCode(code).slice(0, 8));
+    setJoining(true);
+  }, [available]);
 
   // Switching profiles or signing out leaves the sync behind (the server drops it after 30 s).
   useEffect(() => () => { sessionRef.current?.stop(); sessionRef.current = null; }, [profileId]);
@@ -118,13 +131,13 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
       const r = await s.renewInvite();
       setInvite({ code: r.invite_code, expiresAt: r.invite_expires_at_ms });
     },
-    openJoin: () => setJoining(true),
+    openJoin: () => { setJoinCode(''); setJoining(true); },
   };
 
   return (
     <Context.Provider value={value}>
       {children}
-      <JoinDialog open={joining} onOpenChange={setJoining} />
+      <JoinDialog open={joining} onOpenChange={setJoining} initialCode={joinCode} />
       {startFailed && (
         <div role="alert" className="fixed inset-x-4 bottom-6 z-50 mx-auto flex max-w-lg items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm shadow-2xl ring-1 ring-border md:left-[264px]">
           <Users className="size-5 shrink-0 text-warning" />
@@ -149,20 +162,20 @@ function RejoinBanner({ room, onRejoin, onLeave }: { room: WatchRoom; onRejoin: 
     <div role="status" className="fixed inset-x-4 bottom-6 z-50 mx-auto flex max-w-lg flex-wrap items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm shadow-2xl ring-1 ring-border md:left-[264px]">
       <Users className="size-5 shrink-0 text-accent" />
       <p className="min-w-0 flex-1">{room.item ? t('player:together.rejoinTitle', { title: room.item.title }) : t('player:together.rejoin')}</p>
-      <Button size="sm" onClick={onRejoin}>{t('player:together.rejoinAction')}</Button>
+      <Button size="sm" variant="primary" onClick={onRejoin}>{t('player:together.rejoinAction')}</Button>
       <Button size="sm" variant="ghost" onClick={onLeave}>{t('player:together.leave')}</Button>
     </div>
   );
 }
 
 /** "Join Watch Together": type the code the host shares. */
-export function JoinDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function JoinDialog({ open, onOpenChange, initialCode = '' }: { open: boolean; onOpenChange: (open: boolean) => void; initialCode?: string }) {
   const { t } = useTranslation('player');
   const { join } = useWatchTogether();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
-  useEffect(() => { if (open) { setCode(''); setProblem(''); } }, [open]);
+  useEffect(() => { if (open) { setCode(initialCode); setProblem(''); } }, [open, initialCode]);
   const submit = async () => {
     setBusy(true);
     setProblem('');
@@ -191,7 +204,7 @@ export function JoinDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             className="h-12 rounded-xl bg-surface-2 px-4 text-center font-mono text-xl tracking-[0.2em] uppercase ring-1 ring-border focus:outline-none focus:ring-2 focus:ring-accent"
           />
           {problem && <p role="alert" className="text-sm text-warning">{problem}</p>}
-          <Button type="submit" disabled={busy || normalizeCode(code).length !== 8}>
+          <Button type="submit" variant="primary" disabled={busy || normalizeCode(code).length !== 8}>
             {busy && <Loader2 className="animate-spin" />}{t('player:together.joinAction')}
           </Button>
         </form>
@@ -206,18 +219,59 @@ function statusLabel(t: (k: string) => string, p: WatchParticipant) {
   return p.state === 'playing' ? t('player:together.statusWatching') : t('player:together.statusReady');
 }
 
+/** Who's in the room, with the host's crown and each person's state. */
+function ParticipantList({ room, className }: { room: WatchRoom; className?: string }) {
+  const { t } = useTranslation('player');
+  return (
+    <ul className={cn('flex flex-col gap-1', className)}>
+      {room.participants.map((p) => (
+        <li key={p.id} className="flex items-center gap-2 text-sm">
+          <span className={cn('size-2 shrink-0 rounded-full', !p.available ? 'bg-muted' : p.ready ? 'bg-accent' : 'bg-warning')} />
+          <span className="min-w-0 flex-1 truncate">{p.id === room.self_id ? t('player:together.you', { name: p.name }) : p.name}</span>
+          {p.id === room.host_id && <Crown className="size-3.5 text-muted" aria-label={t('player:together.host')} />}
+          <span className="text-xs text-muted">{statusLabel(t, p)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The link that opens Join Watch Together with the code filled in. */
+export const inviteLink = (code: string) => `${window.location.origin}/?together=${formatCode(code)}`;
+
+/** The host's invite: the code (click to copy) and the link, or "Get a new code" once it has run out. */
+function InviteCode({ invite, onRenew, large }: { invite: Invite | null; onRenew: () => void; large?: boolean }) {
+  const { t } = useTranslation('player');
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const expired = !invite || invite.expiresAt <= Date.now();
+  const copy = (what: 'code' | 'link') => {
+    if (!invite) return;
+    const text = what === 'code' ? formatCode(invite.code) : inviteLink(invite.code);
+    void navigator.clipboard?.writeText(text).then(() => { setCopied(what); window.setTimeout(() => setCopied(null), 1500); }).catch(() => undefined);
+  };
+  if (expired) return <Button size="sm" variant="secondary" className="w-full" onClick={onRenew}>{t('player:together.newCode')}</Button>;
+  return (
+    <div className="flex flex-col gap-2">
+      <button type="button" onClick={() => copy('code')}
+        className={cn('flex w-full items-center justify-between rounded-lg bg-surface-2 px-3 font-mono tracking-[0.15em] ring-1 ring-border hover:ring-accent', large ? 'py-3 text-2xl' : 'py-2 text-lg')}
+        aria-label={t('player:together.copyCode', { code: formatCode(invite.code) })}>
+        {formatCode(invite.code)}
+        {copied === 'code' ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted" />}
+      </button>
+      <Button size="sm" variant="secondary" onClick={() => copy('link')}>
+        {copied === 'link' ? <Check className="text-accent" /> : <Link2 />}
+        {copied === 'link' ? t('player:together.linkCopied') : t('player:together.copyLink')}
+      </Button>
+    </div>
+  );
+}
+
 /** The player's people button: who's here and their state, the invite code, Leave and End. */
 export function TogetherMenu({ room, invite, onLeave, onEnd, onRenew, onOpenChange }: {
   room: WatchRoom; invite: Invite | null; onLeave: () => void; onEnd: () => void; onRenew: () => void; onOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation('player');
   const host = room.host_id === room.self_id;
-  const [copied, setCopied] = useState(false);
-  const expired = !!invite && invite.expiresAt <= Date.now();
-  const copy = () => {
-    if (!invite) return;
-    void navigator.clipboard?.writeText(formatCode(invite.code)).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); }).catch(() => undefined);
-  };
   return (
     <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -228,29 +282,13 @@ export function TogetherMenu({ room, invite, onLeave, onEnd, onRenew, onOpenChan
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel>{t('player:together.title')}</DropdownMenuLabel>
-        <ul className="flex flex-col gap-1 px-2 pb-2">
-          {room.participants.map((p) => (
-            <li key={p.id} className="flex items-center gap-2 text-sm">
-              <span className={cn('size-2 shrink-0 rounded-full', !p.available ? 'bg-muted' : p.ready ? 'bg-accent' : 'bg-warning')} />
-              <span className="min-w-0 flex-1 truncate">{p.id === room.self_id ? t('player:together.you', { name: p.name }) : p.name}</span>
-              {p.id === room.host_id && <Crown className="size-3.5 text-muted" aria-label={t('player:together.host')} />}
-              <span className="text-xs text-muted">{statusLabel(t, p)}</span>
-            </li>
-          ))}
-        </ul>
+        <ParticipantList room={room} className="px-2 pb-2" />
         {host && (
           <>
             <DropdownMenuSeparator />
-            <div className="px-2 py-2">
+            <div className="flex flex-col gap-2 px-2 py-2">
               <p className="text-xs text-muted">{t('player:together.inviteHint')}</p>
-              {invite && !expired ? (
-                <button type="button" onClick={copy} className="mt-2 flex w-full items-center justify-between rounded-lg bg-surface-2 px-3 py-2 font-mono text-lg tracking-[0.15em] ring-1 ring-border hover:ring-accent" aria-label={t('player:together.copyCode', { code: formatCode(invite.code) })}>
-                  {formatCode(invite.code)}
-                  {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted" />}
-                </button>
-              ) : (
-                <Button size="sm" variant="secondary" className="mt-2 w-full" onClick={onRenew}>{t('player:together.newCode')}</Button>
-              )}
+              <InviteCode invite={invite} onRenew={onRenew} />
             </div>
           </>
         )}
@@ -259,6 +297,54 @@ export function TogetherMenu({ room, invite, onLeave, onEnd, onRenew, onOpenChan
         {host && <DropdownMenuItem onSelect={onEnd}><X className="size-4 text-muted" />{t('player:together.endForEveryone')}</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * Before a room first plays: the host invites people and starts when they're in; the others see
+ * who's here and wait for the host.
+ */
+export function TogetherLobby({ room, invite, onStart, onLeave, onRenew }: {
+  room: WatchRoom; invite: Invite | null; onStart: () => void; onLeave: () => void; onRenew: () => void;
+}) {
+  const { t } = useTranslation('player');
+  const host = room.host_id === room.self_id;
+  const hostName = room.participants.find((p) => p.id === room.host_id)?.name ?? '';
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <section role="dialog" aria-modal="false" aria-labelledby="together-lobby-title"
+        className="glass flex w-full max-w-sm flex-col gap-4 rounded-3xl border border-border p-6 text-foreground shadow-2xl shadow-black/50">
+        <div className="flex items-center gap-3">
+          <Users className="size-5 shrink-0 text-accent" />
+          <div className="min-w-0">
+            <h2 id="together-lobby-title" className="text-lg font-semibold">{t('player:together.title')}</h2>
+            {room.item && <p className="truncate text-sm text-muted">{room.item.title}</p>}
+          </div>
+        </div>
+        {host && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted">{t('player:together.lobbyInvite')}</p>
+            <InviteCode invite={invite} onRenew={onRenew} large />
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-subtle">{t('player:together.inRoom', { count: room.participants.length })}</p>
+          <ParticipantList room={room} />
+        </div>
+        {host ? (
+          <div className="flex gap-2">
+            <Button variant="primary" className="flex-1" onClick={onStart}><Play />{t('player:together.start')}</Button>
+            <Button variant="ghost" onClick={onLeave}>{t('player:together.leave')}</Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Loader2 className="size-4 shrink-0 animate-spin text-muted" />
+            <p className="min-w-0 flex-1 text-sm text-muted">{t('player:together.waitingForHost', { name: hostName })}</p>
+            <Button variant="ghost" size="sm" onClick={onLeave}>{t('player:together.leave')}</Button>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
