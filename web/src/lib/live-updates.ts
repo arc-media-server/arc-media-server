@@ -112,7 +112,14 @@ export function useLiveUpdates(profileId: string | undefined) {
       if (source) return;
       const es = new EventSource('/api/v1/events', { withCredentials: true });
       source = es;
+      // A new stream has no Last-Event-ID, so the server starts it with "resync". The page has
+      // just loaded its data (or the reopen below refreshes it), so that first one is skipped;
+      // a resync after the browser reconnects this same stream is real.
+      let fresh = true;
+      let opens = 0;
       es.addEventListener('open', () => {
+        opens++;
+        if (opens > 1) fresh = false;
         backoff = 5_000;
         // Anything could have changed while there was no stream.
         if (missed) {
@@ -124,12 +131,19 @@ export function useLiveUpdates(profileId: string | undefined) {
       es.addEventListener('invalidate', (e) => {
         try {
           const topic = (JSON.parse((e as MessageEvent).data) as { topic?: unknown }).topic;
+          fresh = false;
           if (typeof topic === 'string') batcher.add(topic);
         } catch {
           // A malformed hint is skipped; the next one (or a resync) catches up.
         }
       });
-      es.addEventListener('resync', () => batcher.add('resync'));
+      es.addEventListener('resync', () => {
+        if (fresh) {
+          fresh = false;
+          return;
+        }
+        batcher.add('resync');
+      });
       es.addEventListener('error', () => {
         // CONNECTING: the browser is retrying by itself. CLOSED: it gave up (a refusal such as
         // 429 when the server's streams are full, or a sign-out); try again later.

@@ -71,3 +71,11 @@ invite links still work alongside.
 
 - The Android TV and Apple TV apps don't show the row or the invite picker yet (the API is ready).
 - No push notifications outside Arc: an invitation shows when the person opens Arc.
+
+## Also fixed: live updates refreshed everything on every page load
+
+A new events stream has no Last-Event-ID, so the server opens it with `resync`. The web app took
+that as "refresh everything" about 1.5 s after each load, which wasted requests and refetched
+panels mid-way through being used. It broke the Settings recovery journeys (recovery:187, all
+three panels). The first `resync` of a fresh stream is now skipped. A resync after the browser
+reconnects the same stream, or the refresh after reopening a stream that was away, still refreshes.
