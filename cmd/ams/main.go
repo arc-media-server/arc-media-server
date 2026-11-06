@@ -638,7 +638,12 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return fmt.Errorf("can't listen on %s (is Arc already running?): %w", cfg.ListenAddress(), err)
 	}
 	for {
-		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second}
+		// Event and room streams end as soon as shutdown starts, so an open tab doesn't hold the
+		// restart (or a Docker stop) for the whole timeout.
+		closing := make(chan struct{})
+		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second,
+			BaseContext: func(net.Listener) context.Context { return api.ShutdownContext(closing) }}
+		srv.RegisterOnShutdown(func() { close(closing) })
 		served := make(chan error, 1)
 		go func(ln net.Listener) { served <- srv.Serve(remote.Listener(ln, remoteAccess.Certs.Config)) }(ln)
 		log.Info("Arc Media Server started", "version", version, "revision", revision, "address", displayAddress(ln.Addr()), "data", dataDir)

@@ -23,6 +23,21 @@ listening.
 - When the server refuses a stream (429, all streams in use, or signed out), it's retried after
   5 s, doubling up to a minute, with a full refresh once reconnected.
 
+## Server: streams no longer hold a restart
+
+- **Restarts were held up by open streams.** With the web app now keeping an events stream open,
+  Arc's graceful shutdown waited its full 10 seconds for that connection (Go's
+  `http.Server.Shutdown` waits for active connections). An update or restart would then take 10
+  seconds longer, and `docker stop`, which kills after 10 seconds, would kill Arc before it
+  finished shutting down.
+- **Now each server's streams end as soon as shutdown starts.** `cmd/ams` gives each
+  `http.Server` an `api.ShutdownContext`, closed from `RegisterOnShutdown`, and the events
+  stream and Watch Together room stream end when it closes. Apps reconnect and resync.
+  Ordinary requests still finish as before.
+- The full browser suite caught this: the diagnostics journey restarts the server. The new
+  `TestShutdownEndsEventStreams` fails without the fix (shutdown hangs until its timeout) and
+  passes with it (under 0.1 s).
+
 ## Decisions
 
 - Matches what Plex's web app does (screens update as the server changes) without a setting.
@@ -37,7 +52,8 @@ listening.
 - Browser journey `e2e/live-updates.spec.ts`: renaming a movie through the API (as another
   device would) updates its open page, and then Home, without a reload, over one stream. It
   fails with the listener removed.
-- The full browser suite was run; results are in the PR.
+- Full browser suite: 158 journeys plus the new one. The 7 failures here also fail on main
+  without this change (checked by running the same 7 there).
 
 ## Logging
 

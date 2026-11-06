@@ -113,10 +113,13 @@ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 	defer beats.Stop()
 	lifetime := time.NewTimer(30 * time.Minute)
 	defer lifetime.Stop()
+	closing := shuttingDown(r)
 	for {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-closing:
+			return // Arc is restarting: the app reconnects and resyncs
 		case <-lifetime.C:
 			return
 		case <-beats.C:
