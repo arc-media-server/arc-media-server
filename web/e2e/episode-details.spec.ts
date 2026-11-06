@@ -132,7 +132,7 @@ test('episode details: imported credits/counts, keyboard/phone, provider switchi
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await more.focus(); await page.keyboard.press('Enter');
-  await expect(page.getByRole('menuitem')).toHaveText(['Play next', 'Add to queue', 'Add to Playlist…', 'Playback options…', 'Episode details…', 'Media Info…', 'Edit…', 'Optimize…']);
+  await expect(page.getByRole('menuitem')).toHaveText(['Watch Together', 'Play next', 'Add to queue', 'Add to Playlist…', 'Playback options…', 'Episode details…', 'Media Info…', 'Edit…', 'Optimize…']);
   await page.getByRole('menuitem', { name: 'Episode details…', exact: true }).focus(); await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'My opening', exact: true });
   await expect(dialog.getByText('Fixture Director', { exact: true })).toBeVisible();
