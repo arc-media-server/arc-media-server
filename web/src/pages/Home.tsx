@@ -21,6 +21,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
 import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { useWatchRooms, WatchRoomCard } from '@/components/WatchTogether';
 
 function MediaRow(props: ComponentProps<typeof SharedMediaRow>) {
   return <HomeRowActions items={props.items} title={props.title}>{cardProps => <SharedMediaRow {...props} cardProps={cardProps} />}</HomeRowActions>;
@@ -104,6 +105,19 @@ function QueryRow({ title, query, href, style }: { title: string; query: ItemQue
   const result = useQuery({ queryKey: ['items', query], queryFn: () => api.items(query) });
   const { data } = result;
   return <MediaRow title={title} items={data?.items ?? []} loading={result.isPending} error={result.error} onRetry={() => void result.refetch()} href={href} style={style} />;
+}
+
+/** Watch Together rooms this profile made, was invited to or is in. Shown only when there are some. */
+function WatchTogetherRow() {
+  const { t } = useTranslation('player');
+  const result = useWatchRooms();
+  const list = result.data ?? [];
+  if (!list.length) return null;
+  return (
+    <RowShell title={t('player:together.rowTitle')}>
+      {list.map((room) => <WatchRoomCard key={room.id} room={room} />)}
+    </RowShell>
+  );
 }
 
 function HomeRowView({ row, withUpNext }: { row: ResolvedRow; withUpNext: boolean }) {
@@ -198,6 +212,7 @@ export function Home() {
       <div className={cn('relative z-10 space-y-10', hasFeatured && '-mt-6')}>
         {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
         {showHero && !!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
+        <WatchTogetherRow />
         {visibleRows(rows, split)
           .filter((r) => !r.hidden)
           .map((r) => (

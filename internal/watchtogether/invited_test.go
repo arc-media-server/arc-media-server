@@ -41,8 +41,8 @@ func TestInvitedRoomsListJoinDeclineAndExpire(t *testing.T) {
 	// Empty rooms with invitations outlast EmptyLife, so people have time to see them.
 	*now = now.Add(EmptyLife + time.Minute)
 	joined, err := m.Accept(guest, room.ID, "movie")
-	if err != nil || len(joined.Members) != 1 || joined.HostID != joined.Members[0].ID {
-		t.Fatal("the first to join holds the room", err, joined)
+	if err != nil || len(joined.Members) != 1 || joined.HostID != "" {
+		t.Fatal("someone invited became host before the creator came", err, joined)
 	}
 	if len(joined.Invited) != 1 || joined.Invited[0].UserID != "other" {
 		t.Fatal("joined people still listed as invited", joined.Invited)

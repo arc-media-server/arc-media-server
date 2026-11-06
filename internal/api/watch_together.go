@@ -28,16 +28,18 @@ type watchItemDTO struct {
 }
 
 type watchRoomDTO struct {
-	ID           string           `json:"id"`
-	Revision     int64            `json:"revision"`
-	Generation   int64            `json:"generation"`
-	State        string           `json:"state"`
-	PositionMS   int64            `json:"position_ms"`
-	AtMS         int64            `json:"at_ms"`
-	Rate         float64          `json:"rate"`
-	ServerTimeMS int64            `json:"server_time_ms"`
-	WaitUntilMS  int64            `json:"wait_until_ms,omitempty"`
-	HostID       string           `json:"host_id"`
+	ID           string  `json:"id"`
+	Revision     int64   `json:"revision"`
+	Generation   int64   `json:"generation"`
+	State        string  `json:"state"`
+	PositionMS   int64   `json:"position_ms"`
+	AtMS         int64   `json:"at_ms"`
+	Rate         float64 `json:"rate"`
+	ServerTimeMS int64   `json:"server_time_ms"`
+	WaitUntilMS  int64   `json:"wait_until_ms,omitempty"`
+	HostID       string  `json:"host_id"`
+	// The name of the profile that made the room (its host when present).
+	HostName     string           `json:"host_name"`
 	SelfID       string           `json:"self_id"`
 	ChangedBy    string           `json:"changed_by,omitempty"`
 	Available    bool             `json:"available"`
@@ -107,7 +109,7 @@ func (s *Server) watchView(r *http.Request, room watchtogether.Snapshot) (watchR
 	if err != nil {
 		return watchRoomDTO{}, err
 	}
-	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, HostID: room.HostID, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}, Invited: []watchInvitedDTO{}}
+	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, HostID: room.HostID, HostName: room.HostName, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}, Invited: []watchInvitedDTO{}}
 	for _, p := range room.Invited {
 		out.Invited = append(out.Invited, watchInvitedDTO{Name: p.Name})
 	}

@@ -127,7 +127,7 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
       {playable && (
         <>
           {togetherOK && (
-            <DropdownMenuItem onSelect={() => void together.start(item).catch(() => undefined)}><Users className="size-4 text-muted" /> {t('titles:itemActions.watchTogether')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => together.inviteTo(item)}><Users className="size-4 text-muted" /> {t('titles:itemActions.watchTogether')}</DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={() => onQueue(true)}><ListStart className="size-4 text-muted" /> {t('titles:queueActions.playNext')}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onQueue(false)}><ListVideo className="size-4 text-muted" /> {t('titles:queueActions.addToQueue')}</DropdownMenuItem>

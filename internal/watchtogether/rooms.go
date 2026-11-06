@@ -630,8 +630,9 @@ func (m *Manager) admit(r *room, a Actor, now time.Time) (Snapshot, error) {
 		r.ignored[p.ID] = true
 	}
 	r.emptySince = time.Time{}
-	// Whoever made the room is its host again when they come back.
-	if r.HostID == "" || (a.UserID == r.HostUserID && m.hostUser(r) != r.HostUserID) {
+	// Whoever made the room is its host when they come (back). A room made by invitation has
+	// no host until then: the people invited wait for its creator to start it.
+	if (r.HostID == "" && len(r.invited) == 0) || (a.UserID == r.HostUserID && m.hostUser(r) != r.HostUserID) {
 		r.HostID = p.ID
 	}
 	r.ChangedBy = p.ID

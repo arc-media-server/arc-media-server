@@ -98,7 +98,7 @@ func TestWatchTogetherInvitationsPeopleListJoinAndDecline(t *testing.T) {
 
 	// An invitee joins from the list; the host joining later is host.
 	room := decodeWatchRoom(t, f.request("POST", "/watch-together/rooms/"+created.Room.ID+"/join", "child", ""))
-	if !room.Available || len(room.Participants) != 1 || room.SelfID == "" || len(room.Invited) != 1 {
+	if !room.Available || len(room.Participants) != 1 || room.SelfID == "" || len(room.Invited) != 1 || room.HostID != "" || room.HostName != f.host.Name {
 		t.Fatal("join", room)
 	}
 	room = decodeWatchRoom(t, f.request("POST", "/watch-together/rooms/"+created.Room.ID+"/join", "host", ""))
