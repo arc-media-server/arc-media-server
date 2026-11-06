@@ -186,6 +186,7 @@
     "joinAction": "Join",
     "codeNotFound": "That code didn't work. It may have run out: ask the host for a new one.",
     "tooManyTries": "Too many tries. Wait a minute and try again.",
-    "joinFailed": "Couldn't join. Check your connection and try again."
+    "joinFailed": "Couldn't join. Check your connection and try again.",
+    "startFailed": "Couldn't start Watch Together. Check your connection and try again."
   }
 }

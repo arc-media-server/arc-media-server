@@ -45,6 +45,7 @@ export const useWatchTogether = () => useContext(Context);
  * room is active it plays the room's title, and Play, Pause and seeking go to the room.
  */
 export function WatchTogetherProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation(['player', 'common']);
   const profileId = useAuth().data?.profile?.id;
   const capabilities = useQuery({ queryKey: ['capabilities', profileId], queryFn: api.capabilities, enabled: !!profileId, staleTime: Infinity, retry: false });
   const feature = capabilities.data?.features.watch_together;
@@ -55,6 +56,7 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
   const [ended, setEnded] = useState<'ended' | 'gone' | null>(null);
   const [joining, setJoining] = useState(false);
   const [recovered, setRecovered] = useState<WatchRoom | null>(null);
+  const [startFailed, setStartFailed] = useState(false);
   const sessionRef = useRef<RoomSession | null>(null);
 
   const begin = useCallback((r: WatchRoom) => {
@@ -89,7 +91,11 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
   const value: WatchTogether = {
     available, session, room, invite, ended,
     start: async (item) => {
-      const created = await rooms.create(item.id, 0);
+      setStartFailed(false);
+      const created = await rooms.create(item.id, 0).catch((e) => {
+        setStartFailed(true);
+        throw e;
+      });
       setInvite({ code: created.invite_code, expiresAt: created.invite_expires_at_ms });
       begin(created.room);
     },
@@ -119,6 +125,13 @@ export function WatchTogetherProvider({ children }: { children: ReactNode }) {
     <Context.Provider value={value}>
       {children}
       <JoinDialog open={joining} onOpenChange={setJoining} />
+      {startFailed && (
+        <div role="alert" className="fixed inset-x-4 bottom-6 z-50 mx-auto flex max-w-lg items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm shadow-2xl ring-1 ring-border md:left-[264px]">
+          <Users className="size-5 shrink-0 text-warning" />
+          <p className="min-w-0 flex-1">{t('player:together.startFailed')}</p>
+          <Button size="sm" variant="ghost" onClick={() => setStartFailed(false)}>{t('common:actions.close')}</Button>
+        </div>
+      )}
       {recovered && !session && (
         <RejoinBanner
           room={recovered}
