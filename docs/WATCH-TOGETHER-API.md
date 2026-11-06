@@ -35,6 +35,12 @@ Bodies are JSON, at most 4096 bytes, with unknown fields/trailing JSON rejected.
 | POST `/{id}/invite` | `{revision}` | Host-only replacement invite and room |
 | GET `/{id}/events` | Auth header/cookie | SSE `room` events with full personalized room state |
 | GET `/time?client_sent_ms=...` | Optional nonnegative epoch-ms integer | Client echo, server receive/send epoch ms |
+| GET `/people?item_id=` | Optional item ID | `{people:[{id,name,color,friend,can_watch}]}`: who this profile may invite |
+| POST `/rooms` | `{item_id,start_ms?,profile_ids}` | 201 `{room,invite_code,invite_expires_at_ms}`: a room for chosen people, nobody in it yet |
+| GET `/rooms` | — | `{rooms:[...]}`: rooms this profile made, was invited to or is in (Home's Watch Together row) |
+| POST `/rooms/{id}/join` | Empty | 200 personalized room: join from the list, no code |
+| POST `/rooms/{id}/dismiss` | Empty | 204: an invitee declines; the creator cancels it for everyone |
+| POST `/{id}/people` | `{profile_ids}` | Host-only: invite more people; personalized room with `invited` |
 
 Commands: `play`, `pause`, `seek` (position_ms), `change_item` (item_id and optional position_ms),
 `end`. Any participant who may play the current item can play/pause/seek. Any member may select
@@ -235,3 +241,28 @@ Official reference only:
 
 Arc's code-only/late-join, ten-second wait, host succession, friends default and ephemeral room
 choices are recorded on [#80](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6603360709) as deliberate defaults, not claims about Plex internals or parity.
+
+## Invitations
+
+Besides codes, a host can invite people by profile. `GET /people` lists who this
+profile may invite: household profiles see every other profile (household and friends); friends
+see only the household's admins, never its other profiles. With `item_id`, `can_watch` says whether
+each may play that title; everyone invited must be able to.
+
+`POST /rooms` makes a room for them with **nobody in it yet** (the creator included). It waits an
+hour for people to join (a code-only room waits three minutes once empty), and one profile may
+have three such rooms waiting. Each room lists on `GET /rooms` for its creator, the people invited
+(until they decline) and anyone in it, newest first, leaving out rooms whose title the viewer may
+not play. Listed rooms carry `id`, `state`, `position_ms`, `created_at_ms`, `host_name`, `hosting`
+(this profile made it), `joined` (this device and profile are in it), the `item` summary, and the
+names in `participants` and `invited`.
+
+`POST /rooms/{id}/join` admits this device and profile without a code, after the usual access
+check; whoever made the room becomes host when they join (the first person in holds it until
+then). `POST /rooms/{id}/dismiss` declines an invitation, or, from the creator, ends the room for
+everyone. The host can invite more people from inside the room (`POST /{id}/people`). Personalized
+rooms gain `invited` (`[{name}]`): people invited who aren't in the room now.
+
+A room list change (made, invited, joined, left, declined, ended) sends a personal
+`watch_together` hint on `/api/v1/events` to everyone who sees that room, so Home rows refresh
+without polling.

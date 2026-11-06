@@ -5258,7 +5258,11 @@ GET /watch-together/current 200 .available boolean
 GET /watch-together/current 200 .changed_by string
 GET /watch-together/current 200 .generation integer
 GET /watch-together/current 200 .host_id string
+GET /watch-together/current 200 .host_name string
 GET /watch-together/current 200 .id string
+GET /watch-together/current 200 .invited array
+GET /watch-together/current 200 .invited[] object
+GET /watch-together/current 200 .invited[].name string
 GET /watch-together/current 200 .item object
 GET /watch-together/current 200 .item.id string
 GET /watch-together/current 200 .item.kind string
@@ -5278,6 +5282,34 @@ GET /watch-together/current 200 .self_id string
 GET /watch-together/current 200 .server_time_ms integer
 GET /watch-together/current 200 .state string
 GET /watch-together/current 200 .wait_until_ms integer
+GET /watch-together/people
+GET /watch-together/people 200
+GET /watch-together/people 200 .people array|null
+GET /watch-together/people 200 .people[] object
+GET /watch-together/people 200 .people[].can_watch boolean
+GET /watch-together/people 200 .people[].color string
+GET /watch-together/people 200 .people[].friend boolean
+GET /watch-together/people 200 .people[].id string
+GET /watch-together/people 200 .people[].name string
+GET /watch-together/rooms
+GET /watch-together/rooms 200
+GET /watch-together/rooms 200 .rooms array|null
+GET /watch-together/rooms 200 .rooms[] object
+GET /watch-together/rooms 200 .rooms[].created_at_ms integer
+GET /watch-together/rooms 200 .rooms[].host_name string
+GET /watch-together/rooms 200 .rooms[].hosting boolean
+GET /watch-together/rooms 200 .rooms[].id string
+GET /watch-together/rooms 200 .rooms[].invited array
+GET /watch-together/rooms 200 .rooms[].invited[] string
+GET /watch-together/rooms 200 .rooms[].item object
+GET /watch-together/rooms 200 .rooms[].item.id string
+GET /watch-together/rooms 200 .rooms[].item.kind string
+GET /watch-together/rooms 200 .rooms[].item.title string
+GET /watch-together/rooms 200 .rooms[].joined boolean
+GET /watch-together/rooms 200 .rooms[].participants array
+GET /watch-together/rooms 200 .rooms[].participants[] string
+GET /watch-together/rooms 200 .rooms[].position_ms integer
+GET /watch-together/rooms 200 .rooms[].state string
 GET /watch-together/time
 GET /watch-together/time 200
 GET /watch-together/time 200 .client_sent_ms integer
@@ -5290,7 +5322,11 @@ GET /watch-together/{id} 200 .available boolean
 GET /watch-together/{id} 200 .changed_by string
 GET /watch-together/{id} 200 .generation integer
 GET /watch-together/{id} 200 .host_id string
+GET /watch-together/{id} 200 .host_name string
 GET /watch-together/{id} 200 .id string
+GET /watch-together/{id} 200 .invited array
+GET /watch-together/{id} 200 .invited[] object
+GET /watch-together/{id} 200 .invited[].name string
 GET /watch-together/{id} 200 .item object
 GET /watch-together/{id} 200 .item.id string
 GET /watch-together/{id} 200 .item.kind string
@@ -7539,7 +7575,11 @@ POST /watch-together 201 .room.available boolean
 POST /watch-together 201 .room.changed_by string
 POST /watch-together 201 .room.generation integer
 POST /watch-together 201 .room.host_id string
+POST /watch-together 201 .room.host_name string
 POST /watch-together 201 .room.id string
+POST /watch-together 201 .room.invited array
+POST /watch-together 201 .room.invited[] object
+POST /watch-together 201 .room.invited[].name string
 POST /watch-together 201 .room.item object
 POST /watch-together 201 .room.item.id string
 POST /watch-together 201 .room.item.kind string
@@ -7566,7 +7606,11 @@ POST /watch-together/join 200 .available boolean
 POST /watch-together/join 200 .changed_by string
 POST /watch-together/join 200 .generation integer
 POST /watch-together/join 200 .host_id string
+POST /watch-together/join 200 .host_name string
 POST /watch-together/join 200 .id string
+POST /watch-together/join 200 .invited array
+POST /watch-together/join 200 .invited[] object
+POST /watch-together/join 200 .invited[].name string
 POST /watch-together/join 200 .item object
 POST /watch-together/join 200 .item.id string
 POST /watch-together/join 200 .item.kind string
@@ -7586,6 +7630,59 @@ POST /watch-together/join 200 .self_id string
 POST /watch-together/join 200 .server_time_ms integer
 POST /watch-together/join 200 .state string
 POST /watch-together/join 200 .wait_until_ms integer
+POST /watch-together/rooms
+POST /watch-together/rooms 201
+POST /watch-together/rooms 201 .invite_code string
+POST /watch-together/rooms 201 .invite_expires_at_ms integer
+POST /watch-together/rooms 201 .room object
+POST /watch-together/rooms 201 .room.created_at_ms integer
+POST /watch-together/rooms 201 .room.host_name string
+POST /watch-together/rooms 201 .room.hosting boolean
+POST /watch-together/rooms 201 .room.id string
+POST /watch-together/rooms 201 .room.invited array
+POST /watch-together/rooms 201 .room.invited[] string
+POST /watch-together/rooms 201 .room.item object
+POST /watch-together/rooms 201 .room.item.id string
+POST /watch-together/rooms 201 .room.item.kind string
+POST /watch-together/rooms 201 .room.item.title string
+POST /watch-together/rooms 201 .room.joined boolean
+POST /watch-together/rooms 201 .room.participants array
+POST /watch-together/rooms 201 .room.participants[] string
+POST /watch-together/rooms 201 .room.position_ms integer
+POST /watch-together/rooms 201 .room.state string
+POST /watch-together/rooms/{id}/dismiss
+POST /watch-together/rooms/{id}/dismiss 204
+POST /watch-together/rooms/{id}/join
+POST /watch-together/rooms/{id}/join 200
+POST /watch-together/rooms/{id}/join 200 .at_ms integer
+POST /watch-together/rooms/{id}/join 200 .available boolean
+POST /watch-together/rooms/{id}/join 200 .changed_by string
+POST /watch-together/rooms/{id}/join 200 .generation integer
+POST /watch-together/rooms/{id}/join 200 .host_id string
+POST /watch-together/rooms/{id}/join 200 .host_name string
+POST /watch-together/rooms/{id}/join 200 .id string
+POST /watch-together/rooms/{id}/join 200 .invited array
+POST /watch-together/rooms/{id}/join 200 .invited[] object
+POST /watch-together/rooms/{id}/join 200 .invited[].name string
+POST /watch-together/rooms/{id}/join 200 .item object
+POST /watch-together/rooms/{id}/join 200 .item.id string
+POST /watch-together/rooms/{id}/join 200 .item.kind string
+POST /watch-together/rooms/{id}/join 200 .item.title string
+POST /watch-together/rooms/{id}/join 200 .item_id string
+POST /watch-together/rooms/{id}/join 200 .participants array
+POST /watch-together/rooms/{id}/join 200 .participants[] object
+POST /watch-together/rooms/{id}/join 200 .participants[].available boolean
+POST /watch-together/rooms/{id}/join 200 .participants[].id string
+POST /watch-together/rooms/{id}/join 200 .participants[].name string
+POST /watch-together/rooms/{id}/join 200 .participants[].ready boolean
+POST /watch-together/rooms/{id}/join 200 .participants[].state string
+POST /watch-together/rooms/{id}/join 200 .position_ms integer
+POST /watch-together/rooms/{id}/join 200 .rate number
+POST /watch-together/rooms/{id}/join 200 .revision integer
+POST /watch-together/rooms/{id}/join 200 .self_id string
+POST /watch-together/rooms/{id}/join 200 .server_time_ms integer
+POST /watch-together/rooms/{id}/join 200 .state string
+POST /watch-together/rooms/{id}/join 200 .wait_until_ms integer
 POST /watch-together/{id}/commands
 POST /watch-together/{id}/commands 200
 POST /watch-together/{id}/commands 200 .at_ms integer
@@ -7593,7 +7690,11 @@ POST /watch-together/{id}/commands 200 .available boolean
 POST /watch-together/{id}/commands 200 .changed_by string
 POST /watch-together/{id}/commands 200 .generation integer
 POST /watch-together/{id}/commands 200 .host_id string
+POST /watch-together/{id}/commands 200 .host_name string
 POST /watch-together/{id}/commands 200 .id string
+POST /watch-together/{id}/commands 200 .invited array
+POST /watch-together/{id}/commands 200 .invited[] object
+POST /watch-together/{id}/commands 200 .invited[].name string
 POST /watch-together/{id}/commands 200 .item object
 POST /watch-together/{id}/commands 200 .item.id string
 POST /watch-together/{id}/commands 200 .item.kind string
@@ -7620,7 +7721,11 @@ POST /watch-together/{id}/heartbeat 200 .available boolean
 POST /watch-together/{id}/heartbeat 200 .changed_by string
 POST /watch-together/{id}/heartbeat 200 .generation integer
 POST /watch-together/{id}/heartbeat 200 .host_id string
+POST /watch-together/{id}/heartbeat 200 .host_name string
 POST /watch-together/{id}/heartbeat 200 .id string
+POST /watch-together/{id}/heartbeat 200 .invited array
+POST /watch-together/{id}/heartbeat 200 .invited[] object
+POST /watch-together/{id}/heartbeat 200 .invited[].name string
 POST /watch-together/{id}/heartbeat 200 .item object
 POST /watch-together/{id}/heartbeat 200 .item.id string
 POST /watch-together/{id}/heartbeat 200 .item.kind string
@@ -7650,7 +7755,11 @@ POST /watch-together/{id}/invite 200 .room.available boolean
 POST /watch-together/{id}/invite 200 .room.changed_by string
 POST /watch-together/{id}/invite 200 .room.generation integer
 POST /watch-together/{id}/invite 200 .room.host_id string
+POST /watch-together/{id}/invite 200 .room.host_name string
 POST /watch-together/{id}/invite 200 .room.id string
+POST /watch-together/{id}/invite 200 .room.invited array
+POST /watch-together/{id}/invite 200 .room.invited[] object
+POST /watch-together/{id}/invite 200 .room.invited[].name string
 POST /watch-together/{id}/invite 200 .room.item object
 POST /watch-together/{id}/invite 200 .room.item.id string
 POST /watch-together/{id}/invite 200 .room.item.kind string
@@ -7672,6 +7781,37 @@ POST /watch-together/{id}/invite 200 .room.state string
 POST /watch-together/{id}/invite 200 .room.wait_until_ms integer
 POST /watch-together/{id}/leave
 POST /watch-together/{id}/leave 204
+POST /watch-together/{id}/people
+POST /watch-together/{id}/people 200
+POST /watch-together/{id}/people 200 .at_ms integer
+POST /watch-together/{id}/people 200 .available boolean
+POST /watch-together/{id}/people 200 .changed_by string
+POST /watch-together/{id}/people 200 .generation integer
+POST /watch-together/{id}/people 200 .host_id string
+POST /watch-together/{id}/people 200 .host_name string
+POST /watch-together/{id}/people 200 .id string
+POST /watch-together/{id}/people 200 .invited array
+POST /watch-together/{id}/people 200 .invited[] object
+POST /watch-together/{id}/people 200 .invited[].name string
+POST /watch-together/{id}/people 200 .item object
+POST /watch-together/{id}/people 200 .item.id string
+POST /watch-together/{id}/people 200 .item.kind string
+POST /watch-together/{id}/people 200 .item.title string
+POST /watch-together/{id}/people 200 .item_id string
+POST /watch-together/{id}/people 200 .participants array
+POST /watch-together/{id}/people 200 .participants[] object
+POST /watch-together/{id}/people 200 .participants[].available boolean
+POST /watch-together/{id}/people 200 .participants[].id string
+POST /watch-together/{id}/people 200 .participants[].name string
+POST /watch-together/{id}/people 200 .participants[].ready boolean
+POST /watch-together/{id}/people 200 .participants[].state string
+POST /watch-together/{id}/people 200 .position_ms integer
+POST /watch-together/{id}/people 200 .rate number
+POST /watch-together/{id}/people 200 .revision integer
+POST /watch-together/{id}/people 200 .self_id string
+POST /watch-together/{id}/people 200 .server_time_ms integer
+POST /watch-together/{id}/people 200 .state string
+POST /watch-together/{id}/people 200 .wait_until_ms integer
 POST /webhooks
 POST /webhooks 200
 POST /webhooks 200 .created_at integer

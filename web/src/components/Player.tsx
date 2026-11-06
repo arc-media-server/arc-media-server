@@ -48,7 +48,7 @@ import { useAuth, useIsAdmin } from '@/lib/auth';
 import { maxQueueEntries, QueueMirror } from '@/lib/play-queue';
 import { correction } from '@/lib/watch-together';
 import { CastSession, chooseChromecast, useCastAvailable, type CastText } from './Cast';
-import { TogetherMenu, TogetherWaiting, useTogetherNotice, useWatchTogether } from './WatchTogether';
+import { TogetherLobby, TogetherMenu, TogetherWaiting, useTogetherNotice, useWatchTogether } from './WatchTogether';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 export interface NowPlaying {
@@ -395,6 +395,12 @@ function PlayerOverlay({
   const session = item.together ? together.session : null;
   const room = item.together ? together.room : null;
   const togetherNotice = useTogetherNotice(room);
+  // The lobby shows until the room first plays (or was already under way when this player joined).
+  const [lobbyDone, setLobbyDone] = useState(false);
+  useEffect(() => {
+    if (room && (room.state !== 'paused' || room.position_ms > 0)) setLobbyDone(true);
+  }, [room]);
+  const lobby = !!room && !!session && room.available && !lobbyDone;
   const overlayRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (minimized) return;
@@ -1238,6 +1244,13 @@ function PlayerOverlay({
       onMouseMove={poke}
     >
       {trackNotice && <p role="status" className="absolute left-4 right-4 top-20 z-20 rounded-xl bg-black/80 p-3 text-sm text-white">{trackNotice}</p>}
+      {lobby && room && session && !minimized && (
+        <TogetherLobby room={room} invite={together.invite}
+          onStart={() => void session.play().catch(() => undefined)}
+          onLeave={onClose}
+          onRenew={() => void together.renew().catch(() => undefined)}
+          onInvite={together.inviteMore} />
+      )}
       {room?.state === 'waiting' && session && !minimized && <TogetherWaiting room={room} serverNow={() => session.serverNow()} />}
       {room && !room.available && !minimized && (
         <p role="status" className="absolute inset-x-4 top-24 z-20 mx-auto max-w-md rounded-xl bg-black/80 p-3 text-center text-sm text-white">{t('player:together.unavailable')}</p>
