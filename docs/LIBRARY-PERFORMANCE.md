@@ -1,8 +1,7 @@
 # Library query performance and contention
 
 This investigation uses generated database rows and temporary stores, never owner databases or
-media. SQLite remains the primary performance target. The PostgreSQL query compatibility checks
-use a separate disposable PostgreSQL 17.6 fixture. Results are local measurements, not production
+media. SQLite is the performance target (PostgreSQL support is parked, #308). Results are local measurements, not production
 latency promises or proof that the owner's original stall has been resolved.
 
 ## Findings and changes
