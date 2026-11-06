@@ -2022,7 +2022,25 @@
       },
       "LibraryFacets": {
         "properties": {
+          "audio_channels": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "type": "array"
+          },
+          "audio_codecs": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "type": "array"
+          },
           "decades": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "type": "array"
+          },
+          "dynamic_ranges": {
             "items": {
               "$ref": "#/components/schemas/Facet"
             },
@@ -2054,15 +2072,25 @@
           },
           "unmatched": {
             "type": "integer"
+          },
+          "video_codecs": {
+            "items": {
+              "$ref": "#/components/schemas/Facet"
+            },
+            "type": "array"
           }
         },
         "required": [
+          "audio_channels",
+          "audio_codecs",
           "decades",
+          "dynamic_ranges",
           "genres",
           "labels",
           "languages",
           "resolutions",
-          "unmatched"
+          "unmatched",
+          "video_codecs"
         ],
         "type": "object"
       },

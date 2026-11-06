@@ -44,3 +44,100 @@ func TestMediaFiltersSameFileStreamAndSeriesAccess(t *testing.T) {
 	}
 	check(ItemQuery{VideoCodec: "hevc", Access: Access{ExcludeLabels: []string{"blocked"}}}, 0)
 }
+
+func TestMediaFacetsCountTitlesAndRespectAccess(t *testing.T) {
+	st := openTest(t)
+	ctx := t.Context()
+	lib, _ := st.SyncLibrary(ctx, "Films", "movies", "tmdb_aired", nil)
+	add := func(title, rating string, streams []Stream) string {
+		t.Helper()
+		id, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range streams {
+			streams[i].Index = i
+		}
+		file, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/fixture/" + title + ".mkv", Streams: streams}, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = st.SetFileItems(ctx, file, []string{id}, 0); err != nil {
+			t.Fatal(err)
+		}
+		if rating != "" {
+			if err = st.EditItem(ctx, id, ItemEdit{ContentRating: &rating}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return id
+	}
+	// Two audio tracks of one codec count the title once.
+	add("Dune", "PG", []Stream{{Kind: "video", Codec: "HEVC", BitDepth: 10, DolbyVision: true}, {Kind: "audio", Codec: "truehd", Channels: 8}, {Kind: "audio", Codec: "truehd", Channels: 2}})
+	add("Heat", "PG", []Stream{{Kind: "video", Codec: "h264", BitDepth: 8}, {Kind: "audio", Codec: "ac3", Channels: 6}})
+	add("Saw", "18", []Stream{{Kind: "video", Codec: "hevc", ColorTransfer: "smpte2084"}, {Kind: "audio", Codec: "eac3", Channels: 6}})
+	add("Raw", "PG", []Stream{{Kind: "video", Codec: "av1"}})
+	facets := func(acc Access) LibraryFacets {
+		t.Helper()
+		f, err := st.Facets(ctx, lib, "movie", acc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	same := func(name string, got []Facet, want ...Facet) {
+		t.Helper()
+		if len(got) != len(want) {
+			t.Fatalf("%s: %+v, want %+v", name, got, want)
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Fatalf("%s: %+v, want %+v", name, got, want)
+			}
+		}
+	}
+	f := facets(Access{})
+	same("video codecs", f.VideoCodecs, Facet{"hevc", 2}, Facet{"av1", 1}, Facet{"h264", 1})
+	same("audio codecs", f.AudioCodecs, Facet{"ac3", 1}, Facet{"eac3", 1}, Facet{"truehd", 1})
+	same("channels", f.AudioChannels, Facet{"6", 2}, Facet{"2", 1}, Facet{"8", 1})
+	same("dynamic range", f.DynamicRanges, Facet{"dolby_vision", 1}, Facet{"hdr10", 1}, Facet{"sdr", 1}, Facet{"unknown", 1})
+	// Each value finds the titles it counted.
+	for _, c := range []struct {
+		q    ItemQuery
+		want int
+	}{{ItemQuery{VideoCodec: "hevc"}, 2}, {ItemQuery{AudioChannels: 6}, 2}, {ItemQuery{DynamicRange: "unknown"}, 1}} {
+		c.q.LibraryID, c.q.Kind = lib, "movie"
+		if _, n, err := st.ListItems(ctx, c.q); err != nil || n != c.want {
+			t.Fatalf("%+v: %d, want %d (%v)", c.q, n, c.want, err)
+		}
+	}
+	// A profile limited by age doesn't see the restricted title's details counted.
+	f = facets(Access{MaxAge: 12})
+	same("restricted video codecs", f.VideoCodecs, Facet{"av1", 1}, Facet{"h264", 1}, Facet{"hevc", 1})
+	same("restricted ranges", f.DynamicRanges, Facet{"dolby_vision", 1}, Facet{"sdr", 1}, Facet{"unknown", 1})
+}
+
+func TestMediaFacetsCountShowsOnceThroughEpisodes(t *testing.T) {
+	st := openTest(t)
+	ctx := t.Context()
+	lib, _ := st.SyncLibrary(ctx, "Shows", "shows", "tvdb_aired", nil)
+	series, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "series", Title: "Show"}, "show")
+	for i, codec := range []string{"hevc", "hevc", "h264"} {
+		key := string(rune('a' + i))
+		ep, _, _ := st.EnsureItem(ctx, &Item{LibraryID: lib, ParentID: series, Kind: "episode", Title: key}, "ep-"+key)
+		file, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/fixture/" + key + ".mkv", Streams: []Stream{{Kind: "video", Codec: codec}}}, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = st.SetFileItems(ctx, file, []string{ep}, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f, err := st.Facets(ctx, lib, "series", Access{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.VideoCodecs) != 2 || f.VideoCodecs[0] != (Facet{"h264", 1}) || f.VideoCodecs[1] != (Facet{"hevc", 1}) {
+		t.Fatalf("a show counts once per codec: %+v", f.VideoCodecs)
+	}
+}

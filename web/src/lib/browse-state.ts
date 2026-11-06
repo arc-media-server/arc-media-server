@@ -4,6 +4,7 @@ import type { ItemSort } from './api';
 export const browseFilterKeys = [
   'genre', 'language', 'label', 'decade', 'resolution', 'unwatched', 'unmatched',
   'added_within', 'min_runtime', 'max_runtime', 'min_rating',
+  'video_codec', 'audio_codec', 'audio_channels', 'dynamic_range', 'watch_state',
 ] as const;
 const sorts: ItemSort[] = ['title', 'added', 'year', 'release', 'rating', 'critics', 'runtime', 'watched', 'shuffle'];
 

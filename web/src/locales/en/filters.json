@@ -99,5 +99,35 @@
     "shortest": "Shortest first",
     "mostRecent": "Most recent first",
     "leastRecent": "Least recent first"
+  },
+  "watchState": {
+    "label": "Watch status",
+    "any": "Any",
+    "played": "Watched",
+    "unstarted": "Not started"
+  },
+  "dynamicRange": {
+    "label": "HDR",
+    "any": "Any",
+    "unknown": "Not known yet"
+  },
+  "videoCodec": {
+    "label": "Video format",
+    "any": "Any video format"
+  },
+  "audioCodec": {
+    "label": "Audio format",
+    "any": "Any audio format"
+  },
+  "channels": {
+    "label": "Audio channels",
+    "any": "Any",
+    "mono": "Mono",
+    "stereo": "Stereo",
+    "count_one": "{{count}} channel",
+    "count_other": "{{count}} channels"
+  },
+  "media": {
+    "heading": "Video and audio"
   }
 }

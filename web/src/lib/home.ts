@@ -215,6 +215,11 @@ export function rowQuery(f: RowFilter, library: Library | undefined, limit = 24)
     decade: f.decade,
     resolution: f.resolution,
     unwatched: f.unwatched,
+    video_codec: f.video_codec,
+    audio_codec: f.audio_codec,
+    audio_channels: f.audio_channels,
+    dynamic_range: f.dynamic_range,
+    watch_state: f.watch_state,
     added_within: f.added_within,
     min_runtime: f.min_runtime,
     max_runtime: f.max_runtime,
@@ -234,7 +239,7 @@ export function rowHref(f: RowFilter) {
   if (f.resolution) p.set('resolution', f.resolution);
   if (f.unwatched) p.set('unwatched', '1');
   if (f.sort) p.set('sort', f.sort);
-  for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating'] as const) if (f[key]) p.set(key, String(f[key]));
+  for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating', 'video_codec', 'audio_codec', 'audio_channels', 'dynamic_range', 'watch_state'] as const) if (f[key]) p.set(key, String(f[key]));
   const s = p.toString();
   return `/library/${f.library_id}${s ? `?${s}` : ''}`;
 }

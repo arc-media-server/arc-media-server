@@ -1676,10 +1676,22 @@ GET /libraries/{id}/collections 200 [].title string
 GET /libraries/{id}/collections 200 [].tmdb_id integer
 GET /libraries/{id}/facets
 GET /libraries/{id}/facets 200
+GET /libraries/{id}/facets 200 .audio_channels array
+GET /libraries/{id}/facets 200 .audio_channels[] object
+GET /libraries/{id}/facets 200 .audio_channels[].count integer
+GET /libraries/{id}/facets 200 .audio_channels[].value string
+GET /libraries/{id}/facets 200 .audio_codecs array
+GET /libraries/{id}/facets 200 .audio_codecs[] object
+GET /libraries/{id}/facets 200 .audio_codecs[].count integer
+GET /libraries/{id}/facets 200 .audio_codecs[].value string
 GET /libraries/{id}/facets 200 .decades array
 GET /libraries/{id}/facets 200 .decades[] object
 GET /libraries/{id}/facets 200 .decades[].count integer
 GET /libraries/{id}/facets 200 .decades[].value string
+GET /libraries/{id}/facets 200 .dynamic_ranges array
+GET /libraries/{id}/facets 200 .dynamic_ranges[] object
+GET /libraries/{id}/facets 200 .dynamic_ranges[].count integer
+GET /libraries/{id}/facets 200 .dynamic_ranges[].value string
 GET /libraries/{id}/facets 200 .genres array
 GET /libraries/{id}/facets 200 .genres[] object
 GET /libraries/{id}/facets 200 .genres[].count integer
@@ -1697,6 +1709,10 @@ GET /libraries/{id}/facets 200 .resolutions[] object
 GET /libraries/{id}/facets 200 .resolutions[].count integer
 GET /libraries/{id}/facets 200 .resolutions[].value string
 GET /libraries/{id}/facets 200 .unmatched integer
+GET /libraries/{id}/facets 200 .video_codecs array
+GET /libraries/{id}/facets 200 .video_codecs[] object
+GET /libraries/{id}/facets 200 .video_codecs[].count integer
+GET /libraries/{id}/facets 200 .video_codecs[].value string
 GET /libraries/{id}/filters
 GET /libraries/{id}/filters 200
 GET /libraries/{id}/filters 200 .facets_url string

@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Popover } from 'radix-ui';
 import { SlidersHorizontal, X } from 'lucide-react';
-import type { LibraryFacets, Resolution } from '@/lib/api';
+import type { DynamicRange, Facet, LibraryFacets, Resolution, WatchState } from '@/lib/api';
 import { language } from '@/lib/format';
+import { channelsLabel, codecLabel, dynamicRangeLabel } from '@/lib/media-labels';
 import { addedOptions, getLengthOptions, ratingOptions } from '@/components/FilterFields';
 import { Button } from '@/components/ui/button';
 import { Field, inputClass } from '@/components/ui/field';
@@ -23,12 +24,22 @@ export interface BrowseFilters {
   min_runtime?: number;
   max_runtime?: number;
   min_rating?: number;
+  video_codec?: string;
+  audio_codec?: string;
+  audio_channels?: number;
+  dynamic_range?: DynamicRange;
+  watch_state?: WatchState;
 }
 
 /** Changes to the address: a value to set, or undefined to remove it. */
 export type FilterPatch = Partial<Record<keyof BrowseFilters, string | undefined>>;
 
-type Choice = { id: string; label: string; anyLabel: string; value?: string; options: [value: string, label: string, count?: number][]; patch: (v?: string) => FilterPatch };
+type Choice = { id: string; label: string; anyLabel: string; value?: string; options: [value: string, label: string, count?: number][]; patch: (v?: string) => FilterPatch;
+  /** Video and audio details, grouped under their own heading. */
+  media?: boolean };
+
+/** A media facet worth offering: the library has more than one value, or one is chosen. */
+const offered = (values: Facet[] | undefined, chosen: unknown) => (values?.length ?? 0) > 1 || !!chosen;
 
 /** The filters that apply to a library, each with its choices and what's chosen. */
 function useChoices(facets: LibraryFacets | undefined, f: BrowseFilters): Choice[] {
@@ -56,7 +67,21 @@ function useChoices(facets: LibraryFacets | undefined, f: BrowseFilters): Choice
       patch: (v) => { const [min, max] = (v ?? '-').split('-'); return { min_runtime: min || undefined, max_runtime: max || undefined }; } },
     { id: 'rating', label: t('filters:rating.label'), anyLabel: t('filters:rating.any'), value: f.min_rating ? String(f.min_rating) : undefined,
       options: ratingOptions.filter(Boolean).map((r) => [String(r), t('filters:rating.atLeast', { rating: r })]), patch: (v) => ({ min_rating: v }) },
+    // Unwatched (the switch) and these exclude each other: choosing one clears the other.
+    { id: 'watch_state', label: t('filters:watchState.label'), anyLabel: t('filters:watchState.any'), value: f.watch_state,
+      options: [['played', t('filters:watchState.played')], ['unstarted', t('filters:watchState.unstarted')]],
+      patch: (v) => ({ watch_state: v, ...(v ? { unwatched: undefined } : {}) }) },
   );
+  if (offered(facets.dynamic_ranges, f.dynamic_range)) choices.push({ id: 'dynamic_range', media: true, label: t('filters:dynamicRange.label'), anyLabel: t('filters:dynamicRange.any'), value: f.dynamic_range,
+    options: (facets.dynamic_ranges ?? []).map((x) => [x.value, dynamicRangeLabel(x.value), x.count]), patch: (v) => ({ dynamic_range: v }) });
+  if (offered(facets.video_codecs, f.video_codec)) choices.push({ id: 'video_codec', media: true, label: t('filters:videoCodec.label'), anyLabel: t('filters:videoCodec.any'), value: f.video_codec,
+    options: (facets.video_codecs ?? []).map((x) => [x.value, codecLabel(x.value), x.count]), patch: (v) => ({ video_codec: v }) });
+  if (offered(facets.audio_codecs, f.audio_codec)) choices.push({ id: 'audio_codec', media: true, label: t('filters:audioCodec.label'), anyLabel: t('filters:audioCodec.any'), value: f.audio_codec,
+    options: (facets.audio_codecs ?? []).map((x) => [x.value, codecLabel(x.value), x.count]), patch: (v) => ({ audio_codec: v }) });
+  if (offered(facets.audio_channels, f.audio_channels)) choices.push({ id: 'audio_channels', media: true, label: t('filters:channels.label'), anyLabel: t('filters:channels.any'), value: f.audio_channels ? String(f.audio_channels) : undefined,
+    options: [...(facets.audio_channels ?? [])].sort((a, b) => Number(b.value) - Number(a.value)).map((x) => [x.value, channelsLabel(x.value), x.count]), patch: (v) => ({ audio_channels: v }) });
+  // A value chosen from a link that this library doesn't list still shows, so it can be removed.
+  for (const c of choices) if (c.value && !c.options.some(([v]) => v === c.value)) c.options.push([c.value, c.id === 'dynamic_range' ? dynamicRangeLabel(c.value) : c.id === 'audio_channels' ? channelsLabel(c.value) : c.media ? codecLabel(c.value) : c.value]);
   return choices;
 }
 
@@ -86,11 +111,11 @@ export function FiltersButton({ facets, filters, onChange, onClear, unmatched }:
           sideOffset={8}
           collisionPadding={12}
           aria-label={t('library:filters')}
-          className="animate-menu-in z-50 w-[min(560px,calc(100vw-24px))] rounded-2xl border border-border bg-surface p-5 shadow-2xl shadow-black/40"
+          className="animate-menu-in z-50 max-h-[var(--radix-popover-content-available-height)] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-2xl shadow-black/40"
         >
           <label className="mb-4 flex items-center justify-between gap-4 rounded-xl bg-surface-2/60 px-3.5 py-2.5 text-sm font-medium">
             {t('library:unwatchedOnly')}
-            <Switch checked={!!filters.unwatched} onCheckedChange={(on) => onChange({ unwatched: on ? '1' : undefined })} />
+            <Switch checked={!!filters.unwatched} onCheckedChange={(on) => onChange({ unwatched: on ? '1' : undefined, ...(on ? { watch_state: undefined } : {}) })} />
           </label>
           {unmatched && (
             <label className="-mt-2 mb-4 flex items-center justify-between gap-4 rounded-xl bg-surface-2/60 px-3.5 py-2.5 text-sm font-medium">
@@ -101,16 +126,13 @@ export function FiltersButton({ facets, filters, onChange, onClear, unmatched }:
               <Switch checked={!!filters.unmatched} onCheckedChange={(on) => onChange({ unmatched: on ? '1' : undefined })} />
             </label>
           )}
-          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-            {choices.map((c) => (
-              <Field key={c.id} label={c.label}>
-                <select value={c.value ?? ''} onChange={(e) => onChange(c.patch(e.target.value || undefined))} className={inputClass}>
-                  <option value="">{c.anyLabel}</option>
-                  {c.options.map(([v, l, n]) => <option key={v} value={v}>{n === undefined ? l : `${l} (${n})`}</option>)}
-                </select>
-              </Field>
-            ))}
-          </div>
+          <ChoiceGrid choices={choices.filter((c) => !c.media)} onChange={onChange} />
+          {choices.some((c) => c.media) && (
+            <>
+              <h3 className="mb-2.5 mt-5 text-xs font-semibold uppercase tracking-wide text-subtle">{t('filters:media.heading')}</h3>
+              <ChoiceGrid choices={choices.filter((c) => c.media)} onChange={onChange} />
+            </>
+          )}
           {count > 0 && (
             <div className="mt-4 flex justify-end">
               <Button variant="ghost" size="sm" onClick={onClear}><X /> {t('library:clearFilters')}</Button>
@@ -119,6 +141,21 @@ export function FiltersButton({ facets, filters, onChange, onClear, unmatched }:
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+function ChoiceGrid({ choices, onChange }: { choices: Choice[]; onChange: (patch: FilterPatch) => void }) {
+  return (
+    <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+      {choices.map((c) => (
+        <Field key={c.id} label={c.label}>
+          <select value={c.value ?? ''} onChange={(e) => onChange(c.patch(e.target.value || undefined))} className={inputClass}>
+            <option value="">{c.anyLabel}</option>
+            {c.options.map(([v, l, n]) => <option key={v} value={v}>{n === undefined ? l : `${l} (${n})`}</option>)}
+          </select>
+        </Field>
+      ))}
+    </div>
   );
 }
 
