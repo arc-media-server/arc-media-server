@@ -484,6 +484,9 @@ export interface Playback {
   method: PlaybackMethod;
   /** The conversion is far enough ahead and waits for the viewer. */
   throttled?: boolean;
+  /** Part of a Watch Together room, with how many are in it (never who, or the code). */
+  watch_together_room_id?: string;
+  watch_together_participants?: number;
   /** How it's sent (Plex's stream details); absent for plays started before the server knew. */
   stream?: StreamDetail;
   /** For a conversion: how far into the file it has converted. */

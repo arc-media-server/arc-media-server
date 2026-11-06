@@ -8,6 +8,7 @@ import { useAuth, useIsAdmin } from '@/lib/auth';
 import { isSettingsPath } from '@/lib/settings-navigation';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
+import { useWatchTogether } from './WatchTogether';
 import { Avatar } from '@/components/Avatar';
 import {
   DropdownMenu,
@@ -114,6 +115,7 @@ function ProfileMenu({ compact, onReorderLibraries }: { compact?: boolean; onReo
     if (/^\/library\/\d+$/.test(location.pathname)) navigate(location.pathname, { replace: true });
   };
   const { data: status } = useAuth();
+  const together = useWatchTogether();
   const profile = status?.profile;
   if (!profile) return null;
   const leave = async () => {
@@ -153,6 +155,10 @@ function ProfileMenu({ compact, onReorderLibraries }: { compact?: boolean; onReo
           <Sparkles className="size-4 text-muted" />{' '}{t('profile.yearInReview')}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/link')}>
           <Tv className="size-4 text-muted" />{' '}{t('profile.linkDevice')}</DropdownMenuItem>
+        {together.available && (
+          <DropdownMenuItem onSelect={together.openJoin}>
+            <Users className="size-4 text-muted" />{' '}{t('profile.joinWatchTogether')}</DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => navigate('/settings')}>
           <Settings className="size-4 text-muted" />{' '}{t('navigation.settings')}</DropdownMenuItem>
         {onReorderLibraries && <ReorderLibrariesItem onSelect={onReorderLibraries} />}
