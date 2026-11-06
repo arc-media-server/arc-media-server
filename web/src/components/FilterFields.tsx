@@ -2,7 +2,8 @@ import { sortLabels } from '@/lib/filter-labels';
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { api, type ItemSort, type Library, type Resolution, type RowFilter } from '@/lib/api';
+import { api, type DynamicRange, type Facet, type ItemSort, type Library, type Resolution, type RowFilter, type WatchState } from '@/lib/api';
+import { channelsLabel, codecLabel, dynamicRangeLabel } from '@/lib/media-labels';
 import { rowQuery } from '@/lib/home';
 import * as fmt from '@/lib/format';
 import { resolutions } from '@/pages/Library';
@@ -116,6 +117,21 @@ export function FilterFields({
           </select>
         </Field>
         <AdvancedFilterFields filter={f} onChange={onChange} />
+        <Field label={t('watchState.label')}>
+          <select value={f.watch_state ?? ''} onChange={(e) => set({ watch_state: (e.target.value as WatchState) || undefined, ...(e.target.value ? { unwatched: undefined } : {}) })} className={inputClass}>
+            <option value="">{t('watchState.any')}</option>
+            <option value="played">{t('watchState.played')}</option>
+            <option value="unstarted">{t('watchState.unstarted')}</option>
+          </select>
+        </Field>
+        <FacetSelect label={t('dynamicRange.label')} any={t('dynamicRange.any')} values={facets.data?.dynamic_ranges} value={f.dynamic_range} name={dynamicRangeLabel}
+          onChange={(v) => set({ dynamic_range: (v as DynamicRange) || undefined })} />
+        <FacetSelect label={t('videoCodec.label')} any={t('videoCodec.any')} values={facets.data?.video_codecs} value={f.video_codec} name={codecLabel}
+          onChange={(v) => set({ video_codec: v || undefined })} />
+        <FacetSelect label={t('audioCodec.label')} any={t('audioCodec.any')} values={facets.data?.audio_codecs} value={f.audio_codec} name={codecLabel}
+          onChange={(v) => set({ audio_codec: v || undefined })} />
+        <FacetSelect label={t('channels.label')} any={t('channels.any')} values={facets.data?.audio_channels && [...facets.data.audio_channels].sort((a, b) => Number(b.value) - Number(a.value))} value={f.audio_channels ? String(f.audio_channels) : undefined} name={channelsLabel}
+          onChange={(v) => set({ audio_channels: Number(v) || undefined })} />
         {movies && (
           <Field label={t('quality.label')}>
             <select value={f.resolution ?? ''} onChange={(e) => set({ resolution: (e.target.value as Resolution) || undefined })} className={inputClass}>
@@ -130,10 +146,34 @@ export function FilterFields({
         )}
       </div>
       <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-        <input type="checkbox" checked={!!f.unwatched} onChange={(e) => set({ unwatched: e.target.checked || undefined })} className="size-4 accent-[var(--color-accent)]" />
+        <input type="checkbox" checked={!!f.unwatched} onChange={(e) => set({ unwatched: e.target.checked || undefined, ...(e.target.checked ? { watch_state: undefined } : {}) })} className="size-4 accent-[var(--color-accent)]" />
         {unwatchedLabel ?? t('unwatched')}
       </label>
     </>
+  );
+}
+
+/**
+ * A video or audio detail the library's files have, offered only when it has more than one (or
+ * one is already chosen), most titles first.
+ */
+function FacetSelect({ label, any, values, value, name, onChange }: {
+  label: string; any: string; values?: Facet[]; value?: string; name: (v: string) => string; onChange: (v: string) => void;
+}) {
+  const list = [...(values ?? [])];
+  if (list.length < 2 && !value) return null;
+  if (value && !list.some((x) => x.value === value)) list.push({ value, count: 0 });
+  return (
+    <Field label={label}>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        <option value="">{any}</option>
+        {list.map((x) => (
+          <option key={x.value} value={x.value}>
+            {x.count ? `${name(x.value)} (${x.count})` : name(x.value)}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 
