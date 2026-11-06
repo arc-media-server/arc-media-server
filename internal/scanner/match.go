@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"ams/internal/events"
 	"context"
 	"encoding/json"
 	"errors"
@@ -264,6 +265,7 @@ func (s *Scanner) setSeriesMatch(ctx context.Context, it *store.Item, provider s
 		return 0, err
 	}
 	s.saveTrace(ctx, it.ID, tr)
+	s.Events.Publish(events.Event{Topic: "catalog", LibraryID: lib.ID})
 
 	task := s.Activity.Start("refresh", "Matching "+activityTitle(head.Title, head.Year))
 	task.Detail("Fetching seasons and episodes")
