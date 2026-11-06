@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, SearchX, Split, RefreshCw } from 'lucide-react';
+import { Gauge, Layers, ListMusic, ListStart, ListVideo, Loader2, MoreHorizontal, Pencil, ScanSearch, SearchCheck, SearchX, Split, RefreshCw, Users } from 'lucide-react';
+import { useWatchTogether } from '@/components/WatchTogether';
 import { OptimizeDialog } from '@/components/Optimize';
 import { api, type Item } from '@/lib/api';
 import { isLocalVideo } from '@/lib/kinds';
@@ -118,10 +119,16 @@ export function MoreMenuItems({ item, admin, playable, onOpen, onRefresh, refres
   onQueue: (next: boolean) => void; onPlaylist: () => void; extra?: ReactNode;
 }) {
   const { t } = useTranslation('titles');
+  const together = useWatchTogether();
+  // Watch Together starts from a movie or an episode (a show: pick the episode first), as in Plex.
+  const togetherOK = playable && together.available && (item.kind === 'movie' || item.kind === 'episode');
   return (
     <>
       {playable && (
         <>
+          {togetherOK && (
+            <DropdownMenuItem onSelect={() => void together.start(item).catch(() => undefined)}><Users className="size-4 text-muted" /> {t('titles:itemActions.watchTogether')}</DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={() => onQueue(true)}><ListStart className="size-4 text-muted" /> {t('titles:queueActions.playNext')}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onQueue(false)}><ListVideo className="size-4 text-muted" /> {t('titles:queueActions.addToQueue')}</DropdownMenuItem>
           <DropdownMenuItem onSelect={onPlaylist}><ListMusic className="size-4 text-muted" /> {t('titles:itemActions.addToPlaylist')}</DropdownMenuItem>

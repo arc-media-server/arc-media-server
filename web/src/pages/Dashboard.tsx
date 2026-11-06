@@ -97,6 +97,11 @@ function PlaybackCard({ playback: p, onStop }: { playback: Playback; onStop: () 
               ? p.throttled ? t('reports:dashboard.directStreamThrottled') : t('reports:dashboard.directStream')
               : p.throttled ? t('reports:dashboard.transcodingThrottled') : t('reports:dashboard.transcoding')}
           </span>
+          {!!p.watch_together_participants && (
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted ring-1 ring-border">
+              {t('reports:dashboard.watchTogether', { count: p.watch_together_participants })}
+            </span>
+          )}
           {p.stream?.encoder && (
             <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', p.stream.hardware ? 'bg-accent/15 text-accent ring-accent/30' : 'bg-surface-2 text-muted ring-border')}>
               {p.stream.hardware ? t('reports:dashboard.hardwareEncoder', { encoder: p.stream.encoder }) : t('reports:dashboard.cpuEncoder')}
