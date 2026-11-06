@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"ams/internal/events"
 	"context"
 	"fmt"
 	"os"
@@ -189,5 +190,8 @@ func (s *Scanner) reanalyzeFile(ctx context.Context, file store.MediaFile) error
 	file.Streams, file.Chapters, file.ProbeError = nil, nil, ""
 	applyProbe(&file, result)
 	_, err = s.store.SaveAnalysis(ctx, &file, time.Now().Unix())
+	if err == nil {
+		s.Events.Publish(events.Event{Topic: "catalog", LibraryID: file.LibraryID})
+	}
 	return err
 }

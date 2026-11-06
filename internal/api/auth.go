@@ -215,6 +215,17 @@ func toProfile(u store.User) profileDTO {
 		LibraryIDs: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels, IsFriend: u.IsFriend, Joined: u.IsFriend && u.PasswordHash != ""}
 }
 
+type authStatusDTO struct {
+	SetupNeeded     bool         `json:"setup_needed"`
+	SignedIn        bool         `json:"signed_in"`
+	Profile         *profileDTO  `json:"profile" api:"nullable"`
+	Profiles        []profileDTO `json:"profiles"`
+	PasswordSession bool         `json:"password_session"`
+	Local           bool         `json:"local"`
+	Bypass          bool         `json:"bypass"`
+	Friend          bool         `json:"friend"`
+}
+
 // authStatus: GET /api/auth/status tells the web app what to show: first-run setup, the sign-in
 // screen, the profile picker, or the app.
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
@@ -224,15 +235,15 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	out := map[string]any{"setup_needed": n == 0, "signed_in": false, "profile": nil, "profiles": []profileDTO{},
-		"password_session": false, "local": auth.IsLocal(r), "bypass": s.bypassApplies(r)}
+	out := authStatusDTO{SetupNeeded: n == 0, Profiles: []profileDTO{}, Local: auth.IsLocal(r), Bypass: s.bypassApplies(r)}
 	se := s.session(r)
 	if se != nil {
-		out["signed_in"] = true
-		out["password_session"] = se.Via == "password"
+		out.SignedIn = true
+		out.PasswordSession = se.Via == "password"
 		if se.UserID != "" {
 			if u, err := s.store.GetUser(ctx, se.UserID); err == nil && u != nil {
-				out["profile"] = toProfile(*u)
+				profile := toProfile(*u)
+				out.Profile = &profile
 			}
 		}
 	}
@@ -248,9 +259,9 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 				profiles = append(profiles, toProfile(u))
 			}
 		}
-		out["profiles"] = profiles
+		out.Profiles = profiles
 	}
-	out["friend"] = se != nil && se.Via == "friend"
+	out.Friend = se != nil && se.Via == "friend"
 	writeJSON(w, http.StatusOK, out)
 }
 

@@ -33,9 +33,10 @@ func eventAllowed(e events.Event, u *store.User) bool {
 
 // eventStream: GET /api/events is a profile-authenticated Server-Sent Events stream. "invalidate"
 // hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal
-// hints only reach that profile; activity/sessions are admin-only. "resync" requires refetching all
+// hints only reach that profile; activity/sessions/maintenance are admin-only. "resync" requires refetching all
 // client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens
-// in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.
+// in URLs. Background catalog/artwork/optimized/previews/markers hints are cache invalidations,
+// not job-success or playback commands. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.
 func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 	if len(r.Header.Get("Last-Event-ID")) > 80 {
 		writeError(w, 400, "invalid event cursor")
@@ -153,6 +154,9 @@ func (s *Server) publishMutation(r *http.Request, route string) {
 		return
 	}
 	path := r.URL.Path
+	if strings.HasPrefix(path, "/api/watch-together") {
+		return
+	}
 	if strings.HasSuffix(path, "/batch") || strings.HasSuffix(path, "/playback-options") || strings.HasSuffix(path, "/playback-preview") || strings.HasSuffix(path, "/compatibility") || strings.HasSuffix(path, "/ping") || strings.HasPrefix(path, "/api/auth/") {
 		return
 	}

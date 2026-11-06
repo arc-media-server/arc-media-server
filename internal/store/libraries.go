@@ -134,17 +134,24 @@ func (s *Store) LibraryCounts(ctx context.Context) (map[int64]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := map[int64]int{}
-	for _, l := range libs {
+	return s.LibraryCountsFor(ctx, libs)
+}
+
+// LibraryCountsFor counts the supplied libraries without fetching/sorting a sample item page.
+// Callers that already loaded/permission-filtered libraries avoid another listing and hidden work.
+func (s *Store) LibraryCountsFor(ctx context.Context, libs []Library) (map[int64]int, error) {
+	out := make(map[int64]int, len(libs))
+	for _, lib := range libs {
 		kind := "movie"
-		if l.Kind == "shows" {
+		if lib.Kind == "shows" {
 			kind = "series"
 		}
-		_, n, err := s.ListItems(ctx, ItemQuery{LibraryID: l.ID, Kind: kind, Limit: 1})
-		if err != nil {
+		cond, args := itemFilter(ItemQuery{LibraryID: lib.ID, Kind: kind})
+		var n int
+		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM items WHERE "+cond, args...).Scan(&n); err != nil {
 			return nil, err
 		}
-		out[l.ID] = n
+		out[lib.ID] = n
 	}
 	return out, nil
 }
