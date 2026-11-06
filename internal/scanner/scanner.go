@@ -4,6 +4,7 @@ package scanner
 
 import (
 	"ams/internal/activity"
+	"ams/internal/events"
 	"ams/internal/schedule"
 	"context"
 	"errors"
@@ -155,6 +156,8 @@ const (
 )
 
 type Scanner struct {
+	// Events is configured before workers start; invalidations contain no item metadata.
+	Events *events.Hub
 	ctx    context.Context
 	store  *store.Store
 	prober *probe.Prober
@@ -846,7 +849,11 @@ func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int
 		probedAt = time.Now().Unix()
 		applyProbe(f, res)
 	}
-	return s.store.SaveFile(ctx, f, probedAt, seenAt)
+	id, err := s.store.SaveFile(ctx, f, probedAt, seenAt)
+	if err == nil {
+		s.Events.Publish(events.Event{Topic: "catalog", LibraryID: f.LibraryID})
+	}
+	return id, err
 }
 
 // probePending reads a library's files that haven't been read yet (new or changed since), a few
@@ -1090,6 +1097,7 @@ func (s *Scanner) saveMovie(ctx context.Context, it store.Item, m *metadata.Movi
 	if err := s.store.UpdateMetadata(ctx, movieMetadata(it, m)); err != nil {
 		return err
 	}
+	defer s.Events.Publish(events.Event{Topic: "catalog", LibraryID: it.LibraryID})
 	var coll *store.CollectionRef
 	if c := m.Collection; c != nil {
 		coll = &store.CollectionRef{TMDBID: c.TMDBID, Name: c.Name, PosterPath: c.PosterPath, BackdropPath: c.BackdropPath}

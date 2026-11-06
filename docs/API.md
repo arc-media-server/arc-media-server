@@ -44,7 +44,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-195 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+205 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -139,7 +139,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/events` | profile | Is a profile-authenticated Server-Sent Events stream. "invalidate" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions are admin-only. "resync" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds. |
+| GET | `/api/events` | profile | Is a profile-authenticated Server-Sent Events stream. "invalidate" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions/maintenance are admin-only. "resync" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Background catalog/artwork/optimized/previews/markers hints are cache invalidations, not job-success or playback commands. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds. |
 
 ### extras
 
@@ -444,6 +444,21 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | POST | `/api/transcoder/detect` | admin | Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected. |
+
+### watch-together
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/watch-together` | profile | {item_id,start_ms} creates a paused room and an expiring readable invite code. Up to 20 rooms/server, 10 participants/room, one active room per device/profile. Existing signed-in household profiles and friends are allowed. No stream starts. |
+| POST | `/api/watch-together/join` | profile | {code} joins an unexpired invite only if the profile may play the current movie/episode. Wrong, expired and restricted invites all return 404. |
+| GET | `/api/watch-together/time` | profile | ?client_sent_ms=... echoes an optional integer client timestamp and server receive/send epoch milliseconds for midpoint/RTT clock estimation. |
+| GET | `/api/watch-together/current` | profile | Recovers only this device/profile's own active membership (404 if none). Use after reload or a lost create/join response; never lists rooms. |
+| GET | `/api/watch-together/{id}` | profile | Returns a member-only personalized timeline. A member denied a changed title remains present with available:false and no item/id metadata. |
+| POST | `/api/watch-together/{id}/leave` | profile | Leaves this device/profile only. The oldest remaining participant inherits host control. Personal playback/history is untouched. |
+| POST | `/api/watch-together/{id}/commands` | profile | {revision,action,position_ms,item_id}. Actions play/pause/seek/change_item are shared controls; only the host may end. Seek and item changes increment generation so readiness for older media/positions cannot release the barrier. A stale revision returns 409 with the current personalized room. No playback session is created. |
+| POST | `/api/watch-together/{id}/heartbeat` | profile | {generation,position_ms,state,ready} reports presence/readiness, never changes shared position or watch history. Up to four reports/second. Waiting defaults to ten seconds, then slow viewers catch up themselves. A stale seek/title generation returns 409 with current room state. |
+| POST | `/api/watch-together/{id}/invite` | profile | {revision} creates a fresh 15-minute code (host only), invalidating the old one. Codes are returned only at create/renew, never in GET. |
+| GET | `/api/watch-together/{id}/events` | profile | Is a private room SSE stream carrying full personalized room snapshots (event: room, id: revision). It does not consume /events slots. One stream/member (a reconnect replaces the older one), at most 200/server; initial/reconnect always sends the latest snapshot. Changes wake immediately; timeout transitions are checked every 200ms. Auth/access are freshly checked before each payload and at least every two seconds; revoked/switched sessions close. No tokens/codes in URLs. Thirty-minute streams, five-second write deadlines, no event queues. |
 
 ### watchlist
 
