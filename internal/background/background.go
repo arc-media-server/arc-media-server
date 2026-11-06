@@ -2,6 +2,7 @@
 package background
 
 import (
+	"ams/internal/events"
 	"context"
 	"errors"
 	"fmt"
@@ -38,6 +39,8 @@ type waiter struct {
 }
 
 type Manager struct {
+	// Events is configured before workers start; invalidations contain no item metadata.
+	Events    *events.Hub
 	waiting   map[string]waiter
 	ticket    uint64
 	completed map[string]bool
@@ -270,6 +273,13 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 			if ctx.Err() == nil && current {
 				_ = m.store.SetBackgroundJob(ctx, kind, key, revision, state, message)
 			}
+			switch kind {
+			case "metadata", "analysis", "empty_trash":
+				m.Events.Publish(events.Event{Topic: "catalog"})
+			case "previews", "markers":
+				m.Events.Publish(events.Event{Topic: kind})
+			}
+			m.Events.Publish(events.Event{Topic: "maintenance", Admin: true})
 			<-m.slot
 		})
 	}

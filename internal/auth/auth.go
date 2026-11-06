@@ -289,6 +289,19 @@ func (l *Limiter) Allow(key string) bool {
 	return len(l.recent(key)) < maxFailures
 }
 
+// Attempt atomically admits and counts an attempt, including in concurrent callers. Call
+// Succeed after success when the key should count only unsuccessful attempts.
+func (l *Limiter) Attempt(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	recent := l.recent(key)
+	if len(recent) >= maxFailures {
+		return false
+	}
+	l.failures[key] = append(recent, time.Now())
+	return true
+}
+
 // Fail records a wrong attempt.
 func (l *Limiter) Fail(key string) {
 	l.mu.Lock()

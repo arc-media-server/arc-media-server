@@ -1,7 +1,9 @@
 package artwork
 
 import (
+	"ams/internal/events"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -26,6 +28,8 @@ func TestCacheDownloadsOnceAndPrunes(t *testing.T) {
 	defer srv.Close()
 
 	c := New(t.TempDir(), slog.New(slog.DiscardHandler))
+	c.Events = events.New()
+	_, cursor, _ := c.Events.Read("")
 	ctx := context.Background()
 	a, b := srv.URL+"/a.jpg", srv.URL+"/b.jpg"
 
@@ -40,6 +44,22 @@ func TestCacheDownloadsOnceAndPrunes(t *testing.T) {
 			t.Fatalf("got %q", body)
 		}
 	}
+	hints, cursor, stale := c.Events.Read(cursor)
+	if stale || len(hints) != 1 || hints[0].Topic != "artwork" {
+		t.Fatalf("download hints: %+v stale=%v", hints, stale)
+	}
+	raw, _ := json.Marshal(hints[0])
+	if string(raw) != `{"topic":"artwork"}` {
+		t.Fatalf("artwork hint disclosed source data: %s", raw)
+	}
+	f, err := c.Open(ctx, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	if next, _, _ := c.Events.Read(cursor); len(next) != 0 {
+		t.Fatalf("cached hit published: %+v", next)
+	}
 	if n := hits.Load(); n != 1 {
 		t.Fatalf("downloaded %d times, want 1", n)
 	}
@@ -48,14 +68,21 @@ func TestCacheDownloadsOnceAndPrunes(t *testing.T) {
 		t.Fatal("expected an error for a missing image")
 	}
 
+	if next, _, _ := c.Events.Read(cursor); len(next) != 0 {
+		t.Fatalf("failed download published: %+v", next)
+	}
 	downloaded, failed := c.Prefetch(ctx, []string{a, b, ""})
 	if downloaded != 1 || failed != 0 {
 		t.Fatalf("prefetch downloaded %d, failed %d; want 1, 0", downloaded, failed)
 	}
 
+	_, cursor, _ = c.Events.Read(cursor)
 	removed, err := c.Prune([]string{b})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if next, _, _ := c.Events.Read(cursor); len(next) != 1 || next[0].Topic != "artwork" {
+		t.Fatalf("prune hints: %+v", next)
 	}
 	if removed != 1 || c.Has(a) || !c.Has(b) {
 		t.Fatalf("prune removed %d (a cached: %v, b cached: %v); want a removed and b kept", removed, c.Has(a), c.Has(b))
