@@ -43,24 +43,23 @@ async function keepPlaying(page: Page) {
 }
 const videoState = (page: Page) => page.locator('video').evaluate((v: HTMLVideoElement) => ({ paused: v.paused, at: v.currentTime }));
 
-test('watch together: a second device joins with the code and follows play, pause and seek', async ({ page, browser }, info) => {
+test('watch together: a second device joins with the invite link, waits in the lobby and follows play, pause and seek', async ({ page, browser }, info) => {
   const { item } = await seed(page);
   await page.goto('/movie/' + item.id);
   await keepPlaying(page);
   await page.getByRole('button', { name: 'More', exact: true }).first().click();
   await page.getByRole('menuitem', { name: 'Watch Together', exact: true }).click();
-  // The host's player opens in the room, paused, with the invite code in the people menu.
-  const people = page.getByRole('button', { name: /^Watch Together: 1 person$/ });
-  await expect(people).toBeVisible({ timeout: 20_000 });
-  await people.click();
-  const codeButton = page.getByRole('button', { name: /^Copy code / });
-  await expect(codeButton).toBeVisible();
+  // The host's player opens in the room, paused, on the lobby: the invite code and link, and Start.
+  const lobby = page.getByRole('dialog', { name: 'Watch Together' });
+  await expect(lobby).toBeVisible({ timeout: 20_000 });
+  await expect(lobby.getByText('1 person here', { exact: true })).toBeVisible();
+  await expect(lobby.getByRole('button', { name: 'Copy invite link', exact: true })).toBeVisible();
+  const codeButton = lobby.getByRole('button', { name: /^Copy code / });
   const code = (await codeButton.getAttribute('aria-label'))!.replace('Copy code ', '');
-  await page.screenshot({ path: info.outputPath('people-menu.png') });
   expect(code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: /^Watch Together: 1 person$/ })).toBeVisible();
 
-  // A second device: its own sign-in (another session), same household profile.
+  // A second device: its own sign-in (another session), same household profile, opens the invite link.
   const other = await browser.newContext();
   await other.route('**/*', route => { const u = new URL(route.request().url()); return u.hostname === '127.0.0.1' || u.protocol === 'data:' ? route.continue() : route.abort(); });
   const login = await other.request.post('http://127.0.0.1:18199/api/auth/login', { data: { password } });
@@ -69,20 +68,25 @@ test('watch together: a second device joins with the code and follows play, paus
   const chosen = await other.request.post('http://127.0.0.1:18199/api/auth/profile', { data: { id: status.profiles[0].id } });
   expect(chosen.ok()).toBe(true);
   const guest = await other.newPage();
-  await guest.goto('http://127.0.0.1:18199/');
+  await guest.goto(`http://127.0.0.1:18199/?together=${code}`);
   await keepPlaying(guest);
-  await guest.getByRole('button', { name: /Admin/ }).first().click();
-  await guest.getByRole('menuitem', { name: 'Join Watch Together…', exact: true }).click();
-  await guest.getByRole('textbox', { name: 'Code', exact: true }).fill(code.toLowerCase().replace('-', ''));
+  await expect(guest.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue(code);
+  await expect(guest).toHaveURL('http://127.0.0.1:18199/');
   await guest.screenshot({ path: info.outputPath('join-dialog.png') });
   await guest.getByRole('button', { name: 'Join', exact: true }).click();
-  await expect(guest.getByRole('button', { name: /^Watch Together: 2 people$/ })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('button', { name: /^Watch Together: 2 people$/ })).toBeVisible({ timeout: 10_000 });
 
-  // Both wait, paused, until the host presses Play; then both play.
+  // The guest waits for the host; the host's lobby shows them arrive.
+  const guestLobby = guest.getByRole('dialog', { name: 'Watch Together' });
+  await expect(guestLobby.getByText(/^Waiting for .+ to start…$/)).toBeVisible({ timeout: 20_000 });
+  await expect(lobby.getByText('2 people here', { exact: true })).toBeVisible({ timeout: 10_000 });
+  await page.screenshot({ path: info.outputPath('lobby-host.png') });
+  await guest.screenshot({ path: info.outputPath('lobby-guest.png') });
   await expect.poll(async () => (await videoState(guest)).paused, { timeout: 15_000 }).toBe(true);
-  await page.locator('video').hover();
-  await page.getByRole('button', { name: 'Play (Space)', exact: true }).click();
+
+  // The host starts: both lobbies close and both players play.
+  await lobby.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(lobby).toBeHidden({ timeout: 10_000 });
+  await expect(guestLobby).toBeHidden({ timeout: 10_000 });
   await expect.poll(async () => { const s = await videoState(guest); return !s.paused && s.at > 1; }, { timeout: 20_000 }).toBe(true);
   await expect.poll(async () => { const s = await videoState(page); return !s.paused && s.at > 1; }, { timeout: 20_000 }).toBe(true);
 
