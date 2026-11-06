@@ -625,7 +625,7 @@ func (m *Manager) admit(r *room, a Actor, now time.Time) (Snapshot, error) {
 	r.members = append(r.members, p)
 	r.peak = max(r.peak, len(r.members))
 	// Joining a room that's already playing doesn't pause everyone: the newcomer catches up
-	// to the shared position by themselves, as in Plex, and joins the barrier once ready.
+	// to the shared position by themselves and joins the barrier once ready.
 	if r.playing {
 		r.ignored[p.ID] = true
 	}

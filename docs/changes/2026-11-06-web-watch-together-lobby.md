@@ -21,7 +21,7 @@ to invite anyone.
 
 ## Decisions
 
-- **The host starts the room,** as in Plex's Watch Together, rather than it starting by itself
+- **The host starts the room,** rather than it starting by itself
   when someone joins.
 - **Links fill in the code but don't join on their own:** one click on Join, so a link opened by
   mistake doesn't put anyone in a room.
