@@ -22,6 +22,7 @@ export const topicQueries: Record<string, string[]> = {
   optimized: ['optimized', 'playback-options', 'item'],
   previews: ['item'],
   markers: ['markers', 'marker-coverage'],
+  watch_together: ['watch-together-rooms'],
   maintenance: ['scheduled-work', 'maintenance-window', 'health', 'health-summary', 'stats-storage', 'backups'],
 };
 

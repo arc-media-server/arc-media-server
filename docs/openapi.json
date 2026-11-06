@@ -4913,6 +4913,9 @@
           "host_id": {
             "type": "string"
           },
+          "host_name": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -4961,6 +4964,7 @@
           "available",
           "generation",
           "host_id",
+          "host_name",
           "id",
           "invited",
           "participants",

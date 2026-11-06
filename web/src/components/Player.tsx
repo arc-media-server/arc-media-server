@@ -1248,7 +1248,8 @@ function PlayerOverlay({
         <TogetherLobby room={room} invite={together.invite}
           onStart={() => void session.play().catch(() => undefined)}
           onLeave={onClose}
-          onRenew={() => void together.renew().catch(() => undefined)} />
+          onRenew={() => void together.renew().catch(() => undefined)}
+          onInvite={together.inviteMore} />
       )}
       {room?.state === 'waiting' && session && !minimized && <TogetherWaiting room={room} serverNow={() => session.serverNow()} />}
       {room && !room.available && !minimized && (
