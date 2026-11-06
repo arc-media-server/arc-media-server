@@ -2,6 +2,7 @@ package transcode
 
 import (
 	"bytes"
+	"github.com/fsnotify/fsnotify"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -32,7 +33,7 @@ var defaultThrottling = throttling{pauseAhead: 120 * time.Second, resumeAhead: 1
 // Requested records that the player fetched an output file: a media segment moves the point the
 // conversion keeps ahead of, and asking for one not made yet resumes it at once.
 func (s *Session) Requested(name string) {
-	if !strings.HasPrefix(name, "s") || !strings.HasSuffix(name, ".m4s") {
+	if !strings.HasPrefix(name, "s") || !fileRe.MatchString(name) {
 		return
 	}
 	n, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(name, "s"), ".m4s"))
@@ -42,6 +43,7 @@ func (s *Session) Requested(name string) {
 	s.mu.Lock()
 	s.requested = n
 	s.mu.Unlock()
+	s.wakeThrottle()
 	if _, err := os.Stat(filepath.Join(s.dir, name)); err != nil {
 		s.setPaused(false)
 	}
@@ -54,37 +56,84 @@ func (s *Session) Throttled() bool {
 	return s.paused
 }
 
-// throttle keeps the conversion within pauseAhead of the player until FFmpeg finishes.
+// watchOutput installs one session-directory watch before FFmpeg starts. Atomic playlist
+// replacement wakes pacing as each segment completes; the timer remains the portable fallback.
+func (s *Session) watchOutput() *fsnotify.Watcher {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil
+	}
+	if err = w.Add(s.dir); err != nil {
+		w.Close()
+		return nil
+	}
+	return w
+}
+func (s *Session) wakeThrottle() {
+	select {
+	case s.throttleWake <- struct{}{}:
+	default:
+	}
+}
+
+// throttle has no event backlog: notifications only request a fresh playlist read. It never
+// sends a signal from the file-watcher goroutine or holds a network/DB resource.
 func (s *Session) throttle() {
+	defer close(s.throttleDone)
+	var changes <-chan fsnotify.Event
+	var failures <-chan error
+	if s.outputWatcher != nil {
+		changes = s.outputWatcher.Events
+		failures = s.outputWatcher.Errors
+		defer s.outputWatcher.Close()
+	}
 	t := time.NewTicker(s.throttling.tick)
 	defer t.Stop()
+	s.checkThrottle()
 	for {
 		select {
 		case <-s.done:
 			return
 		case <-t.C:
+		case <-s.throttleWake:
+		case event, ok := <-changes:
+			if !ok {
+				changes = nil
+				continue
+			}
+			if filepath.Base(event.Name) != "index.m3u8" {
+				continue
+			}
+		case _, ok := <-failures:
+			if !ok {
+				failures = nil
+				continue
+			}
 		}
-		made := s.segments()
+		s.checkThrottle()
+	}
+}
+func (s *Session) checkThrottle() {
+	made := s.segments()
+	s.mu.Lock()
+	at := max(s.requested, 0)
+	paused, pausedAt, madeAtResume := s.paused, s.pausedAt, s.madeAtResume
+	s.mu.Unlock()
+	ahead := time.Duration(made-1-at) * segmentSeconds * time.Second
+	switch {
+	case paused && (at > pausedAt || ahead <= s.throttling.resumeAhead):
+		// The player moved on. A fast conversion can pause several segments past pauseAhead
+		// (they finish between ticks), so waiting for it to fall back under the line would
+		// hold the playlist still for that long: resume, and make at least one more.
 		s.mu.Lock()
-		at := max(s.requested, 0)
-		paused, pausedAt, madeAtResume := s.paused, s.pausedAt, s.madeAtResume
+		s.madeAtResume = made
 		s.mu.Unlock()
-		ahead := time.Duration(made-1-at) * segmentSeconds * time.Second
-		switch {
-		case paused && (at > pausedAt || ahead <= s.throttling.resumeAhead):
-			// The player moved on. A fast conversion can pause several segments past pauseAhead
-			// (they finish between ticks), so waiting for it to fall back under the line would
-			// hold the playlist still for that long: resume, and make at least one more.
-			s.mu.Lock()
-			s.madeAtResume = made
-			s.mu.Unlock()
-			s.setPaused(false)
-		case !paused && ahead >= s.throttling.pauseAhead && made > madeAtResume:
-			s.mu.Lock()
-			s.pausedAt = at
-			s.mu.Unlock()
-			s.setPaused(true)
-		}
+		s.setPaused(false)
+	case !paused && ahead >= s.throttling.pauseAhead && made > madeAtResume:
+		s.mu.Lock()
+		s.pausedAt = at
+		s.mu.Unlock()
+		s.setPaused(true)
 	}
 }
 
@@ -123,6 +172,10 @@ func (s *Session) setPaused(paused bool) {
 	if err != nil {
 		// Where pausing isn't possible the conversion simply runs at full speed, as before.
 		s.proc = nil
+		s.paused = false
+		if s.throttleFailure != nil {
+			s.throttleFailure()
+		}
 		return
 	}
 	s.paused = paused

@@ -74,6 +74,21 @@
         ],
         "type": "object"
       },
+      "ApiFolder": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ],
+        "type": "object"
+      },
       "ApiRankedPerson": {
         "properties": {
           "count": {
@@ -162,6 +177,55 @@
           "codec",
           "default",
           "index"
+        ],
+        "type": "object"
+      },
+      "AuthStatus": {
+        "properties": {
+          "bypass": {
+            "type": "boolean"
+          },
+          "friend": {
+            "type": "boolean"
+          },
+          "local": {
+            "type": "boolean"
+          },
+          "password_session": {
+            "type": "boolean"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Profile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/Profile"
+            },
+            "type": "array"
+          },
+          "setup_needed": {
+            "type": "boolean"
+          },
+          "signed_in": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "bypass",
+          "friend",
+          "local",
+          "password_session",
+          "profile",
+          "profiles",
+          "setup_needed",
+          "signed_in"
         ],
         "type": "object"
       },
@@ -300,6 +364,48 @@
           "id",
           "provider",
           "title"
+        ],
+        "type": "object"
+      },
+      "Capabilities": {
+        "properties": {
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/HardwareAttempt"
+            },
+            "type": "array"
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "hw_device": {
+            "type": "string"
+          },
+          "hw_driver": {
+            "type": "string"
+          },
+          "hw_encoder": {
+            "type": "string"
+          },
+          "hw_label": {
+            "type": "string"
+          },
+          "hw_low_power": {
+            "type": "boolean"
+          },
+          "tone_mapping": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checked",
+          "checking",
+          "hw_encoder",
+          "hw_label",
+          "tone_mapping"
         ],
         "type": "object"
       },
@@ -535,6 +641,25 @@
         ],
         "type": "object"
       },
+      "Cue": {
+        "properties": {
+          "end_ms": {
+            "type": "integer"
+          },
+          "start_ms": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "end_ms",
+          "start_ms",
+          "text"
+        ],
+        "type": "object"
+      },
       "Delivery": {
         "properties": {
           "at": {
@@ -583,6 +708,74 @@
           "name",
           "product",
           "version"
+        ],
+        "type": "object"
+      },
+      "Duplicate": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileProblem"
+            },
+            "type": "array"
+          },
+          "folders": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Entry": {
+        "properties": {
+          "added_at": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "series": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "unread": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "added_at",
+          "count",
+          "item",
+          "unread"
         ],
         "type": "object"
       },
@@ -663,6 +856,43 @@
           "allowed",
           "available",
           "supported"
+        ],
+        "type": "object"
+      },
+      "FileProblem": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "integer"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "item_kind": {
+            "type": "string"
+          },
+          "item_title": {
+            "type": "string"
+          },
+          "missing_since": {
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "series_id": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "file_id",
+          "path",
+          "size"
         ],
         "type": "object"
       },
@@ -797,6 +1027,36 @@
         ],
         "type": "object"
       },
+      "Gaps": {
+        "properties": {
+          "have": {
+            "type": "integer"
+          },
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingEpisode"
+            },
+            "type": "array"
+          },
+          "ordering": {
+            "type": "string"
+          },
+          "series": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "unplaced": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "have",
+          "missing",
+          "ordering",
+          "series",
+          "unplaced"
+        ],
+        "type": "object"
+      },
       "GenreResult": {
         "properties": {
           "count": {
@@ -817,6 +1077,29 @@
           "library_id",
           "library_name",
           "name"
+        ],
+        "type": "object"
+      },
+      "HardwareAttempt": {
+        "properties": {
+          "device": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "encoder": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "low_power": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "encoder"
         ],
         "type": "object"
       },
@@ -846,6 +1129,36 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "Image": {
+        "properties": {
+          "height": {
+            "type": "integer"
+          },
+          "language": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "thumb": {
+            "type": "string"
+          },
+          "votes": {
+            "type": "number"
+          },
+          "width": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "height",
+          "path",
+          "thumb",
+          "votes",
+          "width"
         ],
         "type": "object"
       },
@@ -1736,6 +2049,45 @@
         ],
         "type": "object"
       },
+      "LibrarySize": {
+        "properties": {
+          "files": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "titles": {
+            "type": "integer"
+          },
+          "unwatched_size": {
+            "type": "integer"
+          },
+          "unwatched_titles": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "files",
+          "id",
+          "kind",
+          "name",
+          "size",
+          "titles",
+          "unwatched_size",
+          "unwatched_titles"
+        ],
+        "type": "object"
+      },
       "Line": {
         "properties": {
           "attrs": {
@@ -1863,6 +2215,41 @@
           "kind",
           "source",
           "start_ms"
+        ],
+        "type": "object"
+      },
+      "MarkerCoverage": {
+        "properties": {
+          "checked": {
+            "type": "integer"
+          },
+          "credits": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "intros": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checked",
+          "credits",
+          "files",
+          "id",
+          "intros",
+          "kind",
+          "title"
         ],
         "type": "object"
       },
@@ -2095,6 +2482,33 @@
         ],
         "type": "object"
       },
+      "MissingEpisode": {
+        "properties": {
+          "air_date": {
+            "type": "string"
+          },
+          "episode_number": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "season_number": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "air_date",
+          "episode_number",
+          "id",
+          "season_number",
+          "title"
+        ],
+        "type": "object"
+      },
       "Named": {
         "properties": {
           "name": {
@@ -2139,6 +2553,53 @@
           "id",
           "stage",
           "subject"
+        ],
+        "type": "object"
+      },
+      "Optimized": {
+        "properties": {
+          "bitrate": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "integer"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "quality": {
+            "type": "integer"
+          },
+          "series_title": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "file_id",
+          "item_id",
+          "quality",
+          "size",
+          "status",
+          "title"
         ],
         "type": "object"
       },
@@ -2366,6 +2827,27 @@
           "known_for",
           "name",
           "tmdb_id"
+        ],
+        "type": "object"
+      },
+      "PersonCredit": {
+        "properties": {
+          "character": {
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "item",
+          "roles"
         ],
         "type": "object"
       },
@@ -3159,6 +3641,20 @@
         ],
         "type": "object"
       },
+      "RemoteCheck": {
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "reachable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reachable"
+        ],
+        "type": "object"
+      },
       "RemoteStatus": {
         "properties": {
           "double_nat": {
@@ -3415,6 +3911,257 @@
           "probe_errors",
           "running",
           "unmatched"
+        ],
+        "type": "object"
+      },
+      "Season": {
+        "properties": {
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonEpisode"
+            },
+            "type": "array"
+          },
+          "locked_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "poster": {
+            "type": "string"
+          },
+          "season_number": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "episodes",
+          "locked_fields",
+          "name",
+          "season_number"
+        ],
+        "type": "object"
+      },
+      "SeasonArt": {
+        "properties": {
+          "chosen": {
+            "type": "boolean"
+          },
+          "image": {
+            "type": "string"
+          },
+          "local": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "season_number": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "chosen",
+          "local",
+          "name",
+          "season_number"
+        ],
+        "type": "object"
+      },
+      "SeasonEpisode": {
+        "properties": {
+          "added_at": {
+            "type": "integer"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionRef"
+            },
+            "type": "array"
+          },
+          "content_rating": {
+            "type": "string"
+          },
+          "credits": {
+            "items": {
+              "$ref": "#/components/schemas/Credit"
+            },
+            "type": "array"
+          },
+          "details_provider": {
+            "type": "string"
+          },
+          "episode_number": {
+            "type": "integer"
+          },
+          "extras": {
+            "items": {
+              "$ref": "#/components/schemas/Extra"
+            },
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/MediaFile"
+            },
+            "type": "array"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "images": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "imdb_id": {
+            "type": "string"
+          },
+          "imdb_rating": {
+            "type": "number"
+          },
+          "imdb_votes": {
+            "type": "integer"
+          },
+          "inline_special": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "last_aired": {
+            "type": "string"
+          },
+          "library_id": {
+            "type": "integer"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "locked_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "match_suppressed": {
+            "type": "boolean"
+          },
+          "metacritic": {
+            "type": "integer"
+          },
+          "metadata_state": {
+            "type": "string"
+          },
+          "next_aired": {
+            "type": "string"
+          },
+          "original_language": {
+            "type": "string"
+          },
+          "original_title": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "release_date": {
+            "type": "string"
+          },
+          "rotten_tomatoes": {
+            "type": "integer"
+          },
+          "runtime_min": {
+            "type": "integer"
+          },
+          "season_number": {
+            "type": "integer"
+          },
+          "series_title": {
+            "type": "string"
+          },
+          "sort_title": {
+            "type": "string"
+          },
+          "source_ordering": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "stream_url": {
+            "type": "string"
+          },
+          "studio": {
+            "type": "string"
+          },
+          "tagline": {
+            "type": "string"
+          },
+          "theme_url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "tmdb_id": {
+            "type": "integer"
+          },
+          "tvdb_id": {
+            "type": "integer"
+          },
+          "unwatched_count": {
+            "type": "integer"
+          },
+          "user_data": {
+            "$ref": "#/components/schemas/UserData"
+          },
+          "year": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added_at",
+          "available",
+          "episode_number",
+          "id",
+          "kind",
+          "library_id",
+          "locked_fields",
+          "match_suppressed",
+          "metadata_state",
+          "season_number",
+          "sort_title",
+          "title"
         ],
         "type": "object"
       },
@@ -3748,6 +4495,36 @@
         ],
         "type": "object"
       },
+      "TitleSize": {
+        "properties": {
+          "added_at": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "integer"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "last_played": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "watched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "added_at",
+          "files",
+          "item_id",
+          "size",
+          "watched"
+        ],
+        "type": "object"
+      },
       "Track": {
         "properties": {
           "codec": {
@@ -3790,6 +4567,41 @@
           "hearing_impaired",
           "id",
           "image"
+        ],
+        "type": "object"
+      },
+      "TrickplayInfo": {
+        "properties": {
+          "columns": {
+            "type": "integer"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "interval_ms": {
+            "type": "integer"
+          },
+          "rows": {
+            "type": "integer"
+          },
+          "sheets": {
+            "type": "integer"
+          },
+          "width": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns",
+          "count",
+          "height",
+          "interval_ms",
+          "rows",
+          "sheets",
+          "width"
         ],
         "type": "object"
       },
@@ -4153,9 +4965,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "boolean"
+                  "properties": {
+                    "stopping": {
+                      "type": "boolean"
+                    }
                   },
+                  "required": [
+                    "stopping"
+                  ],
                   "type": "object"
                 }
               }
@@ -4245,9 +5062,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "token"
+                  ],
                   "type": "object"
                 }
               }
@@ -4333,7 +5155,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "poll": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "expires_in",
+                    "poll"
+                  ],
                   "type": "object"
                 }
               }
@@ -4396,9 +5233,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "device": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "device"
+                  ],
                   "type": "object"
                 }
               }
@@ -4492,9 +5334,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "token"
+                  ],
                   "type": "object"
                 }
               }
@@ -4505,9 +5352,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "status"
+                  ],
                   "type": "object"
                 }
               }
@@ -4563,9 +5415,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "token"
+                  ],
                   "type": "object"
                 }
               }
@@ -4807,9 +5664,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "needs": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "error",
+                    "needs"
+                  ],
                   "type": "object"
                 }
               }
@@ -4962,8 +5828,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/AuthStatus"
                 }
               }
             },
@@ -4997,7 +5862,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "backups": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Backup"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "folder": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "backups",
+                    "folder"
+                  ],
                   "type": "object"
                 }
               }
@@ -5305,7 +6191,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "local_only": {
+                      "type": "boolean"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "local_only",
+                    "url"
+                  ],
                   "type": "object"
                 }
               }
@@ -5926,7 +6823,90 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "backdrops": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "chosen": {
+                      "properties": {
+                        "backdrop": {
+                          "type": "boolean"
+                        },
+                        "poster": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "backdrop",
+                        "poster"
+                      ],
+                      "type": "object"
+                    },
+                    "current": {
+                      "properties": {
+                        "backdrop": {
+                          "type": "string"
+                        },
+                        "poster": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "backdrop",
+                        "poster"
+                      ],
+                      "type": "object"
+                    },
+                    "local": {
+                      "properties": {},
+                      "required": [],
+                      "type": "object"
+                    },
+                    "logos": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "posters": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "backdrops",
+                    "chosen",
+                    "current",
+                    "local",
+                    "logos",
+                    "posters"
+                  ],
                   "type": "object"
                 }
               }
@@ -6984,7 +7964,7 @@
     },
     "/events": {
       "get": {
-        "description": "Is a profile-authenticated Server-Sent Events stream. \"invalidate\" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions are admin-only. \"resync\" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.\n\nWho may call it: **profile**.",
+        "description": "Is a profile-authenticated Server-Sent Events stream. \"invalidate\" hints identify a topic and optionally an allowed library, never titles/paths/item bodies. Personal hints only reach that profile; activity/sessions/maintenance are admin-only. \"resync\" requires refetching all client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens in URLs. Background catalog/artwork/optimized/previews/markers hints are cache invalidations, not job-success or playback commands. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.\n\nWho may call it: **profile**.",
         "operationId": "eventStream",
         "responses": {
           "200": {
@@ -7122,7 +8102,37 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "folders": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/ApiFolder"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "parent": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {}
+                      ]
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "folders",
+                    "parent",
+                    "path"
+                  ],
                   "type": "object"
                 }
               }
@@ -7186,7 +8196,26 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "api_version": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "api_version",
+                    "name",
+                    "status",
+                    "version"
+                  ],
                   "type": "object"
                 }
               }
@@ -7378,7 +8407,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "home": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/HomeRow"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "home"
+                  ],
                   "type": "object"
                 }
               }
@@ -7441,7 +8487,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "home": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/HomeRow"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "home"
+                  ],
                   "type": "object"
                 }
               }
@@ -8189,9 +9252,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "name"
+                  ],
                   "type": "object"
                 }
               }
@@ -9340,7 +10408,112 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "backdrops": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "chosen": {
+                      "properties": {
+                        "backdrop": {
+                          "type": "boolean"
+                        },
+                        "logo": {
+                          "type": "boolean"
+                        },
+                        "poster": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "backdrop",
+                        "logo",
+                        "poster"
+                      ],
+                      "type": "object"
+                    },
+                    "current": {
+                      "properties": {
+                        "backdrop": {
+                          "type": "string"
+                        },
+                        "logo": {
+                          "type": "string"
+                        },
+                        "poster": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "backdrop",
+                        "logo",
+                        "poster"
+                      ],
+                      "type": "object"
+                    },
+                    "local": {
+                      "properties": {
+                        "backdrop": {
+                          "type": "boolean"
+                        },
+                        "logo": {
+                          "type": "boolean"
+                        },
+                        "poster": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "backdrop",
+                        "logo",
+                        "poster"
+                      ],
+                      "type": "object"
+                    },
+                    "logos": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "posters": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "backdrops",
+                    "chosen",
+                    "current",
+                    "local",
+                    "logos",
+                    "posters"
+                  ],
                   "type": "object"
                 }
               }
@@ -9894,7 +11067,32 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "duration_ms": {
+                      "type": "integer"
+                    },
+                    "file_id": {
+                      "type": "integer"
+                    },
+                    "markers": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Marker"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "duration_ms",
+                    "file_id",
+                    "markers"
+                  ],
                   "type": "object"
                 }
               }
@@ -9987,7 +11185,32 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "duration_ms": {
+                      "type": "integer"
+                    },
+                    "file_id": {
+                      "type": "integer"
+                    },
+                    "markers": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Marker"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "duration_ms",
+                    "file_id",
+                    "markers"
+                  ],
                   "type": "object"
                 }
               }
@@ -10071,7 +11294,66 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "checked_at": {
+                      "type": "integer"
+                    },
+                    "item": {
+                      "$ref": "#/components/schemas/Item"
+                    },
+                    "parsed": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/ParsedName"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "providers": {
+                      "properties": {
+                        "tmdb": {
+                          "type": "boolean"
+                        },
+                        "tvdb": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "tmdb",
+                        "tvdb"
+                      ],
+                      "type": "object"
+                    },
+                    "source_ordering": {
+                      "type": "string"
+                    },
+                    "steps": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Step"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "checked_at",
+                    "item",
+                    "parsed",
+                    "providers",
+                    "source_ordering",
+                    "steps"
+                  ],
                   "type": "object"
                 }
               }
@@ -11085,9 +12367,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "needs": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "error",
+                    "needs"
+                  ],
                   "type": "object"
                 }
               }
@@ -11371,7 +12662,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "item_ids": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "item_ids"
+                  ],
                   "type": "object"
                 }
               }
@@ -11652,7 +12960,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "remaining": {
+                      "type": "integer"
+                    },
+                    "track": {
+                      "$ref": "#/components/schemas/Track"
+                    }
+                  },
+                  "required": [
+                    "remaining",
+                    "track"
+                  ],
                   "type": "object"
                 }
               }
@@ -11881,7 +13200,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "cues": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Cue"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "track": {
+                      "$ref": "#/components/schemas/Track"
+                    }
+                  },
+                  "required": [
+                    "cues",
+                    "track"
+                  ],
                   "type": "object"
                 }
               }
@@ -12243,7 +13583,39 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "bif": {
+                      "type": "string"
+                    },
+                    "info": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/TrickplayInfo"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sheets": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "bif",
+                    "info",
+                    "sheets"
+                  ],
                   "type": "object"
                 }
               }
@@ -13257,9 +14629,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
+                  "properties": {
+                    "removed": {
+                      "type": "integer"
+                    },
+                    "skipped": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "removed"
+                  ],
                   "type": "object"
                 }
               }
@@ -13579,7 +14959,109 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "duplicates": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Duplicate"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "library": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/Library"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "missing_episodes": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Gaps"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "missing_files": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/FileProblem"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "unidentified": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Item"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "unreadable": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/FileProblem"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "unrecognised": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/FileProblem"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "watch_problem": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "duplicates",
+                    "library",
+                    "missing_episodes",
+                    "missing_files",
+                    "unidentified",
+                    "unreadable",
+                    "unrecognised",
+                    "watch_problem"
+                  ],
                   "type": "object"
                 }
               }
@@ -13663,7 +15145,32 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "skip_credits": {
+                      "type": "boolean"
+                    },
+                    "skip_intros": {
+                      "type": "boolean"
+                    },
+                    "titles": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/MarkerCoverage"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "skip_credits",
+                    "skip_intros",
+                    "titles"
+                  ],
                   "type": "object"
                 }
               }
@@ -13893,7 +15400,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "rows": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/RecommendedLook"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "rows"
+                  ],
                   "type": "object"
                 }
               }
@@ -14666,7 +16190,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "preview": {
+                      "$ref": "#/components/schemas/Preview"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "preview"
+                  ],
                   "type": "object"
                 }
               }
@@ -14954,9 +16489,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "boolean"
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    }
                   },
+                  "required": [
+                    "queued"
+                  ],
                   "type": "object"
                 }
               }
@@ -15341,7 +16881,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "entries": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Entry"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "unread": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "unread"
+                  ],
                   "type": "object"
                 }
               }
@@ -15466,9 +17027,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
+                  "properties": {
+                    "queued": {
+                      "type": "integer"
+                    }
                   },
+                  "required": [
+                    "queued"
+                  ],
                   "type": "object"
                 }
               }
@@ -15532,7 +17098,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "total_size": {
+                      "type": "integer"
+                    },
+                    "versions": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Optimized"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "total_size",
+                    "versions"
+                  ],
                   "type": "object"
                 }
               }
@@ -15670,7 +17257,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "credits": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/PersonCredit"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "person": {
+                      "$ref": "#/components/schemas/Person"
+                    }
+                  },
+                  "required": [
+                    "credits",
+                    "person"
+                  ],
                   "type": "object"
                 }
               }
@@ -16744,9 +18352,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
+                  "properties": {
+                    "added": {
+                      "type": "integer"
+                    }
                   },
+                  "required": [
+                    "added"
+                  ],
                   "type": "object"
                 }
               }
@@ -17290,9 +18903,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
+                  "properties": {
+                    "invite_token": {
+                      "type": "string"
+                    }
                   },
+                  "required": [
+                    "invite_token"
+                  ],
                   "type": "object"
                 }
               }
@@ -17632,8 +19250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/RemoteCheck"
                 }
               }
             },
@@ -17770,7 +19387,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "display_choice_id": {
+                      "type": "integer"
+                    },
+                    "display_ordering_id": {
+                      "type": "integer"
+                    },
+                    "inline_specials": {
+                      "type": "boolean"
+                    },
+                    "orderings": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Ordering"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ordering": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "display_choice_id",
+                    "display_ordering_id",
+                    "inline_specials",
+                    "orderings",
+                    "source_ordering"
+                  ],
                   "type": "object"
                 }
               }
@@ -17854,7 +19504,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "display_choice_id": {
+                      "type": "integer"
+                    },
+                    "display_ordering_id": {
+                      "type": "integer"
+                    },
+                    "inline_specials": {
+                      "type": "boolean"
+                    },
+                    "orderings": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Ordering"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ordering": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "display_choice_id",
+                    "display_ordering_id",
+                    "inline_specials",
+                    "orderings",
+                    "source_ordering"
+                  ],
                   "type": "object"
                 }
               }
@@ -18322,7 +20005,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "display_choice_id": {
+                      "type": "integer"
+                    },
+                    "display_ordering_id": {
+                      "type": "integer"
+                    },
+                    "inline_specials": {
+                      "type": "boolean"
+                    },
+                    "orderings": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Ordering"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ordering": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "display_choice_id",
+                    "display_ordering_id",
+                    "inline_specials",
+                    "orderings",
+                    "source_ordering"
+                  ],
                   "type": "object"
                 }
               }
@@ -18416,7 +20132,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "seasons": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/SeasonArt"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "seasons"
+                  ],
                   "type": "object"
                 }
               }
@@ -18514,7 +20247,53 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "ordering": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/Ordering"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "seasons": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Season"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "series": {
+                      "$ref": "#/components/schemas/Item"
+                    },
+                    "unplaced": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/SeasonEpisode"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ordering",
+                    "seasons",
+                    "series",
+                    "unplaced"
+                  ],
                   "type": "object"
                 }
               }
@@ -18711,7 +20490,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "posters": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Image"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "posters"
+                  ],
                   "type": "object"
                 }
               }
@@ -18823,7 +20619,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "seasons": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/SeasonArt"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "seasons"
+                  ],
                   "type": "object"
                 }
               }
@@ -18948,7 +20761,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "seasons": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/SeasonArt"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "seasons"
+                  ],
                   "type": "object"
                 }
               }
@@ -19132,7 +20962,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "display_choice_id": {
+                      "type": "integer"
+                    },
+                    "display_ordering_id": {
+                      "type": "integer"
+                    },
+                    "inline_specials": {
+                      "type": "boolean"
+                    },
+                    "orderings": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Ordering"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source_ordering": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "display_choice_id",
+                    "display_ordering_id",
+                    "inline_specials",
+                    "orderings",
+                    "source_ordering"
+                  ],
                   "type": "object"
                 }
               }
@@ -19206,7 +21069,222 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "allow_network": {
+                      "type": "boolean"
+                    },
+                    "analysis_enabled": {
+                      "type": "boolean"
+                    },
+                    "auto_backups_enabled": {
+                      "type": "boolean"
+                    },
+                    "cache_cleanup_enabled": {
+                      "type": "boolean"
+                    },
+                    "database_upkeep_enabled": {
+                      "type": "boolean"
+                    },
+                    "detect_intros": {
+                      "type": "boolean"
+                    },
+                    "detection_mode": {
+                      "type": "string"
+                    },
+                    "empty_trash_enabled": {
+                      "type": "boolean"
+                    },
+                    "ffprobe": {},
+                    "ffprobe_path": {
+                      "type": "string"
+                    },
+                    "from_env": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {
+                            "type": "boolean"
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "home_networks": {
+                      "type": "string"
+                    },
+                    "https_cert": {
+                      "type": "string"
+                    },
+                    "https_domain": {
+                      "type": "string"
+                    },
+                    "https_key": {
+                      "type": "string"
+                    },
+                    "https_mode": {
+                      "type": "string"
+                    },
+                    "hw_accel": {
+                      "type": "boolean"
+                    },
+                    "listen": {
+                      "type": "string"
+                    },
+                    "local_bypass": {
+                      "type": "boolean"
+                    },
+                    "maintenance_end": {
+                      "type": "integer"
+                    },
+                    "maintenance_start": {
+                      "type": "integer"
+                    },
+                    "max_transcodes": {
+                      "type": "integer"
+                    },
+                    "metadata_refresh_enabled": {
+                      "type": "boolean"
+                    },
+                    "omdb_api_key": {
+                      "type": "string"
+                    },
+                    "opensubtitles_api_key": {
+                      "type": "string"
+                    },
+                    "opensubtitles_username": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": "integer"
+                    },
+                    "preroll_found": {
+                      "type": "integer"
+                    },
+                    "preroll_mode": {
+                      "type": "string"
+                    },
+                    "preroll_paths": {
+                      "type": "string"
+                    },
+                    "preview_mode": {
+                      "type": "string"
+                    },
+                    "previews_at_night": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "remote_access": {
+                      "type": "boolean"
+                    },
+                    "remote_kbps": {
+                      "type": "integer"
+                    },
+                    "remote_port": {
+                      "type": "integer"
+                    },
+                    "scan_automatic": {
+                      "type": "boolean"
+                    },
+                    "scan_interval_hours": {
+                      "type": "number"
+                    },
+                    "scan_interval_minutes": {
+                      "type": "integer"
+                    },
+                    "scan_on_start": {
+                      "type": "boolean"
+                    },
+                    "scan_partial": {
+                      "type": "boolean"
+                    },
+                    "server_name": {
+                      "type": "string"
+                    },
+                    "theintrodb_api_key": {
+                      "type": "string"
+                    },
+                    "tmdb_api_key": {
+                      "type": "string"
+                    },
+                    "tone_mapping": {
+                      "type": "boolean"
+                    },
+                    "transcode_dir": {
+                      "type": "string"
+                    },
+                    "transcoder": {
+                      "$ref": "#/components/schemas/Capabilities"
+                    },
+                    "trusted_proxies": {
+                      "type": "string"
+                    },
+                    "tvdb_api_key": {
+                      "type": "string"
+                    },
+                    "upload_kbps": {
+                      "type": "integer"
+                    },
+                    "upnp": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "allow_network",
+                    "analysis_enabled",
+                    "auto_backups_enabled",
+                    "cache_cleanup_enabled",
+                    "database_upkeep_enabled",
+                    "detect_intros",
+                    "detection_mode",
+                    "empty_trash_enabled",
+                    "ffprobe",
+                    "ffprobe_path",
+                    "from_env",
+                    "home_networks",
+                    "https_cert",
+                    "https_domain",
+                    "https_key",
+                    "https_mode",
+                    "hw_accel",
+                    "listen",
+                    "local_bypass",
+                    "maintenance_end",
+                    "maintenance_start",
+                    "max_transcodes",
+                    "metadata_refresh_enabled",
+                    "omdb_api_key",
+                    "opensubtitles_api_key",
+                    "opensubtitles_username",
+                    "port",
+                    "preroll_found",
+                    "preroll_mode",
+                    "preroll_paths",
+                    "preview_mode",
+                    "previews_at_night",
+                    "region",
+                    "remote_access",
+                    "remote_kbps",
+                    "remote_port",
+                    "scan_automatic",
+                    "scan_interval_hours",
+                    "scan_interval_minutes",
+                    "scan_on_start",
+                    "scan_partial",
+                    "server_name",
+                    "theintrodb_api_key",
+                    "tmdb_api_key",
+                    "tone_mapping",
+                    "transcode_dir",
+                    "transcoder",
+                    "trusted_proxies",
+                    "tvdb_api_key",
+                    "upload_kbps",
+                    "upnp"
+                  ],
                   "type": "object"
                 }
               }
@@ -19401,7 +21479,222 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "allow_network": {
+                      "type": "boolean"
+                    },
+                    "analysis_enabled": {
+                      "type": "boolean"
+                    },
+                    "auto_backups_enabled": {
+                      "type": "boolean"
+                    },
+                    "cache_cleanup_enabled": {
+                      "type": "boolean"
+                    },
+                    "database_upkeep_enabled": {
+                      "type": "boolean"
+                    },
+                    "detect_intros": {
+                      "type": "boolean"
+                    },
+                    "detection_mode": {
+                      "type": "string"
+                    },
+                    "empty_trash_enabled": {
+                      "type": "boolean"
+                    },
+                    "ffprobe": {},
+                    "ffprobe_path": {
+                      "type": "string"
+                    },
+                    "from_env": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {
+                            "type": "boolean"
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "home_networks": {
+                      "type": "string"
+                    },
+                    "https_cert": {
+                      "type": "string"
+                    },
+                    "https_domain": {
+                      "type": "string"
+                    },
+                    "https_key": {
+                      "type": "string"
+                    },
+                    "https_mode": {
+                      "type": "string"
+                    },
+                    "hw_accel": {
+                      "type": "boolean"
+                    },
+                    "listen": {
+                      "type": "string"
+                    },
+                    "local_bypass": {
+                      "type": "boolean"
+                    },
+                    "maintenance_end": {
+                      "type": "integer"
+                    },
+                    "maintenance_start": {
+                      "type": "integer"
+                    },
+                    "max_transcodes": {
+                      "type": "integer"
+                    },
+                    "metadata_refresh_enabled": {
+                      "type": "boolean"
+                    },
+                    "omdb_api_key": {
+                      "type": "string"
+                    },
+                    "opensubtitles_api_key": {
+                      "type": "string"
+                    },
+                    "opensubtitles_username": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": "integer"
+                    },
+                    "preroll_found": {
+                      "type": "integer"
+                    },
+                    "preroll_mode": {
+                      "type": "string"
+                    },
+                    "preroll_paths": {
+                      "type": "string"
+                    },
+                    "preview_mode": {
+                      "type": "string"
+                    },
+                    "previews_at_night": {
+                      "type": "boolean"
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "remote_access": {
+                      "type": "boolean"
+                    },
+                    "remote_kbps": {
+                      "type": "integer"
+                    },
+                    "remote_port": {
+                      "type": "integer"
+                    },
+                    "scan_automatic": {
+                      "type": "boolean"
+                    },
+                    "scan_interval_hours": {
+                      "type": "number"
+                    },
+                    "scan_interval_minutes": {
+                      "type": "integer"
+                    },
+                    "scan_on_start": {
+                      "type": "boolean"
+                    },
+                    "scan_partial": {
+                      "type": "boolean"
+                    },
+                    "server_name": {
+                      "type": "string"
+                    },
+                    "theintrodb_api_key": {
+                      "type": "string"
+                    },
+                    "tmdb_api_key": {
+                      "type": "string"
+                    },
+                    "tone_mapping": {
+                      "type": "boolean"
+                    },
+                    "transcode_dir": {
+                      "type": "string"
+                    },
+                    "transcoder": {
+                      "$ref": "#/components/schemas/Capabilities"
+                    },
+                    "trusted_proxies": {
+                      "type": "string"
+                    },
+                    "tvdb_api_key": {
+                      "type": "string"
+                    },
+                    "upload_kbps": {
+                      "type": "integer"
+                    },
+                    "upnp": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "allow_network",
+                    "analysis_enabled",
+                    "auto_backups_enabled",
+                    "cache_cleanup_enabled",
+                    "database_upkeep_enabled",
+                    "detect_intros",
+                    "detection_mode",
+                    "empty_trash_enabled",
+                    "ffprobe",
+                    "ffprobe_path",
+                    "from_env",
+                    "home_networks",
+                    "https_cert",
+                    "https_domain",
+                    "https_key",
+                    "https_mode",
+                    "hw_accel",
+                    "listen",
+                    "local_bypass",
+                    "maintenance_end",
+                    "maintenance_start",
+                    "max_transcodes",
+                    "metadata_refresh_enabled",
+                    "omdb_api_key",
+                    "opensubtitles_api_key",
+                    "opensubtitles_username",
+                    "port",
+                    "preroll_found",
+                    "preroll_mode",
+                    "preroll_paths",
+                    "preview_mode",
+                    "previews_at_night",
+                    "region",
+                    "remote_access",
+                    "remote_kbps",
+                    "remote_port",
+                    "scan_automatic",
+                    "scan_interval_hours",
+                    "scan_interval_minutes",
+                    "scan_on_start",
+                    "scan_partial",
+                    "server_name",
+                    "theintrodb_api_key",
+                    "tmdb_api_key",
+                    "tone_mapping",
+                    "transcode_dir",
+                    "transcoder",
+                    "trusted_proxies",
+                    "tvdb_api_key",
+                    "upload_kbps",
+                    "upnp"
+                  ],
                   "type": "object"
                 }
               }
@@ -19766,7 +22059,66 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "biggest": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/TitleSize"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "items": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/Item"
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "libraries": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/LibrarySize"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "never_watched": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/TitleSize"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "biggest",
+                    "items",
+                    "libraries",
+                    "never_watched"
+                  ],
                   "type": "object"
                 }
               }
@@ -19989,9 +22341,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "boolean"
+                  "properties": {
+                    "started": {
+                      "type": "boolean"
+                    }
                   },
+                  "required": [
+                    "started"
+                  ],
                   "type": "object"
                 }
               }
@@ -21164,7 +23521,38 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {},
+                  "properties": {
+                    "events": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "webhooks": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "$ref": "#/components/schemas/Webhook"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "events",
+                    "webhooks"
+                  ],
                   "type": "object"
                 }
               }

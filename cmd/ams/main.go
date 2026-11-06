@@ -152,6 +152,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	bg.Events = changes
 	bg.Log = log
 	bg.Configure(cfg)
 	go bg.Monitor(ctx)
@@ -197,6 +198,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	go backups.Run(ctx)
 	// Critics' ratings (Rotten Tomatoes and Metacritic with an OMDb key). IMDb is paused.
 	extRatings := ratings.New(filepath.Join(dataDir, "ratings"), st, log)
+	extRatings.Events = changes
 	extRatings.Activity, extRatings.Window = tasks, window
 	extRatings.SetOMDbKey(cfg.OMDbKey)
 	go extRatings.Run(ctx)
@@ -244,6 +246,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 
 	art := artwork.New(filepath.Join(dataDir, "artwork"), log)
+	art.Events = changes
 	artKeeper := art.Keep(ctx, func(ctx context.Context) ([]string, error) {
 		images, err := st.ItemImages(ctx)
 		if err != nil {
@@ -266,6 +269,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	})
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
+	sc.Events = changes
 	sc.Activity = tasks
 	sc.Window = window
 	// Automatic trash never uses Run now's outside-window override. It is independent of
@@ -362,6 +366,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	go skips.Run(ctx)
 	// Optimized versions, made one at a time in the background.
 	optimizer := optimize.New(filepath.Join(dataDir, "optimized"), st, log)
+	optimizer.Events = changes
 	optimizer.Activity = tasks
 	optimizer.FFmpeg = skips.FFmpeg
 	optimizer.Probe = prober.Probe

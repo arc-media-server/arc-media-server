@@ -5,6 +5,7 @@
 package optimize
 
 import (
+	"ams/internal/events"
 	"bufio"
 	"context"
 	"errors"
@@ -31,9 +32,11 @@ var Qualities = map[int]int{1080: 8000, 720: 4000}
 
 // Manager makes the queued copies one at a time.
 type Manager struct {
-	store *store.Store
-	dir   string
-	log   *slog.Logger
+	// Events is configured before workers start; invalidations contain no item metadata.
+	Events *events.Hub
+	store  *store.Store
+	dir    string
+	log    *slog.Logger
 
 	// Probe inspects only the completed output. Failure leaves the copy usable without
 	// a bitrate budget, but ineligible for limited playback.
@@ -142,6 +145,7 @@ func (m *Manager) Delete(ctx context.Context, fileID int64, quality int) error {
 	if path != "" {
 		m.removeArtifact(path)
 	}
+	m.Events.Publish(events.Event{Topic: "optimized"})
 	return nil
 }
 
@@ -188,6 +192,7 @@ func (m *Manager) make(ctx context.Context, o *store.Optimized) {
 }
 
 func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activity.Handle) error {
+	defer m.Events.Publish(events.Event{Topic: "optimized"})
 	cctx, cancel := context.WithCancel(ctx)
 	m.mu.Lock()
 	m.cancel[key(o.FileID, o.Quality)] = cancel
@@ -233,6 +238,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	if !claimed {
 		return nil // deleted, already claimed, or superseded
 	}
+	m.Events.Publish(events.Event{Topic: "optimized", LibraryID: f.LibraryID})
 
 	if err := os.MkdirAll(m.dir, 0o755); err != nil {
 		return fail(err)
