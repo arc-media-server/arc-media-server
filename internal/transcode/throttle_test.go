@@ -25,8 +25,9 @@ func TestConversionWaitsForThePlayer(t *testing.T) {
 		t.Fatalf("making clip: %v %s", err, out)
 	}
 	m := New(filepath.Join(dir, "sessions"), func() string { return ffmpeg }, func() string { return "" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	// Thresholds scaled down for a 3-minute clip; only this manager's sessions use them.
-	m.throttling = throttling{pauseAhead: 24 * time.Second, resumeAhead: 18 * time.Second, tick: 50 * time.Millisecond}
+	// Thresholds scaled down for a 3-minute clip. A one-hour timer ensures only real
+	// playlist notifications/player wakeups can satisfy this regression.
+	m.throttling = throttling{pauseAhead: 24 * time.Second, resumeAhead: 18 * time.Second, tick: time.Hour}
 	s, err := m.Start(Options{Path: clip, VideoStream: 0, AudioStream: -1, BurnSubtitle: -1, SourceHeight: 90})
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +76,14 @@ func TestConversionWaitsForThePlayer(t *testing.T) {
 	m.Stop(s.ID)
 	select {
 	case <-s.done:
+		if s.Throttled() {
+			t.Fatal("finished conversion still reported throttled")
+		}
+		select {
+		case <-s.throttleDone:
+		case <-time.After(time.Second):
+			t.Fatal("pacing watcher did not stop")
+		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("a paused conversion didn't stop")
 	}
