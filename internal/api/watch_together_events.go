@@ -81,6 +81,8 @@ func (s *Server) watchTogetherEvents(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-shuttingDown(r):
+			return // Arc is restarting: the app reconnects
 		case <-stream.Stop:
 			// A newer stream for this member (a reconnect) replaced this one.
 			return
