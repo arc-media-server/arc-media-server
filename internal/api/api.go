@@ -378,7 +378,7 @@ func New(d Deps) http.Handler {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	mux.Handle("/", webui.Handler())
-	return appCORS(versioned(s.logRequests(mux)))
+	return s.correlateRequests(appCORS(versioned(s.logRequests(mux))))
 }
 
 // itemDTO adds links and files to a stored item.
@@ -863,14 +863,14 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
-	s.log.Error("request failed", "err", err)
+	s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
 	writeError(w, http.StatusInternalServerError, "internal error")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	json.NewEncoder(w).Encode(errorMetadata(w, status, v))
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
@@ -917,6 +917,7 @@ func versioned(next http.Handler) http.Handler {
 
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = s.requestID(w, r)
 		if strings.HasPrefix(r.URL.Path, "/api/watch-together") {
 			w.Header().Set("Cache-Control", "private, no-store")
 			w.Header().Set("X-Arc-Server-Time-Ms", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -944,10 +945,10 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 			level, message = slog.LevelWarn, "slow request"
 		}
 		if s.log.Enabled(r.Context(), level) {
-			attrs := []any{"method", r.Method, "route", route, "status", rec.status, "took", took.Round(time.Millisecond)}
+			attrs := []any{"method", r.Method, "route", route, "status", rec.status, "took", took.Round(time.Millisecond), "request_id", w.Header().Get(requestIDHeader)}
 			if t, ok := r.Context().Value(requestTraceKey{}).(*requestTrace); ok {
 				p := t.snapshot()
-				attrs = append(attrs, "request_id", p.RequestID, "stage", p.Stage)
+				attrs = append(attrs, "stage", p.Stage)
 			}
 			s.log.Log(r.Context(), level, message, attrs...)
 		}

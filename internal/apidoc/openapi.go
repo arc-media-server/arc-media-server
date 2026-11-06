@@ -466,8 +466,10 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 	sch.components["Error"] = map[string]any{
 		"type": "object", "required": []string{"error"},
 		"properties": map[string]any{
-			"error": map[string]any{"type": "string", "description": "What went wrong, in plain words"},
-			"needs": map[string]any{"type": "string", "description": "What to do next, e.g. pin, password or stopped"},
+			"error":      map[string]any{"type": "string", "description": "What went wrong, in plain words"},
+			"needs":      map[string]any{"type": "string", "description": "What to do next, e.g. pin, password or stopped"},
+			"code":       map[string]any{"type": "string", "description": "Stable HTTP error category; preserve unknown future/domain codes. See docs/CLIENT-INTEGRATION.md."},
+			"request_id": map[string]any{"type": "string", "description": "Server-issued process-local correlation ID; matches X-Request-ID and diagnostic logs."},
 		},
 	}
 	inputs := &schemas{components: sch.components, names: map[*types.TypeName]string{}, input: true}
@@ -510,7 +512,11 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		}
 		sort.Strings(query)
 		for _, q := range query {
-			params = append(params, map[string]any{"name": q, "in": "query", "schema": map[string]any{"type": "string"}})
+			param, err := queryParameter(r.handler, q)
+			if err != nil {
+				return nil, err
+			}
+			params = append(params, param)
 		}
 		if len(params) > 0 {
 			op["parameters"] = params
@@ -562,6 +568,7 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 			missing = append(missing, fmt.Sprintf("%s %s (%s)", r.method, r.path, r.handler))
 		}
 		op["responses"] = responses
+		supplementOperation(r, op, sch.components)
 		if paths[path] == nil {
 			paths[path] = map[string]any{}
 		}
