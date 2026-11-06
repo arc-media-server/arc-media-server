@@ -20658,7 +20658,7 @@
     },
     "/watch-together/{id}/events": {
       "get": {
-        "description": "Is a private room SSE stream carrying full personalized room snapshots (event: room, id: revision). It does not consume /events slots. One stream/member, at most 200/server; initial/reconnect always sends the latest snapshot. Changes wake immediately; timeout transitions are checked every 200ms. Auth/access are freshly checked before each payload and at least every two seconds; revoked/switched sessions close. No tokens/codes in URLs. Thirty-minute streams, five-second write deadlines, no event queues.\n\nWho may call it: **profile**.",
+        "description": "Is a private room SSE stream carrying full personalized room snapshots (event: room, id: revision). It does not consume /events slots. One stream/member (a reconnect replaces the older one), at most 200/server; initial/reconnect always sends the latest snapshot. Changes wake immediately; timeout transitions are checked every 200ms. Auth/access are freshly checked before each payload and at least every two seconds; revoked/switched sessions close. No tokens/codes in URLs. Thirty-minute streams, five-second write deadlines, no event queues.\n\nWho may call it: **profile**.",
         "operationId": "watchTogetherEvents",
         "parameters": [
           {

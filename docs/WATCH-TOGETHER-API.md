@@ -132,8 +132,10 @@ scene alignment. Cross-edition, multi-part boundary and real-device synchronizat
 
 ## Buffering and timeout
 
-A play, seek, title change or newly buffering/late-joining participant can put a playing room into
-`waiting`. The authority freezes its position and supplies wait_until_ms. Everyone pauses at that
+A play, seek, title change or newly buffering participant can put a playing room into
+`waiting`. Someone joining a room that is already playing does not: they load the title, seek to
+the room's expected position themselves and catch up, as in Plex. Once they first report ready
+they're part of the barrier like everyone else. The authority freezes its position and supplies wait_until_ms. Everyone pauses at that
 position and displays who is not ready. Pausing explicitly keeps the room paused even if all are
 ready. Once all *available* participants are ready, a room intending to play resumes.
 
@@ -161,6 +163,9 @@ Coalesced changes are intentional: adopt the newest revision, discard older ones
 snapshots also refresh clocks/presence (same revision can appear again).
 
 There is at most one stream per participant, independently of the general `/events` 32-stream cap.
+Opening a new stream replaces that participant's older one, which then ends: a TV reconnecting after
+sleep or a network change isn't locked out while the server still holds the old, half-open
+connection. Clients should keep a single stream and simply reconnect when it ends unexpectedly.
 No per-reader event queue or goroutine is spawned by the manager. Network writes happen outside
 its mutex with a five-second deadline. Session/profile/access revalidation is at most two seconds
 apart when writes are healthy; a stalled write can add its deadline. Stream transport expires at

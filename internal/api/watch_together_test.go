@@ -265,16 +265,30 @@ func TestWatchTogetherSSEDeliveryBoundsAndRevocation(t *testing.T) {
 	if initial.ID != id || initial.ServerTimeMS <= 0 {
 		t.Fatal(initial)
 	}
-	// One stream per participant; duplicate stream is rejected before headers/data.
+	// One stream per participant: a reconnect replaces the older stream (which may be a half-open
+	// connection the server can't detect yet) rather than being refused.
 	r2, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/api/v1/watch-together/"+id+"/events", nil)
 	r2.Header.Set("Authorization", "Bearer host")
 	second, err := client.Do(r2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second.Body.Close()
-	if second.StatusCode != 429 {
-		t.Fatal("unbounded stream admission", second.StatusCode)
+	defer second.Body.Close()
+	if second.StatusCode != 200 {
+		t.Fatal("a reconnect was refused", second.StatusCode)
+	}
+	replacedAt := time.Now()
+	for {
+		if _, err = reader.ReadString('\n'); err != nil {
+			break
+		}
+	}
+	if time.Since(replacedAt) > 2*time.Second {
+		t.Fatal("the replaced stream didn't end promptly")
+	}
+	reader = bufio.NewReader(second.Body)
+	if again := read(); again.ID != id {
+		t.Fatal(again)
 	}
 	start := time.Now()
 	changed, err := f.manager.Command(id, (watchtogether.Actor{Session: auth.HashToken("host"), UserID: f.host.ID}).Key(), initial.Revision, "play", "", 0, nil)
