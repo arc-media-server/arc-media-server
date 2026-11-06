@@ -1,6 +1,6 @@
 # Watch Together: invite people, and rooms on Home
 
-Watch Together now works the way Plex's does. The host picks who to watch with, presses Done, and
+Watch Together now works by invitation. The host picks who to watch with, presses Done, and
 the room appears on everyone's Home in a Watch Together row; they join from there. Codes and
 invite links still work alongside.
 
