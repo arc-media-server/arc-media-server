@@ -29,12 +29,13 @@ import (
 
 // handlerInfo is what a handler's code says about its route.
 type handlerInfo struct {
-	request   types.Type
-	responses map[int]types.Type // status -> body type; nil means no JSON body
-	binary    bool               // writes a file or stream rather than JSON
-	upload    bool               // reads the raw request body (an uploaded file)
-	errors    map[int]bool
-	query     map[string]bool
+	request        types.Type
+	responseValues map[int][]ast.Expr
+	responses      map[int]types.Type // status -> body type; nil means no JSON body
+	binary         bool               // writes a file or stream rather than JSON
+	upload         bool               // reads the raw request body (an uploaded file)
+	errors         map[int]bool
+	query          map[string]bool
 }
 
 type analyzer struct {
@@ -106,7 +107,7 @@ func loadAPI(root string) (*analyzer, map[string]*ast.FuncDecl, error) {
 
 // analyze collects what a handler (and the package helpers it calls) reads and writes.
 func (a *analyzer) analyze(fn *ast.FuncDecl) handlerInfo {
-	info := handlerInfo{responses: map[int]types.Type{}, errors: map[int]bool{}, query: map[string]bool{}}
+	info := handlerInfo{responseValues: map[int][]ast.Expr{}, responses: map[int]types.Type{}, errors: map[int]bool{}, query: map[string]bool{}}
 	a.walk(fn, &info, map[*ast.FuncDecl]bool{}, 0)
 	return info
 }
@@ -126,6 +127,7 @@ func (a *analyzer) walk(fn *ast.FuncDecl, info *handlerInfo, seen map[*ast.FuncD
 		switch {
 		case name == "writeJSON" && recv == "" && len(call.Args) == 3:
 			if status, ok := a.status(call.Args[1]); ok {
+				info.responseValues[status] = append(info.responseValues[status], call.Args[2])
 				// A handler can answer an empty []any in one branch and its real type in another.
 				if t, seen := info.responses[status]; !seen || t == nil || vague(t) {
 					info.responses[status] = ti.TypeOf(call.Args[2])
@@ -363,7 +365,7 @@ func (s *schemas) fields(st *types.Struct, props map[string]any, required *[]str
 			props[name].(map[string]any)["deprecated"] = true
 			props[name].(map[string]any)["description"] = reflect.StructTag(st.Tag(i)).Get("description")
 		}
-		if s.input && strings.Contains(inputTags, "nullable") {
+		if strings.Contains(inputTags, "nullable") {
 			props[name] = map[string]any{"anyOf": []any{props[name], map[string]any{"type": "null"}}}
 		}
 		requiredField := !strings.Contains(opts, "omitempty") && !strings.Contains(opts, "omitzero")
@@ -523,7 +525,13 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		for status, t := range info.responses {
 			resp := map[string]any{"description": statusText[status]}
 			if t != nil {
-				resp["content"] = map[string]any{"application/json": map[string]any{"schema": sch.of(t)}}
+				schema := sch.of(t)
+				if mapped, ok := t.Underlying().(*types.Map); ok && mapped.Key().String() == "string" {
+					if inferred := responseLiteralsWithHelpers(a.info, sch, info.responseValues[status], a.funcs); inferred != nil {
+						schema = inferred
+					}
+				}
+				resp["content"] = map[string]any{"application/json": map[string]any{"schema": schema}}
 			}
 			responses[strconv.Itoa(status)] = resp
 		}

@@ -3,6 +3,7 @@
 package ratings
 
 import (
+	"ams/internal/events"
 	"bufio"
 	"compress/gzip"
 	"context"
@@ -39,10 +40,12 @@ const (
 
 // Manager keeps Rotten Tomatoes and Metacritic ratings up to date in the background.
 type Manager struct {
-	store *store.Store
-	dir   string
-	log   *slog.Logger
-	http  *http.Client
+	// Events is configured before workers start; invalidations contain no item metadata.
+	Events *events.Hub
+	store  *store.Store
+	dir    string
+	log    *slog.Logger
+	http   *http.Client
 
 	// Activity, if set, is told about downloads. Window, if set, is when the weekly download runs.
 	Activity *activity.Tracker
@@ -225,6 +228,7 @@ func (m *Manager) fetchCritics(ctx context.Context) error {
 		if err := m.store.SetCriticRatings(ctx, it.ID, rt, mc); err != nil {
 			return err
 		}
+		m.Events.Publish(events.Event{Topic: "catalog", LibraryID: it.LibraryID})
 	}
 	return nil
 }
