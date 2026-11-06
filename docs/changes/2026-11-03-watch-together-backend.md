@@ -32,3 +32,16 @@ Validation results are recorded in the PR; fixtures never use owner media/settin
   baseline timing-sensitive test. Original failure and final success logs are retained separately.
 - Browser journeys and real-device/multi-device synchronization were not run for this backend-only
   work. No actual TV playback, WAN latency, hardware acceleration or sustained-load claim.
+
+## Review fixes (Claude, 6 November)
+
+- **Reconnecting works at once.** Opening a room stream used to be refused (429) while the
+  participant's previous stream was still open. A TV that slept or switched networks reconnects
+  at once, but the server only notices the old connection is dead when a write fails, which can
+  take minutes. A new stream now replaces the old one, which is told to end.
+- **Joining mid-film doesn't pause everyone.** A newcomer to a room that's already playing used
+  to put it into waiting for up to 10 seconds. Now they catch up by themselves, as in Plex, and
+  join the ready barrier once they first report ready. Logged on #80.
+- Smaller: `Create` uses `uniqueCode`, and a duplicated `change_item` check is gone.
+- Tests: `TestLateJoinerDoesNotPauseAPlayingRoom`; the stream tests now check that a reconnect
+  replaces the old stream (manager and HTTP). `go test -race` passes for both packages.

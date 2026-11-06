@@ -125,9 +125,23 @@ func TestRoomMembershipHostTransferAndStreams(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = m.OpenStream(s.ID, a.Key()); !errors.Is(err, ErrLimit) {
-		t.Fatal("stream unbounded")
+	// A reconnect (the old connection may be half-open for minutes) replaces the old stream.
+	reconnect, err := m.OpenStream(s.ID, a.Key())
+	if err != nil {
+		t.Fatal("a reconnect was refused while the old stream lingered", err)
 	}
+	select {
+	case <-member.Stop:
+	default:
+		t.Fatal("the replaced stream wasn't told to stop")
+	}
+	m.CloseStream(s.ID, a.Key(), member.Token) // the old handler exits
+	select {
+	case <-reconnect.Stop:
+		t.Fatal("closing the old stream stopped the new one")
+	default:
+	}
+	m.CloseStream(s.ID, a.Key(), reconnect.Token)
 	if err = m.Leave(s.ID, a.Key(), "left"); err != nil {
 		t.Fatal(err)
 	}
@@ -143,11 +157,10 @@ func TestRoomMembershipHostTransferAndStreams(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m.CloseStream(s.ID, a.Key(), member)
-	if _, err = m.OpenStream(s.ID, a.Key()); !errors.Is(err, ErrLimit) {
-		t.Fatal("old stream released new admission")
+	if fresh.MemberID == member.MemberID {
+		t.Fatal("rejoining reused the old membership")
 	}
-	m.CloseStream(s.ID, a.Key(), fresh)
+	m.CloseStream(s.ID, a.Key(), fresh.Token)
 	if _, err = m.Command(s.ID, a.Key(), s.Revision, "end", "", 0, nil); !errors.Is(err, ErrForbidden) {
 		t.Fatal("nonhost ended room")
 	}
@@ -259,13 +272,13 @@ func TestConcurrentCommandsHaveOneWinnerAndWakeReaders(t *testing.T) {
 func TestDetachedStreamsStayGloballyBounded(t *testing.T) {
 	m, _, a := fixture(t)
 	s, code, _, _ := m.Create(a, "movie", 0)
-	members := []string{}
+	members := []Stream{}
 	for range MaxRooms * MaxParticipants {
-		id, err := m.OpenStream(s.ID, a.Key())
+		stream, err := m.OpenStream(s.ID, a.Key())
 		if err != nil {
 			t.Fatal(err)
 		}
-		members = append(members, id)
+		members = append(members, stream)
 		if err = m.Leave(s.ID, a.Key(), "left"); err != nil {
 			t.Fatal(err)
 		}
@@ -277,7 +290,7 @@ func TestDetachedStreamsStayGloballyBounded(t *testing.T) {
 	if _, err := m.OpenStream(s.ID, a.Key()); !errors.Is(err, ErrLimit) {
 		t.Fatal("departed slow streams bypassed global cap")
 	}
-	m.CloseStream(s.ID, a.Key(), members[0])
+	m.CloseStream(s.ID, a.Key(), members[0].Token)
 	if _, err := m.OpenStream(s.ID, a.Key()); err != nil {
 		t.Fatal("global slot not released", err)
 	}
@@ -291,5 +304,39 @@ func TestWaitingResumesAtDeadlineWhenReadIsLate(t *testing.T) {
 	s = get(t, m, s.ID, a)
 	if s.State != "playing" || s.AtMS != deadline {
 		t.Fatal("late read moved resume anchor", s)
+	}
+}
+
+// Someone joining a room that's already playing catches up by themselves (as in Plex); they don't
+// pause everyone. Once ready they're part of the barrier again, so their later buffering waits.
+func TestLateJoinerDoesNotPauseAPlayingRoom(t *testing.T) {
+	m, _, a := fixture(t)
+	s, code, _, err := m.Create(a, "movie", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, err = m.Heartbeat(s.ID, a.Key(), s.Generation, 0, "paused", true); err != nil {
+		t.Fatal(err)
+	}
+	s = command(t, m, s, a, "play", "", 0, nil)
+	if s.State != "playing" {
+		t.Fatalf("host ready, room should play: %s", s.State)
+	}
+	late := Actor{Session: "device-b", UserID: "friend", Name: "Late"}
+	s, err = m.Join(late, code, "movie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.State != "playing" {
+		t.Fatalf("a late joiner paused the room: %s", s.State)
+	}
+	if s, err = m.Heartbeat(s.ID, late.Key(), s.Generation, 1000, "playing", true); err != nil {
+		t.Fatal(err)
+	}
+	if s, err = m.Heartbeat(s.ID, late.Key(), s.Generation, 1000, "waiting", false); err != nil {
+		t.Fatal(err)
+	}
+	if s.State != "waiting" {
+		t.Fatalf("once ready, the late joiner's buffering should hold the room: %s", s.State)
 	}
 }

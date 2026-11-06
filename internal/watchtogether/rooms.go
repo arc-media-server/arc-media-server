@@ -38,13 +38,15 @@ type Actor struct{ Session, UserID, Name string }
 func (a Actor) Key() string { return a.Session + "|" + a.UserID }
 
 type Member struct {
-	ID                     string
-	Actor                  Actor
-	Available, Ready       bool
-	PositionMS             int64
-	State                  string
-	LastSeen               time.Time
-	stream                 bool
+	ID               string
+	Actor            Actor
+	Available, Ready bool
+	PositionMS       int64
+	State            string
+	LastSeen         time.Time
+	// The member's open room stream, if any: a newer one replaces it (streamStop is closed).
+	streamToken            string
+	streamStop             chan struct{}
 	commandAt, heartbeatAt time.Time
 	commands, heartbeats   int
 }
@@ -304,21 +306,8 @@ func (m *Manager) Create(a Actor, item string, start int64) (Snapshot, string, t
 		}
 	}
 	p := &Member{ID: randomID(), Actor: a, Available: true, LastSeen: now, State: "paused"}
-	r := &room{Snapshot: Snapshot{ID: randomID(), ItemID: item, State: "paused", HostID: p.ID, Revision: 1, Generation: 1, PositionMS: start, AtMS: now.UnixMilli(), Rate: 1}, members: []*Member{p}, code: newCode(), inviteUntil: now.Add(InviteLife), created: now, peak: 1, ignored: map[string]bool{}, changed: make(chan struct{})}
-	// Avoid ambiguity even in the improbable event of an invite collision.
-	for {
-		collision := false
-		for _, other := range m.rooms {
-			if other.code == r.code {
-				collision = true
-				break
-			}
-		}
-		if !collision {
-			break
-		}
-		r.code = newCode()
-	}
+	// uniqueCode avoids ambiguity even in the improbable event of an invite collision.
+	r := &room{Snapshot: Snapshot{ID: randomID(), ItemID: item, State: "paused", HostID: p.ID, Revision: 1, Generation: 1, PositionMS: start, AtMS: now.UnixMilli(), Rate: 1}, members: []*Member{p}, code: m.uniqueCode(), inviteUntil: now.Add(InviteLife), created: now, peak: 1, ignored: map[string]bool{}, changed: make(chan struct{})}
 	m.rooms[r.ID] = r
 	m.logInfo("watch together created", r, "created")
 	return m.snapshot(r), r.code, r.inviteUntil, nil
@@ -370,6 +359,11 @@ func (m *Manager) Join(a Actor, code, authorizedItem string) (Snapshot, error) {
 		p := &Member{ID: randomID(), Actor: a, Available: true, State: "waiting", LastSeen: now}
 		r.members = append(r.members, p)
 		r.peak = max(r.peak, len(r.members))
+		// Joining a room that's already playing doesn't pause everyone: the newcomer catches up
+		// to the shared position by themselves, as in Plex, and joins the barrier once ready.
+		if r.playing {
+			r.ignored[p.ID] = true
+		}
 		r.emptySince = time.Time{}
 		if r.HostID == "" {
 			r.HostID = p.ID
@@ -485,9 +479,6 @@ func (m *Manager) Command(id, key string, revision int64, action, item string, p
 			member.Ready = false
 		}
 	case "change_item":
-		if item == "" || !allowed[key] {
-			return m.snapshot(r), ErrInput
-		}
 		r.ItemID = item
 		r.PositionMS = pos
 		r.Generation++
@@ -593,28 +584,42 @@ func (m *Manager) RenewInvite(id, key string, revision int64) (Snapshot, string,
 	m.changed(r)
 	return m.snapshot(r), r.code, r.inviteUntil, nil
 }
-func (m *Manager) OpenStream(id, key string) (string, error) {
+
+// Stream is one open room stream. Stop closes when a newer stream for the same member replaces
+// it: a TV that lost its network or slept reconnects at once, while the server may not notice
+// the old connection is dead for minutes (writes to a half-open connection still succeed).
+type Stream struct {
+	MemberID, Token string
+	Stop            <-chan struct{}
+}
+
+func (m *Manager) OpenStream(id, key string) (Stream, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sweep(m.now())
 	_, p, err := m.lookup(id, key)
 	if err != nil {
-		return "", err
+		return Stream{}, err
 	}
-	if p.stream || len(m.streams) >= MaxRooms*MaxParticipants {
-		return "", ErrLimit
+	replacing := p.streamToken != ""
+	if !replacing && len(m.streams) >= MaxRooms*MaxParticipants {
+		return Stream{}, ErrLimit
 	}
-	p.stream = true
-	m.streams[p.ID] = true
-	return p.ID, nil
+	if replacing {
+		close(p.streamStop)
+	}
+	token := randomID()
+	p.streamToken, p.streamStop = token, make(chan struct{})
+	m.streams[token] = true
+	return Stream{MemberID: p.ID, Token: token, Stop: p.streamStop}, nil
 }
-func (m *Manager) CloseStream(id, key, memberID string) {
+func (m *Manager) CloseStream(id, key, token string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.streams, memberID)
+	delete(m.streams, token)
 	if r := m.rooms[id]; r != nil {
-		if p := m.member(r, key); p != nil && p.ID == memberID {
-			p.stream = false
+		if p := m.member(r, key); p != nil && p.streamToken == token {
+			p.streamToken, p.streamStop = "", nil
 		}
 	}
 }
