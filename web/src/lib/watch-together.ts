@@ -27,6 +27,8 @@ export interface WatchRoom {
   server_time_ms: number;
   wait_until_ms?: number;
   host_id: string;
+  /** Who made the room (its host when present); absent from older servers. */
+  host_name?: string;
   self_id: string;
   changed_by?: string;
   /** False when this profile may not play the room's current title. */
@@ -34,6 +36,34 @@ export interface WatchRoom {
   item_id?: string;
   item?: { id: string; title: string; kind: string };
   participants: WatchParticipant[];
+  /** People invited by name who aren't in the room now (absent from older servers). */
+  invited?: { name: string }[];
+}
+
+/** Someone this profile may invite. */
+export interface WatchPerson {
+  id: string;
+  name: string;
+  color: string;
+  friend: boolean;
+  /** Whether they may play the title asked about. */
+  can_watch: boolean;
+}
+
+/** A room in this profile's list (Home's Watch Together row). */
+export interface ListedRoom {
+  id: string;
+  state: string;
+  position_ms: number;
+  created_at_ms: number;
+  host_name: string;
+  /** This profile made it. */
+  hosting: boolean;
+  /** This device and profile are in it. */
+  joined: boolean;
+  item: { id: string; title: string; kind: string };
+  participants: string[];
+  invited: string[];
 }
 
 export interface WatchInvite {
@@ -88,6 +118,17 @@ export const rooms = {
     call<WatchRoom>('POST', `/${encodeURIComponent(id)}/heartbeat`, { generation, position_ms: Math.max(0, Math.round(positionMS)), state, ready }),
   leave: (id: string) => call<void>('POST', `/${encodeURIComponent(id)}/leave`),
   renewInvite: (id: string, revision: number) => call<WatchInvite>('POST', `/${encodeURIComponent(id)}/invite`, { revision }),
+  people: (itemId?: string) =>
+    call<{ people: WatchPerson[] | null }>('GET', `/people${itemId ? `?item_id=${encodeURIComponent(itemId)}` : ''}`).then((r) => r.people ?? []),
+  list: () => call<{ rooms: ListedRoom[] | null }>('GET', '/rooms').then((r) => r.rooms ?? []),
+  /** A room for chosen people: nobody is in it until they join from their lists. */
+  createInvited: (itemId: string, profileIds: string[]) =>
+    call<{ room: ListedRoom; invite_code: string; invite_expires_at_ms: number }>('POST', '/rooms', { item_id: itemId, profile_ids: profileIds }),
+  /** Joins a room from this profile's list, without a code. */
+  accept: (id: string) => call<WatchRoom>('POST', `/rooms/${encodeURIComponent(id)}/join`),
+  /** Declines an invitation, or cancels a room this profile made. */
+  dismiss: (id: string) => call<void>('POST', `/rooms/${encodeURIComponent(id)}/dismiss`),
+  invitePeople: (id: string, profileIds: string[]) => call<WatchRoom>('POST', `/${encodeURIComponent(id)}/people`, { profile_ids: profileIds }),
   time: (clientSentMS: number) =>
     call<{ client_sent_ms: number; server_received_ms: number; server_sent_ms: number }>('GET', `/time?client_sent_ms=${Math.round(clientSentMS)}`),
 };

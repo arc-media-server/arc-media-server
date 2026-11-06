@@ -29,6 +29,11 @@ func queryParameter(handler, name string) (map[string]any, error) {
 		schema["minimum"] = 1
 		schema["maximum"] = b[1]
 		schema["default"] = b[0]
+	case "item_id":
+		if handler != "peopleWatchTogether" {
+			return nil, fmt.Errorf("document query parameter item_id on %s", handler)
+		}
+		description = "A movie or episode ID: each person's can_watch then says whether they may play it. Optional."
 	case "client_sent_ms":
 		integer("The client's own send time in epoch milliseconds, echoed back for clock-offset and round-trip estimates (Watch Together). Optional; must be nonnegative.")
 		schema["minimum"] = 0

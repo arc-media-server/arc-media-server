@@ -19,9 +19,14 @@ const (
 	InviteLife      = 15 * time.Minute
 	MemberLife      = 30 * time.Second
 	EmptyLife       = 3 * time.Minute
-	EndRetention    = 30 * time.Second
-	WaitLife        = 10 * time.Second
-	MaxPositionMS   = int64(7 * 24 * 60 * 60 * 1000)
+	// InvitedLife is how long a room with invited people waits while nobody is in it, so the
+	// people invited have time to see it on Home and join.
+	InvitedLife = time.Hour
+	// MaxHosted bounds the rooms one profile may have waiting with invitations.
+	MaxHosted     = 3
+	EndRetention  = 30 * time.Second
+	WaitLife      = 10 * time.Second
+	MaxPositionMS = int64(7 * 24 * 60 * 60 * 1000)
 )
 
 var (
@@ -50,8 +55,17 @@ type Member struct {
 	commandAt, heartbeatAt time.Time
 	commands, heartbeats   int
 }
+
+// Invitee is someone the host invited by profile, rather than by code.
+type Invitee struct{ UserID, Name string }
+
 type Snapshot struct {
-	ID, ItemID, State, HostID, ChangedBy   string
+	ID, ItemID, State, HostID, ChangedBy string
+	// The profile that created the room, and its name: it's host again whenever it rejoins.
+	HostUserID, HostName string
+	// People invited who aren't in the room now (in invitation order).
+	Invited                                []Invitee
+	CreatedMS                              int64
 	Revision, Generation, PositionMS, AtMS int64
 	Rate                                   float64
 	Members                                []Member
@@ -66,6 +80,9 @@ type room struct {
 	ignored                                              map[string]bool
 	peak                                                 int
 	changed                                              chan struct{}
+	// invited holds every profile invited by name (user ID -> name), joined or not.
+	invited     map[string]string
+	inviteOrder []string
 }
 type Manager struct {
 	mu      sync.Mutex
@@ -73,6 +90,41 @@ type Manager struct {
 	streams map[string]bool
 	now     func() time.Time
 	log     *slog.Logger
+	// Notify, when set, hears which profiles' room lists changed: a room was made, people were
+	// invited, someone joined, left or declined, or it ended. It runs under the manager's lock,
+	// so it must be quick and never call back into the manager.
+	Notify func(userIDs []string)
+}
+
+// notify tells everyone who can see the room in their list that it changed.
+func (m *Manager) notify(r *room) {
+	if m.Notify == nil {
+		return
+	}
+	seen := map[string]bool{}
+	ids := []string{}
+	add := func(id string) {
+		if id != "" && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	add(r.HostUserID)
+	for _, id := range r.inviteOrder {
+		add(id)
+	}
+	for _, p := range r.members {
+		add(p.Actor.UserID)
+	}
+	m.Notify(ids)
+}
+
+// emptyLife is how long the room may stay with nobody in it.
+func emptyLife(r *room) time.Duration {
+	if len(r.invited) > 0 {
+		return InvitedLife
+	}
+	return EmptyLife
 }
 
 func New(log *slog.Logger) *Manager {
@@ -199,6 +251,7 @@ func (m *Manager) remove(r *room, key, reason string, now time.Time) {
 			r.ChangedBy = p.ID
 			m.changed(r)
 			m.settle(r, now)
+			m.notify(r)
 			m.logInfo("watch together participant left", r, reason)
 			return
 		}
@@ -211,6 +264,7 @@ func (m *Manager) end(r *room, reason string, now time.Time) {
 	r.endedAt = now
 	r.code = ""
 	m.changed(r)
+	m.notify(r)
 	m.logInfo("watch together ended", r, reason)
 }
 
@@ -246,8 +300,8 @@ func (m *Manager) sweep(now time.Time) {
 		if allExpired {
 			r.emptySince = lastPresence.Add(MemberLife)
 		}
-		if len(r.members) == 0 && !r.emptySince.IsZero() && now.Sub(r.emptySince) >= EmptyLife {
-			m.end(r, "empty room expired", r.emptySince.Add(EmptyLife))
+		if life := emptyLife(r); len(r.members) == 0 && !r.emptySince.IsZero() && now.Sub(r.emptySince) >= life {
+			m.end(r, "empty room expired", r.emptySince.Add(life))
 			if now.Sub(r.endedAt) >= EndRetention {
 				close(r.changed)
 				delete(m.rooms, id)
@@ -273,8 +327,16 @@ func (m *Manager) snapshot(r *room) Snapshot {
 		out.WaitUntilMS = 0
 	}
 	out.Members = make([]Member, len(r.members))
+	present := map[string]bool{}
 	for i, p := range r.members {
 		out.Members[i] = *p
+		present[p.Actor.UserID] = true
+	}
+	out.Invited = nil
+	for _, id := range r.inviteOrder {
+		if name, ok := r.invited[id]; ok && !present[id] {
+			out.Invited = append(out.Invited, Invitee{UserID: id, Name: name})
+		}
 	}
 	return out
 }
@@ -307,10 +369,206 @@ func (m *Manager) Create(a Actor, item string, start int64) (Snapshot, string, t
 	}
 	p := &Member{ID: randomID(), Actor: a, Available: true, LastSeen: now, State: "paused"}
 	// uniqueCode avoids ambiguity even in the improbable event of an invite collision.
-	r := &room{Snapshot: Snapshot{ID: randomID(), ItemID: item, State: "paused", HostID: p.ID, Revision: 1, Generation: 1, PositionMS: start, AtMS: now.UnixMilli(), Rate: 1}, members: []*Member{p}, code: m.uniqueCode(), inviteUntil: now.Add(InviteLife), created: now, peak: 1, ignored: map[string]bool{}, changed: make(chan struct{})}
+	r := m.newRoom(a, item, start, now)
+	r.HostID = p.ID
+	r.members = []*Member{p}
+	r.peak = 1
 	m.rooms[r.ID] = r
 	m.logInfo("watch together created", r, "created")
 	return m.snapshot(r), r.code, r.inviteUntil, nil
+}
+
+func (m *Manager) newRoom(a Actor, item string, start int64, now time.Time) *room {
+	// uniqueCode avoids ambiguity even in the improbable event of an invite collision.
+	return &room{Snapshot: Snapshot{ID: randomID(), ItemID: item, State: "paused", HostUserID: a.UserID, HostName: a.Name, CreatedMS: now.UnixMilli(), Revision: 1, Generation: 1, PositionMS: start, AtMS: now.UnixMilli(), Rate: 1}, code: m.uniqueCode(), inviteUntil: now.Add(InviteLife), created: now, ignored: map[string]bool{}, changed: make(chan struct{}), invited: map[string]string{}}
+}
+
+// CreateInvited makes a room for people chosen by profile: nobody is in it yet.
+// It waits (InvitedLife) for them and for its host to join from their room lists; whoever made
+// it is host when they join. The code works as for any room.
+func (m *Manager) CreateInvited(a Actor, item string, start int64, people []Invitee) (Snapshot, string, time.Time, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	m.sweep(now)
+	if a.Session == "" || a.UserID == "" || item == "" || start < 0 || start > MaxPositionMS || len(people) == 0 || len(people) >= MaxParticipants {
+		return Snapshot{}, "", time.Time{}, ErrInput
+	}
+	if len(m.rooms) >= MaxRooms {
+		return Snapshot{}, "", time.Time{}, ErrLimit
+	}
+	hosted := 0
+	for _, r := range m.rooms {
+		if r.State != "ended" && r.HostUserID == a.UserID && len(r.invited) > 0 {
+			hosted++
+		}
+	}
+	if hosted >= MaxHosted {
+		return Snapshot{}, "", time.Time{}, ErrLimit
+	}
+	r := m.newRoom(a, item, start, now)
+	r.emptySince = now
+	for _, p := range people {
+		if p.UserID == "" || p.UserID == a.UserID {
+			return Snapshot{}, "", time.Time{}, ErrInput
+		}
+		if _, dup := r.invited[p.UserID]; !dup {
+			r.invited[p.UserID] = p.Name
+			r.inviteOrder = append(r.inviteOrder, p.UserID)
+		}
+	}
+	m.rooms[r.ID] = r
+	m.notify(r)
+	m.logInfo("watch together created", r, "created with invitations")
+	return m.snapshot(r), r.code, r.inviteUntil, nil
+}
+
+// Invite adds people to a room (host only); people already invited are skipped.
+func (m *Manager) Invite(id, key string, people []Invitee) (Snapshot, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	m.sweep(now)
+	r, p, err := m.lookup(id, key)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	if r.State == "ended" {
+		return Snapshot{}, ErrNotFound
+	}
+	if p.ID != r.HostID {
+		return m.snapshot(r), ErrForbidden
+	}
+	if !rate(&p.commandAt, &p.commands, now, 10) {
+		return m.snapshot(r), ErrRate
+	}
+	added := false
+	for _, person := range people {
+		if person.UserID == "" || person.UserID == p.Actor.UserID {
+			return m.snapshot(r), ErrInput
+		}
+		if _, dup := r.invited[person.UserID]; dup {
+			continue
+		}
+		if len(r.invited) >= MaxParticipants-1 {
+			return m.snapshot(r), ErrLimit
+		}
+		r.invited[person.UserID] = person.Name
+		r.inviteOrder = append(r.inviteOrder, person.UserID)
+		added = true
+	}
+	if added {
+		r.ChangedBy = p.ID
+		m.changed(r)
+		m.notify(r)
+	}
+	return m.snapshot(r), nil
+}
+
+// visibleTo says whether the profile sees the room in its list: it made it, was invited, or is in it.
+func (m *Manager) visibleTo(r *room, userID string) bool {
+	if r.State == "ended" || userID == "" {
+		return false
+	}
+	if r.HostUserID == userID {
+		return true
+	}
+	if _, ok := r.invited[userID]; ok {
+		return true
+	}
+	for _, p := range r.members {
+		if p.Actor.UserID == userID {
+			return true
+		}
+	}
+	return false
+}
+
+// Rooms lists the active rooms a profile made, was invited to or is in, newest first. The caller
+// still checks the profile may play each room's title before showing it.
+func (m *Manager) Rooms(userID string) []Snapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sweep(m.now())
+	out := []Snapshot{}
+	for _, r := range m.rooms {
+		if m.visibleTo(r, userID) {
+			out = append(out, m.snapshot(r))
+		}
+	}
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j].CreatedMS > out[j-1].CreatedMS; j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out
+}
+
+// RoomItem is the title of a room the profile may see in its list, so the API can check access
+// before letting it in.
+func (m *Manager) RoomItem(id, userID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sweep(m.now())
+	r := m.rooms[id]
+	if r == nil || !m.visibleTo(r, userID) {
+		return "", ErrNotFound
+	}
+	return r.ItemID, nil
+}
+
+// Accept joins a room from the profile's list (no code needed), if it may still see the room.
+func (m *Manager) Accept(a Actor, id, authorizedItem string) (Snapshot, error) {
+	if a.Session == "" || a.UserID == "" {
+		return Snapshot{}, ErrInput
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	m.sweep(now)
+	r := m.rooms[id]
+	if r == nil || !m.visibleTo(r, a.UserID) {
+		return Snapshot{}, ErrNotFound
+	}
+	if r.ItemID != authorizedItem {
+		return Snapshot{}, ErrStale
+	}
+	return m.admit(r, a, now)
+}
+
+// Dismiss takes a room off a profile's list: someone invited declines; its host cancels it for
+// everyone (as ending it does).
+func (m *Manager) Dismiss(id, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.now()
+	m.sweep(now)
+	r := m.rooms[id]
+	if r == nil || !m.visibleTo(r, userID) {
+		return ErrNotFound
+	}
+	if r.HostUserID == userID {
+		m.end(r, "cancelled by host", now)
+		return nil
+	}
+	if _, ok := r.invited[userID]; !ok {
+		return ErrNotFound
+	}
+	delete(r.invited, userID)
+	for i, id := range r.inviteOrder {
+		if id == userID {
+			r.inviteOrder = append(r.inviteOrder[:i], r.inviteOrder[i+1:]...)
+			break
+		}
+	}
+	m.changed(r)
+	m.notify(r)
+	// The decliner is no longer listed, so tell them too.
+	if m.Notify != nil {
+		m.Notify([]string{userID})
+	}
+	m.logInfo("watch together invitation declined", r, "declined")
+	return nil
 }
 
 // InviteItem reveals only the candidate item internally so the API can check permissions before
@@ -344,38 +602,57 @@ func (m *Manager) Join(a Actor, code, authorizedItem string) (Snapshot, error) {
 		if r.ItemID != authorizedItem {
 			return Snapshot{}, ErrStale
 		}
-		if p := m.member(r, a.Key()); p != nil {
-			p.LastSeen = now
-			return m.snapshot(r), nil
-		}
-		if len(r.members) >= MaxParticipants {
-			return Snapshot{}, ErrLimit
-		}
-		for _, other := range m.rooms {
-			if other.State != "ended" && m.member(other, a.Key()) != nil {
-				return Snapshot{}, ErrLimit
-			}
-		}
-		p := &Member{ID: randomID(), Actor: a, Available: true, State: "waiting", LastSeen: now}
-		r.members = append(r.members, p)
-		r.peak = max(r.peak, len(r.members))
-		// Joining a room that's already playing doesn't pause everyone: the newcomer catches up
-		// to the shared position by themselves, as in Plex, and joins the barrier once ready.
-		if r.playing {
-			r.ignored[p.ID] = true
-		}
-		r.emptySince = time.Time{}
-		if r.HostID == "" {
-			r.HostID = p.ID
-		}
-		r.ChangedBy = p.ID
-		m.changed(r)
-		m.settle(r, now)
-		m.logInfo("watch together participant joined", r, "joined")
-		return m.snapshot(r), nil
+		return m.admit(r, a, now)
 	}
 	return Snapshot{}, ErrNotFound
 }
+
+// admit lets a profile on a device into a room (or finds it already there).
+func (m *Manager) admit(r *room, a Actor, now time.Time) (Snapshot, error) {
+	if p := m.member(r, a.Key()); p != nil {
+		p.LastSeen = now
+		return m.snapshot(r), nil
+	}
+	if len(r.members) >= MaxParticipants {
+		return Snapshot{}, ErrLimit
+	}
+	for _, other := range m.rooms {
+		if other.State != "ended" && m.member(other, a.Key()) != nil {
+			return Snapshot{}, ErrLimit
+		}
+	}
+	p := &Member{ID: randomID(), Actor: a, Available: true, State: "waiting", LastSeen: now}
+	r.members = append(r.members, p)
+	r.peak = max(r.peak, len(r.members))
+	// Joining a room that's already playing doesn't pause everyone: the newcomer catches up
+	// to the shared position by themselves and joins the barrier once ready.
+	if r.playing {
+		r.ignored[p.ID] = true
+	}
+	r.emptySince = time.Time{}
+	// Whoever made the room is its host when they come (back). A room made by invitation has
+	// no host until then: the people invited wait for its creator to start it.
+	if (r.HostID == "" && len(r.invited) == 0) || (a.UserID == r.HostUserID && m.hostUser(r) != r.HostUserID) {
+		r.HostID = p.ID
+	}
+	r.ChangedBy = p.ID
+	m.changed(r)
+	m.settle(r, now)
+	m.notify(r)
+	m.logInfo("watch together participant joined", r, "joined")
+	return m.snapshot(r), nil
+}
+
+// hostUser is the profile of the room's current host, if any.
+func (m *Manager) hostUser(r *room) string {
+	for _, p := range r.members {
+		if p.ID == r.HostID {
+			return p.Actor.UserID
+		}
+	}
+	return ""
+}
+
 func (m *Manager) Get(id, key string) (Snapshot, <-chan struct{}, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
