@@ -30,7 +30,7 @@ and by watch status (docs/FILTER-DISCOVERY-API.md). The web app didn't offer any
 
 ## Decisions (logged on #80)
 
-- **Only real values:** a filter lists only values the library has, as Plex does, rather than
+- **Only real values:** a filter lists only values the library has, rather than
   every format Arc knows. A format with one value isn't offered.
 - **Unknown HDR:** files not analysed yet show as "Not known yet" rather than being counted as
   SDR.
