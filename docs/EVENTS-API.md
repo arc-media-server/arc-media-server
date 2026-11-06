@@ -32,6 +32,15 @@ Tests cover replay/coalescing/bounds/concurrency, permission filtering and authe
 streaming with revocation. No owner deployment, native client, reverse proxy or sustained-load
 validation is claimed.
 
+Cross-origin clients use the versioned API with Bearer authentication. Its CORS preflight permits
+`Authorization` and `Last-Event-ID`; responses expose `X-Request-ID` for diagnostic correlation.
+Cookies/credentials and local-network login bypass remain disabled cross-origin. Cursor length is
+limited to 80 characters. Parse complete SSE frames and retain their IDs; comments are heartbeats.
+Unknown topics should trigger a safe refetch or be ignored without breaking the stream. Typed
+`invalidate`/`resync` payloads are described by `x-arc-sse-events` in the OpenAPI operation; the HTTP
+body itself remains `text/event-stream`. No tokens, user IDs or admin flags appear in those payloads.
+See [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md) for a bounded curl example and error handling.
+
 ## Background producers and client actions
 
 | Topic | Background producer | Suggested app response |

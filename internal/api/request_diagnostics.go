@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -38,7 +39,7 @@ type requestSnapshot struct {
 type requestDiagnostics struct {
 	mu         sync.Mutex
 	active     map[*requestTrace]struct{}
-	nextID     uint64
+	nextID     atomic.Uint64
 	omitted    uint64
 	warnWindow time.Time
 	warnings   int
@@ -55,7 +56,7 @@ func trackRequest(route string) bool {
 	return false
 }
 
-func (d *requestDiagnostics) begin(method, route string) *requestTrace {
+func (d *requestDiagnostics) begin(method, route string, ids ...uint64) *requestTrace {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if len(d.active) >= maxTrackedRequests {
@@ -65,9 +66,15 @@ func (d *requestDiagnostics) begin(method, route string) *requestTrace {
 	if d.active == nil {
 		d.active = make(map[*requestTrace]struct{})
 	}
-	d.nextID++
+	var id uint64
+	if len(ids) > 0 {
+		id = ids[0]
+	}
+	if id == 0 {
+		id = d.nextID.Add(1)
+	}
 	now := time.Now()
-	t := &requestTrace{RequestID: d.nextID, Method: method, Route: route, Started: now, Stage: "authentication", StageStarted: now}
+	t := &requestTrace{RequestID: id, Method: method, Route: route, Started: now, Stage: "authentication", StageStarted: now}
 	d.active[t] = struct{}{}
 	return t
 }
@@ -132,7 +139,8 @@ func (s *Server) watchRequest(r *http.Request, route string) (*http.Request, fun
 	if !trackRequest(route) {
 		return r, func() {}
 	}
-	t := s.requests.begin(r.Method, route)
+	id, _ := r.Context().Value(correlationKey{}).(uint64)
+	t := s.requests.begin(r.Method, route, id)
 	if t == nil {
 		return r, func() {}
 	}

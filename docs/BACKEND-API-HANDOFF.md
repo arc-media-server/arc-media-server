@@ -1,29 +1,42 @@
-# Backend API handoff for Claude
+# Backend API handoff for clients
 
-This batch provides backend/API support only; reuse the existing shared web/app controls when adding
-UI. Keep `/api/v1` integration additive and detect capabilities on reconnect/profile change.
+Start with [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md). The generated [API reference](API.md)
+and [OpenAPI contract](openapi.json) describe the current server.
+Use `/api/v1`, detect capabilities on connection/profile changes, and keep UI changes in the
+existing shared controls. The bundled `/docs/` viewer already exists.
 
-Merge dependencies in order:
+## Implemented client contracts
 
-1. **#309 — API foundations:** [API-FOUNDATIONS.md](API-FOUNDATIONS.md). Fixes contract discovery and
-   optional/default/null request descriptions; adds stable authenticated server identity, admin-friendly
-   server name and permission-aware runtime capabilities. Claude adds the name field to the existing
-   settings screen and uses identity/capability hints in clients.
-2. **#310 — Show Unmatch:** [UNMATCH-API.md](UNMATCH-API.md). Claude adds an action to the shared show
-   menu with a clear confirmation that metadata, overrides and display orders are reset. Explicit Fix
-   Match re-enables metadata; ordinary scans do not. Files and saved user references are preserved.
-3. **Server play queues (this branch):** [PLAY-QUEUES-API.md](PLAY-QUEUES-API.md). Claude connects the
-   existing queue/player controls to profile/device-owned, persistent, revision-checked server state.
-   Starting/stopping actual playback remains a client action using existing playback endpoints.
+These features are implemented, rather than proposals for another backend batch:
 
-For stacked PRs, merge the predecessor, then retarget the successor to main before merging. Do not
-merge descendants without their schema dependencies. No backend PR in this batch was auto-merged.
+- Identity, server name and permission-aware capabilities: [API-FOUNDATIONS.md](API-FOUNDATIONS.md).
+- Unmatch: [UNMATCH-API.md](UNMATCH-API.md). Removes provider metadata/overrides/orderings while
+  preserving files and user references; explicit Fix Match re-enables automatic matching.
+- Persistent profile/device-owned queues with revision checks: [PLAY-QUEUES-API.md](PLAY-QUEUES-API.md).
+  Playback start/stop remains a client action, separate from changing queue contents.
+- General live invalidation/replay: [EVENTS-API.md](EVENTS-API.md). Refetch on hints/resync;
+  this is not a record patch feed or guaranteed delivery.
+- Provider-ID and batch lookup: [ITEM-LOOKUP-API.md](ITEM-LOOKUP-API.md).
+- Rich filter discovery: [FILTER-DISCOVERY-API.md](FILTER-DISCOVERY-API.md).
+- Recommendation continuation: [RECOMMENDATION-PAGES-API.md](RECOMMENDATION-PAGES-API.md).
+- Read-only playback decisions and native capabilities: [PLAYBACK-PREVIEW-API.md](PLAYBACK-PREVIEW-API.md).
+- Regional artwork colors: [ARTWORK-PALETTES.md](ARTWORK-PALETTES.md).
 
-The first two guides live in their respective predecessor PRs; this final branch includes all three.
-The generated docs/API.md, docs/openapi.json and docs/api-v1-contract.txt describe the resulting API.
-Tests use temporary stores/local provider fixtures, not the owner server or media. No persistent Arc
-server or physical-device/native rendering acceptance is claimed.
+## This follow-up and pending integration
 
-The wider API review still contains separate work such as event streaming, provider-ID/bulk lookup,
-additional filters, recommendation continuation, richer playback negotiation, subtitle upload and image
-variants. Those are not advertised as available by these PRs. PostgreSQL remains planning issue #308.
+This API-polish branch adds cross-origin SSE cursor support, server-issued error correlation,
+logical query constraints and media/header/SSE documentation.
+JSON errors retain `error`, `needs` and domain fields, adding `code`/`request_id`; success bodies
+are unchanged. See the integration guide for compatibility with older servers and non-JSON errors.
+
+At the review checkpoint, these separate PRs remain dependencies or independent work. Their
+presence in a handoff is not evidence that a deployed server has them; confirm GitHub merge state
+and the server's capabilities before exposing controls:
+
+- #333: Watch Together rooms and their separate snapshot event protocol.
+- #334: conversion concurrency/throttling reliability.
+- #335: more precise fixed-map JSON response schemas.
+- #336: additional autonomous background-worker invalidation producers.
+
+PostgreSQL support (#337, #339) is parked (#308); SQLite is Arc's database. Offline downloads/sync (#62) are also separate; no client API parity claim
+is made. Test evidence uses temporary stores/local fixtures, not owner media or production systems.
