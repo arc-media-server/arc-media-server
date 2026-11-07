@@ -520,6 +520,8 @@ export interface PlayerCaps {
   video: string[];
   audio: string[];
   max_height: number;
+  /** On a retry: the method the browser was given and couldn't play. */
+  failed_method?: 'direct' | 'remux';
 }
 
 export type PlaybackMethod = 'direct' | 'remux' | 'transcode';
