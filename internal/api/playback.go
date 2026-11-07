@@ -581,6 +581,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			opts.HWEncoder = caps.HWEncoder
 		}
 		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
+		opts.FastToneMap = opts.ToneMap && caps.FastToneMap
 	}
 	if preview {
 		out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
