@@ -43,12 +43,16 @@ export function playerCaps(): PlayerCaps {
 
 /**
  * Caps for retrying after a method failed (browsers sometimes claim more than they can do): the
- * file as it is failed, so repackage it; repackaged failed, so convert the video too.
+ * file as it is failed, so repackage it; repackaged failed, so convert the video too. Either way
+ * the audio becomes AAC (or MP3), the one thing every browser plays.
  */
 export function fallbackCaps(failed: PlaybackPlan['method']): PlayerCaps {
   const caps = playerCaps();
-  if (failed === 'transcode') return { ...caps, containers: [], video: [] };
-  return failed === 'direct' ? { ...caps, containers: [], failed_method: 'direct' } : { ...caps, containers: [], video: [], failed_method: 'remux' };
+  // Browsers over-claim audio too (LG's webOS browser says it plays Dolby Digital in pages), so a
+  // retry also asks for the audio every browser plays.
+  const audio = caps.audio.filter((c) => c === 'aac' || c === 'mp3');
+  if (failed === 'transcode') return { ...caps, containers: [], video: [], audio };
+  return failed === 'direct' ? { ...caps, containers: [], audio, failed_method: 'direct' } : { ...caps, containers: [], video: [], audio, failed_method: 'remux' };
 }
 
 const channelNames: Record<number, string> = { 6: '5.1', 8: '7.1' };

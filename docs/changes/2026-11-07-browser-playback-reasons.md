@@ -16,6 +16,10 @@ video, MKV file", even ordinary 8-bit files, and the picture stayed black.
   "remux"). The reason then reads "the player couldn't play the repackaged stream" (reason code
   `player_failed`), so the info panel and the log point at the browser, not the file. The field is
   additive and optional.
+- **Retries also ask for the safest audio.** The retry used to narrow only the container and
+  video, so a file whose Dolby Digital (Plus) audio the browser had over-claimed failed the same
+  way twice. LG's webOS browser does this, and it's the likely cause of that TV's black screen.
+  Retries now ask for AAC (or MP3), so the server converts the audio too.
 - **H.264 and AAC count when a browser only answers "maybe"**, or only for a plainer H.264 profile.
   Every browser that plays video plays these in MP4. Some TV browsers answer the stricter question
   "no", and Arc then converted every file on the server's CPU.
