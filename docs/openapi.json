@@ -381,6 +381,9 @@
           "checking": {
             "type": "boolean"
           },
+          "fast_tone_map": {
+            "type": "boolean"
+          },
           "hw_device": {
             "type": "string"
           },

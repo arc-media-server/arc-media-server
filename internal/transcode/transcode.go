@@ -54,6 +54,8 @@ type Options struct {
 	HWDriver   string
 	HWLowPower bool
 	ToneMap    bool
+	// Use tonemapx (jellyfin-ffmpeg) for ToneMap instead of the zscale chain.
+	FastToneMap bool
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// The source video has Dolby Vision: copied video should keep it (checked once it's written).
@@ -289,7 +291,11 @@ func buildArgs(o Options, start float64, dir string) []string {
 	// Filters, in order: HDR to SDR, picture subtitles drawn on, scaling, hardware upload.
 	var pre, post []string
 	if encode && o.ToneMap {
-		pre = append(pre, ToneMapFilter)
+		if o.FastToneMap {
+			pre = append(pre, FastToneMapFilter)
+		} else {
+			pre = append(pre, ToneMapFilter)
+		}
 	}
 	if encode && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
 		post = append(post, "scale=-2:"+strconv.Itoa(o.MaxHeight))
@@ -354,6 +360,11 @@ func buildArgs(o Options, start float64, dir string) []string {
 
 // ToneMapFilter maps HDR (PQ or HLG) to SDR so converted video (and previews) don't look washed out.
 const ToneMapFilter = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p"
+
+// FastToneMapFilter is the same mapping with jellyfin-ffmpeg's tonemapx: BT.2390, many times
+// faster than zscale's float chain, and it applies Dolby Vision's own colour metadata where the
+// stream has it. tonemapx takes 10-bit 4:2:0, so other input is converted to that first.
+const FastToneMapFilter = "format=yuv420p10le,tonemapx=tonemap=bt2390:desat=0:peak=100:t=bt709:m=bt709:p=bt709:r=tv:format=yuv420p"
 
 // encoderArgs chooses the H.264 encoder and its quality settings.
 func encoderArgs(o Options) []string {
