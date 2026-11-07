@@ -1259,6 +1259,9 @@
             },
             "type": "array"
           },
+          "failed_method": {
+            "type": "string"
+          },
           "hdr_formats": {
             "items": {
               "type": "string"

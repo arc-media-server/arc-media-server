@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
@@ -40,6 +41,9 @@ type clientCaps struct {
 	Audio      []string `json:"audio"`      // aac, mp3, opus, flac, ac3, eac3, vorbis
 	// The largest picture worth sending (e.g. the screen's height); 0 for no limit.
 	MaxHeight int `json:"max_height" api:"optional"`
+	// Set on a retry: the method the player was given and couldn't play ("direct" or "remux").
+	// The caps are narrowed for the retry, so the reasons say this instead of blaming the file.
+	FailedMethod string `json:"failed_method,omitempty"`
 }
 
 func (c clientCaps) has(list []string, v string) bool { return slices.Contains(list, v) }
@@ -163,7 +167,9 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 	case video == nil:
 		d.Reasons = append(d.Reasons, "no video found")
 		d.ReasonCodes = append(d.ReasonCodes, "no_video")
-	case !videoOK && video.Codec == "h264":
+	case !videoOK && video.Codec == "h264" && video.BitDepth > 8 && caps.has(caps.Video, "h264"):
+		// Only when the bit depth is the reason: a player that doesn't list H.264 at all gets
+		// "H.264 video", as for any other codec it lacks.
 		d.Reasons = append(d.Reasons, "10-bit H.264 video")
 		d.ReasonCodes = append(d.ReasonCodes, "video_codec")
 	case !videoOK:
@@ -246,6 +252,10 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 		d.Method = "remux"
 	default:
 		d.Method = "transcode"
+	}
+	if failed, ok := map[string]string{"direct": "the player couldn't play the file as it is",
+		"remux": "the player couldn't play the repackaged stream"}[caps.FailedMethod]; ok && d.Method != "direct" {
+		d.Reasons, d.ReasonCodes = []string{failed}, []string{"player_failed"}
 	}
 	return d
 }
@@ -509,6 +519,13 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	}
 	if !preview {
 		s.logPlayback(r, f.ID, d.Method, d.Reasons)
+		if d.Method == "transcode" && s.log.Enabled(r.Context(), slog.LevelDebug) {
+			// What the player said it plays, so a conversion caused by a browser's answer can be
+			// told from one caused by the file (detailed logging only).
+			s.log.Debug("playback caps", "file", f.ID, "containers", strings.Join(body.Caps.Containers, ","),
+				"video", strings.Join(body.Caps.Video, ","), "audio", strings.Join(body.Caps.Audio, ","),
+				"max_height", body.Caps.MaxHeight, "max_bit_depth", body.Caps.MaxBitDepth)
+		}
 	}
 	if d.Method == "direct" {
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
