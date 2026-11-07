@@ -10,24 +10,32 @@ export function playerCaps(): PlayerCaps {
   const v = document.createElement('video');
   const mse = (type: string) => (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported(type)) || v.canPlayType(type) === 'probably';
   const pick = (tests: Record<string, string[]>) => Object.keys(tests).filter((k) => tests[k].some(mse));
+  // Every browser that plays video plays 8-bit H.264 and AAC in MP4, but some TV browsers (LG's
+  // webOS one) answer "maybe" or only for a plainer profile. Without these Arc would convert
+  // every file on the server's CPU.
+  const baseline = (type: string) => mse(type) || v.canPlayType(type) !== '';
+  const video = pick({
+    h264: ['video/mp4; codecs="avc1.640028"'],
+    hevc: ['video/mp4; codecs="hvc1.1.6.L120.90"', 'video/mp4; codecs="hev1.1.6.L120.90"'],
+    vp9: ['video/webm; codecs="vp9"', 'video/mp4; codecs="vp09.00.10.08"'],
+    av1: ['video/mp4; codecs="av01.0.08M.08"'],
+  });
+  if (!video.includes('h264') && ['video/mp4; codecs="avc1.640028"', 'video/mp4; codecs="avc1.4D401F"', 'video/mp4; codecs="avc1.42E01E"'].some(baseline)) video.unshift('h264');
+  const audio = pick({
+    aac: ['audio/mp4; codecs="mp4a.40.2"'],
+    mp3: ['audio/mpeg', 'audio/mp4; codecs="mp3"'],
+    opus: ['audio/webm; codecs="opus"', 'audio/mp4; codecs="opus"'],
+    flac: ['audio/mp4; codecs="flac"', 'audio/flac'],
+    vorbis: ['audio/webm; codecs="vorbis"'],
+    ac3: ['audio/mp4; codecs="ac-3"'],
+    eac3: ['audio/mp4; codecs="ec-3"'],
+  });
+  if (!audio.includes('aac') && baseline('audio/mp4; codecs="mp4a.40.2"')) audio.unshift('aac');
   cached = {
     // Matroska isn't listed: browsers open some MKV files but not reliably, so they're repackaged.
     containers: ['mp4', ...(v.canPlayType('video/webm') ? ['webm'] : [])],
-    video: pick({
-      h264: ['video/mp4; codecs="avc1.640028"'],
-      hevc: ['video/mp4; codecs="hvc1.1.6.L120.90"', 'video/mp4; codecs="hev1.1.6.L120.90"'],
-      vp9: ['video/webm; codecs="vp9"', 'video/mp4; codecs="vp09.00.10.08"'],
-      av1: ['video/mp4; codecs="av01.0.08M.08"'],
-    }),
-    audio: pick({
-      aac: ['audio/mp4; codecs="mp4a.40.2"'],
-      mp3: ['audio/mpeg', 'audio/mp4; codecs="mp3"'],
-      opus: ['audio/webm; codecs="opus"', 'audio/mp4; codecs="opus"'],
-      flac: ['audio/mp4; codecs="flac"', 'audio/flac'],
-      vorbis: ['audio/webm; codecs="vorbis"'],
-      ac3: ['audio/mp4; codecs="ac-3"'],
-      eac3: ['audio/mp4; codecs="ec-3"'],
-    }),
+    video,
+    audio,
     max_height: Math.round(window.screen.height * (window.devicePixelRatio || 1)),
   };
   return cached;
@@ -39,7 +47,8 @@ export function playerCaps(): PlayerCaps {
  */
 export function fallbackCaps(failed: PlaybackPlan['method']): PlayerCaps {
   const caps = playerCaps();
-  return failed === 'direct' ? { ...caps, containers: [] } : { ...caps, containers: [], video: [] };
+  if (failed === 'transcode') return { ...caps, containers: [], video: [] };
+  return failed === 'direct' ? { ...caps, containers: [], failed_method: 'direct' } : { ...caps, containers: [], video: [], failed_method: 'remux' };
 }
 
 const channelNames: Record<number, string> = { 6: '5.1', 8: '7.1' };
