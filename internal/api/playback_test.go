@@ -56,6 +56,21 @@ func TestDecide(t *testing.T) {
 		})
 	}
 
+	// A player that doesn't list H.264 at all is told so, not "10-bit H.264" for every file.
+	noH264 := chrome
+	noH264.Video = []string{"vp9"}
+	plain := file("mp4", h264, aac)
+	if d := decide(plain, videoStream(plain), &plain.Streams[1], noH264); d.Method != "transcode" || !slices.Equal(d.Reasons, []string{"H.264 video"}) {
+		t.Errorf("player without h264: got %s %q, want transcode [H.264 video]", d.Method, d.Reasons)
+	}
+
+	// A retry after the player failed says so, rather than blaming the file's video.
+	retry := chrome
+	retry.Video, retry.Containers, retry.FailedMethod = nil, nil, "remux"
+	if d := decide(plain, videoStream(plain), &plain.Streams[1], retry); d.Method != "transcode" || !slices.Equal(d.Reasons, []string{"the player couldn't play the repackaged stream"}) {
+		t.Errorf("retry after remux: got %s %q", d.Method, d.Reasons)
+	}
+
 	// A browser that plays HEVC and MKV (e.g. Edge with the HEVC extension) plays it directly.
 	edge := chrome
 	edge.Video = append(edge.Video, "hevc")

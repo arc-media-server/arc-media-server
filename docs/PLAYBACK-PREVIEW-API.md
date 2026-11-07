@@ -37,7 +37,8 @@ profile whitelist must allow High. Optimized copies likewise must fit the new li
 `reason_codes` is additive to existing English reasons: video_codec, no_video, video_bit_depth,
 video_height, video_profile, container, audio_codec, audio_channels, audio_disabled, audio_selection,
 hdr_output, subtitle_burn, quality_limit, optimized_copy, conversion_unavailable,
-conversion_output_unsupported, hdr_conversion_unavailable, needs_analysis. Treat unknown future
+conversion_output_unsupported, hdr_conversion_unavailable, needs_analysis, player_failed (a retry after the player
+couldn't play the method it was given; set `failed_method` in caps on the retry). Treat unknown future
 codes as generic reasons; localize in the app. Playback start uses the same decisions; unsafe
 explicit fallback requests return 422. Do not use preview to allocate a playback URL: call playback
 when the user actually starts it.
