@@ -805,6 +805,13 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	if err != nil {
 		return 0, err
 	}
+	if existing == nil {
+		existing, err = s.reuseRenamedFile(ctx, lib, path, info)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
 	if unchanged && (existing.Probed || !probeNow) {
 		if existing.Probed {
@@ -976,10 +983,10 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	}
 	created := false
 	if itemID == "" {
-		itemID, created, err = s.store.EnsureItem(ctx, &store.Item{
+		itemID, created, err = s.ensureNamedItem(ctx, &store.Item{
 			LibraryID: lib.ID, Kind: "movie", Title: name.Title, Year: name.Year,
 			TMDBID: name.TMDBID, IMDBID: name.IMDBID,
-		}, matchKey)
+		}, matchKey, []int64{fileID})
 		if err != nil {
 			return err
 		}

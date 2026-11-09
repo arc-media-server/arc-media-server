@@ -83,10 +83,14 @@ func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Con
 func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *seriesGroup, log *slog.Logger) error {
 	ctx, finish := s.working(ctx, lib.ID, "Checking series", activityTitle(g.name.Title, g.name.Year), "Checking saved metadata and local artwork")
 	defer finish()
-	id, created, err := s.store.EnsureItem(ctx, &store.Item{
+	groupFileIDs := make([]int64, 0, len(g.files))
+	for _, f := range g.files {
+		groupFileIDs = append(groupFileIDs, f.fileID)
+	}
+	id, created, err := s.ensureNamedItem(ctx, &store.Item{
 		LibraryID: lib.ID, Kind: "series", Title: g.name.Title, Year: g.name.Year,
 		TVDBID: g.name.TVDBID, TMDBID: g.name.TMDBID, IMDBID: g.name.IMDBID,
-	}, seriesMatchKey(g.name))
+	}, seriesMatchKey(g.name), groupFileIDs)
 	if err != nil {
 		return err
 	}
