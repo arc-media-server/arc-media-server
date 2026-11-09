@@ -104,3 +104,7 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+A request using an unsupported HTTP method on a known API path returns `405` and an `Allow`
+header listing supported methods. Unknown paths still return `404`. Do not interpret a 405
+as a missing server feature; check the endpoint's documented method.
