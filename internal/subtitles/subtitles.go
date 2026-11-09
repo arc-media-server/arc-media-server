@@ -5,6 +5,7 @@
 package subtitles
 
 import (
+	"ams/internal/filecache"
 	"bufio"
 	"bytes"
 	"context"
@@ -400,14 +401,18 @@ var langNames = map[string]string{"english": "eng", "french": "fra", "german": "
 	"japanese": "jpn", "korean": "kor", "chinese": "zho", "thai": "tha", "vietnamese": "vie", "indonesian": "ind"}
 
 // downloadDir is where subtitles found online for a file are kept.
-func (c *Cache) downloadDir(fileID int64) string {
-	return filepath.Join(c.dir, "downloaded", strconv.FormatInt(fileID, 10))
+func (c *Cache) downloadDir(f *store.MediaFile) (string, bool) {
+	return filecache.Dir(filepath.Join(c.dir, "downloaded"), f.ID, f.CacheKey)
 }
 
 // Tracks lists a file's subtitles: inside it, beside it, then any downloaded for it.
 func (c *Cache) Tracks(f *store.MediaFile) []Track {
 	out := Tracks(f)
-	entries, err := os.ReadDir(c.downloadDir(f.ID))
+	dir, valid := c.downloadDir(f)
+	if !valid {
+		return out
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return out
 	}
@@ -417,7 +422,7 @@ func (c *Cache) Tracks(f *store.MediaFile) []Track {
 			continue
 		}
 		// Named <language>[.forced][.sdh].<n>.srt
-		t := Track{Codec: "subrip", External: true, Downloaded: true, Path: filepath.Join(c.downloadDir(f.ID), name)}
+		t := Track{Codec: "subrip", External: true, Downloaded: true, Path: filepath.Join(dir, name)}
 		for i, part := range strings.Split(strings.TrimSuffix(name, ".srt"), ".") {
 			switch {
 			case i == 0:
@@ -459,7 +464,10 @@ func (c *Cache) SaveDownload(f *store.MediaFile, language string, forced, sdh bo
 	if sdh {
 		name += ".sdh"
 	}
-	dir := c.downloadDir(f.ID)
+	dir, valid := c.downloadDir(f)
+	if !valid {
+		return Track{}, errors.New("media file identity unavailable; rescan the library")
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Track{}, err
 	}

@@ -116,7 +116,7 @@ func TestDownloads(t *testing.T) {
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Film.mkv")
 	os.WriteFile(video, nil, 0o644)
-	f := &store.MediaFile{ID: 42, Path: video}
+	f := &store.MediaFile{ID: 42, Path: video, CacheKey: strings.Repeat("a", 32)}
 	c := NewCache(filepath.Join(dir, "cache"), func() string { return "" })
 	a, err := c.SaveDownload(f, "en", false, true, []byte("1\n00:00:01,000 --> 00:00:02,000\nCaf\xe9\n"))
 	if err != nil {
@@ -133,7 +133,7 @@ func TestDownloads(t *testing.T) {
 		t.Errorf("listed %d", got)
 	}
 	// Saved as UTF-8, in the data folder rather than beside the video.
-	if data, _ := os.ReadFile(a.Path); !strings.Contains(string(data), "Café") || filepath.Dir(filepath.Dir(a.Path)) != filepath.Join(dir, "cache", "downloaded") {
+	if data, _ := os.ReadFile(a.Path); !strings.Contains(string(data), "Café") || !strings.HasPrefix(a.Path, filepath.Join(dir, "cache", "downloaded")+string(filepath.Separator)) {
 		t.Errorf("saved %q at %s", data, a.Path)
 	}
 	for in, want := range map[string]string{"eng": "en", "fre": "fr", "fra": "fr", "pt": "pt", "xyz": ""} {
