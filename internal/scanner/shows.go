@@ -428,6 +428,19 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		}
 	}
 
+	previousIdentities, err := s.store.EpisodeIdentities(ctx, series.ID)
+	if err != nil {
+		return err
+	}
+	priorPositions, err := s.priorSourceEpisodes(ctx, series.ID, srcSource)
+	if err != nil {
+		return err
+	}
+	currentKeys := make(map[string]bool, len(canonEps))
+	for cid := range canonEps {
+		currentKeys[episodeKey(series.ID, canon, cid)] = true
+	}
+
 	itemFor := map[int64]string{}
 	currentWork(ctx).Update("Saving episodes", "Saving provider episode metadata")
 	currentWork(ctx).Progress(0, len(canonOrder))
@@ -446,6 +459,12 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 				return err
 			}
 		}
+		if position, ok := sourcePos[cid]; ok {
+			if err := s.adoptReplacedEpisode(ctx, lib.ID, key, priorPositions[position], previousIdentities, currentKeys); err != nil {
+				return err
+			}
+		}
+
 		itemID, _, err := s.store.EnsureItem(ctx, &store.Item{
 			LibraryID: lib.ID, Kind: "episode", ParentID: series.ID, Title: e.Title,
 		}, key)
