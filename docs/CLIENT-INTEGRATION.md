@@ -104,3 +104,9 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+Pre-roll paths select regular MP4/M4V/MOV/WebM/MKV files or folders of them. Non-video files,
+file symlinks and special files are ignored; configure a linked video's real path instead.
+Configured folder aliases remain supported. These clips are intentionally server-wide assets
+and may live outside libraries; a valid profile can play them. This does not validate codecs or
+make pre-rolls follow a library's visibility rules.
