@@ -104,14 +104,14 @@ func TestDriveRecoveryPreservesIdentityAndResume(t *testing.T) {
 	if err := os.Rename(offline, root); err != nil {
 		t.Fatal(err)
 	}
-	// An accessible but empty folder represents a genuinely removed file.
+	// A readable empty root cannot prove genuine removal rather than an unmounted share.
 	if err := os.Rename(path, filepath.Join(dir, "held.mkv")); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.scan(ctx, lib); err != nil {
-		t.Fatal(err)
+	if err := s.scan(ctx, lib); !errors.Is(err, ErrScanRootsUnsafe) {
+		t.Fatalf("empty root safety: %v", err)
 	}
-	check(true)
+	check(false)
 	if err := os.Rename(filepath.Join(dir, "held.mkv"), path); err != nil {
 		t.Fatal(err)
 	}

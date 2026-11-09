@@ -38,6 +38,7 @@ func TestTargetedMovieScanDoesNotSweepOtherFolders(t *testing.T) {
 	st, s, lib, root := libraryFixture(t, "movies", map[string]string{
 		"Écho (2000)/Écho (2000).mkv":         "a",
 		"Écho (2000) extras/Other (2000).mkv": "b",
+		"Anchor (2002)/Anchor (2002).mkv":     "readable root anchor",
 	})
 	if err := s.scan(ctx, lib); err != nil {
 		t.Fatal(err)
