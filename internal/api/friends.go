@@ -138,7 +138,11 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.limiter.Succeed(key)
 	s.log.Info("friend signed in", "name", u.Name, "address", clientIP(r), "device", deviceName(r.UserAgent()))
-	if old := s.session(r); old != nil && body.Device == "" {
+	old, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
 	s.signIn(w, r, u.ID, "friend", strings.TrimSpace(body.Device))
