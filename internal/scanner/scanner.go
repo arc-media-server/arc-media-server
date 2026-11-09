@@ -292,6 +292,10 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 	if s.ctx.Err() != nil {
 		return false
 	}
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return false
+	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	s.nextJob++
 	job := &jobControl{id: s.nextJob, ctx: ctx, cancel: cancel}
@@ -302,6 +306,7 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		defer releaseCatalog()
 		defer cancel()
 		var err error
 		switch operation {
@@ -1175,6 +1180,11 @@ var ErrNoProvider = errors.New("no metadata provider is configured")
 // RefreshMovie fetches a movie's metadata again now. Fields the user locked are kept. It reports
 // whether a match was found.
 func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error) {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return false, ErrLibraryBusy
+	}
+	defer release()
 	if !s.tmdb.Configured() {
 		return false, ErrNoProvider
 	}

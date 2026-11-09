@@ -142,6 +142,11 @@ var ErrNotFound = errors.New("not found")
 // and in the show's match explanation, and Refresh metadata or the next scheduled refresh
 // fetches the rest.
 func (s *Scanner) SetMatch(ctx context.Context, it *store.Item, provider string, id int64) (taskID int64, err error) {
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return 0, ErrLibraryBusy
+	}
+	defer releaseCatalog()
 	s.manualMatch.Lock()
 	defer s.manualMatch.Unlock()
 	current, readErr := s.store.GetItem(ctx, it.ID)
@@ -270,7 +275,17 @@ func (s *Scanner) setSeriesMatch(ctx context.Context, it *store.Item, provider s
 	task := s.Activity.Start("refresh", "Matching "+activityTitle(head.Title, head.Year))
 	task.Detail("Fetching seasons and episodes")
 	s.wg.Add(1)
-	go s.finishSeriesMatch(lib, it.ID, gen, provider, tmdbID, tvdbID, head.IMDBID, tr, task)
+	releaseBackground, ok := s.store.BeginCatalogWork()
+	if !ok {
+		s.wg.Done()
+		s.endMatch(it.ID, gen)
+		return 0, ErrLibraryBusy
+	}
+	go func() {
+		defer s.wg.Done()
+		defer releaseBackground()
+		s.finishSeriesMatch(lib, it.ID, gen, provider, tmdbID, tvdbID, head.IMDBID, tr, task)
+	}()
 	return task.ID(), nil
 }
 
@@ -281,7 +296,6 @@ var errReplaced = errors.New("replaced by a newer match")
 // episodes and orders, then relinking its files), waiting while the library is busy.
 func (s *Scanner) finishSeriesMatch(lib *store.Library, itemID string, gen int64, provider string, tmdbID, tvdbID int64,
 	imdbID string, tr *metadata.Trace, task *activity.Handle) {
-	defer s.wg.Done()
 	defer s.endMatch(itemID, gen)
 	ctx, cancel := context.WithCancel(s.ctx)
 	defer cancel()

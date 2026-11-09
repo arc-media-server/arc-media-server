@@ -216,6 +216,11 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 // (a TMDB lookup per remaining episode, then looser matches) only runs when deep is set or the
 // series is displayed in the other provider's ordering, since that's the only time it matters.
 func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, seriesID string, deep bool) error {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return ErrLibraryBusy
+	}
+	defer release()
 	return s.syncSeriesMetadata(ctx, lib, seriesID, deep, false)
 }
 

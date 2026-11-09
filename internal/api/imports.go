@@ -218,6 +218,17 @@ func (s *Server) chooseImportServer(w http.ResponseWriter, r *http.Request) {
 // runImport: POST /api/imports/{id}/run {"profiles": {"<account id>": "<profile id>" | "new" | ""}}
 // (admin) imports each chosen account into its profile ("new" makes a profile named after it).
 func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
+		return
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			releaseCatalog()
+		}
+	}()
 	sess := s.importFromPath(w, r)
 	if sess == nil {
 		return
@@ -277,7 +288,9 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 	sess.mu.Lock()
 	sess.stage, sess.err, sess.results, sess.lists = "running", "", nil, nil
 	sess.mu.Unlock()
+	transferred = true
 	go func() {
+		defer releaseCatalog()
 		bg, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
 		defer cancel()
 		task := s.activity.Start("import", "Importing from "+sess.sourceName())
