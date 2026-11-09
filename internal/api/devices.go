@@ -134,13 +134,12 @@ func (s *Server) approveLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "link:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
 	req := s.links.pending(body.Code)
 	if req == nil {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusNotFound, "that code isn't right, or has run out")
 		return
 	}
