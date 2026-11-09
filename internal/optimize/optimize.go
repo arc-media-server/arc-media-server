@@ -158,15 +158,22 @@ func (m *Manager) Run(ctx context.Context) {
 	}
 	for {
 		for ctx.Err() == nil {
+			release, ok := m.store.BeginCatalogWork()
+			if !ok {
+				break
+			}
 			o, err := m.store.NextOptimize(ctx)
 			if err != nil {
 				m.log.Warn("listing optimized versions failed", "err", err)
+				release()
 				break
 			}
 			if o == nil {
+				release()
 				break
 			}
 			m.make(ctx, o)
+			release()
 		}
 		select {
 		case <-ctx.Done():

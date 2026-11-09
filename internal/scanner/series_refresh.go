@@ -73,6 +73,11 @@ func (s *Scanner) refreshSeries(ctx context.Context, lib *store.Library, id stri
 // RelinkSeries interprets only saved, present files attached to this show. Missing files stay
 // missing, and new/unrelated files are left for explicit or automatic discovery.
 func (s *Scanner) RelinkSeries(ctx context.Context, lib *store.Library, id string) error {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return ErrLibraryBusy
+	}
+	defer release()
 	episodes, err := s.store.Children(ctx, id)
 	if err != nil {
 		return err
@@ -120,12 +125,14 @@ func (s *Scanner) finishLibraryWork(libraryID int64) {
 		delete(s.pendingPaths, libraryID)
 	}
 	if s.again[libraryID] {
-		delete(s.again, libraryID)
-		delete(s.pendingPaths, libraryID)
-		s.startLocked(libraryID)
+		if s.startLocked(libraryID) {
+			delete(s.again, libraryID)
+			delete(s.pendingPaths, libraryID)
+		}
 	} else if next := s.pendingPaths[libraryID]; len(next) > 0 {
-		delete(s.pendingPaths, libraryID)
-		s.startLocked(libraryID, next...)
+		if s.startLocked(libraryID, next...) {
+			delete(s.pendingPaths, libraryID)
+		}
 	}
 }
 
@@ -140,6 +147,11 @@ func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phas
 		s.mu.Unlock()
 		return nil, nil, err
 	}
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		s.mu.Unlock()
+		return nil, nil, ErrLibraryBusy
+	}
 	work, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(s.ctx, cancel)
 	s.nextJob++
@@ -149,6 +161,7 @@ func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phas
 	s.mu.Unlock()
 	return work, func(err error) {
 		defer s.wg.Done()
+		defer releaseCatalog()
 		stop()
 		cancel()
 		s.update(id, func(st *Status) {
