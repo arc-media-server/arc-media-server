@@ -18,8 +18,10 @@ import (
 // groups. Every response waits delay first, like a real round trip. Connections made by provider
 // clients created after it are redirected here, so no real provider is ever contacted.
 type matchFixture struct {
-	delay    time.Duration
-	requests atomic.Int64
+	delay               time.Duration
+	requests            atomic.Int64
+	episodeOffset       atomic.Int64
+	replaceFirstAndMove atomic.Bool
 	// gate, when set, holds every request after the first series lookup until it is closed.
 	mu   sync.Mutex
 	gate chan struct{}
@@ -101,7 +103,7 @@ func (f *matchFixture) serve(w http.ResponseWriter, r *http.Request) {
 					season, number = 1, n
 				}
 				eps = append(eps, fmt.Sprintf(`{"id":%d,"name":"Episode %d-%d","seasonNumber":%d,"number":%d,"aired":"2020-%02d-%02d","overview":"Overview"}`,
-					200000+s*100+e, s, e, season, number, s, e))
+					f.episodeID(200000, s, e), s, e, season, number, s, e))
 			}
 		}
 		fmt.Fprintf(w, `{"data":{"episodes":[%s]},"links":{"next":null}}`, strings.Join(eps, ","))
@@ -113,7 +115,7 @@ func (f *matchFixture) serve(w http.ResponseWriter, r *http.Request) {
 			var eps []string
 			for e := 1; e <= fixtureEpisodes; e++ {
 				eps = append(eps, fmt.Sprintf(`{"id":%d,"name":"Episode %d-%d","season_number":%d,"episode_number":%d,"air_date":"2020-%02d-%02d","overview":"TMDB overview","runtime":43}`,
-					100000+s*100+e, s, e, s, e, s, e))
+					f.episodeID(100000, s, e), s, e, s, e, s, e))
 			}
 			parts = append(parts, fmt.Sprintf(`"season/%d":{"overview":"Season %d","episodes":[%s]}`, s, s, strings.Join(eps, ",")))
 		}
@@ -130,7 +132,7 @@ func (f *matchFixture) serve(w http.ResponseWriter, r *http.Request) {
 		for s := 1; s <= fixtureSeasons; s++ {
 			var eps []string
 			for e := 1; e <= fixtureEpisodes; e++ {
-				eps = append(eps, fmt.Sprintf(`{"id":%d,"name":"Episode %d-%d","season_number":%d,"episode_number":%d,"order":%d}`, 100000+s*100+e, s, e, s, e, e))
+				eps = append(eps, fmt.Sprintf(`{"id":%d,"name":"Episode %d-%d","season_number":%d,"episode_number":%d,"order":%d}`, f.episodeID(100000, s, e), s, e, s, e, e))
 			}
 			groups = append(groups, fmt.Sprintf(`{"name":"Part %d","order":%d,"episodes":[%s]}`, s, s, strings.Join(eps, ",")))
 		}
@@ -151,4 +153,16 @@ func showFiles() map[string]string {
 		}
 	}
 	return files
+}
+
+func (f *matchFixture) episodeID(base, season, episode int) int {
+	if f.replaceFirstAndMove.Load() && season == 1 {
+		if episode == 1 {
+			return base + 900101
+		}
+		if episode == 2 {
+			return base + 101
+		}
+	}
+	return base + season*100 + episode + int(f.episodeOffset.Load())
 }
