@@ -283,7 +283,7 @@ func (s *Server) createCollection(w http.ResponseWriter, r *http.Request) {
 	}
 	if c.Kind == "manual" && len(b.ItemIDs) > 0 {
 		if err := s.addItems(r, &c, b.ItemIDs); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			s.inputError(w, r, err)
 			return
 		}
 	}
@@ -405,10 +405,6 @@ func (s *Server) addItems(r *http.Request, c *store.Collection, ids []string) er
 	return s.store.AddToCollection(r.Context(), c.ID, ids)
 }
 
-type errMsg string
-
-func (e errMsg) Error() string { return string(e) }
-
 // collectionAddItems: POST /api/collections/{id}/items {"item_ids": [...]} adds titles to a
 // manual collection.
 func (s *Server) collectionAddItems(w http.ResponseWriter, r *http.Request) {
@@ -428,7 +424,7 @@ func (s *Server) collectionAddItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.addItems(r, c, b.ItemIDs); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

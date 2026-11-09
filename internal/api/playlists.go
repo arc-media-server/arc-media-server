@@ -98,7 +98,7 @@ func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.P
 // smartFilter checks a smart playlist's filter: a library the profile can see.
 func (s *Server) smartFilter(r *http.Request, f *rowFilter) (string, error) {
 	if err := f.validateExtended(); err != nil {
-		return "", err
+		return "", errMsg(err.Error())
 	}
 	lib, err := s.store.GetLibrary(r.Context(), f.LibraryID)
 	if err != nil {
@@ -248,7 +248,11 @@ func (s *Server) playlistItemIDs(r *http.Request, ids []string) ([]string, error
 		}
 		switch it.Kind {
 		case "movie", "episode":
-			if ok, err := s.store.CanSee(r.Context(), it, access(r)); err != nil || !ok {
+			ok, err := s.store.CanSee(r.Context(), it, access(r))
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
 				return nil, errMsg("a title to add wasn't found")
 			}
 			out = append(out, it.ID)
@@ -317,13 +321,13 @@ func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := s.playlistItemIDs(r, b.ItemIDs)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	filter := ""
 	if b.Filter != nil {
 		if filter, err = s.smartFilter(r, b.Filter); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			s.inputError(w, r, err)
 			return
 		}
 		ids = nil
@@ -382,7 +386,7 @@ func (s *Server) updatePlaylist(w http.ResponseWriter, r *http.Request) {
 		}
 		filter, err := s.smartFilter(r, b.Filter)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			s.inputError(w, r, err)
 			return
 		}
 		if err := s.store.SetPlaylistFilter(r.Context(), p.ID, filter); err != nil {
@@ -424,7 +428,7 @@ func (s *Server) playlistAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := s.playlistItemIDs(r, b.ItemIDs)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	if err := s.store.AddToPlaylist(r.Context(), p.ID, ids); err != nil {

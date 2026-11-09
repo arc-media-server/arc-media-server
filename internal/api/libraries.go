@@ -50,22 +50,22 @@ type libraryBody struct {
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
 	if b.RatingRegion != "" && !regionRe.MatchString(b.RatingRegion) {
-		return fmt.Errorf("rating_region is a two-letter country code such as GB")
+		return errMsg("rating_region is a two-letter country code such as GB")
 	}
 	if b.DetailsProvider != "" && (b.DetailsProvider != "tvdb" || b.Kind != "shows") {
-		return errors.New("TVDB metadata provider is only available for TV libraries")
+		return errMsg("TVDB metadata provider is only available for TV libraries")
 	}
 	if b.Kind != "movies" && b.Kind != "shows" && b.Kind != "videos" {
-		return errors.New("kind must be movies, shows or videos")
+		return errMsg("kind must be movies, shows or videos")
 	}
 	if b.SourceOrdering == "" {
 		b.SourceOrdering = "tmdb_aired" // TMDB by default, as Plex does
 	}
 	if !config.ValidSourceOrdering(b.SourceOrdering) {
-		return fmt.Errorf("unknown source_ordering %q", b.SourceOrdering)
+		return errMsg(fmt.Sprintf("unknown source_ordering %q", b.SourceOrdering))
 	}
 	if len(b.Paths) == 0 {
-		return errors.New("add at least one folder")
+		return errMsg("add at least one folder")
 	}
 	seen := map[string]bool{}
 	var paths []string
@@ -76,24 +76,24 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		}
 		abs, err := filepath.Abs(p)
 		if err != nil {
-			return err
+			return errMsg("choose an absolute, readable folder")
 		}
 		info, err := os.Stat(abs)
 		if err != nil {
-			return fmt.Errorf("can't open %s", abs)
+			return errMsg(fmt.Sprintf("can't open %s", abs))
 		}
 		if !info.IsDir() {
-			return fmt.Errorf("%s isn't a folder", abs)
+			return errMsg(fmt.Sprintf("%s isn't a folder", abs))
 		}
 		// Check directory access without walking the media or doing metadata work.
 		folder, err := os.Open(abs)
 		if err != nil {
-			return fmt.Errorf("can't read %s", abs)
+			return errMsg(fmt.Sprintf("can't read %s", abs))
 		}
 		_, readErr := folder.Readdirnames(1)
 		folder.Close()
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return fmt.Errorf("can't read %s", abs)
+			return errMsg(fmt.Sprintf("can't read %s", abs))
 		}
 		if key := strings.ToLower(abs); !seen[key] {
 			seen[key] = true
@@ -101,12 +101,12 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		}
 	}
 	if len(paths) == 0 {
-		return errors.New("add at least one folder")
+		return errMsg("add at least one folder")
 	}
 	for i, a := range paths {
 		for _, c := range paths[i+1:] {
 			if within(a, c) || within(c, a) {
-				return fmt.Errorf("%s and %s overlap; choose just one of them", a, c)
+				return errMsg(fmt.Sprintf("%s and %s overlap; choose just one of them", a, c))
 			}
 		}
 	}
@@ -121,7 +121,7 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		for _, lp := range l.Paths {
 			for _, p := range paths {
 				if within(p, lp) || within(lp, p) {
-					return fmt.Errorf("%s is already part of the %q library", p, l.Name)
+					return errMsg(fmt.Sprintf("%s is already part of the %q library", p, l.Name))
 				}
 			}
 		}
@@ -145,7 +145,7 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.validate(r.Context(), &b, 0); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	if b.Name == "" {
@@ -378,7 +378,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		b.Paths = patch.Paths
 	}
 	if err := s.validate(r.Context(), &b, lib.ID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	if b.Name == "" {
@@ -465,7 +465,7 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	var except int64
 	fmt.Sscan(r.URL.Query().Get("library"), &except)
 	if err := s.validate(r.Context(), &b, except); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 
