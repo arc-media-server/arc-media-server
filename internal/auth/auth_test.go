@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -102,5 +103,13 @@ func TestHomeNetworks(t *testing.T) {
 	}
 	if _, _, err := ParseNetworks("not a network"); err == nil {
 		t.Fatal("bad input accepted")
+	}
+}
+
+func init() {
+	automaticHome = homeNetworkState{}
+	for _, cidr := range []string{"192.168.1.0/24", "10.0.0.0/24", "172.16.3.0/24", "fe80::/64"} {
+		_, n, _ := net.ParseCIDR(cidr)
+		automaticHome.nets = append(automaticHome.nets, n)
 	}
 }

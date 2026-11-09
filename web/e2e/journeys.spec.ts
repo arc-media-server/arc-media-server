@@ -877,3 +877,20 @@ test('Unmatched filter: titles Arc couldn’t identify, shows with unplaced epis
   await expect(page.getByRole('switch', { name: /Only titles I haven't watched/ })).toBeVisible();
   await expect(page.getByRole('switch', { name: /couldn't identify/ })).toHaveCount(0);
 });
+
+
+test('home-network settings explain bridge limits and keep the password choice', async ({ page, media }, info) => {
+  void media;
+  await setup(page);
+  await page.route('**/api/settings', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), automatic_home_networks: [], home_network_bridge: true } });
+  });
+  await page.goto('/settings?section=access');
+  await expect(page.getByText(/No home network was detected automatically/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: /Bridge networking can hide client addresses/ })).toBeVisible();
+  await expect(page.getByText(/Use host networking or a br0\/custom LAN network/)).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Skip the password at home', exact: true })).toBeEnabled();
+  await page.screenshot({ path: info.outputPath('bridge-home-networks.png'), fullPage: true });
+});

@@ -4718,6 +4718,8 @@ GET /settings 200
 GET /settings 200 .allow_network boolean
 GET /settings 200 .analysis_enabled boolean
 GET /settings 200 .auto_backups_enabled boolean
+GET /settings 200 .automatic_home_networks array|null
+GET /settings 200 .automatic_home_networks[] string
 GET /settings 200 .cache_cleanup_enabled boolean
 GET /settings 200 .database_upkeep_enabled boolean
 GET /settings 200 .detect_intros boolean
@@ -4727,6 +4729,7 @@ GET /settings 200 .ffprobe any
 GET /settings 200 .ffprobe_path string
 GET /settings 200 .from_env null|object
 GET /settings 200 .from_env{} boolean
+GET /settings 200 .home_network_bridge boolean
 GET /settings 200 .home_networks string
 GET /settings 200 .https_cert string
 GET /settings 200 .https_domain string
@@ -5935,6 +5938,8 @@ PATCH /settings 200
 PATCH /settings 200 .allow_network boolean
 PATCH /settings 200 .analysis_enabled boolean
 PATCH /settings 200 .auto_backups_enabled boolean
+PATCH /settings 200 .automatic_home_networks array|null
+PATCH /settings 200 .automatic_home_networks[] string
 PATCH /settings 200 .cache_cleanup_enabled boolean
 PATCH /settings 200 .database_upkeep_enabled boolean
 PATCH /settings 200 .detect_intros boolean
@@ -5944,6 +5949,7 @@ PATCH /settings 200 .ffprobe any
 PATCH /settings 200 .ffprobe_path string
 PATCH /settings 200 .from_env null|object
 PATCH /settings 200 .from_env{} boolean
+PATCH /settings 200 .home_network_bridge boolean
 PATCH /settings 200 .home_networks string
 PATCH /settings 200 .https_cert string
 PATCH /settings 200 .https_domain string

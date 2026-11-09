@@ -31048,6 +31048,19 @@
                     "auto_backups_enabled": {
                       "type": "boolean"
                     },
+                    "automatic_home_networks": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "cache_cleanup_enabled": {
                       "type": "boolean"
                     },
@@ -31079,6 +31092,9 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "home_network_bridge": {
+                      "type": "boolean"
                     },
                     "home_networks": {
                       "type": "string"
@@ -31205,6 +31221,7 @@
                     "allow_network",
                     "analysis_enabled",
                     "auto_backups_enabled",
+                    "automatic_home_networks",
                     "cache_cleanup_enabled",
                     "database_upkeep_enabled",
                     "detect_intros",
@@ -31213,6 +31230,7 @@
                     "ffprobe",
                     "ffprobe_path",
                     "from_env",
+                    "home_network_bridge",
                     "home_networks",
                     "https_cert",
                     "https_domain",
@@ -31482,6 +31500,19 @@
                     "auto_backups_enabled": {
                       "type": "boolean"
                     },
+                    "automatic_home_networks": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "cache_cleanup_enabled": {
                       "type": "boolean"
                     },
@@ -31513,6 +31544,9 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "home_network_bridge": {
+                      "type": "boolean"
                     },
                     "home_networks": {
                       "type": "string"
@@ -31639,6 +31673,7 @@
                     "allow_network",
                     "analysis_enabled",
                     "auto_backups_enabled",
+                    "automatic_home_networks",
                     "cache_cleanup_enabled",
                     "database_upkeep_enabled",
                     "detect_intros",
@@ -31647,6 +31682,7 @@
                     "ffprobe",
                     "ffprobe_path",
                     "from_env",
+                    "home_network_bridge",
                     "home_networks",
                     "https_cert",
                     "https_domain",
