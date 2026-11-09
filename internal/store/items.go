@@ -1,6 +1,7 @@
 package store
 
 import (
+	"ams/internal/safeerr"
 	"context"
 	"database/sql"
 	"errors"
@@ -528,7 +529,7 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 
 // SetMatchInfo records how an item was identified (JSON written by the scanner).
 func (s *Store) SetMatchInfo(ctx context.Context, id, info string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_info = ? WHERE id = ?`, info, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_info = ? WHERE id = ?`, safeerr.JSONErrors(info), id)
 	return err
 }
 
@@ -539,7 +540,7 @@ func (s *Store) MatchInfo(ctx context.Context, id string) (string, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
-	return info, err
+	return safeerr.JSONErrors(info), err
 }
 
 // SetProviderIDs replaces an item's provider ids, e.g. when the user picks the right match. The
