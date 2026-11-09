@@ -286,3 +286,14 @@ func TestDolbyVisionDroppedIsLoggedOnce(t *testing.T) {
 		t.Fatalf("want one warning, got %d: %s", n, logs.String())
 	}
 }
+
+func TestFastToneMapUsesTonemapx(t *testing.T) {
+	args := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 1, ToneMap: true, FastToneMap: true, BurnSubtitle: -1}, 0, "out"), " ")
+	if !strings.Contains(args, "-vf "+FastToneMapFilter) || strings.Contains(args, "zscale") {
+		t.Fatalf("fast tone mapping should use tonemapx alone: %s", args)
+	}
+	slow := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 1, ToneMap: true, BurnSubtitle: -1}, 0, "out"), " ")
+	if !strings.Contains(slow, ToneMapFilter) {
+		t.Fatalf("without tonemapx the zscale chain stays: %s", slow)
+	}
+}

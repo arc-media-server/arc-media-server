@@ -4772,6 +4772,7 @@ GET /settings 200 .transcoder.attempts[].error string
 GET /settings 200 .transcoder.attempts[].low_power boolean
 GET /settings 200 .transcoder.checked boolean
 GET /settings 200 .transcoder.checking boolean
+GET /settings 200 .transcoder.fast_tone_map boolean
 GET /settings 200 .transcoder.hw_device string
 GET /settings 200 .transcoder.hw_driver string
 GET /settings 200 .transcoder.hw_encoder string
@@ -5988,6 +5989,7 @@ PATCH /settings 200 .transcoder.attempts[].error string
 PATCH /settings 200 .transcoder.attempts[].low_power boolean
 PATCH /settings 200 .transcoder.checked boolean
 PATCH /settings 200 .transcoder.checking boolean
+PATCH /settings 200 .transcoder.fast_tone_map boolean
 PATCH /settings 200 .transcoder.hw_device string
 PATCH /settings 200 .transcoder.hw_driver string
 PATCH /settings 200 .transcoder.hw_encoder string

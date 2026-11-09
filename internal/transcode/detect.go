@@ -31,8 +31,10 @@ type Capabilities struct {
 	HWLowPower  bool              `json:"hw_low_power,omitempty"`
 	Attempts    []HardwareAttempt `json:"attempts,omitempty"`
 	ToneMapping bool              `json:"tone_mapping"`
-	Checked     bool              `json:"checked"`
-	Checking    bool              `json:"checking"`
+	// Jellyfin's FFmpeg's tonemapx: HDR to SDR in one fast (SIMD) filter instead of zscale's chain.
+	FastToneMap bool `json:"fast_tone_map,omitempty"`
+	Checked     bool `json:"checked"`
+	Checking    bool `json:"checking"`
 }
 
 // A single bounded detection job, using only generated blank frames. Existing
@@ -141,7 +143,8 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 			}
 		}
 		out, _ := run(ctx, bin, []string{"-hide_banner", "-filters"}, "")
-		caps.ToneMapping = strings.Contains(string(out), " zscale ")
+		caps.FastToneMap = strings.Contains(string(out), " tonemapx ")
+		caps.ToneMapping = caps.FastToneMap || strings.Contains(string(out), " zscale ")
 	}
 	m.mu.Lock()
 	if parent.Err() != nil {
