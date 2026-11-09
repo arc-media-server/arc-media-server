@@ -23,11 +23,12 @@ var bifMagic = []byte{0x89, 'B', 'I', 'F', '\r', '\n', 0x1a, '\n'}
 // while seeking. It is cut from the sheets the first time it's asked for and kept beside them, so
 // it goes when they're remade.
 func (m *Manager) BIF(fileID int64) (string, error) {
-	info := m.Info(fileID)
+	key := m.sourceKey(fileID)
+	info := m.infoFor(fileID, key)
 	if info == nil {
 		return "", ErrNotMade
 	}
-	dir := m.fileDir(fileID)
+	dir, _ := m.sourceDir(fileID, key)
 	path := filepath.Join(dir, "thumbs.bif")
 	m.bifMu.Lock()
 	defer m.bifMu.Unlock()
