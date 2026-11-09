@@ -119,6 +119,11 @@ func (s *Scanner) finishLibraryWork(libraryID int64) {
 		delete(s.again, libraryID)
 		delete(s.pendingPaths, libraryID)
 	}
+	s.startPendingLibraryWorkLocked(libraryID)
+}
+
+// Caller holds mu. Library settings saves resume watcher requests without inventing a scan outcome.
+func (s *Scanner) startPendingLibraryWorkLocked(libraryID int64) {
 	if s.again[libraryID] {
 		delete(s.again, libraryID)
 		delete(s.pendingPaths, libraryID)
@@ -132,6 +137,10 @@ func (s *Scanner) finishLibraryWork(libraryID int64) {
 // beginScopedWork shares discovery's single library lease and exact-run cancellation machinery.
 func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phase string) (context.Context, func(error), error) {
 	s.mu.Lock()
+	if s.configuring[id] {
+		s.mu.Unlock()
+		return nil, nil, ErrLibraryBusy
+	}
 	if st := s.status[id]; st != nil && st.Running {
 		s.mu.Unlock()
 		return nil, nil, ErrLibraryBusy

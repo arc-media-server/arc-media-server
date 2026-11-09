@@ -156,6 +156,7 @@ const (
 )
 
 type Scanner struct {
+	configuring map[int64]bool // protected by mu; short library-save admission, not a scan job
 	// Events is configured before workers start; invalidations contain no item metadata.
 	Events *events.Hub
 	ctx    context.Context
@@ -286,6 +287,9 @@ func (s *Scanner) StartItemAnalysis(libraryID int64, itemID string) bool {
 }
 
 func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...string) bool {
+	if s.configuring[libraryID] {
+		return false
+	}
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
 	}
