@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"ams/internal/store"
 )
@@ -79,7 +81,7 @@ func (c *Cache) Script(ctx context.Context, f *store.MediaFile, t Track) ([]byte
 // Fonts returns the fonts attached to a video file (none for files without attachments),
 // extracting them the first time and caching them.
 func (c *Cache) Fonts(ctx context.Context, f *store.MediaFile) ([]Font, error) {
-	key, err := sourceKey(f.Path, "fonts")
+	key, err := sourceKey(f.Path, "fonts-safe-v2")
 	if err != nil {
 		return nil, err
 	}
@@ -89,26 +91,33 @@ func (c *Cache) Fonts(ctx context.Context, f *store.MediaFile) ([]Font, error) {
 		if bin == "" {
 			return nil, errors.New("FFmpeg wasn't found, so the video's fonts can't be read")
 		}
-		tmp := dir + ".tmp"
-		os.RemoveAll(tmp)
-		if err := os.MkdirAll(tmp, 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dir), 0755); err != nil {
 			return nil, err
 		}
+		tmp, err := os.MkdirTemp(filepath.Dir(dir), "fonts-*.tmp")
+		if err != nil {
+			return nil, err
+		}
+		defer os.RemoveAll(tmp)
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
-		// Attachments sit at the start of a Matroska file. FFmpeg writes each one under its own name
-		// and then complains there's no output, which is expected here.
-		cmd := exec.CommandContext(ctx, bin, "-hide_banner", "-nostdin", "-v", "error", "-y", "-dump_attachment:t", "", "-i", f.Path)
-		cmd.Dir = tmp
-		_ = cmd.Run()
-		if ctx.Err() != nil {
-			os.RemoveAll(tmp)
-			return nil, ctx.Err()
-		}
-		os.WriteFile(filepath.Join(tmp, ".done"), nil, 0o644)
-		os.RemoveAll(dir)
-		if err := os.Rename(tmp, dir); err != nil {
+		names, err := extractFonts(ctx, bin, f.Path, tmp)
+		if err != nil {
 			return nil, err
+		}
+		for _, name := range names {
+			if _, err = os.Stat(filepath.Join(tmp, name)); err != nil {
+				return nil, errors.New("couldn't extract the video's fonts")
+			}
+		}
+		if err = os.WriteFile(filepath.Join(tmp, ".done"), nil, 0644); err != nil {
+			return nil, err
+		}
+		if err = os.Rename(tmp, dir); err != nil {
+			// Another request may have published the same source atomically.
+			if _, doneErr := os.Stat(filepath.Join(dir, ".done")); doneErr != nil {
+				return nil, err
+			}
 		}
 	}
 	entries, err := os.ReadDir(dir)
@@ -122,6 +131,10 @@ func (c *Cache) Fonts(ctx context.Context, f *store.MediaFile) ([]Font, error) {
 		if e.IsDir() || !slices.Contains([]string{".ttf", ".otf", ".ttc", ".otc"}, ext) {
 			continue
 		}
+		info, err := e.Info()
+		if err != nil || !info.Mode().IsRegular() || info.Size() > int64(maxFontBytes-total) {
+			continue
+		}
 		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil || total+len(b) > maxFontBytes {
 			continue
@@ -130,6 +143,69 @@ func (c *Cache) Fonts(ctx context.Context, f *store.MediaFile) ([]Font, error) {
 		fonts = append(fonts, Font{Name: e.Name(), Data: b})
 	}
 	return fonts, nil
+}
+
+// extractFonts never delegates paths to attachment metadata. Probe only attachment headers,
+// validate portable basenames, then explicitly name every indexed output inside our temp dir.
+func extractFonts(ctx context.Context, bin, source, dir string) ([]string, error) {
+	resolved, err := exec.LookPath(bin)
+	if err != nil {
+		return nil, err
+	}
+	probeName := "ffprobe"
+	if strings.EqualFold(filepath.Ext(resolved), ".exe") {
+		probeName += ".exe"
+	}
+	probeBin := filepath.Join(filepath.Dir(resolved), probeName)
+	if _, err = os.Stat(probeBin); err != nil {
+		probeBin, err = exec.LookPath(probeName)
+		if err != nil {
+			return nil, errors.New("FFprobe wasn't found, so the video's fonts can't be listed")
+		}
+	}
+	cmd := exec.CommandContext(ctx, probeBin, "-v", "error", "-select_streams", "t", "-show_entries", "stream=index,extradata_size:stream_tags=filename", "-of", "json", source)
+	data, err := cmd.Output()
+	if err != nil {
+		return nil, errors.New("couldn't list the video's fonts")
+	}
+	var result struct {
+		Streams []struct {
+			Index int   `json:"index"`
+			Size  int64 `json:"extradata_size"`
+			Tags  struct {
+				Filename string `json:"filename"`
+			} `json:"tags"`
+		} `json:"streams"`
+	}
+	if err = json.Unmarshal(data, &result); err != nil {
+		return nil, errors.New("couldn't read the video's font list")
+	}
+	args := []string{"-hide_banner", "-nostdin", "-v", "error", "-y"}
+	var names []string
+	total := int64(0)
+	for _, stream := range result.Streams {
+		name := stream.Tags.Filename
+		if !safeFontName(name) || stream.Index < 0 || stream.Size < 0 || stream.Size > int64(maxFontBytes)-total {
+			continue
+		}
+		total += stream.Size
+		args = append(args, "-dump_attachment:"+strconv.Itoa(stream.Index), filepath.Join(dir, name))
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return names, nil
+	}
+	args = append(args, "-i", source)
+	// Input-only FFmpeg exits nonzero after dumping attachments because there is no media output.
+	// Verify expected files above; cancellation is never cached as success.
+	_ = exec.CommandContext(ctx, resolved, args...).Run()
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+func safeFontName(name string) bool {
+	return name != "" && !filepath.IsAbs(name) && !strings.Contains(name, "..") && !strings.ContainsAny(name, "/\\:") && strings.IndexFunc(name, unicode.IsControl) < 0 && slices.Contains([]string{".ttf", ".otf", ".ttc", ".otc"}, strings.ToLower(filepath.Ext(name)))
 }
 
 // PackScript moves every event in an ASS script by shiftMS (negative is earlier; events that end
