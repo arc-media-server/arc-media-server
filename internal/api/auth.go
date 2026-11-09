@@ -277,7 +277,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		TVDBKey     string `json:"tvdb_api_key" api:"optional"`
 		Region      string `json:"region" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -340,7 +340,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		// An app signing in: its name, e.g. "Living Room Apple TV". It gets a token back.
 		Device string `json:"device" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -379,7 +379,7 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		PIN      string `json:"pin" api:"optional"`
 		Password string `json:"password" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -484,7 +484,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		Current string `json:"current"`
 		New     string `json:"new"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
