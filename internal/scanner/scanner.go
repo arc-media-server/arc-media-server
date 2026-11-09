@@ -328,7 +328,11 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 			if name == "" {
 				name = strconv.FormatInt(libraryID, 10)
 			}
-			s.log.Error("scan failed", "library", name, "library_id", libraryID,
+			level := slog.LevelError
+			if errors.Is(err, ErrScanRootsUnsafe) {
+				level = slog.LevelWarn
+			}
+			s.log.Log(ctx, level, "scan failed", "library", name, "library_id", libraryID,
 				"phase", st.Phase, "files_seen", st.FilesSeen, "err", err)
 		}
 		if s.OnFinish != nil {
@@ -403,6 +407,11 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	if lib == nil {
 		return fmt.Errorf("library %d not found", libraryID)
 	}
+	priorFiles, err := s.store.PresentLibraryFiles(ctx, libraryID)
+	if err != nil {
+		return err
+	}
+
 	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Checking library folders" })
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
@@ -598,6 +607,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return err
 	}
 	if allRootsOK {
+		if err := s.checkDiscoveryAnchors(ctx, lib.ID, scanStart, visited, priorFiles); err != nil {
+			return err
+		}
 		var folders []string
 		completeLibrary := len(visited) == len(lib.Paths)
 		for _, f := range visited {
