@@ -504,6 +504,15 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			return
 		}
 	}
+	if video.DolbyVision && video.DolbyVisionProfile == 5 && d.Method == "transcode" {
+		out.ReasonCodes = append(out.ReasonCodes, "dv5_conversion_unsupported")
+		if preview {
+			s.writePlaybackPreview(w, out, false)
+		} else {
+			writeError(w, 422, "Dolby Vision profile 5 cannot be safely re-encoded; use the original on a compatible player")
+		}
+		return
+	}
 	if d.NeedsToneMap && (d.UnsupportedDV || s.transcoder == nil || !s.settings().ToneMap || !s.transcoder.Caps().ToneMapping) {
 		out.ReasonCodes = append(out.ReasonCodes, "hdr_conversion_unavailable")
 		if preview {
