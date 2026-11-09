@@ -9,10 +9,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -429,15 +431,47 @@ func (m *Manager) Ready(ctx context.Context, s *Session) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, ffprobe, "-v", "error", "-show_entries", "format=start_time", "-of", "csv=p=0",
-		filepath.Join(s.dir, "index.m3u8")).Output()
+	outputStart, _, err := mediaTimeline(ctx, ffprobe, filepath.Join(s.dir, "index.m3u8"))
 	if err != nil {
-		return nil // keep the requested start; the clock may be a little out
+		return nil
 	}
-	if v, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64); err == nil && v >= 0 {
-		s.OffsetMS = int64(v * 1000)
+	sourceStart, duration, err := mediaTimeline(ctx, ffprobe, s.Options.Path)
+	if err != nil {
+		return nil
+	} // keep the requested position rather than using absolute timestamps
+	relative := max(0, outputStart-sourceStart)
+	if duration > 0 {
+		relative = min(relative, duration)
 	}
+	s.OffsetMS = int64(relative * 1000)
+
 	return nil
+}
+
+// mediaTimeline reads the container timeline; MPEG-TS timestamps commonly start far from zero.
+func mediaTimeline(ctx context.Context, probe, path string) (float64, float64, error) {
+	out, err := exec.CommandContext(ctx, probe, "-v", "error", "-show_entries", "format=start_time,duration", "-of", "json", path).Output()
+	if err != nil {
+		return 0, 0, err
+	}
+	var result struct {
+		Format struct {
+			Start    string `json:"start_time"`
+			Duration string `json:"duration"`
+		} `json:"format"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return 0, 0, err
+	}
+	start, err := strconv.ParseFloat(result.Format.Start, 64)
+	if err != nil || math.IsNaN(start) || math.IsInf(start, 0) {
+		return 0, 0, errors.New("source timeline unavailable")
+	}
+	duration, _ := strconv.ParseFloat(result.Format.Duration, 64)
+	if math.IsNaN(duration) || math.IsInf(duration, 0) {
+		duration = 0
+	}
+	return start, duration, nil
 }
 
 // checkDolbyVision warns (once per run) when copied Dolby Vision video came out without its
