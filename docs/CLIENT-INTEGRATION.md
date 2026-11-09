@@ -104,3 +104,8 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+Concurrent profile-preference PATCH requests merge against the latest stored preferences in a
+transaction. Independent fields no longer overwrite one another from stale snapshots; two
+writes to the same field still use the last committed edit. Read request bodies before saving,
+and continue using partial patches rather than sending an old complete preference snapshot.

@@ -278,6 +278,29 @@ func (s *Store) SetUserPrefs(ctx context.Context, userID, prefs string) error {
 	return err
 }
 
+// UpdateUserPrefs reads, transforms and saves one profile's preferences in the writer
+// transaction. The transform must do only bounded local validation/JSON work, never IO or
+// another store call. Request bodies must be read before acquiring this transaction.
+func (s *Store) UpdateUserPrefs(ctx context.Context, userID string, update func(string) (string, error)) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var raw string
+	if err = tx.QueryRowContext(ctx, `SELECT prefs FROM users WHERE id = ?`, userID).Scan(&raw); err != nil {
+		return err
+	}
+	next, err := update(raw)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE users SET prefs = ? WHERE id = ?`, next, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // SetInvite makes a profile a friend with an invite link (its token's hash) that works until a time.
 func (s *Store) SetInvite(ctx context.Context, userID, tokenHash string, expires int64) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET is_friend = 1, invite_hash = ?, invite_expires = ? WHERE id = ?`,
