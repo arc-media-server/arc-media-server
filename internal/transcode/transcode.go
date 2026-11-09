@@ -310,7 +310,7 @@ func buildArgs(o Options, start float64, dir string) []string {
 			fc = in + strings.Join(pre, ",") + "[pre];"
 			in = "[pre]"
 		}
-		fc += fmt.Sprintf("%s[0:%d]overlay=eof_action=pass", in, o.BurnSubtitle)
+		fc += fmt.Sprintf("[0:%d]%sscale2ref=w=iw:h=ih[subscaled][videoref];[videoref][subscaled]overlay=eof_action=pass", o.BurnSubtitle, in)
 		if len(post) > 0 {
 			fc += "," + strings.Join(post, ",")
 		}
