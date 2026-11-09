@@ -36,23 +36,23 @@ func eventAllowed(e events.Event, u *store.User) bool {
 // hints only reach that profile; activity/sessions/maintenance are admin-only. "resync" requires refetching all
 // client state. Send Last-Event-ID to resume; stale/process-restart cursors trigger resync. No tokens
 // in URLs. Background catalog/artwork/optimized/previews/markers hints are cache invalidations,
-// not job-success or playback commands. Max 32 streams/server; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.
+// not job-success or playback commands. Max 32 streams/server and 8/profile; retries use 429 Retry-After. Heartbeats/revalidation every 10 seconds.
 func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 	if len(r.Header.Get("Last-Event-ID")) > 80 {
 		writeError(w, 400, "invalid event cursor")
 		return
 	}
-	if !s.events.Open() {
-		w.Header().Set("Retry-After", "5")
-		writeError(w, 429, "too many event streams")
-		return
-	}
-	defer s.events.Close()
 	userID := currentUserID(r)
 	if _, ok := s.eventPrincipal(r, userID); !ok {
 		writeError(w, 401, "sign in again")
 		return
 	}
+	if !s.events.Open(userID) {
+		w.Header().Set("Retry-After", "5")
+		writeError(w, 429, "too many event streams")
+		return
+	}
+	defer s.events.Close(userID)
 	controller := http.NewResponseController(w)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "private, no-store")

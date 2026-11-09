@@ -15,6 +15,7 @@ import (
 const Retained = 256
 const Pending = 128
 const MaxStreams = 32
+const MaxProfileStreams = 8
 
 type Event struct {
 	ID        string `json:"-"`
@@ -24,12 +25,13 @@ type Event struct {
 	Admin     bool   `json:"-"`
 }
 type Hub struct {
-	mu       sync.Mutex
-	epoch    string
-	sequence uint64
-	ring     []Event
-	pending  map[string]Event
-	streams  int
+	mu             sync.Mutex
+	epoch          string
+	sequence       uint64
+	ring           []Event
+	pending        map[string]Event
+	streams        int
+	profileStreams map[string]int
 }
 
 func New() *Hub {
@@ -37,7 +39,7 @@ func New() *Hub {
 	if _, err := rand.Read(b[:]); err != nil {
 		panic(err)
 	}
-	return &Hub{epoch: hex.EncodeToString(b[:]), pending: map[string]Event{}}
+	return &Hub{epoch: hex.EncodeToString(b[:]), pending: map[string]Event{}, profileStreams: map[string]int{}}
 }
 func (h *Hub) Publish(e Event) {
 	if h == nil {
@@ -53,16 +55,28 @@ func (h *Hub) Publish(e Event) {
 	}
 	h.pending[key] = e
 }
-func (h *Hub) Open() bool {
+func (h *Hub) Open(profileID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.streams >= MaxStreams {
+	if profileID == "" || h.streams >= MaxStreams || h.profileStreams[profileID] >= MaxProfileStreams {
 		return false
 	}
 	h.streams++
+	h.profileStreams[profileID]++
 	return true
 }
-func (h *Hub) Close()         { h.mu.Lock(); defer h.mu.Unlock(); h.streams-- }
+func (h *Hub) Close(profileID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.profileStreams[profileID] == 0 {
+		return
+	}
+	h.streams--
+	h.profileStreams[profileID]--
+	if h.profileStreams[profileID] == 0 {
+		delete(h.profileStreams, profileID)
+	}
+}
 func (h *Hub) cursor() string { return h.epoch + ":" + strconv.FormatUint(h.sequence, 10) }
 
 // Read flushes coalesced pending hints. Invalid/stale/previous-process cursors require a full

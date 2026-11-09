@@ -104,3 +104,8 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+Event streams are bounded to eight simultaneous connections per profile as well as 32 per
+server. A ninth connection gets `429` with `Retry-After: 5`; close disconnected streams and honor
+that backoff rather than repeatedly opening replacements. Sessions/devices using the same
+profile share its allowance. Invalid principals do not reserve a slot; disconnect releases it.
