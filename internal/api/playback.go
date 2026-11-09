@@ -589,17 +589,24 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	sess, err := s.startConversion(r, opts)
+	if err != nil && conversionCancelled(r.Context(), err) {
+		return
+	}
 	if errors.Is(err, transcode.ErrBusy) {
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
-	if err != nil && opts.HWEncoder != "" {
+	if err != nil && opts.HWEncoder != "" && !conversionCancelled(r.Context(), err) {
 		// The graphics card couldn't do this one (an unusual format, a busy or old driver): use the CPU.
 		s.log.Warn("hardware conversion failed; using the CPU", "encoder", opts.HWEncoder, "err", err)
 		opts.HWEncoder = ""
 		sess, err = s.startConversion(r, opts)
 	}
 	if err != nil {
+		// A disconnected client cannot use a retry or an error response. Its conversion was stopped.
+		if conversionCancelled(r.Context(), err) {
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -1091,15 +1098,26 @@ func (s *Server) itemHasFile(w http.ResponseWriter, r *http.Request, itemID stri
 // startConversion starts a conversion and waits for its first segment (and, for copied video, where
 // it really starts: the player's clock offset).
 func (s *Server) startConversion(r *http.Request, opts transcode.Options) (*transcode.Session, error) {
+	if err := r.Context().Err(); err != nil {
+		return nil, err
+	}
 	sess, err := s.transcoder.Start(opts)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.transcoder.Ready(r.Context(), sess); err != nil {
+	err = s.transcoder.Ready(r.Context(), sess)
+	if err == nil {
+		err = r.Context().Err()
+	}
+	if err != nil {
 		s.transcoder.Stop(sess.ID)
 		return nil, err
 	}
 	return sess, nil
+}
+
+func conversionCancelled(ctx context.Context, err error) bool {
+	return ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // transcoderCaps is what the converter can do, for the Settings page.
