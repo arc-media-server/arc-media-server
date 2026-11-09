@@ -431,3 +431,15 @@ func (s *Store) DisplayChoice(ctx context.Context, seriesID string) (int64, erro
 	}
 	return id, err
 }
+
+// DeleteUneditedOrdering is provider cleanup, not an explicit owner's delete action.
+func (s *Store) DeleteUneditedOrdering(ctx context.Context, id int64) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM orderings WHERE id=?
+ AND NOT EXISTS (SELECT 1 FROM ordering_entries e WHERE e.ordering_id=orderings.id AND e.locked=1)
+ AND NOT EXISTS (SELECT 1 FROM ordering_seasons s WHERE s.ordering_id=orderings.id AND s.locked_fields<>'')`, id)
+	if err != nil {
+		return false, err
+	}
+	count, err := result.RowsAffected()
+	return count > 0, err
+}

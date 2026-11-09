@@ -322,6 +322,10 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		return s.store.SetMetadataState(ctx, series.ID, "unmatched")
 	}
 
+	if err := s.validateProviderEpisodes(ctx, series.ID, lib.SourceOrdering, orderings); err != nil {
+		return err
+	}
+
 	// Episodes are identified by the provider the filenames are numbered with.
 	canon := "tmdb"
 	if tvdbSeries != nil && (strings.HasPrefix(lib.SourceOrdering, "tvdb") || tmdbSeries == nil) {
@@ -524,6 +528,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if err != nil {
 		return err
 	}
+	keptEdited := 0
 	for _, o := range existing {
 		if keep[o.ID] || o.Source == "custom" {
 			continue
@@ -531,10 +536,16 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		stale := o.Source == "file" || !essential && ((strings.HasPrefix(o.Source, "tvdb") && tvdbSeries != nil) ||
 			(strings.HasPrefix(o.Source, "tmdb") && tmdbSeries != nil))
 		if stale {
-			if err := s.store.DeleteOrdering(ctx, o.ID); err != nil {
+			if removed, err := s.store.DeleteUneditedOrdering(ctx, o.ID); err != nil {
 				return err
+			} else if !removed {
+				keptEdited++
 			}
 		}
+	}
+
+	if keptEdited > 0 {
+		log.Warn("keeping edited orderings omitted by provider", "count", keptEdited)
 	}
 
 	if series.MetadataState != "matched" {
