@@ -104,3 +104,9 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+Item paging accepts an explicit `limit` from 1 to 500 (default 100) and `offset` from 0 to
+10000000. Invalid, nonnumeric or oversized bounds return `400`; they no longer silently reset.
+Playlist edits validate the entire request before writing. Titles use the same trimmed
+100-Unicode-character limit as creation; a bad filter or rules on an ordinary playlist leaves
+the title unchanged. A valid combined title/rules edit is saved atomically.

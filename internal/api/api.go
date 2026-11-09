@@ -553,7 +553,8 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 
 // listItems: GET /api/items. Browse, filter and search. Sorts: title, added, year, release,
 // rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set
-// `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort,
+// `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. Limit is 1–500
+// (default 100), offset 0–10000000; invalid or oversized bounds return 400. With title sort,
 // `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next
 // available title in the current direction). The response includes the full filtered `total` and
 // actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds
@@ -573,8 +574,12 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		Jump:    strings.ToLower(q.Get("jump")),
 	}
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
-	query.Limit, _ = strconv.Atoi(q.Get("limit"))
-	query.Offset, _ = strconv.Atoi(q.Get("offset"))
+	var pagingErr error
+	query.Limit, query.Offset, pagingErr = pageBounds(q.Get("limit"), q.Get("offset"), 100, 500)
+	if pagingErr != nil {
+		writeError(w, http.StatusBadRequest, pagingErr.Error())
+		return
+	}
 	query.Access = access(r)
 	query.Genre = q.Get("genre")
 	query.Language = q.Get("language")
