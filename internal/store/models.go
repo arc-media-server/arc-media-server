@@ -117,22 +117,23 @@ type Chapter struct {
 }
 
 type Stream struct {
-	Index              int    `json:"index"`
-	Kind               string `json:"kind"`
-	Codec              string `json:"codec"`
-	Profile            string `json:"profile,omitempty"`
-	Language           string `json:"language,omitempty"`
-	Title              string `json:"title,omitempty"`
-	Width              int    `json:"width,omitempty"`
-	Height             int    `json:"height,omitempty"`
-	Channels           int    `json:"channels,omitempty"`
-	IsDefault          bool   `json:"is_default"`
-	IsForced           bool   `json:"is_forced"`
-	ChannelLayout      string `json:"channel_layout,omitempty"`
-	DolbyVision        bool   `json:"dolby_vision,omitempty"`
-	DolbyVisionProfile int    `json:"dolby_vision_profile,omitempty"`
-	HDR10Plus          bool   `json:"hdr10_plus,omitempty"`
-	HDRProbeStatus     string `json:"hdr_probe_status,omitempty"`
+	Index               int    `json:"index"`
+	Kind                string `json:"kind"`
+	Codec               string `json:"codec"`
+	Profile             string `json:"profile,omitempty"`
+	Language            string `json:"language,omitempty"`
+	Title               string `json:"title,omitempty"`
+	Width               int    `json:"width,omitempty"`
+	Height              int    `json:"height,omitempty"`
+	Channels            int    `json:"channels,omitempty"`
+	IsDefault           bool   `json:"is_default"`
+	IsForced            bool   `json:"is_forced"`
+	ChannelLayout       string `json:"channel_layout,omitempty"`
+	DolbyVision         bool   `json:"dolby_vision,omitempty"`
+	DVBLCompatibilityID *int   `json:"dv_bl_signal_compatibility_id,omitempty"`
+	DolbyVisionProfile  int    `json:"dolby_vision_profile,omitempty"`
+	HDR10Plus           bool   `json:"hdr10_plus,omitempty"`
+	HDRProbeStatus      string `json:"hdr_probe_status,omitempty"`
 	// Video details used to decide how a file can be played.
 	PixFmt         string  `json:"pix_fmt,omitempty"`
 	BitDepth       int     `json:"bit_depth,omitempty"`
