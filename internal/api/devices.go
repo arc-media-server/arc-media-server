@@ -144,7 +144,10 @@ func (s *Server) approveLink(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "that code isn't right, or has run out")
 		return
 	}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	u := currentUser(r)
 	userID, via := "", "password"
 	switch {
