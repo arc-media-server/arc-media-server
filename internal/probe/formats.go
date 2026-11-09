@@ -12,9 +12,10 @@ import (
 
 // These are structured FFprobe values, never filename/track-title guesses.
 type formatSideData struct {
-	Type    string `json:"side_data_type"`
-	Profile int    `json:"dv_profile"`
-	RPU     int    `json:"rpu_present_flag"`
+	Type          string `json:"side_data_type"`
+	Profile       int    `json:"dv_profile"`
+	RPU           int    `json:"rpu_present_flag"`
+	Compatibility *int   `json:"dv_bl_signal_compatibility_id"`
 }
 
 func applyFormatSideData(s *Stream, data []formatSideData) {
@@ -24,6 +25,7 @@ func applyFormatSideData(s *Stream, data []formatSideData) {
 			if d.RPU == 1 {
 				s.DolbyVision = true
 				s.DolbyVisionProfile = d.Profile
+				s.DVBLCompatibilityID = d.Compatibility
 			}
 		case "Dolby Vision RPU Data", "Dolby Vision Metadata":
 			s.DolbyVision = true
@@ -140,7 +142,7 @@ func (p *Prober) EnrichFormats(ctx context.Context, path string, streams []Strea
 	out := &limitedOutput{remaining: 2 << 20}
 	stderr := &limitedOutput{remaining: 64 << 10}
 	cmd := exec.CommandContext(budget, p.Bin(), "-v", "error", "-probesize", "5000000", "-analyzeduration", "2000000",
-		"-show_streams", "-show_entries", "stream=index,codec_type,codec_name,profile,channel_layout,width,height,sample_aspect_ratio,display_aspect_ratio:stream_side_data=side_data_type,dv_profile,rpu_present_flag", "-of", "json", path)
+		"-show_streams", "-show_entries", "stream=index,codec_type,codec_name,profile,channel_layout,width,height,sample_aspect_ratio,display_aspect_ratio:stream_side_data=side_data_type,dv_profile,rpu_present_flag,dv_bl_signal_compatibility_id", "-of", "json", path)
 	cmd.Stdout = out
 	cmd.Stderr = stderr
 	var raw ffprobeOutput

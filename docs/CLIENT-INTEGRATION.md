@@ -104,3 +104,12 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+### Dolby Vision compatible bases
+
+Source streams optionally expose `dv_bl_signal_compatibility_id` from structured FFprobe
+metadata; absence differs from explicit zero. Keep source labels distinct from output capability.
+A plan with reason code `dolby_vision_base_layer` uses a known compatible HDR10/HLG/SDR base
+when the requested DV profile is unsupported. Repackaging strips DV metadata using FFmpeg 8;
+SDR conversion may tone-map a compatible HDR base. Unknown bases remain refused. Older
+stored files acquire this evidence through the existing Media analysis task.
