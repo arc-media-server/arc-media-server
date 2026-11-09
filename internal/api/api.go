@@ -381,9 +381,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/series/{id}/seasons/{n}/artwork", admin(s.seasonArtwork))
 	mux.HandleFunc("PUT /api/series/{id}/seasons/{n}/artwork", admin(s.chooseSeasonArtwork))
 	mux.HandleFunc("POST /api/series/{id}/seasons/{n}/artwork", admin(s.uploadSeasonArtwork))
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotFound, "no such endpoint")
-	})
+	mux.HandleFunc("/api/", apiFallback(mux))
 	mux.Handle("/", webui.Handler())
 	return s.correlateRequests(appCORS(versioned(s.logRequests(mux))))
 }
