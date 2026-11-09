@@ -101,7 +101,7 @@ func requestToken(r *http.Request) string {
 // bypassApplies reports whether this request may pick a profile without the password. Never for a
 // cross-origin call (appCORS): any web page on the home network could make one.
 func (s *Server) bypassApplies(r *http.Request) bool {
-	return s.settings().LocalBypass && auth.IsLocal(r) && !isCrossOriginApp(r)
+	return s.settings().LocalBypass && auth.IsLocal(r) && auth.KnownServerHost(r, s.settings().HTTPSDomain) && !isCrossOriginApp(r)
 }
 
 // signedIn wraps handlers that need a profile.
@@ -268,6 +268,10 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 // setup: POST /api/auth/setup {"name", "password", "local_bypass", "tmdb_api_key", "tvdb_api_key"}
 // creates the admin profile the first time AMS runs, and signs in as it.
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
+	if !auth.KnownServerHost(r, s.settings().HTTPSDomain) {
+		writeError(w, http.StatusForbidden, "set up Arc using its IP address or local hostname")
+		return
+	}
 	ctx := r.Context()
 	var body struct {
 		Name        string `json:"name"`
