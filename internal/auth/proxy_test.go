@@ -40,7 +40,7 @@ func TestTrustedProxies(t *testing.T) {
 		// Anyone else's headers grant nothing, exactly as before trusted proxies existed.
 		{"untrusted proxy is never local", req("192.168.1.9:4000", "X-Forwarded-For", "192.168.1.20"), false, "192.168.1.9"},
 		{"no headers: the connection itself", req("192.168.1.9:4000"), true, "192.168.1.9"},
-		{"trusted proxy's own request without headers", req("172.17.0.5:4000"), true, "172.17.0.5"},
+		{"trusted proxy's own request outside detected LAN without headers", req("172.17.0.5:4000"), false, "172.17.0.5"},
 	} {
 		if got := IsLocal(tt.r); got != tt.local {
 			t.Errorf("%s: IsLocal = %v, want %v", tt.name, got, tt.local)
