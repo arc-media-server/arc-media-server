@@ -104,3 +104,11 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+### Profile-visible filesystem details
+
+Media-file `path` remains a string: administrators receive the full server path; household/friend
+profiles receive its filename only. Library `paths` arrays are empty for non-admins. Raw probe/scan
+filesystem diagnostics are administrator detail; ordinary profiles receive a generic failure.
+Use stream URLs/file ids for playback and indexed relative folder endpoints for browsing, rather
+than reconstructing server paths. No stored file identity/path is changed by response masking.

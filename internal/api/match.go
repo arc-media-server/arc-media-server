@@ -144,6 +144,7 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	d := toDTO(*updated)
 	if d.Files, err = s.store.ItemFiles(r.Context(), it.ID); err == nil {
+		d.Files = profileMediaFiles(r, d.Files)
 		err = s.addDetails(r, &d)
 	}
 	if err == nil {
