@@ -71,7 +71,7 @@ test('row navigation: visible mouse controls reach beyond the first screen and r
   const last = row.getByRole('link', { name: /^Row Movie 20(?: |$)/ });
   await expectInside(last, frame);
   await page.screenshot({ path: info.outputPath('desktop-row-end.png') });
-  await last.click();
+  await last.locator('p').filter({ hasText: /^Row Movie 20$/ }).click();
   await expect(page).toHaveURL(new RegExp(`/movie/${source.id}$`));
 });
 
@@ -138,9 +138,9 @@ test('home hero: Edit Home switch defaults On, handles failed saves and persists
   await rows(page, media.movies, () => 20, true);
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Featured titles', exact: true })).toBeVisible();
-  // Settings, Your profile points to Edit Home, where the switch lives with the rows.
-  await page.goto('/settings?section=profile');
-  await page.getByRole('link', { name: 'Edit Home…', exact: true }).click();
+  // The profile menu opens Edit Home, where the switch lives with the rows.
+  await page.locator('aside').getByRole('button', { name: 'Admin Admin', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit Home…', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit Home', exact: true });
   const toggle = dialog.getByRole('switch', { name: /^Show featured banner/ });
   await expect(toggle).toBeChecked();
