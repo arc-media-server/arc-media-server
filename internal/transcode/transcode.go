@@ -37,6 +37,7 @@ type Options struct {
 	CopyVideo bool
 	// Copy the audio as it is (AAC stereo, or Dolby Digital the player decodes), or convert it:
 	// to AudioCodec ("eac3" or "ac3", with AudioChannels) for surround sound, else AAC stereo.
+	// When CopyAudio is true, AudioCodec identifies the copied codec (e.g. "aac").
 	CopyAudio     bool
 	AudioCodec    string
 	AudioChannels int
@@ -79,7 +80,7 @@ type Session struct {
 	renderNodes   func() []string
 	mu            sync.Mutex
 	err           error
-	stderr        bytes.Buffer
+	stderr        stderrBuffer
 	lastSeen      time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
@@ -245,7 +246,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		err := cmd.Wait()
 		s.mu.Lock()
 		if err != nil && ctx.Err() == nil {
-			s.err = fmt.Errorf("FFmpeg stopped: %s", lastLine(s.stderr.String()))
+			s.err = fmt.Errorf("FFmpeg stopped: %s", ffmpegFailure(s.stderr.String(), opts.Path))
 			m.log.Warn("transcode failed", "session", s.ID, "err", s.err)
 		}
 		s.paused = false
@@ -345,6 +346,9 @@ func buildArgs(o Options, start float64, dir string) []string {
 		switch {
 		case o.CopyAudio:
 			a = append(a, "-c:a", "copy")
+			if o.AudioCodec == "aac" {
+				a = append(a, "-bsf:a", "aac_adtstoasc")
+			}
 		case (o.AudioCodec == "eac3" || o.AudioCodec == "ac3") && o.AudioChannels > 2:
 			a = append(a, "-c:a", o.AudioCodec, "-ac", strconv.Itoa(min(o.AudioChannels, 6)), "-b:a", "640k")
 		default:
@@ -512,12 +516,22 @@ func (m *Manager) Count() int {
 func (s *Session) Playlist(ctx context.Context) ([]byte, error) {
 	path := filepath.Join(s.dir, "index.m3u8")
 	for {
+		s.mu.Lock()
+		s.lastSeen = time.Now()
+		err := s.err
+		s.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
 		if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
 			return b, nil
 		}
 		select {
 		case <-s.done:
-			// Finished (a very short file) or failed.
+			// Finished (a very short file) or failed. Never serve stale partial output after failure.
+			if err := s.Err(); err != nil {
+				return nil, err
+			}
 			if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
 				return b, nil
 			}
