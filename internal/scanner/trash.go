@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -155,23 +154,7 @@ func (s *Scanner) checkTrashRoots(ctx context.Context, lib *store.Library) error
 		if readErr != nil {
 			return ErrTrashUnsafe
 		}
-		anchor := false
-		for _, f := range files {
-			rel, err := filepath.Rel(root, f.Path)
-			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				continue
-			}
-			h, err := os.Open(f.Path)
-			if err != nil {
-				continue
-			}
-			info, err := h.Stat()
-			h.Close()
-			if err == nil && info.Mode().IsRegular() && info.Size() == f.Size {
-				anchor = true
-				break
-			}
-		}
+		anchor := readableFileAnchor(ctx, root, files)
 		if !anchor {
 			return ErrTrashUnsafe
 		}

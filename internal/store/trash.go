@@ -23,7 +23,7 @@ func (s *Store) TrashTitleSample(ctx context.Context, libraryID int64) ([]string
 // PresentLibraryFiles supplies lightweight filesystem anchors for conservative automatic
 // cleanup. Unlinked files count too; metadata matching is independent of root availability.
 func (s *Store) PresentLibraryFiles(ctx context.Context, libraryID int64) ([]MediaFile, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT path, size FROM media_files WHERE library_id = ? AND missing_since IS NULL`, libraryID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, path, size FROM media_files WHERE library_id = ? AND missing_since IS NULL`, libraryID)
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +31,28 @@ func (s *Store) PresentLibraryFiles(ctx context.Context, libraryID int64) ([]Med
 	files := []MediaFile{}
 	for rows.Next() {
 		var f MediaFile
-		if err := rows.Scan(&f.Path, &f.Size); err != nil {
+		if err := rows.Scan(&f.ID, &f.Path, &f.Size); err != nil {
 			return nil, err
 		}
 		files = append(files, f)
 	}
 	return files, rows.Err()
+}
+
+// SeenLibraryFiles supplies this scan's indexed presence proof, excluding old unvisited paths.
+func (s *Store) SeenLibraryFiles(ctx context.Context, libraryID, seenAt int64) ([]MediaFile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,path,size FROM media_files WHERE library_id=? AND last_seen_at=? AND missing_since IS NULL`, libraryID, seenAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []MediaFile{}
+	for rows.Next() {
+		var f MediaFile
+		if err := rows.Scan(&f.ID, &f.Path, &f.Size); err != nil {
+			return nil, err
+		}
+		result = append(result, f)
+	}
+	return result, rows.Err()
 }
