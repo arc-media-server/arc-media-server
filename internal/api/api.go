@@ -9,6 +9,7 @@ import (
 	"ams/internal/remote"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -886,7 +887,9 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
 	markFailureLogged(w)
-	s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	if !errors.Is(err, context.Canceled) {
+		s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	}
 	writeError(w, http.StatusInternalServerError, "internal error")
 }
 
@@ -900,18 +903,31 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
-// markFailureLogged prevents the request summary from duplicating a boundary's error log.
-func markFailureLogged(w http.ResponseWriter) {
+// responseRecorder reaches summary state through wrappers without changing the response.
+func responseRecorder(w http.ResponseWriter) *statusRecorder {
 	for {
 		if rec, ok := w.(*statusRecorder); ok {
-			rec.failureLogged = true
-			return
+			return rec
 		}
 		if wrapped, ok := w.(interface{ Unwrap() http.ResponseWriter }); ok {
 			w = wrapped.Unwrap()
 		} else {
-			return
+			return nil
 		}
+	}
+}
+
+// markFailureLogged prevents the request summary from duplicating a boundary's error log.
+func markFailureLogged(w http.ResponseWriter) {
+	if rec := responseRecorder(w); rec != nil {
+		rec.failureLogged = true
+	}
+}
+
+// markExpectedResponse is explicit: unknown 5xx and real database failures remain warnings.
+func markExpectedResponse(w http.ResponseWriter) {
+	if rec := responseRecorder(w); rec != nil {
+		rec.expected = true
 	}
 }
 
@@ -919,6 +935,7 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status        int
 	failureLogged bool
+	expected      bool
 	home          bool // the device is at home, for the Dashboard's network graph
 }
 
@@ -996,8 +1013,10 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		}
 		took := time.Since(start)
 		level, message := slog.LevelDebug, "http"
-		if rec.status >= 500 && !rec.failureLogged {
-			level, message = slog.LevelWarn, "request failed"
+		if rec.status >= 500 {
+			if !rec.failureLogged && !rec.expected && r.Context().Err() == nil {
+				level, message = slog.LevelWarn, "request failed"
+			}
 		} else if (took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead) || (trackRequest(route) && took >= requestWarningAfter) {
 			level, message = slog.LevelWarn, "slow request"
 		}
