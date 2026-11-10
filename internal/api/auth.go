@@ -331,7 +331,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "the password needs at least 8 characters")
 		return
 	}
-	next := s.settings()
+	before := s.settings()
+	next := before
 	next.LocalBypass = body.LocalBypass
 	if k := strings.TrimSpace(body.TMDBKey); k != "" {
 		next.TMDBKey = k
@@ -342,7 +343,11 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	if regionRe.MatchString(body.Region) {
 		next.Region = body.Region
 	}
-	if err := s.applySettings(ctx, next); err != nil {
+	if err := s.applySettings(ctx, before, next); err != nil {
+		if errors.Is(err, settings.ErrConcurrentChange) {
+			writeError(w, http.StatusConflict, "settings changed while being checked; reload and try again")
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -1020,7 +1025,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	next := s.settings()
+	before := s.settings()
+	next := before
 	if value, present := fields["server_name"]; present && string(value) == "null" {
 		writeError(w, 400, "server_name cannot be null")
 		return
@@ -1265,7 +1271,11 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if body.OMDbKey != nil {
 		next.OMDbKey = strings.TrimSpace(*body.OMDbKey)
 	}
-	if err := s.applySettings(r.Context(), next); err != nil {
+	if err := s.applySettings(r.Context(), before, next); err != nil {
+		if errors.Is(err, settings.ErrConcurrentChange) {
+			writeError(w, http.StatusConflict, "settings changed while being checked; reload and try again")
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

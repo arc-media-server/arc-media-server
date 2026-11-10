@@ -67,7 +67,7 @@ type Deps struct {
 	LibrariesChanged func()
 	// Settings returns the current settings; ApplySettings checks, saves and applies new ones.
 	Settings      func() settings.Settings
-	ApplySettings func(ctx context.Context, s settings.Settings) error
+	ApplySettings func(ctx context.Context, before, next settings.Settings) error
 	// FFprobeStatus describes the ffprobe in use, for the Settings page.
 	FFprobeStatus func() any
 	// Where artwork the user uploads is kept.
@@ -106,7 +106,7 @@ type Server struct {
 	afterRestore     func(context.Context) error
 	librariesChanged func()
 	settings         func() settings.Settings
-	applySettings    func(ctx context.Context, s settings.Settings) error
+	applySettings    func(ctx context.Context, before, next settings.Settings) error
 	ffprobeStatus    func() any
 	uploadsDir       string
 	previews         *previews

@@ -522,31 +522,46 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
 		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
 	}
-	applySettings := func(ctx context.Context, next settings.Settings) error {
+	applySettings := func(ctx context.Context, before, next settings.Settings) error {
 		mu.Lock()
-		defer mu.Unlock()
-		if next.TMDBKey != current.TMDBKey && next.TMDBKey != "" {
-			if err := metadata.CheckTMDBKey(ctx, next.TMDBKey); err != nil {
+		stale := current != before
+		mu.Unlock()
+		if stale {
+			return settings.ErrConcurrentChange
+		}
+		// Provider validation shares one bounded budget and never holds the settings reader lock.
+		validation, stopValidation := context.WithTimeout(ctx, 30*time.Second)
+		defer stopValidation()
+		if next.TMDBKey != before.TMDBKey && next.TMDBKey != "" {
+			if err := metadata.CheckTMDBKey(validation, next.TMDBKey); err != nil {
 				return err
 			}
 		}
-		if next.OpenSubtitlesKey != "" && (next.OpenSubtitlesKey != current.OpenSubtitlesKey ||
-			next.OpenSubtitlesUser != current.OpenSubtitlesUser || next.OpenSubtitlesPassword != current.OpenSubtitlesPassword) {
+		if next.OpenSubtitlesKey != "" && (next.OpenSubtitlesKey != before.OpenSubtitlesKey ||
+			next.OpenSubtitlesUser != before.OpenSubtitlesUser || next.OpenSubtitlesPassword != before.OpenSubtitlesPassword) {
 			check := opensubtitles.New("Arc Media Server v" + version)
 			check.SetCredentials(next.OpenSubtitlesKey, next.OpenSubtitlesUser, next.OpenSubtitlesPassword)
-			if err := check.Check(ctx); err != nil {
+			if err := check.Check(validation); err != nil {
 				return err
 			}
 		}
-		if next.OMDbKey != current.OMDbKey && next.OMDbKey != "" {
-			if err := ratings.CheckOMDbKey(ctx, next.OMDbKey); err != nil {
+		if next.OMDbKey != before.OMDbKey && next.OMDbKey != "" {
+			if err := ratings.CheckOMDbKey(validation, next.OMDbKey); err != nil {
 				return err
 			}
 		}
-		if next.TVDBKey != current.TVDBKey && next.TVDBKey != "" {
-			if err := metadata.CheckTVDBKey(ctx, next.TVDBKey); err != nil {
+		if next.TVDBKey != before.TVDBKey && next.TVDBKey != "" {
+			if err := metadata.CheckTVDBKey(validation, next.TVDBKey); err != nil {
 				return err
 			}
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if current != before {
+			return settings.ErrConcurrentChange
 		}
 		if next.FFprobePath != current.FFprobePath {
 			if err := findFFprobe(next.FFprobePath); err != nil && next.FFprobePath != "" {
