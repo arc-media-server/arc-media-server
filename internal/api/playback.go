@@ -756,10 +756,8 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 		select {
 		case res := <-done:
 			if res.err != nil {
-				// Too late for an error status: the player gets a file without cues.
-				if r.Context().Err() == nil {
-					s.log.Warn("reading subtitles failed", "file", f.ID, "track", t.ID, "err", res.err)
-				}
+				// Too late for an error status. The extraction owner records one
+				// safe outcome shared with JSON requests and repeated waiters.
 				return
 			}
 			write(strings.TrimPrefix(webVTT(res.cues, shift), "WEBVTT\n"))
