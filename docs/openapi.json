@@ -31714,7 +31714,7 @@
         "x-arc-access": "admin"
       },
       "patch": {
-        "description": "\n\nWho may call it: **admin**.",
+        "description": "With any of \"tmdb_api_key\", \"tvdb_api_key\", \"ffprobe_path\", \"local_bypass\", \"port\", \"allow_network\". Keys are checked with the provider before being saved; a new port or network setting takes effect straight away. Global scanning: \"scan_automatic\", \"scan_partial\", \"scan_on_start\" (booleans), and \"scan_interval_minutes\" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy \"scan_interval_hours\", processing modes (off/scheduled/added) and task enable switches. Changes apply without restarting.\n\nWho may call it: **admin**.",
         "operationId": "updateSettings",
         "requestBody": {
           "content": {
@@ -32195,7 +32195,7 @@
             }
           }
         },
-        "summary": "Update settings",
+        "summary": "With any of \"tmdb_api_key\", \"tvdb_api_key\", \"ffprobe_path\", \"local_bypass\", \"port\", \"allow_network\"",
         "tags": [
           "Settings"
         ],
