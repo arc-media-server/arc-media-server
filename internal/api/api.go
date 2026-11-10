@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -912,11 +913,20 @@ const APIVersion = 1
 func versioned(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/v1/"); ok {
-			r2 := r.Clone(r.Context())
-			r2.URL.Path = "/api/" + rest
-			r2.URL.RawPath = ""
-			next.ServeHTTP(w, r2)
-			return
+			// Decode the two namespace segments individually, preserving escaped
+			// separators/dots in the tail for ServeMux's segment-aware matching.
+			parts := strings.SplitN(r.URL.EscapedPath(), "/", 4)
+			if len(parts) == 4 {
+				api, firstErr := url.PathUnescape(parts[1])
+				version, secondErr := url.PathUnescape(parts[2])
+				if firstErr == nil && secondErr == nil && api == "api" && version == "v1" {
+					r2 := r.Clone(r.Context())
+					r2.URL.Path = "/api/" + rest
+					r2.URL.RawPath = "/api/" + parts[3]
+					next.ServeHTTP(w, r2)
+					return
+				}
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
