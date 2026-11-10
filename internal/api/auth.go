@@ -68,22 +68,44 @@ func currentUserID(r *http.Request) string {
 
 // session finds the request's valid session, if any. A session started without the password only
 // counts while the request still comes from the home network and that's still allowed.
-func (s *Server) session(r *http.Request) *store.Session {
+func (s *Server) session(r *http.Request) (*store.Session, error) {
 	token := requestToken(r)
 	if token == "" {
-		return nil
+		return nil, nil
 	}
 	se, err := s.store.GetSession(r.Context(), auth.HashToken(token))
-	if err != nil || se == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+	if se == nil {
+		return nil, nil
 	}
 	if se.Via == "local" && !s.bypassApplies(r) {
-		return nil
+		return nil, nil
 	}
 	if time.Since(time.Unix(se.LastSeen, 0)) > 5*time.Minute {
 		s.store.RecordSessionUse(se.TokenHash)
 	}
-	return se
+	return se, nil
+}
+
+// readSession distinguishes unavailable storage from absent/revoked credentials.
+func (s *Server) readSession(w http.ResponseWriter, r *http.Request) (*store.Session, bool) {
+	se, err := s.session(r)
+	if err != nil {
+		s.sessionUnavailable(w, r, err)
+		return nil, false
+	}
+	return se, true
+}
+func (s *Server) sessionUnavailable(w http.ResponseWriter, r *http.Request, err error) {
+	requestStage(r, "reading session", 0)
+	markFailureLogged(w)
+	if r.Context().Err() == nil {
+		s.log.Error("session lookup failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	}
+	w.Header().Set("Retry-After", "5")
+	writeError(w, http.StatusServiceUnavailable, "sign-in temporarily unavailable; retry shortly")
 }
 
 // requestToken is the session token a request carries: an app's "Authorization: Bearer" header,
@@ -107,7 +129,10 @@ func (s *Server) bypassApplies(r *http.Request) bool {
 // signedIn wraps handlers that need a profile.
 func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		se := s.session(r)
+		se, ok := s.readSession(w, r)
+		if !ok {
+			return
+		}
 		if se == nil || se.UserID == "" {
 			writeError(w, http.StatusUnauthorized, "sign in and choose a profile")
 			return
@@ -236,7 +261,10 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := authStatusDTO{SetupNeeded: n == 0, Profiles: []profileDTO{}, Local: auth.IsLocal(r), Bypass: s.bypassApplies(r)}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	if se != nil {
 		out.SignedIn = true
 		out.PasswordSession = se.Via == "password"
@@ -366,7 +394,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	s.limiter.Succeed(key)
 	s.log.Info("signed in with the password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
-	if old := s.session(r); old != nil && body.Device == "" {
+	old, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
 	s.signIn(w, r, "", "password", strings.TrimSpace(body.Device))
@@ -386,7 +418,10 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	if se == nil && !s.bypassApplies(r) {
 		writeError(w, http.StatusUnauthorized, "sign in first")
 		return
@@ -454,7 +489,11 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 
 // leaveProfile: DELETE /api/auth/profile goes back to the profile picker.
 func (s *Server) leaveProfile(w http.ResponseWriter, r *http.Request) {
-	if se := s.session(r); se != nil {
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if se != nil {
 		// A friend has only their own profile: leaving it signs them out.
 		if se.Via == "friend" {
 			s.logout(w, r)
@@ -514,7 +553,11 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keep := ""
-	if se := s.session(r); se != nil {
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if se != nil {
 		keep = se.TokenHash
 	}
 	if err := s.store.DeletePasswordSessions(r.Context(), keep); err != nil {

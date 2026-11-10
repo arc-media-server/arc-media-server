@@ -870,6 +870,7 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
+	markFailureLogged(w)
 	s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
 	writeError(w, http.StatusInternalServerError, "internal error")
 }
@@ -884,10 +885,26 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+// markFailureLogged prevents the request summary from duplicating a boundary's error log.
+func markFailureLogged(w http.ResponseWriter) {
+	for {
+		if rec, ok := w.(*statusRecorder); ok {
+			rec.failureLogged = true
+			return
+		}
+		if wrapped, ok := w.(interface{ Unwrap() http.ResponseWriter }); ok {
+			w = wrapped.Unwrap()
+		} else {
+			return
+		}
+	}
+}
+
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
-	home   bool // the device is at home, for the Dashboard's network graph
+	status        int
+	failureLogged bool
+	home          bool // the device is at home, for the Dashboard's network graph
 }
 
 func (r *statusRecorder) Write(b []byte) (int, error) {
@@ -946,7 +963,7 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		}
 		took := time.Since(start)
 		level, message := slog.LevelDebug, "http"
-		if rec.status >= 500 {
+		if rec.status >= 500 && !rec.failureLogged {
 			level, message = slog.LevelWarn, "request failed"
 		} else if (took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead) || (trackRequest(route) && took >= requestWarningAfter) {
 			level, message = slog.LevelWarn, "slow request"

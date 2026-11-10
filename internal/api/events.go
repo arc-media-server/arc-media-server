@@ -13,13 +13,16 @@ import (
 
 const eventBatchInterval = 500 * time.Millisecond
 
-func (s *Server) eventPrincipal(r *http.Request, expected string) (*store.User, bool) {
-	se := s.session(r)
+func (s *Server) eventPrincipal(r *http.Request, expected string) (*store.User, bool, error) {
+	se, err := s.session(r)
+	if err != nil {
+		return nil, false, err
+	}
 	if se == nil || se.UserID != expected {
-		return nil, false
+		return nil, false, nil
 	}
 	u, err := s.store.GetUser(r.Context(), expected)
-	return u, err == nil && u != nil
+	return u, u != nil, err
 }
 func eventAllowed(e events.Event, u *store.User) bool {
 	if e.UserID != "" && e.UserID != u.ID {
@@ -49,7 +52,10 @@ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.events.Close()
 	userID := currentUserID(r)
-	if _, ok := s.eventPrincipal(r, userID); !ok {
+	if _, ok, err := s.eventPrincipal(r, userID); err != nil {
+		s.sessionUnavailable(w, r, err)
+		return
+	} else if !ok {
 		writeError(w, 401, "sign in again")
 		return
 	}
@@ -80,7 +86,11 @@ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 	}
 	// Valid replay is sent through the same fresh authorization checks as live hints.
 	deliver := func(batch []events.Event) bool {
-		u, ok := s.eventPrincipal(r, userID)
+		u, ok, err := s.eventPrincipal(r, userID)
+		if err != nil {
+			s.logEventAuthFailure(r, err)
+			return false
+		}
 		if !ok {
 			return false
 		}
@@ -123,7 +133,10 @@ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 		case <-lifetime.C:
 			return
 		case <-beats.C:
-			if _, ok := s.eventPrincipal(r, userID); !ok {
+			if _, ok, err := s.eventPrincipal(r, userID); err != nil {
+				s.logEventAuthFailure(r, err)
+				return
+			} else if !ok {
 				return
 			}
 			_ = controller.SetWriteDeadline(time.Now().Add(5 * time.Second))
@@ -137,7 +150,10 @@ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
 			batch, next, reset := s.events.Read(cursor)
 			cursor = next
 			if reset {
-				if _, ok := s.eventPrincipal(r, userID); !ok {
+				if _, ok, err := s.eventPrincipal(r, userID); err != nil {
+					s.logEventAuthFailure(r, err)
+					return
+				} else if !ok {
 					return
 				}
 				if !send("resync", cursor, map[string]string{"topic": "resync"}) {
@@ -163,7 +179,11 @@ func (s *Server) publishMutation(r *http.Request, route string) {
 	if strings.HasSuffix(path, "/batch") || strings.HasSuffix(path, "/playback-options") || strings.HasSuffix(path, "/playback-preview") || strings.HasSuffix(path, "/compatibility") || strings.HasSuffix(path, "/ping") || strings.HasPrefix(path, "/api/auth/") {
 		return
 	}
-	se := s.session(r)
+	se, err := s.session(r)
+	if err != nil {
+		s.logEventAuthFailure(r, err)
+		return
+	}
 	if se == nil || se.UserID == "" {
 		return
 	}
@@ -200,4 +220,10 @@ func (s *Server) publishMutation(r *http.Request, route string) {
 		}
 	}
 	s.events.Publish(events.Event{Topic: "catalog", LibraryID: library})
+}
+
+func (s *Server) logEventAuthFailure(r *http.Request, err error) {
+	if r.Context().Err() == nil {
+		s.log.Warn("event authorization lookup failed", "err", err, "request_id", r.Header.Get(requestIDHeader))
+	}
 }
