@@ -1,6 +1,6 @@
 # #350 integration rehearsal and review handoff
 
-This branch combines the 67 pinned review PRs #351–#417 on main `d94283c`. It is a rehearsal for review, not permission to publish or merge. Main and original PR branches remain unchanged. PostgreSQL PRs #337/#339 are separate and excluded.
+This branch combines the 67 pinned review PRs #351–#417 on main `d94283c`. It is a rehearsal for review, not permission to merge or publish a development image. Main and original PR branches remain unchanged. PostgreSQL PRs #337/#339 are separate and excluded.
 
 ## Reproduce the composition
 
@@ -97,7 +97,9 @@ Each original head is retained as an ancestor through a local merge commit, in t
 - Opt-in allocation regressions passed on the combined code: playlist summaries 19.498 MiB (32 MiB bound), curated recommendation page 3.625 MiB (16 MiB bound). These are memory envelopes, not production latency promises.
 - Real-server malformed-input sweep passed: 406 requests, 0 failed, 7 skipped operations (14 alias requests for bodyless commands/live streams), 0 provider calls. Two expected missing-configuration 503s remain classified explicitly. The first selector matched no tests; that command is retained separately and not counted.
 - Container lifecycle checks passed for the default UID10001, UID0 and UID12345: first-run setup, read-only media, backup/restore, restart and volume persistence. Temporary containers/volumes are cleaned up by the test. Runtime-overlay limitations are below.
-- Whole-server race and full 167-journey pinned-browser run: PENDING completion; enter actual results before opening the review PR.
+- First full integrated browser run: **165 passed, 2 failed, 0 skipped/retried (167 journeys)**. The trusted-proxy test assumed an arbitrary RFC1918 address belonged to the host's detected LAN; configure the synthetic LAN explicitly while keeping untrusted/public/forged-chain assertions. A Cast fallback counter also included an unfinished initial local plan; wait for that local response before counting the exact receiver original/fallback requests. No product behavior or security rule was changed. Failed JSON/logs/traces remain retained.
+- Both corrected browser controls passed together (2/2); e2e TypeScript passed after those edits.
+- Whole-server race and final fresh full 167-journey pinned-browser run: PENDING completion; enter actual results before opening the review PR.
 
 ## Scope and limits
 

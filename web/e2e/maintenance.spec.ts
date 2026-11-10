@@ -129,6 +129,8 @@ test('maintenance: Activity stops the owned refresh and reports Stopped', async 
 
 test('trusted proxies: forwarded visitors count as home only through a listed proxy', async ({ page, media }, info) => {
   void media;
+  // Test proxy trust independently of the host's automatically detected LAN.
+  expect((await page.request.patch('/api/settings', { data: { home_networks: '192.168.1.0/24' } })).ok()).toBeTruthy();
   const status = async (forwardedFor: string) => (await (await page.request.get('/api/auth/status', { headers: { 'X-Forwarded-For': forwardedFor } })).json()).local;
   // This test's own connection comes from 127.0.0.1, standing in for a proxy.
   expect(await status('192.168.1.20')).toBe(false);
