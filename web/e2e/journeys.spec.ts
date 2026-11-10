@@ -335,13 +335,13 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
   const first = await addLibrary(page, 'First library', media.movies);
   await addLibrary(page, 'Second library', media.empty);
   await page.goto(`/library/${first.id}`);
-  await page.getByRole('button', { name: 'More for First library', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More for First library', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Select titles', exact: true }).click();
   await page.getByRole('button', { name: 'Select loaded (2)', exact: true }).click();
   await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
   await page.locator('aside').getByRole('link', { name: 'Second library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'More for Second library', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More for Second library', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Select titles', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
 });
@@ -350,7 +350,7 @@ test('library ⋯ manages the library on every tab, owner only, without removing
   await setup(page);
   const lib = await addLibrary(page, 'Menu library', media.movies);
   await page.goto(`/library/${lib.id}`);
-  const more = page.getByRole('button', { name: 'More for Menu library', exact: true });
+  const more = page.getByRole('main').getByRole('button', { name: 'More for Menu library', exact: true });
   const item = (name: string) => page.getByRole('menuitem', { name, exact: true });
   await more.click();
   for (const name of ['Select titles', 'Scan library files', 'Edit library…', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Manage access…'])

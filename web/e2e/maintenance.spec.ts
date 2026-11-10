@@ -294,7 +294,10 @@ for (const shows of [false, true]) {
     await expect(page.getByRole('main').getByRole('button', { name: 'Add to Playlist', exact: true })).toHaveCount(0); // episode rows keep theirs in More too
     await page.getByRole('button', { name: 'More', exact: true }).click();
     // The server owner sets a show's episode ordering in Edit, so it isn't repeated here.
-    await expect(page.getByRole('menuitem')).toHaveText([...(shows ? [] : ['Watch Together']), 'Play next', 'Add to queue', 'Add to Playlist…', ...(shows ? [] : ['Media Info…']), 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', 'Optimize…']);
+    const expectedActions = [...(shows ? [] : ['Watch Together']), 'Play next', 'Add to queue', 'Add to Playlist…', ...(shows ? [] : ['Media Info…']), 'Refresh metadata', 'Analyze', 'Edit…', 'Add to Collection…', 'Fix Match…', ...(shows ? ['Unmatch…'] : []), 'Optimize…'];
+    const actions = page.getByRole('menuitem');
+    await expect(actions).toHaveCount(expectedActions.length);
+    for (const [index, name] of expectedActions.entries()) await expect(actions.nth(index)).toHaveAccessibleName(name);
     const response = page.waitForResponse(r => r.url().endsWith(`/${shows ? 'series' : 'items'}/${item.id}/refresh`) && r.ok());
     await page.getByRole('menuitem', { name: 'Refresh metadata', exact: true }).click();
     await response;
