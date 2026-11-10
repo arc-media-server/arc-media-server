@@ -385,7 +385,7 @@ func New(d Deps) http.Handler {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	mux.Handle("/", webui.Handler())
-	return s.correlateRequests(appCORS(versioned(s.logRequests(mux))))
+	return securityHeaders(s.correlateRequests(appCORS(versioned(s.logRequests(mux)))))
 }
 
 // itemDTO adds links and files to a stored item.

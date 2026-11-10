@@ -45,7 +45,7 @@ async function keepPlaying(page: Page) {
 const videoState = (page: Page) => page.locator('video').evaluate((v: HTMLVideoElement) => ({ paused: v.paused, at: v.currentTime }));
 
 /** A second device signed in as `profile` (another session). */
-async function device(page: Page, browser: import('@playwright/test').Browser, profile: string) {
+async function device(browser: import('@playwright/test').Browser, profile: string) {
   const other = await browser.newContext();
   await other.route('**/*', route => { const u = new URL(route.request().url()); return u.hostname === '127.0.0.1' || u.protocol === 'data:' ? route.continue() : route.abort(); });
   const login = await other.request.post('http://127.0.0.1:18199/api/auth/login', { data: { password } });
@@ -60,7 +60,7 @@ async function device(page: Page, browser: import('@playwright/test').Browser, p
 test('watch together: the host invites someone, the room shows on both Homes, and they watch in step', async ({ page, browser }, info) => {
   const { item } = await seed(page);
   const sam = await (await page.request.post('/api/profiles', { data: { name: 'Sam', color: 'blue' } })).json();
-  const { other, guest } = await device(page, browser, sam.id);
+  const { other, guest } = await device(browser, sam.id);
   // Sam's Home is open before the invitation, so it must arrive live.
   await guest.goto('http://127.0.0.1:18199/');
   await expect(guest.getByRole('heading', { name: /Recently Added/ }).first()).toBeVisible({ timeout: 20_000 });
@@ -161,7 +161,7 @@ test('watch together: a code and invite link still work, through the lobby', asy
 
   // Another device, same household profile, opens the invite link.
   const status = await (await page.request.get('/api/auth/status')).json();
-  const { other, guest } = await device(page, browser, status.profiles[0].id);
+  const { other, guest } = await device(browser, status.profiles[0].id);
   await guest.goto(`http://127.0.0.1:18199/?together=${code}`);
   await expect(guest.getByRole('textbox', { name: 'Code', exact: true })).toHaveValue(code);
   await expect(guest).toHaveURL('http://127.0.0.1:18199/');

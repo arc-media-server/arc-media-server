@@ -101,7 +101,7 @@ test('letter rail: loads the pages up to an unloaded letter, keeps the titles be
   await expect(page.getByRole('link', { name: 'Alpha 0000' })).toHaveCount(1);
   expect(requests.some(url => url.searchParams.get('offset') === '500' && !url.searchParams.has('jump'))).toBe(true);
   await page.screenshot({ path: info.outputPath('jump-desktop.png') });
-  await page.getByRole('button', { name: 'More for Recovery library', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More for Recovery library', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Select titles', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select loaded (1000)', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Stop choosing', exact: true }).click();

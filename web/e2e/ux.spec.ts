@@ -365,7 +365,7 @@ test('internet streaming quality is saved to the profile and only limits streams
   await page.goto('/settings');
   const quality = page.getByRole('combobox', { name: 'Internet streaming quality', exact: true });
   await expect(quality.locator('option:checked')).toHaveText('Maximum');
-  await expect(page.getByText(/If quality is set too high, videos will start slowly and pause frequently\. Only applies away from home/)).toBeVisible();
+  await expect(page.getByText(/Applies away from home\. Compatible videos within the bitrate and resolution limit keep their original quality/)).toBeVisible();
   const saved = page.waitForResponse(r => r.url().endsWith('/api/me/prefs') && r.request().method() === 'PATCH' && r.ok());
   await quality.selectOption({ label: '4 Mbps 720p' });
   expect((await (await saved).json()).remote_quality_kbps).toBe(4000);

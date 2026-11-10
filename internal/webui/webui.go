@@ -18,6 +18,11 @@ func init() {
 //go:embed all:dist
 var dist embed.FS
 
+// The production app/docs bundle executes only its own scripts and the opt-in Cast SDK.
+// React/Scalar styles need inline style attributes; media/artwork/connection schemes preserve
+// provider images, native media and casting. This is browser hardening, not a DOM-XSS audit.
+const contentPolicy = "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:; font-src 'self' data:; worker-src 'self' blob:; frame-src 'self' https://*.google.com https://*.gstatic.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+
 // Handler serves the built web app. Unknown paths get index.html so client-side routes like
 // /series/abc work when loaded directly. Built assets have hashed names and are cached forever.
 func Handler() http.Handler {
@@ -31,6 +36,7 @@ func Handler() http.Handler {
 	}
 	fileServer := http.FileServerFS(files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", contentPolicy)
 		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if p == "" || p == "." {
 			p = "index.html"
