@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -21,7 +20,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -135,91 +133,6 @@ func Find(f *store.MediaFile, id string) (Track, bool) {
 		}
 	}
 	return Track{}, false
-}
-
-// Cache extracts text subtitles with FFmpeg and keeps the cues in a folder.
-type Cache struct {
-	dir    string
-	ffmpeg func() string
-	mu     sync.Mutex
-	// One extraction per track at a time: a second request waits for the first.
-	running map[string]*extraction
-}
-
-func NewCache(dir string, ffmpeg func() string) *Cache {
-	return &Cache{dir: dir, ffmpeg: ffmpeg, running: map[string]*extraction{}}
-}
-
-// Cues returns a text track's cues, extracting them the first time (which reads the whole video
-// file for subtitles inside it).
-func (c *Cache) Cues(ctx context.Context, f *store.MediaFile, t Track) ([]Cue, error) {
-	if t.Image {
-		return nil, errors.New("picture subtitles are shown by burning them into the video")
-	}
-	src := f.Path
-	if t.External {
-		src = t.Path
-	}
-	info, err := os.Stat(src)
-	if err != nil {
-		return nil, err
-	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d|%s", src, info.Size(), info.ModTime().Unix(), t.ID)))
-	key := hex.EncodeToString(sum[:12])
-	dir := filepath.Join(c.dir, strconv.FormatInt(f.ID, 10))
-	path := filepath.Join(dir, key+".json")
-	legacy := filepath.Join(c.dir, key+".json")
-	// Adopt identifiable legacy entries on use; unknown hashes remain protected while offline.
-	if b, err := os.ReadFile(legacy); err == nil {
-		var cues []Cue
-		if json.Unmarshal(b, &cues) == nil && os.MkdirAll(dir, 0o755) == nil {
-			if os.WriteFile(path, b, 0o644) == nil {
-				os.Remove(legacy)
-			}
-		}
-	}
-
-	if b, err := os.ReadFile(path); err == nil {
-		var cues []Cue
-		if json.Unmarshal(b, &cues) == nil {
-			return cues, nil
-		}
-	}
-	// One extraction per track at a time, run apart from whoever asked: a player that stops
-	// waiting (a timeout, closing the player) doesn't cancel it, so it's cached for next time
-	// instead of starting again from the beginning of a large file.
-	c.mu.Lock()
-	job := c.running[key]
-	if job == nil {
-		job = &extraction{done: make(chan struct{})}
-		c.running[key] = job
-		go func() {
-			// extract bounds itself (10 minutes).
-			job.cues, job.err = c.extract(context.Background(), src, t)
-			if job.err == nil && os.MkdirAll(dir, 0o755) == nil {
-				b, _ := json.Marshal(job.cues)
-				os.WriteFile(path, b, 0o644)
-			}
-			c.mu.Lock()
-			delete(c.running, key)
-			c.mu.Unlock()
-			close(job.done)
-		}()
-	}
-	c.mu.Unlock()
-	select {
-	case <-job.done:
-		return job.cues, job.err
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
-// extraction is one track being read out of its video, shared by everyone waiting for it.
-type extraction struct {
-	done chan struct{}
-	cues []Cue
-	err  error
 }
 
 func (c *Cache) extract(ctx context.Context, src string, t Track) ([]Cue, error) {
