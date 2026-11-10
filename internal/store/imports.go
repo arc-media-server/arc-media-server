@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strconv"
 )
 
 // Importing watch state from Plex and Jellyfin: titles are found by their TMDB, TheTVDB and IMDb
@@ -25,6 +24,11 @@ type ImportRef struct {
 // Prefer present copies, then the newest catalog identity, with a deterministic tie-breaker.
 // Keep unavailable matches as a fallback so imports can preserve offline watch history.
 const importedPreference = ` ORDER BY ` + playableSQL + ` DESC, items.added_at DESC, items.id`
+
+// importedEpisodeQuery is shared with the query-plan regression for large imports.
+func importedEpisodeQuery(provider string) string {
+	return `SELECT id FROM items WHERE kind = 'episode' AND ` + provider + `_id = ?` + importedPreference + ` LIMIT 1`
+}
 
 // FindImported returns the Arc movie, show or episode an imported one is, or "" if Arc doesn't have it.
 func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
@@ -63,7 +67,8 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 		return "", nil
 	}
 
-	// An episode by its own id, as Arc keys episodes ("ep:<show>:<provider>:<id>").
+	// Use indexed episode IDs, including IDs mapped from the other provider.
+	// The canonical match key is a storage identity, not the complete provider mapping.
 	for _, p := range []struct {
 		provider string
 		id       int64
@@ -71,8 +76,8 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 		if p.id == 0 {
 			continue
 		}
-		if id, err := one(`SELECT id FROM items WHERE kind = 'episode' AND match_key LIKE ?`+importedPreference+` LIMIT 1`,
-			"ep:%:"+p.provider+":"+strconv.FormatInt(p.id, 10)); id != "" || err != nil {
+		if id, err := one(importedEpisodeQuery(p.provider),
+			p.id); id != "" || err != nil {
 			return id, err
 		}
 	}

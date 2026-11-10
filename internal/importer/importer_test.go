@@ -14,7 +14,7 @@ import (
 )
 
 // library makes an Arc library with Inception (TMDB 27205), and Firefly (TheTVDB 78874) with one
-// episode keyed by TheTVDB id 297989 and numbered 1x2 in TheTVDB's aired order.
+// episode with provider metadata as saved by the scanner, keyed by TheTVDB id 297989 and numbered 1x2 in TheTVDB's aired order.
 func library(t *testing.T) (st *store.Store, user, movie, episode string) {
 	t.Helper()
 	ctx := context.Background()
@@ -27,9 +27,9 @@ func library(t *testing.T) (st *store.Store, user, movie, episode string) {
 	shows, _ := st.SyncLibrary(ctx, "TV", "shows", "tvdb_aired", []string{"/t"})
 	movie, _, _ = st.EnsureItem(ctx, &store.Item{LibraryID: movies, Kind: "movie", Title: "Inception", TMDBID: 27205}, "tmdb:27205")
 	series, _, _ := st.EnsureItem(ctx, &store.Item{LibraryID: shows, Kind: "series", Title: "Firefly", TVDBID: 78874}, "series:firefly")
-	episode, _, _ = st.EnsureItem(ctx, &store.Item{LibraryID: shows, Kind: "episode", ParentID: series, Title: "The Train Job"},
+	episode, _, _ = st.EnsureItem(ctx, &store.Item{LibraryID: shows, Kind: "episode", ParentID: series, Title: "The Train Job", TVDBID: 297989},
 		"ep:"+series+":tvdb:297989")
-	other, _, _ := st.EnsureItem(ctx, &store.Item{LibraryID: shows, Kind: "episode", ParentID: series, Title: "Bushwhacked"},
+	other, _, _ := st.EnsureItem(ctx, &store.Item{LibraryID: shows, Kind: "episode", ParentID: series, Title: "Bushwhacked", TVDBID: 297990},
 		"ep:"+series+":tvdb:297990")
 	ord, _ := st.UpsertOrdering(ctx, series, "tvdb_aired", "", "Aired Order", "TVDB")
 	st.ReplaceOrdering(ctx, ord, map[int]string{1: "Season 1"}, nil, []store.OrderingEntry{
