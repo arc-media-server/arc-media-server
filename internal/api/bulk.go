@@ -73,11 +73,9 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 		v := strings.TrimSpace(*body.ContentRating)
 		e.ContentRating = &v
 	}
-	if err := s.store.EditItems(ctx, body.ItemIDs, e); err != nil {
-		s.fail(w, err)
-		return
-	}
 	if body.Played != nil {
+		watch := &store.BulkWatch{UserID: currentUserID(r), Played: *body.Played}
+		seen := make(map[string]bool)
 		for _, it := range items {
 			ids := []string{it.ID}
 			if it.Kind == "series" {
@@ -86,18 +84,21 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 					s.fail(w, err)
 					return
 				}
+			} else if *body.Played {
+				watch.RemoveWatchlist = append(watch.RemoveWatchlist, it.ID)
 			}
-			if err := s.store.SetPlayed(ctx, currentUserID(r), ids, *body.Played); err != nil {
-				s.fail(w, err)
-				return
-			}
-			if *body.Played && it.Kind == "movie" {
-				if err := s.store.SetWatchlist(ctx, currentUserID(r), it.ID, false); err != nil {
-					s.fail(w, err)
-					return
+			for _, id := range ids {
+				if !seen[id] {
+					watch.ItemIDs = append(watch.ItemIDs, id)
+					seen[id] = true
 				}
 			}
 		}
+		e.Watch = watch
+	}
+	if err := s.store.EditItems(ctx, body.ItemIDs, e); err != nil {
+		s.fail(w, err)
+		return
 	}
 	if body.Refresh {
 		go s.refreshItems(context.WithoutCancel(ctx), items)

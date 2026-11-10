@@ -15,6 +15,16 @@ type BulkEdit struct {
 	ContentRating *string
 	// "all" locks every field, so refreshes leave them alone; "none" unlocks every field.
 	Locks string
+	// Watch is applied atomically with metadata. Episode IDs are resolved before writing.
+	Watch *BulkWatch
+}
+
+// BulkWatch describes the profile changes accompanying one metadata edit.
+type BulkWatch struct {
+	UserID          string
+	ItemIDs         []string
+	Played          bool
+	RemoveWatchlist []string
 }
 
 // EditItems applies a BulkEdit to movies and shows. Changed genres and age ratings are locked, as
@@ -59,7 +69,7 @@ func (s *Store) EditItems(ctx context.Context, ids []string, e BulkEdit) error {
 			}
 		}
 		if e.ContentRating != nil {
-			if _, err := tx.ExecContext(ctx, `UPDATE items SET content_rating = ? WHERE id = ?`, *e.ContentRating, id); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE items SET content_rating = ?, min_age = ? WHERE id = ?`, *e.ContentRating, RatingAge(*e.ContentRating), id); err != nil {
 				return err
 			}
 			lock["content_rating"] = true
@@ -84,11 +94,17 @@ func (s *Store) EditItems(ctx context.Context, ids []string, e BulkEdit) error {
 			return err
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return err
+	if e.Watch != nil {
+		if err := setPlayedTx(ctx, tx, e.Watch.UserID, e.Watch.ItemIDs, e.Watch.Played); err != nil {
+			return err
+		}
+		if e.Watch.Played {
+			for _, id := range e.Watch.RemoveWatchlist {
+				if _, err := tx.ExecContext(ctx, `UPDATE user_item_data SET watchlisted_at = NULL WHERE user_id = ? AND item_id = ?`, e.Watch.UserID, id); err != nil {
+					return err
+				}
+			}
+		}
 	}
-	if e.ContentRating != nil {
-		return s.syncMinAges(ctx, ids...)
-	}
-	return nil
+	return tx.Commit()
 }
