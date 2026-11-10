@@ -1015,8 +1015,10 @@ export interface ServerSettings {
   https_cert: string;
   https_key: string;
   https_domain: string;
-  /** Networks that count as home besides private addresses, e.g. "100.64.0.0/10". */
+  /** Networks that count as home besides detected interface subnets, e.g. "100.64.0.0/10". */
   home_networks: string;
+  automatic_home_networks?: string[];
+  home_network_bridge?: boolean;
   /** Reverse proxies whose forwarding headers are believed (none by default). */
   trusted_proxies: string;
   /** Where converted streams are written ("" for Arc's data folder), and videos converted at once (0 for no limit). */
