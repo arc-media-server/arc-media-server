@@ -21,7 +21,11 @@ func TestCrossOriginCookieMutationIsRejected(t *testing.T) {
 	}
 	cfg := settings.Settings{ServerName: "Original"}
 	applied := 0
-	h := New(Deps{Store: s.store, Log: s.log, FFprobeStatus: func() any { return nil }, Settings: func() settings.Settings { return cfg }, ApplySettings: func(_ context.Context, next settings.Settings) error { cfg = next; applied++; return nil }})
+	h := New(Deps{Store: s.store, Log: s.log, FFprobeStatus: func() any { return nil }, Settings: func() settings.Settings { return cfg }, ApplySettings: func(_ context.Context, _ settings.Settings, next settings.Settings) error {
+		cfg = next
+		applied++
+		return nil
+	}})
 	for _, origin := range []string{"http://evil.arc.home:8099", "https://evil.example"} {
 		for _, spoof := range []bool{false, true} {
 			r := httptest.NewRequest("PATCH", "http://arc.home:8099/api/settings", strings.NewReader(`{"server_name":"Changed"}`))
