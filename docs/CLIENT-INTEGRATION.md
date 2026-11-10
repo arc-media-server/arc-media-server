@@ -173,3 +173,11 @@ Concurrent profile-preference PATCH requests merge against the latest stored pre
 transaction. Independent fields no longer overwrite one another from stale snapshots; two
 writes to the same field still use the last committed edit. Read request bodies before saving,
 and continue using partial patches rather than sending an old complete preference snapshot.
+
+### Prevent pre-roll selection from exposing non-video files
+
+Pre-roll paths select regular MP4/M4V/MOV/WebM/MKV files or folders of them. Non-video files,
+file symlinks and special files are ignored; configure a linked video's real path instead.
+Configured folder aliases remain supported. These clips are intentionally server-wide assets
+and may live outside libraries; a valid profile can play them. This does not validate codecs or
+make pre-rolls follow a library's visibility rules.
