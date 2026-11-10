@@ -559,6 +559,9 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
+		if opts.CopyAudio {
+			opts.AudioCodec = audio.Codec
+		}
 	}
 	if limitHeight > 0 {
 		// Leave room for the audio (AAC stereo: a limited stream doesn't spend 640 kbit/s on
