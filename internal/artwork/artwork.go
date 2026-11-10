@@ -309,17 +309,23 @@ func (c *Cache) Prune(inUse []string) (int, error) {
 // downloads images that aren't cached yet and removes ones no longer used. Triggers that arrive
 // while it's busy are merged into one more pass.
 type Keeper struct {
-	cache *Cache
-	list  func(ctx context.Context) ([]string, error)
-	wake  chan struct{}
+	cache  *Cache
+	list   func(ctx context.Context) ([]string, error)
+	wake   chan struct{}
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // Keep starts a Keeper. list returns every image source currently in use, most important first.
 func (c *Cache) Keep(ctx context.Context, list func(ctx context.Context) ([]string, error)) *Keeper {
-	k := &Keeper{cache: c, list: list, wake: make(chan struct{}, 1)}
-	go k.loop(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	k := &Keeper{cache: c, list: list, wake: make(chan struct{}, 1), cancel: cancel, done: make(chan struct{})}
+	go func() { defer close(k.done); k.loop(ctx) }()
 	return k
 }
+
+// Close stops the keeper and joins an in-flight source listing/download/prune pass.
+func (k *Keeper) Close() { k.cancel(); <-k.done }
 
 func (k *Keeper) Trigger() {
 	select {
@@ -334,6 +340,9 @@ func (k *Keeper) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-k.wake:
+		}
+		if ctx.Err() != nil {
+			return
 		}
 		sources, err := k.list(ctx)
 		if err != nil {

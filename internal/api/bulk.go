@@ -100,7 +100,7 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if body.Refresh {
-		go s.refreshItems(context.WithoutCancel(ctx), items)
+		s.launchWork(func(root context.Context) { s.refreshItems(root, items) })
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

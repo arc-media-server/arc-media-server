@@ -40,6 +40,9 @@ import (
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
+	// WorkContext and Workers own accepted asynchronous API work across listener restarts.
+	WorkContext   context.Context
+	Workers       *sync.WaitGroup
 	WatchTogether *watchtogether.Manager
 	Events        *events.Hub
 	WatchProblem  func(int64) string
@@ -88,6 +91,8 @@ type Deps struct {
 }
 
 type Server struct {
+	workContext    context.Context
+	workers        *sync.WaitGroup
 	watchTogether  *watchtogether.Manager
 	watchRecheck   time.Duration
 	events         *events.Hub
@@ -134,7 +139,7 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}

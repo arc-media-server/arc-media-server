@@ -277,8 +277,8 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 	sess.mu.Lock()
 	sess.stage, sess.err, sess.results, sess.lists = "running", "", nil, nil
 	sess.mu.Unlock()
-	go func() {
-		bg, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
+	if !s.launchWork(func(root context.Context) {
+		bg, cancel := context.WithTimeout(root, 3*time.Hour)
 		defer cancel()
 		task := s.activity.Start("import", "Importing from "+sess.sourceName())
 		results, lists, err := importer.Run(bg, s.store, src, accounts, mapping, names, task)
@@ -293,7 +293,11 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 			s.log.Info("import finished", "source", sess.source, "accounts", len(results))
 		}
 		sess.mu.Unlock()
-	}()
+	}) {
+		sess.mu.Lock()
+		sess.stage, sess.err = "failed", "server is stopping"
+		sess.mu.Unlock()
+	}
 	s.writeImport(w, r, sess)
 }
 

@@ -469,7 +469,7 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(s.backgroundContext(), 30*time.Minute)
 	region := b.RatingRegion
 	if region == "" {
 		region = s.settings().Region
@@ -485,10 +485,14 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	id := p.id
 	p.mu.Unlock()
 
-	go func() {
+	if !s.launchWork(func(context.Context) {
 		defer cancel()
 		s.scanner.Preview(ctx, b.Kind, b.SourceOrdering, b.Paths, ps)
-	}()
+	}) {
+		cancel()
+		writeError(w, http.StatusServiceUnavailable, "server is stopping")
+		return
+	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "preview": ps.Snapshot()})
 }
 
