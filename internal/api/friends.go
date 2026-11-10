@@ -66,7 +66,7 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "invite:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -77,7 +77,6 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u == nil {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusNotFound, "this invite link has run out or been used; ask for a new one")
 		return
 	}
@@ -121,7 +120,7 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "friend:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -131,7 +130,6 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u == nil || u.PasswordHash == "" || !auth.Check(u.PasswordHash, body.Password) {
-		s.limiter.Fail(key)
 		s.log.Warn("friend sign-in failed", "name", body.Name, "address", clientIP(r))
 		writeError(w, http.StatusUnauthorized, "that name and password don't match")
 		return
