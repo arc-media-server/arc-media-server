@@ -58,26 +58,6 @@ func (s *Scanner) collectEpisodeFile(ctx context.Context, lib *store.Library, ro
 	return nil
 }
 
-func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, groups map[string]*seriesGroup, log *slog.Logger) error {
-	keys := make([]string, 0, len(groups))
-	for k := range groups {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	s.phase(lib.ID, "Getting show details", len(keys))
-	// A few shows at a time; each is its own items, episodes and orderings.
-	return each(ctx, len(keys), matchWorkers, func(i int) error {
-		defer s.step(lib.ID)
-		if err := s.syncSeriesGroup(ctx, lib, groups[keys[i]], log); err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			log.Warn("series failed", "series", groups[keys[i]].name.Title, "err", err)
-		}
-		return nil
-	})
-}
-
 func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Configured() }
 
 func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *seriesGroup, log *slog.Logger) error {
