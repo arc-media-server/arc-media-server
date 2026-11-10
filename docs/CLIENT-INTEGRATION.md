@@ -166,3 +166,10 @@ the title unchanged. A valid combined title/rules edit is saved atomically.
 A request using an unsupported HTTP method on a known API path returns `405` and an `Allow`
 header listing supported methods. Unknown paths still return `404`. Do not interpret a 405
 as a missing server feature; check the endpoint's documented method.
+
+### Preserve independent concurrent preference changes
+
+Concurrent profile-preference PATCH requests merge against the latest stored preferences in a
+transaction. Independent fields no longer overwrite one another from stale snapshots; two
+writes to the same field still use the last committed edit. Read request bodies before saving,
+and continue using partial patches rather than sending an old complete preference snapshot.

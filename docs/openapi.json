@@ -24321,6 +24321,24 @@
               }
             }
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "500": {
             "content": {
               "application/json": {
