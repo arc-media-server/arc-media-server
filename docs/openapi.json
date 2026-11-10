@@ -3158,6 +3158,9 @@
             },
             "type": "array"
           },
+          "rolling_hls": {
+            "type": "boolean"
+          },
           "server_limit_kbps": {
             "type": "integer"
           },
@@ -16295,6 +16298,9 @@
                   "max_kbps": {
                     "type": "integer"
                   },
+                  "rolling_hls": {
+                    "type": "boolean"
+                  },
                   "start_ms": {
                     "type": "integer"
                   }
@@ -16673,6 +16679,9 @@
                   },
                   "max_kbps": {
                     "type": "integer"
+                  },
+                  "rolling_hls": {
+                    "type": "boolean"
                   },
                   "start_ms": {
                     "type": "integer"

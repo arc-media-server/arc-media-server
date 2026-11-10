@@ -115,3 +115,15 @@ A plan with reason code `dolby_vision_base_layer` uses a known compatible HDR10/
 when the requested DV profile is unsupported. Repackaging strips DV metadata using FFmpeg 8;
 SDR conversion may tone-map a compatible HDR base. Unknown bases remain refused. Older
 stored files acquire this evidence through the existing Media analysis task.
+
+### Converted-stream storage windows
+
+Playback requests may opt into `rolling_hls: true`; a converted plan echoes `rolling_hls: true`.
+Omit it to retain the existing full EVENT playlist. Opt-in clients receive a sliding HLS playlist:
+its media sequence advances as completed segments more than two minutes behind successful segment
+requests are removed. Preserve the media timeline. If seeking before the advertised window, POST
+a new playback plan at the desired source-relative `start_ms`; never keep retrying a removed
+segment. The hls.js web player implements this; native-HLS web playback keeps its existing path.
+All converted sessions have best-effort free-space admission/monitoring. A low-space start returns
+503; a running conversion fails its playlist instead of silently filling the disk. Native apps
+should enable rolling windows only when they implement the older-seek restart behavior.

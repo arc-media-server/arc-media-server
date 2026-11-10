@@ -565,8 +565,11 @@ function PlayerOverlay({
           return;
         }
         let p: PlaybackPlan;
+        let Hls: typeof import('hls.js').default;
         try {
-          p = await api.startPlayback(item.itemId, { caps: withCaps, start_ms: Math.round(startMS), audio_stream: audioStream ?? (plan.current ? undefined : item.selection?.audioStream), file_id: plan.current?.file_id ?? item.selection?.fileId, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
+          Hls = (await import('hls.js')).default;
+          if (generation !== loadGeneration.current) return;
+          p = await api.startPlayback(item.itemId, { caps: withCaps, rolling_hls: Hls.isSupported(), start_ms: Math.round(startMS), audio_stream: audioStream ?? (plan.current ? undefined : item.selection?.audioStream), file_id: plan.current?.file_id ?? item.selection?.fileId, burn_subtitle: burn.current, edition: item.edition, max_kbps: quality.current || undefined });
         } catch (e) {
           if (generation !== loadGeneration.current) return;
           setLoading(false);
@@ -607,7 +610,6 @@ function PlayerOverlay({
           installedGeneration.current = generation;
           v.src = p.url;
         } else {
-          const { default: Hls } = await import('hls.js');
           if (generation !== loadGeneration.current) return;
           installedGeneration.current = generation;
           if (!Hls.isSupported()) {
@@ -928,7 +930,8 @@ function PlayerOverlay({
       }
       const rel = (localValue - offset.current) / 1000;
       const end = v.seekable.length ? v.seekable.end(v.seekable.length - 1) : 0;
-      if (rel >= 0 && rel <= end - 1) {
+      const start = p.rolling_hls ? Math.max(v.seekable.length ? v.seekable.start(0) : 0, hls.current?.latestLevelDetails?.fragmentStart ?? 0) : 0;
+      if (rel >= start && rel <= end - 1) {
         v.currentTime = rel;
       } else {
         // Not converted yet (or before where this conversion started): start again from there,

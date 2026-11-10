@@ -300,6 +300,7 @@ type audioOutputDTO struct {
 }
 
 type playbackPlan struct {
+	RollingHLS    bool     `json:"rolling_hls,omitempty"`
 	DecisionOnly  bool     `json:"decision_only,omitempty"`
 	CanStart      *bool    `json:"can_start,omitempty"`
 	NeedsAnalysis bool     `json:"needs_analysis,omitempty"`
@@ -363,6 +364,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	}
 	var body struct {
 		Caps        clientCaps `json:"caps"`
+		RollingHLS  bool       `json:"rolling_hls" api:"optional"`
 		FileID      int64      `json:"file_id" api:"optional"`
 		AudioStream *int       `json:"audio_stream" api:"optional"`
 		StartMS     int64      `json:"start_ms" api:"optional"`
@@ -566,7 +568,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
 		MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
 		VideoCodec: video.Codec, DolbyVision: video.DolbyVision && !d.DVBaseLayer, StripDolbyVision: d.DVBaseLayer, BurnSubtitle: burn,
-		Owner: currentSession(r), ItemID: it.ID}
+		Owner: currentSession(r), ItemID: it.ID, RollingHLS: body.RollingHLS}
 	if audio != nil {
 		opts.AudioStream = audio.Index
 		if opts.CopyAudio {
@@ -606,7 +608,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	sess, err := s.startConversion(r, opts)
-	if errors.Is(err, transcode.ErrBusy) {
+	if errors.Is(err, transcode.ErrBusy) || errors.Is(err, transcode.ErrStorageFull) {
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
@@ -622,6 +624,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	}
 	out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
 	s.playing.setMethod(r, it.ID, d.Method, sess.ID, conversionDetail(video, audio, d.Reasons, opts), s.transcoder)
+	out.RollingHLS = sess.Options.RollingHLS
 	out.HLS, out.SessionID, out.OffsetMS = true, sess.ID, sess.OffsetMS
 	out.URL = "/api/transcode/" + sess.ID + "/index.m3u8"
 	writeJSON(w, http.StatusOK, out)
