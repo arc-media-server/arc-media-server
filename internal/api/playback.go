@@ -399,14 +399,14 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 
 	if preview && (!f.Probed || len(f.Streams) == 0) {
 		can := false
-		writeJSON(w, 200, playbackPlan{Method: "unknown", DecisionOnly: true, CanStart: &can, NeedsAnalysis: true, FileID: f.ID, Reasons: []string{"file needs analysis"}, ReasonCodes: []string{"needs_analysis"}, AudioTracks: []audioTrackDTO{}, SubtitleTracks: []subtitles.Track{}, Versions: versions(files)})
+		writeJSON(w, 200, normalizePlaybackPlan(playbackPlan{Method: "unknown", DecisionOnly: true, CanStart: &can, NeedsAnalysis: true, FileID: f.ID, Reasons: []string{"file needs analysis"}, ReasonCodes: []string{"needs_analysis"}, AudioTracks: []audioTrackDTO{}, SubtitleTracks: []subtitles.Track{}, Versions: versions(files)}))
 		return
 	}
 	video := videoStream(f)
 	if video == nil {
 		if preview {
 			can := false
-			writeJSON(w, 200, playbackPlan{Method: "unavailable", DecisionOnly: true, CanStart: &can, FileID: f.ID, Reasons: []string{"no video found"}, ReasonCodes: []string{"no_video"}})
+			writeJSON(w, 200, normalizePlaybackPlan(playbackPlan{Method: "unavailable", DecisionOnly: true, CanStart: &can, FileID: f.ID, Reasons: []string{"no video found"}, ReasonCodes: []string{"no_video"}}))
 		} else {
 			writeError(w, 422, "no video found")
 		}
@@ -512,7 +512,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			}
 			s.playing.setMethod(r, it.ID, "direct", "", optimized, s.transcoder)
 			s.logPlayback(r, f.ID, out.Method, out.Reasons)
-			writeJSON(w, http.StatusOK, out)
+			writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 			return
 		}
 	}
@@ -552,7 +552,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0
 		s.playing.setMethod(r, it.ID, "direct", "", directDetail(video, audio, nil), s.transcoder)
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 		return
 	}
 	if !conversionSupported(body.Caps, d, audio) {
@@ -643,10 +643,11 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	out.RollingHLS = sess.Options.RollingHLS
 	out.HLS, out.SessionID, out.OffsetMS = true, sess.ID, sess.OffsetMS
 	out.URL = "/api/transcode/" + sess.ID + "/index.m3u8"
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 }
 
 // session returns the transcode session in the path if it belongs to this browser.
+
 func (s *Server) transcodeSession(w http.ResponseWriter, r *http.Request) *transcode.Session {
 	if s.transcoder == nil {
 		writeError(w, http.StatusNotFound, "no such session")

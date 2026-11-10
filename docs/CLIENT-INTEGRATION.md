@@ -19,6 +19,18 @@ Read `GET /capabilities` on connection/profile changes. Missing feature keys mea
 `supported` means implemented, `available` means the dependency exists now, and `allowed` describes
 role permission. Item/library permissions are still checked on each request.
 
+## Empty lists and profile library access
+
+Playback and playback-preview list fields (`audio_tracks`, `subtitle_tracks`, `versions`,
+`chapters`, `markers`, `reasons`) are arrays, including empty `[]` values in needs-analysis and
+no-video decisions. Optional `reason_codes` can be absent when empty; when present it is an array.
+
+A profile's `library_ids` is deliberately different: `null` means all libraries, `[]` means no
+libraries, and a nonempty array selects those library IDs. Do not replace `null` with `[]` when
+saving a profile or generating an SDK. This is existing v1 access behavior, not missing metadata.
+The recorded v1 type snapshot currently lists the array shape; clients must also accept this
+legacy null sentinel. This change preserves that snapshot and the wire behavior.
+
 ## Browsing and identifiers
 
 Treat IDs and returned URLs as authoritative. Arc item IDs are strings; file/library IDs are integers;
