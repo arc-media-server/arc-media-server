@@ -89,13 +89,7 @@ func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int
 	if err != nil || lib == nil {
 		return nil, 0, err
 	}
-	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
-		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
-		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: 500}
-	f.applyExtended(&q)
-	if lib.Kind == "shows" {
-		q.Kind = "series"
-	}
+	q := f.itemQuery(lib, access(r), currentUserID(r), 500)
 	if limit > 0 {
 		q.Limit = limit
 	}
@@ -329,9 +323,7 @@ func applyCollectionBody(c *store.Collection, b *collectionBody) string {
 		if b.Filter != nil {
 			f := *b.Filter
 			f.LibraryID = c.LibraryID
-			// The same checks as a custom home row's filter.
-			p := prefs{Home: []homeRow{{ID: "custom:x", Title: c.Title, Filter: &f}}}
-			if err := p.validate(); err != nil {
+			if err := f.validate(); err != nil {
 				return err.Error()
 			}
 			raw, _ := json.Marshal(f)
