@@ -51,7 +51,9 @@ errors after streaming starts are not JSON; show a safe status fallback and reta
 
 401 requires sign-in/profile selection; 403 does not imply a retry will help. Refetch state on 409,
 particularly queue revision conflicts; don't blindly repeat a destructive operation. Honor
-`Retry-After` when present on 429/503. Back off transient reads with jitter and cancellation. Arc
+`Retry-After` when present on 429/503. Catalog restore/library removal reserves a quiet
+window: active catalog work returns 409 before mutation; new mutation requests during that window
+return 503 with `Retry-After`. Retry after it ends; do not discard authentication for a 503. Back off transient reads with jitter and cancellation. Arc
 does not provide a generic idempotency-key contract: a timeout does not prove a mutation failed.
 
 ## Playback and assets

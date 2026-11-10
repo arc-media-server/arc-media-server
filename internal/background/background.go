@@ -122,6 +122,9 @@ func (m *Manager) modeLocked(k string) string {
 	return "off"
 }
 func (m *Manager) busy() bool {
+	if m.store.CatalogReserved() {
+		return true
+	}
 	m.mu.Lock()
 	p := m.playing
 	m.mu.Unlock()
@@ -201,6 +204,16 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 	if m == nil {
 		return ctx, func(error) {}, true
 	}
+	releaseCatalog, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return ctx, nil, false
+	}
+	retained := false
+	defer func() {
+		if !retained {
+			releaseCatalog()
+		}
+	}()
 	revision, newest, maximum, err := m.store.BackgroundRevision(ctx, kind, ids)
 	if err != nil {
 		return ctx, nil, false
@@ -259,6 +272,7 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 	var once sync.Once
 	finish := func(err error) {
 		once.Do(func() {
+			defer releaseCatalog()
 			cancel()
 			<-stopped
 			state, message := "done", ""
@@ -283,6 +297,7 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 			<-m.slot
 		})
 	}
+	retained = true
 	return work, finish, true
 }
 func (m *Manager) Snapshot(ctx context.Context) []Status {
@@ -581,4 +596,22 @@ func (m *Manager) AbandonTurn(kind string) {
 	m.mu.Lock()
 	delete(m.waiting, kind)
 	m.mu.Unlock()
+}
+
+// WakeWorkers resumes optional media work after a catalog reservation is released.
+func (m *Manager) WakeWorkers() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	var wakes []func()
+	for kind, wake := range m.wake {
+		if kind == "analysis" || kind == "previews" || kind == "markers" {
+			wakes = append(wakes, wake)
+		}
+	}
+	m.mu.Unlock()
+	for _, wake := range wakes {
+		wake()
+	}
 }

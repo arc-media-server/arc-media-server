@@ -38,6 +38,11 @@ func (m *Manager) upkeepPass(ctx context.Context, kind string, work func(context
 	if !upkeepKind(kind) {
 		return
 	}
+	releaseCatalog, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return
+	}
+	defer releaseCatalog()
 	last, err := m.store.MaintenanceRun(ctx, kind)
 	if err != nil {
 		m.upkeepStateFailure(kind, err)

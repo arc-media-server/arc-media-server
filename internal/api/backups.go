@@ -32,10 +32,11 @@ func (s *Server) createBackup(w http.ResponseWriter, r *http.Request) {
 // restoreBackup: POST /api/backups/{name}/restore replaces the database with a backup. The current
 // state is saved as a backup first. Refused while a scan is running.
 func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
-	if s.scanner.Running() {
-		writeError(w, http.StatusConflict, "a library scan is running; try again when it finishes")
+	release, ok := s.beginCatalogMutation(w, r)
+	if !ok {
 		return
 	}
+	defer release()
 	if err := s.backups.Restore(r.Context(), r.PathValue("name")); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			writeError(w, http.StatusNotFound, "backup not found")

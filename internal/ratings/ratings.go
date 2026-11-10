@@ -109,6 +109,11 @@ func (m *Manager) Run(ctx context.Context) {
 }
 
 func (m *Manager) pass(ctx context.Context) {
+	release, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return
+	}
+	defer release()
 	// IMDb ingestion is paused: neither download nor apply a cached dataset. See
 	// docs/RATING-SOURCES.md before restoring this path or removing it permanently.
 	if err := m.fetchCritics(ctx); err != nil && ctx.Err() == nil {

@@ -421,14 +421,16 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 // deleteLibrary: DELETE /api/libraries/{id} removes a library and everything AMS knows about it,
 // after backing up the database. Media files aren't touched.
 func (s *Server) deleteLibrary(w http.ResponseWriter, r *http.Request) {
+	release, ok := s.beginCatalogMutation(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
 		return
 	}
-	if s.scanner.Status(lib.ID).Running {
-		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
-		return
-	}
+
 	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
 		s.log.Warn("backup before deleting library failed", "err", err)
 		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
