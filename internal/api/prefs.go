@@ -183,14 +183,8 @@ func (p *prefs) validate() error {
 		if f == nil || f.LibraryID == 0 {
 			return fmt.Errorf("choose which library %q shows", r.Title)
 		}
-		if err := f.validateExtended(); err != nil {
+		if err := f.validate(); err != nil {
 			return err
-		}
-		if f.Sort != "" && !store.ItemSorts[f.Sort] {
-			return fmt.Errorf("unknown sort %q", f.Sort)
-		}
-		if f.AddedWithin < 0 || f.MinRuntime < 0 || f.MaxRuntime < 0 || f.MinRating < 0 || f.MinRating > 10 {
-			return fmt.Errorf("%q has a filter out of range", r.Title)
 		}
 	}
 	return nil
