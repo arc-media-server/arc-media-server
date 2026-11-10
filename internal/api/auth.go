@@ -200,9 +200,7 @@ func (s *Server) deviceSession(r *http.Request, userID, via, device string) (str
 	if err := s.store.CreateSession(r.Context(), hash, userID, via, r.UserAgent()); err != nil {
 		return "", err
 	}
-	if len(device) > 80 {
-		device = device[:80]
-	}
+	device = utf8BytePrefix(device, 80)
 	return token, s.store.SetSessionDevice(r.Context(), hash, device)
 }
 

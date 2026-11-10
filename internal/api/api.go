@@ -165,10 +165,10 @@ func New(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	s.revision = d.Revision
 	s.events = d.Events
-	s.wireWatchNotify()
 	if s.events == nil {
 		s.events = events.New()
 	}
+	s.wireWatchNotify()
 
 	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
