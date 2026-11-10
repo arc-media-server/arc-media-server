@@ -56,8 +56,8 @@ func HashToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// IsLocal reports whether a request comes from this computer or the home network (a private
-// address, or one in the extra home networks). Forwarded requests only qualify through a trusted
+// IsLocal reports whether a request comes from this computer or the home network (a
+// detected interface subnet, or one in the explicit home networks). Forwarded requests only qualify through a trusted
 // proxy (SetTrustedProxies), judged by the client address it reports: any other proxy may be
 // relaying someone on the internet, and header values from anyone else grant nothing.
 func IsLocal(r *http.Request) bool {
@@ -210,7 +210,7 @@ func isTrusted(addr string) bool {
 	return false
 }
 
-// extraHome are networks that count as home besides private addresses (Plex's "LAN networks"),
+// extraHome are networks that count as home besides detected interface subnets (Plex's "LAN networks"),
 // e.g. Tailscale's 100.64.0.0/10.
 var extraHome struct {
 	sync.RWMutex
@@ -230,8 +230,18 @@ func IsHomeIP(addr string) bool {
 	if ip == nil {
 		return false
 	}
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+	for _, gateway := range automaticHome.gateways {
+		if gateway.Equal(ip) {
+			return false
+		}
+	}
+	if ip.IsLoopback() {
 		return true
+	}
+	for _, n := range automaticHome.nets {
+		if n.Contains(ip) {
+			return true
+		}
 	}
 	extraHome.RLock()
 	defer extraHome.RUnlock()

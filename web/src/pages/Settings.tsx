@@ -477,7 +477,7 @@ function ServerSettings() {
               onChange={(v) => update.mutate({ allow_network: v })}
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
-            <HomeNetworksRow value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
+            <HomeNetworksRow automatic={s.automatic_home_networks} bridge={s.home_network_bridge} value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
             <TrustedProxiesRow value={s.trusted_proxies} onSave={(v) => update.mutateAsync({ trusted_proxies: v })} />
           </Section>
 
@@ -1118,8 +1118,8 @@ function ServerNameRow({ value, onSave }: { value: string; onSave: (v: string) =
   );
 }
 
-/** Networks that count as home besides the usual private ones (Plex's "LAN networks"). */
-function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
+/** Networks that count as home besides automatically detected interface subnets (Plex's "LAN networks"). */
+function HomeNetworksRow({ value, automatic = [], bridge = false, onSave }: { value: string; automatic?: string[]; bridge?: boolean; onSave: (v: string) => Promise<unknown> }) {
   const { t } = useTranslation('accessSettings');
   const [text, setText] = useState(value);
   const [error, setError] = useState('');
@@ -1137,6 +1137,8 @@ function HomeNetworksRow({ value, onSave }: { value: string; onSave: (v: string)
       label={t("accessSettings:settings.homeNetworks")}
       description={
         <>{t('accessSettings:settings.networksDescription', { network: tailscale })}
+          <span className="mt-1 block">{automatic.length ? t('accessSettings:settings.detectedHomeNetworks', { networks: automatic.join(', ') }) : t('accessSettings:settings.noDetectedHomeNetworks')}</span>
+          {bridge && <span role="status" className="mt-1 block text-warning">{t('accessSettings:settings.bridgeHomeNetworks')}</span>}
           {!value.includes(tailscale) && (
             <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>{t("accessSettings:settings.addTailscale")}</button>
           )}
