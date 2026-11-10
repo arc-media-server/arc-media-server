@@ -71,16 +71,13 @@ type Session struct {
 	OffsetMS int64
 	Options  Options
 
-	dir           string
-	cancel        context.CancelFunc
-	done          chan struct{}
-	detectMu      sync.Mutex
-	probeHardware func(context.Context, string, []string, string) ([]byte, error)
-	renderNodes   func() []string
-	mu            sync.Mutex
-	err           error
-	stderr        bytes.Buffer
-	lastSeen      time.Time
+	dir      string
+	cancel   context.CancelFunc
+	done     chan struct{}
+	mu       sync.Mutex
+	err      error
+	stderr   bytes.Buffer
+	lastSeen time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
 	proc       *os.Process
