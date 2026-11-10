@@ -126,7 +126,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	changes := events.New()
 	tasks := activity.New()
 	tasks.SetOnChange(func() { changes.Publish(events.Event{Topic: "activity", Admin: true}) })
-	notifier := notify.New(st, log)
+	notifier := notify.NewWithContext(ctx, st, log)
+	defer notifier.Close()
 	// The maintenance window; its hours come from the settings below.
 	window := schedule.New(2, 5)
 	backups := backup.New(backupDir, st, log)
@@ -268,6 +269,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		return append(sources, full...), nil
 	})
+
+	defer artKeeper.Close()
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
 	sc.Events = changes
