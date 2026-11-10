@@ -3,6 +3,14 @@ package apidoc
 // supplementOperation describes wire contracts which cannot be recovered from Go JSON types.
 // Keep these next to the generator so regeneration preserves transport details.
 func supplementOperation(r route, op map[string]any, components map[string]any) {
+	if r.access != "anyone" && (r.method == "POST" || r.method == "PUT" || r.method == "PATCH" || r.method == "DELETE") {
+		if body, ok := op["requestBody"].(map[string]any); ok {
+			if content, ok := body["content"].(map[string]any); ok && content["application/json"] != nil {
+				body["description"] = "Authenticated JSON reads have a 2 MiB server ceiling; endpoint-specific limits can be smaller. Known oversized Content-Length returns 413; streamed overflows can return 400 from the decoder."
+				body["x-arc-server-max-bytes"] = 2097152
+			}
+		}
+	}
 	responses := op["responses"].(map[string]any)
 	header := func(description string) map[string]any {
 		return map[string]any{"description": description, "schema": map[string]any{"type": "string"}}
