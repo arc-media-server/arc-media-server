@@ -234,6 +234,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		defer ffMu.Unlock()
 		return ffmpegBin
 	}, prober.Bin, log)
+	defer transcoder.Close()
 	go transcoder.Run(ctx)
 	go transcoder.Detect(ctx)
 
