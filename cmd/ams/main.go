@@ -28,6 +28,7 @@ import (
 	"ams/internal/backup"
 	"ams/internal/config"
 	"ams/internal/events"
+	"ams/internal/lifecycle"
 	"ams/internal/logbuf"
 	"ams/internal/markers"
 	"ams/internal/metadata"
@@ -104,6 +105,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	workers := lifecycle.New(ctx, log)
+	ctx = workers.Context()
 
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return err
@@ -123,11 +126,14 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer st.Close()
+	defer workers.Close() // Always cancel/join writers before closing the store.
+	var apiWorkers sync.WaitGroup
+	workers.OnStop("asynchronous API work", apiWorkers.Wait)
 	changes := events.New()
 	tasks := activity.New()
 	tasks.SetOnChange(func() { changes.Publish(events.Event{Topic: "activity", Admin: true}) })
 	notifier := notify.NewWithContext(ctx, st, log)
-	defer notifier.Close()
+	workers.OnStop("webhook deliveries", notifier.Close)
 	// The maintenance window; its hours come from the settings below.
 	window := schedule.New(2, 5)
 	backups := backup.New(backupDir, st, log)
@@ -156,30 +162,34 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	bg.Events = changes
 	bg.Log = log
 	bg.Configure(cfg)
-	go bg.Monitor(ctx)
-	go bg.RunUpkeep(ctx, "database", func(ctx context.Context, allowed func() bool) (string, error) {
-		result, err := st.OptimizeDatabase(ctx, allowed)
-		detail := fmt.Sprintf("Database size %s → %s; integrity checked; query statistics updated", upkeep.FormatBytes(result.BeforeBytes), upkeep.FormatBytes(result.AfterBytes))
-		if result.Vacuumed {
-			detail += "; compacted"
-		} else if result.VacuumSkipped != "" {
-			detail += "; " + result.VacuumSkipped
-		}
-		if result.CheckpointBusy {
-			detail += "; active readers delayed final disk reclamation"
-		}
-		if err != nil {
-			detail = "Database upkeep did not complete"
-		}
-		return detail, err
+	workers.Go("background monitor", func() { bg.Monitor(ctx) })
+	workers.Go("database maintenance", func() {
+		bg.RunUpkeep(ctx, "database", func(ctx context.Context, allowed func() bool) (string, error) {
+			result, err := st.OptimizeDatabase(ctx, allowed)
+			detail := fmt.Sprintf("Database size %s → %s; integrity checked; query statistics updated", upkeep.FormatBytes(result.BeforeBytes), upkeep.FormatBytes(result.AfterBytes))
+			if result.Vacuumed {
+				detail += "; compacted"
+			} else if result.VacuumSkipped != "" {
+				detail += "; " + result.VacuumSkipped
+			}
+			if result.CheckpointBusy {
+				detail += "; active readers delayed final disk reclamation"
+			}
+			if err != nil {
+				detail = "Database upkeep did not complete"
+			}
+			return detail, err
+		})
 	})
-	go bg.RunUpkeep(ctx, "cache", func(ctx context.Context, allowed func() bool) (string, error) {
-		result, err := upkeep.CleanCaches(ctx, st, dataDir, allowed)
-		return result.String(), err
+	workers.Go("cache maintenance", func() {
+		bg.RunUpkeep(ctx, "cache", func(ctx context.Context, allowed func() bool) (string, error) {
+			result, err := upkeep.CleanCaches(ctx, st, dataDir, allowed)
+			return result.String(), err
+		})
 	})
 	backups.Allowed = func() bool { return bg.Ready("backup") && !bg.Forced("backup") }
 	bg.Register("backup", func() {
-		go func() {
+		workers.Go("requested backup", func() {
 			defer bg.CompletePass("backup")
 			for !bg.Ready("backup") {
 				if ctx.Err() != nil || bg.Mode("backup") == "off" {
@@ -194,15 +204,15 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			if _, err := backups.Create(ctx, backup.ReasonAuto); err != nil {
 				log.Warn("requested backup failed", "err", err)
 			}
-		}()
+		})
 	})
-	go backups.Run(ctx)
+	workers.Go("backup scheduler", func() { backups.Run(ctx) })
 	// Critics' ratings (Rotten Tomatoes and Metacritic with an OMDb key). IMDb is paused.
 	extRatings := ratings.New(filepath.Join(dataDir, "ratings"), st, log)
 	extRatings.Events = changes
 	extRatings.Activity, extRatings.Window = tasks, window
 	extRatings.SetOMDbKey(cfg.OMDbKey)
-	go extRatings.Run(ctx)
+	workers.Go("ratings maintenance", func() { extRatings.Run(ctx) })
 
 	prober := probe.New("ffprobe")
 	var ffMu sync.Mutex
@@ -235,9 +245,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		defer ffMu.Unlock()
 		return ffmpegBin
 	}, prober.Bin, log)
-	defer transcoder.Close()
-	go transcoder.Run(ctx)
-	go transcoder.Detect(ctx)
+	workers.OnStop("conversion cleanup", transcoder.Close)
+	workers.Go("conversion monitor", func() { transcoder.Run(ctx) })
+	workers.Go("hardware detection", func() { transcoder.Detect(ctx) })
 
 	tmdb, tvdb := metadata.NewTMDB(cfg.TMDBKey), metadata.NewTVDB(cfg.TVDBKey)
 	subsOnline := opensubtitles.New("Arc Media Server v" + version)
@@ -270,15 +280,16 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return append(sources, full...), nil
 	})
 
-	defer artKeeper.Close()
+	workers.OnStop("artwork keeper", artKeeper.Close)
 
 	sc := scanner.New(ctx, st, prober, tmdb, tvdb, log)
+	workers.OnStop("scanner jobs", sc.Wait)
 	sc.Events = changes
 	sc.Activity = tasks
 	sc.Window = window
 	// Automatic trash never uses Run now's outside-window override. It is independent of
 	// metadata refresh and ordinary automatic backup settings, but always takes a safety backup.
-	go func() {
+	workers.Go("automatic trash", func() {
 		tick := time.NewTicker(time.Minute)
 		defer tick.Stop()
 		allowed := func() bool { return window.OpenAt(time.Now()) && bg.Ready("empty_trash") }
@@ -301,7 +312,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				}
 			}
 		}
-	}()
+	})
 
 	sc.ThumbDir = filepath.Join(dataDir, "videothumbs")
 	sc.FFmpeg = func() string {
@@ -342,7 +353,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	watch.Configure(scanConfig(cfg))
 	watch.ScanPaths = sc.RequestPaths
-	go watch.Run(ctx)
+	workers.Go("library watcher", func() { watch.Run(ctx) })
 	// librariesChanged brings the watcher in step with the libraries, optionally scanning them all.
 	// Timeline thumbnails, made in the background for libraries that have them turned on.
 	thumbs := trickplay.New(filepath.Join(dataDir, "trickplay"), st, func() string {
@@ -353,8 +364,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	thumbs.Activity = tasks
 	thumbs.Background = bg
 	bg.Register("previews", thumbs.Wake)
-	go bg.RunAnalysis(ctx, sc.EnrichFormatFile)
-	go thumbs.Run(ctx)
+	workers.Go("media analysis", func() { bg.RunAnalysis(ctx, sc.EnrichFormatFile) })
+	workers.Go("timeline previews", func() { thumbs.Run(ctx) })
 	// Intro and credits markers, found in the background.
 	skips = markers.New(st, log)
 	skips.Activity, skips.Window = tasks, window
@@ -367,7 +378,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	skips.Background = bg
 	bg.Register("markers", skips.WakeLocal)
 	skips.Configure(cfg.TheIntroDBKey, cfg.DetectionMode != "off")
-	go skips.Run(ctx)
+	workers.Go("intro detection", func() { skips.Run(ctx) })
 	// Optimized versions, made one at a time in the background.
 	optimizer := optimize.New(filepath.Join(dataDir, "optimized"), st, log)
 	optimizer.Events = changes
@@ -375,7 +386,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	optimizer.FFmpeg = skips.FFmpeg
 	optimizer.Probe = prober.Probe
 	optimizer.ToneMap = func() bool { return transcoder.Caps().ToneMapping }
-	go optimizer.Run(ctx)
+	workers.Go("optimized copies", func() { optimizer.Run(ctx) })
 	librariesChanged := func(scan bool) {
 		thumbs.Wake()
 		libs, err := st.ListLibraries(ctx)
@@ -399,7 +410,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		if !refreshing.CompareAndSwap(false, true) {
 			return
 		}
-		go func() {
+		workers.Go("requested metadata", func() {
 			defer refreshing.Store(false)
 			defer bg.CompletePass("metadata")
 			libs, err := st.ListLibraries(ctx)
@@ -439,11 +450,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 					}
 				}
 			}
-		}()
+		})
 	})
 	// Once a night, refresh known titles without discovering media folders,
 	// and catch up on scrubbing previews. Backups check the window themselves.
-	go func() {
+	workers.Go("maintenance scheduler", func() {
 		last := ""
 		for {
 			select {
@@ -463,10 +474,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			task.Detail(fmt.Sprintf("Requested known-title maintenance for %d libraries", len(libs)))
 			task.Finish(err)
 		}
-	}()
+	})
 
 	// Sessions unused for 90 days are forgotten.
-	go func() {
+	workers.Go("session retention", func() {
 		for {
 			started := time.Now()
 			removed, err := st.DeleteStaleSessions(ctx, started.Add(-90*24*time.Hour).Unix())
@@ -483,7 +494,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			case <-time.After(24 * time.Hour):
 			}
 		}
-	}()
+	})
 
 	// The web server can move to a new address when the port or network setting changes.
 	var mu sync.Mutex
@@ -497,6 +508,16 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return publicURL(c)
 	}
 	listeners := make(chan net.Listener, 1)
+	workers.OnStop("pending listeners", func() {
+		for {
+			select {
+			case pending := <-listeners:
+				_ = pending.Close()
+			default:
+				return
+			}
+		}
+	})
 	// Where converted streams are written: the folder chosen in Settings (in an "Arc Transcode"
 	// folder of its own), or the data folder's.
 	transcodeDir := func(c settings.Settings) string {
@@ -511,10 +532,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	applyHomeNetworks(cfg.HomeNetworks, cfg.TrustedProxies)
 	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
-	go remoteAccess.Mapper.Run(ctx)
+	workers.Go("remote mapping", func() { remoteAccess.Mapper.Run(ctx) })
 	// CPU, memory and network use for the Dashboard's graphs.
 	stats := sysstats.New()
-	go stats.Run(ctx)
+	workers.Go("system statistics", func() { stats.Run(ctx) })
 	// Caller holds mu. Restores use this without validating provider keys online or
 	// rewriting restored settings; recovery must also work while providers are down.
 	useSettings := func(next settings.Settings) {
@@ -581,7 +602,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				return fmt.Errorf("no working ffprobe at %s", next.FFprobePath)
 			}
 			// A different FFmpeg may support different hardware.
-			go transcoder.Detect(context.WithoutCancel(ctx))
+			workers.Go("hardware detection", func() { transcoder.Detect(workers.Context()) })
 		}
 		var ln net.Listener
 		if next.ListenAddress() != current.ListenAddress() {
@@ -598,20 +619,21 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		}
 		useSettings(next)
 		if ln != nil {
-			listeners <- ln
+			select {
+			case listeners <- ln:
+			case <-workers.Context().Done():
+				_ = ln.Close()
+			}
 		}
 		return nil
 	}
 
-	var apiWorkers sync.WaitGroup
-	defer func() { stop(); apiWorkers.Wait() }()
 	subtitleCache := subtitles.NewCacheWithContext(ctx, filepath.Join(dataDir, "subtitles"), func() string {
 		ffMu.Lock()
 		defer ffMu.Unlock()
 		return ffmpegBin
 	}, log)
-	defer subtitleCache.Close()
-
+	workers.OnStop("subtitle extraction", subtitleCache.Close)
 	handler := api.New(api.Deps{
 		WorkContext: ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
@@ -635,9 +657,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				log.Warn("restored ffprobe unavailable; trying automatic discovery", "err", err)
 				findFFprobe("")
 			}
-			go transcoder.Detect(context.WithoutCancel(ctx))
+			workers.Go("hardware detection", func() { transcoder.Detect(workers.Context()) })
 			if ln != nil {
-				listeners <- ln
+				select {
+				case listeners <- ln:
+				case <-workers.Context().Done():
+					_ = ln.Close()
+				}
 			}
 			// Files may have changed since the backup was made: rescan everything.
 			librariesChanged(true)
@@ -666,6 +692,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		},
 	})
 
+	handler = api.TrackRequests(handler, func() (func(), bool) { return workers.Begin("HTTP requests") })
+
 	ln, err := net.Listen("tcp", cfg.ListenAddress())
 	if err != nil {
 		return fmt.Errorf("can't listen on %s (is Arc already running?): %w", cfg.ListenAddress(), err)
@@ -675,31 +703,41 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		// restart (or a Docker stop) for the whole timeout.
 		closing := make(chan struct{})
 		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, IdleTimeout: 2 * time.Minute,
-			BaseContext: func(net.Listener) context.Context { return api.ShutdownContext(closing) }}
+			BaseContext: func(net.Listener) context.Context { return api.ShutdownContextWithParent(ctx, closing) }}
 		srv.RegisterOnShutdown(func() { close(closing) })
 		served := make(chan error, 1)
-		go func(ln net.Listener) { served <- srv.Serve(remote.Listener(ln, remoteAccess.Certs.Config)) }(ln)
+		servingListener := ln
+		if !workers.Go("HTTP listener", func() { served <- srv.Serve(remote.Listener(servingListener, remoteAccess.Certs.Config)) }) {
+			_ = servingListener.Close()
+			return nil
+		}
 		log.Info("Arc Media Server started", "version", version, "revision", revision, "address", displayAddress(ln.Addr()), "data", dataDir)
 
 		var next net.Listener
+		var serveErr error
 		select {
 		case <-ctx.Done():
 		case next = <-listeners:
 		case err := <-served:
 			if !errors.Is(err, http.ErrServerClosed) {
-				return err
+				serveErr = err
 			}
 		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Warn("HTTP shutdown timed out; closing active connections")
+			_ = srv.Close()
+		}
 		cancel()
+		if serveErr != nil {
+			return serveErr
+		}
 		if next == nil {
 			break
 		}
 		ln = next
 	}
-	sc.Wait()
-	apiWorkers.Wait()
+	workers.Close()
 	log.Info("stopped")
 	return nil
 }
