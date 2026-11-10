@@ -570,6 +570,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			s.writePlaybackPreview(w, out, false)
 			return
 		}
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "this server can't convert files")
 		return
 	}
@@ -621,6 +622,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	if errors.Is(err, transcode.ErrBusy) || errors.Is(err, transcode.ErrStorageFull) {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
@@ -744,6 +746,7 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return
 	}
@@ -836,6 +839,7 @@ func (s *Server) subtitleASS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return
 	}
@@ -872,6 +876,7 @@ func (s *Server) readSubtitle(w http.ResponseWriter, r *http.Request) (subtitles
 		return subtitles.Track{}, nil, false
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return subtitles.Track{}, nil, false
 	}
@@ -1385,6 +1390,7 @@ func (s *Server) logPlayback(r *http.Request, fileID int64, method string, reaso
 // Repeated requests while detection is running reuse that job. No media files are inspected.
 func (s *Server) detectHardware(w http.ResponseWriter, r *http.Request) {
 	if s.transcoder == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "transcoding unavailable")
 		return
 	}

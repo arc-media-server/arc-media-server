@@ -42,6 +42,7 @@ func (s *Server) getMaintenance(w http.ResponseWriter, r *http.Request) {
 // the maintenance hours; playback and library work still go first (admin).
 func (s *Server) runMaintenance(w http.ResponseWriter, r *http.Request) {
 	if s.background == nil {
+		markExpectedResponse(w)
 		writeError(w, 503, "Background scheduling unavailable")
 		return
 	}
