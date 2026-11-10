@@ -145,3 +145,10 @@ profiles receive its filename only. Library `paths` arrays are empty for non-adm
 filesystem diagnostics are administrator detail; ordinary profiles receive a generic failure.
 Use stream URLs/file ids for playback and indexed relative folder endpoints for browsing, rather
 than reconstructing server paths. No stored file identity/path is changed by response masking.
+
+### Event stream capacity
+
+Event streams are bounded to eight simultaneous connections per profile as well as 32 per
+server. A ninth connection gets `429` with `Retry-After: 5`; close disconnected streams and honor
+that backoff rather than repeatedly opening replacements. Sessions/devices using the same
+profile share its allowance. Invalid principals do not reserve a slot; disconnect releases it.

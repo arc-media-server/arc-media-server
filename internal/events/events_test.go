@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -55,16 +56,16 @@ func TestCoalescingReplayAndBounds(t *testing.T) {
 	if batch, _, reset = h.Read(cursor); reset || len(batch) != 1 {
 		t.Fatal("overflow recovery")
 	}
-	for range MaxStreams {
-		if !h.Open() {
+	for i := range MaxStreams {
+		if !h.Open(fmt.Sprint(i)) {
 			t.Fatal("early cap")
 		}
 	}
-	if h.Open() {
+	if h.Open("overflow") {
 		t.Fatal("cap not enforced")
 	}
-	h.Close()
-	if !h.Open() {
+	h.Close("0")
+	if !h.Open("replacement") {
 		t.Fatal("slot not released")
 	}
 }
@@ -81,4 +82,40 @@ func TestConcurrentPublishRead(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+func TestConcurrentProfileAdmissionAndDisconnect(t *testing.T) {
+	h := New()
+	var wg sync.WaitGroup
+	var admitted atomic.Int32
+	for range 100 {
+		wg.Go(func() {
+			if h.Open("one-profile") {
+				admitted.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+	if got := admitted.Load(); got != MaxProfileStreams {
+		t.Fatalf("admitted %d", got)
+	}
+	if !h.Open("another-profile") {
+		t.Fatal("one profile starved another")
+	}
+	for range MaxProfileStreams {
+		h.Close("one-profile")
+	}
+	if len(h.profileStreams) != 1 {
+		t.Fatal("disconnected profiles retained")
+	}
+	if !h.Open("one-profile") {
+		t.Fatal("released profile cannot reconnect")
+	}
+	h.Close("missing-profile")
+	if h.streams != 2 {
+		t.Fatal("unpaired close changed global capacity")
+	}
+	if h.Open("") {
+		t.Fatal("empty principal accepted")
+	}
 }
