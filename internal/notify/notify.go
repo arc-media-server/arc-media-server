@@ -3,6 +3,7 @@
 package notify
 
 import (
+	"ams/internal/safeerr"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -157,6 +158,7 @@ func (n *Notifier) deliver(ctx context.Context, h store.Webhook, ev Event) Deliv
 		var req *http.Request
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, h.URL, bytes.NewReader(body))
 		if err != nil {
+			err = safeerr.Transport(err)
 			break
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -164,6 +166,7 @@ func (n *Notifier) deliver(ctx context.Context, h store.Webhook, ev Event) Deliv
 		var resp *http.Response
 		resp, err = n.http.Do(req)
 		if err != nil {
+			err = safeerr.Transport(err)
 			continue
 		}
 		resp.Body.Close()

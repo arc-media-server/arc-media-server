@@ -2,6 +2,7 @@
 package metadata
 
 import (
+	"ams/internal/safeerr"
 	"cmp"
 	"context"
 	"errors"
@@ -435,7 +436,7 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
-			return err
+			return safeerr.Transport(err)
 		}
 		req.Header.Set("Accept", "application/json")
 		if bearer {
@@ -449,7 +450,7 @@ func (c *TMDB) get(ctx context.Context, path string, q url.Values, out any) erro
 				}
 				continue
 			}
-			return err
+			return safeerr.Transport(err)
 		}
 		switch {
 		case retryStatus(resp.StatusCode) && attempt < 3:
