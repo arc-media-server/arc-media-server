@@ -72,6 +72,9 @@ func IsLocal(r *http.Request) bool {
 	return client != "" && IsHomeIP(client)
 }
 
+// IsTrustedProxy reports whether the direct peer may supply forwarding metadata.
+func IsTrustedProxy(r *http.Request) bool { return isTrusted(peerIP(r)) }
+
 // ClientIP is the address a request comes from: the connection's, or for a trusted proxy the
 // client address it reports. For rate limits, logs and the Dashboard, not for granting access.
 func ClientIP(r *http.Request) string {
@@ -258,6 +261,9 @@ func ParseNetworks(s string) ([]*net.IPNet, string, error) {
 		_, n, err := net.ParseCIDR(f)
 		if err != nil {
 			return nil, "", errors.New(f + " isn't a network: write it like 100.64.0.0/10 or 203.0.113.5")
+		}
+		if ones, _ := n.Mask.Size(); ones == 0 {
+			return nil, "", errors.New("all-address networks are not allowed; specify a home or proxy subnet")
 		}
 		nets = append(nets, n)
 		tidy = append(tidy, n.String())
