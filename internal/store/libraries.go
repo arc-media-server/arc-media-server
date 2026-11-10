@@ -58,12 +58,16 @@ func (s *Store) CreateLibrary(ctx context.Context, name, kind, sourceOrdering st
 
 // UpdateLibrary renames a library, replaces folders and sets file numbering. An optional
 // provider is saved in the same transaction, including duplicate-name validation.
-// Files that were in a folder no longer in the library are forgotten (their titles are kept, so
-// history survives, but no longer listed). It returns ErrDuplicateName if the name is taken.
+// Verified single-root moves preserve file identity; other removed files are marked missing.
+// It returns ErrDuplicateName if the name is taken.
 func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrdering string, paths []string, detailsProvider ...string) error {
 	var provider any
 	if len(detailsProvider) > 0 {
 		provider = detailsProvider[0]
+	}
+	plan, err := s.prepareLibraryRelocation(ctx, id, paths)
+	if err != nil {
+		return err
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -71,6 +75,13 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 	}
 	defer tx.Rollback()
 
+	if err := updateLibraryTx(ctx, tx, id, name, sourceOrdering, paths, provider, plan); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func updateLibraryTx(ctx context.Context, tx *sql.Tx, id int64, name, sourceOrdering string, paths []string, provider any, plan *libraryRelocation) error {
 	var exists int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE name = ? COLLATE NOCASE AND id <> ?`,
 		name, id).Scan(&exists); err != nil {
@@ -83,6 +94,9 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 		name, sourceOrdering, provider, id); err != nil {
 		return err
 	}
+	if err := applyLibraryRelocationTx(ctx, tx, id, plan); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM library_paths WHERE library_id = ?`, id); err != nil {
 		return err
 	}
@@ -93,7 +107,7 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 		}
 	}
 
-	// Forget files outside the remaining folders.
+	// Keep per-file edits and links for removed/unverified paths, but hide them.
 	rows, err := tx.QueryContext(ctx, `SELECT id, path FROM media_files WHERE library_id = ?`, id)
 	if err != nil {
 		return err
@@ -115,11 +129,11 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 		return err
 	}
 	for _, fid := range gone {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM media_files WHERE id = ?`, fid); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE media_files SET missing_since=COALESCE(missing_since,?) WHERE id = ?`, time.Now().Unix(), fid); err != nil {
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // DeleteLibrary removes a library and everything AMS knows about it. Media files aren't touched.
