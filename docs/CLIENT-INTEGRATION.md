@@ -147,8 +147,8 @@ ids coalesce; the global bound is 5,000 unique titles and JSON bodies are limite
 queue returns 429 with `Retry-After` before that request's synchronous edits are applied; temporary
 catalog maintenance returns 503. Accepted jobs appear in Activity and survive HTTP disconnects,
 but stop with Activity cancellation, server shutdown or the batch deadline. They are not durable
-queued jobs across a restart. Reload state before retrying a mixed edit/played request after other
-errors; existing synchronous bulk transaction boundaries are unchanged.
+queued jobs across a restart. Metadata, watched-state and watchlist changes from one accepted
+bulk request commit together; invalid or failed writes leave those changes unapplied.
 
 ### Profile-visible filesystem details
 

@@ -29,7 +29,7 @@ func TestSettingsLogsOnlyKnownCommittedChangesWithoutValues(t *testing.T) {
 	var logs bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&logs, nil))
 	fail := false
-	h := New(Deps{Store: s.store, Log: log, Settings: func() settings.Settings { return cfg }, FFprobeStatus: func() any { return nil }, ApplySettings: func(_ context.Context, next settings.Settings) error {
+	h := New(Deps{Store: s.store, Log: log, Settings: func() settings.Settings { return cfg }, FFprobeStatus: func() any { return nil }, ApplySettings: func(_ context.Context, _ settings.Settings, next settings.Settings) error {
 		if fail {
 			return errors.New("fixture refusal")
 		}

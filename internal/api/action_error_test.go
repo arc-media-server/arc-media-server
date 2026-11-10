@@ -157,8 +157,18 @@ func TestActionInternalFailuresAreNotClientErrorsOrLeakedAndLogOnce(t *testing.T
 			if err = json.Unmarshal(w.Body.Bytes(), &response); err != nil || response["error"] != "internal error" {
 				t.Errorf("internal text leaked or response not generic: %s (%v)", w.Body.String(), err)
 			}
-			if got := len(logs.Lines(slog.LevelWarn, 0)); got != 1 {
-				t.Errorf("expected one failure diagnostic, got %d", got)
+			lines := logs.Lines(slog.LevelWarn, 0)
+			want := 1
+			if kind == "backup restore" {
+				// Catalog maintenance must also report failure to resume queued scans.
+				// This is a distinct recovery operation, not a second request summary.
+				want = 2
+				if len(lines) == 2 && (lines[1].Level != "WARN" || lines[1].Message != "resuming queued scans failed") {
+					t.Errorf("unexpected recovery diagnostic: %+v", lines[1])
+				}
+			}
+			if len(lines) != want || len(lines) == 0 || lines[0].Level != "ERROR" || lines[0].Message != "request failed" {
+				t.Errorf("expected one request failure and %d recovery diagnostic(s), got %+v", want-1, lines)
 			}
 		})
 	}
