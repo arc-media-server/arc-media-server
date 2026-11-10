@@ -271,7 +271,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 			"-metadata:s:a:0", "language="+o.AudioLanguage, "-metadata:s:a:0", "title="+o.AudioTitle,
 			"-disposition:a:0", "default")
 	}
-	scale := fmt.Sprintf("scale=-2:'min(%d,ih)'", o.Quality)
+	scale := transcode.FitScaleFilter(o.Quality)
 	for _, s := range f.Streams {
 		if s.Kind == "video" && (s.ColorTransfer == "smpte2084" || s.ColorTransfer == "arib-std-b67") && m.ToneMap != nil && m.ToneMap() {
 			scale = transcode.ToneMapFilter + "," + scale // HDR becomes SDR that looks right everywhere

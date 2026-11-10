@@ -300,8 +300,8 @@ func buildArgs(o Options, start float64, dir string) []string {
 			pre = append(pre, ToneMapFilter)
 		}
 	}
-	if encode && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
-		post = append(post, "scale=-2:"+strconv.Itoa(o.MaxHeight))
+	if encode && o.MaxHeight > 0 {
+		post = append(post, FitScaleFilter(o.MaxHeight))
 	}
 	if encode && o.HWEncoder == "h264_vaapi" {
 		post = append(post, "format=nv12", "hwupload")
