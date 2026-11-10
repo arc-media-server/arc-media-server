@@ -35,10 +35,11 @@ import (
 )
 
 const (
-	IntervalMS = 10_000
-	ThumbWidth = 320
-	Columns    = 10
-	Rows       = 10
+	IntervalMS        = 10_000
+	ThumbWidth        = 320
+	Columns           = 10
+	Rows              = 10
+	maxUrgentRequests = 256
 )
 
 // Info describes a file's thumbnails.
@@ -140,11 +141,22 @@ func (m *Manager) Sheet(fileID int64, n int) (string, bool) {
 
 // Request moves a file to the front of the queue (someone is watching it).
 func (m *Manager) Request(fileID int64) {
-	if m.Info(fileID) != nil {
+	if fileID <= 0 || m.Info(fileID) != nil {
 		return
 	}
 	m.mu.Lock()
-	m.urgent = append(m.urgent, fileID)
+	index := slices.Index(m.urgent, fileID)
+	if index < 0 {
+		// Urgency is a hint, not durable work: a normal pass still discovers all eligible files.
+		// Favor current viewers and forget the oldest hint when generation is disabled/unavailable.
+		if len(m.urgent) == maxUrgentRequests {
+			m.urgent = m.urgent[:maxUrgentRequests-1]
+		}
+		index = len(m.urgent)
+		m.urgent = append(m.urgent, 0)
+	}
+	copy(m.urgent[1:index+1], m.urgent[:index])
+	m.urgent[0] = fileID
 	m.mu.Unlock()
 	select {
 	case m.wake <- struct{}{}:
