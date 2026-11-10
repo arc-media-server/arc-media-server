@@ -119,6 +119,36 @@ func TestDetect(t *testing.T) {
 		}
 		files = append(files, store.MarkerJob{FileID: int64(ep), Path: path, DurationMS: 185_000})
 	}
+
+	for _, bad := range []string{"silent.mkv", "corrupt.mkv"} {
+		t.Run("isolate "+bad, func(t *testing.T) {
+			path := filepath.Join(dir, bad)
+			if bad == "silent.mkv" {
+				if out, err := exec.Command(ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=size=16x16:rate=1:duration=2", "-c:v", "libx264", path).CombinedOutput(); err != nil {
+					t.Fatal(err, string(out))
+				}
+			} else if err := os.WriteFile(path, []byte("unreadable fixture"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			mixed := append([]store.MarkerJob{files[0], {FileID: 99, Path: path, DurationMS: 185000}}, files[1:]...)
+			skipped := 0
+			got, err := detectSeason(context.Background(), ffmpeg, mixed, func(_ store.MarkerJob, _ error) { skipped++ })
+			if skipped != 1 {
+				t.Errorf("skip count=%d, want 1", skipped)
+			}
+			if err != nil {
+				t.Fatalf("one bad episode aborted season: %v", err)
+			}
+			for _, good := range files {
+				if len(got[good.FileID]) == 0 {
+					t.Errorf("lost markers for healthy episode %d", good.FileID)
+				}
+			}
+			if len(got[99]) != 0 {
+				t.Fatal("invented markers for unreadable audio")
+			}
+		})
+	}
 	found, err := detectSeason(context.Background(), ffmpeg, files)
 	if err != nil {
 		t.Fatal(err)
