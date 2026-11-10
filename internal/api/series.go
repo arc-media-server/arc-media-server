@@ -28,6 +28,10 @@ func (s *Server) seriesFromPath(w http.ResponseWriter, r *http.Request) (*store.
 		s.fail(w, err)
 		return nil, nil, false
 	}
+	if lib == nil {
+		writeError(w, http.StatusNotFound, "item not found")
+		return nil, nil, false
+	}
 	return it, lib, true
 }
 
