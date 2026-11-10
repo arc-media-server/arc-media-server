@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-func libraryPerformanceServer(t *testing.T, movies, shows, episodes int) (http.Handler, *store.Store) {
+func libraryPerformanceServer(t *testing.T, movies, shows, episodes int, configure ...func(*sql.Tx) error) (http.Handler, *store.Store) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "api.db")
 	st, err := store.Open(t.Context(), path, store.Options{})
@@ -43,6 +43,11 @@ func libraryPerformanceServer(t *testing.T, movies, shows, episodes int) (http.H
 	defer tx.Rollback()
 	if err = perftest.Seed(t.Context(), tx, movies, shows, episodes); err != nil {
 		t.Fatal(err)
+	}
+	for _, setup := range configure {
+		if err := setup(tx); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
