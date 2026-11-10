@@ -332,7 +332,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/stats/history", admin(s.statsHistory))
 	mux.HandleFunc("GET /api/stats/storage", admin(s.statsStorage))
 	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
-	mux.HandleFunc("PATCH /api/settings", admin(s.logSettingChanges(s.updateSettings)))
+	mux.HandleFunc("PATCH /api/settings", admin(s.updateSettings))
 	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))
 	mux.HandleFunc("PATCH /api/libraries/{id}", admin(s.updateLibrary))
 	mux.HandleFunc("DELETE /api/libraries/{id}", admin(s.deleteLibrary))
