@@ -477,17 +477,18 @@ func (s *Store) LibraryItemFiles(ctx context.Context, libraryID int64) (map[stri
 
 // UnprobedFile is a present file not yet read with ffprobe.
 type UnprobedFile struct {
-	ID       int64
-	Path     string
-	Size     int64
-	ModTime  int64
-	LastSeen int64
+	ID         int64
+	Path       string
+	Size       int64
+	ModTime    int64
+	LastSeen   int64
+	ProbeError string
 }
 
 // UnprobedFiles lists a library's present files that haven't been read yet, in path order.
 func (s *Store) UnprobedFiles(ctx context.Context, libraryID int64) ([]UnprobedFile, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, path, size, mtime, last_seen_at FROM media_files
+		SELECT id, path, size, mtime, last_seen_at, probe_error FROM media_files
 		WHERE library_id = ? AND probed_at IS NULL AND missing_since IS NULL ORDER BY path`, libraryID)
 	if err != nil {
 		return nil, err
@@ -496,7 +497,7 @@ func (s *Store) UnprobedFiles(ctx context.Context, libraryID int64) ([]UnprobedF
 	var out []UnprobedFile
 	for rows.Next() {
 		var f UnprobedFile
-		if err := rows.Scan(&f.ID, &f.Path, &f.Size, &f.ModTime, &f.LastSeen); err != nil {
+		if err := rows.Scan(&f.ID, &f.Path, &f.Size, &f.ModTime, &f.LastSeen, &f.ProbeError); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
