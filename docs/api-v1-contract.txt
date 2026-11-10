@@ -6731,6 +6731,7 @@ POST /items/{id}/playback 200 .reason_codes array
 POST /items/{id}/playback 200 .reason_codes[] string
 POST /items/{id}/playback 200 .reasons array
 POST /items/{id}/playback 200 .reasons[] string
+POST /items/{id}/playback 200 .rolling_hls boolean
 POST /items/{id}/playback 200 .server_limit_kbps integer
 POST /items/{id}/playback 200 .session_id string
 POST /items/{id}/playback 200 .source_height integer
@@ -6855,6 +6856,7 @@ POST /items/{id}/playback-preview 200 .reason_codes array
 POST /items/{id}/playback-preview 200 .reason_codes[] string
 POST /items/{id}/playback-preview 200 .reasons array
 POST /items/{id}/playback-preview 200 .reasons[] string
+POST /items/{id}/playback-preview 200 .rolling_hls boolean
 POST /items/{id}/playback-preview 200 .server_limit_kbps integer
 POST /items/{id}/playback-preview 200 .session_id string
 POST /items/{id}/playback-preview 200 .source_height integer

@@ -14,7 +14,7 @@ async function openOrdering(page: Page) {
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
 
-type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string };
+type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string; rolling: string };
 const password = 'Arc-browser-test-123';
 
 const test = base.extend<{ media: Fixtures }>({
@@ -893,4 +893,35 @@ test('home-network settings explain bridge limits and keep the password choice',
   await expect(page.getByText(/Use host networking or a br0\/custom LAN network/)).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Skip the password at home', exact: true })).toBeEnabled();
   await page.screenshot({ path: info.outputPath('bridge-home-networks.png'), fullPage: true });
+});
+
+test('rolling converted history can be discarded and seeking back starts a fresh session', async ({ page, media }) => {
+ await setup(page);
+ expect((await page.request.patch('/api/settings',{data:{hw_accel:false}})).ok()).toBeTruthy();
+ await addLibrary(page,'Rolling fixtures',media.rolling);
+ await page.locator('aside').getByRole('link',{name:'Rolling fixtures',exact:true}).click();
+ await page.getByRole('link',{name:/Rolling Movie/}).first().click({position:{x:12,y:60}});
+ const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+ const response=page.waitForResponse(r=>r.url().endsWith('/playback')&&r.ok());
+ await page.getByRole('button',{name:'Play',exact:true}).click();
+ const plan=await(await response).json();expect(plan.rolling_hls).toBe(true);expect(plan.method).toBe('transcode');
+ const video=page.locator('video');await expect.poll(()=>video.evaluate((v:HTMLVideoElement)=>v.currentTime)).toBeGreaterThan(0.5);
+ // Fetch completed segments to advance consumption without waiting minutes of wall time.
+ let sequence=0;
+ await expect.poll(async()=>{
+  const manifest=await(await page.request.get(plan.url)).text();
+  const names=manifest.match(/s\d{5}\.m4s/g)??[];
+  if(names.length){const last=names[names.length-1];await page.request.get(plan.url.replace('index.m3u8',last));}
+  const current=await(await page.request.get(plan.url)).text();
+  sequence=Number(current.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/)?.[1]??0);
+  return sequence;
+ },{timeout:25000}).toBeGreaterThan(0);
+ expect((await page.request.get(plan.url.replace('index.m3u8','s00000.m4s'))).status()).toBe(404);
+ // Let hls.js consume the moving window; APIRequestContext responses don't trigger this event.
+ await page.waitForResponse(async r=>r.url().endsWith(`/transcode/${plan.session_id}/index.m3u8`)&&r.ok()&&Number((await r.text()).match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/)?.[1]??0)>0);
+ const restarted=page.waitForResponse(r=>r.url().endsWith('/playback')&&r.ok()&&r.request().postDataJSON()?.start_ms===0);
+ await page.keyboard.press('0');
+ const next=await(await restarted).json();expect(next.session_id).not.toBe(plan.session_id);
+ await expect.poll(()=>video.evaluate((v:HTMLVideoElement)=>v.currentTime)).toBeGreaterThan(0.5);
+ await page.getByRole('button',{name:'Close player',exact:true}).click();
 });

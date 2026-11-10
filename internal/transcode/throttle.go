@@ -43,6 +43,7 @@ func (s *Session) Requested(name string) {
 	s.mu.Lock()
 	s.requested = n
 	s.mu.Unlock()
+	s.pruneHistory(n)
 	s.wakeThrottle()
 	if _, err := os.Stat(filepath.Join(s.dir, name)); err != nil {
 		s.setPaused(false)

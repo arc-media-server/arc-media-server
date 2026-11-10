@@ -5,6 +5,7 @@
 package transcode
 
 import (
+	"ams/internal/diskspace"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -31,6 +32,8 @@ const idleTimeout = 2 * time.Minute
 // Options say what to make from which file.
 type Options struct {
 	Path string
+	// The client can restart playback when seeking behind a sliding HLS window.
+	RollingHLS bool
 	// Where to start, in milliseconds.
 	StartMS int64
 	// The streams to use, by their index in the file; AudioStream -1 for none.
@@ -82,6 +85,8 @@ type Session struct {
 	probeHardware func(context.Context, string, []string, string) ([]byte, error)
 	renderNodes   func() []string
 	mu            sync.Mutex
+	storageMu     sync.Mutex
+	retainedFrom  int
 	err           error
 	stderr        stderrBuffer
 	lastSeen      time.Time
@@ -109,6 +114,8 @@ type Manager struct {
 	ffmpeg        func() string
 	probe         func() string
 	log           *slog.Logger
+	freeSpace     func(string) (uint64, error)
+	diskWarning   sync.Once
 	// Whether the "Dolby Vision dropped" warning was logged this run.
 	dvWarning            sync.Once
 	throttleWatchWarning sync.Once
@@ -148,12 +155,12 @@ func (m *Manager) Configure(dir string, maxVideo int) {
 // ffmpeg and ffprobe return the binaries to use.
 func New(dir string, ffmpeg, ffprobe func() string, log *slog.Logger) *Manager {
 	os.RemoveAll(dir)
-	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, sessions: map[string]*Session{}, throttling: defaultThrottling}
+	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, freeSpace: diskspace.Available, sessions: map[string]*Session{}, throttling: defaultThrottling}
 }
 
 // Run ends idle sessions until ctx is done, then ends them all.
 func (m *Manager) Run(ctx context.Context) {
-	t := time.NewTicker(20 * time.Second)
+	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for {
 		select {
@@ -165,6 +172,7 @@ func (m *Manager) Run(ctx context.Context) {
 			m.mu.Unlock()
 			return
 		case <-t.C:
+			m.checkStorage()
 			m.mu.Lock()
 			for id, s := range m.sessions {
 				s.mu.Lock()
@@ -212,6 +220,11 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	s.dir = filepath.Join(dir, s.ID)
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return nil, err
+	}
+
+	if free, err := m.available(s.dir); err == nil && free < conversionSpaceReserve {
+		os.RemoveAll(s.dir)
+		return nil, ErrStorageFull
 	}
 
 	s.outputWatcher = s.watchOutput()
@@ -562,7 +575,7 @@ func (s *Session) Playlist(ctx context.Context) ([]byte, error) {
 			return nil, err
 		}
 		if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
-			return b, nil
+			return s.windowPlaylist(b), nil
 		}
 		select {
 		case <-s.done:
@@ -571,7 +584,7 @@ func (s *Session) Playlist(ctx context.Context) ([]byte, error) {
 				return nil, err
 			}
 			if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
-				return b, nil
+				return s.windowPlaylist(b), nil
 			}
 			s.mu.Lock()
 			err := s.err
