@@ -1,6 +1,7 @@
 package trickplay
 
 import (
+	"ams/internal/store"
 	"bytes"
 	"encoding/binary"
 	"image"
@@ -69,22 +70,35 @@ func TestWriteBIF(t *testing.T) {
 
 func TestManagerBIF(t *testing.T) {
 	dir := t.TempDir()
-	m := New(dir, nil, nil, nil)
-	if _, err := m.BIF(7); err != ErrNotMade {
+	st, err := store.Open(t.Context(), filepath.Join(dir, "store.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lib, err := st.SyncLibrary(t.Context(), "Fixture", "movies", "tmdb_aired", []string{"/fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := st.SaveFile(t.Context(), &store.MediaFile{LibraryID: lib, Path: "/fixture/clip.mkv", Size: 1, ModTime: 1}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(dir, st, nil, nil)
+	if _, err := m.BIF(id); err != ErrNotMade {
 		t.Fatalf("before thumbnails: %v", err)
 	}
-	fd := m.fileDir(7)
+	fd, _ := m.sourceDir(id, m.sourceKey(id))
 	os.MkdirAll(fd, 0o755)
 	os.WriteFile(filepath.Join(fd, "info.json"), []byte(`{"interval_ms":10000,"width":16,"height":8,"columns":2,"rows":2,"count":3,"sheets":1}`), 0o644)
 	f, _ := os.Create(filepath.Join(fd, "0.jpg"))
 	jpeg.Encode(f, image.NewGray(image.Rect(0, 0, 32, 16)), nil)
 	f.Close()
-	path, err := m.BIF(7)
+	path, err := m.BIF(id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	first, _ := os.Stat(path)
-	if again, err := m.BIF(7); err != nil || again != path {
+	if again, err := m.BIF(id); err != nil || again != path {
 		t.Fatalf("second ask: %q %v", again, err)
 	}
 	if second, _ := os.Stat(path); !second.ModTime().Equal(first.ModTime()) {
@@ -94,8 +108,8 @@ func TestManagerBIF(t *testing.T) {
 		t.Errorf("left behind: %v", tmps)
 	}
 	// Remaking the thumbnails removes the folder, and the BIF file with it.
-	m.Forget(7)
-	if _, err := m.BIF(7); err != ErrNotMade {
+	m.Forget(id)
+	if _, err := m.BIF(id); err != ErrNotMade {
 		t.Fatalf("after forgetting: %v", err)
 	}
 }

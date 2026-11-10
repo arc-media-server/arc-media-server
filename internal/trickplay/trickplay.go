@@ -8,6 +8,7 @@ package trickplay
 import (
 	"ams/internal/activity"
 	"ams/internal/background"
+	"ams/internal/filecache"
 	"bufio"
 	"bytes"
 	"cmp"
@@ -74,7 +75,9 @@ type Manager struct {
 
 func New(dir string, st *store.Store, ffmpeg func() string, log *slog.Logger) *Manager {
 	// Half-made thumbnails from a run that was interrupted.
-	if tmps, err := filepath.Glob(filepath.Join(dir, "*.tmp")); err == nil {
+	legacy, _ := filepath.Glob(filepath.Join(dir, "*.tmp"))
+	current, _ := filepath.Glob(filepath.Join(dir, "*", "v2-*.tmp"))
+	if tmps := append(legacy, current...); len(tmps) > 0 {
 		for _, t := range tmps {
 			os.RemoveAll(t)
 		}
@@ -87,9 +90,29 @@ func (m *Manager) fileDir(fileID int64) string {
 	return filepath.Join(m.dir, strconv.FormatInt(fileID, 10))
 }
 
-// Info returns a file's thumbnails, or nil if they haven't been made.
-func (m *Manager) Info(fileID int64) *Info {
-	b, err := os.ReadFile(filepath.Join(m.fileDir(fileID), "info.json"))
+// sourceKey reads one primary-key value for API callers. The worker uses its bulk VideoFiles
+// snapshot instead, avoiding an additional database query for every candidate on each pass.
+func (m *Manager) sourceKey(fileID int64) string {
+	if m.store == nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	key, err := m.store.FileCacheKey(ctx, fileID)
+	if err != nil {
+		return ""
+	}
+	return key
+}
+func (m *Manager) sourceDir(fileID int64, key string) (string, bool) {
+	return filecache.Dir(m.dir, fileID, key)
+}
+func (m *Manager) infoFor(fileID int64, key string) *Info {
+	dir, valid := m.sourceDir(fileID, key)
+	if !valid {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "info.json"))
 	if err != nil {
 		return nil
 	}
@@ -100,13 +123,19 @@ func (m *Manager) Info(fileID int64) *Info {
 	return &info
 }
 
-// Sheet returns the path of one sheet of a file's thumbnails.
+// Info describes thumbnails for the current persisted source revision only.
+func (m *Manager) Info(fileID int64) *Info { return m.infoFor(fileID, m.sourceKey(fileID)) }
+
+// Sheet returns a path inside that exact revision, preventing generation/reuse races from
+// switching a checked path to another source's sheet.
 func (m *Manager) Sheet(fileID int64, n int) (string, bool) {
-	info := m.Info(fileID)
+	key := m.sourceKey(fileID)
+	info := m.infoFor(fileID, key)
 	if info == nil || n < 0 || n >= info.Sheets {
 		return "", false
 	}
-	return filepath.Join(m.fileDir(fileID), strconv.Itoa(n)+".jpg"), true
+	dir, _ := m.sourceDir(fileID, key)
+	return filepath.Join(dir, strconv.Itoa(n)+".jpg"), true
 }
 
 // Request moves a file to the front of the queue (someone is watching it).
@@ -175,7 +204,7 @@ func (m *Manager) pass(ctx context.Context) {
 		for len(m.urgent) > 0 {
 			id := m.urgent[0]
 			m.urgent = m.urgent[1:]
-			if f, ok := byID[id]; ok && m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[id] && !visited[id] && m.Info(id) == nil {
+			if f, ok := byID[id]; ok && m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[id] && !visited[id] && m.infoFor(f.ID, f.CacheKey) == nil {
 				return f, true
 			}
 		}
@@ -183,7 +212,7 @@ func (m *Manager) pass(ctx context.Context) {
 			return store.VideoFile{}, false
 		}
 		for _, f := range files {
-			if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.Info(f.ID) == nil {
+			if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.infoFor(f.ID, f.CacheKey) == nil {
 				return f, true
 			}
 		}
@@ -215,7 +244,7 @@ func (m *Manager) pass(ctx context.Context) {
 		}
 		if task == nil {
 			for _, f := range files {
-				if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.Info(f.ID) == nil {
+				if m.Background.CanStart("previews", f.ID, f.ProbedAt) && !m.failed[f.ID] && !visited[f.ID] && m.infoFor(f.ID, f.CacheKey) == nil {
 					todo++
 				}
 			}
@@ -255,6 +284,21 @@ func (m *Manager) pass(ctx context.Context) {
 }
 
 func (m *Manager) make(ctx context.Context, f store.VideoFile) error {
+	if f.CacheKey == "" && m.store != nil {
+		saved, err := m.store.GetFileByPath(ctx, f.Path)
+		if err != nil {
+			return err
+		}
+		if saved == nil || saved.ID != f.ID {
+			return fmt.Errorf("preview source changed")
+		}
+		f.CacheKey = saved.CacheKey
+	}
+	dir, valid := m.sourceDir(f.ID, f.CacheKey)
+	if !valid {
+		return fmt.Errorf("preview source identity unavailable")
+	}
+
 	if f.Width <= 0 || f.Height <= 0 {
 		return fmt.Errorf("no picture size")
 	}
@@ -274,7 +318,7 @@ func (m *Manager) make(ctx context.Context, f store.VideoFile) error {
 	}
 	slices.SortStableFunc(frames, func(a, b frame) int { return cmp.Compare(a.ms, b.ms) })
 
-	tmp := m.fileDir(f.ID) + ".tmp"
+	tmp := dir + ".tmp"
 	os.RemoveAll(tmp)
 	if err := os.MkdirAll(tmp, 0o755); err != nil {
 		return err
@@ -318,7 +362,7 @@ func (m *Manager) make(ctx context.Context, f store.VideoFile) error {
 	if err := os.WriteFile(filepath.Join(tmp, "info.json"), b, 0o644); err != nil {
 		return err
 	}
-	final := m.fileDir(f.ID)
+	final := dir
 	os.RemoveAll(final)
 	return os.Rename(tmp, final)
 }
