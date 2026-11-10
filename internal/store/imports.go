@@ -22,6 +22,10 @@ type ImportRef struct {
 	Season, Episode        int
 }
 
+// Prefer present copies, then the newest catalog identity, with a deterministic tie-breaker.
+// Keep unavailable matches as a fallback so imports can preserve offline watch history.
+const importedPreference = ` ORDER BY ` + playableSQL + ` DESC, items.added_at DESC, items.id`
+
 // FindImported returns the Arc movie, show or episode an imported one is, or "" if Arc doesn't have it.
 func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 	one := func(q string, args ...any) (string, error) {
@@ -41,7 +45,7 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 			if !q.ok {
 				continue
 			}
-			if id, err := one(`SELECT id FROM items WHERE kind = 'series' AND `+q.col+` = ? ORDER BY added_at LIMIT 1`, q.v); id != "" || err != nil {
+			if id, err := one(`SELECT id FROM items WHERE kind = 'series' AND `+q.col+` = ?`+importedPreference+` LIMIT 1`, q.v); id != "" || err != nil {
 				return id, err
 			}
 		}
@@ -49,12 +53,12 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 	}
 	if r.Kind == "movie" {
 		if r.TMDB != 0 {
-			if id, err := one(`SELECT id FROM items WHERE kind = 'movie' AND tmdb_id = ? ORDER BY added_at LIMIT 1`, r.TMDB); id != "" || err != nil {
+			if id, err := one(`SELECT id FROM items WHERE kind = 'movie' AND tmdb_id = ?`+importedPreference+` LIMIT 1`, r.TMDB); id != "" || err != nil {
 				return id, err
 			}
 		}
 		if r.IMDB != "" {
-			return one(`SELECT id FROM items WHERE kind = 'movie' AND imdb_id = ? ORDER BY added_at LIMIT 1`, r.IMDB)
+			return one(`SELECT id FROM items WHERE kind = 'movie' AND imdb_id = ?`+importedPreference+` LIMIT 1`, r.IMDB)
 		}
 		return "", nil
 	}
@@ -67,7 +71,7 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 		if p.id == 0 {
 			continue
 		}
-		if id, err := one(`SELECT id FROM items WHERE kind = 'episode' AND match_key LIKE ? LIMIT 1`,
+		if id, err := one(`SELECT id FROM items WHERE kind = 'episode' AND match_key LIKE ?`+importedPreference+` LIMIT 1`,
 			"ep:%:"+p.provider+":"+strconv.FormatInt(p.id, 10)); id != "" || err != nil {
 			return id, err
 		}
@@ -76,31 +80,18 @@ func (s *Store) FindImported(ctx context.Context, r ImportRef) (string, error) {
 	if r.Season < 0 || r.Episode <= 0 {
 		return "", nil
 	}
-	var series []string
-	rows, err := s.db.QueryContext(ctx, `SELECT id FROM items WHERE kind = 'series'
-		AND ((tvdb_id = ? AND ? <> 0) OR (tmdb_id = ? AND ? <> 0) OR (imdb_id = ? AND ? <> ''))`,
-		r.SeriesTVDB, r.SeriesTVDB, r.SeriesTMDB, r.SeriesTMDB, r.SeriesIMDB, r.SeriesIMDB)
-	if err != nil {
-		return "", err
-	}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return "", err
-		}
-		series = append(series, id)
-	}
-	rows.Close()
-	for _, sid := range series {
-		// TheTVDB's aired order first (Plex and Jellyfin number that way by default), then TMDB's.
-		if id, err := one(`SELECT e.episode_id FROM ordering_entries e JOIN orderings o ON o.id = e.ordering_id
-			WHERE o.series_id = ? AND o.source IN ('tvdb_aired', 'tmdb_aired') AND e.season_number = ? AND e.episode_number = ?
-			ORDER BY o.source = 'tvdb_aired' DESC LIMIT 1`, sid, r.Season, r.Episode); id != "" || err != nil {
-			return id, err
-		}
-	}
-	return "", nil
+	// Preserve the aired-provider preference, then prefer a present episode across
+	// all matching shows. A show's other present episodes must not hide this target.
+	return one(`SELECT items.id FROM ordering_entries e
+		JOIN orderings o ON o.id = e.ordering_id
+		JOIN items ON items.id = e.episode_id
+		JOIN items series ON series.id = o.series_id
+		WHERE series.kind = 'series'
+		AND ((series.tvdb_id = ? AND ? <> 0) OR (series.tmdb_id = ? AND ? <> 0) OR (series.imdb_id = ? AND ? <> ''))
+		AND o.source IN ('tvdb_aired', 'tmdb_aired') AND e.season_number = ? AND e.episode_number = ?
+		ORDER BY o.source = 'tvdb_aired' DESC, `+playableSQL+` DESC,
+		series.added_at DESC, items.added_at DESC, items.id LIMIT 1`,
+		r.SeriesTVDB, r.SeriesTVDB, r.SeriesTMDB, r.SeriesTMDB, r.SeriesIMDB, r.SeriesIMDB, r.Season, r.Episode)
 }
 
 // ImportedWatch is a profile's state for one title on another server.
