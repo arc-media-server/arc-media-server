@@ -305,17 +305,17 @@ func buildArgs(o Options, start float64, dir string) []string {
 	}
 	a = append(a, "-i", o.Path)
 
-	// Filters, in order: HDR to SDR, picture subtitles drawn on, scaling, hardware upload.
+	// Resize before expensive HDR mapping, then draw SDR captions and upload if needed.
 	var pre, post []string
+	if encode && o.MaxHeight > 0 {
+		pre = append(pre, FitScaleFilter(o.MaxHeight))
+	}
 	if encode && o.ToneMap {
 		if o.FastToneMap {
 			pre = append(pre, FastToneMapFilter)
 		} else {
 			pre = append(pre, ToneMapFilter)
 		}
-	}
-	if encode && o.MaxHeight > 0 {
-		post = append(post, FitScaleFilter(o.MaxHeight))
 	}
 	if encode && o.HWEncoder == "h264_vaapi" {
 		post = append(post, "format=nv12", "hwupload")
