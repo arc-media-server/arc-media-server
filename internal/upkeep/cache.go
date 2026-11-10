@@ -19,6 +19,7 @@ import (
 
 var hash = regexp.MustCompile(`^[a-f0-9]{24}$`)
 var shard = regexp.MustCompile(`^[a-f0-9]{2}$`)
+var sourceRevision = regexp.MustCompile(`^v2-([a-f0-9]{32})$`)
 var sheet = regexp.MustCompile(`^\d+\.jpg$`)
 var optimized = regexp.MustCompile(`^(\d+)-(720|1080)(-[A-Za-z0-9]+)?\.mp4(\.part)?$`)
 var download = regexp.MustCompile(`^[a-z]{2,3}(\.forced)?(\.sdh)?\.\d+\.srt$`)
@@ -116,6 +117,7 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 			parts := strings.Split(path, "/")
 			id := int64(0)
 			identified := false
+			assetKey := ""
 			switch kind {
 			case "artwork":
 				key := strings.Split(d.Name(), ".")[0]
@@ -124,6 +126,11 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 					return nil
 				}
 			case "trickplay":
+				if len(parts) == 3 && sourceRevision.MatchString(parts[1]) && (d.Name() == "info.json" || d.Name() == "thumbs.bif" || sheet.MatchString(d.Name())) {
+					id = cacheFileID(parts[0])
+					identified = id > 0
+					assetKey = strings.TrimPrefix(parts[1], "v2-")
+				}
 				if len(parts) == 2 && (d.Name() == "info.json" || sheet.MatchString(d.Name())) {
 					id = cacheFileID(strings.TrimSuffix(parts[0], ".tmp"))
 					identified = id > 0
@@ -134,6 +141,11 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 					identified = id > 0
 				}
 			case "subtitles":
+				if len(parts) == 4 && parts[0] == "downloaded" && sourceRevision.MatchString(parts[2]) && download.MatchString(d.Name()) {
+					id = cacheFileID(parts[1])
+					identified = id > 0
+					assetKey = strings.TrimPrefix(parts[2], "v2-")
+				}
 				if len(parts) == 1 && strings.HasSuffix(d.Name(), ".json") && hash.MatchString(strings.TrimSuffix(d.Name(), ".json")) {
 					result.Legacy++
 					return nil
@@ -158,7 +170,15 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 			if !identified || time.Since(info.ModTime()) < time.Hour {
 				return nil
 			}
-			if id > 0 {
+			if id > 0 && assetKey != "" {
+				current, err := st.FileCacheKey(ctx, id)
+				if err != nil {
+					return err
+				}
+				if current == assetKey {
+					return nil
+				}
+			} else if id > 0 {
 				if used[id] {
 					return nil
 				}
@@ -191,6 +211,17 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 				parts := strings.Split(path, "/")
 				owned := false
 				var id int64
+				assetKey := ""
+				if kind == "trickplay" && len(parts) == 2 && sourceRevision.MatchString(parts[1]) {
+					id = cacheFileID(parts[0])
+					owned = id > 0
+					assetKey = strings.TrimPrefix(parts[1], "v2-")
+				}
+				if kind == "subtitles" && len(parts) == 3 && parts[0] == "downloaded" && sourceRevision.MatchString(parts[2]) {
+					id = cacheFileID(parts[1])
+					owned = id > 0
+					assetKey = strings.TrimPrefix(parts[2], "v2-")
+				}
 				if kind == "artwork" && len(parts) == 1 && shard.MatchString(path) {
 					owned = true
 				}
@@ -212,7 +243,16 @@ func CleanCaches(ctx context.Context, st *store.Store, dataDir string, allowed f
 				if err = check(); err != nil {
 					break
 				}
-				if id > 0 {
+				if id > 0 && assetKey != "" {
+					current, e := st.FileCacheKey(ctx, id)
+					if e != nil {
+						err = e
+						break
+					}
+					if current == assetKey {
+						continue
+					}
+				} else if id > 0 {
 					var present bool
 					present, err = st.HasMediaFile(ctx, id)
 					if err != nil {

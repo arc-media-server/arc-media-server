@@ -89,6 +89,7 @@ type Credit struct {
 }
 
 type MediaFile struct {
+	CacheKey           string `json:"-"` // Persistent source revision for private generated/downloaded assets.
 	ID                 int64  `json:"id"`
 	LibraryID          int64  `json:"-"`
 	Path               string `json:"path"`
