@@ -549,6 +549,9 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		}
 		if r.access != "anyone" {
 			info.errors[401] = true
+			if r.method == "POST" || r.method == "PUT" || r.method == "PATCH" || r.method == "DELETE" {
+				info.errors[413] = true
+			}
 			if r.access == "admin" {
 				info.errors[403] = true
 			}

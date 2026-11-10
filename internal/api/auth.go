@@ -124,6 +124,9 @@ func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), userKey, u)
 		requestStage(r, "handling request", 0)
 		ctx = context.WithValue(ctx, sessionKey, se.TokenHash)
+		if !boundAuthenticatedBody(w, r) {
+			return
+		}
 		h(w, r.WithContext(context.WithValue(ctx, deviceKey, se.Device)))
 	}
 }
