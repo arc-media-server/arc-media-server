@@ -90,7 +90,7 @@ func (s *Server) searchMatches(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := s.scanner.Search(r.Context(), it.Kind, provider, query, year)
 	if errors.Is(err, scanner.ErrNoProvider) {
-		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(provider)+" API key to ams.yaml to search it")
+		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(provider)+" API key in Settings to search it")
 		return
 	}
 	if err != nil {
@@ -148,8 +148,12 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	updated, err := s.store.GetItem(r.Context(), it.ID)
-	if err != nil || updated == nil {
+	if err != nil {
 		s.fail(w, err)
+		return
+	}
+	if updated == nil {
+		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
 	d := toDTO(*updated)
