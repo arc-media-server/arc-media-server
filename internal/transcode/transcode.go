@@ -119,8 +119,10 @@ type Manager struct {
 	throttlePauseWarning sync.Once
 
 	mu       sync.Mutex
-	dir      string // where sessions write, chosen in Settings
-	maxVideo int    // video conversions at once, 0 for no limit
+	closed   bool
+	workers  sync.WaitGroup // process waiters, throttle shutdown and stopped-session cleanup
+	dir      string         // where sessions write, chosen in Settings
+	maxVideo int            // video conversions at once, 0 for no limit
 	// How far ahead of the player sessions convert (throttle.go); each session keeps its own copy.
 	throttling throttling
 	sessions   map[string]*Session
@@ -162,11 +164,7 @@ func (m *Manager) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.mu.Lock()
-			for id := range m.sessions {
-				m.stopLocked(id)
-			}
-			m.mu.Unlock()
+			m.Close()
 			return
 		case <-t.C:
 			m.checkStorage()
@@ -185,6 +183,18 @@ func (m *Manager) Run(ctx context.Context) {
 	}
 }
 
+// Close prevents new sessions, cancels all conversions, and joins process waiters,
+// throttlers and cleanup, including sessions already removed by Stop.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	m.closed = true
+	for id := range m.sessions {
+		m.stopLocked(id)
+	}
+	m.mu.Unlock()
+	m.workers.Wait()
+}
+
 // Start begins a session.
 func (m *Manager) Start(opts Options) (*Session, error) {
 	bin := m.ffmpeg()
@@ -195,6 +205,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	// Reserve capacity through registration. Releasing the lock before starting the process
 	// lets simultaneous requests all observe the same free slot.
 	defer m.mu.Unlock()
+	if m.closed {
+		return nil, context.Canceled
+	}
 	if opts.HWEncoder != "" && opts.HWEncoder == m.caps.HWEncoder && opts.HWDevice == "" {
 		opts.HWDevice, opts.HWDriver, opts.HWLowPower = m.caps.HWDevice, m.caps.HWDriver, m.caps.HWLowPower
 	}
@@ -238,6 +251,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.WaitDelay = 5 * time.Second
 	if opts.HWDriver != "" {
 		cmd.Env = withVADriver(os.Environ(), opts.HWDriver)
 	}
@@ -254,8 +268,10 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		"copy_audio", opts.CopyAudio, "audio_codec", opts.AudioCodec, "start", time.Duration(s.OffsetMS)*time.Millisecond)
 	m.log.Debug("ffmpeg", "args", strings.Join(args, " "))
 	s.proc = cmd.Process
+	m.workers.Add(1)
 	go s.throttle()
 	go func() {
+		defer m.workers.Done()
 		err := cmd.Wait()
 		s.mu.Lock()
 		if err != nil && ctx.Err() == nil {
@@ -266,6 +282,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		s.proc = nil
 		s.mu.Unlock()
 		close(s.done)
+		<-s.throttleDone
 	}()
 
 	m.sessions[s.ID] = s
@@ -542,13 +559,15 @@ func (m *Manager) stopLocked(id string) {
 	}
 	delete(m.sessions, id)
 	s.cancel()
+	m.workers.Add(1) // Admission is under mu; Close stops all additions before Wait.
 	go func() {
-		// Windows won't delete files FFmpeg still has open.
-		select {
-		case <-s.done:
-		case <-time.After(10 * time.Second):
+		defer m.workers.Done()
+		// Wait until FFmpeg and its output watcher release their handles.
+		<-s.done
+		<-s.throttleDone
+		if err := os.RemoveAll(s.dir); err != nil {
+			m.log.Warn("conversion cache cleanup failed", "session", id)
 		}
-		os.RemoveAll(s.dir)
 	}()
 	m.log.Info("transcode ended", "session", id)
 }
