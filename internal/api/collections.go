@@ -277,15 +277,17 @@ func (s *Server) createCollection(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
-	if err := s.store.CreateCollection(r.Context(), &c); err != nil {
-		s.fail(w, err)
-		return
+	var members []string
+	if c.Kind == "manual" {
+		members = b.ItemIDs
 	}
-	if c.Kind == "manual" && len(b.ItemIDs) > 0 {
-		if err := s.addItems(r, &c, b.ItemIDs); err != nil {
+	if err := s.store.CreateCollection(r.Context(), &c, members...); err != nil {
+		if errors.Is(err, store.ErrCollectionItems) {
 			writeError(w, http.StatusBadRequest, err.Error())
-			return
+		} else {
+			s.fail(w, err)
 		}
+		return
 	}
 	writeJSON(w, http.StatusCreated, s.collectionDTO(c, nil))
 }
