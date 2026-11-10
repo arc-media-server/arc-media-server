@@ -1246,7 +1246,7 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 			IsDefault: ps.IsDefault, IsForced: ps.IsForced, PixFmt: ps.PixFmt, BitDepth: ps.BitDepth,
 			ColorTransfer: ps.ColorTransfer, ColorPrimaries: ps.ColorPrimaries, FrameRate: ps.FrameRate,
 			Bitrate: ps.Bitrate, ChannelLayout: ps.ChannelLayout, DolbyVision: ps.DolbyVision,
-			DolbyVisionProfile: ps.DolbyVisionProfile, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
+			DolbyVisionProfile: ps.DolbyVisionProfile, DVBLCompatibilityID: ps.DVBLCompatibilityID, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
 			AspectRatio: ps.AspectRatio,
 		})
 	}

@@ -58,6 +58,7 @@ type decision struct {
 	Reasons       []string
 	ReasonCodes   []string
 	NeedsToneMap  bool
+	DVBaseLayer   bool
 	UnsupportedDV bool
 }
 
@@ -196,6 +197,15 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 			supported := slices.Contains(caps.HDRFormats, format) || format == "hdr10_plus" && slices.Contains(caps.HDRFormats, "hdr10")
 			if format == "dolby_vision" && caps.DolbyVisionProfiles != nil && !slices.Contains(caps.DolbyVisionProfiles, video.DolbyVisionProfile) {
 				supported = false
+			}
+			if !supported && format == "dolby_vision" {
+				if base, ok := video.DolbyVisionBaseFormat(); ok {
+					d.DVBaseLayer = true
+					d.Reasons = append(d.Reasons, "using Dolby Vision's compatible base layer")
+					d.ReasonCodes = append(d.ReasonCodes, "dolby_vision_base_layer")
+					format = base
+					supported = base == "" || slices.Contains(caps.HDRFormats, base)
+				}
 			}
 			if !supported {
 				reject("hdr_output", "source HDR format not supported")
@@ -555,7 +565,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	opts := transcode.Options{Path: f.Path, StartMS: body.StartMS, VideoStream: video.Index, AudioStream: -1,
 		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
 		MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
-		VideoCodec: video.Codec, DolbyVision: video.DolbyVision, BurnSubtitle: burn,
+		VideoCodec: video.Codec, DolbyVision: video.DolbyVision && !d.DVBaseLayer, StripDolbyVision: d.DVBaseLayer, BurnSubtitle: burn,
 		Owner: currentSession(r), ItemID: it.ID}
 	if audio != nil {
 		opts.AudioStream = audio.Index
@@ -583,7 +593,11 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		if st.HWAccel {
 			opts.HWEncoder = caps.HWEncoder
 		}
-		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
+		toneSource := sourceHDRFormat(video)
+		if base, ok := video.DolbyVisionBaseFormat(); ok {
+			toneSource = base
+		}
+		opts.ToneMap = st.ToneMap && caps.ToneMapping && toneSource != ""
 		opts.FastToneMap = opts.ToneMap && caps.FastToneMap
 	}
 	if preview {
