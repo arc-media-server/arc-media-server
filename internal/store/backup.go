@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"modernc.org/sqlite"
 )
@@ -34,8 +36,41 @@ func (s *Store) BackupTo(ctx context.Context, path string) error {
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("backup %s already exists", path)
 	}
-	_, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	// VACUUM INTO writes the destination, not the source. The normal read pool is query_only
+	// (which forbids VACUUM); the writer pool would queue every scan/watch-state write behind it.
+	reader, err := s.backupReader(ctx)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	_, err = reader.ExecContext(ctx, `VACUUM INTO ?`, path)
 	return err
+}
+
+// backupReader opens one dedicated read-only source connection. It has no permission to
+// change the main database, but can create the separate VACUUM INTO destination.
+func (s *Store) backupReader(ctx context.Context) (*sql.DB, error) {
+	var source string
+	if err := s.db.QueryRowContext(ctx, `SELECT file FROM pragma_database_list WHERE name = 'main'`).Scan(&source); err != nil {
+		return nil, err
+	}
+	if source == "" {
+		return nil, errors.New("backups require a file-backed database")
+	}
+	path := filepath.ToSlash(source)
+	// Windows drive paths need a leading slash in file URIs.
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	location := url.URL{Scheme: "file", Path: path}
+	query := url.Values{"mode": {"ro"}, "_pragma": {"busy_timeout(10000)"}}
+	location.RawQuery = query.Encode()
+	reader, err := sql.Open("sqlite", location.String())
+	if err != nil {
+		return nil, err
+	}
+	reader.SetMaxOpenConns(1)
+	return reader, nil
 }
 
 // CheckBackup verifies that path is an AMS database this version can restore: it must pass
