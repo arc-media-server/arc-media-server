@@ -88,6 +88,7 @@ type Deps struct {
 }
 
 type Server struct {
+	collectionLookups collectionLookupCache
 	watchTogether  *watchtogether.Manager
 	watchRecheck   time.Duration
 	events         *events.Hub
