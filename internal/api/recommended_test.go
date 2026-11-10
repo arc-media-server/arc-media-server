@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"path/filepath"
@@ -67,6 +69,15 @@ func TestRecommendedRows(t *testing.T) {
 	}
 	var types []string
 	for _, row := range rows {
+		filtered, err := s.recommendedRowsLimitTarget(r, l, recommendedLimit, row.ID)
+		if err != nil || len(filtered) != 1 {
+			t.Fatalf("target %s: %d rows, %v", row.Type, len(filtered), err)
+		}
+		want, _ := json.Marshal(row)
+		got, _ := json.Marshal(filtered[0])
+		if !bytes.Equal(got, want) {
+			t.Errorf("target %s changed the full-view row", row.Type)
+		}
 		types = append(types, row.Type)
 		for _, it := range row.Items {
 			if it.ID == adult || it.ID == elsewhere {
