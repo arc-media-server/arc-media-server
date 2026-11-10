@@ -242,13 +242,59 @@ func (s *Store) CollectionItems(ctx context.Context, c *Collection, acc Access) 
 	return items, rows.Err()
 }
 
-// CreateCollection adds a manual or smart collection.
-func (s *Store) CreateCollection(ctx context.Context, c *Collection) error {
-	c.ID = newID()
-	c.SortTitle = SortTitle(c.Title)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO collections (id, library_id, kind, title, sort_title, overview, filter, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, c.ID, c.LibraryID, c.Kind, c.Title, c.SortTitle, c.Overview, c.Filter, time.Now().Unix())
-	return err
+var ErrCollectionItems = errors.New("only movies and shows from the collection's library can be added")
+
+// CreateCollection adds a manual or smart collection and optional manual members atomically.
+// Validate every member under the writer transaction before making the collection visible.
+func (s *Store) CreateCollection(ctx context.Context, c *Collection, itemIDs ...string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if len(itemIDs) > 0 && c.Kind != "manual" {
+		return ErrCollectionItems
+	}
+	unique := make([]string, 0, len(itemIDs))
+	seen := map[string]bool{}
+	for _, id := range itemIDs {
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+	for part := range chunks(unique, 100) {
+		args := []any{c.LibraryID}
+		for _, id := range part {
+			args = append(args, id)
+		}
+		var valid int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE library_id=? AND kind IN ('movie','series') AND id IN (`+placeholders(len(part))+`)`, args...).Scan(&valid); err != nil {
+			return err
+		}
+		if valid != len(part) {
+			return ErrCollectionItems
+		}
+	}
+	created := *c
+	created.ID = newID()
+	if created.SortTitle == "" {
+		created.SortTitle = SortTitle(created.Title)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO collections(id,library_id,kind,title,sort_title,overview,filter,locked_fields,grid_mode,created_at)
+ VALUES (?,?,?,?,?,?,?,?,?,?)`, created.ID, created.LibraryID, created.Kind, created.Title, created.SortTitle, created.Overview, created.Filter, strings.Join(created.LockedFields, ","), created.GridMode, time.Now().Unix()); err != nil {
+		return err
+	}
+	for position, id := range unique {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO collection_items(collection_id,item_id,position) VALUES (?,?,?)`, created.ID, id, position); err != nil {
+			return err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	*c = created
+	return nil
 }
 
 // UpdateCollection changes a collection's title, sort title (following the title when empty),
