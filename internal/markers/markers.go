@@ -110,6 +110,11 @@ func (m *Manager) Run(ctx context.Context) {
 // pass looks up every episode file not yet checked: chapters, then online; then, in the
 // maintenance window, detection for seasons still without intros.
 func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
+	release, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return nil
+	}
+	defer release()
 	var jobs []store.MarkerJob
 	var err error
 	if len(localOnly) == 0 || !localOnly[0] {

@@ -18,6 +18,11 @@ var ErrTrashBackup = errors.New("couldn't back up first, so nothing was removed"
 // EmptyTrash shares discovery's exclusive library slot. before must take the safety backup;
 // its failure aborts deletion. Automatic callers additionally supply their live scheduling gate.
 func (s *Scanner) EmptyTrash(ctx context.Context, id int64, automatic bool, before func(context.Context) error, allowed func() bool) (removed int64, err error) {
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return 0, ErrLibraryBusy
+	}
+	defer releaseCatalog()
 	s.mu.Lock()
 	if st := s.status[id]; st != nil && st.Running {
 		s.mu.Unlock()

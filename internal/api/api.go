@@ -942,6 +942,15 @@ func versioned(next http.Handler) http.Handler {
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = s.requestID(w, r)
+		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" && !catalogMutationRoute(r) {
+			release, ok := s.store.BeginCatalogWork()
+			if !ok {
+				w.Header().Set("Retry-After", "3")
+				writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
+				return
+			}
+			defer release()
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/watch-together") {
 			w.Header().Set("Cache-Control", "private, no-store")
 			w.Header().Set("X-Arc-Server-Time-Ms", strconv.FormatInt(time.Now().UnixMilli(), 10))

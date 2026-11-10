@@ -100,7 +100,12 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if body.Refresh {
-		go s.refreshItems(context.WithoutCancel(ctx), items)
+		release, ok := s.store.BeginCatalogWork()
+		if !ok {
+			writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
+			return
+		}
+		go func() { defer release(); s.refreshItems(context.WithoutCancel(ctx), items) }()
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
