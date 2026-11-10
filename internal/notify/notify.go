@@ -73,12 +73,34 @@ type Notifier struct {
 	// BaseURL, if set, makes links and pictures in messages (e.g. "http://192.168.1.10:8099").
 	BaseURL func() string
 
-	mu   sync.Mutex
-	last map[string]Delivery
+	ctx     context.Context
+	cancel  context.CancelFunc
+	closed  bool
+	workers sync.WaitGroup
+	mu      sync.Mutex
+	last    map[string]Delivery
 }
 
 func New(st *store.Store, log *slog.Logger) *Notifier {
-	return &Notifier{store: st, log: log, http: &http.Client{Timeout: 15 * time.Second}, waitRetry: waitWebhookRetry, last: map[string]Delivery{}}
+	return NewWithContext(context.Background(), st, log)
+}
+
+// NewWithContext owns asynchronous deliveries until process shutdown.
+func NewWithContext(ctx context.Context, st *store.Store, log *slog.Logger) *Notifier {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Notifier{ctx: ctx, cancel: cancel, store: st, log: log, http: &http.Client{Timeout: 15 * time.Second}, waitRetry: waitWebhookRetry, last: map[string]Delivery{}}
+}
+
+// Close cancels deliveries and joins every admitted store/network operation.
+func (n *Notifier) Close() {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	n.closed = true
+	n.cancel()
+	n.mu.Unlock()
+	n.workers.Wait()
 }
 
 // Last returns how each webhook's last delivery went, by id.
@@ -111,12 +133,22 @@ func (n *Notifier) Send(ev Event) {
 			ev.Item.Image = base + "/api/items/" + pic + "/images/primary"
 		}
 	}
+	n.mu.Lock()
+	if n.closed || n.ctx.Err() != nil {
+		n.mu.Unlock()
+		return
+	}
+	n.workers.Add(1)
+	n.mu.Unlock()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer n.workers.Done()
+		ctx, cancel := context.WithTimeout(n.ctx, time.Minute)
 		defer cancel()
 		hooks, err := n.store.Webhooks(ctx)
 		if err != nil {
-			n.log.Warn("listing webhooks failed", "err", err)
+			if ctx.Err() == nil {
+				n.log.Warn("listing webhooks failed", "err", err)
+			}
 			return
 		}
 		for _, h := range hooks {
