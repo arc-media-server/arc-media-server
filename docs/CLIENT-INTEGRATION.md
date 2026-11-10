@@ -181,3 +181,11 @@ file symlinks and special files are ignored; configure a linked video's real pat
 Configured folder aliases remain supported. These clips are intentionally server-wide assets
 and may live outside libraries; a valid profile can play them. This does not validate codecs or
 make pre-rolls follow a library's visibility rules.
+
+Action failures distinguish invalid input (`400`) from internal database/filesystem problems
+(`500`, generic response with a request ID). Matching's actual upstream provider failures retain
+`502`; a server database error is not an invalid match. Missing selected backups return `404`,
+invalid/incompatible backup contents return `400`, and failure creating a safety backup is an
+internal failure. If restore reports that the database was restored but runtime reload failed,
+restart Arc as instructed rather than assuming no restore happened. Keep authentication on
+internal/upstream errors; those statuses do not mean a device token was revoked.

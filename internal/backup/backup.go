@@ -21,6 +21,11 @@ import (
 	"ams/internal/store"
 )
 
+var ErrInvalidName = errors.New("invalid backup name")
+
+// ErrNotFound is only the selected source backup, not a later safety-backup/storage failure.
+var ErrNotFound = errors.New("backup not found")
+
 // Why a backup was taken. Automatic ones follow the retention rules; manual ones are kept until
 // deleted; safety copies (before a restore or an upgrade) keep the newest few.
 const (
@@ -199,7 +204,7 @@ func expired(all []Backup) []Backup {
 // Delete removes one backup.
 func (m *Manager) Delete(name string) error {
 	if _, ok := parseName(name); !ok {
-		return fmt.Errorf("no backup named %q", name)
+		return ErrInvalidName
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -210,12 +215,15 @@ func (m *Manager) Delete(name string) error {
 // before-restore backup so the restore can itself be undone.
 func (m *Manager) Restore(ctx context.Context, name string) error {
 	if _, ok := parseName(name); !ok {
-		return fmt.Errorf("no backup named %q", name)
+		return ErrInvalidName
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	path := filepath.Join(m.dir, name)
 	if err := store.CheckBackup(ctx, path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("%w: %w", ErrNotFound, err)
+		}
 		return err
 	}
 	if _, err := m.create(ctx, ReasonBeforeRestore); err != nil {

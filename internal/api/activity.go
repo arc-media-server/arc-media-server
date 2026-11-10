@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"ams/docs"
@@ -45,7 +46,10 @@ func (s *Server) runMaintenance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.background.RunNow(r.Context(), r.PathValue("kind")); err != nil {
-		writeError(w, 400, err.Error())
+		if errors.Is(err, background.ErrInvalidRequest) {
+			err = errMsg(err.Error())
+		}
+		s.inputError(w, r, err)
 		return
 	}
 	writeJSON(w, 202, map[string]bool{"queued": true})

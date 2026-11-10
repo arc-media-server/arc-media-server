@@ -17,6 +17,9 @@ import (
 	"ams/internal/store"
 )
 
+// ErrInvalidRequest identifies a deliberate task-control validation refusal.
+var ErrInvalidRequest = errors.New("invalid maintenance request")
+
 type Status struct {
 	Kind      string                `json:"kind"`
 	Title     string                `json:"title"`
@@ -153,13 +156,13 @@ func (m *Manager) Mode(kind string) string {
 }
 func (m *Manager) RunNow(ctx context.Context, kind string) error {
 	if kind == "empty_trash" {
-		return errors.New("choose a library and confirm Empty trash for manual cleanup")
+		return fmt.Errorf("%w: choose a library and confirm Empty trash for manual cleanup", ErrInvalidRequest)
 	}
 	if _, ok := titles[kind]; !ok {
-		return fmt.Errorf("unknown scheduled task")
+		return fmt.Errorf("%w: unknown scheduled task", ErrInvalidRequest)
 	}
 	if m.Mode(kind) == "off" {
-		return fmt.Errorf("enable this task before running it")
+		return fmt.Errorf("%w: enable this task before running it", ErrInvalidRequest)
 	}
 	id, err := m.store.MaxFileID(ctx)
 	if err != nil {
