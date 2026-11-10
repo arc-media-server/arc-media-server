@@ -49,6 +49,15 @@ type libraryBody struct {
 // (its own folders don't conflict with themselves).
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
+	if b.CollectionMin != nil && (*b.CollectionMin < 0 || *b.CollectionMin > 10) {
+		return errMsg("collection_min is 0 (off) to 10")
+	}
+	if !languageRe.MatchString(b.MetadataLanguage) {
+		return errMsg(`metadata_language is a language like "fr-FR" or "ja", or "" for English`)
+	}
+	if !slices.Contains([]string{"", "collection", "both"}, b.CollectionGrid) {
+		return errMsg(`collection_grid is "", "collection" or "both"`)
+	}
 	if b.RatingRegion != "" && !regionRe.MatchString(b.RatingRegion) {
 		return errMsg("rating_region is a two-letter country code such as GB")
 	}
@@ -152,73 +161,44 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "give the library a name")
 		return
 	}
-	id, err := s.store.CreateLibrary(r.Context(), b.Name, b.Kind, b.SourceOrdering, b.Paths)
+	// Compute every option before the one store transaction; no worker sees a partial library.
+	lib := store.Library{Name: b.Name, Kind: b.Kind, SourceOrdering: b.SourceOrdering, Paths: b.Paths, DetailsProvider: b.DetailsProvider, Trickplay: b.Trickplay, CollectionMin: 2, MetadataLanguage: b.MetadataLanguage, RatingRegion: b.RatingRegion, SkipIntros: b.Kind == "shows", SkipCredits: b.Kind != "videos", CollectionGrid: b.CollectionGrid}
+	if b.CollectionMin != nil {
+		lib.CollectionMin = *b.CollectionMin
+	}
+	if lib.RatingRegion == "" {
+		lib.RatingRegion = s.settings().Region
+	}
+	if b.SkipIntros != nil {
+		lib.SkipIntros = *b.SkipIntros && b.Kind == "shows"
+	}
+	if b.SkipCredits != nil {
+		lib.SkipCredits = *b.SkipCredits && b.Kind != "videos"
+	}
+	id, err := s.store.CreateConfiguredLibrary(r.Context(), lib)
 	if errors.Is(err, store.ErrDuplicateName) {
 		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if errors.Is(err, store.ErrLibraryPathConflict) {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if err := s.store.SetLibraryDetailsProvider(r.Context(), id, b.DetailsProvider); err != nil {
-		s.fail(w, err)
-		return
-	}
-	s.log.Info("library added", "library", b.Name, "paths", b.Paths)
-	if b.Trickplay {
-		if err := s.setTrickplay(r.Context(), id, true); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if b.CollectionMin != nil && *b.CollectionMin >= 0 && *b.CollectionMin <= 10 {
-		if err := s.store.SetLibraryCollectionMin(r.Context(), id, *b.CollectionMin); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if b.MetadataLanguage != "" && languageRe.MatchString(b.MetadataLanguage) {
-		if err := s.store.SetLibraryLanguage(r.Context(), id, b.MetadataLanguage); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	region := b.RatingRegion
-	if region == "" {
-		region = s.settings().Region
-	}
-	if err := s.store.SetLibraryRatingRegion(r.Context(), id, region); err != nil {
-		s.fail(w, err)
-		return
-	}
-	// Plex's defaults: intros and credits for TV, credits for movies, neither for other videos.
-	intros, credits := b.Kind == "shows", b.Kind != "videos"
-	if b.SkipIntros != nil {
-		intros = *b.SkipIntros && b.Kind == "shows"
-	}
-	if b.SkipCredits != nil {
-		credits = *b.SkipCredits && b.Kind != "videos"
-	}
-	if err := s.store.SetLibrarySkips(r.Context(), id, intros, credits); err != nil {
-		s.fail(w, err)
-		return
-	}
-	if b.CollectionGrid == "collection" || b.CollectionGrid == "both" {
-		if err := s.store.SetLibraryCollectionGrid(r.Context(), id, b.CollectionGrid); err != nil {
-			s.fail(w, err)
-			return
-		}
+	lib.ID = id
+	s.log.Info("library added", "library", id, "kind", lib.Kind, "folders", len(lib.Paths))
+	if lib.Trickplay && s.trickplay != nil {
+		s.trickplay.Wake()
 	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
 	s.scanner.Start(id)
-	lib, err := s.store.GetLibrary(r.Context(), id)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
+	// Match GetLibrary's stable folder ordering without another post-commit DB read.
+	sort.Strings(lib.Paths)
 	writeJSON(w, http.StatusCreated, lib)
 }
 
