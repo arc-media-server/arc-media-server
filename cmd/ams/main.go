@@ -591,7 +591,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return nil
 	}
 
+	var apiWorkers sync.WaitGroup
+	defer func() { stop(); apiWorkers.Wait() }()
 	handler := api.New(api.Deps{
+		WorkContext: ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
@@ -681,6 +684,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		ln = next
 	}
 	sc.Wait()
+	apiWorkers.Wait()
 	log.Info("stopped")
 	return nil
 }
