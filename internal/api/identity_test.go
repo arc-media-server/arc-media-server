@@ -80,7 +80,7 @@ func TestIdentitySettingsValidationAndCapabilityPermissions(t *testing.T) {
 	s.ffprobeStatus = func() any { return nil }
 	cfg := settings.Settings{ServerName: "Original"}
 	s.settings = func() settings.Settings { return cfg }
-	s.applySettings = func(_ context.Context, next settings.Settings) error { cfg = next; return nil }
+	s.applySettings = func(_ context.Context, _ settings.Settings, next settings.Settings) error { cfg = next; return nil }
 	for _, body := range []string{`{"server_name":""}`, `{"server_name":null}`, `{"server_name":"bad\nname"}`, `{"server_name":false}`, `{"server_name":"` + strings.Repeat("x", 81) + `"}`} {
 		w := httptest.NewRecorder()
 		s.updateSettings(w, httptest.NewRequest("PATCH", "/", strings.NewReader(body)))
