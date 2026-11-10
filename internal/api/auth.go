@@ -349,7 +349,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "login:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		s.log.Warn("sign-in blocked after too many attempts", "address", clientIP(r))
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
@@ -360,7 +360,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if admin == nil || !auth.Check(admin.PasswordHash, body.Password) {
-		s.limiter.Fail(key)
 		s.log.Warn("sign-in failed: wrong password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
 		writeError(w, http.StatusUnauthorized, "that password isn't right")
 		return
@@ -406,7 +405,7 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "profile:" + clientIP(r) + ":" + u.ID
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -414,7 +413,6 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case u.HasPIN:
 		if !auth.Check(u.PINHash, body.PIN) {
-			s.limiter.Fail(key)
 			s.log.Warn("profile sign-in failed: wrong PIN", "profile", u.Name, "address", clientIP(r))
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "wrong PIN", "needs": "pin"})
 			return
@@ -422,7 +420,6 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	case u.IsAdmin && !passwordSession:
 		if !auth.Check(u.PasswordHash, body.Password) {
 			if body.Password != "" {
-				s.limiter.Fail(key)
 				s.log.Warn("profile sign-in failed: wrong password", "profile", u.Name, "address", clientIP(r))
 			}
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "enter the password", "needs": "password"})
@@ -494,12 +491,11 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	admin := currentUser(r)
 	key := "password:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
 	if !auth.Check(admin.PasswordHash, body.Current) {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusUnauthorized, "the current password isn't right")
 		return
 	}
