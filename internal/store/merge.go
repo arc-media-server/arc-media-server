@@ -33,27 +33,15 @@ func (s *Store) MergeItems(ctx context.Context, targetID string, sourceIDs []str
 		if src == targetID {
 			continue
 		}
-		if err := copyArrival(ctx, tx, targetID, src); err != nil {
+
+		// Movie versions keep the owner's grouping choice on later scans.
+		if _, err := tx.ExecContext(ctx, `UPDATE media_files SET item_override=? WHERE id IN (SELECT file_id FROM item_files WHERE item_id=?)`, targetID, src); err != nil {
 			return err
 		}
-		steps := []string{
-			// Files: keep each one's part, and remember the choice.
-			`UPDATE media_files SET item_override = ?1 WHERE id IN (SELECT file_id FROM item_files WHERE item_id = ?2)`,
-			`UPDATE OR IGNORE item_files SET item_id = ?1 WHERE item_id = ?2`,
-			// Per-profile state: where both have some, the target's is kept.
-			`UPDATE OR IGNORE user_item_data SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE OR IGNORE continue_dismissed SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE play_history SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE playlist_entries SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE OR IGNORE collection_items SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE OR IGNORE item_labels SET item_id = ?1 WHERE item_id = ?2`,
-			`UPDATE extras SET item_id = ?1 WHERE item_id = ?2`,
+		if err := mergeInto(ctx, tx, targetID, src); err != nil {
+			return err
 		}
-		for _, q := range steps {
-			if _, err := tx.ExecContext(ctx, q, targetID, src); err != nil {
-				return err
-			}
-		}
+
 		// What's left of the source (and any rows the target already had) goes with it.
 		if _, err := tx.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, src); err != nil {
 			return err
@@ -216,6 +204,8 @@ func mergeInto(ctx context.Context, tx *sql.Tx, targetID, sourceID string) error
 		return err
 	}
 	steps := []string{
+		`UPDATE play_queues SET revision=revision+1 WHERE id IN (SELECT queue_id FROM play_queue_entries WHERE item_id=?2)`,
+		`UPDATE play_queue_entries SET item_id=?1 WHERE item_id=?2`,
 		`UPDATE media_files SET item_override = ?1 WHERE item_override = ?2`,
 		`UPDATE OR IGNORE item_files SET item_id = ?1 WHERE item_id = ?2`,
 		`INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at, user_rating, watchlisted_at)
