@@ -464,7 +464,15 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	// Sessions unused for 90 days are forgotten.
 	go func() {
 		for {
-			st.DeleteStaleSessions(ctx, time.Now().Add(-90*24*time.Hour).Unix())
+			started := time.Now()
+			removed, err := st.DeleteStaleSessions(ctx, started.Add(-90*24*time.Hour).Unix())
+			if ctx.Err() == nil {
+				if err != nil {
+					log.Warn("stale session cleanup failed", "err", err, "took", time.Since(started))
+				} else {
+					log.Info("stale session cleanup finished", "removed", removed, "took", time.Since(started))
+				}
+			}
 			select {
 			case <-ctx.Done():
 				return

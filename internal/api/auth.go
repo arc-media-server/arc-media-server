@@ -1,17 +1,14 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -913,49 +910,6 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // "scan_interval_minutes" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy
 // "scan_interval_hours", processing modes (off/scheduled/added) and task enable switches.
 // Changes apply without restarting.
-// logSettingChanges records which server settings a successful save changed, and by whom.
-// Keys and passwords are logged only as "(changed)".
-func (s *Server) logSettingChanges(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid body")
-			return
-		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		rec := &settingsRecorder{ResponseWriter: w, status: http.StatusOK}
-		next(rec, r)
-		var changed map[string]json.RawMessage
-		if rec.status >= 300 || json.Unmarshal(body, &changed) != nil || len(changed) == 0 {
-			return
-		}
-		parts := make([]string, 0, len(changed))
-		for k, v := range changed {
-			value := string(v)
-			if strings.Contains(k, "key") || strings.Contains(k, "password") || len(value) > 80 {
-				value = "(changed)"
-			}
-			parts = append(parts, k+"="+value)
-		}
-		slices.Sort(parts)
-		name := ""
-		if u := currentUser(r); u != nil {
-			name = u.Name
-		}
-		s.log.Info("settings changed", "by", name, "settings", strings.Join(parts, ", "))
-	}
-}
-
-type settingsRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (r *settingsRecorder) WriteHeader(status int) {
-	r.status = status
-	r.ResponseWriter.WriteHeader(status)
-}
-
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		ServerName             *string  `json:"server_name"`
@@ -1007,7 +961,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		MaxTranscodes          *int     `json:"max_transcodes"`
 	}
 	var raw json.RawMessage
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&raw); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -1280,5 +1234,6 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	s.logCommittedSettings(r, before, next)
 	writeJSON(w, http.StatusOK, s.settingsDTO(s.settings()))
 }
