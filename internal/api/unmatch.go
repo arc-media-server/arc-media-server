@@ -21,6 +21,7 @@ func (s *Server) unmatchItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.scanner == nil {
+		markExpectedResponse(w)
 		writeError(w, 503, "scanning unavailable")
 		return
 	}
