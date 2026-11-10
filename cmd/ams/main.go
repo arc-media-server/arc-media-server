@@ -641,7 +641,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		// Event and room streams end as soon as shutdown starts, so an open tab doesn't hold the
 		// restart (or a Docker stop) for the whole timeout.
 		closing := make(chan struct{})
-		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second,
+		srv := &http.Server{Handler: secureRemote(handler, remoteAccess.Certs), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, IdleTimeout: 2 * time.Minute,
 			BaseContext: func(net.Listener) context.Context { return api.ShutdownContext(closing) }}
 		srv.RegisterOnShutdown(func() { close(closing) })
 		served := make(chan error, 1)
