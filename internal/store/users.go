@@ -257,9 +257,12 @@ func (s *Store) DeletePasswordSessions(ctx context.Context, exceptTokenHash stri
 }
 
 // DeleteStaleSessions removes sessions unused since before.
-func (s *Store) DeleteStaleSessions(ctx context.Context, before int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE last_seen_at < ?`, before)
-	return err
+func (s *Store) DeleteStaleSessions(ctx context.Context, before int64) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE last_seen_at < ?`, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 // UserPrefs returns a profile's preferences JSON ("{}" when none are set).
