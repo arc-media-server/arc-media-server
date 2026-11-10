@@ -71,6 +71,13 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 	}
 	defer tx.Rollback()
 
+	if err := updateLibraryTx(ctx, tx, id, name, sourceOrdering, paths, provider); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func updateLibraryTx(ctx context.Context, tx *sql.Tx, id int64, name, sourceOrdering string, paths []string, provider any) error {
 	var exists int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM libraries WHERE name = ? COLLATE NOCASE AND id <> ?`,
 		name, id).Scan(&exists); err != nil {
@@ -119,7 +126,7 @@ func (s *Store) UpdateLibrary(ctx context.Context, id int64, name, sourceOrderin
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // DeleteLibrary removes a library and everything AMS knows about it. Media files aren't touched.

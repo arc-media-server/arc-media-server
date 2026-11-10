@@ -270,152 +270,138 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if patch.DetailsProvider != nil {
-		if *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
-			writeError(w, 400, "TVDB metadata provider is only available for TV libraries")
-			return
-		}
-
+	// Validate all independent fields before admission or any persistent/cache mutation.
+	invalid := func(message string) { writeError(w, http.StatusBadRequest, message) }
+	if patch.DetailsProvider != nil && *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
+		invalid("TVDB metadata provider is only available for TV libraries")
+		return
 	}
-	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
-		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
-			s.fail(w, err)
-			return
-		}
+	if patch.CollectionGrid != nil && *patch.CollectionGrid != "" && *patch.CollectionGrid != "collection" && *patch.CollectionGrid != "both" {
+		invalid(`collection_grid is "" (titles), "collection" or "both"`)
+		return
 	}
-	if patch.CollectionGrid != nil {
-		if *patch.CollectionGrid != "" && *patch.CollectionGrid != "collection" && *patch.CollectionGrid != "both" {
-			writeError(w, http.StatusBadRequest, `collection_grid is "" (titles), "collection" or "both"`)
-			return
-		}
-		if err := s.store.SetLibraryCollectionGrid(r.Context(), lib.ID, *patch.CollectionGrid); err != nil {
-			s.fail(w, err)
-			return
-		}
+	if patch.CollectionMin != nil && (*patch.CollectionMin < 0 || *patch.CollectionMin > 10) {
+		invalid("collection_min is 0 (off) to 10")
+		return
 	}
-	if patch.SkipIntros != nil || patch.SkipCredits != nil {
-		intros, credits := lib.SkipIntros, lib.SkipCredits
+	if patch.Language != nil && !languageRe.MatchString(*patch.Language) {
+		invalid(`metadata_language is a language like "fr-FR" or "ja", or "" for English`)
+		return
+	}
+	if patch.RatingRegion != nil && !regionRe.MatchString(*patch.RatingRegion) {
+		invalid("rating_region is a two-letter country code such as GB")
+		return
+	}
+	core := patch.Name != nil || patch.SourceOrdering != nil || patch.Paths != nil
+	var before, after *store.Library
+	var forget []int64
+	validationError := false
+	err := s.scanner.WithLibraryChange(r.Context(), lib.ID, func(ctx context.Context) error {
+		var err error
+		before, err = s.store.GetLibrary(ctx, lib.ID)
+		if err != nil {
+			return err
+		}
+		if before == nil {
+			return store.ErrLibraryNotFound
+		}
+		next := *before
+		if patch.Name != nil {
+			next.Name = *patch.Name
+		}
+		if patch.SourceOrdering != nil {
+			next.SourceOrdering = *patch.SourceOrdering
+		}
+		if patch.Paths != nil {
+			next.Paths = patch.Paths
+		}
+		if patch.DetailsProvider != nil {
+			next.DetailsProvider = *patch.DetailsProvider
+		}
+		if core {
+			b = libraryBody{Name: next.Name, Kind: next.Kind, SourceOrdering: next.SourceOrdering, Paths: next.Paths, DetailsProvider: next.DetailsProvider}
+			if err := s.validate(ctx, &b, lib.ID); err != nil {
+				validationError = true
+				return err
+			}
+			if b.Name == "" {
+				validationError = true
+				return errors.New("give the library a name")
+			}
+			next.Name, next.SourceOrdering, next.Paths = b.Name, b.SourceOrdering, b.Paths
+		}
+		if patch.Trickplay != nil {
+			next.Trickplay = *patch.Trickplay
+		}
+		if patch.CollectionMin != nil {
+			next.CollectionMin = *patch.CollectionMin
+		}
+		if patch.Language != nil {
+			next.MetadataLanguage = *patch.Language
+		}
+		if patch.RatingRegion != nil {
+			next.RatingRegion = *patch.RatingRegion
+		}
 		if patch.SkipIntros != nil {
-			intros = *patch.SkipIntros && lib.Kind == "shows"
+			next.SkipIntros = *patch.SkipIntros && next.Kind == "shows"
 		}
 		if patch.SkipCredits != nil {
-			credits = *patch.SkipCredits && lib.Kind != "videos"
+			next.SkipCredits = *patch.SkipCredits && next.Kind != "videos"
 		}
-		if err := s.store.SetLibrarySkips(r.Context(), lib.ID, intros, credits); err != nil {
-			s.fail(w, err)
-			return
+		if patch.CollectionGrid != nil {
+			next.CollectionGrid = *patch.CollectionGrid
 		}
-		if s.markers != nil && (intros && !lib.SkipIntros || credits && !lib.SkipCredits) {
-			s.markers.Wake() // look for the newly wanted ones
-		}
-	}
-	if patch.CollectionMin != nil {
-		if *patch.CollectionMin < 0 || *patch.CollectionMin > 10 {
-			writeError(w, http.StatusBadRequest, "collection_min is 0 (off) to 10")
-			return
-		}
-		if err := s.store.SetLibraryCollectionMin(r.Context(), lib.ID, *patch.CollectionMin); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if patch.Language != nil && *patch.Language != lib.MetadataLanguage {
-		if !languageRe.MatchString(*patch.Language) {
-			writeError(w, http.StatusBadRequest, `metadata_language is a language like "fr-FR" or "ja", or "" for English`)
-			return
-		}
-		if err := s.store.SetLibraryLanguage(r.Context(), lib.ID, *patch.Language); err != nil {
-			s.fail(w, err)
-			return
-		}
-		// Fetch everything again in the new language.
-		s.scanner.Request(lib.ID)
-	}
-	// A new age-rating country refetches the library's titles (after the rest of the save, which
-	// refuses a busy library); if it is busy anyway, the maintenance refresh picks them up.
-	regionChanged := patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion && lib.Kind != "videos"
-	if patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion {
-		if !regionRe.MatchString(*patch.RatingRegion) {
-			writeError(w, http.StatusBadRequest, "rating_region is a two-letter country code such as GB")
-			return
-		}
-		if err := s.store.SetLibraryRatingRegion(r.Context(), lib.ID, *patch.RatingRegion); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
-		if patch.DetailsProvider != nil {
-			if s.scanner.Status(lib.ID).Running {
-				writeError(w, 409, "the library is busy; retry when its current work finishes")
-				return
-			}
-			if err := s.store.SetLibraryDetailsProvider(r.Context(), lib.ID, *patch.DetailsProvider); err != nil {
-				s.fail(w, err)
-				return
+		if s.trickplay != nil && before.Trickplay && !next.Trickplay {
+			forget, err = s.store.LibraryFileIDs(ctx, lib.ID)
+			if err != nil {
+				return err
 			}
 		}
-		// Provider-only changes refresh known metadata, never discover media.
-		if patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
-			s.scanner.StartOperation(lib.ID, "refresh")
+		if err := s.store.SaveLibrarySettings(ctx, *before, next, core); err != nil {
+			return err
 		}
-		// Nothing that needs a rescan.
-		updated, err := s.store.GetLibrary(r.Context(), lib.ID)
-		if err != nil {
-			s.fail(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, updated)
-		return
-	}
-	if patch.Name != nil {
-		b.Name = *patch.Name
-	}
-	if patch.SourceOrdering != nil {
-		b.SourceOrdering = *patch.SourceOrdering
-	}
-	if patch.Paths != nil {
-		b.Paths = patch.Paths
-	}
-	if err := s.validate(r.Context(), &b, lib.ID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if b.Name == "" {
-		writeError(w, http.StatusBadRequest, "give the library a name")
-		return
-	}
-	if s.scanner.Status(lib.ID).Running {
-		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
-		return
-	}
-	var providers []string
-	if patch.DetailsProvider != nil {
-		providers = []string{*patch.DetailsProvider}
-	}
-	err := s.store.UpdateLibrary(r.Context(), lib.ID, b.Name, b.SourceOrdering, b.Paths, providers...)
-	if errors.Is(err, store.ErrDuplicateName) {
-		writeError(w, http.StatusConflict, err.Error())
-		return
-	}
+		after = &next
+		return nil
+	})
 	if err != nil {
-		s.fail(w, err)
+		switch {
+		case errors.Is(err, scanner.ErrLibraryBusy):
+			writeError(w, 409, "the library is busy; retry when its current work finishes")
+		case errors.Is(err, store.ErrDuplicateName):
+			writeError(w, 409, err.Error())
+		case errors.Is(err, store.ErrLibraryNotFound):
+			writeError(w, 404, "library not found")
+		case validationError:
+			invalid(err.Error())
+		default:
+			s.fail(w, err)
+		}
 		return
 	}
-	if s.librariesChanged != nil {
+	// Cache and worker side effects happen only after the whole save commits.
+	if s.trickplay != nil && before.Trickplay != after.Trickplay {
+		if after.Trickplay {
+			s.trickplay.Wake()
+		} else {
+			for _, id := range forget {
+				s.trickplay.Forget(id)
+			}
+		}
+	}
+	if s.markers != nil && (after.SkipIntros && !before.SkipIntros || after.SkipCredits && !before.SkipCredits) {
+		s.markers.Wake()
+	}
+	if core && s.librariesChanged != nil {
 		s.librariesChanged()
 	}
-	if !slices.Equal(lib.Paths, b.Paths) {
-		s.scanner.Request(lib.ID)
-	} else if b.SourceOrdering != lib.SourceOrdering || patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
-		s.scanner.StartOperation(lib.ID, "refresh")
+	if s.scanner != nil {
+		if !slices.Equal(before.Paths, after.Paths) || before.MetadataLanguage != after.MetadataLanguage {
+			s.scanner.Request(lib.ID)
+		} else if before.SourceOrdering != after.SourceOrdering || before.DetailsProvider != after.DetailsProvider || before.RatingRegion != after.RatingRegion && after.Kind != "videos" {
+			s.scanner.StartOperation(lib.ID, "refresh")
+		}
 	}
-	updated, err := s.store.GetLibrary(r.Context(), lib.ID)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, updated)
+	writeJSON(w, http.StatusOK, after)
 }
 
 // deleteLibrary: DELETE /api/libraries/{id} removes a library and everything AMS knows about it,
