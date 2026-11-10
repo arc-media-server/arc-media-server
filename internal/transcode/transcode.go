@@ -288,17 +288,17 @@ func buildArgs(o Options, start float64, dir string) []string {
 	}
 	a = append(a, "-i", o.Path)
 
-	// Filters, in order: HDR to SDR, picture subtitles drawn on, scaling, hardware upload.
+	// Resize before expensive HDR mapping, then draw SDR captions and upload if needed.
 	var pre, post []string
+	if encode && o.MaxHeight > 0 {
+		pre = append(pre, FitScaleFilter(o.MaxHeight))
+	}
 	if encode && o.ToneMap {
 		if o.FastToneMap {
 			pre = append(pre, FastToneMapFilter)
 		} else {
 			pre = append(pre, ToneMapFilter)
 		}
-	}
-	if encode && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
-		post = append(post, "scale=-2:"+strconv.Itoa(o.MaxHeight))
 	}
 	if encode && o.HWEncoder == "h264_vaapi" {
 		post = append(post, "format=nv12", "hwupload")
@@ -310,7 +310,7 @@ func buildArgs(o Options, start float64, dir string) []string {
 			fc = in + strings.Join(pre, ",") + "[pre];"
 			in = "[pre]"
 		}
-		fc += fmt.Sprintf("%s[0:%d]overlay=eof_action=pass", in, o.BurnSubtitle)
+		fc += fmt.Sprintf("[0:%d]%sscale2ref=w=iw:h=ih[subscaled][videoref];[videoref][subscaled]overlay=eof_action=pass", o.BurnSubtitle, in)
 		if len(post) > 0 {
 			fc += "," + strings.Join(post, ",")
 		}
