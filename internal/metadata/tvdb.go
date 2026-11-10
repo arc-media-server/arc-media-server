@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"ams/internal/safeerr"
 	"bytes"
 	"cmp"
 	"context"
@@ -360,7 +361,14 @@ func tvdbImage(path string) string {
 	return "https://artworks.thetvdb.com" + path
 }
 
-func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) error {
+func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) (err error) {
+	defer func() {
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		} else {
+			err = requestError("tvdb", err)
+		}
+	}()
 	u := tvdbBase + path
 	if len(q) > 0 {
 		u += "?" + q.Encode()
@@ -383,7 +391,7 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		if err != nil {
-			return err
+			return safeerr.Transport(err)
 		}
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -395,7 +403,7 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 				}
 				continue
 			}
-			return err
+			return safeerr.Transport(err)
 		}
 		switch {
 		case resp.StatusCode == http.StatusUnauthorized && !authRetried:
@@ -414,7 +422,7 @@ func (c *TVDB) get(ctx context.Context, path string, q url.Values, out any) erro
 			return ErrNotFound
 		case resp.StatusCode != http.StatusOK:
 			resp.Body.Close()
-			return fmt.Errorf("tvdb %s: %s", path, resp.Status)
+			return fmt.Errorf("tvdb %s: HTTP %d %s", path, resp.StatusCode, http.StatusText(resp.StatusCode))
 		}
 		err = c.cache.decode(ctx, cacheKey, resp.Body, out)
 		resp.Body.Close()
@@ -433,23 +441,22 @@ func (c *TVDB) ensureToken(ctx context.Context, force bool) (string, error) {
 	body, _ := json.Marshal(map[string]string{"apikey": c.key})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tvdbBase+"/login", bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return "", safeerr.Transport(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", err
+		return "", safeerr.Transport(err)
 	}
 	defer resp.Body.Close()
 	var out struct {
 		Data struct {
 			Token string `json:"token"`
 		} `json:"data"`
-		Message string `json:"message"`
 	}
 	json.NewDecoder(resp.Body).Decode(&out)
 	if resp.StatusCode != http.StatusOK || out.Data.Token == "" {
-		return "", fmt.Errorf("tvdb login: %s %s", resp.Status, strings.TrimSpace(out.Message))
+		return "", fmt.Errorf("tvdb login: HTTP %d %s; no authentication token received", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 	c.token, c.tokenAt = out.Data.Token, time.Now()
 	return c.token, nil

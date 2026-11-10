@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"ams/internal/backup"
+	"ams/internal/store"
 )
 
 // listBackups: GET /api/backups. Database backups, newest first.
@@ -38,18 +39,21 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	defer release()
 	if err := s.backups.Restore(r.Context(), r.PathValue("name")); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if errors.Is(err, backup.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "backup not found")
 			return
 		}
-		s.log.Warn("restore failed", "backup", r.PathValue("name"), "err", err)
-		writeError(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, backup.ErrInvalidName) || errors.Is(err, store.ErrInvalidBackup) {
+			err = errMsg(err.Error())
+		}
+		s.inputError(w, r, err)
 		return
 	}
 	if s.afterRestore != nil {
 		if err := s.afterRestore(context.WithoutCancel(r.Context())); err != nil {
-			s.log.Error("database restored but runtime reload failed", "err", err)
-			writeError(w, http.StatusInternalServerError, "The database was restored, but Arc couldn't apply all restored settings. Restart Arc. "+err.Error())
+			markFailureLogged(w)
+			s.log.Error("database restored but runtime reload failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+			writeError(w, http.StatusInternalServerError, "The database was restored, but Arc couldn't apply all restored settings. Restart Arc.")
 			return
 		}
 	}
@@ -63,7 +67,10 @@ func (s *Server) deleteBackup(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "backup not found")
 			return
 		}
-		writeError(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, backup.ErrInvalidName) {
+			err = errMsg(err.Error())
+		}
+		s.inputError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
