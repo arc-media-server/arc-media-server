@@ -10,13 +10,21 @@ var ErrLibraryNotFound = errors.New("library not found")
 // SaveLibrarySettings commits all scalar controls, folder changes and metadata invalidation
 // together. The API holds the scanner's existing per-library work lease over its read/apply.
 func (s *Store) SaveLibrarySettings(ctx context.Context, before, after Library, core bool) error {
+	var plan *libraryRelocation
+	var err error
+	if core {
+		plan, err = s.prepareLibraryRelocation(ctx, after.ID, after.Paths)
+		if err != nil {
+			return err
+		}
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	if core {
-		if err := updateLibraryTx(ctx, tx, after.ID, after.Name, after.SourceOrdering, after.Paths, after.DetailsProvider); err != nil {
+		if err := updateLibraryTx(ctx, tx, after.ID, after.Name, after.SourceOrdering, after.Paths, after.DetailsProvider, plan); err != nil {
 			return err
 		}
 	}
