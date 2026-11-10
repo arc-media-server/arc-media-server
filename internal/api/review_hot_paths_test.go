@@ -152,3 +152,56 @@ func TestPlaylistListingAllocationBudget(t *testing.T) {
 	}
 	t.Logf("playlist summary median allocation %.3f MiB", float64(allocated[1])/1024/1024)
 }
+
+func TestRecommendationPageAllocationBudget(t *testing.T) {
+	if os.Getenv("ARC_RUN_REVIEW_HOT_PATHS") != "1" {
+		t.Skip("opt-in allocation regression")
+	}
+	h := reviewHotPathServer(t)
+	response := fixtureAPICall(t.Context(), h, "GET", "/libraries/1/recommended", "")
+	if response.Code != 200 {
+		t.Fatal(response.Code, response.Body.String())
+	}
+	var rows recommendedResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	path := ""
+	for _, row := range rows.Rows {
+		if row.Type == "because_you_watched" {
+			path = strings.TrimPrefix(row.ItemsURL, "/api/v1")
+			break
+		}
+	}
+	if path == "" {
+		t.Fatal("fixture has no curated row")
+	}
+	var allocated []uint64
+	var total int
+	for range 3 {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		response = fixtureAPICall(t.Context(), h, "GET", path+"?limit=50", "")
+		runtime.ReadMemStats(&after)
+		if response.Code != 200 {
+			t.Fatal(response.Code, response.Body.String())
+		}
+		var page recommendedItemsPage
+		if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 50 || page.Total < 50 || !page.Bounded {
+			t.Fatalf("curated page changed: items=%d total=%d bounded=%v", len(page.Items), page.Total, page.Bounded)
+		}
+		if total != 0 && total != page.Total {
+			t.Fatal("fixture selection changed")
+		}
+		total = page.Total
+		allocated = append(allocated, after.TotalAlloc-before.TotalAlloc)
+	}
+	sort.Slice(allocated, func(i, j int) bool { return allocated[i] < allocated[j] })
+	if allocated[1] > 16<<20 {
+		t.Fatalf("one recommendation page rebuilds too much data: median %.3f MiB, budget 16 MiB", float64(allocated[1])/1024/1024)
+	}
+	t.Logf("curated page median allocation %.3f MiB", float64(allocated[1])/1024/1024)
+}

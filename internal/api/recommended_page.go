@@ -26,7 +26,7 @@ func (s *Server) recommendedPage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, err.Error())
 		return
 	}
-	rows, err := s.recommendedRows(r, lib)
+	rows, err := s.recommendedRowsLimitTarget(r, lib, recommendedLimit, r.PathValue("row"))
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -64,7 +64,7 @@ func (s *Server) recommendedPage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			expanded, e := s.recommendedRowsLimit(r, lib, 500)
+			expanded, e := s.recommendedRowsLimitTarget(r, lib, 500, row.ID)
 			if e != nil {
 				s.fail(w, e)
 				return
