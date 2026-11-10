@@ -110,6 +110,15 @@ func (s *Server) recommendedRows(r *http.Request, lib *store.Library) ([]recomme
 }
 
 func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit int) ([]recommendedRow, error) {
+	return s.recommendedRowsLimitTarget(r, lib, limit, "")
+}
+
+func recommendedRowID(row recommendedRow) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d/%s/%s", row.Type, row.Name, row.Genre, row.PersonID, row.Role, row.sourceID)))
+	return fmt.Sprintf("%x", sum[:12])
+}
+
+func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library, limit int, targetID string) ([]recommendedRow, error) {
 	ctx := r.Context()
 	userID := currentUserID(r)
 	acc := access(r)
@@ -120,14 +129,14 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 	now := time.Now()
 	day := int(now.Unix() / 86400)
 	rows := []recommendedRow{}
+	wanted := func(row recommendedRow) bool { return targetID == "" || targetID == recommendedRowID(row) }
 	var nextQuery *store.ItemQuery
 	var nextTotal int
 	add := func(row recommendedRow) {
 		row.query, row.total = nextQuery, nextTotal
 		nextQuery, nextTotal = nil, 0
 		if len(row.Items) > 0 {
-			sum := sha256.Sum256([]byte(fmt.Sprintf("%s/%s/%s/%d/%s/%s", row.Type, row.Name, row.Genre, row.PersonID, row.Role, row.sourceID)))
-			row.ID = fmt.Sprintf("%x", sum[:12])
+			row.ID = recommendedRowID(row)
 			row.ItemsURL = fmt.Sprintf("/api/v1/libraries/%d/recommended/rows/%s", lib.ID, row.ID)
 			row.HasMore = row.total > len(row.Items) || (row.query == nil && (len(row.Items) >= limit || row.Type == "because_you_watched"))
 			row.Title = englishRowTitle(row, kind == "series")
@@ -174,107 +183,130 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 		return out, nil
 	}
 
-	// Continue Watching, for this library only.
-	here := acc
-	here.Libraries = []int64{lib.ID}
-	inProgress, err := s.inProgress(r, here)
-	if err != nil {
-		return nil, err
+	// A continuation request evaluates only its current row. Row descriptors,
+	// selection windows and daily identities remain the same as the full view.
+	queryRow := func(row recommendedRow, q store.ItemQuery) (bool, error) {
+		if !wanted(row) {
+			return false, nil
+		}
+		items, err := list(q)
+		if err != nil {
+			return false, err
+		}
+		row.Items = items
+		add(row)
+		return targetID != "", nil
 	}
-	var next []homeEntry
-	if lib.Kind == "shows" {
-		if next, err = s.upNext(r, here); err != nil {
+	continueRow := recommendedRow{Type: "continue"}
+	if wanted(continueRow) {
+		here := acc
+		here.Libraries = []int64{lib.ID}
+		inProgress, err := s.inProgress(r, here)
+		if err != nil {
 			return nil, err
 		}
-	}
-	items, err := s.homeDTOs(r, mergeHome(inProgress, next, limit))
-	if err != nil {
-		return nil, err
-	}
-	add(recommendedRow{Type: "continue", Items: items})
-
-	if items, err = list(store.ItemQuery{Sort: "release"}); err != nil {
-		return nil, err
-	}
-	add(recommendedRow{Type: "recently_released", Items: items})
-	if items, err = list(store.ItemQuery{Sort: "added"}); err != nil {
-		return nil, err
-	}
-	add(recommendedRow{Type: "recently_added", Items: items, Name: lib.Name})
-	if lib.Kind == "shows" {
-		if items, err = list(store.ItemQuery{Unstarted: true, Sort: "shuffle"}); err != nil {
+		var next []homeEntry
+		if lib.Kind == "shows" {
+			if next, err = s.upNext(r, here); err != nil {
+				return nil, err
+			}
+		}
+		items, err := s.homeDTOs(r, mergeHome(inProgress, next, limit))
+		if err != nil {
 			return nil, err
 		}
-		add(recommendedRow{Type: "start_watching", Items: items})
+		continueRow.Items = items
+		add(continueRow)
+		if targetID != "" {
+			return rows, nil
+		}
 	}
-
+	for _, entry := range []struct {
+		row   recommendedRow
+		query store.ItemQuery
+	}{
+		{recommendedRow{Type: "recently_released"}, store.ItemQuery{Sort: "release"}},
+		{recommendedRow{Type: "recently_added", Name: lib.Name}, store.ItemQuery{Sort: "added"}},
+	} {
+		if stop, err := queryRow(entry.row, entry.query); stop || err != nil {
+			return rows, err
+		}
+	}
+	if lib.Kind == "shows" {
+		if stop, err := queryRow(recommendedRow{Type: "start_watching"}, store.ItemQuery{Unstarted: true, Sort: "shuffle"}); stop || err != nil {
+			return rows, err
+		}
+	}
 	recent, err := s.store.RecentlyWatchedTitles(ctx, userID, lib.ID, 3)
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range recent {
-		visible, err := s.store.CanSee(ctx, &t, acc)
+	for _, source := range recent {
+		row := recommendedRow{Type: "because_you_watched", Name: source.Title, sourceID: source.ID}
+		if !wanted(row) {
+			continue
+		}
+		visible, err := s.store.CanSee(ctx, &source, acc)
 		if err != nil {
 			return nil, err
 		}
 		if !visible {
+			if targetID != "" {
+				return rows, nil
+			}
 			continue
 		}
-		similar, err := s.store.Similar(ctx, &t, acc, limit)
+		similar, err := s.store.Similar(ctx, &source, acc, limit)
 		if err != nil {
 			return nil, err
 		}
-		if items, err = unseen(similar); err != nil {
+		row.Items, err = unseen(similar)
+		if err != nil {
 			return nil, err
 		}
-		add(recommendedRow{Type: "because_you_watched", Items: items, Name: t.Title, sourceID: t.ID})
+		add(row)
+		if targetID != "" {
+			return rows, nil
+		}
 	}
-
-	if items, err = list(store.ItemQuery{Sort: "rating"}); err != nil {
-		return nil, err
-	}
-	add(recommendedRow{Type: "top_rated", Items: items})
 	watched := store.ItemQuery{Played: true, Sort: "watched"}
 	if lib.Kind == "shows" {
 		watched.Kind = "episode"
 	}
-	if items, err = list(watched); err != nil {
-		return nil, err
+	for _, entry := range []struct {
+		row   recommendedRow
+		query store.ItemQuery
+	}{
+		{recommendedRow{Type: "top_rated"}, store.ItemQuery{Sort: "rating"}},
+		{recommendedRow{Type: "recently_watched"}, watched},
+		{recommendedRow{Type: "rediscover"}, store.ItemQuery{PlayedBefore: now.Add(-rediscoverAfter).Unix(), Sort: "shuffle"}},
+	} {
+		if stop, err := queryRow(entry.row, entry.query); stop || err != nil {
+			return rows, err
+		}
 	}
-	add(recommendedRow{Type: "recently_watched", Items: items})
-	if items, err = list(store.ItemQuery{PlayedBefore: now.Add(-rediscoverAfter).Unix(), Sort: "shuffle"}); err != nil {
-		return nil, err
-	}
-	add(recommendedRow{Type: "rediscover", Items: items})
-
 	favourites, err := s.store.FavouriteGenres(ctx, userID, lib.ID, 2)
 	if err != nil {
 		return nil, err
 	}
-	for _, g := range favourites {
-		items, err = list(store.ItemQuery{Genre: g, Sort: "shuffle", Unwatched: true})
-		if err != nil {
-			return nil, err
+	for _, genre := range favourites {
+		row := recommendedRow{Type: "more_in_genre", Name: genre, Genre: genre}
+		if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "shuffle", Unwatched: true}); stop || err != nil {
+			return rows, err
 		}
-		add(recommendedRow{Type: "more_in_genre", Items: items, Name: g, Genre: g})
 	}
-
-	// A genre with enough titles that isn't a favourite above, a different one each day.
 	genres, err := s.store.LibraryGenres(ctx, lib.ID, kind, 5, acc)
 	if err != nil {
 		return nil, err
 	}
 	genres = slices.DeleteFunc(genres, func(g string) bool { return slices.Contains(favourites, g) })
 	if len(genres) > 0 {
-		g := genres[day%len(genres)]
-		if items, err = list(store.ItemQuery{Genre: g, Sort: "rating"}); err != nil {
-			return nil, err
+		genre := genres[day%len(genres)]
+		row := recommendedRow{Type: "top_in_genre", Name: genre, Genre: genre}
+		if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "rating"}); stop || err != nil {
+			return rows, err
 		}
-		add(recommendedRow{Type: "top_in_genre", Items: items, Name: g, Genre: g})
 	}
-
-	// An actor or director with a few titles here: one credited on what the profile watched
-	// lately when there is one, changing daily.
 	people, err := s.store.FeaturedPeople(ctx, userID, lib.ID, kind, 3, acc, 10)
 	if err != nil {
 		return nil, err
@@ -285,18 +317,15 @@ func (s *Server) recommendedRowsLimit(r *http.Request, lib *store.Library, limit
 		pool = pool[:min(3, len(pool))]
 	}
 	if len(pool) > 0 {
-		p := pool[day%len(pool)]
-		if items, err = list(store.ItemQuery{PersonID: p.ID, PersonRole: p.Role, Sort: "rating"}); err != nil {
-			return nil, err
+		person := pool[day%len(pool)]
+		row := recommendedRow{Type: "top_by_person", Name: person.Name, PersonID: person.ID, Role: person.Role}
+		if stop, err := queryRow(row, store.ItemQuery{PersonID: person.ID, PersonRole: person.Role, Sort: "rating"}); stop || err != nil {
+			return rows, err
 		}
-		add(recommendedRow{Type: "top_by_person", Items: items, Name: p.Name, PersonID: p.ID, Role: p.Role})
 	}
-
-	items, err = list(store.ItemQuery{Sort: "rating", Unwatched: true})
-	if err != nil {
+	if _, err := queryRow(recommendedRow{Type: "top_unwatched"}, store.ItemQuery{Sort: "rating", Unwatched: true}); err != nil {
 		return nil, err
 	}
-	add(recommendedRow{Type: "top_unwatched", Items: items})
 	return rows, nil
 }
 
