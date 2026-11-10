@@ -91,17 +91,18 @@ type Deps struct {
 }
 
 type Server struct {
-	workContext    context.Context
-	workers        *sync.WaitGroup
-	bulkMu         sync.Mutex
-	bulkQueue      *bulkRefreshQueue
-	watchTogether  *watchtogether.Manager
-	watchRecheck   time.Duration
-	events         *events.Hub
-	eventHeartbeat time.Duration
-	requests       requestDiagnostics
-	watchProblem   func(int64) string
-	background     *background.Manager
+	workContext       context.Context
+	workers           *sync.WaitGroup
+	bulkMu            sync.Mutex
+	bulkQueue         *bulkRefreshQueue
+	collectionLookups collectionLookupCache
+	watchTogether     *watchtogether.Manager
+	watchRecheck      time.Duration
+	events            *events.Hub
+	eventHeartbeat    time.Duration
+	requests          requestDiagnostics
+	watchProblem      func(int64) string
+	background        *background.Manager
 
 	store            *store.Store
 	scanner          *scanner.Scanner
