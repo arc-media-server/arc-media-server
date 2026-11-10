@@ -160,3 +160,9 @@ Item paging accepts an explicit `limit` from 1 to 500 (default 100) and `offset`
 Playlist edits validate the entire request before writing. Titles use the same trimmed
 100-Unicode-character limit as creation; a bad filter or rules on an ordinary playlist leaves
 the title unchanged. A valid combined title/rules edit is saved atomically.
+
+### Return 405 and Allow for unsupported API methods
+
+A request using an unsupported HTTP method on a known API path returns `405` and an `Allow`
+header listing supported methods. Unknown paths still return `404`. Do not interpret a 405
+as a missing server feature; check the endpoint's documented method.
