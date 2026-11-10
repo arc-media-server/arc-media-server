@@ -67,6 +67,13 @@ func key(fileID int64, quality int) string { return fmt.Sprintf("%d-%d", fileID,
 // Usable checks the actual source and artifact, not just a completed database status. A source
 // replacement can precede its next scan, and the artifact may have been removed independently.
 func Usable(o *store.Optimized, f *store.MediaFile) bool {
+	// Existing profile-5 copies were made without a verified DV-aware colour transform.
+	for _, stream := range f.Streams {
+		if stream.Kind == "video" && stream.DolbyVision && stream.DolbyVisionProfile == 5 {
+			return false
+		}
+	}
+
 	if o.Status != "done" || o.AudioStream < -1 || !o.MatchesSource(f) {
 		return false
 	}
@@ -233,6 +240,11 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		return fail(fmt.Errorf("the file isn't there"))
 	case ffmpeg == "":
 		return fail(fmt.Errorf("FFmpeg wasn't found"))
+	}
+	for _, stream := range f.Streams {
+		if stream.Kind == "video" && stream.DolbyVision && stream.DolbyVisionProfile == 5 {
+			return fail(fmt.Errorf("Dolby Vision profile 5 cannot be safely re-encoded into an optimized copy; use the original on a compatible player"))
+		}
 	}
 	before, err := sourceInfo(o, f)
 	if err != nil {
