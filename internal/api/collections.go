@@ -2,14 +2,12 @@ package api
 
 import (
 	"cmp"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"ams/internal/artwork"
 	"ams/internal/metadata"
@@ -168,19 +166,7 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	}
 	// An automatic collection's description comes from TMDB the first time it's opened.
 	if c.Kind == "auto" && c.Overview == "" && !slices.Contains(c.LockedFields, "overview") {
-		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-		if info, err := s.scanner.CollectionInfo(ctx, c.TMDBID); err == nil && info != nil {
-			if s.store.SetCollectionInfo(r.Context(), c.ID, info.Overview, info.PosterPath, info.BackdropPath) == nil {
-				c.Overview = info.Overview
-				if info.PosterPath != "" {
-					c.PosterPath = info.PosterPath
-				}
-				if info.BackdropPath != "" {
-					c.BackdropPath = info.BackdropPath
-				}
-			}
-		}
-		cancel()
+		s.fillCollectionInfo(r.Context(), c)
 	}
 	items, total, err := s.collectionItems(r, c, 0)
 	if err != nil {
