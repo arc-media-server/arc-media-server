@@ -370,25 +370,29 @@ func (s *Server) updatePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.Title != nil {
-		if err := s.store.RenamePlaylist(r.Context(), p.ID, strings.TrimSpace(*b.Title)); err != nil {
-			s.fail(w, err)
+		title := strings.TrimSpace(*b.Title)
+		if title == "" || len([]rune(title)) > 100 {
+			writeError(w, http.StatusBadRequest, "give the playlist a name of up to 100 characters")
 			return
 		}
+		b.Title = &title
 	}
+	var filter *string
 	if b.Filter != nil {
 		if p.Filter == "" {
 			writeError(w, http.StatusConflict, "only a smart playlist has rules")
 			return
 		}
-		filter, err := s.smartFilter(r, b.Filter)
+		validated, err := s.smartFilter(r, b.Filter)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err := s.store.SetPlaylistFilter(r.Context(), p.ID, filter); err != nil {
-			s.fail(w, err)
-			return
-		}
+		filter = &validated
+	}
+	if err := s.store.UpdatePlaylistDetails(r.Context(), p.ID, b.Title, filter); err != nil {
+		s.fail(w, err)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -125,6 +125,17 @@ func (s *Store) RenamePlaylist(ctx context.Context, id, title string) error {
 	return err
 }
 
+// UpdatePlaylistDetails applies a validated title and/or smart filter in one statement, so a
+// write failure cannot leave just the title changed. Nil means leave the existing field alone.
+func (s *Store) UpdatePlaylistDetails(ctx context.Context, id string, title, filter *string) error {
+	if title == nil && filter == nil {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE playlists SET title = COALESCE(?, title),
+  filter = COALESCE(?, filter), updated_at = ? WHERE id = ?`, title, filter, time.Now().Unix(), id)
+	return err
+}
+
 // DeletePlaylist removes a playlist (not its titles).
 func (s *Store) DeletePlaylist(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM playlists WHERE id = ?`, id)

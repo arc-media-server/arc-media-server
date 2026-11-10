@@ -152,3 +152,11 @@ Event streams are bounded to eight simultaneous connections per profile as well 
 server. A ninth connection gets `429` with `Retry-After: 5`; close disconnected streams and honor
 that backoff rather than repeatedly opening replacements. Sessions/devices using the same
 profile share its allowance. Invalid principals do not reserve a slot; disconnect releases it.
+
+### Validate item paging and atomic playlist edits
+
+Item paging accepts an explicit `limit` from 1 to 500 (default 100) and `offset` from 0 to
+10000000. Invalid, nonnumeric or oversized bounds return `400`; they no longer silently reset.
+Playlist edits validate the entire request before writing. Titles use the same trimmed
+100-Unicode-character limit as creation; a bad filter or rules on an ordinary playlist leaves
+the title unchanged. A valid combined title/rules edit is saved atomically.
