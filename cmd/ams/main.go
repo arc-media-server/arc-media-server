@@ -602,6 +602,13 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	var apiWorkers sync.WaitGroup
 	defer func() { stop(); apiWorkers.Wait() }()
+	subtitleCache := subtitles.NewCacheWithContext(ctx, filepath.Join(dataDir, "subtitles"), func() string {
+		ffMu.Lock()
+		defer ffMu.Unlock()
+		return ffmpegBin
+	}, log)
+	defer subtitleCache.Close()
+
 	handler := api.New(api.Deps{
 		WorkContext: ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
@@ -648,11 +655,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		Transcoder:    transcoder,
 		Trickplay:     thumbs,
 		OpenSubtitles: subsOnline,
-		Subtitles: subtitles.NewCache(filepath.Join(dataDir, "subtitles"), func() string {
-			ffMu.Lock()
-			defer ffMu.Unlock()
-			return ffmpegBin
-		}),
+		Subtitles:     subtitleCache,
 		FFprobeStatus: func() any {
 			ffMu.Lock()
 			defer ffMu.Unlock()
