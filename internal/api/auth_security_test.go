@@ -19,7 +19,12 @@ import (
 
 func securityServer(t testing.TB) (*Server, *store.User) {
 	t.Helper()
-	st, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"), store.Options{})
+	return securityServerAt(t, filepath.Join(t.TempDir(), "test.db"))
+}
+
+func securityServerAt(t testing.TB, path string) (*Server, *store.User) {
+	t.Helper()
+	st, err := store.Open(context.Background(), path, store.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
