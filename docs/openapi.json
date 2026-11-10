@@ -4387,6 +4387,9 @@
           "dolby_vision_profile": {
             "type": "integer"
           },
+          "dv_bl_signal_compatibility_id": {
+            "type": "integer"
+          },
           "frame_rate": {
             "type": "number"
           },

@@ -62,7 +62,8 @@ type Options struct {
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// The source video has Dolby Vision: copied video should keep it (checked once it's written).
-	DolbyVision bool
+	DolbyVision      bool
+	StripDolbyVision bool
 	// Who started it and for what, for the server's own checks.
 	Owner, ItemID string
 }
@@ -336,6 +337,9 @@ func buildArgs(o Options, start float64, dir string) []string {
 		// when allowed "unofficial" boxes; without it a player sees plain HEVC and shows the
 		// HDR10 base layer instead of Dolby Vision. Streams without Dolby Vision are unaffected.
 		a = append(a, "-strict", "unofficial")
+		if o.StripDolbyVision {
+			a = append(a, "-bsf:v", "dovi_rpu=strip=1")
+		}
 	} else {
 		if filters := append(pre, post...); o.BurnSubtitle < 0 && len(filters) > 0 {
 			a = append(a, "-vf", strings.Join(filters, ","))
