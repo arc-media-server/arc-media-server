@@ -512,7 +512,10 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 	out := make([]libDTO, 0, len(libs))
 	for _, l := range libs {
 		requestStage(r, "reading scanner status", l.ID)
-		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
+		if !adminFileDetails(r) {
+			l.Paths = []string{}
+		}
+		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: profileScanStatus(r, s.scanner.Status(l.ID))})
 	}
 	requestStage(r, "writing library response", 0)
 	writeJSON(w, http.StatusOK, out)
@@ -541,7 +544,7 @@ func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
 	if lib, ok := s.libraryFromPath(w, r); ok {
 		requestStage(r, "reading scanner status", lib.ID)
-		writeJSON(w, http.StatusOK, s.scanner.Status(lib.ID))
+		writeJSON(w, http.StatusOK, profileScanStatus(r, s.scanner.Status(lib.ID)))
 	}
 }
 
@@ -713,7 +716,7 @@ func (s *Server) itemDetails(r *http.Request, it *store.Item) (itemDTO, error) {
 	if err != nil {
 		return d, err
 	}
-	d.Files = files
+	d.Files = profileMediaFiles(r, files)
 	if err = s.addDetails(r, &d); err != nil {
 		return d, err
 	}

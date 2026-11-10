@@ -137,3 +137,11 @@ catalog maintenance returns 503. Accepted jobs appear in Activity and survive HT
 but stop with Activity cancellation, server shutdown or the batch deadline. They are not durable
 queued jobs across a restart. Reload state before retrying a mixed edit/played request after other
 errors; existing synchronous bulk transaction boundaries are unchanged.
+
+### Profile-visible filesystem details
+
+Media-file `path` remains a string: administrators receive the full server path; household/friend
+profiles receive its filename only. Library `paths` arrays are empty for non-admins. Raw probe/scan
+filesystem diagnostics are administrator detail; ordinary profiles receive a generic failure.
+Use stream URLs/file ids for playback and indexed relative folder endpoints for browsing, rather
+than reconstructing server paths. No stored file identity/path is changed by response masking.
