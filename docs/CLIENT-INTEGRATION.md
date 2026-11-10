@@ -127,3 +127,13 @@ segment. The hls.js web player implements this; native-HLS web playback keeps it
 All converted sessions have best-effort free-space admission/monitoring. A low-space start returns
 503; a running conversion fails its playlist instead of silently filling the disk. Native apps
 should enable rolling windows only when they implement the older-seek restart behavior.
+
+### Bulk metadata refresh admission
+
+`POST /items/bulk` with `refresh: true` uses one bounded server worker. Repeated pending/in-flight
+ids coalesce; the global bound is 5,000 unique titles and JSON bodies are limited to 2 MiB. A full
+queue returns 429 with `Retry-After` before that request's synchronous edits are applied; temporary
+catalog maintenance returns 503. Accepted jobs appear in Activity and survive HTTP disconnects,
+but stop with Activity cancellation, server shutdown or the batch deadline. They are not durable
+queued jobs across a restart. Reload state before retrying a mixed edit/played request after other
+errors; existing synchronous bulk transaction boundaries are unchanged.

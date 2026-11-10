@@ -1,13 +1,16 @@
 package api
 
 import (
+	"ams/internal/safeerr"
 	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"ams/internal/scanner"
 	"ams/internal/store"
@@ -33,9 +36,14 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 		Played        *bool    `json:"played"`
 		Refresh       bool     `json:"refresh"`
 	}
-	dec := json.NewDecoder(r.Body)
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&body); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, "bulk request exceeds 2 MiB")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error())
 		return
 	}
@@ -50,7 +58,27 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, `locks is "all", "none" or left out`)
 		return
 	}
-	ctx := r.Context()
+	root := s.workContext
+	if root == nil {
+		root = context.Background()
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	stop := context.AfterFunc(root, cancel)
+	defer stop()
+	if root.Err() != nil {
+		writeError(w, 503, "server is stopping; retry after it restarts")
+		return
+	}
+	unique := make([]string, 0, len(body.ItemIDs))
+	seen := map[string]bool{}
+	for _, id := range body.ItemIDs {
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+	body.ItemIDs = unique
 	items := make([]*store.Item, 0, len(body.ItemIDs))
 	for _, id := range body.ItemIDs {
 		it, err := s.store.GetItem(ctx, id)
@@ -63,6 +91,26 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		items = append(items, it)
+	}
+	var ticket *bulkRefreshTicket
+	if body.Refresh {
+		if s.scanner == nil {
+			writeError(w, 503, "metadata refresh is unavailable")
+			return
+		}
+		var err error
+		ticket, err = s.bulkRefreshWork().reserve(body.ItemIDs)
+		if err != nil {
+			if errors.Is(err, errBulkRefreshFull) {
+				w.Header().Set("Retry-After", "5")
+				writeError(w, 429, "metadata refresh queue is full; retry when current work finishes")
+			} else {
+				w.Header().Set("Retry-After", "3")
+				writeError(w, 503, "metadata refresh is temporarily unavailable; retry shortly")
+			}
+			return
+		}
+		defer ticket.abort()
 	}
 	e := store.BulkEdit{
 		AddGenres: cleanLabels(body.AddGenres), RemoveGenres: cleanLabels(body.RemoveGenres),
@@ -99,55 +147,99 @@ func (s *Server) editItems(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if body.Refresh {
-		release, ok := s.store.BeginCatalogWork()
-		if !ok {
-			writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
-			return
-		}
-		go func() { defer release(); s.refreshItems(context.WithoutCancel(ctx), items) }()
+	if ticket != nil {
+		ticket.commit()
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// refreshItems fetches metadata again for many titles, one at a time, reporting in Activity.
-func (s *Server) refreshItems(ctx context.Context, items []*store.Item) {
-	ctx, cancel := context.WithCancel(ctx)
+// refreshItems fetches a queue batch with fresh item identities and one bounded outcome.
+func (s *Server) refreshItems(ctx context.Context, ids []string, complete func(string)) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
-	task := s.activity.Start("refresh", fmt.Sprintf("Refreshing %d titles", len(items)))
+	task := s.activity.Start("refresh", fmt.Sprintf("Refreshing %d titles", len(ids)))
 	task.Cancellable(cancel)
-	failed := 0
-	for i, it := range items {
+	started := time.Now()
+	failed, refreshed, skipped := 0, 0, 0
+	firstFailure := ""
+	s.log.Info("bulk metadata refresh started", "titles", len(ids))
+	defer func() {
+		for _, id := range ids {
+			complete(id)
+		}
+		err := ctx.Err()
+		if failed > 0 && err == nil {
+			err = fmt.Errorf("%d of %d could not be refreshed", failed, len(ids))
+		}
+		task.Detail(fmt.Sprintf("%d refreshed, %d skipped, %d failed", refreshed, skipped, failed))
+		task.Finish(err)
+		if failed > 0 && ctx.Err() == nil {
+			s.log.Warn("bulk metadata refresh finished with failures", "requested", len(ids), "refreshed", refreshed, "skipped", skipped, "failed", failed, "took", time.Since(started), "first_error", firstFailure)
+		} else {
+			s.log.Info("bulk metadata refresh finished", "requested", len(ids), "refreshed", refreshed, "skipped", skipped, "failed", failed, "canceled", ctx.Err() != nil, "took", time.Since(started))
+		}
+	}()
+	for i, id := range ids {
 		if ctx.Err() != nil {
-			task.Finish(ctx.Err())
 			return
 		}
-		task.Progress(i+1, len(items))
-		task.Detail(it.Title)
-		var err error
-		if it.Kind == "movie" {
-			_, err = s.scanner.RefreshMovie(ctx, it.ID)
-		} else {
-			var lib *store.Library
-			if lib, err = s.store.GetLibrary(ctx, it.LibraryID); err == nil && lib != nil {
-				err = s.scanner.SyncSeriesMetadata(ctx, lib, it.ID, false)
+		task.Progress(i+1, len(ids))
+		it, err := s.store.GetItem(ctx, id)
+		if err == nil && it == nil {
+			skipped++
+			complete(id)
+			continue
+		}
+		if err == nil {
+			task.Detail(it.Title)
+			if it.Kind == "movie" {
+				_, err = s.scanner.RefreshMovie(ctx, it.ID)
+			} else if it.Kind == "series" {
+				var lib *store.Library
+				lib, err = s.store.GetLibrary(ctx, it.LibraryID)
+				if err == nil && lib != nil {
+					err = s.scanner.SyncSeriesMetadata(ctx, lib, it.ID, false)
+				} else if err == nil {
+					skipped++
+					complete(id)
+					continue
+				}
+			} else {
+				skipped++
+				complete(id)
+				continue
 			}
 		}
 		if ctx.Err() != nil {
-			task.Finish(ctx.Err())
 			return
 		}
 		if err != nil {
 			failed++
-			s.log.Warn("refresh failed", "item", it.Title, "err", err)
+			debug := s.log.Enabled(ctx, slog.LevelDebug)
+			if firstFailure == "" || debug {
+				message := err.Error()
+				if it != nil {
+					message = it.Title + ": " + message
+				}
+				encoded, _ := json.Marshal(map[string]string{"error": message})
+				var safe map[string]string
+				_ = json.Unmarshal([]byte(safeerr.JSONErrors(string(encoded))), &safe)
+				message = safe["error"]
+				if runes := []rune(message); len(runes) > 256 {
+					message = string(runes[:256]) + "…"
+				}
+				if firstFailure == "" {
+					firstFailure = message
+				}
+				if debug {
+					s.log.Debug("bulk metadata refresh item failed", "item_id", id, "err", message)
+				}
+			}
+		} else {
+			refreshed++
 		}
+		complete(id)
 	}
-	task.Detail(fmt.Sprintf("%d refreshed", len(items)-failed))
-	var err error
-	if failed > 0 {
-		err = fmt.Errorf("%d of %d couldn't be refreshed (see the server log)", failed, len(items))
-	}
-	task.Finish(err)
 }
 
 // mergeItems: POST /api/items/merge {"target_id", "item_ids": [...]} (admin) makes several movies
