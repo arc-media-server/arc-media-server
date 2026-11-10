@@ -156,6 +156,12 @@ const (
 )
 
 type Scanner struct {
+	// Recent failures only; no persisted negative result or automatic-work setting.
+	probeRetryMu    sync.Mutex
+	probeFailures   map[int64]*recentProbeFailure
+	probeRetrySweep time.Time
+	probeRetryNow   func() time.Time // test clock, configured before workers start
+
 	// Events is configured before workers start; invalidations contain no item metadata.
 	Events *events.Hub
 	ctx    context.Context
@@ -806,7 +812,8 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 		return 0, err
 	}
 	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
-	if unchanged && (existing.Probed || !probeNow) {
+	recentFailure := unchanged && probeNow && !existing.Probed && s.deferRecentProbeFailure(existing.ID, path, existing.Size, existing.ModTime, existing.ProbeError)
+	if unchanged && (existing.Probed || !probeNow || recentFailure) {
 		if existing.Probed {
 			s.update(lib.ID, func(st *Status) { st.FilesReused++ })
 		}
@@ -839,6 +846,7 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 // saveProbed reads a file with ffprobe and stores what's in it (or why it couldn't be read).
 func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int64) (int64, error) {
 	currentWork(ctx).Update("Inspecting file", "Reading video, audio and HDR details · "+filepath.Base(f.Path))
+	stamp, stampValid := s.probeStamp(f.Path, f.Size, f.ModTime)
 	var probedAt int64
 	if res, err := s.prober.Probe(ctx, f.Path); err != nil {
 		if ctx.Err() != nil {
@@ -847,10 +855,18 @@ func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int
 		f.ProbeError = err.Error()
 	} else {
 		probedAt = time.Now().Unix()
+		f.ProbeError = ""
 		applyProbe(f, res)
 	}
 	id, err := s.store.SaveFile(ctx, f, probedAt, seenAt)
 	if err == nil {
+		if f.ProbeError != "" && stampValid {
+			if after, valid := s.probeStamp(f.Path, f.Size, f.ModTime); valid && after == stamp {
+				s.rememberProbeFailure(id, stamp)
+			}
+		} else if probedAt > 0 {
+			s.forgetProbeFailure(id)
+		}
 		s.Events.Publish(events.Event{Topic: "catalog", LibraryID: f.LibraryID})
 	}
 	return id, err
@@ -871,6 +887,22 @@ func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStar
 	}
 	if err != nil || len(files) == 0 {
 		return err
+	}
+	eligible := files[:0]
+	deferred := 0
+	for _, f := range files {
+		if s.deferRecentProbeFailure(f.ID, f.Path, f.Size, f.ModTime, f.ProbeError) {
+			deferred++
+			continue
+		}
+		eligible = append(eligible, f)
+	}
+	files = eligible
+	if deferred > 0 {
+		s.log.DebugContext(ctx, "recent file inspection failures deferred", "library", lib.ID, "files", deferred)
+	}
+	if len(files) == 0 {
+		return nil
 	}
 	s.phase(lib.ID, "Reading file details", len(files))
 	return each(ctx, len(files), probeWorkers, func(i int) error {
