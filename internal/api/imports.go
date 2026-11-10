@@ -251,17 +251,6 @@ func (s *Server) chooseImportServer(w http.ResponseWriter, r *http.Request) {
 // runImport: POST /api/imports/{id}/run {"profiles": {"<account id>": "<profile id>" | "new" | ""}}
 // (admin) imports each chosen account into its profile ("new" makes a profile named after it).
 func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
-	releaseCatalog, ok := s.store.BeginCatalogWork()
-	if !ok {
-		writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
-		return
-	}
-	transferred := false
-	defer func() {
-		if !transferred {
-			releaseCatalog()
-		}
-	}()
 	sess := s.importFromPath(w, r)
 	if sess == nil {
 		return
