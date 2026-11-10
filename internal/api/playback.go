@@ -412,7 +412,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		}
 		return
 	}
-	audio := defaultAudio(f)
+	var audio *store.Stream
 	if body.AudioStream == nil {
 		audio = s.playbackDefaultAudio(r, f)
 	} else {
