@@ -250,7 +250,19 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			show = series.Title + " · " + show
 		}
 		op := task.Work("Detecting intros", show, "Comparing the season's episodes")
-		found, err := detectSeason(work, ffmpeg, files)
+		started := time.Now()
+		skipped, noAudio := 0, 0
+		var firstFailure error
+		found, err := detectSeason(work, ffmpeg, files, func(file store.MarkerJob, failure error) {
+			if errors.Is(failure, errNoAudio) {
+				noAudio++
+				return
+			}
+			skipped++
+			if firstFailure == nil {
+				firstFailure = fmt.Errorf("file %s: %w", filepath.Base(file.Path), failure)
+			}
+		})
 		if err == nil {
 			for fileID, ms := range found {
 				if err = m.store.SaveMarkers(work, fileID, ms); err != nil {
@@ -268,7 +280,11 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 			m.log.Warn("detecting intros failed", "show", show, "err", err)
 			continue
 		}
-		m.log.Info("compared a season's episodes for intros", "show", show, "episodes", len(files), "intros_found", len(found))
+		if skipped > 0 {
+			m.log.Warn("compared season with unreadable audio skipped", "show", show, "episodes", len(files), "files_skipped", skipped, "files_without_audio_fingerprint", noAudio, "intros_found", len(found), "took", time.Since(started), "err", firstFailure)
+		} else {
+			m.log.Info("compared a season's episodes for intros", "show", show, "episodes", len(files), "intros_found", len(found), "files_without_audio_fingerprint", noAudio, "took", time.Since(started))
+		}
 
 	}
 	for i, j := range movies {
