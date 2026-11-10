@@ -273,6 +273,13 @@ func (s *Server) playlistItemIDs(r *http.Request, ids []string) ([]string, error
 // order doesn't place.
 func (s *Server) orderedEpisodeIDs(r *http.Request, series *store.Item) ([]string, error) {
 	ctx := r.Context()
+	visible, err := s.store.CanSee(ctx, series, access(r))
+	if err != nil {
+		return nil, err
+	}
+	if !visible {
+		return nil, errMsg("a title to add wasn't found")
+	}
 	available, err := s.store.AvailableChildren(ctx, series.ID)
 	if err != nil {
 		return nil, err
