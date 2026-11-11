@@ -27,6 +27,7 @@ import (
 	"ams/internal/background"
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/downloads"
 	"ams/internal/events"
 	"ams/internal/logbuf"
 	"ams/internal/markers"
@@ -576,8 +577,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return nil
 	}
 
+	downloadManager := downloads.New(st, log)
 	handler := api.New(api.Deps{
-		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
+		Downloads: downloadManager,
+		Store:     st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
 			bg.Reset(ctx)
@@ -632,6 +635,11 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			return ffStatus
 		},
 	})
+
+	downloadCtx, stopDownloads := context.WithCancel(ctx)
+	downloadsDone := make(chan struct{})
+	go func() { defer close(downloadsDone); downloadManager.Run(downloadCtx) }()
+	defer func() { stopDownloads(); <-downloadsDone }()
 
 	ln, err := net.Listen("tcp", cfg.ListenAddress())
 	if err != nil {
