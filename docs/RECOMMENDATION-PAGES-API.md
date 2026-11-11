@@ -1,4 +1,4 @@
-# Recommendation continuation (app handoff)
+# Recommendation continuation
 
 Rows from `GET /api/v1/libraries/{id}/recommended` now include `id`, `items_url` and `has_more`.
 Keep existing row titles/types and initial 20 cards. When scrolling further, GET `items_url` with
@@ -16,7 +16,7 @@ IDs identify the row type and source parameters, not a snapshot. A changed daily
 renamed source, hidden/removed row or different current recommendations may return 404: refresh
 the parent endpoint. Concurrent additions/watch changes can shift offsets; deduplicate item IDs on
 append and refresh on focus. No snapshot guarantee or Plex internal-algorithm equivalence is claimed.
-No provider requests, probes or jobs are started. No frontend changes are included.
+No provider requests, probes or jobs are started. Clients decide how to expose continuation; the endpoint does not change the saved row layout.
 
 Logging reuses existing bounded request failures/debug records; no per-card info output.
 Tests use generated records/files and check >20 continuation, totals, no duplicates in a stable
