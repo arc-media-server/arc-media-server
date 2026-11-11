@@ -259,7 +259,8 @@ _Doesn't block development; must be done before AMS is shared or published._
 
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
-- Offline downloads/sync
+- Offline downloads/sync (#62): [backend foundation](docs/plans/DOWNLOADS.md) and
+  [proposed client contract](docs/DOWNLOADS-API-DRAFT.md); design only, not implemented.
 - Translate the web app into other languages (react-i18next + Weblate) (#122)
 - Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
 - Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
