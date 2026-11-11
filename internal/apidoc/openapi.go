@@ -368,6 +368,9 @@ func (s *schemas) fields(st *types.Struct, props map[string]any, required *[]str
 		if strings.Contains(inputTags, "nullable") {
 			props[name] = map[string]any{"anyOf": []any{props[name], map[string]any{"type": "null"}}}
 		}
+		if description := reflect.StructTag(st.Tag(i)).Get("description"); description != "" {
+			props[name].(map[string]any)["description"] = description
+		}
 		requiredField := !strings.Contains(opts, "omitempty") && !strings.Contains(opts, "omitzero")
 		if s.input {
 			_, pointer := f.Type().(*types.Pointer)
@@ -582,7 +585,7 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		"info": map[string]any{
 			"title":       "Arc Media Server API",
 			"version":     "1",
-			"description": strings.TrimSpace(strings.TrimPrefix(intro, "# Arc API")),
+			"description": strings.ReplaceAll(strings.TrimSpace(strings.TrimPrefix(intro, "# Arc API")), "](CLIENT-INTEGRATION.md)", "](/docs/client-integration.html)"),
 		},
 		"servers":  []any{map[string]any{"url": "/api/v1", "description": "The stable API for apps"}},
 		"security": []any{map[string]any{"bearerAuth": []string{}}, map[string]any{"cookieAuth": []string{}}},

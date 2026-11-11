@@ -31,6 +31,23 @@ func supplementOperation(r route, op map[string]any, components map[string]any) 
 		responses["416"] = map[string]any{"description": "Unsatisfiable byte range; transport error is plain text", "content": map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}}, "headers": map[string]any{"Content-Range": header("For unsatisfiable byte ranges: bytes */size")}}
 	}
 	switch r.handler {
+	case "createProfile", "updateProfile":
+		// RawMessage represents omission/null/array at runtime; its Go type alone
+		// cannot express that contract. Create requires a name; PATCH does not.
+		body := components["InputProfileBody"].(map[string]any)
+		body["properties"].(map[string]any)["library_ids"] = map[string]any{
+			"anyOf":       []any{map[string]any{"type": "array", "items": map[string]any{"type": "integer", "format": "int64"}}, map[string]any{"type": "null"}},
+			"description": "Omit to keep existing access (all libraries on creation); null means all libraries; [] means no libraries. Admin profiles always see every library.",
+		}
+		if r.handler == "createProfile" {
+			create := map[string]any{}
+			for key, value := range body {
+				create[key] = value
+			}
+			create["required"] = []string{"name"}
+			components["InputCreateProfile"] = create
+			op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"] = map[string]any{"$ref": "#/components/schemas/InputCreateProfile"}
+		}
 	case "eventStream":
 		parameter("Last-Event-ID", "Last received opaque SSE cursor (at most 80 characters). Retained process-local hints replay; invalid, stale or restart cursors require resync.")
 		params := op["parameters"].([]any)
