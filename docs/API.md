@@ -49,7 +49,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-211 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+215 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -139,6 +139,15 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | GET | `/api/discover` | anyone | Lets an app on the home network find Arc without signing in: TV apps can't listen for broadcasts, so they try their network's addresses on Arc's port and list the servers that answer. Only answers requests from the home network (404 otherwise), and gives only the server's identity, name and version. |
+
+### downloads
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/downloads` | profile | Prepares one original movie/episode descriptor. No bytes, playback, conversion or offline sync are provided by this preparation-only API. |
+| GET | `/api/downloads` | profile | Lists this profile/device's visible preparation records. ?limit=50&offset=0, limit 1-100. It does not probe or hash files. |
+| GET | `/api/downloads/{id}` | profile | Returns the preparation descriptor, not a media URL. |
+| DELETE | `/api/downloads/{id}` | profile | Releases this profile/device's preparation record. Cancels preparation at its next check; no source or device-local files are deleted. |
 
 ### events
 

@@ -54,9 +54,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
 - **Client API:** integration guide `docs/CLIENT-INTEGRATION.md`; current backend/UI handoff
   `docs/BACKEND-API-HANDOFF.md`. Regenerate the contract with `go run ./tools/apidoc` after API changes.
-- **Downloads (#62):** design groundwork is in `docs/plans/DOWNLOADS.md` and
-  `docs/DOWNLOADS-API-DRAFT.md`. These are proposed interfaces, not implemented endpoints or
-  capability flags. Runtime work follows reviewed #418 integration and targets SQLite.
+- **Downloads (#62):** first backend slice prepares original-file checksums with profile/device
+  ownership; see `docs/DOWNLOADS-PREPARATION-API.md`. No transfer/offline-sync/native controls yet.
+  Owner authorized parallel implementation; reconcile/retest after #418/#419 merge. SQLite only,
+  external DBs deferred.
+  Broader proposed contract: `docs/plans/DOWNLOADS.md` / `docs/DOWNLOADS-API-DRAFT.md`.
 - **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android
   (Kotlin, Compose for TV, Media3), and uses only `/api/v1`; API gaps it needs are fixed here.
   The LG webOS / Samsung Tizen app goes in arc-media-server/arc-tv (one web app with Enact

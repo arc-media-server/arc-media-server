@@ -23,6 +23,8 @@ type User struct {
 	LibraryIDs []int64 `json:"library_ids"`
 	// Titles with these labels are hidden from the profile.
 	ExcludeLabels []string `json:"exclude_labels"`
+	// Explicit download grant; administrators always have effective permission.
+	AllowDownloads bool `json:"allow_downloads"`
 	// A friend: someone outside the household who signs in with their own name and password.
 	IsFriend     bool   `json:"is_friend"`
 	PasswordHash string `json:"-"`
@@ -30,11 +32,11 @@ type User struct {
 	CreatedAt    int64  `json:"created_at"`
 }
 
-const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids, exclude_labels, is_friend`
+const userCols = `id, name, is_admin, color, pin_hash <> '', password_hash, pin_hash, created_at, max_age, library_ids, exclude_labels, is_friend, allow_downloads`
 
 func scanUser(row interface{ Scan(...any) error }, u *User) error {
 	var libs, labels string
-	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs, &labels, &u.IsFriend); err != nil {
+	if err := row.Scan(&u.ID, &u.Name, &u.IsAdmin, &u.Color, &u.HasPIN, &u.PasswordHash, &u.PINHash, &u.CreatedAt, &u.MaxAge, &libs, &labels, &u.IsFriend, &u.AllowDownloads); err != nil {
 		return err
 	}
 	u.LibraryIDs = parseIDs(libs)
@@ -128,11 +130,12 @@ func (s *Store) ListUsers(ctx context.Context) ([]User, error) {
 
 // UserUpdate changes a profile. Nil fields are left alone; an empty PINHash removes the PIN.
 type UserUpdate struct {
-	Name         *string
-	Color        *string
-	PINHash      *string
-	PasswordHash *string
-	MaxAge       *int
+	AllowDownloads *bool
+	Name           *string
+	Color          *string
+	PINHash        *string
+	PasswordHash   *string
+	MaxAge         *int
 	// The libraries the profile may see: set with a list (nil field leaves it alone); AllLibraries
 	// lifts the restriction.
 	LibraryIDs    *[]int64
@@ -152,6 +155,10 @@ func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error 
 	add("color", up.Color)
 	add("pin_hash", up.PINHash)
 	add("password_hash", up.PasswordHash)
+	if up.AllowDownloads != nil {
+		sets = append(sets, "allow_downloads = ?")
+		args = append(args, boolInt(*up.AllowDownloads))
+	}
 	if up.MaxAge != nil {
 		sets = append(sets, "max_age = ?")
 		args = append(args, *up.MaxAge)

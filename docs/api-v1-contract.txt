@@ -11,6 +11,8 @@ DELETE /collections/{id}/items/{item}
 DELETE /collections/{id}/items/{item} 204
 DELETE /devices/{id}
 DELETE /devices/{id} 204
+DELETE /downloads/{id}
+DELETE /downloads/{id} 204
 DELETE /home/continue/{id}
 DELETE /home/continue/{id} 204
 DELETE /items/{id}
@@ -116,6 +118,7 @@ GET /auth/status 200 .password_session boolean
 GET /auth/status 200 .profile null
 GET /auth/status 200 .profile null|object
 GET /auth/status 200 .profile object
+GET /auth/status 200 .profile.allow_downloads boolean
 GET /auth/status 200 .profile.color string
 GET /auth/status 200 .profile.exclude_labels array
 GET /auth/status 200 .profile.exclude_labels array|null
@@ -135,6 +138,7 @@ GET /auth/status 200 .profile.max_age integer
 GET /auth/status 200 .profile.name string
 GET /auth/status 200 .profiles array
 GET /auth/status 200 .profiles[] object
+GET /auth/status 200 .profiles[].allow_downloads boolean
 GET /auth/status 200 .profiles[].color string
 GET /auth/status 200 .profiles[].exclude_labels array
 GET /auth/status 200 .profiles[].exclude_labels array|null
@@ -401,6 +405,32 @@ GET /discover 200 .id string
 GET /discover 200 .name string
 GET /discover 200 .product string
 GET /discover 200 .version string
+GET /downloads
+GET /downloads 200
+GET /downloads 200 .items array
+GET /downloads 200 .items[] object
+GET /downloads 200 .items[].created_at integer
+GET /downloads 200 .items[].file_id integer
+GET /downloads 200 .items[].id string
+GET /downloads 200 .items[].item_id string
+GET /downloads 200 .items[].reason_code string
+GET /downloads 200 .items[].revision string
+GET /downloads 200 .items[].sha256 string
+GET /downloads 200 .items[].size integer
+GET /downloads 200 .items[].state string
+GET /downloads 200 .offset integer
+GET /downloads 200 .total integer
+GET /downloads/{id}
+GET /downloads/{id} 200
+GET /downloads/{id} 200 .created_at integer
+GET /downloads/{id} 200 .file_id integer
+GET /downloads/{id} 200 .id string
+GET /downloads/{id} 200 .item_id string
+GET /downloads/{id} 200 .reason_code string
+GET /downloads/{id} 200 .revision string
+GET /downloads/{id} 200 .sha256 string
+GET /downloads/{id} 200 .size integer
+GET /downloads/{id} 200 .state string
 GET /events
 GET /events 200
 GET /extras/{id}/stream
@@ -3721,6 +3751,7 @@ GET /playing 200 [].item.year integer
 GET /playing 200 [].method string
 GET /playing 200 [].position_ms integer
 GET /playing 200 [].profile object
+GET /playing 200 [].profile.allow_downloads boolean
 GET /playing 200 [].profile.color string
 GET /playing 200 [].profile.exclude_labels array
 GET /playing 200 [].profile.exclude_labels array|null
@@ -3937,6 +3968,7 @@ GET /preroll/{n} 206
 GET /profiles
 GET /profiles 200
 GET /profiles 200 [] object
+GET /profiles 200 [].allow_downloads boolean
 GET /profiles 200 [].color string
 GET /profiles 200 [].exclude_labels array
 GET /profiles 200 [].exclude_labels array|null
@@ -4833,7 +4865,9 @@ GET /settings 200
 GET /settings 200 .allow_network boolean
 GET /settings 200 .analysis_enabled boolean
 GET /settings 200 .auto_backups_enabled boolean
+GET /settings 200 .automatic_home_networks array
 GET /settings 200 .automatic_home_networks array|null
+GET /settings 200 .automatic_home_networks null
 GET /settings 200 .automatic_home_networks[] string
 GET /settings 200 .cache_cleanup_enabled boolean
 GET /settings 200 .database_upkeep_enabled boolean
@@ -5061,6 +5095,7 @@ GET /stats 200 .movies[].title string
 GET /stats 200 .movies[].watched_ms integer
 GET /stats 200 .profiles array
 GET /stats 200 .profiles[] object
+GET /stats 200 .profiles[].allow_downloads boolean
 GET /stats 200 .profiles[].color string
 GET /stats 200 .profiles[].exclude_labels array
 GET /stats 200 .profiles[].exclude_labels array|null
@@ -5238,6 +5273,7 @@ GET /stats/history 200 .plays[].user_id string
 GET /stats/history 200 .plays[].watched_ms integer
 GET /stats/history 200 .profiles array
 GET /stats/history 200 .profiles[] object
+GET /stats/history 200 .profiles[].allow_downloads boolean
 GET /stats/history 200 .profiles[].color string
 GET /stats/history 200 .profiles[].exclude_labels array
 GET /stats/history 200 .profiles[].exclude_labels array|null
@@ -5999,6 +6035,7 @@ PATCH /playlists/{id}
 PATCH /playlists/{id} 204
 PATCH /profiles/{id}
 PATCH /profiles/{id} 200
+PATCH /profiles/{id} 200 .allow_downloads boolean
 PATCH /profiles/{id} 200 .color string
 PATCH /profiles/{id} 200 .exclude_labels array
 PATCH /profiles/{id} 200 .exclude_labels array|null
@@ -6091,7 +6128,9 @@ PATCH /settings 200
 PATCH /settings 200 .allow_network boolean
 PATCH /settings 200 .analysis_enabled boolean
 PATCH /settings 200 .auto_backups_enabled boolean
+PATCH /settings 200 .automatic_home_networks array
 PATCH /settings 200 .automatic_home_networks array|null
+PATCH /settings 200 .automatic_home_networks null
 PATCH /settings 200 .automatic_home_networks[] string
 PATCH /settings 200 .cache_cleanup_enabled boolean
 PATCH /settings 200 .database_upkeep_enabled boolean
@@ -6186,6 +6225,7 @@ POST /auth/password
 POST /auth/password 204
 POST /auth/profile
 POST /auth/profile 200
+POST /auth/profile 200 .allow_downloads boolean
 POST /auth/profile 200 .color string
 POST /auth/profile 200 .exclude_labels array
 POST /auth/profile 200 .exclude_labels array|null
@@ -6205,6 +6245,7 @@ POST /auth/profile 200 .max_age integer
 POST /auth/profile 200 .name string
 POST /auth/setup
 POST /auth/setup 201
+POST /auth/setup 201 .allow_downloads boolean
 POST /auth/setup 201 .color string
 POST /auth/setup 201 .exclude_labels array
 POST /auth/setup 201 .exclude_labels array|null
@@ -6426,6 +6467,27 @@ POST /collections/{id}/artwork/{type} 200 .items[].user_data.watchlisted boolean
 POST /collections/{id}/artwork/{type} 200 .items[].year integer
 POST /collections/{id}/items
 POST /collections/{id}/items 204
+POST /downloads
+POST /downloads 200
+POST /downloads 200 .created_at integer
+POST /downloads 200 .file_id integer
+POST /downloads 200 .id string
+POST /downloads 200 .item_id string
+POST /downloads 200 .reason_code string
+POST /downloads 200 .revision string
+POST /downloads 200 .sha256 string
+POST /downloads 200 .size integer
+POST /downloads 200 .state string
+POST /downloads 201
+POST /downloads 201 .created_at integer
+POST /downloads 201 .file_id integer
+POST /downloads 201 .id string
+POST /downloads 201 .item_id string
+POST /downloads 201 .reason_code string
+POST /downloads 201 .revision string
+POST /downloads 201 .sha256 string
+POST /downloads 201 .size integer
+POST /downloads 201 .state string
 POST /imports
 POST /imports 200
 POST /imports 200 .accounts array
@@ -7705,6 +7767,7 @@ POST /playlists/{id}/items 200
 POST /playlists/{id}/items 200 .added integer
 POST /profiles
 POST /profiles 201
+POST /profiles 201 .allow_downloads boolean
 POST /profiles 201 .color string
 POST /profiles 201 .exclude_labels array
 POST /profiles 201 .exclude_labels array|null
