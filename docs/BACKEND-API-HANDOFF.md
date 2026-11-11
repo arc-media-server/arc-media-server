@@ -36,9 +36,11 @@ may omit these fields. See the walkthrough for retry and compatibility rules.
   the #350 server review fixes. It remains a draft awaiting owner/Claude review; it is not main or
   deployment acceptance. Feature guides label the pending DV-base and per-profile SSE behavior.
 - PostgreSQL [#337](https://github.com/arc-media-server/arc-media-server/pull/337) and
-  [#339](https://github.com/arc-media-server/arc-media-server/pull/339) remain separate pending work
-  under #308 and require compatibility work with the review integration. SQLite remains the
-  implemented main backend. Do not expose pending PostgreSQL UI as deployed functionality.
+  [#339](https://github.com/arc-media-server/arc-media-server/pull/339) are **deferred by the owner
+  (11 November)** under #308. Keep the implementation and evidence unmerged for later; current
+  work focuses on stability and release readiness with SQLite. No parallel PostgreSQL maintenance
+  is required for new SQLite features. Reassess schema/backup and review-integration compatibility
+  before any future resumption. Do not expose PostgreSQL UI as deployed functionality.
 - Offline downloads/sync (#62) are separate planning work.
 
 The original implementation handoffs are historical evidence in dated docs/changes notes. Completed

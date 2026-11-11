@@ -40,6 +40,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - **Status:** private alpha. Milestones 1–20 are done (see `ROADMAP.md`); the focus is milestone 21,
   stability and alpha release readiness (#130–#138), plus the owner's requests as they come in.
   Arc runs day to day on the owner's Unraid server in Docker.
+- **Release focus (owner, 11 November):** prioritize stability and release readiness with SQLite.
+  External databases/PostgreSQL are deferred under #308; preserve PRs #337/#339 unmerged as
+  reference work. Do not maintain a parallel PostgreSQL schema/query path or resume that work
+  unless the owner asks. New backend work targets the existing SQLite migration/backup system.
 - **Open owner items:** TMDB/TheTVDB logo files for attribution (#64, into
   `web/src/assets/attribution/`); translations beyond English and a language picker (#122, Codex
   has done the extraction); real-device playback and casting checks (#135, #192); the optimized
