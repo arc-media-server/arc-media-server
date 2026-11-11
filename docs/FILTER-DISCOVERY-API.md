@@ -1,4 +1,4 @@
-# Rich filters and discovery (Claude/app handoff)
+# Rich filters and discovery
 
 `GET /api/v1/libraries/{id}/filters` returns filter descriptors (`key`, `type`, `operator`,
 optional `values`, bounds and facet name), sort names and `facets_url`. Supported enum values
@@ -23,7 +23,7 @@ such as about/unmatched; those are not newly added to saved row filters.
 Audio codec and channel count must match one stream. Video codec and dynamic range match one
 video stream; audio and video must belong to the same present file. A series qualifies through
 an accessible child episode. Existing resolution filtering retains its existing movie/file
-semantics; this PR does not change that legacy filter.
+semantics; its legacy behavior is unchanged.
 
 Dynamic range describes stored source information, prioritizing Dolby Vision, HDR10+, HLG,
 HDR10, known SDR, then unknown. A DV source with an HDR10 base layer is classified as DV here,

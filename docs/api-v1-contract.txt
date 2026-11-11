@@ -113,9 +113,13 @@ GET /auth/status 200 .bypass boolean
 GET /auth/status 200 .friend boolean
 GET /auth/status 200 .local boolean
 GET /auth/status 200 .password_session boolean
+GET /auth/status 200 .profile null
 GET /auth/status 200 .profile null|object
+GET /auth/status 200 .profile object
 GET /auth/status 200 .profile.color string
 GET /auth/status 200 .profile.exclude_labels array
+GET /auth/status 200 .profile.exclude_labels array|null
+GET /auth/status 200 .profile.exclude_labels null
 GET /auth/status 200 .profile.exclude_labels[] string
 GET /auth/status 200 .profile.has_pin boolean
 GET /auth/status 200 .profile.id string
@@ -124,6 +128,8 @@ GET /auth/status 200 .profile.is_admin boolean
 GET /auth/status 200 .profile.is_friend boolean
 GET /auth/status 200 .profile.joined boolean
 GET /auth/status 200 .profile.library_ids array
+GET /auth/status 200 .profile.library_ids array|null
+GET /auth/status 200 .profile.library_ids null
 GET /auth/status 200 .profile.library_ids[] integer
 GET /auth/status 200 .profile.max_age integer
 GET /auth/status 200 .profile.name string
@@ -131,6 +137,8 @@ GET /auth/status 200 .profiles array
 GET /auth/status 200 .profiles[] object
 GET /auth/status 200 .profiles[].color string
 GET /auth/status 200 .profiles[].exclude_labels array
+GET /auth/status 200 .profiles[].exclude_labels array|null
+GET /auth/status 200 .profiles[].exclude_labels null
 GET /auth/status 200 .profiles[].exclude_labels[] string
 GET /auth/status 200 .profiles[].has_pin boolean
 GET /auth/status 200 .profiles[].id string
@@ -139,6 +147,8 @@ GET /auth/status 200 .profiles[].is_admin boolean
 GET /auth/status 200 .profiles[].is_friend boolean
 GET /auth/status 200 .profiles[].joined boolean
 GET /auth/status 200 .profiles[].library_ids array
+GET /auth/status 200 .profiles[].library_ids array|null
+GET /auth/status 200 .profiles[].library_ids null
 GET /auth/status 200 .profiles[].library_ids[] integer
 GET /auth/status 200 .profiles[].max_age integer
 GET /auth/status 200 .profiles[].name string
@@ -146,7 +156,9 @@ GET /auth/status 200 .setup_needed boolean
 GET /auth/status 200 .signed_in boolean
 GET /backups
 GET /backups 200
+GET /backups 200 .backups array
 GET /backups 200 .backups array|null
+GET /backups 200 .backups null
 GET /backups 200 .backups[] object
 GET /backups 200 .backups[].created_at string
 GET /backups 200 .backups[].name string
@@ -317,7 +329,9 @@ GET /collections/{id} 200 .items[].user_data.watchlisted boolean
 GET /collections/{id} 200 .items[].year integer
 GET /collections/{id}/artwork
 GET /collections/{id}/artwork 200
+GET /collections/{id}/artwork 200 .backdrops array
 GET /collections/{id}/artwork 200 .backdrops array|null
+GET /collections/{id}/artwork 200 .backdrops null
 GET /collections/{id}/artwork 200 .backdrops[] object
 GET /collections/{id}/artwork 200 .backdrops[].height integer
 GET /collections/{id}/artwork 200 .backdrops[].language string
@@ -332,7 +346,9 @@ GET /collections/{id}/artwork 200 .current object
 GET /collections/{id}/artwork 200 .current.backdrop string
 GET /collections/{id}/artwork 200 .current.poster string
 GET /collections/{id}/artwork 200 .local object
+GET /collections/{id}/artwork 200 .logos array
 GET /collections/{id}/artwork 200 .logos array|null
+GET /collections/{id}/artwork 200 .logos null
 GET /collections/{id}/artwork 200 .logos[] object
 GET /collections/{id}/artwork 200 .logos[].height integer
 GET /collections/{id}/artwork 200 .logos[].language string
@@ -340,7 +356,9 @@ GET /collections/{id}/artwork 200 .logos[].path string
 GET /collections/{id}/artwork 200 .logos[].thumb string
 GET /collections/{id}/artwork 200 .logos[].votes number
 GET /collections/{id}/artwork 200 .logos[].width integer
+GET /collections/{id}/artwork 200 .posters array
 GET /collections/{id}/artwork 200 .posters array|null
+GET /collections/{id}/artwork 200 .posters null
 GET /collections/{id}/artwork 200 .posters[] object
 GET /collections/{id}/artwork 200 .posters[].height integer
 GET /collections/{id}/artwork 200 .posters[].language string
@@ -389,11 +407,15 @@ GET /extras/{id}/stream 200
 GET /extras/{id}/stream 206
 GET /folders
 GET /folders 200
+GET /folders 200 .folders array
 GET /folders 200 .folders array|null
+GET /folders 200 .folders null
 GET /folders 200 .folders[] object
 GET /folders 200 .folders[].name string
 GET /folders 200 .folders[].path string
+GET /folders 200 .parent any
 GET /folders 200 .parent any|null
+GET /folders 200 .parent null
 GET /folders 200 .path string
 GET /health
 GET /health 200
@@ -519,7 +541,9 @@ GET /home/continue 200 [].user_data.watchlisted boolean
 GET /home/continue 200 [].year integer
 GET /home/default
 GET /home/default 200
+GET /home/default 200 .home array
 GET /home/default 200 .home array|null
+GET /home/default 200 .home null
 GET /home/default 200 .home[] object
 GET /home/default 200 .home[].filter object
 GET /home/default 200 .home[].filter.added_within integer
@@ -1063,7 +1087,9 @@ GET /items/{id} 200 .user_data.watchlisted boolean
 GET /items/{id} 200 .year integer
 GET /items/{id}/artwork
 GET /items/{id}/artwork 200
+GET /items/{id}/artwork 200 .backdrops array
 GET /items/{id}/artwork 200 .backdrops array|null
+GET /items/{id}/artwork 200 .backdrops null
 GET /items/{id}/artwork 200 .backdrops[] object
 GET /items/{id}/artwork 200 .backdrops[].height integer
 GET /items/{id}/artwork 200 .backdrops[].language string
@@ -1083,7 +1109,9 @@ GET /items/{id}/artwork 200 .local object
 GET /items/{id}/artwork 200 .local.backdrop boolean
 GET /items/{id}/artwork 200 .local.logo boolean
 GET /items/{id}/artwork 200 .local.poster boolean
+GET /items/{id}/artwork 200 .logos array
 GET /items/{id}/artwork 200 .logos array|null
+GET /items/{id}/artwork 200 .logos null
 GET /items/{id}/artwork 200 .logos[] object
 GET /items/{id}/artwork 200 .logos[].height integer
 GET /items/{id}/artwork 200 .logos[].language string
@@ -1091,7 +1119,9 @@ GET /items/{id}/artwork 200 .logos[].path string
 GET /items/{id}/artwork 200 .logos[].thumb string
 GET /items/{id}/artwork 200 .logos[].votes number
 GET /items/{id}/artwork 200 .logos[].width integer
+GET /items/{id}/artwork 200 .posters array
 GET /items/{id}/artwork 200 .posters array|null
+GET /items/{id}/artwork 200 .posters null
 GET /items/{id}/artwork 200 .posters[] object
 GET /items/{id}/artwork 200 .posters[].height integer
 GET /items/{id}/artwork 200 .posters[].language string
@@ -1120,7 +1150,9 @@ GET /items/{id}/markers
 GET /items/{id}/markers 200
 GET /items/{id}/markers 200 .duration_ms integer
 GET /items/{id}/markers 200 .file_id integer
+GET /items/{id}/markers 200 .markers array
 GET /items/{id}/markers 200 .markers array|null
+GET /items/{id}/markers 200 .markers null
 GET /items/{id}/markers 200 .markers[] object
 GET /items/{id}/markers 200 .markers[].end_ms integer
 GET /items/{id}/markers 200 .markers[].kind string
@@ -1240,7 +1272,9 @@ GET /items/{id}/match 200 .item.user_data.position_ms integer
 GET /items/{id}/match 200 .item.user_data.rating integer
 GET /items/{id}/match 200 .item.user_data.watchlisted boolean
 GET /items/{id}/match 200 .item.year integer
+GET /items/{id}/match 200 .parsed array
 GET /items/{id}/match 200 .parsed array|null
+GET /items/{id}/match 200 .parsed null
 GET /items/{id}/match 200 .parsed[] object
 GET /items/{id}/match 200 .parsed[].absolute boolean
 GET /items/{id}/match 200 .parsed[].air_date string
@@ -1260,7 +1294,9 @@ GET /items/{id}/match 200 .providers object
 GET /items/{id}/match 200 .providers.tmdb boolean
 GET /items/{id}/match 200 .providers.tvdb boolean
 GET /items/{id}/match 200 .source_ordering string
+GET /items/{id}/match 200 .steps array
 GET /items/{id}/match 200 .steps array|null
+GET /items/{id}/match 200 .steps null
 GET /items/{id}/match 200 .steps[] object
 GET /items/{id}/match 200 .steps[].error string
 GET /items/{id}/match 200 .steps[].kind string
@@ -1550,7 +1586,9 @@ GET /items/{id}/subtitles/search 200 [].rating number
 GET /items/{id}/subtitles/search 200 [].release string
 GET /items/{id}/subtitles/{track}
 GET /items/{id}/subtitles/{track} 200
+GET /items/{id}/subtitles/{track} 200 .cues array
 GET /items/{id}/subtitles/{track} 200 .cues array|null
+GET /items/{id}/subtitles/{track} 200 .cues null
 GET /items/{id}/subtitles/{track} 200 .cues[] object
 GET /items/{id}/subtitles/{track} 200 .cues[].end_ms integer
 GET /items/{id}/subtitles/{track} 200 .cues[].start_ms integer
@@ -1576,7 +1614,9 @@ GET /items/{id}/theme 206
 GET /items/{id}/trickplay
 GET /items/{id}/trickplay 200
 GET /items/{id}/trickplay 200 .bif string
+GET /items/{id}/trickplay 200 .info null
 GET /items/{id}/trickplay 200 .info null|object
+GET /items/{id}/trickplay 200 .info object
 GET /items/{id}/trickplay 200 .info.columns integer
 GET /items/{id}/trickplay 200 .info.count integer
 GET /items/{id}/trickplay 200 .info.height integer
@@ -1584,7 +1624,9 @@ GET /items/{id}/trickplay 200 .info.interval_ms integer
 GET /items/{id}/trickplay 200 .info.rows integer
 GET /items/{id}/trickplay 200 .info.sheets integer
 GET /items/{id}/trickplay 200 .info.width integer
+GET /items/{id}/trickplay 200 .sheets array
 GET /items/{id}/trickplay 200 .sheets array|null
+GET /items/{id}/trickplay 200 .sheets null
 GET /items/{id}/trickplay 200 .sheets[] string
 GET /items/{id}/trickplay/{file}/bif
 GET /items/{id}/trickplay/{file}/bif 200
@@ -1856,7 +1898,9 @@ GET /libraries/{id}/folders 200 .trail[].name string
 GET /libraries/{id}/folders 200 .trail[].path string
 GET /libraries/{id}/health
 GET /libraries/{id}/health 200
+GET /libraries/{id}/health 200 .duplicates array
 GET /libraries/{id}/health 200 .duplicates array|null
+GET /libraries/{id}/health 200 .duplicates null
 GET /libraries/{id}/health 200 .duplicates[] object
 GET /libraries/{id}/health 200 .duplicates[].files array
 GET /libraries/{id}/health 200 .duplicates[].files[] object
@@ -1984,7 +2028,9 @@ GET /libraries/{id}/health 200 .duplicates[].items[].user_data.rating integer
 GET /libraries/{id}/health 200 .duplicates[].items[].user_data.watchlisted boolean
 GET /libraries/{id}/health 200 .duplicates[].items[].year integer
 GET /libraries/{id}/health 200 .duplicates[].kind string
+GET /libraries/{id}/health 200 .library null
 GET /libraries/{id}/health 200 .library null|object
+GET /libraries/{id}/health 200 .library object
 GET /libraries/{id}/health 200 .library.collection_grid string
 GET /libraries/{id}/health 200 .library.collection_min integer
 GET /libraries/{id}/health 200 .library.details_provider string
@@ -1999,7 +2045,9 @@ GET /libraries/{id}/health 200 .library.skip_credits boolean
 GET /libraries/{id}/health 200 .library.skip_intros boolean
 GET /libraries/{id}/health 200 .library.source_ordering string
 GET /libraries/{id}/health 200 .library.trickplay boolean
+GET /libraries/{id}/health 200 .missing_episodes array
 GET /libraries/{id}/health 200 .missing_episodes array|null
+GET /libraries/{id}/health 200 .missing_episodes null
 GET /libraries/{id}/health 200 .missing_episodes[] object
 GET /libraries/{id}/health 200 .missing_episodes[].have integer
 GET /libraries/{id}/health 200 .missing_episodes[].missing array
@@ -2122,7 +2170,9 @@ GET /libraries/{id}/health 200 .missing_episodes[].series.user_data.rating integ
 GET /libraries/{id}/health 200 .missing_episodes[].series.user_data.watchlisted boolean
 GET /libraries/{id}/health 200 .missing_episodes[].series.year integer
 GET /libraries/{id}/health 200 .missing_episodes[].unplaced integer
+GET /libraries/{id}/health 200 .missing_files array
 GET /libraries/{id}/health 200 .missing_files array|null
+GET /libraries/{id}/health 200 .missing_files null
 GET /libraries/{id}/health 200 .missing_files[] object
 GET /libraries/{id}/health 200 .missing_files[].error string
 GET /libraries/{id}/health 200 .missing_files[].file_id integer
@@ -2133,7 +2183,9 @@ GET /libraries/{id}/health 200 .missing_files[].missing_since integer
 GET /libraries/{id}/health 200 .missing_files[].path string
 GET /libraries/{id}/health 200 .missing_files[].series_id string
 GET /libraries/{id}/health 200 .missing_files[].size integer
+GET /libraries/{id}/health 200 .unidentified array
 GET /libraries/{id}/health 200 .unidentified array|null
+GET /libraries/{id}/health 200 .unidentified null
 GET /libraries/{id}/health 200 .unidentified[] object
 GET /libraries/{id}/health 200 .unidentified[].added_at integer
 GET /libraries/{id}/health 200 .unidentified[].collections array
@@ -2245,7 +2297,9 @@ GET /libraries/{id}/health 200 .unidentified[].user_data.position_ms integer
 GET /libraries/{id}/health 200 .unidentified[].user_data.rating integer
 GET /libraries/{id}/health 200 .unidentified[].user_data.watchlisted boolean
 GET /libraries/{id}/health 200 .unidentified[].year integer
+GET /libraries/{id}/health 200 .unreadable array
 GET /libraries/{id}/health 200 .unreadable array|null
+GET /libraries/{id}/health 200 .unreadable null
 GET /libraries/{id}/health 200 .unreadable[] object
 GET /libraries/{id}/health 200 .unreadable[].error string
 GET /libraries/{id}/health 200 .unreadable[].file_id integer
@@ -2256,7 +2310,9 @@ GET /libraries/{id}/health 200 .unreadable[].missing_since integer
 GET /libraries/{id}/health 200 .unreadable[].path string
 GET /libraries/{id}/health 200 .unreadable[].series_id string
 GET /libraries/{id}/health 200 .unreadable[].size integer
+GET /libraries/{id}/health 200 .unrecognised array
 GET /libraries/{id}/health 200 .unrecognised array|null
+GET /libraries/{id}/health 200 .unrecognised null
 GET /libraries/{id}/health 200 .unrecognised[] object
 GET /libraries/{id}/health 200 .unrecognised[].error string
 GET /libraries/{id}/health 200 .unrecognised[].file_id integer
@@ -2272,7 +2328,9 @@ GET /libraries/{id}/markers
 GET /libraries/{id}/markers 200
 GET /libraries/{id}/markers 200 .skip_credits boolean
 GET /libraries/{id}/markers 200 .skip_intros boolean
+GET /libraries/{id}/markers 200 .titles array
 GET /libraries/{id}/markers 200 .titles array|null
+GET /libraries/{id}/markers 200 .titles null
 GET /libraries/{id}/markers 200 .titles[] object
 GET /libraries/{id}/markers 200 .titles[].checked integer
 GET /libraries/{id}/markers 200 .titles[].credits integer
@@ -2528,7 +2586,9 @@ GET /libraries/{id}/recommended 200 .rows[].title string
 GET /libraries/{id}/recommended 200 .rows[].type string
 GET /libraries/{id}/recommended/layout
 GET /libraries/{id}/recommended/layout 200
+GET /libraries/{id}/recommended/layout 200 .rows array
 GET /libraries/{id}/recommended/layout 200 .rows array|null
+GET /libraries/{id}/recommended/layout 200 .rows null
 GET /libraries/{id}/recommended/layout 200 .rows[] object
 GET /libraries/{id}/recommended/layout 200 .rows[].hidden boolean
 GET /libraries/{id}/recommended/layout 200 .rows[].style string
@@ -3121,7 +3181,9 @@ GET /me/year 200 .years array
 GET /me/year 200 .years[] integer
 GET /news
 GET /news 200
+GET /news 200 .entries array
 GET /news 200 .entries array|null
+GET /news 200 .entries null
 GET /news 200 .entries[] object
 GET /news 200 .entries[].added_at integer
 GET /news 200 .entries[].count integer
@@ -3246,7 +3308,9 @@ GET /openapi.json 200
 GET /optimized
 GET /optimized 200
 GET /optimized 200 .total_size integer
+GET /optimized 200 .versions array
 GET /optimized 200 .versions array|null
+GET /optimized 200 .versions null
 GET /optimized 200 .versions[] object
 GET /optimized 200 .versions[].bitrate integer
 GET /optimized 200 .versions[].created_at integer
@@ -3261,7 +3325,9 @@ GET /optimized 200 .versions[].status string
 GET /optimized 200 .versions[].title string
 GET /people/{id}
 GET /people/{id} 200
+GET /people/{id} 200 .credits array
 GET /people/{id} 200 .credits array|null
+GET /people/{id} 200 .credits null
 GET /people/{id} 200 .credits[] object
 GET /people/{id} 200 .credits[].character string
 GET /people/{id} 200 .credits[].item object
@@ -3635,6 +3701,8 @@ GET /playing 200 [].position_ms integer
 GET /playing 200 [].profile object
 GET /playing 200 [].profile.color string
 GET /playing 200 [].profile.exclude_labels array
+GET /playing 200 [].profile.exclude_labels array|null
+GET /playing 200 [].profile.exclude_labels null
 GET /playing 200 [].profile.exclude_labels[] string
 GET /playing 200 [].profile.has_pin boolean
 GET /playing 200 [].profile.id string
@@ -3643,6 +3711,8 @@ GET /playing 200 [].profile.is_admin boolean
 GET /playing 200 [].profile.is_friend boolean
 GET /playing 200 [].profile.joined boolean
 GET /playing 200 [].profile.library_ids array
+GET /playing 200 [].profile.library_ids array|null
+GET /playing 200 [].profile.library_ids null
 GET /playing 200 [].profile.library_ids[] integer
 GET /playing 200 [].profile.max_age integer
 GET /playing 200 [].profile.name string
@@ -3846,6 +3916,8 @@ GET /profiles 200
 GET /profiles 200 [] object
 GET /profiles 200 [].color string
 GET /profiles 200 [].exclude_labels array
+GET /profiles 200 [].exclude_labels array|null
+GET /profiles 200 [].exclude_labels null
 GET /profiles 200 [].exclude_labels[] string
 GET /profiles 200 [].has_pin boolean
 GET /profiles 200 [].id string
@@ -3854,6 +3926,8 @@ GET /profiles 200 [].is_admin boolean
 GET /profiles 200 [].is_friend boolean
 GET /profiles 200 [].joined boolean
 GET /profiles 200 [].library_ids array
+GET /profiles 200 [].library_ids array|null
+GET /profiles 200 [].library_ids null
 GET /profiles 200 [].library_ids[] integer
 GET /profiles 200 [].max_age integer
 GET /profiles 200 [].name string
@@ -4322,7 +4396,9 @@ GET /series/{id}/orderings 200
 GET /series/{id}/orderings 200 .display_choice_id integer
 GET /series/{id}/orderings 200 .display_ordering_id integer
 GET /series/{id}/orderings 200 .inline_specials boolean
+GET /series/{id}/orderings 200 .orderings array
 GET /series/{id}/orderings 200 .orderings array|null
+GET /series/{id}/orderings 200 .orderings null
 GET /series/{id}/orderings 200 .orderings[] object
 GET /series/{id}/orderings 200 .orderings[].description string
 GET /series/{id}/orderings 200 .orderings[].episode_count integer
@@ -4334,7 +4410,9 @@ GET /series/{id}/orderings 200 .orderings[].source_ref string
 GET /series/{id}/orderings 200 .source_ordering string
 GET /series/{id}/season-art
 GET /series/{id}/season-art 200
+GET /series/{id}/season-art 200 .seasons array
 GET /series/{id}/season-art 200 .seasons array|null
+GET /series/{id}/season-art 200 .seasons null
 GET /series/{id}/season-art 200 .seasons[] object
 GET /series/{id}/season-art 200 .seasons[].chosen boolean
 GET /series/{id}/season-art 200 .seasons[].image string
@@ -4343,7 +4421,9 @@ GET /series/{id}/season-art 200 .seasons[].name string
 GET /series/{id}/season-art 200 .seasons[].season_number integer
 GET /series/{id}/seasons
 GET /series/{id}/seasons 200
+GET /series/{id}/seasons 200 .ordering null
 GET /series/{id}/seasons 200 .ordering null|object
+GET /series/{id}/seasons 200 .ordering object
 GET /series/{id}/seasons 200 .ordering.description string
 GET /series/{id}/seasons 200 .ordering.episode_count integer
 GET /series/{id}/seasons 200 .ordering.id integer
@@ -4351,7 +4431,9 @@ GET /series/{id}/seasons 200 .ordering.name string
 GET /series/{id}/seasons 200 .ordering.series_id string
 GET /series/{id}/seasons 200 .ordering.source string
 GET /series/{id}/seasons 200 .ordering.source_ref string
+GET /series/{id}/seasons 200 .seasons array
 GET /series/{id}/seasons 200 .seasons array|null
+GET /series/{id}/seasons 200 .seasons null
 GET /series/{id}/seasons 200 .seasons[] object
 GET /series/{id}/seasons 200 .seasons[].episodes array
 GET /series/{id}/seasons 200 .seasons[].episodes[] object
@@ -4585,7 +4667,9 @@ GET /series/{id}/seasons 200 .series.user_data.position_ms integer
 GET /series/{id}/seasons 200 .series.user_data.rating integer
 GET /series/{id}/seasons 200 .series.user_data.watchlisted boolean
 GET /series/{id}/seasons 200 .series.year integer
+GET /series/{id}/seasons 200 .unplaced array
 GET /series/{id}/seasons 200 .unplaced array|null
+GET /series/{id}/seasons 200 .unplaced null
 GET /series/{id}/seasons 200 .unplaced[] object
 GET /series/{id}/seasons 200 .unplaced[].added_at integer
 GET /series/{id}/seasons 200 .unplaced[].available boolean
@@ -4702,7 +4786,9 @@ GET /series/{id}/seasons 200 .unplaced[].user_data.watchlisted boolean
 GET /series/{id}/seasons 200 .unplaced[].year integer
 GET /series/{id}/seasons/{n}/artwork
 GET /series/{id}/seasons/{n}/artwork 200
+GET /series/{id}/seasons/{n}/artwork 200 .posters array
 GET /series/{id}/seasons/{n}/artwork 200 .posters array|null
+GET /series/{id}/seasons/{n}/artwork 200 .posters null
 GET /series/{id}/seasons/{n}/artwork 200 .posters[] object
 GET /series/{id}/seasons/{n}/artwork 200 .posters[].height integer
 GET /series/{id}/seasons/{n}/artwork 200 .posters[].language string
@@ -4725,7 +4811,9 @@ GET /settings 200 .detection_mode string
 GET /settings 200 .empty_trash_enabled boolean
 GET /settings 200 .ffprobe any
 GET /settings 200 .ffprobe_path string
+GET /settings 200 .from_env null
 GET /settings 200 .from_env null|object
+GET /settings 200 .from_env object
 GET /settings 200 .from_env{} boolean
 GET /settings 200 .home_networks string
 GET /settings 200 .https_cert string
@@ -4942,6 +5030,8 @@ GET /stats 200 .profiles array
 GET /stats 200 .profiles[] object
 GET /stats 200 .profiles[].color string
 GET /stats 200 .profiles[].exclude_labels array
+GET /stats 200 .profiles[].exclude_labels array|null
+GET /stats 200 .profiles[].exclude_labels null
 GET /stats 200 .profiles[].exclude_labels[] string
 GET /stats 200 .profiles[].has_pin boolean
 GET /stats 200 .profiles[].id string
@@ -4950,6 +5040,8 @@ GET /stats 200 .profiles[].is_admin boolean
 GET /stats 200 .profiles[].is_friend boolean
 GET /stats 200 .profiles[].joined boolean
 GET /stats 200 .profiles[].library_ids array
+GET /stats 200 .profiles[].library_ids array|null
+GET /stats 200 .profiles[].library_ids null
 GET /stats 200 .profiles[].library_ids[] integer
 GET /stats 200 .profiles[].max_age integer
 GET /stats 200 .profiles[].name string
@@ -5114,6 +5206,8 @@ GET /stats/history 200 .profiles array
 GET /stats/history 200 .profiles[] object
 GET /stats/history 200 .profiles[].color string
 GET /stats/history 200 .profiles[].exclude_labels array
+GET /stats/history 200 .profiles[].exclude_labels array|null
+GET /stats/history 200 .profiles[].exclude_labels null
 GET /stats/history 200 .profiles[].exclude_labels[] string
 GET /stats/history 200 .profiles[].has_pin boolean
 GET /stats/history 200 .profiles[].id string
@@ -5122,12 +5216,16 @@ GET /stats/history 200 .profiles[].is_admin boolean
 GET /stats/history 200 .profiles[].is_friend boolean
 GET /stats/history 200 .profiles[].joined boolean
 GET /stats/history 200 .profiles[].library_ids array
+GET /stats/history 200 .profiles[].library_ids array|null
+GET /stats/history 200 .profiles[].library_ids null
 GET /stats/history 200 .profiles[].library_ids[] integer
 GET /stats/history 200 .profiles[].max_age integer
 GET /stats/history 200 .profiles[].name string
 GET /stats/storage
 GET /stats/storage 200
+GET /stats/storage 200 .biggest array
 GET /stats/storage 200 .biggest array|null
+GET /stats/storage 200 .biggest null
 GET /stats/storage 200 .biggest[] object
 GET /stats/storage 200 .biggest[].added_at integer
 GET /stats/storage 200 .biggest[].files integer
@@ -5135,7 +5233,9 @@ GET /stats/storage 200 .biggest[].item_id string
 GET /stats/storage 200 .biggest[].last_played integer
 GET /stats/storage 200 .biggest[].size integer
 GET /stats/storage 200 .biggest[].watched boolean
+GET /stats/storage 200 .items null
 GET /stats/storage 200 .items null|object
+GET /stats/storage 200 .items object
 GET /stats/storage 200 .items{} object
 GET /stats/storage 200 .items{}.added_at integer
 GET /stats/storage 200 .items{}.collections array
@@ -5247,7 +5347,9 @@ GET /stats/storage 200 .items{}.user_data.position_ms integer
 GET /stats/storage 200 .items{}.user_data.rating integer
 GET /stats/storage 200 .items{}.user_data.watchlisted boolean
 GET /stats/storage 200 .items{}.year integer
+GET /stats/storage 200 .libraries array
 GET /stats/storage 200 .libraries array|null
+GET /stats/storage 200 .libraries null
 GET /stats/storage 200 .libraries[] object
 GET /stats/storage 200 .libraries[].files integer
 GET /stats/storage 200 .libraries[].id integer
@@ -5257,7 +5359,9 @@ GET /stats/storage 200 .libraries[].size integer
 GET /stats/storage 200 .libraries[].titles integer
 GET /stats/storage 200 .libraries[].unwatched_size integer
 GET /stats/storage 200 .libraries[].unwatched_titles integer
+GET /stats/storage 200 .never_watched array
 GET /stats/storage 200 .never_watched array|null
+GET /stats/storage 200 .never_watched null
 GET /stats/storage 200 .never_watched[] object
 GET /stats/storage 200 .never_watched[].added_at integer
 GET /stats/storage 200 .never_watched[].files integer
@@ -5301,7 +5405,9 @@ GET /watch-together/current 200 .state string
 GET /watch-together/current 200 .wait_until_ms integer
 GET /watch-together/people
 GET /watch-together/people 200
+GET /watch-together/people 200 .people array
 GET /watch-together/people 200 .people array|null
+GET /watch-together/people 200 .people null
 GET /watch-together/people 200 .people[] object
 GET /watch-together/people 200 .people[].can_watch boolean
 GET /watch-together/people 200 .people[].color string
@@ -5310,7 +5416,9 @@ GET /watch-together/people 200 .people[].id string
 GET /watch-together/people 200 .people[].name string
 GET /watch-together/rooms
 GET /watch-together/rooms 200
+GET /watch-together/rooms 200 .rooms array
 GET /watch-together/rooms 200 .rooms array|null
+GET /watch-together/rooms 200 .rooms null
 GET /watch-together/rooms 200 .rooms[] object
 GET /watch-together/rooms 200 .rooms[].created_at_ms integer
 GET /watch-together/rooms 200 .rooms[].host_name string
@@ -5480,9 +5588,13 @@ GET /watchlist 200 [].user_data.watchlisted boolean
 GET /watchlist 200 [].year integer
 GET /webhooks
 GET /webhooks 200
+GET /webhooks 200 .events array
 GET /webhooks 200 .events array|null
+GET /webhooks 200 .events null
 GET /webhooks 200 .events[] string
+GET /webhooks 200 .webhooks array
 GET /webhooks 200 .webhooks array|null
+GET /webhooks 200 .webhooks null
 GET /webhooks 200 .webhooks[] object
 GET /webhooks 200 .webhooks[].created_at integer
 GET /webhooks 200 .webhooks[].events array
@@ -5851,6 +5963,8 @@ PATCH /profiles/{id}
 PATCH /profiles/{id} 200
 PATCH /profiles/{id} 200 .color string
 PATCH /profiles/{id} 200 .exclude_labels array
+PATCH /profiles/{id} 200 .exclude_labels array|null
+PATCH /profiles/{id} 200 .exclude_labels null
 PATCH /profiles/{id} 200 .exclude_labels[] string
 PATCH /profiles/{id} 200 .has_pin boolean
 PATCH /profiles/{id} 200 .id string
@@ -5859,6 +5973,8 @@ PATCH /profiles/{id} 200 .is_admin boolean
 PATCH /profiles/{id} 200 .is_friend boolean
 PATCH /profiles/{id} 200 .joined boolean
 PATCH /profiles/{id} 200 .library_ids array
+PATCH /profiles/{id} 200 .library_ids array|null
+PATCH /profiles/{id} 200 .library_ids null
 PATCH /profiles/{id} 200 .library_ids[] integer
 PATCH /profiles/{id} 200 .max_age integer
 PATCH /profiles/{id} 200 .name string
@@ -5920,7 +6036,9 @@ PATCH /series/{id}/specials 200
 PATCH /series/{id}/specials 200 .display_choice_id integer
 PATCH /series/{id}/specials 200 .display_ordering_id integer
 PATCH /series/{id}/specials 200 .inline_specials boolean
+PATCH /series/{id}/specials 200 .orderings array
 PATCH /series/{id}/specials 200 .orderings array|null
+PATCH /series/{id}/specials 200 .orderings null
 PATCH /series/{id}/specials 200 .orderings[] object
 PATCH /series/{id}/specials 200 .orderings[].description string
 PATCH /series/{id}/specials 200 .orderings[].episode_count integer
@@ -5942,7 +6060,9 @@ PATCH /settings 200 .detection_mode string
 PATCH /settings 200 .empty_trash_enabled boolean
 PATCH /settings 200 .ffprobe any
 PATCH /settings 200 .ffprobe_path string
+PATCH /settings 200 .from_env null
 PATCH /settings 200 .from_env null|object
+PATCH /settings 200 .from_env object
 PATCH /settings 200 .from_env{} boolean
 PATCH /settings 200 .home_networks string
 PATCH /settings 200 .https_cert string
@@ -6027,6 +6147,8 @@ POST /auth/profile
 POST /auth/profile 200
 POST /auth/profile 200 .color string
 POST /auth/profile 200 .exclude_labels array
+POST /auth/profile 200 .exclude_labels array|null
+POST /auth/profile 200 .exclude_labels null
 POST /auth/profile 200 .exclude_labels[] string
 POST /auth/profile 200 .has_pin boolean
 POST /auth/profile 200 .id string
@@ -6035,6 +6157,8 @@ POST /auth/profile 200 .is_admin boolean
 POST /auth/profile 200 .is_friend boolean
 POST /auth/profile 200 .joined boolean
 POST /auth/profile 200 .library_ids array
+POST /auth/profile 200 .library_ids array|null
+POST /auth/profile 200 .library_ids null
 POST /auth/profile 200 .library_ids[] integer
 POST /auth/profile 200 .max_age integer
 POST /auth/profile 200 .name string
@@ -6042,6 +6166,8 @@ POST /auth/setup
 POST /auth/setup 201
 POST /auth/setup 201 .color string
 POST /auth/setup 201 .exclude_labels array
+POST /auth/setup 201 .exclude_labels array|null
+POST /auth/setup 201 .exclude_labels null
 POST /auth/setup 201 .exclude_labels[] string
 POST /auth/setup 201 .has_pin boolean
 POST /auth/setup 201 .id string
@@ -6050,6 +6176,8 @@ POST /auth/setup 201 .is_admin boolean
 POST /auth/setup 201 .is_friend boolean
 POST /auth/setup 201 .joined boolean
 POST /auth/setup 201 .library_ids array
+POST /auth/setup 201 .library_ids array|null
+POST /auth/setup 201 .library_ids null
 POST /auth/setup 201 .library_ids[] integer
 POST /auth/setup 201 .max_age integer
 POST /auth/setup 201 .name string
@@ -6955,7 +7083,9 @@ POST /items/{id}/refresh 200 .user_data.watchlisted boolean
 POST /items/{id}/refresh 200 .year integer
 POST /items/{id}/split
 POST /items/{id}/split 200
+POST /items/{id}/split 200 .item_ids array
 POST /items/{id}/split 200 .item_ids array|null
+POST /items/{id}/split 200 .item_ids null
 POST /items/{id}/split 200 .item_ids[] string
 POST /items/{id}/subtitles/download
 POST /items/{id}/subtitles/download 200
@@ -7527,6 +7657,8 @@ POST /profiles
 POST /profiles 201
 POST /profiles 201 .color string
 POST /profiles 201 .exclude_labels array
+POST /profiles 201 .exclude_labels array|null
+POST /profiles 201 .exclude_labels null
 POST /profiles 201 .exclude_labels[] string
 POST /profiles 201 .has_pin boolean
 POST /profiles 201 .id string
@@ -7535,6 +7667,8 @@ POST /profiles 201 .is_admin boolean
 POST /profiles 201 .is_friend boolean
 POST /profiles 201 .joined boolean
 POST /profiles 201 .library_ids array
+POST /profiles 201 .library_ids array|null
+POST /profiles 201 .library_ids null
 POST /profiles 201 .library_ids[] integer
 POST /profiles 201 .max_age integer
 POST /profiles 201 .name string
@@ -7559,7 +7693,9 @@ POST /series/{id}/refresh 200
 POST /series/{id}/refresh 200 .display_choice_id integer
 POST /series/{id}/refresh 200 .display_ordering_id integer
 POST /series/{id}/refresh 200 .inline_specials boolean
+POST /series/{id}/refresh 200 .orderings array
 POST /series/{id}/refresh 200 .orderings array|null
+POST /series/{id}/refresh 200 .orderings null
 POST /series/{id}/refresh 200 .orderings[] object
 POST /series/{id}/refresh 200 .orderings[].description string
 POST /series/{id}/refresh 200 .orderings[].episode_count integer
@@ -7571,7 +7707,9 @@ POST /series/{id}/refresh 200 .orderings[].source_ref string
 POST /series/{id}/refresh 200 .source_ordering string
 POST /series/{id}/seasons/{n}/artwork
 POST /series/{id}/seasons/{n}/artwork 200
+POST /series/{id}/seasons/{n}/artwork 200 .seasons array
 POST /series/{id}/seasons/{n}/artwork 200 .seasons array|null
+POST /series/{id}/seasons/{n}/artwork 200 .seasons null
 POST /series/{id}/seasons/{n}/artwork 200 .seasons[] object
 POST /series/{id}/seasons/{n}/artwork 200 .seasons[].chosen boolean
 POST /series/{id}/seasons/{n}/artwork 200 .seasons[].image string
@@ -8005,7 +8143,9 @@ PUT /collections/{id}/order
 PUT /collections/{id}/order 204
 PUT /home/default
 PUT /home/default 200
+PUT /home/default 200 .home array
 PUT /home/default 200 .home array|null
+PUT /home/default 200 .home null
 PUT /home/default 200 .home[] object
 PUT /home/default 200 .home[].filter object
 PUT /home/default 200 .home[].filter.added_within integer
@@ -8149,7 +8289,9 @@ PUT /items/{id}/markers
 PUT /items/{id}/markers 200
 PUT /items/{id}/markers 200 .duration_ms integer
 PUT /items/{id}/markers 200 .file_id integer
+PUT /items/{id}/markers 200 .markers array
 PUT /items/{id}/markers 200 .markers array|null
+PUT /items/{id}/markers 200 .markers null
 PUT /items/{id}/markers 200 .markers[] object
 PUT /items/{id}/markers 200 .markers[].end_ms integer
 PUT /items/{id}/markers 200 .markers[].kind string
@@ -8296,7 +8438,9 @@ PUT /series/{id}/display-ordering 200
 PUT /series/{id}/display-ordering 200 .display_choice_id integer
 PUT /series/{id}/display-ordering 200 .display_ordering_id integer
 PUT /series/{id}/display-ordering 200 .inline_specials boolean
+PUT /series/{id}/display-ordering 200 .orderings array
 PUT /series/{id}/display-ordering 200 .orderings array|null
+PUT /series/{id}/display-ordering 200 .orderings null
 PUT /series/{id}/display-ordering 200 .orderings[] object
 PUT /series/{id}/display-ordering 200 .orderings[].description string
 PUT /series/{id}/display-ordering 200 .orderings[].episode_count integer
@@ -8310,7 +8454,9 @@ PUT /series/{id}/orderings/{oid}/entries/{eid}
 PUT /series/{id}/orderings/{oid}/entries/{eid} 204
 PUT /series/{id}/seasons/{n}/artwork
 PUT /series/{id}/seasons/{n}/artwork 200
+PUT /series/{id}/seasons/{n}/artwork 200 .seasons array
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons array|null
+PUT /series/{id}/seasons/{n}/artwork 200 .seasons null
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[] object
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].chosen boolean
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].image string
