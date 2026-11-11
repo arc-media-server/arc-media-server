@@ -4,6 +4,7 @@ package api
 import (
 	"ams/internal/activity"
 	"ams/internal/background"
+	"ams/internal/downloads"
 	"ams/internal/notify"
 	"ams/internal/optimize"
 	"ams/internal/remote"
@@ -40,6 +41,7 @@ import (
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
+	Downloads     *downloads.Manager
 	WatchTogether *watchtogether.Manager
 	Events        *events.Hub
 	WatchProblem  func(int64) string
@@ -88,6 +90,7 @@ type Deps struct {
 }
 
 type Server struct {
+	downloads      *downloads.Manager
 	watchTogether  *watchtogether.Manager
 	watchRecheck   time.Duration
 	events         *events.Hub
@@ -151,6 +154,17 @@ func New(d Deps) http.Handler {
 	if s.artwork != nil {
 		s.palettes = palette.New(s.artwork.PaletteDir())
 	}
+	s.downloads = d.Downloads
+	if s.downloads != nil {
+		s.downloads.Playback = func() bool {
+			for _, p := range s.playing.list() {
+				if !p.paused {
+					return true
+				}
+			}
+			return false
+		}
+	}
 	s.watchTogether = d.WatchTogether
 	if s.watchTogether == nil {
 		s.watchTogether = watchtogether.New(s.log)
@@ -180,6 +194,10 @@ func New(d Deps) http.Handler {
 
 	// Every profile: watching.
 	user, admin := s.signedIn, s.adminOnly
+	mux.HandleFunc("POST /api/downloads", user(s.createDownload))
+	mux.HandleFunc("GET /api/downloads", user(s.listDownloads))
+	mux.HandleFunc("GET /api/downloads/{id}", user(s.getDownload))
+	mux.HandleFunc("DELETE /api/downloads/{id}", user(s.deleteDownload))
 	mux.HandleFunc("POST /api/transcoder/detect", admin(s.detectHardware))
 	mux.HandleFunc("GET /api/diagnostics", admin(s.getDiagnostics))
 	mux.HandleFunc("PATCH /api/diagnostics", admin(s.setDiagnostics))

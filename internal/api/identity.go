@@ -54,6 +54,7 @@ func (s *Server) capabilities(w http.ResponseWriter, r *http.Request) {
 	add := func(key string, available, admin bool) {
 		features[key] = featureCapability{Supported: true, Available: available, Allowed: !admin || currentUser(r).IsAdmin}
 	}
+	features["downloads_preparation"] = featureCapability{Supported: true, Available: s.downloads != nil, Allowed: currentUser(r).IsAdmin || currentUser(r).AllowDownloads}
 	add("identity", true, false)
 	add("watch_together", s.watchTogether != nil, false)
 	add("change_events", s.events != nil, false)

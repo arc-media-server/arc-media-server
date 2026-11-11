@@ -192,11 +192,12 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, userID, vi
 }
 
 type profileDTO struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Color   string `json:"color"`
-	HasPIN  bool   `json:"has_pin"`
-	IsAdmin bool   `json:"is_admin"`
+	AllowDownloads bool   `json:"allow_downloads"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Color          string `json:"color"`
+	HasPIN         bool   `json:"has_pin"`
+	IsAdmin        bool   `json:"is_admin"`
 	// Age limit: the oldest age rating the profile may watch, 0 for none.
 	MaxAge int `json:"max_age"`
 	// The libraries the profile may see; null for all of them.
@@ -211,7 +212,7 @@ type profileDTO struct {
 }
 
 func toProfile(u store.User) profileDTO {
-	return profileDTO{ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge,
+	return profileDTO{AllowDownloads: u.IsAdmin || u.AllowDownloads, ID: u.ID, Name: u.Name, Color: u.Color, HasPIN: u.HasPIN, IsAdmin: u.IsAdmin, MaxAge: u.MaxAge,
 		LibraryIDs: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels, IsFriend: u.IsFriend, Joined: u.IsFriend && u.PasswordHash != ""}
 }
 
@@ -539,7 +540,8 @@ func (s *Server) listProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 type profileBody struct {
-	Name *string `json:"name"`
+	AllowDownloads *bool   `json:"allow_downloads"`
+	Name           *string `json:"name"`
 	// Make a friend (with an invite link) rather than a household profile.
 	Friend bool    `json:"friend"`
 	Color  *string `json:"color"`
@@ -638,7 +640,10 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	up := store.UserUpdate{}
+	up := store.UserUpdate{AllowDownloads: b.AllowDownloads}
+	if b.AllowDownloads != nil {
+		u.AllowDownloads = *b.AllowDownloads
+	}
 	if b.MaxAge != nil && *b.MaxAge > 0 {
 		up.MaxAge = b.MaxAge
 		u.MaxAge = *b.MaxAge
@@ -655,7 +660,7 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		up.ExcludeLabels = &labels
 		u.ExcludeLabels = labels
 	}
-	if up.MaxAge != nil || up.LibraryIDs != nil || up.ExcludeLabels != nil {
+	if up.MaxAge != nil || up.LibraryIDs != nil || up.ExcludeLabels != nil || up.AllowDownloads != nil {
 		if err := s.store.UpdateUser(r.Context(), u.ID, up); err != nil {
 			s.fail(w, err)
 			return
@@ -702,7 +707,11 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "the admin profile can't have an age limit")
 		return
 	}
-	up := store.UserUpdate{Name: b.Name, Color: b.Color, PINHash: pin, MaxAge: b.MaxAge}
+	if u.IsAdmin && b.AllowDownloads != nil && !*b.AllowDownloads {
+		writeError(w, 400, "the admin profile always allows downloads")
+		return
+	}
+	up := store.UserUpdate{AllowDownloads: b.AllowDownloads, Name: b.Name, Color: b.Color, PINHash: pin, MaxAge: b.MaxAge}
 	sent, ids, err := b.libraries()
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
