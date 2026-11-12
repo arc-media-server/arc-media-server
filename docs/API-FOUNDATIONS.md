@@ -1,7 +1,6 @@
 # Server identity, capabilities and contract corrections
 
-Backend handoff for Claude. UI work is intentionally separate. Apps use `/api/v1`; examples omit
-that prefix. Authenticate with the existing session Bearer token and select a profile first.
+Current client contract. Apps use `/api/v1`; examples omit that prefix. Authenticate with the existing session Bearer token and select a profile first.
 
 ## Server identity
 
@@ -23,8 +22,8 @@ locally saved credentials merely because a server is temporarily unreachable.
 control-character and over-80-character names return 400 without applying the patch. Only admin
 may rename. The public `/health` retains its existing product name and contract.
 
-Claude: add the friendly-name field to the existing server settings UI and use the identity name
-where appropriate. No new setup screen is required. A server name is separate from its URL and ID.
+The web app already exposes the friendly name in Access & devices. Native clients can display
+the identity name without adding a server setup screen. A server name is separate from its URL and ID.
 
 ## Runtime capabilities
 
@@ -40,11 +39,11 @@ permission. These are separate axes. Item/library/age/label permissions are alwa
 operation itself. Availability can change; handle normal endpoint errors even after a positive hint.
 It is not a claim that a provider, network, decoder, GPU, HDR display or receiver will work.
 
-Keys: identity, browse, playback_options, playback, transcoding, playlists, collections,
+Keys include identity, browse, playback_options, playback, transcoding, playlists, collections,
 artwork_palette, subtitle_delivery, trickplay, activity, maintenance, metadata_edit, artwork_upload,
 library_scan. No paths, keys, tokens or private network addresses appear in this response.
 
-Claude: use flags to tailor controls while retaining normal error handling. Refresh on profile
+Use flags to tailor controls while retaining normal error handling. Refresh on profile
 changes and server reconnect. Do not poll this aggressively; requests produce no success log lines.
 
 ## Contract fixes

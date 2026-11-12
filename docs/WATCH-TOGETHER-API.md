@@ -97,10 +97,10 @@ including empty/error responses. Prefer the explicit time endpoint for clock syn
    Keep playback initially paused. Once primed, report ready with the current generation.
 5. Any participant can press Play. If others aren't ready the room waits, then resumes together.
 
-This implementation chooses **codes, not recipient lists**. This avoids a new friend/household
-people-discovery surface and works consistently on TVs. It permits late joins, unlike Plex's
-published requirement to invite everyone when creating its legacy Watch Together group. Codes
-last 15 minutes. A host can renew later without ending a long movie; the prior code stops working.
+Rooms support both **codes and invitations to profiles**. Codes are useful when a TV is entering
+a room; `/people` and `/rooms` support the invitation flow described below. Both allow late joins.
+Codes last 15 minutes. A host can renew later without ending a long movie; the prior code stops
+working. Room codes do not create accounts or grant access to media.
 
 ## Client sync algorithm
 
@@ -239,8 +239,9 @@ Official reference only:
   same-account multiple devices, individual streams/audio/subtitles, shared pause/seek, and
   invitation/rejoin behavior. The docs do not define an exact buffering or host-transfer algorithm.
 
-Arc's code-only/late-join, ten-second wait, host succession, friends default and ephemeral room
-choices are recorded on [#80](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6603360709) as deliberate defaults, not claims about Plex internals or parity.
+The original code-first defaults, late-join, ten-second wait, host succession, friends default
+and ephemeral-room choices are recorded on [#80](https://github.com/arc-media-server/arc-media-server/issues/80#issuecomment-6603360709) as deliberate defaults, not claims about Plex internals or parity. The Invitations section
+describes the subsequently added profile-invitation flow.
 
 ## Invitations
 

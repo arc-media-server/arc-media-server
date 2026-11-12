@@ -1,4 +1,4 @@
-# Exact lookup and batch reads — Claude/integration handoff
+# Provider-ID lookup and batch reads
 
 Authenticated profile routes under `/api/v1`:
 
@@ -18,5 +18,4 @@ page matches or narrow library/kind explicitly. Use Arc IDs for mutations, not p
 Invalid input returns 400, unsigned/profile-unselected returns 401; failures retain existing error
 format. Replies are private/no-store. Use capability flags `item_lookup` and `item_batch`.
 No success/poll/per-item logging was added; failures reuse the API boundary. Three provider lookup
-indexes avoid full-library client downloads. No UI work is required for automation; Claude can use
-these routes in app adapters. This is not a Plex/Kometa compatibility shim or IMDb ratings ingestion.
+indexes avoid full-library client downloads. Automation and app adapters can use these routes without new server UI. This is not a Plex/Kometa compatibility shim or IMDb ratings ingestion.

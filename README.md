@@ -168,10 +168,10 @@ database. The [recovery guide](docs/RECOVERY.md) covers restoring and rolling ba
 
 ## Building from source
 
-You need Go 1.27+, Node.js 22+ and FFmpeg (`ffprobe` and `ffmpeg`).
+You need Go 1.27+, Node.js 24 LTS (or 22.12+) and FFmpeg (`ffprobe` and `ffmpeg`).
 
 ```sh
-cd web && npm install && npm run build && cd ..   # the web app is embedded in the binary
+cd web && npm ci && npm run build && cd ..   # the web app is embedded in the binary
 go run ./cmd/ams                                  # serves http://127.0.0.1:8099
 ```
 
@@ -182,6 +182,10 @@ go run ./cmd/ams                                  # serves http://127.0.0.1:8099
 - Troubleshooting: Settings › Maintenance & diagnostics turns on detailed logging for 2 hours
   and downloads redacted logs, request-stage snapshots and bounded runtime call stacks.
   `-debug` enables the same two-hour window at startup.
+
+For media features, Arc's container uses pinned Jellyfin FFmpeg 8.1.3. Source installations
+should use that tested generation; hardware/tone-mapping support depends on the build and device.
+Other FFmpeg versions are not established by the container's checks.
 
 ### Development
 
@@ -202,7 +206,8 @@ Radix UI, Motion and TanStack Query.
 ## API
 
 Everything the web app does goes through a documented REST API, with stable `/api/v1/...` paths,
-Bearer tokens for apps and link codes for TVs. The full reference is [docs/API.md](docs/API.md),
+Bearer tokens for apps and link codes for TVs. Start with the [client integration walkthrough](docs/CLIENT-INTEGRATION.md), also bundled at
+`/docs/client-integration.html`. The endpoint reference is [docs/API.md](docs/API.md),
 generated from the code, and a running server describes itself at `/api/openapi.json`.
 See [artwork and collection automation](docs/AUTOMATION.md) for integration examples and
 [remote quality](docs/REMOTE-QUALITY.md) for playback limits and upload measurements.

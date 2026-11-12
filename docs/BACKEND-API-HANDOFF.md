@@ -1,42 +1,51 @@
-# Backend API handoff for clients
+# Client API integration index
 
-Start with [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md). The generated [API reference](API.md)
-and [OpenAPI contract](openapi.json) describe the current server.
-Use `/api/v1`, detect capabilities on connection/profile changes, and keep UI changes in the
-existing shared controls. The bundled `/docs/` viewer already exists.
+Start with [CLIENT-INTEGRATION.md](CLIENT-INTEGRATION.md), bundled on the server at
+`/docs/client-integration.html`. It covers device authentication, profile selection, browsing,
+playback/progress and error handling. The generated [API reference](API.md) and
+[OpenAPI contract](openapi.json) provide endpoint and model details; `/docs/` is the interactive viewer.
 
-## Implemented client contracts
+Use `/api/v1`, detect capabilities on connection/profile changes, and enforce the server's returned
+permissions and decisions. A guide is not proof that a particular deployed server has a feature.
+Keep existing shared UI controls when integrating these contracts.
 
-These features are implemented, rather than proposals for another backend batch:
+## Implemented contracts
 
-- Identity, server name and permission-aware capabilities: [API-FOUNDATIONS.md](API-FOUNDATIONS.md).
-- Unmatch: [UNMATCH-API.md](UNMATCH-API.md). Removes provider metadata/overrides/orderings while
-  preserving files and user references; explicit Fix Match re-enables automatic matching.
-- Persistent profile/device-owned queues with revision checks: [PLAY-QUEUES-API.md](PLAY-QUEUES-API.md).
-  Playback start/stop remains a client action, separate from changing queue contents.
-- General live invalidation/replay: [EVENTS-API.md](EVENTS-API.md). Refetch on hints/resync;
-  this is not a record patch feed or guaranteed delivery.
-- Provider-ID and batch lookup: [ITEM-LOOKUP-API.md](ITEM-LOOKUP-API.md).
-- Rich filter discovery: [FILTER-DISCOVERY-API.md](FILTER-DISCOVERY-API.md).
+- Identity, editable server name and permission-aware capabilities: [API-FOUNDATIONS.md](API-FOUNDATIONS.md).
+  The web settings field is already implemented; native apps can show the returned name.
+- Unmatch with preserved files/user references: [UNMATCH-API.md](UNMATCH-API.md).
+- Persistent profile/device queues and revision conflicts: [PLAY-QUEUES-API.md](PLAY-QUEUES-API.md).
+  Queue mutations do not themselves start or stop playback.
+- General SSE invalidation/replay and background producers: [EVENTS-API.md](EVENTS-API.md).
+  These are hints to refetch, not durable record patches.
+- Watch Together rooms, profile invitations and their separate snapshot stream: [WATCH-TOGETHER-API.md](WATCH-TOGETHER-API.md).
+- Provider-ID/batch lookup: [ITEM-LOOKUP-API.md](ITEM-LOOKUP-API.md).
+- Filters/facets: [FILTER-DISCOVERY-API.md](FILTER-DISCOVERY-API.md).
 - Recommendation continuation: [RECOMMENDATION-PAGES-API.md](RECOMMENDATION-PAGES-API.md).
-- Read-only playback decisions and native capabilities: [PLAYBACK-PREVIEW-API.md](PLAYBACK-PREVIEW-API.md).
+- Read-only decisions/native capabilities: [PLAYBACK-PREVIEW-API.md](PLAYBACK-PREVIEW-API.md).
 - Regional artwork colors: [ARTWORK-PALETTES.md](ARTWORK-PALETTES.md).
+- Artwork/collection adapters: [AUTOMATION.md](AUTOMATION.md).
 
-## This follow-up and pending integration
+JSON errors retain error/needs/domain fields and add code/request_id; correlation matches
+X-Request-ID. Cross-origin Bearer SSE supports Last-Event-ID. Older servers and plain-text errors
+may omit these fields. See the walkthrough for retry and compatibility rules.
 
-This API-polish branch adds cross-origin SSE cursor support, server-issued error correlation,
-logical query constraints and media/header/SSE documentation.
-JSON errors retain `error`, `needs` and domain fields, adding `code`/`request_id`; success bodies
-are unchanged. See the integration guide for compatibility with older servers and non-JSON errors.
+## Pending integration — 11 November 2026 checkpoint
 
-At the review checkpoint, these separate PRs remain dependencies or independent work. Their
-presence in a handoff is not evidence that a deployed server has them; confirm GitHub merge state
-and the server's capabilities before exposing controls:
+- Review integration [#418](https://github.com/arc-media-server/arc-media-server/pull/418) combines
+  the #350 server review fixes. It remains a draft awaiting owner/Claude review; it is not main or
+  deployment acceptance. Feature guides label the pending DV-base and per-profile SSE behavior.
+- PostgreSQL [#337](https://github.com/arc-media-server/arc-media-server/pull/337) and
+  [#339](https://github.com/arc-media-server/arc-media-server/pull/339) are **deferred by the owner
+  (11 November)** under #308. Keep the implementation and evidence unmerged for later; current
+  work focuses on stability and release readiness with SQLite. No parallel PostgreSQL maintenance
+  is required for new SQLite features. Reassess schema/backup and review-integration compatibility
+  before any future resumption. Do not expose PostgreSQL UI as deployed functionality.
+- Offline downloads/sync (#62) are separate planning work.
 
-- #333: Watch Together rooms and their separate snapshot event protocol.
-- #334: conversion concurrency/throttling reliability.
-- #335: more precise fixed-map JSON response schemas.
-- #336: additional autonomous background-worker invalidation producers.
+The original implementation handoffs are historical evidence in dated docs/changes notes. Completed
+server-name, queue and background-event work is not a new frontend to-do list. Reassess this dated
+pending section when those PRs merge; continue detecting actual server capabilities at runtime.
 
-PostgreSQL support (#337, #339) is parked (#308); SQLite is Arc's database. Offline downloads/sync (#62) are also separate; no client API parity claim
-is made. Test evidence uses temporary stores/local fixtures, not owner media or production systems.
+Tests use temporary stores, generated clips and local providers. Physical clients/receivers,
+HDR/audio output, deployment and sustained-use acceptance are separate from API fixture evidence.

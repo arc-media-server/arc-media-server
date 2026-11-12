@@ -2,7 +2,7 @@
 
 `GET /api/v1/events` accepts the same cookie or Bearer authentication as other profile endpoints.
 Use an SSE parser over authenticated fetch for native apps; never put tokens in query parameters.
-The web app can use cookie-authenticated EventSource. This PR adds no UI integration.
+The web app can use cookie-authenticated EventSource.
 
 Events are `invalidate` with JSON `{ "topic": "profile" }` (optionally `library_id`), or `resync`.
 Invalidate means refetch the existing appropriate API, not apply a record patch. Topics currently
@@ -25,7 +25,10 @@ are excluded. Session validity/profile/library permissions are rechecked during 
 10-second heartbeats; revoked/switched sessions close. Reconnect streams after 30 minutes.
 There are at most 32 simultaneous streams per server (429 with Retry-After: 5), 128 pending
 coalesced hints and 256 replay hints; writes have 5-second deadlines. Slow clients never block
-producers on network I/O. Proxy buffering must be disabled (X-Accel-Buffering: no is supplied).
+producers on network I/O.
+The pending review integration #418/#381 also limits streams to eight per profile, shared across
+that profile's device sessions. Main at this checkpoint has the global limit. Clients should honor
+429/Retry-After regardless of which bound was reached; disconnect releases the stream's slot. Proxy buffering must be disabled (X-Accel-Buffering: no is supplied).
 
 Logging: reuse request failure/debug records; no successful event, heartbeat or progress info logs.
 Tests cover replay/coalescing/bounds/concurrency, permission filtering and authenticated HTTP

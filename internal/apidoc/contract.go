@@ -49,7 +49,14 @@ func contractLines(openapi []byte) ([]string, error) {
 		}
 		if alternatives, ok := schema["anyOf"].([]any); ok {
 			if path != "" && emit {
-				add(fmt.Sprintf("%s %s %s", prefix, path, strings.Join(schemaKinds(schema, doc.Components.Schemas, nil), "|")))
+				kinds := schemaKinds(schema, doc.Components.Schemas, nil)
+				add(fmt.Sprintf("%s %s %s", prefix, path, strings.Join(kinds, "|")))
+				// Keep existing single-type promises when an already valid nullable
+				// alternative is documented. Protect the complete union and each
+				// alternative too: narrowing or retyping still removes a promise.
+				for _, kind := range kinds {
+					add(fmt.Sprintf("%s %s %s", prefix, path, kind))
+				}
 			}
 			for _, alternative := range alternatives {
 				if sub, ok := alternative.(map[string]any); ok {

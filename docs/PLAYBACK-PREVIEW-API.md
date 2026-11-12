@@ -34,6 +34,12 @@ conversion is not promised. Other explicitly unsupported HDR needs enabled and d
 mapping. Conversion must fit advertised fMP4/H.264/AAC fallback capabilities; an explicit H.264
 profile whitelist must allow High. Optimized copies likewise must fit the new limits.
 
+**Pending review integration (#418, including #371):** newer server code can use a known
+compatible HDR10/HLG/SDR base layer when a requested Dolby Vision profile is unsupported. Such
+plans include `dolby_vision_base_layer`; unknown/incompatible bases remain refused. This is not
+part of main at this documentation checkpoint. Follow the server's can_start/method/reason_codes
+instead of hardcoding refusal for every DV source. No physical colour/output acceptance is implied.
+
 `reason_codes` is additive to existing English reasons: video_codec, no_video, video_bit_depth,
 video_height, video_profile, container, audio_codec, audio_channels, audio_disabled, audio_selection,
 hdr_output, subtitle_burn, quality_limit, optimized_copy, conversion_unavailable,
