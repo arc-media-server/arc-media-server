@@ -3,7 +3,9 @@ package scanner
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,10 +116,46 @@ func (s *Scanner) RelinkSeries(ctx context.Context, lib *store.Library, id strin
 	return err
 }
 
-// finishLibraryWork also releases requests queued by filesystem watching during scoped work.
+// completeLibraryWork captures the finished run before releasing queued discovery.
+func (s *Scanner) completeLibraryWork(libraryID int64, err error) {
+	s.mu.Lock()
+	st := s.status[libraryID]
+	st.FinishedAt = time.Now()
+	st.Running = false
+	if st.Stopping || errors.Is(err, context.Canceled) {
+		st.Stopped, st.Stopping, st.Phase = true, false, "Stopped"
+	} else if err != nil {
+		st.Error = err.Error()
+	}
+	completed := *st
+	s.finishLibraryWorkLocked(libraryID)
+	s.mu.Unlock()
+
+	if err != nil && !errors.Is(err, context.Canceled) {
+		name := completed.libraryName
+		if name == "" {
+			name = strconv.FormatInt(libraryID, 10)
+		}
+		level := slog.LevelError
+		if errors.Is(err, ErrScanRootsUnsafe) {
+			level = slog.LevelWarn
+		}
+		s.log.Log(s.ctx, level, "scan failed", "library", name, "library_id", libraryID,
+			"operation", completed.Operation, "phase", completed.Phase, "files_seen", completed.FilesSeen, "err", err)
+	}
+	if s.OnFinish != nil {
+		s.OnFinish(libraryID, completed)
+	}
+}
+
+// Empty trash has its own completion outcome and must not emit scan notifications.
 func (s *Scanner) finishLibraryWork(libraryID int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.finishLibraryWorkLocked(libraryID)
+}
+
+func (s *Scanner) finishLibraryWorkLocked(libraryID int64) {
 	s.status[libraryID].Running = false
 	delete(s.jobs, libraryID)
 	if s.status[libraryID].Stopped {
@@ -173,20 +211,7 @@ func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phas
 		defer releaseCatalog()
 		stop()
 		cancel()
-		s.update(id, func(st *Status) {
-			st.FinishedAt = time.Now()
-			if errors.Is(err, context.Canceled) || st.Stopping {
-				st.Stopped = true
-				st.Stopping = false
-				st.Phase = "Stopped"
-			} else if err != nil {
-				st.Error = err.Error()
-			}
-		})
-		s.finishLibraryWork(id)
-		if s.OnFinish != nil {
-			s.OnFinish(id)
-		}
+		s.completeLibraryWork(id, err)
 	}, nil
 
 }

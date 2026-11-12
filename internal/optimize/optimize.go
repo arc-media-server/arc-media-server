@@ -283,14 +283,16 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 			"-metadata:s:a:0", "language="+o.AudioLanguage, "-metadata:s:a:0", "title="+o.AudioTitle,
 			"-disposition:a:0", "default")
 	}
-	scale := transcode.FitScaleFilter(o.Quality)
-	for _, s := range f.Streams {
-		if s.Kind == "video" && (s.ColorTransfer == "smpte2084" || s.ColorTransfer == "arib-std-b67") && m.ToneMap != nil && m.ToneMap() {
-			scale = transcode.ToneMapFilter + "," + scale // HDR becomes SDR that looks right everywhere
+	toneMap := false
+	for _, stream := range f.Streams {
+		if stream.Kind == "video" && (stream.ColorTransfer == "smpte2084" || stream.ColorTransfer == "arib-std-b67") {
+			toneMap = m.ToneMap != nil && m.ToneMap()
+			break
 		}
 	}
+	filters := transcode.SoftwareVideoFilters(o.Quality, toneMap, false)
 	kbps := Qualities[o.Quality]
-	args = append(args, "-vf", scale+",format=yuv420p", "-c:v", "libx264", "-preset", "faster", "-crf", "21",
+	args = append(args, "-vf", strings.Join(filters, ",")+",format=yuv420p", "-c:v", "libx264", "-preset", "faster", "-crf", "21",
 		"-maxrate", fmt.Sprintf("%dk", kbps), "-bufsize", fmt.Sprintf("%dk", kbps*2), "-profile:v", "high",
 		"-c:a", "aac", "-ac", "2", "-b:a", "160k", "-movflags", "+faststart", "-f", "mp4", tmp)
 	cmd := exec.CommandContext(cctx, ffmpeg, args...)
@@ -298,7 +300,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	if err != nil {
 		return fail(err)
 	}
-	var stderr strings.Builder
+	var stderr transcode.StderrBuffer
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return fail(err)
@@ -319,10 +321,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		if ctx.Err() != nil {
 			return ctx.Err() // Arc is stopping: it's made again next time
 		}
-		msg := strings.TrimSpace(stderr.String())
-		if i := strings.LastIndexByte(msg, '\n'); i >= 0 {
-			msg = msg[i+1:]
-		}
+		msg := transcode.FFmpegFailure(stderr.String(), f.Path)
 		return fail(fmt.Errorf("converting failed: %s", msg))
 	}
 	if cctx.Err() != nil {

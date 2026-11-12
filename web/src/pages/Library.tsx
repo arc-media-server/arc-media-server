@@ -1,3 +1,4 @@
+import { readItemFilters } from '@/lib/item-filters';
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -5,7 +6,7 @@ import { useLocation, useNavigate, useNavigationType, useParams, useSearchParams
 import { useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
 import { ChevronDown, FolderSearch, Layers, Loader2, Plus, Sparkles } from 'lucide-react';
 import { LetterRail, letterOffsets } from '@/components/LetterRail';
-import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type DynamicRange, type Collection, type CollectionMode } from '@/lib/api';
+import { api, type ItemQuery, type ItemSort, type Library, type RecommendedRow, type Resolution, type Collection, type CollectionMode } from '@/lib/api';
 import { ActiveFilters, FiltersButton, type FilterPatch } from '@/components/LibraryFilters';
 import { cn } from '@/lib/utils';
 import { kindUnit } from '@/lib/kinds';
@@ -102,25 +103,7 @@ export function LibraryPage() {
   const sort = (params.get('sort') as ItemSort) in sorts ? (params.get('sort') as ItemSort) : 'title';
   // A letter from an older link (?letter=s) jumps there once the titles load.
   const letterParam = params.get('letter')?.toLowerCase() ?? '';
-  const filters = {
-    genre: params.get('genre') ?? undefined,
-    language: params.get('language') ?? undefined,
-    label: params.get('label') ?? undefined,
-    decade: Number(params.get('decade')) || undefined,
-    resolution: (params.get('resolution') as Resolution) || undefined,
-    unwatched: params.get('unwatched') === '1' || undefined,
-    unmatched: params.get('unmatched') === '1' || undefined,
-    added_within: Number(params.get('added_within')) || undefined,
-    min_runtime: Number(params.get('min_runtime')) || undefined,
-    max_runtime: Number(params.get('max_runtime')) || undefined,
-    min_rating: Number(params.get('min_rating')) || undefined,
-    video_codec: params.get('video_codec') || undefined,
-    audio_codec: params.get('audio_codec') || undefined,
-    audio_channels: Number(params.get('audio_channels')) || undefined,
-    dynamic_range: (params.get('dynamic_range') as DynamicRange) || undefined,
-    // The server refuses both together; an old link with both keeps Unwatched.
-    watch_state: params.get('unwatched') === '1' ? undefined : (['played', 'unstarted'] as const).find((w) => w === params.get('watch_state')),
-  };
+  const filters = readItemFilters(params);
   const filtered = Object.values(filters).some(Boolean);
   const clearFilters = () => {
     const next = new URLSearchParams(params);
