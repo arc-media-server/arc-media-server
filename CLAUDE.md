@@ -150,6 +150,9 @@ cmd/ams/             entrypoint (flags: -data, -debug, -reset-password; -config 
 internal/settings/   server settings in the DB (keys, ffprobe, port, network, sign-in at home); env overrides
 internal/auth/       password/PIN hashing (bcrypt), session tokens, home-network check, rate limiting
 internal/config/     reads an old ams.yaml once, to import it
+internal/lifecycle/  process work admission, cancellation, bounded shutdown diagnostics and dependency-safe joining
+internal/downloads/  profile/device-owned original-file checksum preparation (no transfer yet)
+internal/filecache/  persistent source revision keys; catalog reservations protect captured identities
 internal/store/      SQLite (modernc, pure Go) + embedded migrations in store/migrations/*.sql
 internal/probe/      ffprobe wrapper
 internal/scanner/    folder walking, filename parsing (parse.go movies, parse_tv.go TV), shows.go TV sync
