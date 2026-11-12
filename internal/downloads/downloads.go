@@ -17,9 +17,10 @@ import (
 var ErrCatalogBusy = errors.New("catalog maintenance in progress")
 
 type Manager struct {
-	store *store.Store
-	log   *slog.Logger
-	wake  chan struct{}
+	store     *store.Store
+	log       *slog.Logger
+	wake      chan struct{}
+	transfers transferControl
 	// Playback is installed before Run starts. Foreground playback pauses hashing.
 	Playback func() bool
 }

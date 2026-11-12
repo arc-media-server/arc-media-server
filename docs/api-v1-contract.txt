@@ -431,6 +431,27 @@ GET /downloads/{id} 200 .revision string
 GET /downloads/{id} 200 .sha256 string
 GET /downloads/{id} 200 .size integer
 GET /downloads/{id} 200 .state string
+GET /downloads/{id}/assets/{asset}
+GET /downloads/{id}/assets/{asset} 200
+GET /downloads/{id}/assets/{asset} 206
+GET /downloads/{id}/manifest
+GET /downloads/{id}/manifest 200
+GET /downloads/{id}/manifest 200 .assets array
+GET /downloads/{id}/manifest 200 .assets[] object
+GET /downloads/{id}/manifest 200 .assets[].id string
+GET /downloads/{id}/manifest 200 .assets[].media_type string
+GET /downloads/{id}/manifest 200 .assets[].role string
+GET /downloads/{id}/manifest 200 .assets[].sha256 string
+GET /downloads/{id}/manifest 200 .assets[].size integer
+GET /downloads/{id}/manifest 200 .assets[].url string
+GET /downloads/{id}/manifest 200 .download_id string
+GET /downloads/{id}/manifest 200 .item object
+GET /downloads/{id}/manifest 200 .item.id string
+GET /downloads/{id}/manifest 200 .item.kind string
+GET /downloads/{id}/manifest 200 .item.title string
+GET /downloads/{id}/manifest 200 .mode string
+GET /downloads/{id}/manifest 200 .revision string
+GET /downloads/{id}/manifest 200 .server_id string
 GET /events
 GET /events 200
 GET /extras/{id}/stream
@@ -5680,6 +5701,8 @@ GET /webhooks 200 .webhooks[].last.ok boolean
 GET /webhooks 200 .webhooks[].last.status string
 GET /webhooks 200 .webhooks[].name string
 GET /webhooks 200 .webhooks[].url string
+HEAD /downloads/{id}/assets/{asset}
+HEAD /downloads/{id}/assets/{asset} 200
 OPTIONS /cast/{token}/{rest}
 OPTIONS /cast/{token}/{rest} 200
 OPTIONS /cast/{token}/{rest} 204
