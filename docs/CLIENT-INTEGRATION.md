@@ -76,8 +76,60 @@ HTTP200 supplies code/poll/expires_in. Display code and ask the person to approv
 Arc's profile menu → Link a Device (`/link`). Poll `GET /api/v1/auth/link/<poll>` every few seconds:
 HTTP202 means waiting, HTTP200 returns the token **once**, and HTTP404 means expired or already
 consumed. The displayed code lasts ten minutes; do not save it as a credential. Rate-limit responses
-require backoff. A household token still follows the profile-selection step above; a friend token
+require backoff. Clients providing the approval screen send the displayed code to
+`POST /api/v1/auth/link/approve` from an already authenticated, selected profile; household
+approval requires a password-authenticated session or an admin. Approval does not itself
+return the TV token: the waiting device collects it through its poll identifier. A household token still follows the profile-selection step above; a friend token
 already selects that friend. Poll identifiers are limited linking secrets, not general session URLs.
+
+## Browse episodes and alternate orders
+
+There are three separate choices: the library provider supplies show details; **file episode
+order** describes on-disk numbering and supplies episode metadata; **display order** changes
+browsing/playback sequence. Do not infer identity from a displayed season/episode number or use
+provider IDs as Arc item IDs. Ordering IDs are integers; episode item IDs remain opaque strings.
+
+1. Fetch `GET /api/v1/series/<series-id>/orderings`. Use its returned `orderings` IDs, names and
+   sources, not a hardcoded provider menu. `source_ordering` is effective file numbering;
+   `display_ordering_id` is the effective browse order. `display_choice_id` is the explicit
+   selection, or integer 0 when following file order. The reset request below uses JSON null;
+   that is different from the returned zero sentinel.
+2. Browse `GET /api/v1/series/<series-id>/seasons`. Render both `seasons[].episodes` and `unplaced`;
+   episodes outside an order must not disappear. `available:false` is not a playable file.
+   To preview another order, use `?ordering=<returned-ordering-id>`; add `missing=1` to include
+   provider-known missing episodes. This GET does not save a display choice.
+3. If an administrator explicitly chooses a display order, send
+   `PUT /api/v1/series/<series-id>/display-ordering` with a returned integer ID:
+
+<!-- example: display-ordering -->
+```json
+{"ordering_id":12}
+```
+
+HTTP200 returns the updated ordering selection. This is an **admin-only server-wide mutation**,
+not a personal sort preference. Cross-provider choices may need online episode mapping and take
+longer or fail; keep feedback/retry local and refetch the selection after an uncertain result.
+Ordinary profiles can browse/preview orders but cannot save this choice.
+
+To return to following the show's effective file order, send the same PUT with:
+
+<!-- example: display-ordering-reset -->
+```json
+{"ordering_id":null}
+```
+
+Refetch seasons and any displayed Next Up/queue state after a successful change. Start playback
+with the returned Arc **episode ID**, not its displayed number. For sequential playback,
+`GET /api/v1/items/<episode-id>/next` returns the next available episode in the saved display
+order, or HTTP204 with no body when there is none. A preview GET does not change this traversal.
+Play queues are snapshots with their own lifecycle; an existing queue is not rewritten by an
+ordering change. See [PLAY-QUEUES-API.md](PLAY-QUEUES-API.md).
+
+Changing display order does not rename media or change file numbering. Changing file numbering
+is a separate admin metadata operation (`PATCH /api/v1/items/<series-id>` with `source_ordering`);
+it can rematch known files and change episode metadata. A client that only presents alternate
+views should not send that PATCH. See [METADATA-ORDERING.md](METADATA-ORDERING.md) for the full
+provider/numbering policy.
 
 ## Preview, play, report progress and stop
 
@@ -128,6 +180,90 @@ See [playback decisions and native capabilities](PLAYBACK-PREVIEW-API.md),
 [queues](PLAY-QUEUES-API.md), [live invalidations](EVENTS-API.md) and
 [Watch Together](WATCH-TOGETHER-API.md) for their separate contracts.
 
+## Watch Together: enter a room, then run ordinary playback
+
+Check `features.watch_together` in capabilities: require supported, available and allowed before
+offering the action. All requests require a selected profile; the participant is that profile
+**on this device session**. Use the same device token for room reads, commands, heartbeats and
+streaming. An invite code does not sign someone in or grant access to a library.
+
+For the code-based flow, resolve a playable movie/episode, then send
+`POST /api/v1/watch-together`:
+
+<!-- example: watch-room -->
+```json
+{"item_id":"replace-with-returned-item-id","start_ms":0}
+```
+
+HTTP201 returns `room`, `invite_code` and `invite_expires_at_ms`. Keep the code private. A second
+signed-in device sends `POST /api/v1/watch-together/join`:
+
+<!-- example: watch-join -->
+```json
+{"code":"replace-with-private-invite-code"}
+```
+
+HTTP200 returns its personalized room snapshot. `GET /api/v1/watch-together/current` recovers
+this device/profile's room after a reload or lost response; HTTP404 means none. GET
+`/api/v1/watch-together/<room-id>/events` is an authenticated SSE stream of personalized **room**
+snapshots, separate from the general invalidation stream. On reconnect refetch room state; do
+not assume general event cursors/replay apply to it.
+
+Each participant prepares and starts its own ordinary playback, initially paused. One participant
+may direct-play while another converts. A room does not allocate a converter or report watched
+state; every client still reports personal progress and releases its own playback session.
+Send `POST /api/v1/watch-together/<room-id>/heartbeat` about every two seconds with the loaded
+`generation`, source `position_ms`, actual `state` and `ready`. Buffering is state `waiting`,
+ready false. Do not acknowledge a newer generation until its media/seek is actually ready.
+
+For an explicit user action, POST to `/api/v1/watch-together/<room-id>/commands` using the latest
+returned revision (the value below is illustrative):
+
+<!-- example: watch-command -->
+```json
+{"revision":1,"action":"pause"}
+```
+
+HTTP409 includes the current personalized `room`: adopt it and retry only if the user's action
+still makes sense. `revision` guards commands; `generation` guards readiness after seeks/item
+changes. Never send a command for every progress tick or echo received commands back to the server.
+On leaving, POST `/api/v1/watch-together/<room-id>/leave` (204) and stop/release local playback.
+Rooms are temporary and do not survive a server restart. This walkthrough does not establish
+multi-device timing or physical-player compatibility.
+
+Profile invitations, restrictions/redaction, clock synchronization, host succession and buffering
+policy are detailed in [WATCH-TOGETHER-API.md](WATCH-TOGETHER-API.md). These are required integration
+reading before shipping a synchronized player; the short flow above is not a complete sync loop.
+
+## Downloads: check support before showing offline controls
+
+**Pending implementation, not present on the guide's main baseline:** preparation PR #421 and
+original-bundle/transfer PRs #431–#433 are awaiting review/merge. This documentation update does
+not enable their routes or advertise a download feature on older servers.
+
+Read capabilities after selecting a profile. A missing feature key means unsupported; do not
+probe guessed transfer URLs or offer a download merely because ordinary streaming works.
+`downloads_preparation` alone is not original-byte transfer. On a server that implements the
+pending contract, enable original downloads only when `features.downloads_original` has
+supported, available and allowed all true. Ordinary profiles need an explicit administrator
+grant. Server availability is not a device free-space/codec guarantee.
+
+The pending workflow is: choose a returned movie/episode file → create an owned original
+preparation → wait for readiness → obtain its manifest → download its returned authenticated
+asset URLs → verify assembled size and SHA-256 → publish locally. Bind partial bytes to the
+manifest revision. If a resume request returns HTTP200, replace the partial file; never append
+it as if it were HTTP206. Do not reuse ordinary playback routes as download APIs: downloads
+must not create playback/history side effects.
+
+Client-local storage, background transfers and offline playback remain app responsibilities.
+Already copied bytes cannot be remotely recalled. Offline progress synchronization and converted
+downloads are separate future work; do not infer either from original-download support.
+
+The [versioned original-download handoff](https://github.com/arc-media-server/arc-media-server/blob/50d7298f21964e46663751cc6a4078e33bac4628/docs/DOWNLOADS-OFFLINE-API.md)
+is a repository document from pending #433, not part of this server's deployed contract. Check
+its PR/commit and the running server's capabilities/OpenAPI before implementing it. Specialist
+repository links require network/repository access; the core guidance on this page is bundled.
+
 ## Profile library selection
 
 Profile library_ids:null means **all libraries**; [] means **no libraries**. A nonempty integer
@@ -143,7 +279,7 @@ Treat IDs and returned URLs as authoritative:
 | Value | Wire type |
 |---|---|
 | Arc item, profile and queue IDs | Opaque strings |
-| File and library IDs | Integers |
+| File, library and episode-ordering IDs | Integers |
 | Item tmdb_id / tvdb_id | Integers |
 | IMDb ID | String such as tt0133093 |
 | provider_id in a lookup URL | Text in the chosen provider's namespace |

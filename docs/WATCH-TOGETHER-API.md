@@ -1,6 +1,8 @@
 # Watch Together — backend and client handoff
 
-Backend only. Claude implements web, Android TV, Apple TV and other client UX against `/api/v1`.
+Server contract for web and native clients using `/api/v1`. For the first room creation/join
+requests, see [the client walkthrough](CLIENT-INTEGRATION.md); the full synchronization and
+recovery contract is below. Native-client implementation and device acceptance are separate.
 Rooms synchronize **item, timeline and playback intent**; every participant still starts their
 own ordinary Arc playback. Nothing here creates a conversion, changes personal preferences or
 writes watch progress/history. There is no cloud discovery service or external infrastructure.
