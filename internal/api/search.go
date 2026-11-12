@@ -118,18 +118,14 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, err)
 			return
 		}
-		series := map[string]*store.Item{}
+		contexts := s.episodeContexts(ctx)
 		for _, ep := range eps {
-			sr, ok := series[ep.ParentID]
-			if !ok {
-				sr, _ = s.store.GetItem(ctx, ep.ParentID)
-				series[ep.ParentID] = sr
+			context, err := contexts.get(ep.ParentID)
+			if err != nil {
+				s.fail(w, err)
+				return
 			}
-			var pos map[string][2]int
-			if sr != nil {
-				pos, _, _ = s.orderPositions(ctx, sr)
-			}
-			res.Episodes = append(res.Episodes, s.episodeDTO(ep, sr, pos))
+			res.Episodes = append(res.Episodes, s.episodeDTO(ep, context.series, context.positions))
 		}
 		if err := s.fillUserData(r, ptrs(res.Episodes)); err != nil {
 			s.fail(w, err)
