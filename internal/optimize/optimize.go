@@ -298,7 +298,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	if err != nil {
 		return fail(err)
 	}
-	var stderr strings.Builder
+	var stderr transcode.StderrBuffer
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return fail(err)
@@ -319,10 +319,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 		if ctx.Err() != nil {
 			return ctx.Err() // Arc is stopping: it's made again next time
 		}
-		msg := strings.TrimSpace(stderr.String())
-		if i := strings.LastIndexByte(msg, '\n'); i >= 0 {
-			msg = msg[i+1:]
-		}
+		msg := transcode.FFmpegFailure(stderr.String(), f.Path)
 		return fail(fmt.Errorf("converting failed: %s", msg))
 	}
 	if cctx.Err() != nil {

@@ -85,7 +85,7 @@ type Session struct {
 	storageMu    sync.Mutex
 	retainedFrom int
 	err          error
-	stderr       stderrBuffer
+	stderr       StderrBuffer
 	lastSeen     time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
@@ -275,7 +275,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		err := cmd.Wait()
 		s.mu.Lock()
 		if err != nil && ctx.Err() == nil {
-			s.err = fmt.Errorf("FFmpeg stopped: %s", ffmpegFailure(s.stderr.String(), opts.Path))
+			s.err = fmt.Errorf("FFmpeg stopped: %s", FFmpegFailure(s.stderr.String(), opts.Path))
 			m.log.Warn("transcode failed", "session", s.ID, "err", s.err)
 		}
 		s.paused = false

@@ -9,9 +9,11 @@ import (
 // Keep both the first cause and the final outcome without retaining unbounded process output.
 const stderrLimit = 16 * 1024
 
-type stderrBuffer struct{ head, tail []byte }
+// StderrBuffer retains at most 16 KiB of a child process error output, keeping its head and tail.
+// Read it only after the child has exited; it has a single writer and is not synchronized.
+type StderrBuffer struct{ head, tail []byte }
 
-func (b *stderrBuffer) Write(p []byte) (int, error) {
+func (b *StderrBuffer) Write(p []byte) (int, error) {
 	n := len(p)
 	if room := stderrLimit/2 - len(b.head); room > 0 {
 		take := min(room, len(p))
@@ -31,11 +33,12 @@ func (b *stderrBuffer) Write(p []byte) (int, error) {
 	}
 	return n, nil
 }
-func (b *stderrBuffer) String() string { return string(b.head) + string(b.tail) }
+func (b *StderrBuffer) String() string { return string(b.head) + string(b.tail) }
 
 var diagnosticURL = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://[^\s]+`)
 
-func ffmpegFailure(text, source string) string {
+// FFmpegFailure summarizes the first cause and final outcome, redacting URLs and the source path.
+func FFmpegFailure(text, source string) string {
 	text = diagnosticURL.ReplaceAllString(text, "[redacted URL]")
 	if source != "" {
 		text = strings.ReplaceAll(text, source, "[source]")

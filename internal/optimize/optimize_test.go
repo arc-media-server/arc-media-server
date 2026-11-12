@@ -21,6 +21,12 @@ import (
 // A portable stand-in process holds its completed output until the test releases it. This
 // gives replacement/deletion tests an actual subprocess boundary without encoding-speed races.
 func TestMain(m *testing.M) {
+	if source := os.Getenv("ARC_OPTIMIZE_FAILURE_SOURCE"); source != "" {
+		fmt.Fprintln(os.Stderr, "decode failed: "+source+" https://fixture.invalid/?token=secret")
+		fmt.Fprintln(os.Stderr, strings.Repeat("noise", 20000))
+		fmt.Fprintln(os.Stderr, "conversion failed")
+		os.Exit(1)
+	}
 	if root := os.Getenv("ARC_OPTIMIZE_HELPER_DIR"); root != "" {
 		out := os.Args[len(os.Args)-1]
 		if filepath.Dir(out) != filepath.Join(root, "optimized") {
