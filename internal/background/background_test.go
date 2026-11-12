@@ -422,3 +422,53 @@ func TestEmptyTrashOnlyOptInMaintenance(t *testing.T) {
 		t.Fatal("cleanup did not resume")
 	}
 }
+
+func TestRetryLaterIsBoundedAndResetByChangedFiles(t *testing.T) {
+	ctx, st, m, lib := fixture(t)
+	f := savedFile(t, ctx, st, lib, "episode.mkv", 99)
+	start := m.now()
+	at := func(d time.Duration) { m.now = func() time.Time { return start.Add(d) } }
+	week, month := 7*24*time.Hour, 30*24*time.Hour
+	run := func(when string) {
+		t.Helper()
+		_, finish, ok := m.Begin(ctx, "markers", "season", f.ID)
+		if !ok {
+			t.Fatalf("%s: not admitted", when)
+		}
+		finish(nil)
+	}
+	run("first comparison")
+	if due, ok := m.RetryLater(ctx, "markers", "season", []int64{f.ID}, week, month); !ok || !due.Equal(start.Add(week)) {
+		t.Fatalf("first retry: %v %v", due, ok)
+	}
+	at(week - time.Hour)
+	if _, _, ok := m.Begin(ctx, "markers", "season", f.ID); ok {
+		t.Fatal("retried before it was due")
+	}
+	at(week)
+	run("first retry")
+	if _, _, ok := m.Begin(ctx, "markers", "season", f.ID); ok {
+		t.Fatal("retry repeated without asking again")
+	}
+	if due, ok := m.RetryLater(ctx, "markers", "season", []int64{f.ID}, week, month); !ok || !due.Equal(start.Add(week+month)) {
+		t.Fatalf("second retry: %v %v", due, ok)
+	}
+	at(week + month)
+	run("second retry")
+	if _, ok := m.RetryLater(ctx, "markers", "season", []int64{f.ID}, week, month); ok {
+		t.Fatal("retries are not bounded")
+	}
+	at(10 * month)
+	if _, _, ok := m.Begin(ctx, "markers", "season", f.ID); ok {
+		t.Fatal("ran again with no retries left")
+	}
+	// A changed file starts afresh, with its retries back.
+	f.ModTime = 2
+	if _, err := st.SaveFile(ctx, &f, 99, 1); err != nil {
+		t.Fatal(err)
+	}
+	run("changed file")
+	if _, ok := m.RetryLater(ctx, "markers", "season", []int64{f.ID}, week, month); !ok {
+		t.Fatal("changed files did not reset retries")
+	}
+}

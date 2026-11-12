@@ -25,6 +25,10 @@ import (
 // keep growing).
 const recheckAfter = 30 * 24 * time.Hour
 
+// seasonRetries are when a season with episodes still missing an intro is compared again: a week
+// later, then a month after that. Then it waits for a file to change or Find Again.
+var seasonRetries = []time.Duration{7 * 24 * time.Hour, 30 * 24 * time.Hour}
+
 // Manager looks for markers in the background.
 type Manager struct {
 	store *store.Store
@@ -285,6 +289,22 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 		} else {
 			m.log.Info("compared a season's episodes for intros", "show", show, "episodes", len(files), "intros_found", len(found), "files_without_audio_fingerprint", noAudio, "took", time.Since(started))
 		}
+		// Episodes still without an intro (unreadable, or no match) get the season compared again
+		// later, a bounded number of times; then only changed files or Find Again bring it back.
+		without := 0
+		if m.Background != nil {
+			if without, err = m.episodesWithoutIntro(ctx, files); err != nil {
+				return err
+			}
+		}
+		if without > 0 {
+			key := fmt.Sprintf("season:%s:%d", s.series, s.number)
+			if at, ok := m.Background.RetryLater(ctx, "markers", key, ids, seasonRetries...); ok {
+				m.log.Info("season still has episodes without an intro; will compare again", "show", show, "episodes_without_intro", without, "retry_on", at.Format(time.DateOnly))
+			} else {
+				m.log.Info("season still has episodes without an intro; no more automatic retries", "show", show, "episodes_without_intro", without)
+			}
+		}
 
 	}
 	for i, j := range movies {
@@ -324,6 +344,25 @@ func (m *Manager) pass(ctx context.Context, localOnly ...bool) error {
 		m.Background.CompletePass("markers")
 	}
 	return nil
+}
+
+// episodesWithoutIntro counts a season's files that have no intro marker from any source.
+func (m *Manager) episodesWithoutIntro(ctx context.Context, files []store.MarkerJob) (int, error) {
+	without := 0
+	for _, f := range files {
+		have, err := m.store.FileMarkers(ctx, f.FileID)
+		if err != nil {
+			return 0, err
+		}
+		intro := false
+		for _, marker := range have {
+			intro = intro || marker.Kind == "intro"
+		}
+		if !intro {
+			without++
+		}
+	}
+	return without, nil
 }
 
 // lookup is what find did for one file: where its wanted marker came from ("chapters",

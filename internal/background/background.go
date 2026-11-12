@@ -185,6 +185,30 @@ func (m *Manager) RunNow(ctx context.Context, kind string) error {
 	}
 	return nil
 }
+
+// RetryLater asks a job that just finished to run again after the next delay in delays, one per
+// retry; once they are used up it isn't retried until its files change. It returns when the next
+// run is due, or false when there are no retries left. Jobs are never retried in a loop: this is
+// for work that may succeed later (an unreadable file, a missing neighbour), and is bounded.
+func (m *Manager) RetryLater(ctx context.Context, kind, key string, ids []int64, delays ...time.Duration) (time.Time, bool) {
+	if m == nil {
+		return time.Time{}, false
+	}
+	revision, _, maximum, err := m.store.BackgroundRevision(ctx, kind, ids)
+	if err != nil {
+		return time.Time{}, false
+	}
+	j, err := m.store.BackgroundJob(ctx, kind, key, revision, maximum)
+	if err != nil || j.State != "done" || j.Retries >= int64(len(delays)) {
+		return time.Time{}, false
+	}
+	at := m.now().Add(delays[j.Retries])
+	if err := m.store.RetryBackgroundJobAt(ctx, kind, key, revision, at.Unix()); err != nil {
+		return time.Time{}, false
+	}
+	return at, true
+}
+
 func (m *Manager) CompletePass(kind string) {
 	m.mu.Lock()
 	delete(m.force, kind)
@@ -222,8 +246,15 @@ func (m *Manager) begin(ctx context.Context, kind, key string, reopen bool, ids 
 		return ctx, nil, false
 	}
 	j, err := m.store.BackgroundJob(ctx, kind, key, revision, maximum)
-	if err != nil || j.State == "done" && !reopen || j.State == "failed" && m.now().Unix()-j.UpdatedAt < 3600 {
+	// A done job that asked to run again (RetryLater) is due once its time has come.
+	due := j.State == "done" && j.RetryAt > 0 && m.now().Unix() >= j.RetryAt
+	if err != nil || j.State == "done" && !reopen && !due || j.State == "failed" && m.now().Unix()-j.UpdatedAt < 3600 {
 		return ctx, nil, false
+	}
+	if due && !reopen {
+		if err := m.store.ReopenBackgroundRetry(ctx, kind, key, revision); err != nil {
+			return ctx, nil, false
+		}
 	}
 	if j.State == "done" && reopen {
 		if err := m.store.SetBackgroundJob(ctx, kind, key, revision, "queued", ""); err != nil {

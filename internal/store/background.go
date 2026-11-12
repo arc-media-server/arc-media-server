@@ -10,6 +10,8 @@ import (
 type BackgroundJob struct {
 	State, Error string
 	UpdatedAt    int64
+	// A done job asked to run again at RetryAt (0 for never); Retries is how many times it has.
+	RetryAt, Retries int64
 }
 
 // BackgroundRevision ties completion to the exact saved file revisions; a new episode
@@ -36,17 +38,30 @@ func (s *Store) BackgroundRevision(ctx context.Context, kind string, ids []int64
 func (s *Store) BackgroundJob(ctx context.Context, kind, key, revision string, fileID int64) (BackgroundJob, error) {
 	var existing BackgroundJob
 	var oldRevision string
-	if e := s.db.QueryRowContext(ctx, `SELECT revision,state,error,updated_at FROM background_jobs WHERE kind=? AND job_key=?`, kind, key).Scan(&oldRevision, &existing.State, &existing.Error, &existing.UpdatedAt); e == nil && oldRevision == revision {
+	if e := s.db.QueryRowContext(ctx, `SELECT revision,state,error,updated_at,retry_at,retries FROM background_jobs WHERE kind=? AND job_key=?`, kind, key).Scan(&oldRevision, &existing.State, &existing.Error, &existing.UpdatedAt, &existing.RetryAt, &existing.Retries); e == nil && oldRevision == revision {
 		return existing, nil
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO background_jobs(kind,job_key,revision,file_id) VALUES(?,?,?,?)
- ON CONFLICT(kind,job_key) DO UPDATE SET revision=excluded.revision,file_id=excluded.file_id,state='queued',error='',updated_at=0 WHERE background_jobs.revision<>excluded.revision`, kind, key, revision, fileID)
+ ON CONFLICT(kind,job_key) DO UPDATE SET revision=excluded.revision,file_id=excluded.file_id,state='queued',error='',updated_at=0,retry_at=0,retries=0 WHERE background_jobs.revision<>excluded.revision`, kind, key, revision, fileID)
 	if err != nil {
 		return BackgroundJob{}, err
 	}
 	var j BackgroundJob
-	err = s.db.QueryRowContext(ctx, `SELECT state,error,updated_at FROM background_jobs WHERE kind=? AND job_key=?`, kind, key).Scan(&j.State, &j.Error, &j.UpdatedAt)
+	err = s.db.QueryRowContext(ctx, `SELECT state,error,updated_at,retry_at,retries FROM background_jobs WHERE kind=? AND job_key=?`, kind, key).Scan(&j.State, &j.Error, &j.UpdatedAt, &j.RetryAt, &j.Retries)
 	return j, err
+}
+
+// RetryBackgroundJobAt asks a done job to run again at the given time, counting the retry. It only
+// applies to the same revision: changed files start afresh (no retries counted).
+func (s *Store) RetryBackgroundJobAt(ctx context.Context, kind, key, revision string, at int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE background_jobs SET retry_at=?,retries=retries+1 WHERE kind=? AND job_key=? AND revision=? AND state='done'`, at, kind, key, revision)
+	return err
+}
+
+// ReopenBackgroundRetry queues a done job whose retry time has come, keeping its retry count.
+func (s *Store) ReopenBackgroundRetry(ctx context.Context, kind, key, revision string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE background_jobs SET state='queued',error='',retry_at=0 WHERE kind=? AND job_key=? AND revision=? AND state='done'`, kind, key, revision)
+	return err
 }
 func (s *Store) SetBackgroundJob(ctx context.Context, kind, key, revision, state, message string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE background_jobs SET state=?,error=?,updated_at=? WHERE kind=? AND job_key=? AND revision=?`, state, message, time.Now().Unix(), kind, key, revision)
