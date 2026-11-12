@@ -27,6 +27,7 @@ import (
 	"ams/internal/background"
 	"ams/internal/backup"
 	"ams/internal/config"
+	"ams/internal/downloads"
 	"ams/internal/events"
 	"ams/internal/lifecycle"
 	"ams/internal/logbuf"
@@ -634,7 +635,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return ffmpegBin
 	}, log)
 	workers.OnStop("subtitle extraction", subtitleCache.Close)
+	downloadManager := downloads.New(st, log)
 	handler := api.New(api.Deps{
+		Downloads:   downloadManager,
 		WorkContext: ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
@@ -693,6 +696,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	})
 
 	handler = api.TrackRequests(handler, func() (func(), bool) { return workers.Begin("HTTP requests") })
+	downloadCtx, stopDownloads := context.WithCancel(ctx)
+	downloadsDone := make(chan struct{})
+	go func() { defer close(downloadsDone); downloadManager.Run(downloadCtx) }()
+	defer func() { stopDownloads(); <-downloadsDone }()
 
 	ln, err := net.Listen("tcp", cfg.ListenAddress())
 	if err != nil {
