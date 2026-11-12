@@ -1,3 +1,4 @@
+import { pickItemFilters } from '@/lib/item-filters';
 import { sortLabels } from '@/lib/filter-labels';
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +29,7 @@ export const ratingOptions = [0, 6, 7, 8];
  * be chosen too.
  */
 export function FilterFields({
-  filter: f,
+  filter,
   onChange,
   libraries,
   unwatchedLabel,
@@ -38,6 +39,7 @@ export function FilterFields({
   libraries?: Library[];
   unwatchedLabel?: string;
 }) {
+  const f = { ...filter, ...pickItemFilters(filter) };
   const { t } = useTranslation('filters');
   const facets = useQuery({ queryKey: ['facets', f.library_id], queryFn: () => api.facets(f.library_id), enabled: !!f.library_id });
   const library = libraries?.find((l) => l.id === f.library_id);
