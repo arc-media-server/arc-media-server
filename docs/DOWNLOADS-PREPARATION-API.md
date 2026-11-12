@@ -1,3 +1,8 @@
+> Implementation update (12 November): stacked D1/D2/D3 add source-key/catalog guards,
+> authenticated original transfer and durable supported offline bundles. Their shipped contract
+> is [DOWNLOADS-OFFLINE-API.md](DOWNLOADS-OFFLINE-API.md). The text below records the original
+> preparation slice and its historical boundaries; no claim that the stack is merged/deployed.
+
 # Original-download preparation — backend/client handoff
 
 First runtime slice of #62, built independently of the unmerged #418 server-review work. SQLite

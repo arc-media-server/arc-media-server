@@ -1,3 +1,6 @@
+> D3 completes the durable original-bundle handoff in [DOWNLOADS-OFFLINE-API.md](DOWNLOADS-OFFLINE-API.md).
+> This document records the D2 transport contract; no merged/deployed state is implied.
+
 # Original transfer API — D2 backend handoff
 
 D2 adds `/api/v1/downloads/{id}/manifest` and GET/HEAD

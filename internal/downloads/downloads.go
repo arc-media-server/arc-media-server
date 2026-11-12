@@ -21,6 +21,7 @@ type Manager struct {
 	log       *slog.Logger
 	wake      chan struct{}
 	transfers transferControl
+	bundles   bundleControl
 	// Playback is installed before Run starts. Foreground playback pauses hashing.
 	Playback func() bool
 }
@@ -39,7 +40,14 @@ func (m *Manager) Wake() {
 func (m *Manager) Run(ctx context.Context) {
 	timer := time.NewTicker(time.Second)
 	defer timer.Stop()
+	lastCleanup := time.Time{}
 	for ctx.Err() == nil {
+		if time.Since(lastCleanup) >= time.Minute {
+			if err := m.CleanupBundles(ctx); err != nil && ctx.Err() == nil {
+				m.log.Warn("download bundle cleanup unavailable")
+			}
+			lastCleanup = time.Now()
+		}
 		release, admitted := m.store.BeginCatalogWork()
 		if !admitted {
 			select {
@@ -187,6 +195,29 @@ func (m *Manager) prepare(ctx context.Context, d *store.Download) error {
 		ns = opened.ModTime().UnixNano()
 		return nil
 	}()
+	snapshot := ""
+	var discard func()
+	if err == nil && reason == "" {
+		releaseBundle := m.LeaseBundle(d)
+		defer releaseBundle()
+		snapshot, discard, err = m.buildBundle(ctx, d)
+		if err != nil && ctx.Err() == nil {
+			reason = "bundle_unavailable"
+			err = nil
+		}
+		if discard != nil {
+			defer func() {
+				if discard != nil {
+					discard()
+				}
+			}()
+		}
+		if err == nil && reason == "" {
+			if _, checkErr := m.store.DownloadSource(ctx, d); checkErr != nil {
+				reason = "source_or_access_changed"
+			}
+		}
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			m.log.Debug("download preparation interrupted", "download_id", d.ID)
@@ -194,9 +225,12 @@ func (m *Manager) prepare(ctx context.Context, d *store.Download) error {
 		}
 		return err
 	}
-	published, err := m.store.FinishDownload(ctx, d, digest, ns, reason)
+	published, err := m.store.FinishDownloadBundle(ctx, d, digest, ns, reason, snapshot)
 	if err != nil {
 		return err
+	}
+	if published && reason == "" && discard != nil {
+		discard = nil
 	}
 	if !published {
 		m.log.Debug("download preparation discarded", "download_id", d.ID)
