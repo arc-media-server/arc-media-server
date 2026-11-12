@@ -13,7 +13,7 @@ link for each result. Earlier green runs are historical evidence; unknown is not
   non-root ownership, read-only media, persisted settings/logs/uploads, restart/recreation,
   database restore and compatible stopped-folder upgrade/rollback.
 - [ ] Reconcile #123 with actual image platforms and documented container behavior. The
-  current implementation uses Docker --user UID:GID, not a PUID/PGID environment shim;
+  image runs Arc as PUID:PGID (default 1000:1000) and also accepts Docker --user UID:GID;
   do not claim platform or GPU support solely because an image builds.
 - [ ] Review unresolved critical access/data-loss defects for the candidate and retain
   reproduction/closure evidence. Test passing alone does not prove absence of defects.

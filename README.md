@@ -148,17 +148,11 @@ Notes:
   home) and can open the router port. Docker Desktop on Windows or Mac uses `ports: ["8099:8099"]`.
 - For hardware encoding pass `/dev/dri` (Intel/AMD) or use the NVIDIA Container Toolkit; both are
   in the example file.
-- The image runs as an unprivileged user, UID/GID `10001:10001`. A new Docker-managed config
-  volume gets the correct ownership automatically. For the example's bind mount, create
-  `arc-config` first and make **only that config directory** writable by the chosen user.
-  You can set `user: "UID:GID"` in Compose to use an existing host account; `PUID`/`PGID` aren't read.
-- **Upgrading a root-run container:** stop Arc and back up its config first. Existing root-owned
-  config files need a one-time ownership/permission change for the chosen UID/GID. Apply that
-  only to Arc's config directory, never media or a shared parent. Arc does not change host
-  ownership or fall back to running as root. See [container permissions](docs/CONTAINER-PERMISSIONS.md).
-- For Intel/AMD hardware conversion as a non-root user, also add the host's numeric render/video
-  device groups with Compose `group_add`; passing `/dev/dri` alone does not grant group access.
-  The actual device permissions and encoder still need a check on that server.
+- Arc runs as the account in `PUID`/`PGID` (default `1000`/`1000`; on Unraid use `99`/`100`), never
+  as root. On start it gives its own `/config` folder to that account, including an older install's
+  root-owned files, and adds the groups of any `/dev/dri` devices for hardware conversion. Media
+  and other mounts are never changed. Docker's `--user` (Compose `user:`) also works; then the
+  config folder must already be writable by that user. See [container permissions](docs/CONTAINER-PERMISSIONS.md).
 - Keep `/config` on local storage; media can be on network shares. SQLite can't share a database
   over a network filesystem.
 - Behind a reverse proxy (SWAG, Nginx Proxy Manager, Caddy…), have it set `X-Forwarded-For` and
