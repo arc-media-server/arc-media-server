@@ -31,9 +31,7 @@
   "removeFilter": "Remove filter: {{filter}}",
   "selectTitles": "Select titles",
   "tabs": {
-    "shows": "Shows",
-    "videos": "Videos",
-    "movies": "Movies",
+    "library": "Library",
     "recommended": "Recommended",
     "collections": "Collections",
     "folders": "Folders"
