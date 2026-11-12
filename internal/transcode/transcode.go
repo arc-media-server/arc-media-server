@@ -321,15 +321,8 @@ func buildArgs(o Options, start float64, dir string) []string {
 
 	// Resize before expensive HDR mapping, then draw SDR captions and upload if needed.
 	var pre, post []string
-	if encode && o.MaxHeight > 0 {
-		pre = append(pre, FitScaleFilter(o.MaxHeight))
-	}
-	if encode && o.ToneMap {
-		if o.FastToneMap {
-			pre = append(pre, FastToneMapFilter)
-		} else {
-			pre = append(pre, ToneMapFilter)
-		}
+	if encode {
+		pre = SoftwareVideoFilters(o.MaxHeight, o.ToneMap, o.FastToneMap)
 	}
 	if encode && o.HWEncoder == "h264_vaapi" {
 		post = append(post, "format=nv12", "hwupload")
@@ -393,6 +386,23 @@ func buildArgs(o Options, start float64, dir string) []string {
 		"-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", "init.mp4", "-hls_flags", "temp_file+independent_segments",
 		// Forward slashes: FFmpeg finds the folder for init.mp4 by looking for "/".
 		"-hls_segment_filename", filepath.ToSlash(filepath.Join(dir, "s%05d.m4s")), filepath.ToSlash(filepath.Join(dir, "index.m3u8")))
+}
+
+// SoftwareVideoFilters resizes before HDR mapping. Callers retain their encoder,
+// caption compositing, upload and output-format policies after these CPU filters.
+func SoftwareVideoFilters(maxHeight int, toneMap, fast bool) []string {
+	var filters []string
+	if maxHeight > 0 {
+		filters = append(filters, FitScaleFilter(maxHeight))
+	}
+	if toneMap {
+		if fast {
+			filters = append(filters, FastToneMapFilter)
+		} else {
+			filters = append(filters, ToneMapFilter)
+		}
+	}
+	return filters
 }
 
 // ToneMapFilter maps HDR (PQ or HLG) to SDR so converted video (and previews) don't look washed out.
