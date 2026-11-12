@@ -80,7 +80,7 @@ func (s *Server) playlistContentsFor(r *http.Request, p *store.Playlist, summary
 			break
 		}
 	}
-	if f.Unwatched {
+	if q.Unwatched {
 		data, err := s.store.UserDataFor(ctx, currentUserID(r), ids)
 		if err != nil {
 			return nil, nil, err
