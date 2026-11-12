@@ -42,7 +42,7 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   return (
     <HomeRowActions items={cards.data?.map(c => c.item) ?? []} title={title}>{cardProps => <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
       {cards.data?.map((c) => {
-        const key = `${c.type}:${c.item.id}:${c.season_number ?? ''}`;
+        const key = `${c.type}:${c.item.id}:${c.season_number ?? ''}:${c.added_at}`;
         const overrides = recentOverrides(c, style, seasonPosters);
         if (style === 'poster') return <PosterCard {...cardProps(c.item)} key={key} item={c.item} overrides={overrides} className={cardClass(style)} />;
         return <ThumbCard {...cardProps(c.item)} key={key} item={c.item} overrides={overrides} className={cardClass(style)} arc={style === 'arc'} />;
