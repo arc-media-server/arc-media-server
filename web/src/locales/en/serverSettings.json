@@ -61,10 +61,7 @@
     "whenADeviceCan": "When a device can't play a file as it is, Arc converts it while it's watched.",
     "useHardwareAcceleration": "Use hardware acceleration",
     "checkingThisComputer": "Checking this computer…",
-    "noSupportedGraphicsCard": "Hardware encoding is unavailable. Arc uses the processor. Check the detection details or retest after changing device access or drivers.",
-    "retestHardware": "Retest hardware encoding",
-    "hardwareDetectionDetails": "Hardware detection details",
-    "hardwareTestPassed": "Passed",
+    "noSupportedGraphicsCard": "No graphics card that can convert video was found, so Arc uses the processor.",
     "hdrToneMapping": "HDR tone mapping",
     "thisFfmpegCanT": "This FFmpeg can't convert HDR colours (it needs the zscale filter), so converted HDR video looks washed out.",
     "keepConvertedHdrVideo": "Keep converted HDR video looking right on ordinary screens.",
@@ -145,7 +142,10 @@
     "general": "General",
     "generalHint": "What this server is called.",
     "serverName": "Server name",
-    "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters."
+    "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters.",
+    "graphicsCard": "Graphics card",
+    "graphicsCardDescription": "Which graphics card converts video.",
+    "graphicsCardAuto": "Auto"
   },
   "diagnostics": {
     "detailedLogging": "Detailed logging",

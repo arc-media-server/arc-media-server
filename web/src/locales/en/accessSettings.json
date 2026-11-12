@@ -44,14 +44,16 @@
     "outsidePortDescription": "The port people away from home connect to. Usually the same as Arc's port ({{port}}); Let's Encrypt needs 443.",
     "automaticCertificate": "Certificate for {{names}}, until {{date}} (renewed automatically)",
     "certificate": "Certificate for {{names}}, until {{date}}",
-    "networksDescription": "Arc recognises home networks from this server’s network interfaces. Add extra client networks, such as a VPN or Tailscale ({{network}}).",
+    "networksDescription": "Devices on these networks sign in without a password. Add others, such as Tailscale ({{network}}).",
     "localAddress": "Arc is at <address>{{address}}</address>",
     "movedAddress": "Arc has moved. <address>Open it at its new address</address>.",
     "trustedProxies": "Trusted proxies",
     "trustedProxiesDescription": "If you reach Arc through a reverse proxy like SWAG or Nginx Proxy Manager, add its address so people at home count as home.",
-    "detectedHomeNetworks": "Detected home networks: {{networks}}",
-    "noDetectedHomeNetworks": "No home network was detected automatically. Add your local subnet to allow password-free sign-in at home.",
-    "bridgeHomeNetworks": "Bridge networking can hide client addresses. Arc does not treat its gateway as home. Use host networking or a br0/custom LAN network. If Arc can see real client addresses, add your home subnet (for example 192.168.1.0/24)."
+    "detectedHomeNetworks": "Found automatically: {{networks}}",
+    "noDetectedHomeNetworks": "None found automatically. Add your home network.",
+    "bridgeHomeNetworks": "Arc is on Docker’s bridge network, so it can’t find your home network itself. Add it here.",
+    "homeNetworksPlaceholder": "e.g. 192.168.1.0/24",
+    "addThisNetwork": "Add the network you’re on ({{network}})"
   },
   "devices": {
     "linkADevice": "Link a Device",

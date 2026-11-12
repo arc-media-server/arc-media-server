@@ -67,11 +67,11 @@ export function ProviderCredits() {
     <div className="space-y-4">
       <div className="flex items-start gap-4">
         <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tmdb" href={providers.tmdb.home} large /></div>
-        <p className="text-sm text-muted">{t("profileSettings:providerCredits.thisProductUsesThe")}</p>
+        <p className="text-xs leading-relaxed text-muted">{t("profileSettings:providerCredits.thisProductUsesThe")}</p>
       </div>
       <div className="flex items-start gap-4">
         <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tvdb" href={providers.tvdb.home} large /></div>
-        <p className="text-sm text-muted"><Trans ns="profileSettings" i18nKey="providerCredits.tvdbNotice" components={{ provider: <a href={providers.tvdb.home} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground/80 underline-offset-4 hover:underline" /> }} /></p>
+        <p className="text-xs leading-relaxed text-muted"><Trans ns="profileSettings" i18nKey="providerCredits.tvdbNotice" components={{ provider: <a href={providers.tvdb.home} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground/80 underline-offset-4 hover:underline" /> }} /></p>
       </div>
     </div>
   );

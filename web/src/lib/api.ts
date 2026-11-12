@@ -958,13 +958,15 @@ export interface ServerSettings {
   local_bypass: boolean;
   /** Convert with the graphics card when one can. */
   hw_accel: boolean;
+  /** The graphics device that converts (one of transcoder.devices' ids), "" for Automatic. */
+  hw_device?: string;
   /** Map HDR to SDR when converting. */
   tone_mapping: boolean;
   /** OpenSubtitles.com, for finding subtitles online (the key masked; the password is never sent). */
   opensubtitles_api_key: string;
   opensubtitles_username: string;
   /** What this server's FFmpeg can do. */
-  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[] };
+  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[]; devices?: { id: string; label: string; encoder: string; device?: string }[] };
   port: number;
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
@@ -1006,6 +1008,8 @@ export interface ServerSettings {
   home_networks: string;
   automatic_home_networks?: string[];
   home_network_bridge?: boolean;
+  /** The /24 of this device when it's on a private network Arc doesn't count as home; "" otherwise. */
+  suggested_home_network?: string;
   /** Reverse proxies whose forwarding headers are believed (none by default). */
   trusted_proxies: string;
   /** Where converted streams are written ("" for Arc's data folder), and videos converted at once (0 for no limit). */
@@ -1126,7 +1130,7 @@ export const api = {
   resources: (day: boolean) => request<{ cores: number; mem_total: number; samples: ResourceSample[] }>('GET', `/api/dashboard/resources${day ? '?range=day' : ''}`),
   remote: () => request<RemoteStatus>('GET', '/api/remote'),
   checkRemote: () => request<{ reachable: boolean; error?: string }>('POST', '/api/remote/check'),
-  updateSettings: (s: Partial<Pick<ServerSettings, 'server_name' | 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'empty_trash_enabled' | 'database_upkeep_enabled' | 'cache_cleanup_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'trusted_proxies' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
+  updateSettings: (s: Partial<Pick<ServerSettings, 'server_name' | 'tmdb_api_key' | 'tvdb_api_key' | 'ffprobe_path' | 'local_bypass' | 'hw_accel' | 'hw_device' | 'tone_mapping' | 'port' | 'allow_network' | 'region' | 'opensubtitles_api_key' | 'opensubtitles_username' | 'scan_automatic' | 'scan_partial' | 'scan_on_start' | 'scan_interval_hours' | 'scan_interval_minutes' | 'preview_mode' | 'detection_mode' | 'analysis_enabled' | 'metadata_refresh_enabled' | 'auto_backups_enabled' | 'empty_trash_enabled' | 'database_upkeep_enabled' | 'cache_cleanup_enabled' | 'maintenance_start' | 'maintenance_end' | 'previews_at_night' | 'omdb_api_key' | 'preroll_paths' | 'preroll_mode' | 'theintrodb_api_key' | 'detect_intros' | 'remote_kbps' | 'upload_kbps' | 'remote_access' | 'remote_port' | 'upnp' | 'https_mode' | 'https_cert' | 'https_key' | 'https_domain' | 'home_networks' | 'trusted_proxies' | 'transcode_dir' | 'max_transcodes'>> & { opensubtitles_password?: string }) =>
     request<ServerSettings>('PATCH', '/api/settings', s),
 
   libraries: () => request<Library[]>('GET', '/api/libraries'),

@@ -14,6 +14,8 @@ type homeNetworkState struct {
 	nets     []*net.IPNet
 	gateways []net.IP
 	bridge   bool
+	// virtual are the container/VM bridge and tunnel subnets: never home, never suggested.
+	virtual []*net.IPNet
 }
 
 var automaticHome = discoverHomeNetworks()
@@ -52,6 +54,7 @@ func selectHomeNetworks(interfaces []networkInterface, gateways []net.IP) homeNe
 		virtual := iface.kind == "veth" || iface.kind == "bridge" || iface.kind == "unknown-virtual" || iface.kind == "tun" || iface.kind == "wireguard" || strings.HasPrefix(name, "docker") || strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "veth") || strings.HasPrefix(name, "virbr") || strings.HasPrefix(name, "cni") || strings.HasPrefix(name, "tailscale") || strings.HasPrefix(name, "wg")
 		if virtual {
 			result.bridge = result.bridge || iface.kind == "veth"
+			result.virtual = append(result.virtual, iface.nets...)
 			continue
 		}
 		for _, n := range iface.nets {
@@ -73,4 +76,27 @@ func HomeNetworkInfo() ([]string, bool) {
 	}
 	sort.Strings(nets)
 	return nets, automaticHome.bridge
+}
+
+// SuggestHomeNetwork is the /24 of the device viewing Settings, offered with one click when Arc
+// can't find the home network itself (Docker bridge networking): a private IPv4 address that isn't
+// home yet, isn't the NAT gateway (where every client would appear to come from) and isn't on a
+// container or VM bridge (another container, such as an untrusted reverse proxy). An admin still
+// chooses to add it; nothing becomes home automatically. "" when there is nothing to suggest.
+func SuggestHomeNetwork(addr string) string {
+	ip := net.ParseIP(addr).To4()
+	if ip == nil || !ip.IsPrivate() || IsHomeIP(addr) {
+		return ""
+	}
+	for _, gateway := range automaticHome.gateways {
+		if gateway.Equal(ip) {
+			return ""
+		}
+	}
+	for _, n := range automaticHome.virtual {
+		if n.Contains(ip) {
+			return ""
+		}
+	}
+	return (&net.IPNet{IP: ip.Mask(net.CIDRMask(24, 32)), Mask: net.CIDRMask(24, 32)}).String()
 }
