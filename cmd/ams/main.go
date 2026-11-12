@@ -696,10 +696,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	})
 
 	handler = api.TrackRequests(handler, func() (func(), bool) { return workers.Begin("HTTP requests") })
-	downloadCtx, stopDownloads := context.WithCancel(ctx)
-	downloadsDone := make(chan struct{})
-	go func() { defer close(downloadsDone); downloadManager.Run(downloadCtx) }()
-	defer func() { stopDownloads(); <-downloadsDone }()
+	workers.Go("download preparation", func() { downloadManager.Run(workers.Context()) })
 
 	ln, err := net.Listen("tcp", cfg.ListenAddress())
 	if err != nil {
