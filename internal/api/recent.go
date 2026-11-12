@@ -75,7 +75,7 @@ func (s *Server) seasonImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Episodes added within this long of the newest in a group go into the same card.
-const recentGroupWindow = 7 * 24 * 3600
+const recentGroupWindow = 24 * 3600
 
 // seasonPostersFor returns a show's season posters when the profile shows it in an aired order,
 // whose seasons are the ones the posters are for; none for other orders (an anime's "cours"
@@ -120,8 +120,8 @@ func (s *Server) withSeasonPoster(r *http.Request, d *itemDTO, series *store.Ite
 	return nil
 }
 
-// recentCard is one card in a TV library's Recently Added: a new show, several new episodes of
-// one season, or a single new episode.
+// recentCard is one arrival batch in a TV library's Recently Added: episodes across seasons,
+// several episodes of one season, or a single episode.
 type recentCard struct {
 	Type string `json:"type"` // series, season or episode
 	// The show (for series and season cards) or the episode.
@@ -135,8 +135,11 @@ type recentCard struct {
 }
 
 // recentlyAddedShows: GET /api/libraries/{id}/recent-shows?limit=24 is a TV library's newest
-// additions, grouped by show: a show that's new appears once; several new episodes of a season
-// appear as that season; a single new episode appears as itself.
+// additions, in fixed 24-hour batches per show anchored to each batch's newest episode. One
+// episode appears as itself; multiple episodes in one display season appear as a season;
+// multiple seasons (or unplaced episodes in a multi-episode batch) appear as a show. Exactly
+// 24 hours is included. Distinct batches of the same show/season remain separate cards;
+// consumers should include added_at alongside type/item/season in their card keys.
 func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	lib, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -157,7 +160,6 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	type group struct {
 		series    *store.Item
 		season    *int
-		newShow   bool // the whole show is new
 		episodes  []store.Item
 		positions map[string][2]int
 	}
@@ -174,30 +176,24 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 		if sr == nil {
 			continue
 		}
-		// Episodes are grouped by season in the profile's episode order, or all together when the
-		// show is new as a whole; ones that aren't in the order (files the provider doesn't know)
-		// are grouped by show.
-		key := ep.ParentID + ":-"
-		var season *int
-		newShow := sr.AddedAt >= ep.AddedAt-24*3600
-		if p, ok := context.positions[ep.ID]; ok && !newShow {
-			n := p[0]
-			season = &n
-			key = ep.ParentID + ":" + strconv.Itoa(n)
-		}
-		if newShow {
-			key = ep.ParentID + ":new"
-		}
-		// Only episodes added around the same time go together: a new episode of a season added
-		// long ago is a card of its own.
-		g := byKey[key]
+		// Form complete arrival batches before choosing their display level. The newest
+		// episode anchors the interval; older members cannot extend it through a chain.
+		g := byKey[ep.ParentID]
+		position, placed := context.positions[ep.ID]
 		if g == nil || ep.AddedAt < g.episodes[0].AddedAt-recentGroupWindow {
 			if len(groups) == limit {
 				continue
 			}
-			g = &group{series: sr, season: season, newShow: newShow, positions: context.positions}
-			byKey[key] = g
+			g = &group{series: sr, positions: context.positions}
+			if placed {
+				season := position[0]
+				g.season = &season
+			}
+			byKey[ep.ParentID] = g
 			groups = append(groups, g)
+		} else if g.season != nil && (!placed || *g.season != position[0]) {
+			// Unknown placement cannot safely be labelled as one particular season.
+			g.season = nil
 		}
 		g.episodes = append(g.episodes, ep)
 	}
@@ -208,7 +204,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 		first := g.episodes[0]
 		c := recentCard{Episodes: len(g.episodes), AddedAt: first.AddedAt}
 		switch {
-		case g.newShow || g.season == nil && len(g.episodes) > 1:
+		case g.season == nil && len(g.episodes) > 1:
 			c.Type, c.Item = "series", toDTO(*g.series)
 		case len(g.episodes) > 1:
 			c.Type, c.Item, c.SeasonNumber = "season", toDTO(*g.series), g.season

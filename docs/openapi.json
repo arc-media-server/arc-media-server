@@ -24832,7 +24832,7 @@
     },
     "/libraries/{id}/recent-shows": {
       "get": {
-        "description": "?limit=24 is a TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season appear as that season; a single new episode appears as itself.\n\nWho may call it: **profile**.",
+        "description": "?limit=24 is a TV library's newest additions, in fixed 24-hour batches per show anchored to each batch's newest episode. One episode appears as itself; multiple episodes in one display season appear as a season; multiple seasons (or unplaced episodes in a multi-episode batch) appear as a show. Exactly 24 hours is included. Distinct batches of the same show/season remain separate cards; consumers should include added_at alongside type/item/season in their card keys.\n\nWho may call it: **profile**.",
         "operationId": "recentlyAddedShows",
         "parameters": [
           {
@@ -24934,7 +24934,7 @@
             }
           }
         },
-        "summary": "A TV library's newest additions, grouped by show: a show that's new appears once; several new episodes of a season ap…",
+        "summary": "A TV library's newest additions, in fixed 24-hour batches per show anchored to each batch's newest episode",
         "tags": [
           "Libraries"
         ],
