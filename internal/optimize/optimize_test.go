@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		if err := os.WriteFile(out, []byte("generated copy"), 0600); err != nil {
 			os.Exit(3)
 		}
-		if err := os.WriteFile(filepath.Join(root, "ready"), nil, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "ready"), []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
 			os.Exit(4)
 		}
 		for {
