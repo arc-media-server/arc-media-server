@@ -172,8 +172,9 @@ type Scanner struct {
 	tvdb   *metadata.TVDB
 	log    *slog.Logger
 
-	// OnFinish, if set, is called after each scan (successful or not). Set it before starting scans.
-	OnFinish func(libraryID int64)
+	// OnFinish receives an immutable completed-run snapshot, even if queued work has started.
+	// Set it before starting scans; it runs without the scanner lock.
+	OnFinish func(libraryID int64, completed Status)
 	// MaintenanceAllowed is set before workers start; nil retains standalone behavior.
 	MaintenanceAllowed func() bool
 	// Activity, if set, is told about each scan.
@@ -329,31 +330,7 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 		default:
 			err = s.scanPaths(ctx, libraryID, paths)
 		}
-		s.update(libraryID, func(st *Status) {
-			st.FinishedAt = time.Now()
-			if st.Stopping || errors.Is(err, context.Canceled) {
-				st.Stopped, st.Stopping, st.Phase = true, false, "Stopped"
-			} else if err != nil {
-				st.Error = err.Error()
-			}
-		})
-		if err != nil && !errors.Is(err, context.Canceled) {
-			st := s.Status(libraryID)
-			name := st.libraryName
-			if name == "" {
-				name = strconv.FormatInt(libraryID, 10)
-			}
-			level := slog.LevelError
-			if errors.Is(err, ErrScanRootsUnsafe) {
-				level = slog.LevelWarn
-			}
-			s.log.Log(ctx, level, "scan failed", "library", name, "library_id", libraryID,
-				"phase", st.Phase, "files_seen", st.FilesSeen, "err", err)
-		}
-		if s.OnFinish != nil {
-			s.OnFinish(libraryID)
-		}
-		s.finishLibraryWork(libraryID)
+		s.completeLibraryWork(libraryID, err)
 	}()
 	return true
 }

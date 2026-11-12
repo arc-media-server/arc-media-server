@@ -323,7 +323,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	// After each scan, download new artwork so it's there offline.
 	var skips *markers.Manager // set below; scans finishing wake it
-	sc.OnFinish = func(libraryID int64) {
+	sc.OnFinish = func(libraryID int64, status scanner.Status) {
 		changes.Publish(events.Event{Topic: "library", LibraryID: libraryID})
 		bg.Wake("previews")
 		bg.Wake("analysis")
@@ -334,7 +334,6 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			skips.Wake()
 		}
 		// Tell webhooks what's new, or that the scan failed.
-		status := sc.Status(libraryID)
 		lib, err := st.GetLibrary(ctx, libraryID)
 		if err != nil || lib == nil {
 			return
