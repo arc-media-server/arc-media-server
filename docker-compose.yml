@@ -5,9 +5,6 @@ services:
     image: ghcr.io/arc-media-server/arc-media-server:latest
     container_name: arc
     restart: unless-stopped
-    # Default image user: 10001:10001. Create arc-config with matching write permission first;
-    # for an existing host account, override here (PUID/PGID environment variables are not read).
-    # user: "1000:1000"
     # Host networking lets Arc see devices' real addresses (for "at home" sign-in and remote limits)
     # and open the router port with UPnP. On Docker Desktop (Windows/Mac) use the ports below instead.
     network_mode: host
@@ -15,6 +12,11 @@ services:
     #   - "8099:8099"
     environment:
       - TZ=Europe/London
+      # Optional: the account Arc runs as (never root). Works as it is; Arc gives its own config
+      # folder to this account on start and never changes your media. Change it to match your
+      # other containers if you like (Unraid uses 99 and 100; on Linux, id -u and id -g).
+      - PUID=1000
+      - PGID=1000
     volumes:
       - ./arc-config:/config
       # Your media, read-only: Arc never changes it. Add these folders as libraries in the app.
@@ -24,10 +26,7 @@ services:
     # Intel/AMD:
     # devices:
     #   - /dev/dri:/dev/dri
-    # Also grant the numeric host groups that own the device nodes (check ls -ln /dev/dri):
-    # group_add:
-    #   - "<render-gid>"
-    #   - "<video-gid>"
+    # Arc's start gives the PUID account the groups that own these device nodes automatically.
     # NVIDIA (needs the NVIDIA Container Toolkit):
     # deploy:
     #   resources:
