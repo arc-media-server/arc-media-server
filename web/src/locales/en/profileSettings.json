@@ -56,7 +56,7 @@
     "serverDescription": "Server settings apply to everyone. Only admins can change these."
   },
   "providerCredits": {
-    "thisProductUsesThe": "This product uses the TMDB API but is not endorsed or certified by TMDB. Movie and show details, artwork and cast come from The Movie Database (TMDB).",
+    "thisProductUsesThe": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
     "details": "Details from <provider/>",
     "detailsEpisodes": "Details and episodes from <provider/>",
     "episodes": "Episode information from <provider/>",
