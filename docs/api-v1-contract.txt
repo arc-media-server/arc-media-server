@@ -4976,6 +4976,7 @@ GET /settings 200 .scan_interval_minutes integer
 GET /settings 200 .scan_on_start boolean
 GET /settings 200 .scan_partial boolean
 GET /settings 200 .server_name string
+GET /settings 200 .suggested_home_network string
 GET /settings 200 .theintrodb_api_key string
 GET /settings 200 .tmdb_api_key string
 GET /settings 200 .tone_mapping boolean
@@ -6241,6 +6242,7 @@ PATCH /settings 200 .scan_interval_minutes integer
 PATCH /settings 200 .scan_on_start boolean
 PATCH /settings 200 .scan_partial boolean
 PATCH /settings 200 .server_name string
+PATCH /settings 200 .suggested_home_network string
 PATCH /settings 200 .theintrodb_api_key string
 PATCH /settings 200 .tmdb_api_key string
 PATCH /settings 200 .tone_mapping boolean

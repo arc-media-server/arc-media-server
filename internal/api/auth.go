@@ -811,8 +811,9 @@ func (s *Server) deleteProfile(w http.ResponseWriter, r *http.Request) {
 // for rate limiting, logs and the Dashboard.
 func clientIP(r *http.Request) string { return auth.ClientIP(r) }
 
-// settingsDTO is what the Settings page shows. API keys are only hinted at.
-func (s *Server) settingsDTO(st settings.Settings) map[string]any {
+// settingsDTO is what the Settings page shows. API keys are only hinted at. The request is the
+// admin's own, for the home network suggestion.
+func (s *Server) settingsDTO(r *http.Request, st settings.Settings) map[string]any {
 	ff := s.ffprobeStatus()
 	automatic, bridge := auth.HomeNetworkInfo()
 	return map[string]any{
@@ -856,6 +857,7 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"home_networks":           st.HomeNetworks,
 		"automatic_home_networks": automatic,
 		"home_network_bridge":     bridge,
+		"suggested_home_network":  auth.SuggestHomeNetwork(clientIP(r)),
 		"trusted_proxies":         st.TrustedProxies,
 		"transcode_dir":           st.TranscodeDir,
 		"max_transcodes":          st.MaxTranscodes,
@@ -897,8 +899,11 @@ func maskKey(k string) string {
 // `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`),
 // `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`);
 // `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit).
+//
+// `suggested_home_network` is the /24 of the device asking, when it is on a private network Arc
+// doesn't count as home (Settings offers to add it); `""` otherwise.
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.settingsDTO(s.settings()))
+	writeJSON(w, http.StatusOK, s.settingsDTO(r, s.settings()))
 }
 
 // updateSettings: PATCH /api/settings (admin) with any of "tmdb_api_key", "tvdb_api_key",
@@ -1233,5 +1238,5 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logCommittedSettings(r, before, next)
-	writeJSON(w, http.StatusOK, s.settingsDTO(s.settings()))
+	writeJSON(w, http.StatusOK, s.settingsDTO(r, s.settings()))
 }

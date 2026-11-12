@@ -56,10 +56,15 @@ function AboutArc() {
   return (
     <section aria-labelledby="about-arc">
       <h2 id="about-arc" className="text-lg font-semibold">{t("profileSettings:settings.aboutArc")}</h2>
-      <p className="mt-1 text-sm text-muted">{t("profileSettings:settings.arcMediaServer")}{info.data?.version ? ` ${info.data.version}` : ''}</p>
-      <div className="mt-4 rounded-2xl bg-surface p-4 ring-1 ring-border">
-        <h3 className="mb-3 text-sm font-medium">{t("profileSettings:settings.credits")}</h3>
-        <ProviderCredits />
+      {/* The same card and rows as the sections above. */}
+      <div className="mt-4 divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
+        <Row compact label={t("profileSettings:settings.arcMediaServer")}>
+          <span className="text-sm text-muted tabular-nums">{info.data?.version ?? ''}</span>
+        </Row>
+        <div className="px-4 py-3.5">
+          <h3 className="mb-3 text-sm font-medium">{t("profileSettings:settings.credits")}</h3>
+          <ProviderCredits />
+        </div>
       </div>
     </section>
   );
@@ -415,12 +420,15 @@ function ServerSettings() {
               busy={update.isPending || s.transcoder.checking || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
+            {/* Arc tests the graphics card once at start. Retesting is only for after a card or
+                driver is added without restarting Arc, so it's in plain sight only when none was found. */}
             <div className="space-y-2 px-5 py-3">
-              <Button variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>
+              {!s.transcoder.hw_encoder && <Button variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>}
               <ErrorNotice error={detect.error} onRetry={()=>detect.mutate()} />
               {!!s.transcoder.attempts?.length && <details className="text-xs text-muted">
                 <summary className="cursor-pointer">{t('serverSettings:settings.hardwareDetectionDetails')}</summary>
                 <ul className="mt-2 space-y-2 break-words">{s.transcoder.attempts.map((a,i)=><li key={i}>{[a.encoder,a.device,a.driver].filter(Boolean).join(' · ')}{a.error ? `: ${a.error}` : `: ${t('serverSettings:settings.hardwareTestPassed')}`}</li>)}</ul>
+                {!!s.transcoder.hw_encoder && <Button className="mt-2" variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>}
               </details>}
             </div>
             <ToggleRow
@@ -477,7 +485,7 @@ function ServerSettings() {
               onChange={(v) => update.mutate({ allow_network: v })}
             />
             <PortRow settings={s} onSave={(port) => update.mutateAsync({ port })} />
-            <HomeNetworksRow automatic={s.automatic_home_networks} bridge={s.home_network_bridge} value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
+            <HomeNetworksRow automatic={s.automatic_home_networks} bridge={s.home_network_bridge} suggested={s.suggested_home_network} value={s.home_networks} onSave={(v) => update.mutateAsync({ home_networks: v })} />
             <TrustedProxiesRow value={s.trusted_proxies} onSave={(v) => update.mutateAsync({ trusted_proxies: v })} />
           </Section>
 
@@ -1119,7 +1127,7 @@ function ServerNameRow({ value, onSave }: { value: string; onSave: (v: string) =
 }
 
 /** Networks that count as home besides automatically detected interface subnets (Plex's "LAN networks"). */
-function HomeNetworksRow({ value, automatic = [], bridge = false, onSave }: { value: string; automatic?: string[]; bridge?: boolean; onSave: (v: string) => Promise<unknown> }) {
+function HomeNetworksRow({ value, automatic = [], bridge = false, suggested = '', onSave }: { value: string; automatic?: string[]; bridge?: boolean; suggested?: string; onSave: (v: string) => Promise<unknown> }) {
   const { t } = useTranslation('accessSettings');
   const [text, setText] = useState(value);
   const [error, setError] = useState('');
@@ -1132,16 +1140,27 @@ function HomeNetworksRow({ value, automatic = [], bridge = false, onSave }: { va
     }
   };
   const tailscale = '100.64.0.0/10';
+  const add = (network: string) => {
+    const next = value ? `${value}, ${network}` : network;
+    setText(next);
+    void save(next);
+  };
   return (
     <Row
       label={t("accessSettings:settings.homeNetworks")}
       description={
         <>{t('accessSettings:settings.networksDescription', { network: tailscale })}
-          <span className="mt-1 block">{automatic.length ? t('accessSettings:settings.detectedHomeNetworks', { networks: automatic.join(', ') }) : t('accessSettings:settings.noDetectedHomeNetworks')}</span>
-          {bridge && <span role="status" className="mt-1 block text-warning">{t('accessSettings:settings.bridgeHomeNetworks')}</span>}
-          {!value.includes(tailscale) && (
-            <button type="button" className="ml-1 text-accent hover:underline" onClick={() => (setText(value ? `${value}, ${tailscale}` : tailscale), void save(value ? `${value}, ${tailscale}` : tailscale))}>{t("accessSettings:settings.addTailscale")}</button>
-          )}
+          {automatic.length ? <span className="mt-1 block">{t('accessSettings:settings.detectedHomeNetworks', { networks: automatic.join(', ') })}</span>
+            : bridge ? <span role="status" className="mt-1 block text-warning">{t('accessSettings:settings.bridgeHomeNetworks')}</span>
+            : <span className="mt-1 block">{t('accessSettings:settings.noDetectedHomeNetworks')}</span>}
+          <span className="mt-1 flex flex-wrap gap-x-4">
+            {suggested && !value.includes(suggested) && (
+              <button type="button" className="text-accent hover:underline" onClick={() => add(suggested)}>{t('accessSettings:settings.addThisNetwork', { network: suggested })}</button>
+            )}
+            {!value.includes(tailscale) && (
+              <button type="button" className="text-accent hover:underline" onClick={() => add(tailscale)}>{t("accessSettings:settings.addTailscale")}</button>
+            )}
+          </span>
           {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
         </>
       }
@@ -1153,7 +1172,7 @@ function HomeNetworksRow({ value, automatic = [], bridge = false, onSave }: { va
           void save(text);
         }}
       >
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("accessSettings:settings.none")} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("accessSettings:settings.homeNetworksPlaceholder")} spellCheck={false} className={`${inputClass} w-56 font-mono text-xs`} />
         {text.trim() !== value && (
           <Button size="sm" variant="primary" type="submit">{t("accessSettings:settings.save")}</Button>
         )}

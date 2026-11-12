@@ -34750,7 +34750,7 @@
     },
     "/settings": {
       "get": {
-        "description": "Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`\"\"`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `\"100.64.0.0/10, 10.8.0.0/24\"`); `transcode_dir` (a full path, `\"\"` for the data folder), `max_transcodes` (0 for no limit).\n\nWho may call it: **admin**.",
+        "description": "Server settings: API keys, ffprobe, sign-in at home, port, network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access: `remote_access`, `remote_port`, `upnp`, `https_mode` (`\"\"`, `files`, `letsencrypt`), `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `\"100.64.0.0/10, 10.8.0.0/24\"`); `transcode_dir` (a full path, `\"\"` for the data folder), `max_transcodes` (0 for no limit). `suggested_home_network` is the /24 of the device asking, when it is on a private network Arc doesn't count as home (Settings offers to add it); `\"\"` otherwise.\n\nWho may call it: **admin**.",
         "operationId": "getSettings",
         "responses": {
           "200": {
@@ -34908,6 +34908,9 @@
                     "server_name": {
                       "type": "string"
                     },
+                    "suggested_home_network": {
+                      "type": "string"
+                    },
                     "theintrodb_api_key": {
                       "type": "string"
                     },
@@ -34981,6 +34984,7 @@
                     "scan_on_start",
                     "scan_partial",
                     "server_name",
+                    "suggested_home_network",
                     "theintrodb_api_key",
                     "tmdb_api_key",
                     "tone_mapping",
@@ -35362,6 +35366,9 @@
                     "server_name": {
                       "type": "string"
                     },
+                    "suggested_home_network": {
+                      "type": "string"
+                    },
                     "theintrodb_api_key": {
                       "type": "string"
                     },
@@ -35435,6 +35442,7 @@
                     "scan_on_start",
                     "scan_partial",
                     "server_name",
+                    "suggested_home_network",
                     "theintrodb_api_key",
                     "tmdb_api_key",
                     "tone_mapping",

@@ -1006,6 +1006,8 @@ export interface ServerSettings {
   home_networks: string;
   automatic_home_networks?: string[];
   home_network_bridge?: boolean;
+  /** The /24 of this device when it's on a private network Arc doesn't count as home; "" otherwise. */
+  suggested_home_network?: string;
   /** Reverse proxies whose forwarding headers are believed (none by default). */
   trusted_proxies: string;
   /** Where converted streams are written ("" for Arc's data folder), and videos converted at once (0 for no limit). */
