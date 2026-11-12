@@ -1,8 +1,10 @@
 package api
 
 import (
+	"ams/internal/downloads"
 	"ams/internal/store"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,25 +20,27 @@ import (
 )
 
 type downloadAssetDTO struct {
-	ID        string `json:"id"`
-	Role      string `json:"role"`
-	URL       string `json:"url"`
-	MediaType string `json:"media_type"`
-	Size      int64  `json:"size"`
-	SHA256    string `json:"sha256"`
+	ID              string `json:"id"`
+	Role            string `json:"role"`
+	URL             string `json:"url"`
+	MediaType       string `json:"media_type"`
+	Size            int64  `json:"size"`
+	SHA256          string `json:"sha256"`
+	Language        string `json:"language,omitempty"`
+	Forced          bool   `json:"forced,omitempty"`
+	HearingImpaired bool   `json:"hearing_impaired,omitempty"`
 }
-type downloadItemSnapshot struct {
-	ID    string `json:"id"`
-	Kind  string `json:"kind"`
-	Title string `json:"title"`
-}
+type downloadItemSnapshot = downloads.BundleItem
+
 type downloadManifest struct {
-	DownloadID string               `json:"download_id"`
-	Revision   string               `json:"revision"`
-	ServerID   string               `json:"server_id"`
-	Mode       string               `json:"mode"`
-	Item       downloadItemSnapshot `json:"item"`
-	Assets     []downloadAssetDTO   `json:"assets"`
+	Unavailable []downloads.MissingAsset `json:"unavailable"`
+	ProfileID   string                   `json:"profile_id"`
+	DownloadID  string                   `json:"download_id"`
+	Revision    string                   `json:"revision"`
+	ServerID    string                   `json:"server_id"`
+	Mode        string                   `json:"mode"`
+	Item        downloadItemSnapshot     `json:"item"`
+	Assets      []downloadAssetDTO       `json:"assets"`
 }
 
 func (s *Server) downloadReadLease(w http.ResponseWriter, r *http.Request) (func(), bool) {
@@ -111,22 +115,28 @@ func (s *Server) getDownloadManifest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.Close()
-	item, err := s.store.GetItem(r.Context(), d.ItemID)
-	if err != nil {
-		s.fail(w, err)
+	lease := s.downloads.LeaseBundle(d)
+	defer lease()
+	var bundle downloads.Bundle
+	if d.Snapshot == "" || json.Unmarshal([]byte(d.Snapshot), &bundle) != nil {
+		writeError(w, 409, "offline snapshot unavailable; prepare again")
 		return
 	}
-	if item == nil {
-		writeError(w, 404, "download unavailable")
-		return
+	manifest := downloadManifest{ProfileID: d.UserID, DownloadID: d.ID, Revision: d.Revision, ServerID: bundle.ServerID, Mode: "original", Item: bundle.Item, Assets: []downloadAssetDTO{{ID: d.Revision, Role: "media", URL: downloadAssetURL(d, d.Revision), MediaType: downloadMediaType(d.SourcePath), Size: d.Size, SHA256: d.SHA256}}, Unavailable: bundle.Unavailable}
+	for _, asset := range bundle.Assets {
+		f, err := s.downloads.OpenBundleAsset(d, asset)
+		if err != nil {
+			writeError(w, 409, "offline assets unavailable; prepare again")
+			return
+		}
+		f.Close()
+		manifest.Assets = append(manifest.Assets, downloadAssetDTO{ID: asset.ID, Role: asset.Role, URL: downloadAssetURL(d, asset.ID), MediaType: asset.MediaType, Size: asset.Size, SHA256: asset.SHA256, Language: asset.Language, Forced: asset.Forced, HearingImpaired: asset.HearingImpaired})
 	}
-	server, err := s.store.Setting(r.Context(), "server_id")
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	manifest := downloadManifest{DownloadID: d.ID, Revision: d.Revision, ServerID: server, Mode: "original", Item: downloadItemSnapshot{ID: item.ID, Kind: item.Kind, Title: item.Title}, Assets: []downloadAssetDTO{{ID: d.Revision, Role: "media", URL: "/api/v1/downloads/" + url.PathEscape(d.ID) + "/assets/" + url.PathEscape(d.Revision), MediaType: downloadMediaType(d.SourcePath), Size: d.Size, SHA256: d.SHA256}}}
 	writeJSON(w, http.StatusOK, manifest)
+}
+
+func downloadAssetURL(d *store.Download, id string) string {
+	return "/api/v1/downloads/" + url.PathEscape(d.ID) + "/assets/" + url.PathEscape(id)
 }
 
 type downloadRange struct{ start, length int64 }
@@ -184,13 +194,45 @@ func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if r.PathValue("asset") != d.Revision {
-		writeError(w, 404, "download unavailable")
-		return
+	lease := s.downloads.LeaseBundle(d)
+	defer lease()
+	original := r.PathValue("asset") == d.Revision
+	var asset downloads.BundleAsset
+	var f *os.File
+	var opened os.FileInfo
+	var err error
+	mediaType, size := downloadMediaType(d.SourcePath), d.Size
+	if original {
+		f, opened, err = openDownloadSource(d)
+	} else {
+		var bundle downloads.Bundle
+		if d.Snapshot == "" || json.Unmarshal([]byte(d.Snapshot), &bundle) != nil {
+			writeError(w, 409, "offline snapshot unavailable")
+			return
+		}
+		found := false
+		for _, a := range bundle.Assets {
+			if a.ID == r.PathValue("asset") {
+				asset = a
+				found = true
+				break
+			}
+		}
+		if !found {
+			writeError(w, 404, "download unavailable")
+			return
+		}
+		f, err = s.downloads.OpenBundleAsset(d, asset)
+		if err == nil {
+			opened, err = f.Stat()
+		}
+		mediaType, size = asset.MediaType, asset.Size
 	}
-	f, opened, err := openDownloadSource(d)
 	if err != nil {
-		writeError(w, 409, "download source changed; prepare again")
+		if f != nil {
+			f.Close()
+		}
+		writeError(w, 409, "download asset changed; prepare again")
 		return
 	}
 	defer f.Close()
@@ -198,9 +240,9 @@ func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "HEAD" || r.Header.Get("If-Range") != "" {
 		rangeHeader = ""
 	}
-	selected, err := parseDownloadRange(rangeHeader, d.Size)
+	selected, err := parseDownloadRange(rangeHeader, size)
 	if err != nil {
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", d.Size))
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", size))
 		writeError(w, 416, "invalid download range")
 		return
 	}
@@ -217,16 +259,23 @@ func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 409, "download source unavailable")
 		return
 	}
-	w.Header().Set("Content-Type", downloadMediaType(d.SourcePath))
+	w.Header().Set("Content-Type", mediaType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Content-Length", strconv.FormatInt(selected.length, 10))
 	// A fixed safe name avoids leaking the source filename or trusting title/header characters.
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "arc-download" + safeDownloadExtension(d.SourcePath)}))
+	extension := safeDownloadExtension(d.SourcePath)
+	if !original {
+		extension = map[string]string{"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "text/vtt": ".vtt", "application/x-subrip": ".srt"}[mediaType]
+		if extension == "" {
+			extension = ".bin"
+		}
+	}
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "arc-download" + extension}))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	status := 200
 	if rangeHeader != "" {
 		status = 206
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", selected.start, selected.start+selected.length-1, d.Size))
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", selected.start, selected.start+selected.length-1, size))
 	}
 	if r.Method == "HEAD" {
 		w.WriteHeader(status)
@@ -243,13 +292,25 @@ func (s *Server) downloadAsset(w http.ResponseWriter, r *http.Request) {
 		if _, err := s.store.DownloadSource(monitorCtx, d); err != nil {
 			return false
 		}
-		current, err := f.Stat()
-		if err != nil || !downloadSourceInfo(d, current) || !os.SameFile(opened, current) {
+		source, err := os.Stat(d.SourcePath)
+		if err != nil || !downloadSourceInfo(d, source) {
 			return false
 		}
-		path, err := os.Stat(d.SourcePath)
-		return err == nil && downloadSourceInfo(d, path) && os.SameFile(opened, path)
+		current, err := f.Stat()
+		if err != nil || current.Size() != size || !os.SameFile(opened, current) || !current.ModTime().Equal(opened.ModTime()) {
+			return false
+		}
+		if original {
+			return os.SameFile(opened, source)
+		}
+		verified, err := s.downloads.OpenBundleAsset(d, asset)
+		if err != nil {
+			return false
+		}
+		verified.Close()
+		return true
 	}
+
 	abort := func() { interrupted.Store(true); _ = http.NewResponseController(w).SetWriteDeadline(time.Now()) }
 	go func() {
 		defer close(joined)

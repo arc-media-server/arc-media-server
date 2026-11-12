@@ -154,8 +154,8 @@ func TestDownloadPreparationAPIContractsAndIsolation(t *testing.T) {
 		t.Fatal("preparation changed watch state")
 	}
 	caps := request("GET", "/capabilities", "", "one")
-	if strings.Contains(caps.Body.String(), `"downloads_original"`) {
-		t.Fatal("unimplemented transfer advertised")
+	if !strings.Contains(caps.Body.String(), `"downloads_original"`) {
+		t.Fatal("original download capability missing")
 	}
 	if !strings.Contains(caps.Body.String(), `"downloads_preparation"`) {
 		t.Fatal("preparation capability missing")
