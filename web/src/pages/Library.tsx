@@ -270,7 +270,7 @@ export function LibraryPage() {
 
   const tabs = lib ? (
     [
-      ['titles', lib.kind === 'shows' ? t('library:tabs.shows') : lib.kind === 'videos' ? t('library:tabs.videos') : t('library:tabs.movies')],
+      ['titles', t('library:tabs.library')],
       ['recommended', t('library:tabs.recommended')],
       ['folders', t('library:tabs.folders')],
       ['collections', t('library:tabs.collections')],
