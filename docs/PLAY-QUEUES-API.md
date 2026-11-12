@@ -1,6 +1,6 @@
-# Server play queues: Claude frontend/app handoff
+# Server play queues
 
-Backend only. All routes are under `/api/v1`, require an authenticated selected profile, and accept
+All routes are under `/api/v1`, require an authenticated selected profile, and accept
 Bearer authentication or the existing cookie. **Use the same device session token after app restart**
 to recover that device's queue. Another login/token is another device/session. Two clients deliberately
 sharing a token share its queue. Switching profiles keeps separate queues. Revoking a session removes
@@ -74,9 +74,9 @@ foreign entry IDs, duplicates in reorder/removal, unsupported operations and wro
 fields return 400. Hidden/unknown/unavailable input media return the same 404. Malformed input returns
 400; ordinary storage failures use the existing error envelope. Permission checks apply on every read.
 
-## Frontend integration plan
+## Client integration
 
-1. Detect `play_queues` in `/capabilities`; retain the current web queue until this backend is deployed.
+1. Detect `play_queues` in `/capabilities`. The web app already uses these endpoints; native clients should detect support on their server.
 2. On app start/profile selection, GET current. Bind cached state to server ID/profile/device token.
 3. When starting a title or playlist, create/replace the queue and use the returned current entry.
    These calls **do not start playback**. Continue using playback-options/playback for file, edition,
@@ -89,7 +89,7 @@ fields return 400. Hidden/unknown/unavailable input media return the same 404. M
    A temporary disconnect/app close should retain the token and queue for recovery.
 
 No phone-as-TV-remote, automatic handoff, synchronized playback, repeat policy or shared cross-device
-household queue is introduced. Those need separate app/server contracts. No UI/player code changed.
+household queue is introduced. Those need separate app/server contracts. Queue mutations themselves do not start or stop a player.
 Progress/resume and watched state remain on existing endpoints; queue advance does not mark watched.
 
 ## Logging and verification boundary
@@ -104,5 +104,4 @@ expiry, backup/reopen persistence, device/profile isolation, session revocation,
 changed-access redaction and protection against episode cleanup/Unmatch. Real player/UI/native-device
 behavior remains Claude/owner acceptance.
 
-Dependency order: foundations PR #309, Unmatch PR #310, then this queue PR. Migration 0062 adds the
-queue tables. The API adds fields/routes without removing existing v1 behavior.
+Migration 0062 introduced the queue tables. The API adds fields/routes without removing existing v1 behavior.

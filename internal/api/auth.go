@@ -223,9 +223,9 @@ type profileDTO struct {
 	// Age limit: the oldest age rating the profile may watch, 0 for none.
 	MaxAge int `json:"max_age"`
 	// The libraries the profile may see; null for all of them.
-	LibraryIDs []int64 `json:"library_ids"`
+	LibraryIDs []int64 `json:"library_ids" api:"nullable" description:"null means all libraries; an empty array means no libraries; otherwise the listed library IDs."`
 	// Titles with these labels are hidden from the profile.
-	ExcludeLabels []string `json:"exclude_labels"`
+	ExcludeLabels []string `json:"exclude_labels" api:"nullable" description:"Labels hidden from this profile; null and an empty array both mean no excluded labels."`
 	// A friend, and whether they've accepted their invite (set a password) yet.
 	IsFriend bool `json:"is_friend,omitempty"`
 	Joined   bool `json:"joined,omitempty"`
@@ -587,7 +587,7 @@ func (s *Server) listProfiles(w http.ResponseWriter, r *http.Request) {
 type profileBody struct {
 	Name *string `json:"name"`
 	// Make a friend (with an invite link) rather than a household profile.
-	Friend bool    `json:"friend"`
+	Friend bool    `json:"friend" api:"optional"`
 	Color  *string `json:"color"`
 	// A four-digit PIN; "" removes it.
 	PIN *string `json:"pin"`
@@ -595,7 +595,7 @@ type profileBody struct {
 	MaxAge *int `json:"max_age"`
 	// The libraries the profile may see: a list of ids, or null for all of them. Leave the field
 	// out to keep them as they are.
-	LibraryIDs json.RawMessage `json:"library_ids"`
+	LibraryIDs json.RawMessage `json:"library_ids" api:"optional"`
 	// Labels whose titles the profile doesn't see.
 	ExcludeLabels *[]string `json:"exclude_labels"`
 }

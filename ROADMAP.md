@@ -257,6 +257,9 @@ _Doesn't block development; must be done before AMS is shared or published._
 - IMDb ratings are paused (29 October): revisit removing retained ingestion code and choose rating
   sources after licensing/coverage review; see [Rating sources](docs/RATING-SOURCES.md).
 
+- External databases/PostgreSQL (#308): deferred by the owner, 11 November 2026. Focus on
+  stability and release readiness with SQLite; PRs #337/#339 remain unmerged reference work.
+  Reassess integration and current-schema compatibility only when the owner resumes it.
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
 - Offline downloads/sync
