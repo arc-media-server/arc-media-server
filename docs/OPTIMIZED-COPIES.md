@@ -108,3 +108,21 @@ restart and partial-file cleanup, real generated six-/nine-second clips, identit
 preservation and an actual schema-48 upgrade with a valid pre-upgrade backup. Full-app HTTP
 fixtures and focused Chromium playback/resume/restore journeys supplement the Go/store tests.
 See READINESS and #170 for actual results and the separate hosted publication outcome.
+
+## CPU priority during playback (#193)
+
+Explicit Optimize remains one serial queue and continues outside the optional-maintenance
+schedule. Its FFmpeg child now receives a best-effort lower CPU priority so interactive playback
+conversion and browsing can take precedence when CPU is busy. Spare CPU remains usable; optimized copies may take longer while foreground work competes. This
+is not an encoding-speed cap, pause/restart loop, disk-I/O limit or storage budget.
+
+Linux lowers the child leader and existing worker threads to nice+10 (new workers inherit it);
+macOS uses process nice+10. An already lower priority is preserved. Windows uses Below Normal
+unless the child is already Below Normal or Idle. Arc itself and live playback keep their
+existing priorities. No additional user setting, queue or dependency is introduced.
+
+The hint is applied after child start. If the host denies it or the platform is unsupported,
+conversion continues with the existing scheduling behavior and a warning is emitted at most
+once per optimizer lifetime. Output/source validation, job identity, cancellation, restart,
+queue ordering and explicit copy removal remain authoritative. Physical disk/GPU behavior and
+owner-server performance require separate validation; a CPU-priority hint cannot guarantee them.
