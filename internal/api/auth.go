@@ -664,6 +664,11 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	_, ids, err := b.libraries()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	color := "blue"
 	if b.Color != nil {
 		color = *b.Color
@@ -677,7 +682,24 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 	if pin != nil {
 		pinHash = *pin
 	}
-	u, err := s.store.CreateUser(r.Context(), *b.Name, false, color, "", pinHash)
+
+	profile := store.User{Name: *b.Name, Color: color, PINHash: pinHash, LibraryIDs: ids, IsFriend: b.Friend}
+	if b.MaxAge != nil {
+		profile.MaxAge = *b.MaxAge
+	}
+	if b.ExcludeLabels != nil {
+		profile.ExcludeLabels = cleanLabels(*b.ExcludeLabels)
+	}
+	if b.AllowDownloads != nil {
+		profile.AllowDownloads = *b.AllowDownloads
+	}
+	token, inviteHash := "", ""
+	var inviteExpires int64
+	if b.Friend {
+		token, inviteHash = auth.NewToken()
+		inviteExpires = time.Now().Add(inviteLife).Unix()
+	}
+	u, err := s.store.CreateProfile(r.Context(), profile, inviteHash, inviteExpires)
 	if errors.Is(err, store.ErrNameTaken) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
@@ -686,41 +708,8 @@ func (s *Server) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	up := store.UserUpdate{AllowDownloads: b.AllowDownloads}
-	if b.AllowDownloads != nil {
-		u.AllowDownloads = *b.AllowDownloads
-	}
-	if b.MaxAge != nil && *b.MaxAge > 0 {
-		up.MaxAge = b.MaxAge
-		u.MaxAge = *b.MaxAge
-	}
-	if sent, ids, err := b.libraries(); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	} else if sent && ids != nil {
-		up.LibraryIDs = &ids
-		u.LibraryIDs = ids
-	}
-	if b.ExcludeLabels != nil {
-		labels := cleanLabels(*b.ExcludeLabels)
-		up.ExcludeLabels = &labels
-		u.ExcludeLabels = labels
-	}
-	if up.MaxAge != nil || up.LibraryIDs != nil || up.ExcludeLabels != nil || up.AllowDownloads != nil {
-		if err := s.store.UpdateUser(r.Context(), u.ID, up); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
 	out := toProfile(*u)
-	if b.Friend {
-		token, err := s.newInvite(r, u.ID)
-		if err != nil {
-			s.fail(w, err)
-			return
-		}
-		out.IsFriend, out.InviteToken = true, token
-	}
+	out.InviteToken = token
 	writeJSON(w, http.StatusCreated, out)
 }
 
