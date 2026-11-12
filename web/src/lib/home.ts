@@ -1,3 +1,4 @@
+import { encodeItemFilters, pickItemFilters } from './item-filters';
 import i18n from '@/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type HomeRow, type Item, type ItemQuery, type Library, type Prefs, type RowFilter } from '@/lib/api';
@@ -209,21 +210,7 @@ export function rowQuery(f: RowFilter, library: Library | undefined, limit = 24)
   return {
     library_id: f.library_id,
     kind: library?.kind === 'shows' ? 'series' : 'movie',
-    genre: f.genre,
-    language: f.language,
-    label: f.label,
-    decade: f.decade,
-    resolution: f.resolution,
-    unwatched: f.unwatched,
-    video_codec: f.video_codec,
-    audio_codec: f.audio_codec,
-    audio_channels: f.audio_channels,
-    dynamic_range: f.dynamic_range,
-    watch_state: f.watch_state,
-    added_within: f.added_within,
-    min_runtime: f.min_runtime,
-    max_runtime: f.max_runtime,
-    min_rating: f.min_rating,
+    ...pickItemFilters(f),
     sort: f.sort,
     limit,
   };
@@ -231,15 +218,8 @@ export function rowQuery(f: RowFilter, library: Library | undefined, limit = 24)
 
 /** A link to the library page showing the same thing (for filters it understands). */
 export function rowHref(f: RowFilter) {
-  const p = new URLSearchParams();
-  if (f.genre) p.set('genre', f.genre);
-  if (f.language) p.set('language', f.language);
-  if (f.label) p.set('label', f.label);
-  if (f.decade) p.set('decade', String(f.decade));
-  if (f.resolution) p.set('resolution', f.resolution);
-  if (f.unwatched) p.set('unwatched', '1');
+  const p = encodeItemFilters(f);
   if (f.sort) p.set('sort', f.sort);
-  for (const key of ['added_within', 'min_runtime', 'max_runtime', 'min_rating', 'video_codec', 'audio_codec', 'audio_channels', 'dynamic_range', 'watch_state'] as const) if (f[key]) p.set(key, String(f[key]));
   const s = p.toString();
   return `/library/${f.library_id}${s ? `?${s}` : ''}`;
 }

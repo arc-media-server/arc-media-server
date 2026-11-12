@@ -701,7 +701,7 @@ export interface LibraryFacets {
 }
 
 export type DynamicRange = 'dolby_vision' | 'hdr10_plus' | 'hlg' | 'hdr10' | 'sdr' | 'unknown';
-export type WatchState = 'played' | 'unstarted';
+export type WatchState = 'played' | 'unstarted' | 'unwatched';
 
 export interface ItemQuery {
   library_id?: number;
@@ -709,6 +709,8 @@ export interface ItemQuery {
   q?: string;
   sort?: ItemSort;
   reverse?: boolean;
+  person_id?: number;
+  person_role?: 'actor' | 'director';
   genre?: string;
   /** Original language, 2-letter code. */
   language?: string;
@@ -748,27 +750,11 @@ export interface LetterCount {
 }
 
 /** The browse filters a custom home row is made of. */
-export interface RowFilter {
+export interface RowFilter extends Pick<ItemQuery,
+  'genre' | 'language' | 'label' | 'decade' | 'resolution' | 'unwatched' |
+  'video_codec' | 'audio_codec' | 'audio_channels' | 'dynamic_range' | 'watch_state' |
+  'added_within' | 'min_runtime' | 'max_runtime' | 'min_rating' | 'person_id' | 'person_role' | 'sort'> {
   library_id: number;
-  genre?: string;
-  language?: string;
-  label?: string;
-  decade?: number;
-  resolution?: Resolution;
-  unwatched?: boolean;
-  /** ffprobe codec name, e.g. hevc or truehd. */
-  video_codec?: string;
-  audio_codec?: string;
-  /** Exact audio channel count: 6 is 5.1, 8 is 7.1. */
-  audio_channels?: number;
-  dynamic_range?: DynamicRange;
-  /** Watched, or not started at all (unwatched, which includes in progress, is `unwatched`). */
-  watch_state?: WatchState;
-  added_within?: number;
-  min_runtime?: number;
-  max_runtime?: number;
-  min_rating?: number;
-  sort?: ItemSort;
 }
 
 /** A row on the home page: built in ("continue", "next-up", "recent:<library>", "seasonal") or "custom:…". */

@@ -447,6 +447,36 @@ test('custom Home rows open complete filtered results and follow the library ord
   expect(titles[0]).toBe('Continue Watching');
 });
 
+test('API-created person rows retain filters through Home and library browsing', async ({ page }) => {
+  const { lib, item } = await seed(page);
+  expect((await page.request.patch('/api/me/prefs', { data: { home: [{ id: 'custom:person', title: 'Unwatched actor movies', filter: { library_id: lib.id, person_id: 42, person_role: 'actor', watch_state: 'unwatched', video_codec: 'hevc', sort: 'added' } }] } })).ok()).toBe(true);
+  const queries: URLSearchParams[] = [];
+  await page.route('**/api/items?*', r => {
+    queries.push(new URL(r.request().url()).searchParams);
+    return r.fulfill({ json: { total: 1, items: [item] } });
+  });
+  await page.goto('/');
+  const row = page.getByRole('heading', { name: 'Unwatched actor movies', exact: true });
+  await expect(row).toBeVisible();
+  const matches = () => queries.filter(p => p.get('person_id') === '42' && p.get('person_role') === 'actor' && p.get('unwatched') === 'true' && p.get('video_codec') === 'hevc');
+  await expect.poll(() => matches().length).toBeGreaterThan(0);
+  await row.getByRole('link').click();
+  await expect(page).toHaveURL(/person_id=42/);
+  await expect.poll(() => matches().some(p => p.get('limit') === '500')).toBe(true);
+  await page.getByRole('button', { name: /^Filters,/ }).click();
+  await expect(page.getByRole('switch', { name: "Only titles I haven't watched", exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Order: Newest first', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Oldest first', exact: true }).click();
+  await page.getByRole('link', { name: 'Home', exact: true }).first().click();
+  await page.goto(`/library/${lib.id}`);
+  await expect(page).toHaveURL(/person_id=42/);
+  await expect(page).toHaveURL(/video_codec=hevc/);
+  await page.getByRole('button', { name: /^Filters,/ }).click();
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await expect(page).not.toHaveURL(/person_id|person_role|unwatched|video_codec/);
+});
+
 test('profile preference load failures offer recovery', async ({ page }) => {
   await page.route('**/api/me/prefs', r => r.fulfill({ status: 503, json: { error: 'Profile preferences unavailable' } }));
   await page.goto('/settings');
