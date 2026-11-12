@@ -1,7 +1,7 @@
 import i18n from '@/i18n';
 import { Trans, useTranslation } from 'react-i18next';
 import { MaintenanceClock } from '@/components/MaintenanceClock';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
@@ -242,6 +242,15 @@ function ServerSettings() {
   const qc = useQueryClient();
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings, refetchInterval: q => q.state.data?.transcoder.checking ? 2000 : false });
  const detect = useMutation({mutationFn:api.detectHardware,onSuccess:()=>{qc.setQueryData<ServerSettings>(['settings'],old=>old?{...old,transcoder:{...old.transcoder,checking:true}}:old);void qc.invalidateQueries({queryKey:['settings']});}});
+  // No graphics card found at start: check again once when Settings opens, in case one was added or
+  // its access fixed since (what a Retest button used to be for).
+  const rechecked = useRef(false);
+  const transcoderState = settings.data?.transcoder;
+  useEffect(() => {
+    if (rechecked.current || !transcoderState?.checked || transcoderState.checking || transcoderState.hw_encoder) return;
+    rechecked.current = true;
+    detect.mutate();
+  }, [transcoderState, detect]);
   const [importing, setImporting] = useState<'plex' | 'jellyfin' | null>(null);
   const update = useMutation({
     mutationFn: (patch: Patch) => api.updateSettings(patch),
@@ -420,17 +429,21 @@ function ServerSettings() {
               busy={update.isPending || s.transcoder.checking || !s.transcoder.hw_encoder}
               onChange={(v) => update.mutate({ hw_accel: v })}
             />
-            {/* Arc tests the graphics card once at start. Retesting is only for after a card or
-                driver is added without restarting Arc, so it's in plain sight only when none was found. */}
-            <div className="space-y-2 px-5 py-3">
-              {!s.transcoder.hw_encoder && <Button variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>}
-              <ErrorNotice error={detect.error} onRetry={()=>detect.mutate()} />
-              {!!s.transcoder.attempts?.length && <details className="text-xs text-muted">
-                <summary className="cursor-pointer">{t('serverSettings:settings.hardwareDetectionDetails')}</summary>
-                <ul className="mt-2 space-y-2 break-words">{s.transcoder.attempts.map((a,i)=><li key={i}>{[a.encoder,a.device,a.driver].filter(Boolean).join(' · ')}{a.error ? `: ${a.error}` : `: ${t('serverSettings:settings.hardwareTestPassed')}`}</li>)}</ul>
-                {!!s.transcoder.hw_encoder && <Button className="mt-2" variant="secondary" size="sm" disabled={detect.isPending || s.transcoder.checking} onClick={()=>detect.mutate()}>{t('serverSettings:settings.retestHardware')}</Button>}
-              </details>}
-            </div>
+            {s.hw_accel && !!s.transcoder.devices?.length && (
+              <Row setting="hw_device" label={t('serverSettings:settings.graphicsCard')} description={t('serverSettings:settings.graphicsCardDescription')}>
+                <select
+                  aria-label={t('serverSettings:settings.graphicsCard')}
+                  value={s.transcoder.devices.some(d => d.id === s.hw_device) ? s.hw_device : ''}
+                  disabled={update.isPending || s.transcoder.checking}
+                  onChange={(e) => update.mutate({ hw_device: e.target.value })}
+                  className={inputClass + ' w-56 [&>option]:bg-surface'}
+                >
+                  <option value="">{t('serverSettings:settings.graphicsCardAuto')}</option>
+                  {s.transcoder.devices.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                </select>
+              </Row>
+            )}
+            <DetectErrorRow error={detect.error} onRetry={() => detect.mutate()} />
             <ToggleRow
               setting="tone_mapping" label={t("serverSettings:settings.hdrToneMapping")}
               description={
@@ -1124,6 +1137,12 @@ function ServerNameRow({ value, onSave }: { value: string; onSave: (v: string) =
       </form>
     </Row>
   );
+}
+
+/** A failed hardware re-check, shown under the Converting toggles. */
+function DetectErrorRow({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  if (!error) return null;
+  return <div className="px-5 py-3"><ErrorNotice error={error} onRetry={onRetry} /></div>;
 }
 
 /** Networks that count as home besides automatically detected interface subnets (Plex's "LAN networks"). */

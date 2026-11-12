@@ -23,14 +23,28 @@ type HardwareAttempt struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// HardwareDevice is one graphics device that passed the test encode, offered in Settings.
+type HardwareDevice struct {
+	// ID is what Settings stores: the encoder and device ("h264_qsv:/dev/dri/renderD128").
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Encoder  string `json:"encoder"`
+	Device   string `json:"device,omitempty"`
+	Driver   string `json:"driver,omitempty"`
+	LowPower bool   `json:"low_power,omitempty"`
+}
+
 type Capabilities struct {
-	HWEncoder   string            `json:"hw_encoder"`
-	HWLabel     string            `json:"hw_label"`
-	HWDevice    string            `json:"hw_device,omitempty"`
-	HWDriver    string            `json:"hw_driver,omitempty"`
-	HWLowPower  bool              `json:"hw_low_power,omitempty"`
-	Attempts    []HardwareAttempt `json:"attempts,omitempty"`
-	ToneMapping bool              `json:"tone_mapping"`
+	// The device conversions use: the one chosen in Settings, or the first that works (Auto).
+	HWEncoder  string            `json:"hw_encoder"`
+	HWLabel    string            `json:"hw_label"`
+	HWDevice   string            `json:"hw_device,omitempty"`
+	HWDriver   string            `json:"hw_driver,omitempty"`
+	HWLowPower bool              `json:"hw_low_power,omitempty"`
+	Attempts   []HardwareAttempt `json:"attempts,omitempty"`
+	// Every device that works, in Auto's order (one entry per graphics device).
+	Devices     []HardwareDevice `json:"devices,omitempty"`
+	ToneMapping bool             `json:"tone_mapping"`
 	// Jellyfin's FFmpeg's tonemapx: HDR to SDR in one fast (SIMD) filter instead of zscale's chain.
 	FastToneMap bool `json:"fast_tone_map,omitempty"`
 	Checked     bool `json:"checked"`
@@ -80,6 +94,9 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 	if run == nil {
 		run = runHardwareProbe
 	}
+	// Each render node is offered once, through the first API that works on it (Quick Sync
+	// before VA-API on Intel), so Settings lists graphics devices rather than APIs.
+	claimed := map[string]bool{}
 	attempt := func(encoder, device, driver string, low bool) bool {
 		work, stop := context.WithTimeout(ctx, 8*time.Second)
 		defer stop()
@@ -97,7 +114,8 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 		}
 		caps.Attempts = append(caps.Attempts, a)
 		if a.Error == "" {
-			caps.HWEncoder, caps.HWLabel, caps.HWDevice, caps.HWDriver, caps.HWLowPower = encoder, EncoderLabel(encoder), device, driver, low
+			caps.Devices = append(caps.Devices, HardwareDevice{ID: encoder + ":" + device, Encoder: encoder, Device: device, Driver: driver, LowPower: low})
+			claimed[device] = true
 			return true
 		}
 		m.log.Debug("hardware encoder test unavailable", "encoder", encoder, "device", device, "driver", driver, "reason", a.Error)
@@ -110,38 +128,38 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 			if ctx.Err() != nil {
 				break
 			}
-			if e.name == "h264_vaapi" {
+			switch {
+			case e.name == "h264_vaapi":
 				for _, node := range nodes {
+					if claimed[node] {
+						continue
+					}
+				drivers:
 					for _, driver := range []string{"", "iHD", "i965"} {
 						for _, low := range []bool{false, true} {
 							if ctx.Err() != nil || attempt(e.name, node, driver, low) {
-								break
+								break drivers
 							}
 						}
-						if caps.HWEncoder != "" || ctx.Err() != nil {
-							break
-						}
-					}
-					if caps.HWEncoder != "" || ctx.Err() != nil {
-						break
 					}
 				}
 				if len(nodes) == 0 {
 					caps.Attempts = append(caps.Attempts, HardwareAttempt{Encoder: e.name, Error: "No accessible render device was found under /dev/dri"})
 				}
-			} else if e.name == "h264_qsv" && len(nodes) > 0 {
+			case e.name == "h264_qsv" && len(nodes) > 0:
 				for _, node := range nodes {
-					if attempt(e.name, node, "", false) || ctx.Err() != nil {
+					if ctx.Err() != nil {
 						break
 					}
+					if !claimed[node] {
+						attempt(e.name, node, "", false)
+					}
 				}
-			} else {
+			default:
 				attempt(e.name, "", "", false)
 			}
-			if caps.HWEncoder != "" {
-				break
-			}
 		}
+		labelDevices(caps.Devices, m.gpuVendor)
 		out, _ := run(ctx, bin, []string{"-hide_banner", "-filters"}, "")
 		caps.FastToneMap = strings.Contains(string(out), " tonemapx ")
 		caps.ToneMapping = caps.FastToneMap || strings.Contains(string(out), " zscale ")
@@ -151,10 +169,11 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 		m.caps.Checking = false
 		caps = m.caps
 	} else {
+		caps.choose(m.hwChoice)
 		m.caps = caps
 	}
 	m.mu.Unlock()
-	m.log.Info("hardware detection finished", "encoder", caps.HWLabel, "device", caps.HWDevice, "attempts", len(caps.Attempts), "took", time.Since(started).Round(time.Millisecond))
+	m.log.Info("hardware detection finished", "encoder", caps.HWLabel, "device", caps.HWDevice, "devices", len(caps.Devices), "choice", choiceName(m.hardwareChoice()), "attempts", len(caps.Attempts), "took", time.Since(started).Round(time.Millisecond))
 	caps.Attempts = append([]HardwareAttempt(nil), caps.Attempts...)
 	return caps
 }
@@ -163,7 +182,87 @@ func (m *Manager) Caps() Capabilities {
 	defer m.mu.Unlock()
 	caps := m.caps
 	caps.Attempts = append([]HardwareAttempt(nil), caps.Attempts...)
+	caps.Devices = append([]HardwareDevice(nil), caps.Devices...)
 	return caps
+}
+
+// UseDevice picks the graphics device conversions use, by HardwareDevice.ID ("" for Auto: the
+// first that works). A device that isn't there (removed, or failing its test) falls back to Auto.
+// Conversions already running keep the device they started with.
+func (m *Manager) UseDevice(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.hwChoice == id {
+		return
+	}
+	m.hwChoice = id
+	if m.caps.Checked {
+		m.caps.choose(id)
+		m.log.Info("hardware device chosen", "choice", choiceName(id), "using", m.caps.HWLabel, "device", m.caps.HWDevice)
+	}
+}
+
+func (m *Manager) hardwareChoice() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.hwChoice
+}
+
+func choiceName(id string) string {
+	if id == "" {
+		return "auto"
+	}
+	return id
+}
+
+// choose sets the active device from the working ones: the chosen ID, else the first.
+func (caps *Capabilities) choose(id string) {
+	caps.HWEncoder, caps.HWLabel, caps.HWDevice, caps.HWDriver, caps.HWLowPower = "", "", "", "", false
+	if len(caps.Devices) == 0 {
+		return
+	}
+	d := caps.Devices[0]
+	for _, candidate := range caps.Devices {
+		if candidate.ID == id {
+			d = candidate
+			break
+		}
+	}
+	caps.HWEncoder, caps.HWLabel, caps.HWDevice, caps.HWDriver, caps.HWLowPower = d.Encoder, d.Label, d.Device, d.Driver, d.LowPower
+}
+
+// labelDevices names devices for Settings: the API, with the maker for VA-API ("AMD (VA-API)"),
+// and the render node when more than one device was found.
+func labelDevices(devices []HardwareDevice, vendor func(node string) string) {
+	for i := range devices {
+		d := &devices[i]
+		d.Label = EncoderLabel(d.Encoder)
+		if d.Encoder == "h264_vaapi" && vendor != nil {
+			if maker := vendor(d.Device); maker != "" {
+				d.Label = maker + " (VA-API)"
+			}
+		}
+		if len(devices) > 1 && d.Device != "" {
+			d.Label += " · " + filepath.Base(d.Device)
+		}
+	}
+}
+
+// sysfsGPUVendor names the maker of a render node from its PCI vendor ID, "" when unknown.
+func sysfsGPUVendor(node string) string {
+	raw, err := os.ReadFile(filepath.Join("/sys/class/drm", filepath.Base(node), "device", "vendor"))
+	if err != nil {
+		return ""
+	}
+	switch strings.TrimSpace(string(raw)) {
+	case "0x8086":
+		return "Intel"
+	case "0x1002":
+		return "AMD"
+	case "0x10de":
+		return "NVIDIA"
+	}
+	return ""
 }
 func hardwareProbeArgs(encoder, device string, low bool) []string {
 	args := []string{"-hide_banner", "-nostdin", "-v", "error"}

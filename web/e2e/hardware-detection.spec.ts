@@ -23,35 +23,47 @@ async function setup(page: Page) {
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
 }
 
-test('hardware detection explains unavailable encoding and offers recoverable Retest', async ({ page }) => {
+test('hardware detection re-checks on its own and offers a graphics card choice', async ({ page }) => {
   let checking = false;
   let available = false;
+  const devices = [
+    { id: 'h264_qsv:/dev/dri/renderD128', label: 'Intel Quick Sync · renderD128', encoder: 'h264_qsv', device: '/dev/dri/renderD128' },
+    { id: 'h264_vaapi:/dev/dri/renderD129', label: 'AMD (VA-API) · renderD129', encoder: 'h264_vaapi', device: '/dev/dri/renderD129' },
+  ];
   await page.route('**/api/settings', async route => {
-    if (route.request().method() !== 'GET') return route.continue();
     const response = await route.fetch();
     const settings = await response.json();
     await route.fulfill({ response, json: { ...settings, transcoder: { checked: true, checking, tone_mapping: true,
-      hw_encoder: available ? 'h264_vaapi' : '', hw_label: available ? 'VA-API' : '',
+      hw_encoder: available ? 'h264_qsv' : '', hw_label: available ? 'Intel Quick Sync' : '',
+      devices: available ? devices : [],
       attempts: [{ encoder: 'h264_vaapi', device: '/dev/dri/renderD129', error: available ? '' : 'Driver initialization failed' }] } } });
   });
   let fail = true;
+  let detections = 0;
   await page.route('**/api/transcoder/detect', async route => {
+    detections++;
     if (fail) return route.fulfill({ status: 503, json: { error: 'Detection temporarily unavailable' } });
     checking = true;
     return route.fulfill({ status: 202, json: { started: true } });
   });
   await page.goto('/settings?section=playback');
-  const retest = page.getByRole('button', { name: 'Retest hardware encoding', exact: true });
   await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeDisabled();
-  await page.getByText('Hardware detection details', { exact: true }).click();
-  await expect(page.getByText(/Driver initialization failed/)).toBeVisible();
-  await retest.click();
+  await expect(page.getByText('No graphics card that can convert video was found, so Arc uses the processor.', { exact: true })).toBeVisible();
+  // Nothing found: Settings checks again by itself, once; no Retest button or detection details.
   await expect(page.getByText('Detection temporarily unavailable', { exact: true })).toBeVisible();
+  expect(detections).toBe(1);
+  await expect(page.getByRole('button', { name: /Retest/ })).toHaveCount(0);
+  await expect(page.getByText('Hardware detection details')).toHaveCount(0);
   fail = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(retest).toBeDisabled();
   checking = false; available = true;
   await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeEnabled();
+  const card = page.getByRole('combobox', { name: 'Graphics card', exact: true });
+  await expect(card).toHaveValue('');
+  await expect(card.locator('option')).toHaveText(['Automatic', 'Intel Quick Sync · renderD128', 'AMD (VA-API) · renderD129']);
+  await card.selectOption('h264_vaapi:/dev/dri/renderD129');
+  await expect(card).toHaveValue('h264_vaapi:/dev/dri/renderD129');
+  expect((await (await page.request.get('/api/settings')).json()).hw_device).toBe('h264_vaapi:/dev/dri/renderD129');
   await page.unroute('**/api/transcoder/detect');
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Hardware viewer', color: 'blue' } })).json();
   await page.request.post('/api/auth/profile', { data: { id: viewer.id } });

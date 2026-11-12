@@ -824,6 +824,7 @@ func (s *Server) settingsDTO(r *http.Request, st settings.Settings) map[string]a
 		"ffprobe":      ff,
 		"local_bypass": st.LocalBypass,
 		"hw_accel":     st.HWAccel,
+		"hw_device":    st.HWDevice,
 		"tone_mapping": st.ToneMap,
 		// The password is never sent back; only whether there's an account.
 		"opensubtitles_api_key":  maskKey(st.OpenSubtitlesKey),
@@ -921,6 +922,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		FFprobePath            *string  `json:"ffprobe_path"`
 		LocalBypass            *bool    `json:"local_bypass"`
 		HWAccel                *bool    `json:"hw_accel"`
+		HWDevice               *string  `json:"hw_device"`
 		ToneMap                *bool    `json:"tone_mapping"`
 		OSKey                  *string  `json:"opensubtitles_api_key"`
 		OSUser                 *string  `json:"opensubtitles_username"`
@@ -1064,6 +1066,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.LocalBypass != nil {
 		next.LocalBypass = *body.LocalBypass
+	}
+	if body.HWDevice != nil {
+		// An ID from transcoder.devices, or "" for Auto. One that isn't found later means Auto.
+		if len(*body.HWDevice) > 256 || strings.ContainsAny(*body.HWDevice, "\x00\n\r") {
+			writeError(w, http.StatusBadRequest, "hw_device must be a device from the list, or empty for Auto")
+			return
+		}
+		next.HWDevice = *body.HWDevice
 	}
 	if body.HWAccel != nil {
 		next.HWAccel = *body.HWAccel

@@ -432,6 +432,12 @@
           "checking": {
             "type": "boolean"
           },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/HardwareDevice"
+            },
+            "type": "array"
+          },
           "fast_tone_map": {
             "type": "boolean"
           },
@@ -1316,6 +1322,34 @@
         },
         "required": [
           "encoder"
+        ],
+        "type": "object"
+      },
+      "HardwareDevice": {
+        "properties": {
+          "device": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "encoder": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "low_power": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "encoder",
+          "id",
+          "label"
         ],
         "type": "object"
       },
@@ -34833,6 +34867,9 @@
                     "hw_accel": {
                       "type": "boolean"
                     },
+                    "hw_device": {
+                      "type": "string"
+                    },
                     "listen": {
                       "type": "string"
                     },
@@ -34959,6 +34996,7 @@
                     "https_key",
                     "https_mode",
                     "hw_accel",
+                    "hw_device",
                     "listen",
                     "local_bypass",
                     "maintenance_end",
@@ -35104,6 +35142,9 @@
                   },
                   "hw_accel": {
                     "type": "boolean"
+                  },
+                  "hw_device": {
+                    "type": "string"
                   },
                   "local_bypass": {
                     "type": "boolean"
@@ -35291,6 +35332,9 @@
                     "hw_accel": {
                       "type": "boolean"
                     },
+                    "hw_device": {
+                      "type": "string"
+                    },
                     "listen": {
                       "type": "string"
                     },
@@ -35417,6 +35461,7 @@
                     "https_key",
                     "https_mode",
                     "hw_accel",
+                    "hw_device",
                     "listen",
                     "local_bypass",
                     "maintenance_end",

@@ -1,4 +1,4 @@
-# Settings: home networks suggestion, shorter text, About card, Retest tucked away
+# Settings: home network suggestion, About card, graphics card choice
 
 The owner's feedback after moving to the PUID/PGID image on Docker bridge networking.
 
@@ -14,15 +14,28 @@ The owner's feedback after moving to the PUID/PGID image on Docker bridge networ
   "e.g. 192.168.1.0/24" rather than "None", which read like a value.
 - **About Arc** uses the same card and rows as the other sections (Arc Media Server with its
   version on the right, then Credits), and the credits text matches row descriptions.
-- **Retest hardware encoding** is only for after a graphics card or driver is fixed without
-  restarting Arc. It stays in plain sight when no hardware was found, and otherwise moves into
-  "Hardware detection details".
+- **Graphics card choice instead of Retest.** Detection now tests every graphics device at start
+  rather than stopping at the first that works, one entry per device (Quick Sync before VA-API on
+  Intel, so an iGPU isn't listed twice), named by API, maker for VA-API, and render node when
+  there are several. Converting gets a "Graphics card" menu (Automatic, then each device), like
+  Plex's "Hardware transcoding device". Stored as `hw_device` (`""` for Automatic); a chosen
+  device that disappears falls back to Automatic. New `transcoder.devices` in `/api/settings`.
+  The Retest button and the detection details are gone: Retest only helped when a card was
+  added or fixed without restarting Arc, so Settings now re-checks once by itself when it opens
+  and no card was found. Detection attempts stay in the diagnostics export and logs, and the
+  admin-only `POST /api/transcoder/detect` endpoint remains for that re-check.
 
 Plex fills its LAN Networks setting by hand too; the one-click suggestion is an addition.
 
-Checks: go vet, `go test ./internal/api ./internal/auth ./internal/apidoc` (new
-TestSuggestHomeNetworkOnDockerBridge), `npx tsc -b`, production build, i18n tests, and the
-three affected browser journeys (home networks, About attribution, hardware detection).
+Checks: go vet; `go test ./...` passes except the four conversion tests that need
+jellyfin-ffmpeg's filters (this machine has FFmpeg 6.1; they fail identically on main). New tests:
+TestSuggestHomeNetworkOnDockerBridge, TestDetectListsEachDeviceOnceAndUsesTheChosenOne. `npx tsc
+-b`, production build, i18n tests, and the three affected browser journeys (home networks, About
+attribution, hardware detection, rewritten for the menu and the automatic re-check).
 
-Logging: none added. The suggestion is a pure function of the request address and the detected
-interfaces, has no failure mode, and is covered by the unit test.
+Logging: "hardware detection finished" now includes the number of working devices and the
+choice; changing the device logs "hardware device chosen" with the device used. The home network
+suggestion is a pure function of the request address and detected interfaces and logs nothing.
+
+Limits: NVIDIA (NVENC) is tested once, on the first NVIDIA card; several NVIDIA cards are one
+entry. Not yet checked on real hardware with more than one graphics device.

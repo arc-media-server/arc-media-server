@@ -39,6 +39,9 @@ type Settings struct {
 	Region string
 	// Convert video with the graphics card when there's one that can (on unless turned off).
 	HWAccel bool
+	// Which graphics device converts (transcode.HardwareDevice.ID), "" for Auto: the first that
+	// works. Plex's "Hardware transcoding device".
+	HWDevice string
 	// Map HDR to SDR when converting HDR video (on unless turned off).
 	ToneMap bool
 	// OpenSubtitles.com, for finding subtitles online: an API key, and optionally an account
@@ -98,6 +101,7 @@ const (
 	keyAllowNetwork   = "allow_network"
 	keyRegion         = "region"
 	keyHWAccel        = "hw_accel"
+	keyHWDevice       = "hw_device"
 	keyToneMap        = "tone_mapping"
 	keyOSKey          = "opensubtitles_api_key"
 	keyOSUser         = "opensubtitles_username"
@@ -193,6 +197,9 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.HWAccel = v != "0"
+	if s.HWDevice, err = get(keyHWDevice); err != nil {
+		return s, err
+	}
 	if v, err = get(keyToneMap); err != nil {
 		return s, err
 	}
@@ -373,7 +380,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyTMDB: s.TMDBKey, keyTVDB: s.TVDBKey, keyFFprobe: s.FFprobePath,
 		keyLocalBypass: boolString(s.LocalBypass), keyAllowNetwork: boolString(s.AllowNetwork),
 		keyPort: strconv.Itoa(s.Port), keyRegion: s.Region,
-		keyHWAccel: boolString(s.HWAccel), keyToneMap: boolString(s.ToneMap),
+		keyHWAccel: boolString(s.HWAccel), keyHWDevice: s.HWDevice, keyToneMap: boolString(s.ToneMap),
 		keyOSKey: s.OpenSubtitlesKey, keyOSUser: s.OpenSubtitlesUser, keyOSPassword: s.OpenSubtitlesPassword,
 		keyMaintStart: strconv.Itoa(s.MaintenanceStart), keyMaintEnd: strconv.Itoa(s.MaintenanceEnd),
 		keyPreviewsNight: boolString(s.PreviewsAtNight), keyOMDb: s.OMDbKey,

@@ -80,3 +80,43 @@ func TestHardwareProbeOutputBound(t *testing.T) {
 		t.Fatalf("output bound: %d %d %v", n, out.Len(), err)
 	}
 }
+
+func TestDetectListsEachDeviceOnceAndUsesTheChosenOne(t *testing.T) {
+	m := New(t.TempDir(), func() string { return "fixture-ffmpeg" }, func() string { return "fixture-probe" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// An Intel iGPU (Quick Sync and VA-API both work) and an AMD card (VA-API only).
+	m.renderNodes = func() []string { return []string{"/dev/dri/renderD128", "/dev/dri/renderD129"} }
+	m.gpuVendor = func(node string) string {
+		return map[string]string{"/dev/dri/renderD128": "Intel", "/dev/dri/renderD129": "AMD"}[node]
+	}
+	m.probeHardware = func(_ context.Context, _ string, args []string, _ string) ([]byte, error) {
+		joined := strings.Join(args, " ")
+		switch {
+		case strings.Contains(joined, "-filters"):
+			return nil, nil
+		case strings.Contains(joined, "h264_qsv") && strings.Contains(joined, "renderD128"),
+			strings.Contains(joined, "h264_vaapi"):
+			return nil, nil
+		}
+		return []byte("unavailable"), errors.New("fixture failure")
+	}
+	m.UseDevice("h264_vaapi:/dev/dri/renderD129")
+	caps := m.Detect(context.Background())
+	var labels []string
+	for _, d := range caps.Devices {
+		labels = append(labels, d.ID+"="+d.Label)
+	}
+	if got := strings.Join(labels, ", "); got != "h264_qsv:/dev/dri/renderD128=Intel Quick Sync · renderD128, h264_vaapi:/dev/dri/renderD129=AMD (VA-API) · renderD129" {
+		t.Fatalf("devices: %s", got)
+	}
+	if caps.HWEncoder != "h264_vaapi" || caps.HWDevice != "/dev/dri/renderD129" {
+		t.Fatalf("chosen device not used: %+v", caps)
+	}
+	m.UseDevice("") // Auto: the first that works.
+	if caps := m.Caps(); caps.HWEncoder != "h264_qsv" || caps.HWDevice != "/dev/dri/renderD128" {
+		t.Fatalf("auto: %+v", caps)
+	}
+	m.UseDevice("h264_nvenc:") // Not here (removed card): Auto.
+	if caps := m.Caps(); caps.HWEncoder != "h264_qsv" {
+		t.Fatalf("missing device did not fall back: %+v", caps)
+	}
+}
