@@ -7,6 +7,8 @@ WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
+# The client integration guide page bundles docs/CLIENT-INTEGRATION.md.
+COPY docs/CLIENT-INTEGRATION.md ../docs/
 # Writes to ../internal/webui/dist, which the Go build embeds.
 RUN mkdir -p ../internal/webui && npm run build
 
