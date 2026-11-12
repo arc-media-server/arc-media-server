@@ -18,7 +18,9 @@ The owner's feedback after moving to the PUID/PGID image on Docker bridge networ
   rather than stopping at the first that works, one entry per device (Quick Sync before VA-API on
   Intel, so an iGPU isn't listed twice), named by API, maker for VA-API, and render node when
   there are several. Converting gets a "Graphics card" menu (Automatic, then each device), like
-  Plex's "Hardware transcoding device". Stored as `hw_device` (`""` for Automatic); a chosen
+  Plex's "Hardware transcoding device". Devices are listed in the order the system lists them
+  (render nodes, renderD128 first; NVENC takes its NVIDIA card's place), and Automatic is simply
+  the first, not a ranking of APIs (owner). Stored as `hw_device` (`""` for Automatic); a chosen
   device that disappears falls back to Automatic. New `transcoder.devices` in `/api/settings`.
   The Retest button and the detection details are gone: Retest only helped when a card was
   added or fixed without restarting Arc, so Settings now re-checks once by itself when it opens
@@ -29,7 +31,8 @@ Plex fills its LAN Networks setting by hand too; the one-click suggestion is an 
 
 Checks: go vet; `go test ./...` passes except the four conversion tests that need
 jellyfin-ffmpeg's filters (this machine has FFmpeg 6.1; they fail identically on main). New tests:
-TestSuggestHomeNetworkOnDockerBridge, TestDetectListsEachDeviceOnceAndUsesTheChosenOne. `npx tsc
+TestSuggestHomeNetworkOnDockerBridge, TestDetectListsEachDeviceOnceAndUsesTheChosenOne,
+TestAutomaticIsTheSystemsFirstDeviceNotAnAPIRanking. `npx tsc
 -b`, production build, i18n tests, and the three affected browser journeys (home networks, About
 attribution, hardware detection, rewritten for the menu and the automatic re-check).
 

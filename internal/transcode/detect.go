@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -35,14 +36,14 @@ type HardwareDevice struct {
 }
 
 type Capabilities struct {
-	// The device conversions use: the one chosen in Settings, or the first that works (Auto).
+	// The device conversions use: the one chosen in Settings, or the first in the system's order.
 	HWEncoder  string            `json:"hw_encoder"`
 	HWLabel    string            `json:"hw_label"`
 	HWDevice   string            `json:"hw_device,omitempty"`
 	HWDriver   string            `json:"hw_driver,omitempty"`
 	HWLowPower bool              `json:"hw_low_power,omitempty"`
 	Attempts   []HardwareAttempt `json:"attempts,omitempty"`
-	// Every device that works, in Auto's order (one entry per graphics device).
+	// Every device that works, in the system's order; Automatic uses the first.
 	Devices     []HardwareDevice `json:"devices,omitempty"`
 	ToneMapping bool             `json:"tone_mapping"`
 	// Jellyfin's FFmpeg's tonemapx: HDR to SDR in one fast (SIMD) filter instead of zscale's chain.
@@ -159,6 +160,7 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 				attempt(e.name, "", "", false)
 			}
 		}
+		systemOrder(caps.Devices, nodes, m.gpuVendor)
 		labelDevices(caps.Devices, m.gpuVendor)
 		out, _ := run(ctx, bin, []string{"-hide_banner", "-filters"}, "")
 		caps.FastToneMap = strings.Contains(string(out), " tonemapx ")
@@ -229,6 +231,22 @@ func (caps *Capabilities) choose(id string) {
 		}
 	}
 	caps.HWEncoder, caps.HWLabel, caps.HWDevice, caps.HWDriver, caps.HWLowPower = d.Encoder, d.Label, d.Device, d.Driver, d.LowPower
+}
+
+// systemOrder puts devices in the order the system lists them (render nodes, renderD128 first), so
+// Automatic is simply the first graphics device, not a ranking of APIs. NVENC has no node of its
+// own, so it takes the place of the first NVIDIA node; devices with no node at all (Windows, macOS)
+// keep the order they were found in, after any that have one.
+func systemOrder(devices []HardwareDevice, nodes []string, vendor func(node string) string) {
+	place := func(d HardwareDevice) int {
+		for i, node := range nodes {
+			if node == d.Device || (d.Encoder == "h264_nvenc" && vendor != nil && vendor(node) == "NVIDIA") {
+				return i
+			}
+		}
+		return len(nodes)
+	}
+	sort.SliceStable(devices, func(i, j int) bool { return place(devices[i]) < place(devices[j]) })
 }
 
 // labelDevices names devices for Settings: the API, with the maker for VA-API ("AMD (VA-API)"),

@@ -120,3 +120,27 @@ func TestDetectListsEachDeviceOnceAndUsesTheChosenOne(t *testing.T) {
 		t.Fatalf("missing device did not fall back: %+v", caps)
 	}
 }
+
+func TestAutomaticIsTheSystemsFirstDeviceNotAnAPIRanking(t *testing.T) {
+	m := New(t.TempDir(), func() string { return "fixture-ffmpeg" }, func() string { return "fixture-probe" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// The system lists an AMD card first and an NVIDIA card second. NVENC would rank first by API,
+	// but Automatic is the first device the system lists.
+	m.renderNodes = func() []string { return []string{"/dev/dri/renderD128", "/dev/dri/renderD129"} }
+	m.gpuVendor = func(node string) string { return map[string]string{"/dev/dri/renderD128": "AMD", "/dev/dri/renderD129": "NVIDIA"}[node] }
+	m.probeHardware = func(_ context.Context, _ string, args []string, _ string) ([]byte, error) {
+		joined := strings.Join(args, " ")
+		switch {
+		case strings.Contains(joined, "-filters"), strings.Contains(joined, "h264_nvenc"),
+			strings.Contains(joined, "h264_vaapi") && strings.Contains(joined, "renderD128"):
+			return nil, nil
+		}
+		return []byte("unavailable"), errors.New("fixture failure")
+	}
+	caps := m.Detect(context.Background())
+	if len(caps.Devices) != 2 || caps.Devices[0].Encoder != "h264_vaapi" || caps.Devices[1].Encoder != "h264_nvenc" {
+		t.Fatalf("devices not in system order: %+v", caps.Devices)
+	}
+	if caps.HWEncoder != "h264_vaapi" || caps.HWDevice != "/dev/dri/renderD128" {
+		t.Fatalf("automatic: %+v", caps)
+	}
+}
