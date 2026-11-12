@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var ErrCatalogBusy = errors.New("catalog maintenance in progress")
+
 type Manager struct {
 	store *store.Store
 	log   *slog.Logger
@@ -37,8 +39,18 @@ func (m *Manager) Run(ctx context.Context) {
 	timer := time.NewTicker(time.Second)
 	defer timer.Stop()
 	for ctx.Err() == nil {
+		release, admitted := m.store.BeginCatalogWork()
+		if !admitted {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(250 * time.Millisecond):
+			}
+			continue
+		}
 		d, err := m.store.NextDownload(ctx)
 		if errors.Is(err, store.ErrDownloadNotFound) {
+			release()
 			select {
 			case <-ctx.Done():
 				return
@@ -48,6 +60,7 @@ func (m *Manager) Run(ctx context.Context) {
 			continue
 		}
 		if err != nil {
+			release()
 			if ctx.Err() == nil {
 				m.log.Warn("download preparation queue unavailable")
 			}
@@ -58,7 +71,9 @@ func (m *Manager) Run(ctx context.Context) {
 			}
 			continue
 		}
-		if err = m.Prepare(ctx, d); err != nil && ctx.Err() == nil {
+		err = m.prepare(ctx, d)
+		release()
+		if err != nil && ctx.Err() == nil {
 			m.log.Warn("download preparation bookkeeping failed", "download_id", d.ID)
 			select {
 			case <-ctx.Done():
@@ -72,6 +87,15 @@ func (m *Manager) Run(ctx context.Context) {
 // Prepare is synchronous so callers can join shutdown before closing the store. Interrupted
 // hashes remain preparing and restart from the beginning; partial digests are never published.
 func (m *Manager) Prepare(ctx context.Context, d *store.Download) error {
+	release, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return ErrCatalogBusy
+	}
+	defer release()
+	return m.prepare(ctx, d)
+}
+
+func (m *Manager) prepare(ctx context.Context, d *store.Download) error {
 	started := time.Now()
 	m.log.Info("download preparation started", "download_id", d.ID)
 	reason := ""
