@@ -531,6 +531,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	remoteAccess.Certs.Configure(cfg.HTTPSMode, cfg.HTTPSCert, cfg.HTTPSKey, cfg.HTTPSDomain)
 	applyHomeNetworks(cfg.HomeNetworks, cfg.TrustedProxies)
 	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
+	transcoder.UseDevice(cfg.HWDevice)
 	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
 	workers.Go("remote mapping", func() { remoteAccess.Mapper.Run(ctx) })
 	// CPU, memory and network use for the Dashboard's graphs.
@@ -552,6 +553,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		watch.Configure(scanConfig(next))
 		applyHomeNetworks(next.HomeNetworks, next.TrustedProxies)
 		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
+		transcoder.UseDevice(next.HWDevice)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
 		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
 	}

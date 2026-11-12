@@ -570,7 +570,8 @@ test('attribution: About credits TMDB with its required notice and TheTVDB', asy
   const about = page.getByRole('region', { name: 'About Arc' });
   await expect(about.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.', { exact: false })).toBeVisible();
   await expect(about.getByText('Metadata provided by', { exact: false })).toBeVisible();
-  await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
+  await expect(about.getByText('Arc Media Server', { exact: true })).toBeVisible();
+  await expect(about.getByText(/^\d+\.\d+\.\d+/)).toBeVisible();
   for (const { theme, system, name: mode } of [
     { theme: 'light', system: 'dark', name: 'profile-light' },
     { theme: 'dark', system: 'light', name: 'profile-dark' },

@@ -4951,6 +4951,7 @@ GET /settings 200 .https_domain string
 GET /settings 200 .https_key string
 GET /settings 200 .https_mode string
 GET /settings 200 .hw_accel boolean
+GET /settings 200 .hw_device string
 GET /settings 200 .listen string
 GET /settings 200 .local_bypass boolean
 GET /settings 200 .maintenance_end integer
@@ -4976,6 +4977,7 @@ GET /settings 200 .scan_interval_minutes integer
 GET /settings 200 .scan_on_start boolean
 GET /settings 200 .scan_partial boolean
 GET /settings 200 .server_name string
+GET /settings 200 .suggested_home_network string
 GET /settings 200 .theintrodb_api_key string
 GET /settings 200 .tmdb_api_key string
 GET /settings 200 .tone_mapping boolean
@@ -4990,6 +4992,14 @@ GET /settings 200 .transcoder.attempts[].error string
 GET /settings 200 .transcoder.attempts[].low_power boolean
 GET /settings 200 .transcoder.checked boolean
 GET /settings 200 .transcoder.checking boolean
+GET /settings 200 .transcoder.devices array
+GET /settings 200 .transcoder.devices[] object
+GET /settings 200 .transcoder.devices[].device string
+GET /settings 200 .transcoder.devices[].driver string
+GET /settings 200 .transcoder.devices[].encoder string
+GET /settings 200 .transcoder.devices[].id string
+GET /settings 200 .transcoder.devices[].label string
+GET /settings 200 .transcoder.devices[].low_power boolean
 GET /settings 200 .transcoder.fast_tone_map boolean
 GET /settings 200 .transcoder.hw_device string
 GET /settings 200 .transcoder.hw_driver string
@@ -6216,6 +6226,7 @@ PATCH /settings 200 .https_domain string
 PATCH /settings 200 .https_key string
 PATCH /settings 200 .https_mode string
 PATCH /settings 200 .hw_accel boolean
+PATCH /settings 200 .hw_device string
 PATCH /settings 200 .listen string
 PATCH /settings 200 .local_bypass boolean
 PATCH /settings 200 .maintenance_end integer
@@ -6241,6 +6252,7 @@ PATCH /settings 200 .scan_interval_minutes integer
 PATCH /settings 200 .scan_on_start boolean
 PATCH /settings 200 .scan_partial boolean
 PATCH /settings 200 .server_name string
+PATCH /settings 200 .suggested_home_network string
 PATCH /settings 200 .theintrodb_api_key string
 PATCH /settings 200 .tmdb_api_key string
 PATCH /settings 200 .tone_mapping boolean
@@ -6255,6 +6267,14 @@ PATCH /settings 200 .transcoder.attempts[].error string
 PATCH /settings 200 .transcoder.attempts[].low_power boolean
 PATCH /settings 200 .transcoder.checked boolean
 PATCH /settings 200 .transcoder.checking boolean
+PATCH /settings 200 .transcoder.devices array
+PATCH /settings 200 .transcoder.devices[] object
+PATCH /settings 200 .transcoder.devices[].device string
+PATCH /settings 200 .transcoder.devices[].driver string
+PATCH /settings 200 .transcoder.devices[].encoder string
+PATCH /settings 200 .transcoder.devices[].id string
+PATCH /settings 200 .transcoder.devices[].label string
+PATCH /settings 200 .transcoder.devices[].low_power boolean
 PATCH /settings 200 .transcoder.fast_tone_map boolean
 PATCH /settings 200 .transcoder.hw_device string
 PATCH /settings 200 .transcoder.hw_driver string
