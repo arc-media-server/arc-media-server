@@ -155,32 +155,22 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type group struct {
-		series   *store.Item
-		season   *int
-		newShow  bool // the whole show is new
-		episodes []store.Item
+		series    *store.Item
+		season    *int
+		newShow   bool // the whole show is new
+		episodes  []store.Item
+		positions map[string][2]int
 	}
 	var groups []*group
 	byKey := map[string]*group{}
-	series := map[string]*store.Item{}
-	positions := map[string]map[string][2]int{}
+	contexts := s.episodeContexts(ctx)
 	for _, ep := range eps {
-		sr, ok := series[ep.ParentID]
-		if !ok {
-			if sr, err = s.store.GetItem(ctx, ep.ParentID); err != nil {
-				s.fail(w, err)
-				return
-			}
-			series[ep.ParentID] = sr
-			pos := map[string][2]int{}
-			if sr != nil {
-				if pos, _, err = s.orderPositions(ctx, sr); err != nil {
-					s.fail(w, err)
-					return
-				}
-			}
-			positions[ep.ParentID] = pos
+		context, err := contexts.get(ep.ParentID)
+		if err != nil {
+			s.fail(w, err)
+			return
 		}
+		sr := context.series
 		if sr == nil {
 			continue
 		}
@@ -190,7 +180,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 		key := ep.ParentID + ":-"
 		var season *int
 		newShow := sr.AddedAt >= ep.AddedAt-24*3600
-		if p, ok := positions[ep.ParentID][ep.ID]; ok && !newShow {
+		if p, ok := context.positions[ep.ID]; ok && !newShow {
 			n := p[0]
 			season = &n
 			key = ep.ParentID + ":" + strconv.Itoa(n)
@@ -205,7 +195,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 			if len(groups) == limit {
 				continue
 			}
-			g = &group{series: sr, season: season, newShow: newShow}
+			g = &group{series: sr, season: season, newShow: newShow, positions: context.positions}
 			byKey[key] = g
 			groups = append(groups, g)
 		}
@@ -232,7 +222,7 @@ func (s *Server) recentlyAddedShows(w http.ResponseWriter, r *http.Request) {
 			}
 			c.SeasonPoster = seasonPosterURL(g.series.ID, *g.season, art[*g.season])
 		default:
-			c.Type, c.Item = "episode", s.episodeDTO(first, g.series, positions[g.series.ID])
+			c.Type, c.Item = "episode", s.episodeDTO(first, g.series, g.positions)
 			if err := s.withSeasonPoster(r, &c.Item, g.series, posters); err != nil {
 				s.fail(w, err)
 				return

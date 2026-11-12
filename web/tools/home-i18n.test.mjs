@@ -14,6 +14,7 @@ function load(file) {
   new Function('require', 'exports', compiled)(name => {
     if (name === '@/i18n' || name === '../i18n') return { default: i18n };
     if (name === '@tanstack/react-query' || name === '@/lib/api') return {};
+    if (name === './item-filters') return load('lib/item-filters.ts');
     throw new Error(name);
   }, exports);
   return exports;

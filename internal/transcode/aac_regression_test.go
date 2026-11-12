@@ -75,7 +75,7 @@ func TestCopiedAACFilterDoesNotTouchDolby(t *testing.T) {
 }
 
 func TestBoundedFFmpegDiagnosticsPreserveCauseAndRedactURL(t *testing.T) {
-	var b stderrBuffer
+	var b StderrBuffer
 	first := "Malformed AAC bitstream\n"
 	b.Write([]byte(first))
 	for range 100 {
@@ -85,7 +85,7 @@ func TestBoundedFFmpegDiagnosticsPreserveCauseAndRedactURL(t *testing.T) {
 	if len(b.head)+len(b.tail) > stderrLimit {
 		t.Fatal("unbounded stderr")
 	}
-	detail := ffmpegFailure(b.String(), "")
+	detail := FFmpegFailure(b.String(), "")
 	if !strings.Contains(detail, "Malformed AAC") || !strings.Contains(detail, "Error writing trailer") {
 		t.Fatalf("cause/outcome missing: %s", detail)
 	}

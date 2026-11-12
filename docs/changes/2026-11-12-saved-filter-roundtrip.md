@@ -1,0 +1,7 @@
+# Preserve saved filters across Home and library browsing
+
+CQR03 shares the small typed filter mapping used by Home queries, library links, URL parsing and profile/library-scoped remembered controls. API-written person ID/role filters remain intact; watch_state=unwatched is normalized to the existing Unwatched control. Codec, dynamic-range and watch-state text values are no longer discarded by the numeric-only storage fallback. Existing filter editors display the alias consistently. No person picker, API, dependency, schema or new translated UI text.
+
+The original production Home reproduction failed before the fix. Focused Node tests cover query/link/storage round trips, all saved filter fields, legacy precedence and corrupt controls. Production build (including i18n/unit checks), app and e2e TypeScript, Go vet and full Go tests with serial packages pass. Focused API races pass. Four affected browser journeys pass; after final editor normalization the two Home/filter journeys pass again. New browser assertions initially used incorrect query/label assumptions; corrected to the real client encoding, pagination and accessible label, without changing product behavior to satisfy them. Logs retain those attempts.
+
+Logging: successful browsing and ordinary filtered/empty results need no new server logs. Existing request failures remain responsible. No log volume, secret data or owner-server/device acceptance added. Fixtures and the pinned prepared Chromium only.
