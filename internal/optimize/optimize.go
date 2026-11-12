@@ -45,13 +45,19 @@ type Manager struct {
 	ToneMap  func() bool // FFmpeg can map HDR to SDR
 	Activity *activity.Tracker
 
-	mu     sync.Mutex
-	cancel map[string]context.CancelFunc // the copy being made, by file and quality
-	wake   chan struct{}
+	mu              sync.Mutex
+	cancel          map[string]context.CancelFunc // the copy being made, by file and quality
+	wake            chan struct{}
+	lowerPriority   func(*os.Process) error
+	priorityWarning sync.Once
 }
 
 func New(dir string, st *store.Store, log *slog.Logger) *Manager {
-	return &Manager{store: st, dir: dir, log: log, cancel: map[string]context.CancelFunc{}, wake: make(chan struct{}, 1)}
+	return &Manager{
+		store: st, dir: dir, log: log,
+		cancel: map[string]context.CancelFunc{}, wake: make(chan struct{}, 1),
+		lowerPriority: lowerOptimizePriority,
+	}
 }
 
 // Wake starts on newly queued copies.
@@ -304,6 +310,13 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return fail(err)
+	}
+	// Compete for spare CPU without pausing/restarting this attempt or changing Arc's own
+	// priority. Restricted hosts may deny this hint: conversion still works, with one warning.
+	if err := m.lowerPriority(cmd.Process); err != nil {
+		m.priorityWarning.Do(func() {
+			m.log.Warn("optimized conversion CPU priority unavailable; conversion will continue", "err", err)
+		})
 	}
 	// FFmpeg's progress lines say how far it's got.
 	sc := bufio.NewScanner(stdout)
