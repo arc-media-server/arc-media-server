@@ -343,8 +343,7 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, error) {
 	ctx := r.Context()
 	out := make([]itemDTO, 0, len(entries))
-	series := map[string]*store.Item{}
-	positions := map[string]map[string][2]int{}
+	contexts := s.episodeContexts(ctx)
 	posters := seasonPosterCache{}
 	for _, e := range entries {
 		it := e.item
@@ -352,21 +351,12 @@ func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, erro
 			out = append(out, toDTO(it))
 			continue
 		}
-		sr, ok := series[it.ParentID]
-		if !ok {
-			var err error
-			if sr, err = s.store.GetItem(ctx, it.ParentID); err != nil {
-				return nil, err
-			}
-			pos := map[string][2]int{}
-			if sr != nil {
-				if pos, _, err = s.orderPositions(ctx, sr); err != nil {
-					return nil, err
-				}
-			}
-			series[it.ParentID], positions[it.ParentID] = sr, pos
+		context, err := contexts.get(it.ParentID)
+		if err != nil {
+			return nil, err
 		}
-		d := s.episodeDTO(it, sr, positions[it.ParentID])
+		sr := context.series
+		d := s.episodeDTO(it, sr, context.positions)
 		if err := s.withSeasonPoster(r, &d, sr, posters); err != nil {
 			return nil, err
 		}
