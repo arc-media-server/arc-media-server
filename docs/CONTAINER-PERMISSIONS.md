@@ -1,43 +1,37 @@
 # Container permissions
 
-Arc's image runs as UID/GID `10001:10001`, without root privileges. Port 8099 does not need
-root. The image owns `/config`, and new Docker-managed volumes initialized from it inherit
-that ownership. The container never changes ownership of mounted host files.
+Arc never runs as root in its container. It runs as the account in `PUID` and `PGID`, the way
+linuxserver.io's Plex and Jellyfin images work:
 
-For a bind mount, create the config folder before starting. Make that folder and its existing
-Arc files writable by the account that will run Arc. Compose's `user: "UID:GID"` can select a
-host account instead of `10001:10001`; environment variables `PUID` and `PGID` have no effect.
-Use numeric IDs to avoid assuming host/container account names match. Keep config local; media
-can be mounted separately, read-only. Avoid making config world-writable.
+- Default `PUID=1000`, `PGID=1000`. On Unraid use `PUID=99`, `PGID=100` (nobody:users), as for
+  your other containers. On a Linux desktop, `id -u` and `id -g` give your own account's numbers.
+- The container's start script (`docker/arc-start.sh`) runs as root only for a moment. It:
+  1. gives Arc's own config folder (`/config`) and the files in it to `PUID:PGID`, including the
+     root-owned files of an install from before 13 November 2026. It never follows symlinks,
+     never crosses into another mounted filesystem, and leaves files already owned alone;
+  2. adds the groups that own any passed-through `/dev/dri` devices, so Intel/AMD hardware
+     conversion works without `group_add`;
+  3. then runs Arc as `PUID:PGID` with no extra privileges.
+- Media and any other mounts are never changed. Mount media read-only.
+- `PUID=0` runs Arc as root, for anyone who really wants it. It isn't recommended.
 
-## Existing installations that ran as root
+## Docker's own `--user`
 
-1. Stop Arc and keep a config backup.
-2. Identify the actual Arc config bind mount and the desired UID/GID. On Unraid or another NAS,
-   use its account/permission tools or Compose's explicit user override; do not assume a Linux
-   desktop's account IDs apply.
-3. Grant that account access to **Arc's config directory and its existing files only**. A recursive
-   ownership change may be necessary for old root-owned files; inspect the exact target first.
-   Never apply it to media, a shared parent, or another application's data.
-4. Start the new image. Check health and confirm settings, libraries and a fresh backup work.
-   No database conversion/rescan is required just to change the process user.
+Starting the container with `--user UID:GID` (Compose `user:`) still works: the container is then
+unprivileged from the first instruction, so the start script can't change ownership. The config
+folder must already be writable by that user, and `group_add` is needed for `/dev/dri`.
 
-If config is not writable, startup fails with a permission error. Arc does not silently chown
-host mounts, make data public, or rerun itself as root. The owner decides how their host account
-and storage permissions should be configured.
+## Upgrading an install that ran as root
+
+Nothing to do by hand: set `PUID`/`PGID` and start the new image. The first start hands the
+existing config files over and logs how many it changed. Keeping a config backup first is still
+wise. No database conversion or rescan is needed.
 
 ## Hardware conversion
 
-`devices: ["/dev/dri:/dev/dri"]` exposes Intel/AMD device nodes but does not change their Unix
-permissions. Check their numeric owners/groups on the host, then grant only the needed render
-and/or video groups with Compose `group_add`. Add the numeric GIDs; container group names need
-not match the host. Device IDs differ between servers. NVIDIA still needs its container runtime
-and device permissions. No physical encoder is guaranteed by merely exposing a device.
+Passing `/dev/dri` is enough for Intel/AMD with `PUID`/`PGID`. NVIDIA still needs its container
+runtime. No physical encoder is guaranteed by merely exposing a device.
 
-The cloud validation uses generated read-only media and temporary config volumes. Physical
-GPU access, NAS permissions, existing owner config and remote deployment remain owner checks.
-
-When pre-provisioning a *new, empty named volume* for a different UID, use Docker's
-`volume-nocopy` mount option for that override after provisioning. Otherwise a later container
-can populate the still-empty volume from the image again and reset its directory ownership.
-Ordinary fresh volumes with the default image user need no override or pre-provisioning.
+The container smoke test (`tools/docker-smoke.mjs`) checks the default, an Unraid-style
+`PUID=99`/`PGID=100` over a root-owned config, `PUID=0` and Docker's `--user`. Physical GPU
+access, NAS permissions and owner deployments remain owner checks.

@@ -38,7 +38,7 @@ RUN apt-get update \
       arm64) sum=21e7f67d3fe70b4c757f8c5064f1317e2580a08b3b84460b7a79af0a99c1095f; hw_packages="" ;; \
       *) echo "no jellyfin-ffmpeg for $arch" >&2; exit 1 ;; \
     esac \
- && apt-get install -y --no-install-recommends ca-certificates curl tzdata $hw_packages \
+ && apt-get install -y --no-install-recommends ca-certificates curl tzdata util-linux $hw_packages \
  && curl -fsSL -o /tmp/jellyfin-ffmpeg.deb \
       "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG}/jellyfin-ffmpeg8_${JELLYFIN_FFMPEG}-trixie_${arch}.deb" \
  && echo "$sum  /tmp/jellyfin-ffmpeg.deb" | sha256sum -c - \
@@ -46,19 +46,21 @@ RUN apt-get update \
  && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
  && ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
  && rm -rf /tmp/jellyfin-ffmpeg.deb /var/lib/apt/lists/*
-# Unprivileged by default. Only Arc's own data directory is created/owned here; never chown
-# mounted media or existing host files. Bind-mount owners may override the numeric UID/GID.
-RUN groupadd --gid 10001 arc \
- && useradd --uid 10001 --gid arc --home-dir /config --no-create-home --shell /usr/sbin/nologin arc \
- && install -d -o arc -g arc -m 0750 /config
+# Arc runs as PUID:PGID (default 1000:1000; Unraid uses 99:100), as linuxserver.io's images do:
+# docker/arc-start.sh starts as root only to give Arc's own /config to that user and add the
+# /dev/dri groups, then runs Arc unprivileged. Media and other mounts are never changed. Docker's
+# --user still works and skips that step.
+RUN install -d -m 0750 /config
 COPY --from=server /out/ams /usr/local/bin/ams
+COPY docker/arc-start.sh /usr/local/bin/arc-start
 # /config holds the database, artwork, backups and certificates; mount your media read-only
 # (e.g. at /media) and add libraries in the app.
 ENV HOME=/config \
+    PUID=1000 \
+    PGID=1000 \
     AMS_DATA=/config \
     AMS_LISTEN=0.0.0.0:8099
 VOLUME /config
 EXPOSE 8099
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD curl -fsS http://127.0.0.1:8099/api/health || exit 1
-USER 10001:10001
-ENTRYPOINT ["/usr/local/bin/ams", "-config", "none"]
+ENTRYPOINT ["/usr/local/bin/arc-start", "-config", "none"]
