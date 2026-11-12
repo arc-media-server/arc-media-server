@@ -115,6 +115,11 @@ func (c *Cache) Has(sourceURL string) bool {
 	return err == nil
 }
 
+// OpenCached opens only already cached artwork; it never downloads or contacts a provider.
+func (c *Cache) OpenCached(sourceURL string) (*os.File, error) {
+	return os.Open(c.file(Key(sourceURL)))
+}
+
 // Open returns the cached copy of an image, downloading it first if needed. Concurrent requests
 // for the same image share one download.
 func (c *Cache) Open(ctx context.Context, sourceURL string) (*os.File, error) {

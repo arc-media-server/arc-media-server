@@ -56,6 +56,23 @@ func supplementOperation(r route, op map[string]any, components map[string]any) 
 			components["InputCreateProfile"] = create
 			op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"] = map[string]any{"$ref": "#/components/schemas/InputCreateProfile"}
 		}
+	case "downloadAsset":
+		parameter("Range", "One byte range, open-ended or suffix; malformed, multiple or unsatisfiable ranges return JSON 416 with bytes */size. HEAD ignores Range.")
+		parameter("If-Range", "Original sources have no strong validator; any If-Range returns full200. Replace partial bytes, never append that response.")
+		media("application/octet-stream", "video/mp4", "video/x-matroska", "video/webm")
+		full := responses["200"].(map[string]any)
+		full["description"] = "Authenticated original bytes; private/no-store, exact Content-Length, no ETag or Last-Modified. HEAD has headers only. Revocation/drift after headers aborts the stream; verify final SHA-256."
+		full["headers"] = map[string]any{"Content-Length": header("Representation byte count"), "Accept-Ranges": header("bytes"), "Content-Disposition": header("Safe attachment filename")}
+		if r.method == "HEAD" {
+			delete(full, "content")
+		} else {
+			responses["206"] = map[string]any{"description": "Single partial byte range", "content": full["content"], "headers": map[string]any{"Content-Range": header("bytes start-end/size")}}
+			responses["416"] = map[string]any{"description": "Invalid/unsupported byte range; JSON error", "headers": map[string]any{"Content-Range": header("bytes */size")}}
+		}
+		responses["409"] = map[string]any{"description": "Preparation not ready or source changed"}
+		responses["429"] = map[string]any{"description": "Transfer admission full; Retry-After:3"}
+	case "getDownloadManifest":
+		responses["409"] = map[string]any{"description": "Preparation not ready or source changed; release/reprepare if failed"}
 	case "createDownload":
 		schema := op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
 		props := schema["properties"].(map[string]any)

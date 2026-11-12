@@ -49,7 +49,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-215 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+218 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -147,6 +147,9 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/downloads` | profile | Prepares one original movie/episode descriptor. No bytes, playback, conversion or offline sync are provided by this preparation-only API. |
 | GET | `/api/downloads` | profile | Lists this profile/device's visible preparation records. ?limit=50&offset=0, limit 1-100. It does not probe or hash files. |
 | GET | `/api/downloads/{id}` | profile | Returns the preparation descriptor, not a media URL. |
+| GET | `/api/downloads/{id}/manifest` | profile | Describes a ready original representation. Asset URLs require the same profile/device authentication; the digest is not a strong HTTP ETag. |
+| GET | `/api/downloads/{id}/assets/{asset}` | profile | GET or HEAD /api/downloads/{id}/assets/{asset} transfers a ready original. Full 200, single-range 206, invalid/multiple ranges 416. No playback/history side effects. |
+| HEAD | `/api/downloads/{id}/assets/{asset}` | profile | GET or HEAD /api/downloads/{id}/assets/{asset} transfers a ready original. Full 200, single-range 206, invalid/multiple ranges 416. No playback/history side effects. |
 | DELETE | `/api/downloads/{id}` | profile | Releases this profile/device's preparation record. Cancels preparation at its next check; no source or device-local files are deleted. |
 
 ### events
