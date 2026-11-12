@@ -44,8 +44,9 @@ The owner works from more than one PC (Windows). On a fresh clone:
   External databases/PostgreSQL are deferred under #308; preserve PRs #337/#339 unmerged as
   reference work. Do not maintain a parallel PostgreSQL schema/query path or resume that work
   unless the owner asks. New backend work targets the existing SQLite migration/backup system.
-- **Open owner items:** TMDB/TheTVDB logo files for attribution (#64, into
-  `web/src/assets/attribution/`); translations beyond English and a language picker (#122, Codex
+- **Provider attribution:** official TMDB/TheTVDB marks are bundled in `web/src/assets/attribution/`
+  with source hashes (#64); TheTVDB distribution/access approval remains an owner decision (#80).
+- **Open owner items:** translations beyond English and a language picker (#122, Codex
   has done the extraction); real-device playback and casting checks (#135, #192); the optimized
   copies storage budget (#193, deferred). Decisions waiting for the owner are on #80.
 - **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)

@@ -554,8 +554,10 @@ for (const shows of [false, true]) {
     const item = (await (await page.request.get(`/api/items?library_id=${lib.id}&kind=${shows ? 'series' : 'movie'}`)).json()).items[0];
     await page.goto(`/${shows ? 'series' : 'movie'}/${item.id}`);
     const tmdb = page.getByRole('link', { name: 'TMDB', exact: true });
-    await expect(tmdb).toHaveAttribute('href', `https://www.themoviedb.org/${shows ? 'tv' : 'movie'}/${item.tmdb_id}`);
+    await expect(tmdb).toHaveAttribute('href', 'https://www.themoviedb.org');
     await expect(tmdb).toHaveAttribute('target', '_blank');
+    await expect(tmdb.getByRole('img', { name: 'TMDB', exact: true })).toBeVisible();
+    await expect.poll(() => tmdb.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     // The fixture library (no TheTVDB key) takes show details and episodes from TMDB, so one line says both.
     await expect(page.getByText(shows ? 'Details and episodes from' : 'Details from', { exact: false })).toBeVisible();
     await page.screenshot({ path: info.outputPath('credit.png'), fullPage: true });
@@ -569,7 +571,38 @@ test('attribution: About credits TMDB with its required notice and TheTVDB', asy
   await expect(about.getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.', { exact: false })).toBeVisible();
   await expect(about.getByText('Metadata provided by', { exact: false })).toBeVisible();
   await expect(about.getByText(/^Arc Media Server \S+/)).toBeVisible();
-  await about.screenshot({ path: info.outputPath('about.png') });
+  for (const { theme, system, name: mode } of [
+    { theme: 'light', system: 'dark', name: 'profile-light' },
+    { theme: 'dark', system: 'light', name: 'profile-dark' },
+    { theme: '', system: 'light', name: 'system-light' },
+    { theme: '', system: 'dark', name: 'system-dark' },
+  ] as const) {
+    // Explicit profile choice beats the opposite system preference; Automatic follows it.
+    await page.emulateMedia({ colorScheme: system });
+    expect((await page.request.patch('/api/me/prefs', { data: { theme } })).ok()).toBeTruthy();
+    await page.reload();
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const name of ['TMDB', 'TheTVDB']) {
+        const img = about.getByRole('img', { name, exact: true });
+        await expect(img).toHaveCount(1); // CSS-hidden variants must not duplicate the accessible mark.
+        await expect(img).toBeVisible();
+        await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+        await expect(img.locator('..')).toHaveAttribute('href', name === 'TMDB' ? 'https://www.themoviedb.org' : 'https://thetvdb.com');
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await about.screenshot({ path: info.outputPath(`about-${mode}-${width}.png`) });
+    }
+  }
+
+  // Credits are visible to viewers as well as server administrators, without external requests.
+  const created = await page.request.post('/api/profiles', { data: { name: 'Credits viewer', color: 'blue' } });
+  expect(created.ok()).toBeTruthy();
+  const viewer = await created.json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBeTruthy();
+  await page.goto('/settings');
+  await expect(about.getByRole('img', { name: 'TMDB', exact: true })).toBeVisible();
+  await expect(about.getByRole('img', { name: 'TheTVDB', exact: true })).toBeVisible();
 });
 
 test('age ratings: each library uses its own country, chosen in Advanced', async ({ page, media }) => {
