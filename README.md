@@ -195,6 +195,10 @@ Other FFmpeg versions are not established by the container's checks.
 
 ### Development
 
+Start with the [package layout and build instructions](CLAUDE.md#layout). `cmd/ams` owns process lifetime,
+`api` owns request policy, `store` owns catalog reservations and writes, and managers own background work
+after the response. Reserve the catalog before capturing mutable item/file identities.
+
 - `cd web && npm run dev` serves the web app with hot reload, forwarding API calls to a running
   server.
 - `go vet ./... && go test ./...` for the server. `cd web && npm run test:e2e` runs the browser
