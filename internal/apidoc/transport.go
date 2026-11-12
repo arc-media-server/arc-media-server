@@ -56,6 +56,23 @@ func supplementOperation(r route, op map[string]any, components map[string]any) 
 			components["InputCreateProfile"] = create
 			op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"] = map[string]any{"$ref": "#/components/schemas/InputCreateProfile"}
 		}
+	case "createDownload":
+		schema := op["requestBody"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+		props := schema["properties"].(map[string]any)
+		props["mode"].(map[string]any)["enum"] = []string{"original"}
+		props["file_id"].(map[string]any)["minimum"] = 1
+		props["item_id"].(map[string]any)["minLength"] = 1
+		props["item_id"].(map[string]any)["maxLength"] = 200
+		props["idempotency_key"].(map[string]any)["minLength"] = 1
+		props["idempotency_key"].(map[string]any)["maxLength"] = 80
+		schema["additionalProperties"] = false
+		op["x-arc-max-body-bytes"] = 4096
+	case "listDownloads":
+		op["parameters"] = []any{
+			map[string]any{"name": "limit", "in": "query", "required": false, "schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 100, "default": 50}},
+			map[string]any{"name": "offset", "in": "query", "required": false, "schema": map[string]any{"type": "integer", "minimum": 0, "maximum": 10000, "default": 0}},
+		}
+
 	case "eventStream":
 		parameter("Last-Event-ID", "Last received opaque SSE cursor (at most 80 characters). Retained process-local hints replay; invalid, stale or restart cursors require resync.")
 		params := op["parameters"].([]any)
