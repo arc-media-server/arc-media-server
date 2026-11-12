@@ -74,7 +74,10 @@ func decodeWatch(w http.ResponseWriter, r *http.Request, v any) error {
 	return nil
 }
 func (s *Server) watchActor(r *http.Request) (watchtogether.Actor, *store.User, error) {
-	se := s.session(r)
+	se, err := s.session(r)
+	if err != nil {
+		return watchtogether.Actor{}, nil, err
+	}
 	if se == nil || se.UserID == "" || se.UserID != currentUserID(r) {
 		return watchtogether.Actor{}, nil, errWatchAuth
 	}

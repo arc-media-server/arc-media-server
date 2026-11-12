@@ -11,11 +11,11 @@ import (
 )
 
 const fileCols = `id, library_id, path, size, mtime, container, duration_ms, bitrate, probe_error,
-	probed_at IS NOT NULL, missing_since IS NOT NULL`
+	probed_at IS NOT NULL, missing_since IS NOT NULL, cache_key`
 
 func scanFile(row interface{ Scan(...any) error }, f *MediaFile) error {
 	return row.Scan(&f.ID, &f.LibraryID, &f.Path, &f.Size, &f.ModTime, &f.Container, &f.DurationMS,
-		&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing)
+		&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.CacheKey)
 }
 
 // GetFileByPath returns nil when the path has never been scanned.
@@ -54,21 +54,22 @@ func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	if analysis {
 		err = tx.QueryRowContext(ctx, `UPDATE media_files SET container=?,duration_ms=?,bitrate=?,
       probed_at=COALESCE(probed_at,?),probe_error=?,format_probe_version=? WHERE id=? AND path=? AND size=? AND mtime=?
-      AND missing_since IS NULL RETURNING id`, f.Container, f.DurationMS, f.Bitrate, probed, f.ProbeError,
-			f.FormatProbeVersion, f.ID, f.Path, f.Size, f.ModTime).Scan(&id)
+      AND missing_since IS NULL RETURNING id,cache_key`, f.Container, f.DurationMS, f.Bitrate, probed, f.ProbeError,
+			f.FormatProbeVersion, f.ID, f.Path, f.Size, f.ModTime).Scan(&id, &f.CacheKey)
 	} else {
 		err = tx.QueryRowContext(ctx, `
 		INSERT INTO media_files (library_id, path, size, mtime, container, duration_ms, bitrate,
-			probed_at, probe_error, last_seen_at, missing_since, format_probe_version)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+			probed_at, probe_error, last_seen_at, missing_since, format_probe_version, cache_key)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
 		ON CONFLICT (path) DO UPDATE SET
+ cache_key=CASE WHEN media_files.cache_key='' OR media_files.size<>excluded.size OR media_files.mtime<>excluded.mtime THEN excluded.cache_key ELSE media_files.cache_key END,
 			library_id = excluded.library_id, size = excluded.size, mtime = excluded.mtime,
 			container = excluded.container, duration_ms = excluded.duration_ms, bitrate = excluded.bitrate,
 			probed_at = excluded.probed_at, probe_error = excluded.probe_error,
 			last_seen_at = excluded.last_seen_at, missing_since = NULL, format_probe_version = excluded.format_probe_version
-		RETURNING id`,
+		RETURNING id,cache_key`,
 			f.LibraryID, f.Path, f.Size, f.ModTime, f.Container, f.DurationMS, f.Bitrate,
-			probed, f.ProbeError, seenAt, f.FormatProbeVersion).Scan(&id)
+			probed, f.ProbeError, seenAt, f.FormatProbeVersion, NewID()).Scan(&id, &f.CacheKey)
 	}
 	if err != nil {
 		return 0, err
@@ -98,11 +99,11 @@ func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	for _, st := range f.Streams {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO media_streams (file_id, idx, kind, codec, profile, language, title, width, height,
-				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				channels, is_default, is_forced, pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio, dv_bl_signal_compatibility_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, st.Index, st.Kind, st.Codec, st.Profile, st.Language, st.Title, st.Width, st.Height,
 			st.Channels, boolInt(st.IsDefault), boolInt(st.IsForced), st.PixFmt, st.BitDepth, st.ColorTransfer,
-			st.ColorPrimaries, st.FrameRate, st.Bitrate, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus, st.AspectRatio); err != nil {
+			st.ColorPrimaries, st.FrameRate, st.Bitrate, st.ChannelLayout, boolInt(st.DolbyVision), st.DolbyVisionProfile, boolInt(st.HDR10Plus), st.HDRProbeStatus, st.AspectRatio, st.DVBLCompatibilityID); err != nil {
 			return 0, err
 		}
 	}
@@ -329,7 +330,7 @@ func (s *Store) ItemFiles(ctx context.Context, itemID string) ([]MediaFile, erro
 	for rows.Next() {
 		var f MediaFile
 		if err := rows.Scan(&f.ID, &f.LibraryID, &f.Path, &f.Size, &f.ModTime, &f.Container, &f.DurationMS,
-			&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.Part); err != nil {
+			&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.CacheKey, &f.Part); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -373,7 +374,7 @@ func (s *Store) SeriesFilePaths(ctx context.Context, seriesID string, limit int)
 func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT idx, kind, codec, profile, language, title, width, height, channels, is_default, is_forced,
-			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio
+			pix_fmt, bit_depth, color_transfer, color_primaries, frame_rate, bitrate, channel_layout, dolby_vision, dolby_vision_profile, hdr10_plus, hdr_probe_status, aspect_ratio, dv_bl_signal_compatibility_id
 		FROM media_streams WHERE file_id = ? ORDER BY idx`, fileID)
 	if err != nil {
 		return nil, err
@@ -384,7 +385,7 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 		var st Stream
 		if err := rows.Scan(&st.Index, &st.Kind, &st.Codec, &st.Profile, &st.Language, &st.Title,
 			&st.Width, &st.Height, &st.Channels, &st.IsDefault, &st.IsForced, &st.PixFmt, &st.BitDepth,
-			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate, &st.ChannelLayout, &st.DolbyVision, &st.DolbyVisionProfile, &st.HDR10Plus, &st.HDRProbeStatus, &st.AspectRatio); err != nil {
+			&st.ColorTransfer, &st.ColorPrimaries, &st.FrameRate, &st.Bitrate, &st.ChannelLayout, &st.DolbyVision, &st.DolbyVisionProfile, &st.HDR10Plus, &st.HDRProbeStatus, &st.AspectRatio, &st.DVBLCompatibilityID); err != nil {
 			return nil, err
 		}
 		streams = append(streams, st)
@@ -394,6 +395,7 @@ func (s *Store) fileStreams(ctx context.Context, fileID int64) ([]Stream, error)
 
 // VideoFile is a present, readable movie or episode file and its picture size.
 type VideoFile struct {
+	CacheKey      string
 	ProbedAt      int64
 	ID            int64
 	Path          string
@@ -410,7 +412,7 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 		SELECT m.id, m.path, m.duration_ms,
 			COALESCE((SELECT width FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
 			COALESCE((SELECT height FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), 0),
-			COALESCE((SELECT color_transfer FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), ''), COALESCE(m.probed_at,0)
+			COALESCE((SELECT color_transfer FROM media_streams st WHERE st.file_id = m.id AND st.kind = 'video' ORDER BY idx LIMIT 1), ''), COALESCE(m.probed_at,0), m.cache_key
 		FROM media_files m
 		JOIN item_files f ON f.file_id = m.id JOIN items i ON i.id = f.item_id
 		JOIN libraries l ON l.id = i.library_id AND l.trickplay = 1
@@ -425,7 +427,7 @@ func (s *Store) VideoFiles(ctx context.Context) ([]VideoFile, error) {
 	var out []VideoFile
 	for rows.Next() {
 		var v VideoFile
-		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height, &v.ColorTransfer, &v.ProbedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Path, &v.DurationMS, &v.Width, &v.Height, &v.ColorTransfer, &v.ProbedAt, &v.CacheKey); err != nil {
 			return nil, err
 		}
 		out = append(out, v)
@@ -449,7 +451,7 @@ func (s *Store) LibraryItemFiles(ctx context.Context, libraryID int64) (map[stri
 		var itemID string
 		var f MediaFile
 		if err := rows.Scan(&itemID, &f.ID, &f.LibraryID, &f.Path, &f.Size, &f.ModTime, &f.Container, &f.DurationMS,
-			&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.Part); err != nil {
+			&f.Bitrate, &f.ProbeError, &f.Probed, &f.Missing, &f.CacheKey, &f.Part); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -475,17 +477,18 @@ func (s *Store) LibraryItemFiles(ctx context.Context, libraryID int64) (map[stri
 
 // UnprobedFile is a present file not yet read with ffprobe.
 type UnprobedFile struct {
-	ID       int64
-	Path     string
-	Size     int64
-	ModTime  int64
-	LastSeen int64
+	ID         int64
+	Path       string
+	Size       int64
+	ModTime    int64
+	LastSeen   int64
+	ProbeError string
 }
 
 // UnprobedFiles lists a library's present files that haven't been read yet, in path order.
 func (s *Store) UnprobedFiles(ctx context.Context, libraryID int64) ([]UnprobedFile, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, path, size, mtime, last_seen_at FROM media_files
+		SELECT id, path, size, mtime, last_seen_at, probe_error FROM media_files
 		WHERE library_id = ? AND probed_at IS NULL AND missing_since IS NULL ORDER BY path`, libraryID)
 	if err != nil {
 		return nil, err
@@ -494,10 +497,20 @@ func (s *Store) UnprobedFiles(ctx context.Context, libraryID int64) ([]UnprobedF
 	var out []UnprobedFile
 	for rows.Next() {
 		var f UnprobedFile
-		if err := rows.Scan(&f.ID, &f.Path, &f.Size, &f.ModTime, &f.LastSeen); err != nil {
+		if err := rows.Scan(&f.ID, &f.Path, &f.Size, &f.ModTime, &f.LastSeen, &f.ProbeError); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// FileCacheKey is a lightweight source-revision lookup; deleted files have no usable key.
+func (s *Store) FileCacheKey(ctx context.Context, id int64) (string, error) {
+	var key string
+	err := s.db.QueryRowContext(ctx, `SELECT cache_key FROM media_files WHERE id=?`, id).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return key, err
 }

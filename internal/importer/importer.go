@@ -39,6 +39,13 @@ type Source interface {
 	Entries(ctx context.Context, account Account, progress func(string)) ([]Entry, error)
 }
 
+// SourceError lets the job boundary distinguish source reads from database writes
+// without logging an upstream error that may include a credential-bearing URL.
+type SourceError struct{ Cause error }
+
+func (e *SourceError) Error() string { return e.Cause.Error() }
+func (e *SourceError) Unwrap() error { return e.Cause }
+
 // AccountResult says how importing one account went.
 type AccountResult struct {
 	Account string `json:"account"`
@@ -78,7 +85,7 @@ func Run(ctx context.Context, st *store.Store, src Source, accounts []Account, m
 		task.Detail("Reading " + label)
 		entries, err := src.Entries(ctx, a, func(s string) { task.Detail(label + ": " + s) })
 		if err != nil {
-			return out, lists, fmt.Errorf("%s: %w", a.Name, err)
+			return out, lists, fmt.Errorf("%s: %w", a.Name, &SourceError{Cause: err})
 		}
 		task.Detail("Matching " + label)
 		for j, e := range entries {

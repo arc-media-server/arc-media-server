@@ -49,23 +49,32 @@ type libraryBody struct {
 // (its own folders don't conflict with themselves).
 func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) error {
 	b.Name = strings.TrimSpace(b.Name)
+	if b.CollectionMin != nil && (*b.CollectionMin < 0 || *b.CollectionMin > 10) {
+		return errMsg("collection_min is 0 (off) to 10")
+	}
+	if !languageRe.MatchString(b.MetadataLanguage) {
+		return errMsg(`metadata_language is a language like "fr-FR" or "ja", or "" for English`)
+	}
+	if !slices.Contains([]string{"", "collection", "both"}, b.CollectionGrid) {
+		return errMsg(`collection_grid is "", "collection" or "both"`)
+	}
 	if b.RatingRegion != "" && !regionRe.MatchString(b.RatingRegion) {
-		return fmt.Errorf("rating_region is a two-letter country code such as GB")
+		return errMsg("rating_region is a two-letter country code such as GB")
 	}
 	if b.DetailsProvider != "" && (b.DetailsProvider != "tvdb" || b.Kind != "shows") {
-		return errors.New("TVDB metadata provider is only available for TV libraries")
+		return errMsg("TVDB metadata provider is only available for TV libraries")
 	}
 	if b.Kind != "movies" && b.Kind != "shows" && b.Kind != "videos" {
-		return errors.New("kind must be movies, shows or videos")
+		return errMsg("kind must be movies, shows or videos")
 	}
 	if b.SourceOrdering == "" {
 		b.SourceOrdering = "tmdb_aired" // TMDB by default, as Plex does
 	}
 	if !config.ValidSourceOrdering(b.SourceOrdering) {
-		return fmt.Errorf("unknown source_ordering %q", b.SourceOrdering)
+		return errMsg(fmt.Sprintf("unknown source_ordering %q", b.SourceOrdering))
 	}
 	if len(b.Paths) == 0 {
-		return errors.New("add at least one folder")
+		return errMsg("add at least one folder")
 	}
 	seen := map[string]bool{}
 	var paths []string
@@ -76,24 +85,24 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		}
 		abs, err := filepath.Abs(p)
 		if err != nil {
-			return err
+			return errMsg("choose an absolute, readable folder")
 		}
 		info, err := os.Stat(abs)
 		if err != nil {
-			return fmt.Errorf("can't open %s", abs)
+			return errMsg(fmt.Sprintf("can't open %s", abs))
 		}
 		if !info.IsDir() {
-			return fmt.Errorf("%s isn't a folder", abs)
+			return errMsg(fmt.Sprintf("%s isn't a folder", abs))
 		}
 		// Check directory access without walking the media or doing metadata work.
 		folder, err := os.Open(abs)
 		if err != nil {
-			return fmt.Errorf("can't read %s", abs)
+			return errMsg(fmt.Sprintf("can't read %s", abs))
 		}
 		_, readErr := folder.Readdirnames(1)
 		folder.Close()
 		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return fmt.Errorf("can't read %s", abs)
+			return errMsg(fmt.Sprintf("can't read %s", abs))
 		}
 		if key := strings.ToLower(abs); !seen[key] {
 			seen[key] = true
@@ -101,12 +110,12 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		}
 	}
 	if len(paths) == 0 {
-		return errors.New("add at least one folder")
+		return errMsg("add at least one folder")
 	}
 	for i, a := range paths {
 		for _, c := range paths[i+1:] {
 			if within(a, c) || within(c, a) {
-				return fmt.Errorf("%s and %s overlap; choose just one of them", a, c)
+				return errMsg(fmt.Sprintf("%s and %s overlap; choose just one of them", a, c))
 			}
 		}
 	}
@@ -121,7 +130,7 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 		for _, lp := range l.Paths {
 			for _, p := range paths {
 				if within(p, lp) || within(lp, p) {
-					return fmt.Errorf("%s is already part of the %q library", p, l.Name)
+					return errMsg(fmt.Sprintf("%s is already part of the %q library", p, l.Name))
 				}
 			}
 		}
@@ -145,80 +154,51 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.validate(r.Context(), &b, 0); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	if b.Name == "" {
 		writeError(w, http.StatusBadRequest, "give the library a name")
 		return
 	}
-	id, err := s.store.CreateLibrary(r.Context(), b.Name, b.Kind, b.SourceOrdering, b.Paths)
+	// Compute every option before the one store transaction; no worker sees a partial library.
+	lib := store.Library{Name: b.Name, Kind: b.Kind, SourceOrdering: b.SourceOrdering, Paths: b.Paths, DetailsProvider: b.DetailsProvider, Trickplay: b.Trickplay, CollectionMin: 2, MetadataLanguage: b.MetadataLanguage, RatingRegion: b.RatingRegion, SkipIntros: b.Kind == "shows", SkipCredits: b.Kind != "videos", CollectionGrid: b.CollectionGrid}
+	if b.CollectionMin != nil {
+		lib.CollectionMin = *b.CollectionMin
+	}
+	if lib.RatingRegion == "" {
+		lib.RatingRegion = s.settings().Region
+	}
+	if b.SkipIntros != nil {
+		lib.SkipIntros = *b.SkipIntros && b.Kind == "shows"
+	}
+	if b.SkipCredits != nil {
+		lib.SkipCredits = *b.SkipCredits && b.Kind != "videos"
+	}
+	id, err := s.store.CreateConfiguredLibrary(r.Context(), lib)
 	if errors.Is(err, store.ErrDuplicateName) {
 		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	if errors.Is(err, store.ErrLibraryPathConflict) {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if err := s.store.SetLibraryDetailsProvider(r.Context(), id, b.DetailsProvider); err != nil {
-		s.fail(w, err)
-		return
-	}
-	s.log.Info("library added", "library", b.Name, "paths", b.Paths)
-	if b.Trickplay {
-		if err := s.setTrickplay(r.Context(), id, true); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if b.CollectionMin != nil && *b.CollectionMin >= 0 && *b.CollectionMin <= 10 {
-		if err := s.store.SetLibraryCollectionMin(r.Context(), id, *b.CollectionMin); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if b.MetadataLanguage != "" && languageRe.MatchString(b.MetadataLanguage) {
-		if err := s.store.SetLibraryLanguage(r.Context(), id, b.MetadataLanguage); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	region := b.RatingRegion
-	if region == "" {
-		region = s.settings().Region
-	}
-	if err := s.store.SetLibraryRatingRegion(r.Context(), id, region); err != nil {
-		s.fail(w, err)
-		return
-	}
-	// Plex's defaults: intros and credits for TV, credits for movies, neither for other videos.
-	intros, credits := b.Kind == "shows", b.Kind != "videos"
-	if b.SkipIntros != nil {
-		intros = *b.SkipIntros && b.Kind == "shows"
-	}
-	if b.SkipCredits != nil {
-		credits = *b.SkipCredits && b.Kind != "videos"
-	}
-	if err := s.store.SetLibrarySkips(r.Context(), id, intros, credits); err != nil {
-		s.fail(w, err)
-		return
-	}
-	if b.CollectionGrid == "collection" || b.CollectionGrid == "both" {
-		if err := s.store.SetLibraryCollectionGrid(r.Context(), id, b.CollectionGrid); err != nil {
-			s.fail(w, err)
-			return
-		}
+	lib.ID = id
+	s.log.Info("library added", "library", id, "kind", lib.Kind, "folders", len(lib.Paths))
+	if lib.Trickplay && s.trickplay != nil {
+		s.trickplay.Wake()
 	}
 	if s.librariesChanged != nil {
 		s.librariesChanged()
 	}
 	s.scanner.Start(id)
-	lib, err := s.store.GetLibrary(r.Context(), id)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
+	// Match GetLibrary's stable folder ordering without another post-commit DB read.
+	sort.Strings(lib.Paths)
 	writeJSON(w, http.StatusCreated, lib)
 }
 
@@ -270,165 +250,148 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if patch.DetailsProvider != nil {
-		if *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
-			writeError(w, 400, "TVDB metadata provider is only available for TV libraries")
-			return
-		}
-
+	// Validate all independent fields before admission or any persistent/cache mutation.
+	invalid := func(message string) { writeError(w, http.StatusBadRequest, message) }
+	if patch.DetailsProvider != nil && *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
+		invalid("TVDB metadata provider is only available for TV libraries")
+		return
 	}
-	if patch.Trickplay != nil && *patch.Trickplay != lib.Trickplay {
-		if err := s.setTrickplay(r.Context(), lib.ID, *patch.Trickplay); err != nil {
-			s.fail(w, err)
-			return
-		}
+	if patch.CollectionGrid != nil && *patch.CollectionGrid != "" && *patch.CollectionGrid != "collection" && *patch.CollectionGrid != "both" {
+		invalid(`collection_grid is "" (titles), "collection" or "both"`)
+		return
 	}
-	if patch.CollectionGrid != nil {
-		if *patch.CollectionGrid != "" && *patch.CollectionGrid != "collection" && *patch.CollectionGrid != "both" {
-			writeError(w, http.StatusBadRequest, `collection_grid is "" (titles), "collection" or "both"`)
-			return
-		}
-		if err := s.store.SetLibraryCollectionGrid(r.Context(), lib.ID, *patch.CollectionGrid); err != nil {
-			s.fail(w, err)
-			return
-		}
+	if patch.CollectionMin != nil && (*patch.CollectionMin < 0 || *patch.CollectionMin > 10) {
+		invalid("collection_min is 0 (off) to 10")
+		return
 	}
-	if patch.SkipIntros != nil || patch.SkipCredits != nil {
-		intros, credits := lib.SkipIntros, lib.SkipCredits
+	if patch.Language != nil && !languageRe.MatchString(*patch.Language) {
+		invalid(`metadata_language is a language like "fr-FR" or "ja", or "" for English`)
+		return
+	}
+	if patch.RatingRegion != nil && !regionRe.MatchString(*patch.RatingRegion) {
+		invalid("rating_region is a two-letter country code such as GB")
+		return
+	}
+	core := patch.Name != nil || patch.SourceOrdering != nil || patch.Paths != nil
+	var before, after *store.Library
+	var forget []int64
+	err := s.scanner.WithLibraryChange(r.Context(), lib.ID, func(ctx context.Context) error {
+		var err error
+		before, err = s.store.GetLibrary(ctx, lib.ID)
+		if err != nil {
+			return err
+		}
+		if before == nil {
+			return store.ErrLibraryNotFound
+		}
+		next := *before
+		if patch.Name != nil {
+			next.Name = *patch.Name
+		}
+		if patch.SourceOrdering != nil {
+			next.SourceOrdering = *patch.SourceOrdering
+		}
+		if patch.Paths != nil {
+			next.Paths = patch.Paths
+		}
+		if patch.DetailsProvider != nil {
+			next.DetailsProvider = *patch.DetailsProvider
+		}
+		if core {
+			b = libraryBody{Name: next.Name, Kind: next.Kind, SourceOrdering: next.SourceOrdering, Paths: next.Paths, DetailsProvider: next.DetailsProvider}
+			if err := s.validate(ctx, &b, lib.ID); err != nil {
+				return err
+			}
+			if b.Name == "" {
+				return errMsg("give the library a name")
+			}
+			next.Name, next.SourceOrdering, next.Paths = b.Name, b.SourceOrdering, b.Paths
+		}
+		if patch.Trickplay != nil {
+			next.Trickplay = *patch.Trickplay
+		}
+		if patch.CollectionMin != nil {
+			next.CollectionMin = *patch.CollectionMin
+		}
+		if patch.Language != nil {
+			next.MetadataLanguage = *patch.Language
+		}
+		if patch.RatingRegion != nil {
+			next.RatingRegion = *patch.RatingRegion
+		}
 		if patch.SkipIntros != nil {
-			intros = *patch.SkipIntros && lib.Kind == "shows"
+			next.SkipIntros = *patch.SkipIntros && next.Kind == "shows"
 		}
 		if patch.SkipCredits != nil {
-			credits = *patch.SkipCredits && lib.Kind != "videos"
+			next.SkipCredits = *patch.SkipCredits && next.Kind != "videos"
 		}
-		if err := s.store.SetLibrarySkips(r.Context(), lib.ID, intros, credits); err != nil {
-			s.fail(w, err)
-			return
+		if patch.CollectionGrid != nil {
+			next.CollectionGrid = *patch.CollectionGrid
 		}
-		if s.markers != nil && (intros && !lib.SkipIntros || credits && !lib.SkipCredits) {
-			s.markers.Wake() // look for the newly wanted ones
-		}
-	}
-	if patch.CollectionMin != nil {
-		if *patch.CollectionMin < 0 || *patch.CollectionMin > 10 {
-			writeError(w, http.StatusBadRequest, "collection_min is 0 (off) to 10")
-			return
-		}
-		if err := s.store.SetLibraryCollectionMin(r.Context(), lib.ID, *patch.CollectionMin); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if patch.Language != nil && *patch.Language != lib.MetadataLanguage {
-		if !languageRe.MatchString(*patch.Language) {
-			writeError(w, http.StatusBadRequest, `metadata_language is a language like "fr-FR" or "ja", or "" for English`)
-			return
-		}
-		if err := s.store.SetLibraryLanguage(r.Context(), lib.ID, *patch.Language); err != nil {
-			s.fail(w, err)
-			return
-		}
-		// Fetch everything again in the new language.
-		s.scanner.Request(lib.ID)
-	}
-	// A new age-rating country refetches the library's titles (after the rest of the save, which
-	// refuses a busy library); if it is busy anyway, the maintenance refresh picks them up.
-	regionChanged := patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion && lib.Kind != "videos"
-	if patch.RatingRegion != nil && *patch.RatingRegion != lib.RatingRegion {
-		if !regionRe.MatchString(*patch.RatingRegion) {
-			writeError(w, http.StatusBadRequest, "rating_region is a two-letter country code such as GB")
-			return
-		}
-		if err := s.store.SetLibraryRatingRegion(r.Context(), lib.ID, *patch.RatingRegion); err != nil {
-			s.fail(w, err)
-			return
-		}
-	}
-	if patch.Name == nil && patch.SourceOrdering == nil && patch.Paths == nil {
-		if patch.DetailsProvider != nil {
-			if s.scanner.Status(lib.ID).Running {
-				writeError(w, 409, "the library is busy; retry when its current work finishes")
-				return
-			}
-			if err := s.store.SetLibraryDetailsProvider(r.Context(), lib.ID, *patch.DetailsProvider); err != nil {
-				s.fail(w, err)
-				return
+		if s.trickplay != nil && before.Trickplay && !next.Trickplay {
+			forget, err = s.store.LibraryFileIDs(ctx, lib.ID)
+			if err != nil {
+				return err
 			}
 		}
-		// Provider-only changes refresh known metadata, never discover media.
-		if patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
-			s.scanner.StartOperation(lib.ID, "refresh")
+		if err := s.store.SaveLibrarySettings(ctx, *before, next, core); err != nil {
+			return err
 		}
-		// Nothing that needs a rescan.
-		updated, err := s.store.GetLibrary(r.Context(), lib.ID)
-		if err != nil {
-			s.fail(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, updated)
-		return
-	}
-	if patch.Name != nil {
-		b.Name = *patch.Name
-	}
-	if patch.SourceOrdering != nil {
-		b.SourceOrdering = *patch.SourceOrdering
-	}
-	if patch.Paths != nil {
-		b.Paths = patch.Paths
-	}
-	if err := s.validate(r.Context(), &b, lib.ID); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if b.Name == "" {
-		writeError(w, http.StatusBadRequest, "give the library a name")
-		return
-	}
-	if s.scanner.Status(lib.ID).Running {
-		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
-		return
-	}
-	var providers []string
-	if patch.DetailsProvider != nil {
-		providers = []string{*patch.DetailsProvider}
-	}
-	err := s.store.UpdateLibrary(r.Context(), lib.ID, b.Name, b.SourceOrdering, b.Paths, providers...)
-	if errors.Is(err, store.ErrDuplicateName) {
-		writeError(w, http.StatusConflict, err.Error())
-		return
-	}
+		after = &next
+		return nil
+	})
 	if err != nil {
-		s.fail(w, err)
+		switch {
+		case errors.Is(err, scanner.ErrLibraryBusy):
+			writeError(w, 409, "the library is busy; retry when its current work finishes")
+		case errors.Is(err, store.ErrDuplicateName):
+			writeError(w, 409, err.Error())
+		case errors.Is(err, store.ErrLibraryNotFound):
+			writeError(w, 404, "library not found")
+		default:
+			s.inputError(w, r, err)
+		}
 		return
 	}
-	if s.librariesChanged != nil {
+	// Cache and worker side effects happen only after the whole save commits.
+	if s.trickplay != nil && before.Trickplay != after.Trickplay {
+		if after.Trickplay {
+			s.trickplay.Wake()
+		} else {
+			for _, id := range forget {
+				s.trickplay.Forget(id)
+			}
+		}
+	}
+	if s.markers != nil && (after.SkipIntros && !before.SkipIntros || after.SkipCredits && !before.SkipCredits) {
+		s.markers.Wake()
+	}
+	if core && s.librariesChanged != nil {
 		s.librariesChanged()
 	}
-	if !slices.Equal(lib.Paths, b.Paths) {
-		s.scanner.Request(lib.ID)
-	} else if b.SourceOrdering != lib.SourceOrdering || patch.DetailsProvider != nil && *patch.DetailsProvider != lib.DetailsProvider || regionChanged {
-		s.scanner.StartOperation(lib.ID, "refresh")
+	if s.scanner != nil {
+		if !slices.Equal(before.Paths, after.Paths) || before.MetadataLanguage != after.MetadataLanguage {
+			s.scanner.Request(lib.ID)
+		} else if before.SourceOrdering != after.SourceOrdering || before.DetailsProvider != after.DetailsProvider || before.RatingRegion != after.RatingRegion && after.Kind != "videos" {
+			s.scanner.StartOperation(lib.ID, "refresh")
+		}
 	}
-	updated, err := s.store.GetLibrary(r.Context(), lib.ID)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, updated)
+	writeJSON(w, http.StatusOK, after)
 }
 
 // deleteLibrary: DELETE /api/libraries/{id} removes a library and everything AMS knows about it,
 // after backing up the database. Media files aren't touched.
 func (s *Server) deleteLibrary(w http.ResponseWriter, r *http.Request) {
+	release, ok := s.beginCatalogMutation(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
 		return
 	}
-	if s.scanner.Status(lib.ID).Running {
-		writeError(w, http.StatusConflict, "the library is being scanned; try again when it finishes")
-		return
-	}
+
 	if _, err := s.backups.Create(r.Context(), backup.ReasonBeforeDelete); err != nil {
 		s.log.Warn("backup before deleting library failed", "err", err)
 		writeError(w, http.StatusInternalServerError, "couldn't back up first, so nothing was removed: "+err.Error())
@@ -465,11 +428,11 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	var except int64
 	fmt.Sscan(r.URL.Query().Get("library"), &except)
 	if err := s.validate(r.Context(), &b, except); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(s.backgroundContext(), 30*time.Minute)
 	region := b.RatingRegion
 	if region == "" {
 		region = s.settings().Region
@@ -485,10 +448,14 @@ func (s *Server) startPreview(w http.ResponseWriter, r *http.Request) {
 	id := p.id
 	p.mu.Unlock()
 
-	go func() {
+	if !s.launchWork(func(context.Context) {
 		defer cancel()
 		s.scanner.Preview(ctx, b.Kind, b.SourceOrdering, b.Paths, ps)
-	}()
+	}) {
+		cancel()
+		writeError(w, http.StatusServiceUnavailable, "server is stopping")
+		return
+	}
 	writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "preview": ps.Snapshot()})
 }
 

@@ -542,6 +542,7 @@ export type PlaybackOptions = Pick<PlaybackPlan, 'file_id' | 'audio_stream' | 'a
 
 /** How the server will send a movie or episode to this player. */
 export interface PlaybackPlan {
+ rolling_hls?: boolean;
   /** Current server policy, independent of the player's requested cap; 0 is unlimited. */
   server_limit_kbps: number;
   /** A generated MP4; source track indices remain in audio_stream/audio_tracks for choices. */
@@ -1015,8 +1016,10 @@ export interface ServerSettings {
   https_cert: string;
   https_key: string;
   https_domain: string;
-  /** Networks that count as home besides private addresses, e.g. "100.64.0.0/10". */
+  /** Networks that count as home besides detected interface subnets, e.g. "100.64.0.0/10". */
   home_networks: string;
+  automatic_home_networks?: string[];
+  home_network_bridge?: boolean;
   /** Reverse proxies whose forwarding headers are believed (none by default). */
   trusted_proxies: string;
   /** Where converted streams are written ("" for Arc's data folder), and videos converted at once (0 for no limit). */
@@ -1239,7 +1242,7 @@ export const api = {
     request<PlaybackOptions>('POST', `/api/items/${itemId}/playback-options`, body),
   startPlayback: (
     itemId: string,
-    body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string; max_kbps?: number },
+    body: { caps: PlayerCaps; file_id?: number; audio_stream?: number; start_ms?: number; burn_subtitle?: string; edition?: string; max_kbps?: number; rolling_hls?: boolean },
   ) =>
     request<PlaybackPlan>('POST', `/api/items/${itemId}/playback`, body),
   trickplay: (itemId: string, fileId: number) =>

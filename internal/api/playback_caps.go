@@ -66,7 +66,7 @@ func (s *Server) writePlaybackPreview(w http.ResponseWriter, out playbackPlan, c
 	out.SessionID = ""
 	out.HLS = false
 	w.Header().Set("Cache-Control", "private, no-store")
-	writeJSON(w, 200, out)
+	writeJSON(w, 200, normalizePlaybackPlan(out))
 }
 
 // Converted output is fMP4 HLS; video encoding is 8-bit H.264, audio encoding AAC stereo.

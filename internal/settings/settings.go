@@ -68,7 +68,7 @@ type Settings struct {
 	UPnP         bool
 	// HTTPS on the same port: "" off, "files" (HTTPSCert and HTTPSKey) or "letsencrypt" (HTTPSDomain).
 	HTTPSMode, HTTPSCert, HTTPSKey, HTTPSDomain string
-	// Networks that count as home besides private addresses, e.g. "100.64.0.0/10" (comma-separated).
+	// Networks that count as home besides detected interface subnets, e.g. "100.64.0.0/10" (comma-separated).
 	HomeNetworks string
 	// Reverse proxies whose forwarding headers are believed (Plex's and Jellyfin's known proxies),
 	// e.g. "172.17.0.5" for SWAG; none by default.

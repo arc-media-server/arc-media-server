@@ -254,6 +254,7 @@ GET /collections/{id} 200 .items[].files[].streams[].color_primaries string
 GET /collections/{id} 200 .items[].files[].streams[].color_transfer string
 GET /collections/{id} 200 .items[].files[].streams[].dolby_vision boolean
 GET /collections/{id} 200 .items[].files[].streams[].dolby_vision_profile integer
+GET /collections/{id} 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /collections/{id} 200 .items[].files[].streams[].frame_rate number
 GET /collections/{id} 200 .items[].files[].streams[].hdr10_plus boolean
 GET /collections/{id} 200 .items[].files[].streams[].hdr_probe_status string
@@ -456,6 +457,7 @@ GET /home/continue 200 [].files[].streams[].color_primaries string
 GET /home/continue 200 [].files[].streams[].color_transfer string
 GET /home/continue 200 [].files[].streams[].dolby_vision boolean
 GET /home/continue 200 [].files[].streams[].dolby_vision_profile integer
+GET /home/continue 200 [].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /home/continue 200 [].files[].streams[].frame_rate number
 GET /home/continue 200 [].files[].streams[].hdr10_plus boolean
 GET /home/continue 200 [].files[].streams[].hdr_probe_status string
@@ -599,6 +601,7 @@ GET /home/next-up 200 [].files[].streams[].color_primaries string
 GET /home/next-up 200 [].files[].streams[].color_transfer string
 GET /home/next-up 200 [].files[].streams[].dolby_vision boolean
 GET /home/next-up 200 [].files[].streams[].dolby_vision_profile integer
+GET /home/next-up 200 [].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /home/next-up 200 [].files[].streams[].frame_rate number
 GET /home/next-up 200 [].files[].streams[].hdr10_plus boolean
 GET /home/next-up 200 [].files[].streams[].hdr_probe_status string
@@ -762,6 +765,7 @@ GET /items 200 .items[].files[].streams[].color_primaries string
 GET /items 200 .items[].files[].streams[].color_transfer string
 GET /items 200 .items[].files[].streams[].dolby_vision boolean
 GET /items 200 .items[].files[].streams[].dolby_vision_profile integer
+GET /items 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items 200 .items[].files[].streams[].frame_rate number
 GET /items 200 .items[].files[].streams[].hdr10_plus boolean
 GET /items 200 .items[].files[].streams[].hdr_probe_status string
@@ -882,6 +886,7 @@ GET /items/lookup 200 .items[].files[].streams[].color_primaries string
 GET /items/lookup 200 .items[].files[].streams[].color_transfer string
 GET /items/lookup 200 .items[].files[].streams[].dolby_vision boolean
 GET /items/lookup 200 .items[].files[].streams[].dolby_vision_profile integer
+GET /items/lookup 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items/lookup 200 .items[].files[].streams[].frame_rate number
 GET /items/lookup 200 .items[].files[].streams[].hdr10_plus boolean
 GET /items/lookup 200 .items[].files[].streams[].hdr_probe_status string
@@ -1000,6 +1005,7 @@ GET /items/{id} 200 .files[].streams[].color_primaries string
 GET /items/{id} 200 .files[].streams[].color_transfer string
 GET /items/{id} 200 .files[].streams[].dolby_vision boolean
 GET /items/{id} 200 .files[].streams[].dolby_vision_profile integer
+GET /items/{id} 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items/{id} 200 .files[].streams[].frame_rate number
 GET /items/{id} 200 .files[].streams[].hdr10_plus boolean
 GET /items/{id} 200 .files[].streams[].hdr_probe_status string
@@ -1179,6 +1185,7 @@ GET /items/{id}/match 200 .item.files[].streams[].color_primaries string
 GET /items/{id}/match 200 .item.files[].streams[].color_transfer string
 GET /items/{id}/match 200 .item.files[].streams[].dolby_vision boolean
 GET /items/{id}/match 200 .item.files[].streams[].dolby_vision_profile integer
+GET /items/{id}/match 200 .item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items/{id}/match 200 .item.files[].streams[].frame_rate number
 GET /items/{id}/match 200 .item.files[].streams[].hdr10_plus boolean
 GET /items/{id}/match 200 .item.files[].streams[].hdr_probe_status string
@@ -1339,6 +1346,7 @@ GET /items/{id}/next 200 .files[].streams[].color_primaries string
 GET /items/{id}/next 200 .files[].streams[].color_transfer string
 GET /items/{id}/next 200 .files[].streams[].dolby_vision boolean
 GET /items/{id}/next 200 .files[].streams[].dolby_vision_profile integer
+GET /items/{id}/next 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items/{id}/next 200 .files[].streams[].frame_rate number
 GET /items/{id}/next 200 .files[].streams[].hdr10_plus boolean
 GET /items/{id}/next 200 .files[].streams[].hdr_probe_status string
@@ -1458,6 +1466,7 @@ GET /items/{id}/similar 200 [].files[].streams[].color_primaries string
 GET /items/{id}/similar 200 [].files[].streams[].color_transfer string
 GET /items/{id}/similar 200 [].files[].streams[].dolby_vision boolean
 GET /items/{id}/similar 200 [].files[].streams[].dolby_vision_profile integer
+GET /items/{id}/similar 200 [].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /items/{id}/similar 200 [].files[].streams[].frame_rate number
 GET /items/{id}/similar 200 [].files[].streams[].hdr10_plus boolean
 GET /items/{id}/similar 200 [].files[].streams[].hdr_probe_status string
@@ -1788,6 +1797,7 @@ GET /libraries/{id}/folders 200 .items[].files[].streams[].color_primaries strin
 GET /libraries/{id}/folders 200 .items[].files[].streams[].color_transfer string
 GET /libraries/{id}/folders 200 .items[].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/folders 200 .items[].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/folders 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/folders 200 .items[].files[].streams[].frame_rate number
 GET /libraries/{id}/folders 200 .items[].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/folders 200 .items[].files[].streams[].hdr_probe_status string
@@ -1922,6 +1932,7 @@ GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].color_pri
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].color_transfer string
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].frame_rate number
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/health 200 .duplicates[].items[].files[].streams[].hdr_probe_status string
@@ -2060,6 +2071,7 @@ GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].colo
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].color_transfer string
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].dolby_vision boolean
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].frame_rate number
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/health 200 .missing_episodes[].series.files[].streams[].hdr_probe_status string
@@ -2184,6 +2196,7 @@ GET /libraries/{id}/health 200 .unidentified[].files[].streams[].color_primaries
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].color_transfer string
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/health 200 .unidentified[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].frame_rate number
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/health 200 .unidentified[].files[].streams[].hdr_probe_status string
@@ -2336,6 +2349,7 @@ GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].color_primaries s
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].color_transfer string
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].dolby_vision boolean
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].frame_rate number
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/recent-shows 200 [].item.files[].streams[].hdr_probe_status string
@@ -2458,6 +2472,7 @@ GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].color_prim
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].color_transfer string
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].frame_rate number
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/recommended 200 .rows[].items[].files[].streams[].hdr_probe_status string
@@ -2588,6 +2603,7 @@ GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].color_
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].color_transfer string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].frame_rate number
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].files[].streams[].hdr_probe_status string
@@ -2726,6 +2742,7 @@ GET /libraries/{id}/unmatched 200 [].files[].streams[].color_primaries string
 GET /libraries/{id}/unmatched 200 [].files[].streams[].color_transfer string
 GET /libraries/{id}/unmatched 200 [].files[].streams[].dolby_vision boolean
 GET /libraries/{id}/unmatched 200 [].files[].streams[].dolby_vision_profile integer
+GET /libraries/{id}/unmatched 200 [].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /libraries/{id}/unmatched 200 [].files[].streams[].frame_rate number
 GET /libraries/{id}/unmatched 200 [].files[].streams[].hdr10_plus boolean
 GET /libraries/{id}/unmatched 200 [].files[].streams[].hdr_probe_status string
@@ -3020,6 +3037,7 @@ GET /me/year 200 .items{}.files[].streams[].color_primaries string
 GET /me/year 200 .items{}.files[].streams[].color_transfer string
 GET /me/year 200 .items{}.files[].streams[].dolby_vision boolean
 GET /me/year 200 .items{}.files[].streams[].dolby_vision_profile integer
+GET /me/year 200 .items{}.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /me/year 200 .items{}.files[].streams[].frame_rate number
 GET /me/year 200 .items{}.files[].streams[].hdr10_plus boolean
 GET /me/year 200 .items{}.files[].streams[].hdr_probe_status string
@@ -3175,6 +3193,7 @@ GET /news 200 .entries[].item.files[].streams[].color_primaries string
 GET /news 200 .entries[].item.files[].streams[].color_transfer string
 GET /news 200 .entries[].item.files[].streams[].dolby_vision boolean
 GET /news 200 .entries[].item.files[].streams[].dolby_vision_profile integer
+GET /news 200 .entries[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /news 200 .entries[].item.files[].streams[].frame_rate number
 GET /news 200 .entries[].item.files[].streams[].hdr10_plus boolean
 GET /news 200 .entries[].item.files[].streams[].hdr_probe_status string
@@ -3314,6 +3333,7 @@ GET /people/{id} 200 .credits[].item.files[].streams[].color_primaries string
 GET /people/{id} 200 .credits[].item.files[].streams[].color_transfer string
 GET /people/{id} 200 .credits[].item.files[].streams[].dolby_vision boolean
 GET /people/{id} 200 .credits[].item.files[].streams[].dolby_vision_profile integer
+GET /people/{id} 200 .credits[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /people/{id} 200 .credits[].item.files[].streams[].frame_rate number
 GET /people/{id} 200 .credits[].item.files[].streams[].hdr10_plus boolean
 GET /people/{id} 200 .credits[].item.files[].streams[].hdr_probe_status string
@@ -3444,6 +3464,7 @@ GET /play-queues/{id} 200 .entries[].item.files[].streams[].color_primaries stri
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].color_transfer string
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].dolby_vision boolean
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].dolby_vision_profile integer
+GET /play-queues/{id} 200 .entries[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].frame_rate number
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].hdr10_plus boolean
 GET /play-queues/{id} 200 .entries[].item.files[].streams[].hdr_probe_status string
@@ -3569,6 +3590,7 @@ GET /playing 200 [].item.files[].streams[].color_primaries string
 GET /playing 200 [].item.files[].streams[].color_transfer string
 GET /playing 200 [].item.files[].streams[].dolby_vision boolean
 GET /playing 200 [].item.files[].streams[].dolby_vision_profile integer
+GET /playing 200 [].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /playing 200 [].item.files[].streams[].frame_rate number
 GET /playing 200 [].item.files[].streams[].hdr10_plus boolean
 GET /playing 200 [].item.files[].streams[].hdr_probe_status string
@@ -3748,6 +3770,7 @@ GET /playlists/{id} 200 .entries[].item.files[].streams[].color_primaries string
 GET /playlists/{id} 200 .entries[].item.files[].streams[].color_transfer string
 GET /playlists/{id} 200 .entries[].item.files[].streams[].dolby_vision boolean
 GET /playlists/{id} 200 .entries[].item.files[].streams[].dolby_vision_profile integer
+GET /playlists/{id} 200 .entries[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /playlists/{id} 200 .entries[].item.files[].streams[].frame_rate number
 GET /playlists/{id} 200 .entries[].item.files[].streams[].hdr10_plus boolean
 GET /playlists/{id} 200 .entries[].item.files[].streams[].hdr_probe_status string
@@ -4018,6 +4041,7 @@ GET /search 200 .episodes[].files[].streams[].color_primaries string
 GET /search 200 .episodes[].files[].streams[].color_transfer string
 GET /search 200 .episodes[].files[].streams[].dolby_vision boolean
 GET /search 200 .episodes[].files[].streams[].dolby_vision_profile integer
+GET /search 200 .episodes[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /search 200 .episodes[].files[].streams[].frame_rate number
 GET /search 200 .episodes[].files[].streams[].hdr10_plus boolean
 GET /search 200 .episodes[].files[].streams[].hdr_probe_status string
@@ -4136,6 +4160,7 @@ GET /search 200 .movies[].files[].streams[].color_primaries string
 GET /search 200 .movies[].files[].streams[].color_transfer string
 GET /search 200 .movies[].files[].streams[].dolby_vision boolean
 GET /search 200 .movies[].files[].streams[].dolby_vision_profile integer
+GET /search 200 .movies[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /search 200 .movies[].files[].streams[].frame_rate number
 GET /search 200 .movies[].files[].streams[].hdr10_plus boolean
 GET /search 200 .movies[].files[].streams[].hdr_probe_status string
@@ -4256,6 +4281,7 @@ GET /search 200 .shows[].files[].streams[].color_primaries string
 GET /search 200 .shows[].files[].streams[].color_transfer string
 GET /search 200 .shows[].files[].streams[].dolby_vision boolean
 GET /search 200 .shows[].files[].streams[].dolby_vision_profile integer
+GET /search 200 .shows[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /search 200 .shows[].files[].streams[].frame_rate number
 GET /search 200 .shows[].files[].streams[].hdr10_plus boolean
 GET /search 200 .shows[].files[].streams[].hdr_probe_status string
@@ -4405,6 +4431,7 @@ GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].color_prima
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].color_transfer string
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].dolby_vision boolean
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].dolby_vision_profile integer
+GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].frame_rate number
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].hdr10_plus boolean
 GET /series/{id}/seasons 200 .seasons[].episodes[].files[].streams[].hdr_probe_status string
@@ -4524,6 +4551,7 @@ GET /series/{id}/seasons 200 .series.files[].streams[].color_primaries string
 GET /series/{id}/seasons 200 .series.files[].streams[].color_transfer string
 GET /series/{id}/seasons 200 .series.files[].streams[].dolby_vision boolean
 GET /series/{id}/seasons 200 .series.files[].streams[].dolby_vision_profile integer
+GET /series/{id}/seasons 200 .series.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /series/{id}/seasons 200 .series.files[].streams[].frame_rate number
 GET /series/{id}/seasons 200 .series.files[].streams[].hdr10_plus boolean
 GET /series/{id}/seasons 200 .series.files[].streams[].hdr_probe_status string
@@ -4637,6 +4665,7 @@ GET /series/{id}/seasons 200 .unplaced[].files[].streams[].color_primaries strin
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].color_transfer string
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].dolby_vision boolean
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].dolby_vision_profile integer
+GET /series/{id}/seasons 200 .unplaced[].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].frame_rate number
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].hdr10_plus boolean
 GET /series/{id}/seasons 200 .unplaced[].files[].streams[].hdr_probe_status string
@@ -4718,6 +4747,8 @@ GET /settings 200
 GET /settings 200 .allow_network boolean
 GET /settings 200 .analysis_enabled boolean
 GET /settings 200 .auto_backups_enabled boolean
+GET /settings 200 .automatic_home_networks array|null
+GET /settings 200 .automatic_home_networks[] string
 GET /settings 200 .cache_cleanup_enabled boolean
 GET /settings 200 .database_upkeep_enabled boolean
 GET /settings 200 .detect_intros boolean
@@ -4727,6 +4758,7 @@ GET /settings 200 .ffprobe any
 GET /settings 200 .ffprobe_path string
 GET /settings 200 .from_env null|object
 GET /settings 200 .from_env{} boolean
+GET /settings 200 .home_network_bridge boolean
 GET /settings 200 .home_networks string
 GET /settings 200 .https_cert string
 GET /settings 200 .https_domain string
@@ -4859,6 +4891,7 @@ GET /stats 200 .items{}.files[].streams[].color_primaries string
 GET /stats 200 .items{}.files[].streams[].color_transfer string
 GET /stats 200 .items{}.files[].streams[].dolby_vision boolean
 GET /stats 200 .items{}.files[].streams[].dolby_vision_profile integer
+GET /stats 200 .items{}.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /stats 200 .items{}.files[].streams[].frame_rate number
 GET /stats 200 .items{}.files[].streams[].hdr10_plus boolean
 GET /stats 200 .items{}.files[].streams[].hdr_probe_status string
@@ -5025,6 +5058,7 @@ GET /stats/history 200 .items{}.files[].streams[].color_primaries string
 GET /stats/history 200 .items{}.files[].streams[].color_transfer string
 GET /stats/history 200 .items{}.files[].streams[].dolby_vision boolean
 GET /stats/history 200 .items{}.files[].streams[].dolby_vision_profile integer
+GET /stats/history 200 .items{}.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /stats/history 200 .items{}.files[].streams[].frame_rate number
 GET /stats/history 200 .items{}.files[].streams[].hdr10_plus boolean
 GET /stats/history 200 .items{}.files[].streams[].hdr_probe_status string
@@ -5186,6 +5220,7 @@ GET /stats/storage 200 .items{}.files[].streams[].color_primaries string
 GET /stats/storage 200 .items{}.files[].streams[].color_transfer string
 GET /stats/storage 200 .items{}.files[].streams[].dolby_vision boolean
 GET /stats/storage 200 .items{}.files[].streams[].dolby_vision_profile integer
+GET /stats/storage 200 .items{}.files[].streams[].dv_bl_signal_compatibility_id integer
 GET /stats/storage 200 .items{}.files[].streams[].frame_rate number
 GET /stats/storage 200 .items{}.files[].streams[].hdr10_plus boolean
 GET /stats/storage 200 .items{}.files[].streams[].hdr_probe_status string
@@ -5417,6 +5452,7 @@ GET /watchlist 200 [].files[].streams[].color_primaries string
 GET /watchlist 200 [].files[].streams[].color_transfer string
 GET /watchlist 200 [].files[].streams[].dolby_vision boolean
 GET /watchlist 200 [].files[].streams[].dolby_vision_profile integer
+GET /watchlist 200 [].files[].streams[].dv_bl_signal_compatibility_id integer
 GET /watchlist 200 [].files[].streams[].frame_rate number
 GET /watchlist 200 [].files[].streams[].hdr10_plus boolean
 GET /watchlist 200 [].files[].streams[].hdr_probe_status string
@@ -5594,6 +5630,7 @@ PATCH /items/{id} 200 .files[].streams[].color_primaries string
 PATCH /items/{id} 200 .files[].streams[].color_transfer string
 PATCH /items/{id} 200 .files[].streams[].dolby_vision boolean
 PATCH /items/{id} 200 .files[].streams[].dolby_vision_profile integer
+PATCH /items/{id} 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 PATCH /items/{id} 200 .files[].streams[].frame_rate number
 PATCH /items/{id} 200 .files[].streams[].hdr10_plus boolean
 PATCH /items/{id} 200 .files[].streams[].hdr_probe_status string
@@ -5779,6 +5816,7 @@ PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].color_primaries st
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].color_transfer string
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].dolby_vision boolean
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].dolby_vision_profile integer
+PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].frame_rate number
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].hdr10_plus boolean
 PATCH /play-queues/{id} 200 .entries[].item.files[].streams[].hdr_probe_status string
@@ -5935,6 +5973,8 @@ PATCH /settings 200
 PATCH /settings 200 .allow_network boolean
 PATCH /settings 200 .analysis_enabled boolean
 PATCH /settings 200 .auto_backups_enabled boolean
+PATCH /settings 200 .automatic_home_networks array|null
+PATCH /settings 200 .automatic_home_networks[] string
 PATCH /settings 200 .cache_cleanup_enabled boolean
 PATCH /settings 200 .database_upkeep_enabled boolean
 PATCH /settings 200 .detect_intros boolean
@@ -5944,6 +5984,7 @@ PATCH /settings 200 .ffprobe any
 PATCH /settings 200 .ffprobe_path string
 PATCH /settings 200 .from_env null|object
 PATCH /settings 200 .from_env{} boolean
+PATCH /settings 200 .home_network_bridge boolean
 PATCH /settings 200 .home_networks string
 PATCH /settings 200 .https_cert string
 PATCH /settings 200 .https_domain string
@@ -6193,6 +6234,7 @@ POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].color_prima
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].color_transfer string
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].dolby_vision boolean
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].dolby_vision_profile integer
+POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].frame_rate number
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].hdr10_plus boolean
 POST /collections/{id}/artwork/{type} 200 .items[].files[].streams[].hdr_probe_status string
@@ -6431,6 +6473,7 @@ POST /items/batch 200 .items[].files[].streams[].color_primaries string
 POST /items/batch 200 .items[].files[].streams[].color_transfer string
 POST /items/batch 200 .items[].files[].streams[].dolby_vision boolean
 POST /items/batch 200 .items[].files[].streams[].dolby_vision_profile integer
+POST /items/batch 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 POST /items/batch 200 .items[].files[].streams[].frame_rate number
 POST /items/batch 200 .items[].files[].streams[].hdr10_plus boolean
 POST /items/batch 200 .items[].files[].streams[].hdr_probe_status string
@@ -6570,6 +6613,7 @@ POST /items/{id}/artwork/{type} 200 .files[].streams[].color_primaries string
 POST /items/{id}/artwork/{type} 200 .files[].streams[].color_transfer string
 POST /items/{id}/artwork/{type} 200 .files[].streams[].dolby_vision boolean
 POST /items/{id}/artwork/{type} 200 .files[].streams[].dolby_vision_profile integer
+POST /items/{id}/artwork/{type} 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 POST /items/{id}/artwork/{type} 200 .files[].streams[].frame_rate number
 POST /items/{id}/artwork/{type} 200 .files[].streams[].hdr10_plus boolean
 POST /items/{id}/artwork/{type} 200 .files[].streams[].hdr_probe_status string
@@ -6687,6 +6731,7 @@ POST /items/{id}/playback 200 .reason_codes array
 POST /items/{id}/playback 200 .reason_codes[] string
 POST /items/{id}/playback 200 .reasons array
 POST /items/{id}/playback 200 .reasons[] string
+POST /items/{id}/playback 200 .rolling_hls boolean
 POST /items/{id}/playback 200 .server_limit_kbps integer
 POST /items/{id}/playback 200 .session_id string
 POST /items/{id}/playback 200 .source_height integer
@@ -6811,6 +6856,7 @@ POST /items/{id}/playback-preview 200 .reason_codes array
 POST /items/{id}/playback-preview 200 .reason_codes[] string
 POST /items/{id}/playback-preview 200 .reasons array
 POST /items/{id}/playback-preview 200 .reasons[] string
+POST /items/{id}/playback-preview 200 .rolling_hls boolean
 POST /items/{id}/playback-preview 200 .server_limit_kbps integer
 POST /items/{id}/playback-preview 200 .session_id string
 POST /items/{id}/playback-preview 200 .source_height integer
@@ -6892,6 +6938,7 @@ POST /items/{id}/refresh 200 .files[].streams[].color_primaries string
 POST /items/{id}/refresh 200 .files[].streams[].color_transfer string
 POST /items/{id}/refresh 200 .files[].streams[].dolby_vision boolean
 POST /items/{id}/refresh 200 .files[].streams[].dolby_vision_profile integer
+POST /items/{id}/refresh 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 POST /items/{id}/refresh 200 .files[].streams[].frame_rate number
 POST /items/{id}/refresh 200 .files[].streams[].hdr10_plus boolean
 POST /items/{id}/refresh 200 .files[].streams[].hdr_probe_status string
@@ -7022,6 +7069,7 @@ POST /items/{id}/unmatch 200 .files[].streams[].color_primaries string
 POST /items/{id}/unmatch 200 .files[].streams[].color_transfer string
 POST /items/{id}/unmatch 200 .files[].streams[].dolby_vision boolean
 POST /items/{id}/unmatch 200 .files[].streams[].dolby_vision_profile integer
+POST /items/{id}/unmatch 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 POST /items/{id}/unmatch 200 .files[].streams[].frame_rate number
 POST /items/{id}/unmatch 200 .files[].streams[].hdr10_plus boolean
 POST /items/{id}/unmatch 200 .files[].streams[].hdr_probe_status string
@@ -7153,6 +7201,7 @@ POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].color
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].color_transfer string
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].dolby_vision boolean
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].dolby_vision_profile integer
+POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].frame_rate number
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].hdr10_plus boolean
 POST /libraries/{id}/compatibility 200 .converted[].item.files[].streams[].hdr_probe_status string
@@ -7422,6 +7471,7 @@ POST /play-queues 201 .entries[].item.files[].streams[].color_primaries string
 POST /play-queues 201 .entries[].item.files[].streams[].color_transfer string
 POST /play-queues 201 .entries[].item.files[].streams[].dolby_vision boolean
 POST /play-queues 201 .entries[].item.files[].streams[].dolby_vision_profile integer
+POST /play-queues 201 .entries[].item.files[].streams[].dv_bl_signal_compatibility_id integer
 POST /play-queues 201 .entries[].item.files[].streams[].frame_rate number
 POST /play-queues 201 .entries[].item.files[].streams[].hdr10_plus boolean
 POST /play-queues 201 .entries[].item.files[].streams[].hdr_probe_status string
@@ -7940,6 +7990,7 @@ PUT /collections/{id}/artwork 200 .items[].files[].streams[].color_primaries str
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].color_transfer string
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].dolby_vision boolean
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].dolby_vision_profile integer
+PUT /collections/{id}/artwork 200 .items[].files[].streams[].dv_bl_signal_compatibility_id integer
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].frame_rate number
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].hdr10_plus boolean
 PUT /collections/{id}/artwork 200 .items[].files[].streams[].hdr_probe_status string
@@ -8084,6 +8135,7 @@ PUT /items/{id}/artwork 200 .files[].streams[].color_primaries string
 PUT /items/{id}/artwork 200 .files[].streams[].color_transfer string
 PUT /items/{id}/artwork 200 .files[].streams[].dolby_vision boolean
 PUT /items/{id}/artwork 200 .files[].streams[].dolby_vision_profile integer
+PUT /items/{id}/artwork 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 PUT /items/{id}/artwork 200 .files[].streams[].frame_rate number
 PUT /items/{id}/artwork 200 .files[].streams[].hdr10_plus boolean
 PUT /items/{id}/artwork 200 .files[].streams[].hdr_probe_status string
@@ -8206,6 +8258,7 @@ PUT /items/{id}/match 200 .files[].streams[].color_primaries string
 PUT /items/{id}/match 200 .files[].streams[].color_transfer string
 PUT /items/{id}/match 200 .files[].streams[].dolby_vision boolean
 PUT /items/{id}/match 200 .files[].streams[].dolby_vision_profile integer
+PUT /items/{id}/match 200 .files[].streams[].dv_bl_signal_compatibility_id integer
 PUT /items/{id}/match 200 .files[].streams[].frame_rate number
 PUT /items/{id}/match 200 .files[].streams[].hdr10_plus boolean
 PUT /items/{id}/match 200 .files[].streams[].hdr_probe_status string

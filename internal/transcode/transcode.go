@@ -5,14 +5,17 @@
 package transcode
 
 import (
+	"ams/internal/diskspace"
 	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +32,8 @@ const idleTimeout = 2 * time.Minute
 // Options say what to make from which file.
 type Options struct {
 	Path string
+	// The client can restart playback when seeking behind a sliding HLS window.
+	RollingHLS bool
 	// Where to start, in milliseconds.
 	StartMS int64
 	// The streams to use, by their index in the file; AudioStream -1 for none.
@@ -37,6 +42,7 @@ type Options struct {
 	CopyVideo bool
 	// Copy the audio as it is (AAC stereo, or Dolby Digital the player decodes), or convert it:
 	// to AudioCodec ("eac3" or "ac3", with AudioChannels) for surround sound, else AAC stereo.
+	// When CopyAudio is true, AudioCodec identifies the copied codec (e.g. "aac").
 	CopyAudio     bool
 	AudioCodec    string
 	AudioChannels int
@@ -59,7 +65,8 @@ type Options struct {
 	// The source video codec (e.g. hevc), for tagging copied video.
 	VideoCodec string
 	// The source video has Dolby Vision: copied video should keep it (checked once it's written).
-	DolbyVision bool
+	DolbyVision      bool
+	StripDolbyVision bool
 	// Who started it and for what, for the server's own checks.
 	Owner, ItemID string
 }
@@ -71,16 +78,15 @@ type Session struct {
 	OffsetMS int64
 	Options  Options
 
-	dir           string
-	cancel        context.CancelFunc
-	done          chan struct{}
-	detectMu      sync.Mutex
-	probeHardware func(context.Context, string, []string, string) ([]byte, error)
-	renderNodes   func() []string
-	mu            sync.Mutex
-	err           error
-	stderr        bytes.Buffer
-	lastSeen      time.Time
+	dir          string
+	cancel       context.CancelFunc
+	done         chan struct{}
+	mu           sync.Mutex
+	storageMu    sync.Mutex
+	retainedFrom int
+	err          error
+	stderr       stderrBuffer
+	lastSeen     time.Time
 	// Throttling (throttle.go): FFmpeg's process, the media segment the player last asked for
 	// (-1 before any) and whether FFmpeg is paused for being far enough ahead.
 	proc       *os.Process
@@ -105,14 +111,18 @@ type Manager struct {
 	ffmpeg        func() string
 	probe         func() string
 	log           *slog.Logger
+	freeSpace     func(string) (uint64, error)
+	diskWarning   sync.Once
 	// Whether the "Dolby Vision dropped" warning was logged this run.
 	dvWarning            sync.Once
 	throttleWatchWarning sync.Once
 	throttlePauseWarning sync.Once
 
 	mu       sync.Mutex
-	dir      string // where sessions write, chosen in Settings
-	maxVideo int    // video conversions at once, 0 for no limit
+	closed   bool
+	workers  sync.WaitGroup // process waiters, throttle shutdown and stopped-session cleanup
+	dir      string         // where sessions write, chosen in Settings
+	maxVideo int            // video conversions at once, 0 for no limit
 	// How far ahead of the player sessions convert (throttle.go); each session keeps its own copy.
 	throttling throttling
 	sessions   map[string]*Session
@@ -144,23 +154,20 @@ func (m *Manager) Configure(dir string, maxVideo int) {
 // ffmpeg and ffprobe return the binaries to use.
 func New(dir string, ffmpeg, ffprobe func() string, log *slog.Logger) *Manager {
 	os.RemoveAll(dir)
-	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, sessions: map[string]*Session{}, throttling: defaultThrottling}
+	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, freeSpace: diskspace.Available, sessions: map[string]*Session{}, throttling: defaultThrottling}
 }
 
 // Run ends idle sessions until ctx is done, then ends them all.
 func (m *Manager) Run(ctx context.Context) {
-	t := time.NewTicker(20 * time.Second)
+	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			m.mu.Lock()
-			for id := range m.sessions {
-				m.stopLocked(id)
-			}
-			m.mu.Unlock()
+			m.Close()
 			return
 		case <-t.C:
+			m.checkStorage()
 			m.mu.Lock()
 			for id, s := range m.sessions {
 				s.mu.Lock()
@@ -176,6 +183,18 @@ func (m *Manager) Run(ctx context.Context) {
 	}
 }
 
+// Close prevents new sessions, cancels all conversions, and joins process waiters,
+// throttlers and cleanup, including sessions already removed by Stop.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	m.closed = true
+	for id := range m.sessions {
+		m.stopLocked(id)
+	}
+	m.mu.Unlock()
+	m.workers.Wait()
+}
+
 // Start begins a session.
 func (m *Manager) Start(opts Options) (*Session, error) {
 	bin := m.ffmpeg()
@@ -186,6 +205,9 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	// Reserve capacity through registration. Releasing the lock before starting the process
 	// lets simultaneous requests all observe the same free slot.
 	defer m.mu.Unlock()
+	if m.closed {
+		return nil, context.Canceled
+	}
 	if opts.HWEncoder != "" && opts.HWEncoder == m.caps.HWEncoder && opts.HWDevice == "" {
 		opts.HWDevice, opts.HWDriver, opts.HWLowPower = m.caps.HWDevice, m.caps.HWDriver, m.caps.HWLowPower
 	}
@@ -210,6 +232,11 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		return nil, err
 	}
 
+	if free, err := m.available(s.dir); err == nil && free < conversionSpaceReserve {
+		os.RemoveAll(s.dir)
+		return nil, ErrStorageFull
+	}
+
 	s.outputWatcher = s.watchOutput()
 	if s.outputWatcher == nil {
 		m.throttleWatchWarning.Do(func() { m.log.Warn("conversion output notifications unavailable; pacing uses periodic checks") })
@@ -224,6 +251,7 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.WaitDelay = 5 * time.Second
 	if opts.HWDriver != "" {
 		cmd.Env = withVADriver(os.Environ(), opts.HWDriver)
 	}
@@ -240,18 +268,21 @@ func (m *Manager) Start(opts Options) (*Session, error) {
 		"copy_audio", opts.CopyAudio, "audio_codec", opts.AudioCodec, "start", time.Duration(s.OffsetMS)*time.Millisecond)
 	m.log.Debug("ffmpeg", "args", strings.Join(args, " "))
 	s.proc = cmd.Process
+	m.workers.Add(1)
 	go s.throttle()
 	go func() {
+		defer m.workers.Done()
 		err := cmd.Wait()
 		s.mu.Lock()
 		if err != nil && ctx.Err() == nil {
-			s.err = fmt.Errorf("FFmpeg stopped: %s", lastLine(s.stderr.String()))
+			s.err = fmt.Errorf("FFmpeg stopped: %s", ffmpegFailure(s.stderr.String(), opts.Path))
 			m.log.Warn("transcode failed", "session", s.ID, "err", s.err)
 		}
 		s.paused = false
 		s.proc = nil
 		s.mu.Unlock()
 		close(s.done)
+		<-s.throttleDone
 	}()
 
 	m.sessions[s.ID] = s
@@ -288,17 +319,17 @@ func buildArgs(o Options, start float64, dir string) []string {
 	}
 	a = append(a, "-i", o.Path)
 
-	// Filters, in order: HDR to SDR, picture subtitles drawn on, scaling, hardware upload.
+	// Resize before expensive HDR mapping, then draw SDR captions and upload if needed.
 	var pre, post []string
+	if encode && o.MaxHeight > 0 {
+		pre = append(pre, FitScaleFilter(o.MaxHeight))
+	}
 	if encode && o.ToneMap {
 		if o.FastToneMap {
 			pre = append(pre, FastToneMapFilter)
 		} else {
 			pre = append(pre, ToneMapFilter)
 		}
-	}
-	if encode && o.MaxHeight > 0 && o.SourceHeight > o.MaxHeight {
-		post = append(post, "scale=-2:"+strconv.Itoa(o.MaxHeight))
 	}
 	if encode && o.HWEncoder == "h264_vaapi" {
 		post = append(post, "format=nv12", "hwupload")
@@ -310,7 +341,7 @@ func buildArgs(o Options, start float64, dir string) []string {
 			fc = in + strings.Join(pre, ",") + "[pre];"
 			in = "[pre]"
 		}
-		fc += fmt.Sprintf("%s[0:%d]overlay=eof_action=pass", in, o.BurnSubtitle)
+		fc += fmt.Sprintf("[0:%d]%sscale2ref=w=iw:h=ih[subscaled][videoref];[videoref][subscaled]overlay=eof_action=pass", o.BurnSubtitle, in)
 		if len(post) > 0 {
 			fc += "," + strings.Join(post, ",")
 		}
@@ -333,6 +364,9 @@ func buildArgs(o Options, start float64, dir string) []string {
 		// when allowed "unofficial" boxes; without it a player sees plain HEVC and shows the
 		// HDR10 base layer instead of Dolby Vision. Streams without Dolby Vision are unaffected.
 		a = append(a, "-strict", "unofficial")
+		if o.StripDolbyVision {
+			a = append(a, "-bsf:v", "dovi_rpu=strip=1")
+		}
 	} else {
 		if filters := append(pre, post...); o.BurnSubtitle < 0 && len(filters) > 0 {
 			a = append(a, "-vf", strings.Join(filters, ","))
@@ -345,6 +379,9 @@ func buildArgs(o Options, start float64, dir string) []string {
 		switch {
 		case o.CopyAudio:
 			a = append(a, "-c:a", "copy")
+			if o.AudioCodec == "aac" {
+				a = append(a, "-bsf:a", "aac_adtstoasc")
+			}
 		case (o.AudioCodec == "eac3" || o.AudioCodec == "ac3") && o.AudioChannels > 2:
 			a = append(a, "-c:a", o.AudioCodec, "-ac", strconv.Itoa(min(o.AudioChannels, 6)), "-b:a", "640k")
 		default:
@@ -429,15 +466,47 @@ func (m *Manager) Ready(ctx context.Context, s *Session) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, ffprobe, "-v", "error", "-show_entries", "format=start_time", "-of", "csv=p=0",
-		filepath.Join(s.dir, "index.m3u8")).Output()
+	outputStart, _, err := mediaTimeline(ctx, ffprobe, filepath.Join(s.dir, "index.m3u8"))
 	if err != nil {
-		return nil // keep the requested start; the clock may be a little out
+		return nil
 	}
-	if v, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64); err == nil && v >= 0 {
-		s.OffsetMS = int64(v * 1000)
+	sourceStart, duration, err := mediaTimeline(ctx, ffprobe, s.Options.Path)
+	if err != nil {
+		return nil
+	} // keep the requested position rather than using absolute timestamps
+	relative := max(0, outputStart-sourceStart)
+	if duration > 0 {
+		relative = min(relative, duration)
 	}
+	s.OffsetMS = int64(relative * 1000)
+
 	return nil
+}
+
+// mediaTimeline reads the container timeline; MPEG-TS timestamps commonly start far from zero.
+func mediaTimeline(ctx context.Context, probe, path string) (float64, float64, error) {
+	out, err := exec.CommandContext(ctx, probe, "-v", "error", "-show_entries", "format=start_time,duration", "-of", "json", path).Output()
+	if err != nil {
+		return 0, 0, err
+	}
+	var result struct {
+		Format struct {
+			Start    string `json:"start_time"`
+			Duration string `json:"duration"`
+		} `json:"format"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return 0, 0, err
+	}
+	start, err := strconv.ParseFloat(result.Format.Start, 64)
+	if err != nil || math.IsNaN(start) || math.IsInf(start, 0) {
+		return 0, 0, errors.New("source timeline unavailable")
+	}
+	duration, _ := strconv.ParseFloat(result.Format.Duration, 64)
+	if math.IsNaN(duration) || math.IsInf(duration, 0) {
+		duration = 0
+	}
+	return start, duration, nil
 }
 
 // checkDolbyVision warns (once per run) when copied Dolby Vision video came out without its
@@ -490,13 +559,15 @@ func (m *Manager) stopLocked(id string) {
 	}
 	delete(m.sessions, id)
 	s.cancel()
+	m.workers.Add(1) // Admission is under mu; Close stops all additions before Wait.
 	go func() {
-		// Windows won't delete files FFmpeg still has open.
-		select {
-		case <-s.done:
-		case <-time.After(10 * time.Second):
+		defer m.workers.Done()
+		// Wait until FFmpeg and its output watcher release their handles.
+		<-s.done
+		<-s.throttleDone
+		if err := os.RemoveAll(s.dir); err != nil {
+			m.log.Warn("conversion cache cleanup failed", "session", id)
 		}
-		os.RemoveAll(s.dir)
 	}()
 	m.log.Info("transcode ended", "session", id)
 }
@@ -512,14 +583,24 @@ func (m *Manager) Count() int {
 func (s *Session) Playlist(ctx context.Context) ([]byte, error) {
 	path := filepath.Join(s.dir, "index.m3u8")
 	for {
+		s.mu.Lock()
+		s.lastSeen = time.Now()
+		err := s.err
+		s.mu.Unlock()
+		if err != nil {
+			return nil, err
+		}
 		if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
-			return b, nil
+			return s.windowPlaylist(b), nil
 		}
 		select {
 		case <-s.done:
-			// Finished (a very short file) or failed.
+			// Finished (a very short file) or failed. Never serve stale partial output after failure.
+			if err := s.Err(); err != nil {
+				return nil, err
+			}
 			if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("#EXTINF")) {
-				return b, nil
+				return s.windowPlaylist(b), nil
 			}
 			s.mu.Lock()
 			err := s.err

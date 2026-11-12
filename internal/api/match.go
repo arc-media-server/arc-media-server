@@ -90,11 +90,12 @@ func (s *Server) searchMatches(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := s.scanner.Search(r.Context(), it.Kind, provider, query, year)
 	if errors.Is(err, scanner.ErrNoProvider) {
-		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(provider)+" API key to ams.yaml to search it")
+		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(provider)+" API key in Settings to search it")
 		return
 	}
 	if err != nil {
-		s.log.Warn("match search failed", "query", query, "err", err)
+		markFailureLogged(w)
+		s.log.Warn("match search failed", "item", it.ID, "provider", provider, "err", err)
 		writeError(w, http.StatusBadGateway, "search failed: "+err.Error())
 		return
 	}
@@ -122,6 +123,11 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	taskID, err := s.scanner.SetMatch(r.Context(), it, body.Provider, body.ID)
+	if r.Context().Err() != nil {
+		return
+	}
+	var upstream *metadata.RequestError
+
 	switch {
 	case errors.Is(err, scanner.ErrNoProvider):
 		writeError(w, http.StatusConflict, "add a "+strings.ToUpper(body.Provider)+" API key in Settings to use it")
@@ -132,18 +138,27 @@ func (s *Server) setMatch(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, scanner.ErrNotFound):
 		writeError(w, http.StatusNotFound, strings.ToUpper(body.Provider)+" has nothing with that id")
 		return
-	case err != nil:
-		s.log.Warn("setting match failed", "item", it.Title, "err", err)
+	case errors.As(err, &upstream):
+		markFailureLogged(w)
+		s.log.Warn("setting match failed", "item", it.ID, "provider", upstream.Provider, "err", err)
 		writeError(w, http.StatusBadGateway, "couldn't fetch the new match: "+err.Error())
+		return
+	case err != nil:
+		s.fail(w, err)
 		return
 	}
 	updated, err := s.store.GetItem(r.Context(), it.ID)
-	if err != nil || updated == nil {
+	if err != nil {
 		s.fail(w, err)
+		return
+	}
+	if updated == nil {
+		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
 	d := toDTO(*updated)
 	if d.Files, err = s.store.ItemFiles(r.Context(), it.ID); err == nil {
+		d.Files = profileMediaFiles(r, d.Files)
 		err = s.addDetails(r, &d)
 	}
 	if err == nil {

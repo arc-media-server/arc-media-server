@@ -1,6 +1,7 @@
 package store
 
 import (
+	"ams/internal/safeerr"
 	"context"
 	"database/sql"
 	"errors"
@@ -528,7 +529,7 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 
 // SetMatchInfo records how an item was identified (JSON written by the scanner).
 func (s *Store) SetMatchInfo(ctx context.Context, id, info string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_info = ? WHERE id = ?`, info, id)
+	_, err := s.db.ExecContext(ctx, `UPDATE items SET match_info = ? WHERE id = ?`, safeerr.JSONErrors(info), id)
 	return err
 }
 
@@ -539,7 +540,7 @@ func (s *Store) MatchInfo(ctx context.Context, id string) (string, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
-	return info, err
+	return safeerr.JSONErrors(info), err
 }
 
 // SetProviderIDs replaces an item's provider ids, e.g. when the user picks the right match. The
@@ -763,48 +764,7 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 		}
 	}
 
-	order := "sort_title ASC, year ASC"
-	var orderArgs []any
-	switch q.Sort {
-	case "added":
-		date, dateArgs := recentDateSQL(q.Access)
-		sequence, sequenceArgs := recentSequenceSQL(q.Access)
-		direction := " DESC"
-		if q.Reverse {
-			direction = " ASC"
-		}
-		order = date + direction + ", " + sequence + direction + ", sort_title ASC"
-		orderArgs = append(append(orderArgs, dateArgs...), sequenceArgs...)
-	case "year":
-		order = "year DESC, sort_title"
-	case "release":
-		order = "release_date DESC, sort_title"
-	case "rating":
-		order = "rating DESC, sort_title"
-	case "imdb":
-		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
-	case "critics":
-		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
-	case "runtime":
-		order = "runtime_min DESC, sort_title"
-	case "watched":
-		// Most recently watched first (a show by its episodes); never watched last.
-		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
-			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
-		orderArgs = append(orderArgs, q.UserID)
-	case "shuffle":
-		// A different order each day, but the same one all day so rows don't jump around.
-		order = "(items.rowid * 2654435761 + ?) % 4294967291"
-		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
-	}
-	if q.Reverse && q.Sort != "shuffle" && q.Sort != "added" {
-		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
-		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
-		order = strings.ReplaceAll(order, " DESC", " __DESC__")
-		order = strings.ReplaceAll(order, " ASC", " DESC")
-		order = strings.ReplaceAll(order, " __DESC__", " ASC")
-	}
-	order += ", id"
+	order, orderArgs := itemOrdering(q)
 	limit := q.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100
@@ -1013,4 +973,51 @@ func (s *Store) HasUnmatchedEpisodes(ctx context.Context, seriesID string) (bool
 	var found bool
 	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM items i WHERE i.parent_id = ? AND i.kind = 'episode' AND i.metadata_state = 'unmatched' AND EXISTS(SELECT 1 FROM item_files f WHERE f.item_id = i.id))`, seriesID).Scan(&found)
 	return found, err
+}
+
+// itemOrdering is shared by full item pages and bounded playlist-summary projections.
+func itemOrdering(q ItemQuery) (string, []any) {
+	order := "sort_title ASC, year ASC"
+	var orderArgs []any
+	switch q.Sort {
+	case "added":
+		date, dateArgs := recentDateSQL(q.Access)
+		sequence, sequenceArgs := recentSequenceSQL(q.Access)
+		direction := " DESC"
+		if q.Reverse {
+			direction = " ASC"
+		}
+		order = date + direction + ", " + sequence + direction + ", sort_title ASC"
+		orderArgs = append(append(orderArgs, dateArgs...), sequenceArgs...)
+	case "year":
+		order = "year DESC, sort_title"
+	case "release":
+		order = "release_date DESC, sort_title"
+	case "rating":
+		order = "rating DESC, sort_title"
+	case "imdb":
+		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
+	case "critics":
+		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
+	case "runtime":
+		order = "runtime_min DESC, sort_title"
+	case "watched":
+		// Most recently watched first (a show by its episodes); never watched last.
+		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
+			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
+		orderArgs = append(orderArgs, q.UserID)
+	case "shuffle":
+		// A different order each day, but the same one all day so rows don't jump around.
+		order = "(items.rowid * 2654435761 + ?) % 4294967291"
+		orderArgs = append(orderArgs, time.Now().Unix()/86400*7919)
+	}
+	if q.Reverse && q.Sort != "shuffle" && q.Sort != "added" {
+		order = strings.ReplaceAll(order, "sort_title", "sort_title ASC")
+		order = strings.ReplaceAll(order, " ASC ASC", " ASC")
+		order = strings.ReplaceAll(order, " DESC", " __DESC__")
+		order = strings.ReplaceAll(order, " ASC", " DESC")
+		order = strings.ReplaceAll(order, " __DESC__", " ASC")
+	}
+	order += ", id"
+	return order, orderArgs
 }

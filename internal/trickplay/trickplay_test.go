@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -30,7 +31,16 @@ func TestMake(t *testing.T) {
 	}
 	ffprobe := filepath.Join(filepath.Dir(ffmpeg), "ffprobe")
 	dir := t.TempDir()
-	m := New(filepath.Join(dir, "tp"), nil, func() string { return ffmpeg }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	st, err := store.Open(t.Context(), filepath.Join(dir, "store.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	lib, err := st.SyncLibrary(t.Context(), "Fixture", "movies", "tmdb_aired", []string{dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(filepath.Join(dir, "tp"), st, func() string { return ffmpeg }, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	for i, tc := range []struct {
 		name      string
@@ -49,6 +59,14 @@ func TestMake(t *testing.T) {
 			if out, err := exec.Command(ffmpeg, append(args, src)...).CombinedOutput(); err != nil {
 				t.Fatalf("making source: %v %s", err, out)
 			}
+			stat, err := os.Stat(src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			savedID, err := st.SaveFile(t.Context(), &store.MediaFile{LibraryID: lib, Path: src, Size: stat.Size(), ModTime: stat.ModTime().Unix()}, 1, 1)
+			if err != nil || savedID != id {
+				t.Fatalf("file id=%d err=%v", savedID, err)
+			}
 			if m.Info(id) != nil {
 				t.Fatal("info before making")
 			}
@@ -64,7 +82,13 @@ func TestMake(t *testing.T) {
 				t.Error("sheet 1 shouldn't exist")
 			}
 			out, _ := exec.Command(ffprobe, "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0",
-				filepath.Join(dir, "tp", filepath.Base(m.fileDir(id)), "0.jpg")).Output()
+				func() string {
+					path, ok := m.Sheet(id, 0)
+					if !ok {
+						t.Fatal("sheet missing")
+					}
+					return path
+				}()).Output()
 			if got := strings.TrimSpace(string(out)); got != "3200,1360" {
 				t.Errorf("sheet size %q", got)
 			}

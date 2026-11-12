@@ -87,6 +87,13 @@ func (s *Store) SetPlayed(ctx context.Context, userID string, itemIDs []string, 
 		return err
 	}
 	defer tx.Rollback()
+	if err := setPlayedTx(ctx, tx, userID, itemIDs, played); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func setPlayedTx(ctx context.Context, tx *sql.Tx, userID string, itemIDs []string, played bool) error {
 	now := time.Now().Unix()
 	for _, id := range itemIDs {
 		var err error
@@ -105,7 +112,7 @@ func (s *Store) SetPlayed(ctx context.Context, userID string, itemIDs []string, 
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // UserDataFor returns a profile's watch state for the given items (items never played are absent).

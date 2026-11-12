@@ -9,8 +9,10 @@ import (
 	"ams/internal/remote"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,6 +42,9 @@ import (
 
 // Deps is what the API needs from the rest of AMS.
 type Deps struct {
+	// WorkContext and Workers own accepted asynchronous API work across listener restarts.
+	WorkContext   context.Context
+	Workers       *sync.WaitGroup
 	WatchTogether *watchtogether.Manager
 	Events        *events.Hub
 	WatchProblem  func(int64) string
@@ -67,7 +72,7 @@ type Deps struct {
 	LibrariesChanged func()
 	// Settings returns the current settings; ApplySettings checks, saves and applies new ones.
 	Settings      func() settings.Settings
-	ApplySettings func(ctx context.Context, s settings.Settings) error
+	ApplySettings func(ctx context.Context, before, next settings.Settings) error
 	// FFprobeStatus describes the ffprobe in use, for the Settings page.
 	FFprobeStatus func() any
 	// Where artwork the user uploads is kept.
@@ -88,13 +93,18 @@ type Deps struct {
 }
 
 type Server struct {
-	watchTogether  *watchtogether.Manager
-	watchRecheck   time.Duration
-	events         *events.Hub
-	eventHeartbeat time.Duration
-	requests       requestDiagnostics
-	watchProblem   func(int64) string
-	background     *background.Manager
+	workContext       context.Context
+	workers           *sync.WaitGroup
+	bulkMu            sync.Mutex
+	bulkQueue         *bulkRefreshQueue
+	collectionLookups collectionLookupCache
+	watchTogether     *watchtogether.Manager
+	watchRecheck      time.Duration
+	events            *events.Hub
+	eventHeartbeat    time.Duration
+	requests          requestDiagnostics
+	watchProblem      func(int64) string
+	background        *background.Manager
 
 	store            *store.Store
 	scanner          *scanner.Scanner
@@ -106,7 +116,7 @@ type Server struct {
 	afterRestore     func(context.Context) error
 	librariesChanged func()
 	settings         func() settings.Settings
-	applySettings    func(ctx context.Context, s settings.Settings) error
+	applySettings    func(ctx context.Context, before, next settings.Settings) error
 	ffprobeStatus    func() any
 	uploadsDir       string
 	previews         *previews
@@ -134,7 +144,7 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
@@ -158,10 +168,10 @@ func New(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	s.revision = d.Revision
 	s.events = d.Events
-	s.wireWatchNotify()
 	if s.events == nil {
 		s.events = events.New()
 	}
+	s.wireWatchNotify()
 
 	// Anyone: signing in.
 	mux.HandleFunc("GET /api/health", s.health)
@@ -332,7 +342,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/stats/history", admin(s.statsHistory))
 	mux.HandleFunc("GET /api/stats/storage", admin(s.statsStorage))
 	mux.HandleFunc("GET /api/settings", admin(s.getSettings))
-	mux.HandleFunc("PATCH /api/settings", admin(s.logSettingChanges(s.updateSettings)))
+	mux.HandleFunc("PATCH /api/settings", admin(s.updateSettings))
 	mux.HandleFunc("POST /api/libraries", admin(s.createLibrary))
 	mux.HandleFunc("PATCH /api/libraries/{id}", admin(s.updateLibrary))
 	mux.HandleFunc("DELETE /api/libraries/{id}", admin(s.deleteLibrary))
@@ -381,11 +391,9 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/series/{id}/seasons/{n}/artwork", admin(s.seasonArtwork))
 	mux.HandleFunc("PUT /api/series/{id}/seasons/{n}/artwork", admin(s.chooseSeasonArtwork))
 	mux.HandleFunc("POST /api/series/{id}/seasons/{n}/artwork", admin(s.uploadSeasonArtwork))
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotFound, "no such endpoint")
-	})
+	mux.HandleFunc("/api/", apiFallback(mux))
 	mux.Handle("/", webui.Handler())
-	return s.correlateRequests(appCORS(versioned(s.logRequests(mux))))
+	return securityHeaders(s.correlateRequests(appCORS(versioned(s.logRequests(mux)))))
 }
 
 // itemDTO adds links and files to a stored item.
@@ -505,7 +513,10 @@ func (s *Server) listLibraries(w http.ResponseWriter, r *http.Request) {
 	out := make([]libDTO, 0, len(libs))
 	for _, l := range libs {
 		requestStage(r, "reading scanner status", l.ID)
-		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: s.scanner.Status(l.ID)})
+		if !adminFileDetails(r) {
+			l.Paths = []string{}
+		}
+		out = append(out, libDTO{Library: l, Count: counts[l.ID], Scan: profileScanStatus(r, s.scanner.Status(l.ID))})
 	}
 	requestStage(r, "writing library response", 0)
 	writeJSON(w, http.StatusOK, out)
@@ -534,7 +545,7 @@ func (s *Server) libraryFromPath(w http.ResponseWriter, r *http.Request) (*store
 func (s *Server) scanStatus(w http.ResponseWriter, r *http.Request) {
 	if lib, ok := s.libraryFromPath(w, r); ok {
 		requestStage(r, "reading scanner status", lib.ID)
-		writeJSON(w, http.StatusOK, s.scanner.Status(lib.ID))
+		writeJSON(w, http.StatusOK, profileScanStatus(r, s.scanner.Status(lib.ID)))
 	}
 }
 
@@ -553,7 +564,8 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 
 // listItems: GET /api/items. Browse, filter and search. Sorts: title, added, year, release,
 // rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set
-// `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. With title sort,
+// `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. Limit is 1–500
+// (default 100), offset 0–10000000; invalid or oversized bounds return 400. With title sort,
 // `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next
 // available title in the current direction). The response includes the full filtered `total` and
 // actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds
@@ -573,8 +585,12 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		Jump:    strings.ToLower(q.Get("jump")),
 	}
 	query.LibraryID, _ = strconv.ParseInt(q.Get("library_id"), 10, 64)
-	query.Limit, _ = strconv.Atoi(q.Get("limit"))
-	query.Offset, _ = strconv.Atoi(q.Get("offset"))
+	var pagingErr error
+	query.Limit, query.Offset, pagingErr = pageBounds(q.Get("limit"), q.Get("offset"), 100, 500)
+	if pagingErr != nil {
+		writeError(w, http.StatusBadRequest, pagingErr.Error())
+		return
+	}
 	query.Access = access(r)
 	query.Genre = q.Get("genre")
 	query.Language = q.Get("language")
@@ -706,7 +722,7 @@ func (s *Server) itemDetails(r *http.Request, it *store.Item) (itemDTO, error) {
 	if err != nil {
 		return d, err
 	}
-	d.Files = files
+	d.Files = profileMediaFiles(r, files)
 	if err = s.addDetails(r, &d); err != nil {
 		return d, err
 	}
@@ -870,7 +886,10 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
-	s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	markFailureLogged(w)
+	if !errors.Is(err, context.Canceled) {
+		s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	}
 	writeError(w, http.StatusInternalServerError, "internal error")
 }
 
@@ -884,10 +903,40 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+// responseRecorder reaches summary state through wrappers without changing the response.
+func responseRecorder(w http.ResponseWriter) *statusRecorder {
+	for {
+		if rec, ok := w.(*statusRecorder); ok {
+			return rec
+		}
+		if wrapped, ok := w.(interface{ Unwrap() http.ResponseWriter }); ok {
+			w = wrapped.Unwrap()
+		} else {
+			return nil
+		}
+	}
+}
+
+// markFailureLogged prevents the request summary from duplicating a boundary's error log.
+func markFailureLogged(w http.ResponseWriter) {
+	if rec := responseRecorder(w); rec != nil {
+		rec.failureLogged = true
+	}
+}
+
+// markExpectedResponse is explicit: unknown 5xx and real database failures remain warnings.
+func markExpectedResponse(w http.ResponseWriter) {
+	if rec := responseRecorder(w); rec != nil {
+		rec.expected = true
+	}
+}
+
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
-	home   bool // the device is at home, for the Dashboard's network graph
+	status        int
+	failureLogged bool
+	expected      bool
+	home          bool // the device is at home, for the Dashboard's network graph
 }
 
 func (r *statusRecorder) Write(b []byte) (int, error) {
@@ -912,11 +961,20 @@ const APIVersion = 1
 func versioned(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rest, ok := strings.CutPrefix(r.URL.Path, "/api/v1/"); ok {
-			r2 := r.Clone(r.Context())
-			r2.URL.Path = "/api/" + rest
-			r2.URL.RawPath = ""
-			next.ServeHTTP(w, r2)
-			return
+			// Decode the two namespace segments individually, preserving escaped
+			// separators/dots in the tail for ServeMux's segment-aware matching.
+			parts := strings.SplitN(r.URL.EscapedPath(), "/", 4)
+			if len(parts) == 4 {
+				api, firstErr := url.PathUnescape(parts[1])
+				version, secondErr := url.PathUnescape(parts[2])
+				if firstErr == nil && secondErr == nil && api == "api" && version == "v1" {
+					r2 := r.Clone(r.Context())
+					r2.URL.Path = "/api/" + rest
+					r2.URL.RawPath = "/api/" + parts[3]
+					next.ServeHTTP(w, r2)
+					return
+				}
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -925,6 +983,15 @@ func versioned(next http.Handler) http.Handler {
 func (s *Server) logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r = s.requestID(w, r)
+		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "OPTIONS" && !catalogMutationRoute(r) {
+			release, ok := s.store.BeginCatalogWork()
+			if !ok {
+				w.Header().Set("Retry-After", "3")
+				writeError(w, http.StatusServiceUnavailable, "catalog maintenance in progress; retry shortly")
+				return
+			}
+			defer release()
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/watch-together") {
 			w.Header().Set("Cache-Control", "private, no-store")
 			w.Header().Set("X-Arc-Server-Time-Ms", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -947,7 +1014,9 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		took := time.Since(start)
 		level, message := slog.LevelDebug, "http"
 		if rec.status >= 500 {
-			level, message = slog.LevelWarn, "request failed"
+			if !rec.failureLogged && !rec.expected && r.Context().Err() == nil {
+				level, message = slog.LevelWarn, "request failed"
+			}
 		} else if (took >= 2*time.Second && r.Method != http.MethodGet && r.Method != http.MethodHead) || (trackRequest(route) && took >= requestWarningAfter) {
 			level, message = slog.LevelWarn, "slow request"
 		}

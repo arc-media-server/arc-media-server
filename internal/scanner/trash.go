@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -19,6 +18,11 @@ var ErrTrashBackup = errors.New("couldn't back up first, so nothing was removed"
 // EmptyTrash shares discovery's exclusive library slot. before must take the safety backup;
 // its failure aborts deletion. Automatic callers additionally supply their live scheduling gate.
 func (s *Scanner) EmptyTrash(ctx context.Context, id int64, automatic bool, before func(context.Context) error, allowed func() bool) (removed int64, err error) {
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return 0, ErrLibraryBusy
+	}
+	defer releaseCatalog()
 	s.mu.Lock()
 	if st := s.status[id]; st != nil && st.Running {
 		s.mu.Unlock()
@@ -155,23 +159,7 @@ func (s *Scanner) checkTrashRoots(ctx context.Context, lib *store.Library) error
 		if readErr != nil {
 			return ErrTrashUnsafe
 		}
-		anchor := false
-		for _, f := range files {
-			rel, err := filepath.Rel(root, f.Path)
-			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				continue
-			}
-			h, err := os.Open(f.Path)
-			if err != nil {
-				continue
-			}
-			info, err := h.Stat()
-			h.Close()
-			if err == nil && info.Mode().IsRegular() && info.Size() == f.Size {
-				anchor = true
-				break
-			}
-		}
+		anchor := readableFileAnchor(ctx, root, files)
 		if !anchor {
 			return ErrTrashUnsafe
 		}

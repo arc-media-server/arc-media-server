@@ -46,12 +46,19 @@ RUN apt-get update \
  && ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
  && ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe \
  && rm -rf /tmp/jellyfin-ffmpeg.deb /var/lib/apt/lists/*
+# Unprivileged by default. Only Arc's own data directory is created/owned here; never chown
+# mounted media or existing host files. Bind-mount owners may override the numeric UID/GID.
+RUN groupadd --gid 10001 arc \
+ && useradd --uid 10001 --gid arc --home-dir /config --no-create-home --shell /usr/sbin/nologin arc \
+ && install -d -o arc -g arc -m 0750 /config
 COPY --from=server /out/ams /usr/local/bin/ams
 # /config holds the database, artwork, backups and certificates; mount your media read-only
 # (e.g. at /media) and add libraries in the app.
-ENV AMS_DATA=/config \
+ENV HOME=/config \
+    AMS_DATA=/config \
     AMS_LISTEN=0.0.0.0:8099
 VOLUME /config
 EXPOSE 8099
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD curl -fsS http://127.0.0.1:8099/api/health || exit 1
+USER 10001:10001
 ENTRYPOINT ["/usr/local/bin/ams", "-config", "none"]

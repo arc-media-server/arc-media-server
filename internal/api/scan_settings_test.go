@@ -15,7 +15,7 @@ func TestScanSettingsPatchValidation(t *testing.T) {
 	s.ffprobeStatus = func() any { return nil }
 	current := settings.Settings{ScanAutomatic: true, ScanPartial: true, ScanOnStart: true, ScanIntervalHours: 1}
 	s.settings = func() settings.Settings { return current }
-	s.applySettings = func(_ context.Context, next settings.Settings) error { current = next; return nil }
+	s.applySettings = func(_ context.Context, _ settings.Settings, next settings.Settings) error { current = next; return nil }
 	for _, body := range []string{
 		`{"scan_interval_hours":3}`, `{"scan_interval_hours":-1}`, `{"scan_interval_hours":1.5}`,
 		`{"scan_interval_hours":"6"}`, `{"scan_automatic":"false"}`, `{"scan_partial":1}`,
@@ -47,7 +47,7 @@ func TestBackgroundSettingsStrictValidationAndMinutePatch(t *testing.T) {
 	s.ffprobeStatus = func() any { return nil }
 	current := settings.Settings{ScanIntervalHours: 1, PreviewMode: "scheduled", DetectionMode: "scheduled"}
 	s.settings = func() settings.Settings { return current }
-	s.applySettings = func(_ context.Context, next settings.Settings) error { current = next; return nil }
+	s.applySettings = func(_ context.Context, _ settings.Settings, next settings.Settings) error { current = next; return nil }
 	for _, body := range []string{`{"database_upkeep_enabled":null}`, `{"cache_cleanup_enabled":1}`, `{"database_upkeep_enabled":"true"}`, `{"empty_trash_enabled":null}`, `{"empty_trash_enabled":"true"}`, `{"empty_trash_enabled":1}`, `{"preview_mode":null}`, `{"preview_mode":"always"}`, `{"detection_mode":false}`, `{"analysis_enabled":null}`, `{"metadata_refresh_enabled":1}`, `{"auto_backups_enabled":"false"}`, `{"scan_interval_minutes":1}`, `{"scan_interval_minutes":15.5}`, `{"scan_interval_minutes":null}`} {
 		w := httptest.NewRecorder()
 		s.updateSettings(w, httptest.NewRequest("PATCH", "/api/settings", strings.NewReader(body)))
@@ -72,7 +72,7 @@ func TestFractionalLegacyHoursRoundTripForMinuteIntervals(t *testing.T) {
 	s.ffprobeStatus = func() any { return nil }
 	current := settings.Settings{}
 	s.settings = func() settings.Settings { return current }
-	s.applySettings = func(_ context.Context, next settings.Settings) error { current = next; return nil }
+	s.applySettings = func(_ context.Context, _ settings.Settings, next settings.Settings) error { current = next; return nil }
 	for _, hours := range []string{"0.25", "0.5", "2"} {
 		w := httptest.NewRecorder()
 		s.updateSettings(w, httptest.NewRequest("PATCH", "/api/settings", strings.NewReader(`{"scan_interval_hours":`+hours+`}`)))

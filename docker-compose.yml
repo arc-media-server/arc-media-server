@@ -5,6 +5,9 @@ services:
     image: ghcr.io/arc-media-server/arc-media-server:latest
     container_name: arc
     restart: unless-stopped
+    # Default image user: 10001:10001. Create arc-config with matching write permission first;
+    # for an existing host account, override here (PUID/PGID environment variables are not read).
+    # user: "1000:1000"
     # Host networking lets Arc see devices' real addresses (for "at home" sign-in and remote limits)
     # and open the router port with UPnP. On Docker Desktop (Windows/Mac) use the ports below instead.
     network_mode: host
@@ -21,6 +24,10 @@ services:
     # Intel/AMD:
     # devices:
     #   - /dev/dri:/dev/dri
+    # Also grant the numeric host groups that own the device nodes (check ls -ln /dev/dri):
+    # group_add:
+    #   - "<render-gid>"
+    #   - "<video-gid>"
     # NVIDIA (needs the NVIDIA Container Toolkit):
     # deploy:
     #   resources:

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -65,18 +66,41 @@ type Delivery struct {
 
 // Notifier delivers events to the webhooks that want them.
 type Notifier struct {
-	store *store.Store
-	log   *slog.Logger
-	http  *http.Client
+	store     *store.Store
+	log       *slog.Logger
+	http      *http.Client
+	waitRetry func(context.Context, time.Duration) error
 	// BaseURL, if set, makes links and pictures in messages (e.g. "http://192.168.1.10:8099").
 	BaseURL func() string
 
-	mu   sync.Mutex
-	last map[string]Delivery
+	ctx     context.Context
+	cancel  context.CancelFunc
+	closed  bool
+	workers sync.WaitGroup
+	mu      sync.Mutex
+	last    map[string]Delivery
 }
 
 func New(st *store.Store, log *slog.Logger) *Notifier {
-	return &Notifier{store: st, log: log, http: &http.Client{Timeout: 15 * time.Second}, last: map[string]Delivery{}}
+	return NewWithContext(context.Background(), st, log)
+}
+
+// NewWithContext owns asynchronous deliveries until process shutdown.
+func NewWithContext(ctx context.Context, st *store.Store, log *slog.Logger) *Notifier {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Notifier{ctx: ctx, cancel: cancel, store: st, log: log, http: &http.Client{Timeout: 15 * time.Second}, waitRetry: waitWebhookRetry, last: map[string]Delivery{}}
+}
+
+// Close cancels deliveries and joins every admitted store/network operation.
+func (n *Notifier) Close() {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	n.closed = true
+	n.cancel()
+	n.mu.Unlock()
+	n.workers.Wait()
 }
 
 // Last returns how each webhook's last delivery went, by id.
@@ -109,12 +133,22 @@ func (n *Notifier) Send(ev Event) {
 			ev.Item.Image = base + "/api/items/" + pic + "/images/primary"
 		}
 	}
+	n.mu.Lock()
+	if n.closed || n.ctx.Err() != nil {
+		n.mu.Unlock()
+		return
+	}
+	n.workers.Add(1)
+	n.mu.Unlock()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer n.workers.Done()
+		ctx, cancel := context.WithTimeout(n.ctx, time.Minute)
 		defer cancel()
 		hooks, err := n.store.Webhooks(ctx)
 		if err != nil {
-			n.log.Warn("listing webhooks failed", "err", err)
+			if ctx.Err() == nil {
+				n.log.Warn("listing webhooks failed", "err", err)
+			}
 			return
 		}
 		for _, h := range hooks {
@@ -145,46 +179,83 @@ func itemPath(it *Item) string {
 func (n *Notifier) deliver(ctx context.Context, h store.Webhook, ev Event) Delivery {
 	body, err := json.Marshal(payload(h.URL, ev))
 	d := Delivery{At: time.Now(), Event: ev.Event}
-	for attempt := 0; err == nil && attempt < 3; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
+	attempts := 0
+	started := time.Now()
+	if err != nil {
+		err = errors.New("webhook payload could not be encoded")
+	} else {
+		for attempt := 0; attempt < 3; attempt++ {
+			if ctx.Err() != nil {
 				err = ctx.Err()
+				break
+			}
+			if attempt > 0 {
+				wait := n.waitRetry
+				if wait == nil {
+					wait = waitWebhookRetry
+				}
+				if err = wait(ctx, time.Duration(attempt*5)*time.Second); err != nil {
+					break
+				}
+			}
+			attempts++
+			req, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, h.URL, bytes.NewReader(body))
+			if requestErr != nil {
+				err = errors.New("invalid webhook URL")
+				break
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", "ArcMediaServer")
+			var resp *http.Response
+			resp, err = n.http.Do(req)
+			if err != nil {
+				if ctx.Err() != nil {
+					err = ctx.Err()
+					break
+				}
+				if errors.Is(err, context.DeadlineExceeded) {
+					err = fmt.Errorf("webhook request timed out: %w", context.DeadlineExceeded)
+				} else {
+					err = errors.New("webhook transport failed")
+				}
 				continue
-			case <-time.After(time.Duration(attempt*5) * time.Second):
+			}
+			resp.Body.Close()
+			d.Status = fmt.Sprintf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+			if resp.StatusCode/100 == 2 {
+				d.OK = true
+				err = nil
+				break
+			}
+			err = errors.New(d.Status)
+			if resp.StatusCode/100 == 4 && resp.StatusCode != http.StatusTooManyRequests {
+				break
 			}
 		}
-		var req *http.Request
-		req, err = http.NewRequestWithContext(ctx, http.MethodPost, h.URL, bytes.NewReader(body))
-		if err != nil {
-			break
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "ArcMediaServer")
-		var resp *http.Response
-		resp, err = n.http.Do(req)
-		if err != nil {
-			continue
-		}
-		resp.Body.Close()
-		d.Status = resp.Status
-		if resp.StatusCode/100 == 2 {
-			d.OK = true
-			break
-		}
-		err = fmt.Errorf("%s", resp.Status)
-		if resp.StatusCode/100 == 4 && resp.StatusCode != http.StatusTooManyRequests {
-			break // the request itself is wrong; trying again won't help
-		}
 	}
+
 	if err != nil {
 		d.Status, d.OK = err.Error(), false
-		n.log.Warn("webhook failed", "webhook", h.Name, "event", ev.Event, "err", err)
+		if ctx.Err() == nil {
+			n.log.Warn("webhook failed", "webhook", h.Name, "event", ev.Event, "attempts", attempts, "took", time.Since(started), "err", err)
+		}
 	}
 	n.mu.Lock()
 	n.last[h.ID] = d
 	n.mu.Unlock()
 	return d
+}
+
+// waitWebhookRetry is canceled promptly when delivery or server work ends.
+func waitWebhookRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // payload is the body for a webhook: Discord and Slack get a message in their own format, and

@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"ams/internal/store"
 )
@@ -21,12 +23,28 @@ const pointSec = 0.1238
 
 // fingerprint returns the Chromaprint fingerprint of part of a file's audio.
 func fingerprint(ctx context.Context, ffmpeg, path string, fromSec, lenSec float64) ([]uint32, error) {
-	cmd := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-loglevel", "error",
+	work, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(work, ffmpeg, "-hide_banner", "-loglevel", "error",
 		"-ss", strconv.FormatFloat(fromSec, 'f', 2, 64), "-t", strconv.FormatFloat(lenSec, 'f', 2, 64), "-i", path,
-		"-map", "0:a:0", "-ac", "1", "-f", "chromaprint", "-fp_format", "raw", "-")
+		"-map", "0:a:0?", "-ac", "1", "-f", "chromaprint", "-fp_format", "raw", "-")
+	var stderr fingerprintStderr
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("fingerprinting %s: %w", path, err)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if strings.Contains(stderr.String(), "does not contain any stream") {
+			return nil, errNoAudio
+		}
+		if work.Err() != nil {
+			err = work.Err()
+		}
+		return nil, fmt.Errorf("audio fingerprint failed: %w (%s)", err, fingerprintDetail(stderr.String(), path))
+	}
+	if len(out) < 4 {
+		return nil, errNoAudio
 	}
 	fp := make([]uint32, len(out)/4)
 	for i := range fp {
@@ -109,7 +127,7 @@ func longestAt(a, b []uint32, by int) run {
 
 // detectSeason finds the intro and credits each episode of a season shares with its neighbours.
 // Files must be in episode order; at least two are needed.
-func detectSeason(ctx context.Context, ffmpeg string, files []store.MarkerJob) (map[int64][]store.Marker, error) {
+func detectSeason(ctx context.Context, ffmpeg string, files []store.MarkerJob, onSkip ...func(store.MarkerJob, error)) (map[int64][]store.Marker, error) {
 	out := map[int64][]store.Marker{}
 	if len(files) < 2 {
 		return out, nil
@@ -118,20 +136,39 @@ func detectSeason(ctx context.Context, ffmpeg string, files []store.MarkerJob) (
 		head, tail      []uint32
 		tailFrom, total float64
 	}
-	fps := make([]prints, len(files))
-	for i, f := range files {
+	fps := make([]prints, 0, len(files))
+	valid := make([]store.MarkerJob, 0, len(files))
+	skip := func(f store.MarkerJob, err error) {
+		for _, report := range onSkip {
+			report(f, err)
+		}
+	}
+	for _, f := range files {
 		total := float64(f.DurationMS) / 1000
 		headLen := min(total*0.3, 600)
 		tailLen := min(total*0.25, 420)
 		head, err := fingerprint(ctx, ffmpeg, f.Path, 0, headLen)
 		if err != nil {
-			return out, err
+			if ctx.Err() != nil {
+				return out, ctx.Err()
+			}
+			skip(f, err)
+			continue
 		}
 		tail, err := fingerprint(ctx, ffmpeg, f.Path, total-tailLen, tailLen)
 		if err != nil {
-			return out, err
+			if ctx.Err() != nil {
+				return out, ctx.Err()
+			}
+			skip(f, err)
+			continue
 		}
-		fps[i] = prints{head: head, tail: tail, tailFrom: total - tailLen, total: total}
+		fps = append(fps, prints{head: head, tail: tail, tailFrom: total - tailLen, total: total})
+		valid = append(valid, f)
+	}
+	files = valid
+	if len(files) < 2 {
+		return out, nil
 	}
 	sec := func(points int) int64 { return int64(float64(points) * pointSec * 1000) }
 	for i, f := range files {

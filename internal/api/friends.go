@@ -16,6 +16,10 @@ import (
 // inviteLife is how long an invite link works.
 const inviteLife = 7 * 24 * time.Hour
 
+// A public, non-credential hash at auth.Hash's default bcrypt cost. Compare even when a name
+// does not exist or an invite has no password yet. Its result can never authorize a profile.
+const missingFriendPasswordHash = "$2a$10$1sDNByczecGpB1U8HAteg.c2BDFeDOGkvNhUyD.j0FLWQ1iWEAWKK"
+
 // newInvite makes a friend's invite link token (a new one replaces the old).
 func (s *Server) newInvite(r *http.Request, userID string) (string, error) {
 	token, hash := auth.NewToken()
@@ -61,12 +65,12 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	key := "invite:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -77,7 +81,6 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u == nil {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusNotFound, "this invite link has run out or been used; ask for a new one")
 		return
 	}
@@ -116,12 +119,12 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 		// An app signing in (see login).
 		Device string `json:"device"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	key := "friend:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -130,15 +133,23 @@ func (s *Server) friendLogin(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	if u == nil || u.PasswordHash == "" || !auth.Check(u.PasswordHash, body.Password) {
-		s.limiter.Fail(key)
+	hash := missingFriendPasswordHash
+	if u != nil && u.PasswordHash != "" {
+		hash = u.PasswordHash
+	}
+	valid := auth.Check(hash, body.Password)
+	if u == nil || u.PasswordHash == "" || !valid {
 		s.log.Warn("friend sign-in failed", "name", body.Name, "address", clientIP(r))
 		writeError(w, http.StatusUnauthorized, "that name and password don't match")
 		return
 	}
 	s.limiter.Succeed(key)
 	s.log.Info("friend signed in", "name", u.Name, "address", clientIP(r), "device", deviceName(r.UserAgent()))
-	if old := s.session(r); old != nil && body.Device == "" {
+	old, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
 	s.signIn(w, r, u.ID, "friend", strings.TrimSpace(body.Device))

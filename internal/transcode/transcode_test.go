@@ -111,13 +111,13 @@ func TestBuildArgs(t *testing.T) {
 		t.Errorf("surround args: %s", surround)
 	}
 	enc := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, MaxHeight: 720, SourceHeight: 2160, VideoKbps: 4000, BurnSubtitle: -1}, 0, "out"), " ")
-	for _, want := range []string{"-c:v libx264", "-b:v 4000k", "scale=-2:720"} {
+	for _, want := range []string{"-c:v libx264", "-b:v 4000k", FitScaleFilter(720)} {
 		if !strings.Contains(enc, want) {
 			t.Errorf("encode args missing %q:\n%s", want, enc)
 		}
 	}
 	burn := strings.Join(buildArgs(Options{Path: "in.mkv", VideoStream: 0, AudioStream: 1, BurnSubtitle: 3, MaxHeight: 720, SourceHeight: 1080}, 0, "out"), " ")
-	if !strings.Contains(burn, "-filter_complex [0:0][0:3]overlay=eof_action=pass,scale=-2:720[v] -map [v] -map 0:1") || strings.Contains(burn, "-vf") {
+	if !strings.Contains(burn, "-filter_complex [0:0]"+FitScaleFilter(720)+"[pre];[0:3][pre]scale2ref=w=iw:h=ih[subscaled][videoref];[videoref][subscaled]overlay=eof_action=pass[v] -map [v] -map 0:1") || strings.Contains(burn, "-vf") {
 		t.Errorf("burn-in args:\n%s", burn)
 	}
 	for _, unwanted := range []string{"-ss", "-c:a", "-copyts"} {
@@ -201,13 +201,13 @@ func TestSession(t *testing.T) {
 func TestHardwareAndToneMapArgs(t *testing.T) {
 	nv := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: -1, HWEncoder: "h264_nvenc", ToneMap: true,
 		SourceHeight: 2160, MaxHeight: 1080}, 0, "out"), " ")
-	for _, want := range []string{"-hwaccel auto -i in.mkv", "-vf " + ToneMapFilter + ",scale=-2:1080", "-c:v h264_nvenc -b:v 10000k", "-forced-idr 1"} {
+	for _, want := range []string{"-hwaccel auto -i in.mkv", "-vf " + FitScaleFilter(1080) + "," + ToneMapFilter, "-c:v h264_nvenc -b:v 10000k", "-forced-idr 1"} {
 		if !strings.Contains(nv, want) {
 			t.Errorf("nvenc args missing %q:\n%s", want, nv)
 		}
 	}
 	burn := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: 4, ToneMap: true}, 0, "out"), " ")
-	if !strings.Contains(burn, "-filter_complex [0:0]"+ToneMapFilter+"[pre];[pre][0:4]overlay=eof_action=pass[v]") {
+	if !strings.Contains(burn, "-filter_complex [0:0]"+ToneMapFilter+"[pre];[0:4][pre]scale2ref=w=iw:h=ih[subscaled][videoref];[videoref][subscaled]overlay=eof_action=pass[v]") {
 		t.Errorf("tone mapped burn-in:\n%s", burn)
 	}
 	va := strings.Join(buildArgs(Options{Path: "in.mkv", AudioStream: -1, BurnSubtitle: -1, HWEncoder: "h264_vaapi"}, 0, "out"), " ")

@@ -58,6 +58,7 @@ type decision struct {
 	Reasons       []string
 	ReasonCodes   []string
 	NeedsToneMap  bool
+	DVBaseLayer   bool
 	UnsupportedDV bool
 }
 
@@ -197,6 +198,15 @@ func decide(f *store.MediaFile, video, audio *store.Stream, caps clientCaps) dec
 			if format == "dolby_vision" && caps.DolbyVisionProfiles != nil && !slices.Contains(caps.DolbyVisionProfiles, video.DolbyVisionProfile) {
 				supported = false
 			}
+			if !supported && format == "dolby_vision" {
+				if base, ok := video.DolbyVisionBaseFormat(); ok {
+					d.DVBaseLayer = true
+					d.Reasons = append(d.Reasons, "using Dolby Vision's compatible base layer")
+					d.ReasonCodes = append(d.ReasonCodes, "dolby_vision_base_layer")
+					format = base
+					supported = base == "" || slices.Contains(caps.HDRFormats, base)
+				}
+			}
 			if !supported {
 				reject("hdr_output", "source HDR format not supported")
 				d.NeedsToneMap = true
@@ -290,6 +300,7 @@ type audioOutputDTO struct {
 }
 
 type playbackPlan struct {
+	RollingHLS    bool     `json:"rolling_hls,omitempty"`
 	DecisionOnly  bool     `json:"decision_only,omitempty"`
 	CanStart      *bool    `json:"can_start,omitempty"`
 	NeedsAnalysis bool     `json:"needs_analysis,omitempty"`
@@ -353,6 +364,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 	}
 	var body struct {
 		Caps        clientCaps `json:"caps"`
+		RollingHLS  bool       `json:"rolling_hls" api:"optional"`
 		FileID      int64      `json:"file_id" api:"optional"`
 		AudioStream *int       `json:"audio_stream" api:"optional"`
 		StartMS     int64      `json:"start_ms" api:"optional"`
@@ -387,20 +399,20 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 
 	if preview && (!f.Probed || len(f.Streams) == 0) {
 		can := false
-		writeJSON(w, 200, playbackPlan{Method: "unknown", DecisionOnly: true, CanStart: &can, NeedsAnalysis: true, FileID: f.ID, Reasons: []string{"file needs analysis"}, ReasonCodes: []string{"needs_analysis"}, AudioTracks: []audioTrackDTO{}, SubtitleTracks: []subtitles.Track{}, Versions: versions(files)})
+		writeJSON(w, 200, normalizePlaybackPlan(playbackPlan{Method: "unknown", DecisionOnly: true, CanStart: &can, NeedsAnalysis: true, FileID: f.ID, Reasons: []string{"file needs analysis"}, ReasonCodes: []string{"needs_analysis"}, AudioTracks: []audioTrackDTO{}, SubtitleTracks: []subtitles.Track{}, Versions: versions(files)}))
 		return
 	}
 	video := videoStream(f)
 	if video == nil {
 		if preview {
 			can := false
-			writeJSON(w, 200, playbackPlan{Method: "unavailable", DecisionOnly: true, CanStart: &can, FileID: f.ID, Reasons: []string{"no video found"}, ReasonCodes: []string{"no_video"}})
+			writeJSON(w, 200, normalizePlaybackPlan(playbackPlan{Method: "unavailable", DecisionOnly: true, CanStart: &can, FileID: f.ID, Reasons: []string{"no video found"}, ReasonCodes: []string{"no_video"}}))
 		} else {
 			writeError(w, 422, "no video found")
 		}
 		return
 	}
-	audio := defaultAudio(f)
+	var audio *store.Stream
 	if body.AudioStream == nil {
 		audio = s.playbackDefaultAudio(r, f)
 	} else {
@@ -500,9 +512,18 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			}
 			s.playing.setMethod(r, it.ID, "direct", "", optimized, s.transcoder)
 			s.logPlayback(r, f.ID, out.Method, out.Reasons)
-			writeJSON(w, http.StatusOK, out)
+			writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 			return
 		}
+	}
+	if video.DolbyVision && video.DolbyVisionProfile == 5 && d.Method == "transcode" {
+		out.ReasonCodes = append(out.ReasonCodes, "dv5_conversion_unsupported")
+		if preview {
+			s.writePlaybackPreview(w, out, false)
+		} else {
+			writeError(w, 422, "Dolby Vision profile 5 cannot be safely re-encoded; use the original on a compatible player")
+		}
+		return
 	}
 	if d.NeedsToneMap && (d.UnsupportedDV || s.transcoder == nil || !s.settings().ToneMap || !s.transcoder.Caps().ToneMapping) {
 		out.ReasonCodes = append(out.ReasonCodes, "hdr_conversion_unavailable")
@@ -531,7 +552,7 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		out.URL = fmt.Sprintf("/api/items/%s/stream?file=%d", it.ID, f.ID)
 		out.OffsetMS = 0
 		s.playing.setMethod(r, it.ID, "direct", "", directDetail(video, audio, nil), s.transcoder)
-		writeJSON(w, http.StatusOK, out)
+		writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 		return
 	}
 	if !conversionSupported(body.Caps, d, audio) {
@@ -549,16 +570,20 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 			s.writePlaybackPreview(w, out, false)
 			return
 		}
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "this server can't convert files")
 		return
 	}
 	opts := transcode.Options{Path: f.Path, StartMS: body.StartMS, VideoStream: video.Index, AudioStream: -1,
 		CopyVideo: d.Method == "remux", CopyAudio: d.CopyAudio, AudioCodec: d.AudioCodec, AudioChannels: d.AudioChannels,
 		MaxHeight: body.Caps.MaxHeight, SourceHeight: video.Height,
-		VideoCodec: video.Codec, DolbyVision: video.DolbyVision, BurnSubtitle: burn,
-		Owner: currentSession(r), ItemID: it.ID}
+		VideoCodec: video.Codec, DolbyVision: video.DolbyVision && !d.DVBaseLayer, StripDolbyVision: d.DVBaseLayer, BurnSubtitle: burn,
+		Owner: currentSession(r), ItemID: it.ID, RollingHLS: body.RollingHLS}
 	if audio != nil {
 		opts.AudioStream = audio.Index
+		if opts.CopyAudio {
+			opts.AudioCodec = audio.Codec
+		}
 	}
 	if limitHeight > 0 {
 		// Leave room for the audio (AAC stereo: a limited stream doesn't spend 640 kbit/s on
@@ -580,7 +605,11 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		if st.HWAccel {
 			opts.HWEncoder = caps.HWEncoder
 		}
-		opts.ToneMap = st.ToneMap && caps.ToneMapping && hdrName(video) != ""
+		toneSource := sourceHDRFormat(video)
+		if base, ok := video.DolbyVisionBaseFormat(); ok {
+			toneSource = base
+		}
+		opts.ToneMap = st.ToneMap && caps.ToneMapping && toneSource != ""
 		opts.FastToneMap = opts.ToneMap && caps.FastToneMap
 	}
 	if preview {
@@ -589,28 +618,38 @@ func (s *Server) servePlayback(w http.ResponseWriter, r *http.Request, preview b
 		return
 	}
 	sess, err := s.startConversion(r, opts)
-	if errors.Is(err, transcode.ErrBusy) {
+	if err != nil && conversionCancelled(r.Context(), err) {
+		return
+	}
+	if errors.Is(err, transcode.ErrBusy) || errors.Is(err, transcode.ErrStorageFull) {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
-	if err != nil && opts.HWEncoder != "" {
+	if err != nil && opts.HWEncoder != "" && !conversionCancelled(r.Context(), err) {
 		// The graphics card couldn't do this one (an unusual format, a busy or old driver): use the CPU.
 		s.log.Warn("hardware conversion failed; using the CPU", "encoder", opts.HWEncoder, "err", err)
 		opts.HWEncoder = ""
 		sess, err = s.startConversion(r, opts)
 	}
 	if err != nil {
+		// A disconnected client cannot use a retry or an error response. Its conversion was stopped.
+		if conversionCancelled(r.Context(), err) {
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	out.Encoder, out.ToneMapped = transcode.EncoderLabel(opts.HWEncoder), opts.ToneMap
 	s.playing.setMethod(r, it.ID, d.Method, sess.ID, conversionDetail(video, audio, d.Reasons, opts), s.transcoder)
+	out.RollingHLS = sess.Options.RollingHLS
 	out.HLS, out.SessionID, out.OffsetMS = true, sess.ID, sess.OffsetMS
 	out.URL = "/api/transcode/" + sess.ID + "/index.m3u8"
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, normalizePlaybackPlan(out))
 }
 
 // session returns the transcode session in the path if it belongs to this browser.
+
 func (s *Server) transcodeSession(w http.ResponseWriter, r *http.Request) *transcode.Session {
 	if s.transcoder == nil {
 		writeError(w, http.StatusNotFound, "no such session")
@@ -707,6 +746,7 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return
 	}
@@ -756,10 +796,8 @@ func (s *Server) subtitleVTT(w http.ResponseWriter, r *http.Request) {
 		select {
 		case res := <-done:
 			if res.err != nil {
-				// Too late for an error status: the player gets a file without cues.
-				if r.Context().Err() == nil {
-					s.log.Warn("reading subtitles failed", "file", f.ID, "track", t.ID, "err", res.err)
-				}
+				// Too late for an error status. The extraction owner records one
+				// safe outcome shared with JSON requests and repeated waiters.
 				return
 			}
 			write(strings.TrimPrefix(webVTT(res.cues, shift), "WEBVTT\n"))
@@ -801,6 +839,7 @@ func (s *Server) subtitleASS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return
 	}
@@ -837,6 +876,7 @@ func (s *Server) readSubtitle(w http.ResponseWriter, r *http.Request) (subtitles
 		return subtitles.Track{}, nil, false
 	}
 	if s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "subtitles can't be read on this server")
 		return subtitles.Track{}, nil, false
 	}
@@ -1091,15 +1131,26 @@ func (s *Server) itemHasFile(w http.ResponseWriter, r *http.Request, itemID stri
 // startConversion starts a conversion and waits for its first segment (and, for copied video, where
 // it really starts: the player's clock offset).
 func (s *Server) startConversion(r *http.Request, opts transcode.Options) (*transcode.Session, error) {
+	if err := r.Context().Err(); err != nil {
+		return nil, err
+	}
 	sess, err := s.transcoder.Start(opts)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.transcoder.Ready(r.Context(), sess); err != nil {
+	err = s.transcoder.Ready(r.Context(), sess)
+	if err == nil {
+		err = r.Context().Err()
+	}
+	if err != nil {
 		s.transcoder.Stop(sess.ID)
 		return nil, err
 	}
 	return sess, nil
+}
+
+func conversionCancelled(ctx context.Context, err error) bool {
+	return ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // transcoderCaps is what the converter can do, for the Settings page.
@@ -1339,6 +1390,7 @@ func (s *Server) logPlayback(r *http.Request, fileID int64, method string, reaso
 // Repeated requests while detection is running reuse that job. No media files are inspected.
 func (s *Server) detectHardware(w http.ResponseWriter, r *http.Request) {
 	if s.transcoder == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "transcoding unavailable")
 		return
 	}

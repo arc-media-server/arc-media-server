@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -183,14 +185,8 @@ func (p *prefs) validate() error {
 		if f == nil || f.LibraryID == 0 {
 			return fmt.Errorf("choose which library %q shows", r.Title)
 		}
-		if err := f.validateExtended(); err != nil {
+		if err := f.validate(); err != nil {
 			return err
-		}
-		if f.Sort != "" && !store.ItemSorts[f.Sort] {
-			return fmt.Errorf("unknown sort %q", f.Sort)
-		}
-		if f.AddedWithin < 0 || f.MinRuntime < 0 || f.MaxRuntime < 0 || f.MinRating < 0 || f.MinRating > 10 {
-			return fmt.Errorf("%q has a filter out of range", r.Title)
 		}
 	}
 	return nil
@@ -202,12 +198,16 @@ func (s *Server) loadPrefs(r *http.Request) (prefs, error) {
 
 // loadPrefsFor reads a profile's preferences as stored (an empty home means the default layout).
 func (s *Server) loadPrefsFor(ctx context.Context, userID string) (prefs, error) {
-	p := prefs{Home: []homeRow{}}
 	raw, err := s.store.UserPrefs(ctx, userID)
 	if err != nil {
-		return p, err
+		return prefs{Home: []homeRow{}}, err
 	}
-	// Preferences that can't be read fall back to the defaults rather than breaking the app.
+	return s.prefsFromJSON(raw, userID), nil
+}
+
+func (s *Server) prefsFromJSON(raw, userID string) prefs {
+	p := prefs{Home: []homeRow{}}
+	// Preserve the existing fallback for unreadable stored preferences.
 	if err := json.Unmarshal([]byte(raw), &p); err != nil {
 		s.log.Warn("ignoring unreadable profile preferences", "profile", userID, "err", err)
 		p = prefs{}
@@ -215,7 +215,7 @@ func (s *Server) loadPrefsFor(ctx context.Context, userID string) (prefs, error)
 	if p.Home == nil {
 		p.Home = []homeRow{}
 	}
-	return p, nil
+	return p
 }
 
 const defaultHomeKey = "default_home"
@@ -330,11 +330,6 @@ func (s *Server) setDefaultHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID string) {
-	p, err := s.loadPrefsFor(r.Context(), userID)
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
 	var body struct {
 		ShowHomeHero     *bool          `json:"show_home_hero"`
 		HideSpoilers     *bool          `json:"hide_spoilers"`
@@ -357,62 +352,74 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		writeError(w, http.StatusBadRequest, "send the preferences to change as JSON")
 		return
 	}
-	if body.ShowHomeHero != nil {
-		p.ShowHomeHero = body.ShowHomeHero
-	}
-	if body.HideSpoilers != nil {
-		p.HideSpoilers = *body.HideSpoilers
-	}
-	if body.LibraryOrder != nil {
-		p.LibraryOrder = *body.LibraryOrder
-	}
-	if body.WatchlistAt != nil {
-		p.WatchlistPosition = *body.WatchlistAt
-	}
-	if body.WatchedPercent != nil {
-		p.WatchedPercent = *body.WatchedPercent
-	}
-	if body.Theme != nil {
-		p.Theme = *body.Theme
-	}
-	if body.SubtitleLanguage != nil {
-		p.SubtitleLanguage = *body.SubtitleLanguage
-	}
-	if body.AudioLanguage != nil {
-		p.AudioLanguage = *body.AudioLanguage
-	}
-	if body.SplitUpNext != nil {
-		p.SplitUpNext = *body.SplitUpNext
-	}
-	if body.AutoSkip != nil {
-		p.AutoSkip = *body.AutoSkip
-	}
-	if body.RemoteQuality != nil {
-		p.RemoteQualityKbps = *body.RemoteQuality
-	}
-	if body.SubtitleMode != nil {
-		p.SubtitleMode = *body.SubtitleMode
-	}
-	if body.SubtitleStyle != nil {
-		p.SubtitleStyle = *body.SubtitleStyle
-	}
-	if body.ThemeMusic != nil {
-		p.ThemeMusic = body.ThemeMusic
-	}
-	if body.AutoPlay != nil {
-		p.AutoPlay = body.AutoPlay
-	}
-	if body.Home != nil {
-		p.Home = body.Home
-	}
-	if err := p.validate(); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	p.HomeIsDefault = false
-	raw, _ := json.Marshal(p)
-	if err := s.store.SetUserPrefs(r.Context(), userID, string(raw)); err != nil {
-		s.fail(w, err)
+	var p prefs
+	err := s.store.UpdateUserPrefs(r.Context(), userID, func(raw string) (string, error) {
+		p = s.prefsFromJSON(raw, userID)
+		if body.ShowHomeHero != nil {
+			p.ShowHomeHero = body.ShowHomeHero
+		}
+		if body.HideSpoilers != nil {
+			p.HideSpoilers = *body.HideSpoilers
+		}
+		if body.LibraryOrder != nil {
+			p.LibraryOrder = *body.LibraryOrder
+		}
+		if body.WatchlistAt != nil {
+			p.WatchlistPosition = *body.WatchlistAt
+		}
+		if body.WatchedPercent != nil {
+			p.WatchedPercent = *body.WatchedPercent
+		}
+		if body.Theme != nil {
+			p.Theme = *body.Theme
+		}
+		if body.SubtitleLanguage != nil {
+			p.SubtitleLanguage = *body.SubtitleLanguage
+		}
+		if body.AudioLanguage != nil {
+			p.AudioLanguage = *body.AudioLanguage
+		}
+		if body.SplitUpNext != nil {
+			p.SplitUpNext = *body.SplitUpNext
+		}
+		if body.AutoSkip != nil {
+			p.AutoSkip = *body.AutoSkip
+		}
+		if body.RemoteQuality != nil {
+			p.RemoteQualityKbps = *body.RemoteQuality
+		}
+		if body.SubtitleMode != nil {
+			p.SubtitleMode = *body.SubtitleMode
+		}
+		if body.SubtitleStyle != nil {
+			p.SubtitleStyle = *body.SubtitleStyle
+		}
+		if body.ThemeMusic != nil {
+			p.ThemeMusic = body.ThemeMusic
+		}
+		if body.AutoPlay != nil {
+			p.AutoPlay = body.AutoPlay
+		}
+		if body.Home != nil {
+			p.Home = body.Home
+		}
+		if err := p.validate(); err != nil {
+			return "", errMsg(err.Error())
+		}
+		p.HomeIsDefault = false
+		encoded, err := json.Marshal(p)
+		return string(encoded), err
+	})
+	if err != nil {
+		var invalid errMsg
+		switch {
+		case errors.As(err, &invalid):
+			writeError(w, http.StatusBadRequest, invalid.Error())
+		case errors.Is(err, sql.ErrNoRows):
+			writeError(w, http.StatusNotFound, "profile not found")
+		default:
+			s.fail(w, err)
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, s.withDefaultHome(r.Context(), p))

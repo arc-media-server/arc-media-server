@@ -51,3 +51,33 @@ func TestPlaylists(t *testing.T) {
 		t.Error("deleted playlist still listed")
 	}
 }
+
+func TestPlaylistDetailsFailureKeepsTitleAndFilter(t *testing.T) {
+	s := openTest(t)
+	ctx := context.Background()
+	u, err := s.CreateUser(ctx, "Fixture", false, "blue", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CreatePlaylist(ctx, u.ID, "Original")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SetPlaylistFilter(ctx, p.ID, `{"library_id":1}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.ExecContext(ctx, `CREATE TRIGGER reject_filter BEFORE UPDATE OF filter ON playlists BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	title, filter := "Changed", `{"library_id":2}`
+	if err = s.UpdatePlaylistDetails(ctx, p.ID, &title, &filter); err == nil {
+		t.Fatal("injected failure was ignored")
+	}
+	saved, err := s.GetPlaylist(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Title != "Original" || saved.Filter != `{"library_id":1}` {
+		t.Fatalf("partially applied failed update: %+v", saved)
+	}
+}

@@ -257,9 +257,12 @@ func (s *Store) DeletePasswordSessions(ctx context.Context, exceptTokenHash stri
 }
 
 // DeleteStaleSessions removes sessions unused since before.
-func (s *Store) DeleteStaleSessions(ctx context.Context, before int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE last_seen_at < ?`, before)
-	return err
+func (s *Store) DeleteStaleSessions(ctx context.Context, before int64) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE last_seen_at < ?`, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 // UserPrefs returns a profile's preferences JSON ("{}" when none are set).
@@ -276,6 +279,29 @@ func (s *Store) UserPrefs(ctx context.Context, userID string) (string, error) {
 func (s *Store) SetUserPrefs(ctx context.Context, userID, prefs string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET prefs = ? WHERE id = ?`, prefs, userID)
 	return err
+}
+
+// UpdateUserPrefs reads, transforms and saves one profile's preferences in the writer
+// transaction. The transform must do only bounded local validation/JSON work, never IO or
+// another store call. Request bodies must be read before acquiring this transaction.
+func (s *Store) UpdateUserPrefs(ctx context.Context, userID string, update func(string) (string, error)) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var raw string
+	if err = tx.QueryRowContext(ctx, `SELECT prefs FROM users WHERE id = ?`, userID).Scan(&raw); err != nil {
+		return err
+	}
+	next, err := update(raw)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE users SET prefs = ? WHERE id = ?`, next, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetInvite makes a profile a friend with an invite link (its token's hash) that works until a time.

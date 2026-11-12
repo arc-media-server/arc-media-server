@@ -57,9 +57,9 @@ async function healthy(name) {
 function start(name, config, media, uid, version = image) {
   containers.add(name);
   docker(['run', '-d', '--name', name, '--network', 'none', '--read-only',
-    '--user', `${uid}:${uid}`, '--tmpfs', '/tmp:rw,nosuid,noexec,size=64m',
+    ...(uid == null ? [] : ['--user', `${uid}:${uid}`]), '--tmpfs', '/tmp:rw,nosuid,noexec,size=64m',
     '--health-interval', '1s', '--health-start-period', '1s', '--health-timeout', '3s',
-    '--mount', `type=volume,source=${config},target=/config`,
+    '--mount', `type=volume,source=${config},target=/config${uid == null ? "" : ",volume-nocopy"}`,
     '--mount', `type=volume,source=${media},target=/media,readonly`, version]);
 }
 
@@ -69,18 +69,22 @@ function remove(name) {
 }
 
 try {
+  const imageUser = docker(['image', 'inspect', image, '--format', '{{.Config.User}}']).stdout.trim();
+  assert.equal(imageUser, '10001:10001', 'Production image must declare its unprivileged default user');
   const media = volume('media');
-  docker(['run', '--rm', '--network', 'none', '--entrypoint', 'sh',
+  docker(['run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'sh',
     '--mount', `type=volume,source=${media},target=/media`, image,
     '-c', 'printf "read-only fixture\\n" > /media/keep.txt']);
-  for (const uid of [0, 12345]) {
+  for (const uid of [undefined, 0, 12345]) {
+    const expectedUID = uid ?? 10001;
     const config = volume(`config-${uid}`);
-    // Pre-provision ownership exactly as required when running with Docker --user.
-    docker(['run', '--rm', '--network', 'none', '--entrypoint', 'chown',
-      '--mount', `type=volume,source=${config},target=/config`, image, `${uid}:${uid}`, '/config']);
+    // Explicit overrides need provisioned ownership; the image default must initialize its own volume.
+    if (uid != null || previousImage) docker(['run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'chown',
+      '--mount', `type=volume,source=${config},target=/config`, image, `${expectedUID}:${expectedUID}`, '/config']);
     const name = `${prefix}-${uid}`;
-    start(name, config, media, uid, previousImage ?? image);
+    start(name, config, media, previousImage ? expectedUID : uid, previousImage ?? image);
     await healthy(name);
+    assert.equal(docker(['exec', name, 'id', '-u']).stdout.trim(), String(expectedUID));
     assert.equal(api(name, '/api/auth/status').setup_needed, true);
     docker(['exec', name, 'ffprobe', '-version']);
     docker(['exec', name, 'ffmpeg', '-version']);
@@ -99,7 +103,7 @@ try {
       docker(['exec', name, 'sh', '-c', 'mkdir -p /config/uploads; printf "uploaded fixture" > /config/uploads/smoke.txt']);
       remove(name);
       rollback = volume(`rollback-${uid}`);
-      docker(['run', '--rm', '--network', 'none', '--entrypoint', 'sh',
+      docker(['run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'sh',
         '--mount', `type=volume,source=${config},target=/source,readonly`,
         '--mount', `type=volume,source=${rollback},target=/snapshot`, image,
         '-c', 'cp -a /source/. /snapshot/']);
@@ -120,7 +124,7 @@ try {
     assert.equal(api(name, '/api/settings').region, 'GB');
     assert.notEqual(docker(['exec', name, 'touch', '/media/should-not-exist'], true).status, 0);
     assert.equal(docker(['exec', name, 'cat', '/media/keep.txt']).stdout, 'read-only fixture\n');
-    assert.equal(docker(['exec', name, 'stat', '-c', '%u', '/config/ams.db']).stdout.trim(), String(uid));
+    assert.equal(docker(['exec', name, 'stat', '-c', '%u', '/config/ams.db']).stdout.trim(), String(expectedUID));
     docker(['restart', name]);
     await healthy(name);
     assert.equal(api(name, '/api/auth/status').setup_needed, false);
@@ -136,9 +140,9 @@ try {
     assert.ok(api(name, '/api/logs').some(l => l.message === 'detailed logging changed'), 'Logs must survive container recreation');
     assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
     remove(name);
-    console.log(`PASS: uid ${uid}, setup, read-only media, backup/restore, restart and volume persistence`);
+    console.log(`PASS: uid ${uid ?? "image default (10001)"}, setup, read-only media, backup/restore, restart and volume persistence`);
     if (rollback) {
-      start(name, rollback, media, uid, previousImage);
+      start(name, rollback, media, expectedUID, previousImage);
       await healthy(name);
       api(name, '/api/auth/login', 'POST', { password }, 204);
       api(name, '/api/auth/profile', 'POST', { id: profile }, 200);
@@ -146,7 +150,7 @@ try {
       assert.equal(docker(['exec', name, 'cat', '/config/uploads/smoke.txt']).stdout, 'uploaded fixture');
       assert.ok(api(name, '/api/libraries').some(l => l.name === 'Read-only media'));
       remove(name);
-      console.log(`PASS: uid ${uid}, earlier-image upgrade and rollback from full stopped-directory snapshot`);
+      console.log(`PASS: uid ${uid ?? "image default (10001)"}, earlier-image upgrade and rollback from full stopped-directory snapshot`);
     }
   }
 } catch (error) {
