@@ -1,7 +1,8 @@
 # Provider requirements before public distribution
 
-Reviewed 21 October 2026. This records published requirements and unresolved project decisions;
-it does not establish that Arc has a provider licence or approval.
+Attribution rechecked 12 November 2026; distribution-model investigation dated 21 October 2026.
+This records published requirements and unresolved project decisions; it does not establish
+that Arc has a provider licence or approval.
 
 ## Attribution (#64)
 
@@ -11,8 +12,13 @@ section. Its logo must be less prominent than Arc's branding. See the official
 
 TheTVDB requires a direct attribution link visible to users viewing its metadata, unless it
 has approved another arrangement. Its [API information](https://thetvdb.com/api-information)
-page provides sample wording and brand assets. This UI work remains open in #64; naming a
-provider beside an API-key input does not complete it.
+page provides sample wording and brand assets. Arc bundles the original official marks in
+`web/src/assets/attribution/` (source URLs and hashes in its README), displays them in every
+profile's About/Credits and on matched movie/show pages, and links directly to the providers.
+TheTVDB light/dark variants follow the profile/system theme without recolouring. The TMDB
+notice is retained verbatim; it does not imply all libraries use that provider. This implements
+#64's web attribution, not approval to distribute provider data or keys. Native clients must
+meet their own visible-attribution requirements.
 
 ## TheTVDB distribution model (#65)
 
@@ -32,5 +38,6 @@ do not embed the owner's key in source or an image. If subscriber-supported acce
 Arc needs a per-server PIN input and login support before that model can ship. Arc currently
 accepts a key and sends `apikey` alone; it does not implement subscriber PIN authentication.
 
-No provider registration, agreement or external contact has been made by the agent. #65 remains
-open until the owner confirms the approved model and its implementation requirements.
+No provider registration, agreement or external contact has been made by the agent. #65 was
+closed administratively; the owner's distribution/access decision remains open on #80. That
+closure is not evidence of provider approval.
