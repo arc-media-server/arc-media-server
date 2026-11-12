@@ -68,20 +68,48 @@ func (s *Store) CountUsers(ctx context.Context) (int, error) {
 	return n, err
 }
 
-// CreateUser adds a profile and returns it.
+// CreateUser adds a profile with default restrictions. Administrator profile creation uses
+// CreateProfile so restrictions and invite state are never published as a later patch.
 func (s *Store) CreateUser(ctx context.Context, name string, isAdmin bool, color, passwordHash, pinHash string) (*User, error) {
-	u := &User{ID: NewID(), Name: name, IsAdmin: isAdmin, Color: color, HasPIN: pinHash != "",
-		PasswordHash: passwordHash, PINHash: pinHash, CreatedAt: time.Now().Unix()}
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO users (id, name, password_hash, is_admin, created_at, pin_hash, color)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, u.ID, u.Name, passwordHash, boolInt(isAdmin), u.CreatedAt, pinHash, color)
+	return s.CreateProfile(ctx, User{Name: name, IsAdmin: isAdmin, Color: color, PasswordHash: passwordHash, PINHash: pinHash}, "", 0)
+}
+
+// CreateProfile inserts the complete profile in one SQLite statement. Its restriction/invite
+// values are validated by the API before calling; no unrestricted intermediate row is visible.
+func (s *Store) CreateProfile(ctx context.Context, u User, inviteHash string, inviteExpires int64) (*User, error) {
+	u.ID, u.CreatedAt, u.HasPIN = NewID(), time.Now().Unix(), u.PINHash != ""
+	labels := "[]"
+	if u.ExcludeLabels != nil {
+		encoded, err := json.Marshal(u.ExcludeLabels)
+		if err != nil {
+			return nil, err
+		}
+		labels = string(encoded)
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO users
+ (id,name,password_hash,is_admin,created_at,pin_hash,color,max_age,library_ids,exclude_labels,is_friend,invite_hash,invite_expires,allow_downloads)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, u.ID, u.Name, u.PasswordHash, boolInt(u.IsAdmin), u.CreatedAt, u.PINHash, u.Color, u.MaxAge, libraryIDList(u.LibraryIDs), labels, boolInt(u.IsFriend), inviteHash, inviteExpires, boolInt(u.AllowDownloads))
 	if isUniqueViolation(err) {
 		return nil, ErrNameTaken
 	}
 	if err != nil {
 		return nil, err
 	}
-	return u, nil
+	return &u, nil
+}
+
+func libraryIDList(ids []int64) string {
+	if ids == nil {
+		return ""
+	}
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		parts = append(parts, strconv.FormatInt(id, 10))
+	}
+	if len(parts) == 0 {
+		return "0"
+	}
+	return strings.Join(parts, ",")
 }
 
 // GetUser returns nil when there's no such profile.
@@ -166,16 +194,11 @@ func (s *Store) UpdateUser(ctx context.Context, id string, up UserUpdate) error 
 	if up.AllLibraries {
 		sets = append(sets, "library_ids = ''")
 	} else if up.LibraryIDs != nil {
-		ids := make([]string, 0, len(*up.LibraryIDs))
-		for _, id := range *up.LibraryIDs {
-			ids = append(ids, strconv.FormatInt(id, 10))
-		}
-		// An empty list (no libraries) is kept as "0", since '' means all of them.
-		list := strings.Join(ids, ",")
+		sets = append(sets, "library_ids = ?")
+		list := libraryIDList(*up.LibraryIDs)
 		if list == "" {
 			list = "0"
-		}
-		sets = append(sets, "library_ids = ?")
+		} // AllLibraries is the explicit update that lifts restrictions.
 		args = append(args, list)
 	}
 	if up.ExcludeLabels != nil {
