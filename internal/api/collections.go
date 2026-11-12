@@ -2,14 +2,12 @@ package api
 
 import (
 	"cmp"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"ams/internal/artwork"
 	"ams/internal/metadata"
@@ -91,13 +89,7 @@ func (s *Server) collectionItems(r *http.Request, c *store.Collection, limit int
 	if err != nil || lib == nil {
 		return nil, 0, err
 	}
-	q := store.ItemQuery{LibraryID: c.LibraryID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
-		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
-		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: 500}
-	f.applyExtended(&q)
-	if lib.Kind == "shows" {
-		q.Kind = "series"
-	}
+	q := f.itemQuery(lib, access(r), currentUserID(r), 500)
 	if limit > 0 {
 		q.Limit = limit
 	}
@@ -168,19 +160,7 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	}
 	// An automatic collection's description comes from TMDB the first time it's opened.
 	if c.Kind == "auto" && c.Overview == "" && !slices.Contains(c.LockedFields, "overview") {
-		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-		if info, err := s.scanner.CollectionInfo(ctx, c.TMDBID); err == nil && info != nil {
-			if s.store.SetCollectionInfo(r.Context(), c.ID, info.Overview, info.PosterPath, info.BackdropPath) == nil {
-				c.Overview = info.Overview
-				if info.PosterPath != "" {
-					c.PosterPath = info.PosterPath
-				}
-				if info.BackdropPath != "" {
-					c.BackdropPath = info.BackdropPath
-				}
-			}
-		}
-		cancel()
+		s.fillCollectionInfo(r.Context(), c)
 	}
 	items, total, err := s.collectionItems(r, c, 0)
 	if err != nil {
@@ -277,15 +257,17 @@ func (s *Server) createCollection(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
-	if err := s.store.CreateCollection(r.Context(), &c); err != nil {
-		s.fail(w, err)
-		return
+	var members []string
+	if c.Kind == "manual" {
+		members = b.ItemIDs
 	}
-	if c.Kind == "manual" && len(b.ItemIDs) > 0 {
-		if err := s.addItems(r, &c, b.ItemIDs); err != nil {
+	if err := s.store.CreateCollection(r.Context(), &c, members...); err != nil {
+		if errors.Is(err, store.ErrCollectionItems) {
 			writeError(w, http.StatusBadRequest, err.Error())
-			return
+		} else {
+			s.fail(w, err)
 		}
+		return
 	}
 	writeJSON(w, http.StatusCreated, s.collectionDTO(c, nil))
 }
@@ -341,9 +323,7 @@ func applyCollectionBody(c *store.Collection, b *collectionBody) string {
 		if b.Filter != nil {
 			f := *b.Filter
 			f.LibraryID = c.LibraryID
-			// The same checks as a custom home row's filter.
-			p := prefs{Home: []homeRow{{ID: "custom:x", Title: c.Title, Filter: &f}}}
-			if err := p.validate(); err != nil {
+			if err := f.validate(); err != nil {
 				return err.Error()
 			}
 			raw, _ := json.Marshal(f)
@@ -405,10 +385,6 @@ func (s *Server) addItems(r *http.Request, c *store.Collection, ids []string) er
 	return s.store.AddToCollection(r.Context(), c.ID, ids)
 }
 
-type errMsg string
-
-func (e errMsg) Error() string { return string(e) }
-
 // collectionAddItems: POST /api/collections/{id}/items {"item_ids": [...]} adds titles to a
 // manual collection.
 func (s *Server) collectionAddItems(w http.ResponseWriter, r *http.Request) {
@@ -428,7 +404,7 @@ func (s *Server) collectionAddItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.addItems(r, c, b.ItemIDs); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

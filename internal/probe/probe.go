@@ -109,22 +109,23 @@ type Chapter struct {
 }
 
 type Stream struct {
-	Index              int
-	Kind               string
-	Codec              string
-	Profile            string
-	Language           string
-	Title              string
-	Width              int
-	Height             int
-	Channels           int
-	IsDefault          bool
-	IsForced           bool
-	ChannelLayout      string
-	DolbyVision        bool
-	DolbyVisionProfile int
-	HDR10Plus          bool
-	HDRProbeStatus     string
+	Index               int
+	Kind                string
+	Codec               string
+	Profile             string
+	Language            string
+	Title               string
+	Width               int
+	Height              int
+	Channels            int
+	IsDefault           bool
+	IsForced            bool
+	ChannelLayout       string
+	DolbyVision         bool
+	DVBLCompatibilityID *int
+	DolbyVisionProfile  int
+	HDR10Plus           bool
+	HDRProbeStatus      string
 	// Video: pixel format, bits per sample, colour transfer/primaries (HDR) and frames per second.
 	PixFmt         string
 	BitDepth       int

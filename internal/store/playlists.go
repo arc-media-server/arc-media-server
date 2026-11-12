@@ -53,14 +53,33 @@ func (s *Store) Playlists(ctx context.Context, userID string, acc Access) ([]Pla
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if len(out) == 0 {
+		return out, nil
+	}
+	byID := make(map[string]int, len(out))
 	for i := range out {
-		q := `SELECT COUNT(*), COALESCE(SUM(items.runtime_min), 0) * 60000 FROM playlist_entries e JOIN items ON items.id = e.item_id
-			WHERE e.playlist_id = ? AND ` + playableSQL
-		args := []any{out[i].ID}
-		q, args = acc.Where("items", q, args)
-		if err := s.db.QueryRowContext(ctx, q, args...).Scan(&out[i].Count, &out[i].DurationMS); err != nil {
+		byID[out[i].ID] = i
+	}
+	q := "SELECT e.playlist_id, COUNT(*), COALESCE(SUM(items.runtime_min),0)*60000 FROM playlist_entries e JOIN playlists p ON p.id=e.playlist_id JOIN items ON items.id=e.item_id WHERE p.user_id=? AND " + playableSQL
+	q, args := acc.Where("items", q, []any{userID})
+	counts, err := s.db.QueryContext(ctx, q+" GROUP BY e.playlist_id", args...)
+	if err != nil {
+		return nil, err
+	}
+	defer counts.Close()
+	for counts.Next() {
+		var id string
+		var count int
+		var duration int64
+		if err := counts.Scan(&id, &count, &duration); err != nil {
 			return nil, err
 		}
+		if i, ok := byID[id]; ok {
+			out[i].Count, out[i].DurationMS = count, duration
+		}
+	}
+	if err := counts.Err(); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -122,6 +141,17 @@ func (s *Store) SetPlaylistFilter(ctx context.Context, id, filter string) error 
 // RenamePlaylist changes a playlist's title.
 func (s *Store) RenamePlaylist(ctx context.Context, id, title string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE playlists SET title = ?, updated_at = ? WHERE id = ?`, title, time.Now().Unix(), id)
+	return err
+}
+
+// UpdatePlaylistDetails applies a validated title and/or smart filter in one statement, so a
+// write failure cannot leave just the title changed. Nil means leave the existing field alone.
+func (s *Store) UpdatePlaylistDetails(ctx context.Context, id string, title, filter *string) error {
+	if title == nil && filter == nil {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE playlists SET title = COALESCE(?, title),
+  filter = COALESCE(?, filter), updated_at = ? WHERE id = ?`, title, filter, time.Now().Unix(), id)
 	return err
 }
 

@@ -27,6 +27,7 @@ type Options struct {
 var migrationsFS embed.FS
 
 type Store struct {
+	catalog     catalogGate
 	db          *database
 	sessionUses *sessionUseQueue
 }

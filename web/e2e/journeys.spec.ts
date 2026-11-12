@@ -14,7 +14,7 @@ async function openOrdering(page: Page) {
  await page.getByRole('tab',{name:'Metadata & ordering',exact:true}).click();
 }
 
-type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string };
+type Fixtures = { movies: string; shows: string; empty: string; playback: string; audio: string; budget: string; rolling: string };
 const password = 'Arc-browser-test-123';
 
 const test = base.extend<{ media: Fixtures }>({
@@ -335,13 +335,13 @@ test('review: changing libraries exits bulk selection', async ({ page, media }) 
   const first = await addLibrary(page, 'First library', media.movies);
   await addLibrary(page, 'Second library', media.empty);
   await page.goto(`/library/${first.id}`);
-  await page.getByRole('button', { name: 'More for First library', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More for First library', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Select titles', exact: true }).click();
   await page.getByRole('button', { name: 'Select loaded (2)', exact: true }).click();
   await expect(page.getByText('2 selected', { exact: true })).toBeVisible();
   await page.locator('aside').getByRole('link', { name: 'Second library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'More for Second library', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'More for Second library', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Select titles', exact: true })).toBeEnabled();
   await page.keyboard.press('Escape');
 });
@@ -350,7 +350,7 @@ test('library ⋯ manages the library on every tab, owner only, without removing
   await setup(page);
   const lib = await addLibrary(page, 'Menu library', media.movies);
   await page.goto(`/library/${lib.id}`);
-  const more = page.getByRole('button', { name: 'More for Menu library', exact: true });
+  const more = page.getByRole('main').getByRole('button', { name: 'More for Menu library', exact: true });
   const item = (name: string) => page.getByRole('menuitem', { name, exact: true });
   await more.click();
   for (const name of ['Select titles', 'Scan library files', 'Edit library…', 'Refresh all metadata…', 'Reanalyze files…', 'Empty trash…', 'Manage access…'])
@@ -876,4 +876,52 @@ test('Unmatched filter: titles Arc couldn’t identify, shows with unplaced epis
   await page.getByRole('button', { name: 'Filters', exact: true }).click();
   await expect(page.getByRole('switch', { name: /Only titles I haven't watched/ })).toBeVisible();
   await expect(page.getByRole('switch', { name: /couldn't identify/ })).toHaveCount(0);
+});
+
+
+test('home-network settings explain bridge limits and keep the password choice', async ({ page, media }, info) => {
+  void media;
+  await setup(page);
+  await page.route('**/api/settings', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), automatic_home_networks: [], home_network_bridge: true } });
+  });
+  await page.goto('/settings?section=access');
+  await expect(page.getByText(/No home network was detected automatically/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: /Bridge networking can hide client addresses/ })).toBeVisible();
+  await expect(page.getByText(/Use host networking or a br0\/custom LAN network/)).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Skip the password at home', exact: true })).toBeEnabled();
+  await page.screenshot({ path: info.outputPath('bridge-home-networks.png'), fullPage: true });
+});
+
+test('rolling converted history can be discarded and seeking back starts a fresh session', async ({ page, media }) => {
+ await setup(page);
+ expect((await page.request.patch('/api/settings',{data:{hw_accel:false}})).ok()).toBeTruthy();
+ await addLibrary(page,'Rolling fixtures',media.rolling);
+ await page.locator('aside').getByRole('link',{name:'Rolling fixtures',exact:true}).click();
+ await page.getByRole('link',{name:/Rolling Movie/}).first().click({position:{x:12,y:60}});
+ const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+ const response=page.waitForResponse(r=>r.url().endsWith('/playback')&&r.ok());
+ await page.getByRole('button',{name:'Play',exact:true}).click();
+ const plan=await(await response).json();expect(plan.rolling_hls).toBe(true);expect(plan.method).toBe('transcode');
+ const video=page.locator('video');await expect.poll(()=>video.evaluate((v:HTMLVideoElement)=>v.currentTime)).toBeGreaterThan(0.5);
+ // Fetch completed segments to advance consumption without waiting minutes of wall time.
+ let sequence=0;
+ await expect.poll(async()=>{
+  const manifest=await(await page.request.get(plan.url)).text();
+  const names=manifest.match(/s\d{5}\.m4s/g)??[];
+  if(names.length){const last=names[names.length-1];await page.request.get(plan.url.replace('index.m3u8',last));}
+  const current=await(await page.request.get(plan.url)).text();
+  sequence=Number(current.match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/)?.[1]??0);
+  return sequence;
+ },{timeout:25000}).toBeGreaterThan(0);
+ expect((await page.request.get(plan.url.replace('index.m3u8','s00000.m4s'))).status()).toBe(404);
+ // Let hls.js consume the moving window; APIRequestContext responses don't trigger this event.
+ await page.waitForResponse(async r=>r.url().endsWith(`/transcode/${plan.session_id}/index.m3u8`)&&r.ok()&&Number((await r.text()).match(/#EXT-X-MEDIA-SEQUENCE:(\d+)/)?.[1]??0)>0);
+ const restarted=page.waitForResponse(r=>r.url().endsWith('/playback')&&r.ok()&&r.request().postDataJSON()?.start_ms===0);
+ await page.keyboard.press('0');
+ const next=await(await restarted).json();expect(next.session_id).not.toBe(plan.session_id);
+ await expect.poll(()=>video.evaluate((v:HTMLVideoElement)=>v.currentTime)).toBeGreaterThan(0.5);
+ await page.getByRole('button',{name:'Close player',exact:true}).click();
 });

@@ -58,35 +58,19 @@ func (s *Scanner) collectEpisodeFile(ctx context.Context, lib *store.Library, ro
 	return nil
 }
 
-func (s *Scanner) syncSeriesGroups(ctx context.Context, lib *store.Library, groups map[string]*seriesGroup, log *slog.Logger) error {
-	keys := make([]string, 0, len(groups))
-	for k := range groups {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	s.phase(lib.ID, "Getting show details", len(keys))
-	// A few shows at a time; each is its own items, episodes and orderings.
-	return each(ctx, len(keys), matchWorkers, func(i int) error {
-		defer s.step(lib.ID)
-		if err := s.syncSeriesGroup(ctx, lib, groups[keys[i]], log); err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			log.Warn("series failed", "series", groups[keys[i]].name.Title, "err", err)
-		}
-		return nil
-	})
-}
-
 func (s *Scanner) hasProviders() bool { return s.tvdb.Configured() || s.tmdb.Configured() }
 
 func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *seriesGroup, log *slog.Logger) error {
 	ctx, finish := s.working(ctx, lib.ID, "Checking series", activityTitle(g.name.Title, g.name.Year), "Checking saved metadata and local artwork")
 	defer finish()
-	id, created, err := s.store.EnsureItem(ctx, &store.Item{
+	groupFileIDs := make([]int64, 0, len(g.files))
+	for _, f := range g.files {
+		groupFileIDs = append(groupFileIDs, f.fileID)
+	}
+	id, created, err := s.ensureNamedItem(ctx, &store.Item{
 		LibraryID: lib.ID, Kind: "series", Title: g.name.Title, Year: g.name.Year,
 		TVDBID: g.name.TVDBID, TMDBID: g.name.TMDBID, IMDBID: g.name.IMDBID,
-	}, seriesMatchKey(g.name))
+	}, seriesMatchKey(g.name), groupFileIDs)
 	if err != nil {
 		return err
 	}
@@ -216,6 +200,11 @@ func (s *Scanner) syncSeriesGroup(ctx context.Context, lib *store.Library, g *se
 // (a TMDB lookup per remaining episode, then looser matches) only runs when deep is set or the
 // series is displayed in the other provider's ordering, since that's the only time it matters.
 func (s *Scanner) SyncSeriesMetadata(ctx context.Context, lib *store.Library, seriesID string, deep bool) error {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return ErrLibraryBusy
+	}
+	defer release()
 	return s.syncSeriesMetadata(ctx, lib, seriesID, deep, false)
 }
 
@@ -320,6 +309,10 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		log.Info("no match found for series")
 		s.update(lib.ID, func(st *Status) { st.Unmatched++ })
 		return s.store.SetMetadataState(ctx, series.ID, "unmatched")
+	}
+
+	if err := s.validateProviderEpisodes(ctx, series.ID, lib.SourceOrdering, orderings); err != nil {
+		return err
 	}
 
 	// Episodes are identified by the provider the filenames are numbered with.
@@ -428,6 +421,19 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		}
 	}
 
+	previousIdentities, err := s.store.EpisodeIdentities(ctx, series.ID)
+	if err != nil {
+		return err
+	}
+	priorPositions, err := s.priorSourceEpisodes(ctx, series.ID, srcSource)
+	if err != nil {
+		return err
+	}
+	currentKeys := make(map[string]bool, len(canonEps))
+	for cid := range canonEps {
+		currentKeys[episodeKey(series.ID, canon, cid)] = true
+	}
+
 	itemFor := map[int64]string{}
 	currentWork(ctx).Update("Saving episodes", "Saving provider episode metadata")
 	currentWork(ctx).Progress(0, len(canonOrder))
@@ -446,6 +452,12 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 				return err
 			}
 		}
+		if position, ok := sourcePos[cid]; ok {
+			if err := s.adoptReplacedEpisode(ctx, lib.ID, key, priorPositions[position], previousIdentities, currentKeys); err != nil {
+				return err
+			}
+		}
+
 		itemID, _, err := s.store.EnsureItem(ctx, &store.Item{
 			LibraryID: lib.ID, Kind: "episode", ParentID: series.ID, Title: e.Title,
 		}, key)
@@ -524,6 +536,7 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 	if err != nil {
 		return err
 	}
+	keptEdited := 0
 	for _, o := range existing {
 		if keep[o.ID] || o.Source == "custom" {
 			continue
@@ -531,10 +544,16 @@ func (s *Scanner) syncSeriesMetadata(ctx context.Context, lib *store.Library, se
 		stale := o.Source == "file" || !essential && ((strings.HasPrefix(o.Source, "tvdb") && tvdbSeries != nil) ||
 			(strings.HasPrefix(o.Source, "tmdb") && tmdbSeries != nil))
 		if stale {
-			if err := s.store.DeleteOrdering(ctx, o.ID); err != nil {
+			if removed, err := s.store.DeleteUneditedOrdering(ctx, o.ID); err != nil {
 				return err
+			} else if !removed {
+				keptEdited++
 			}
 		}
+	}
+
+	if keptEdited > 0 {
+		log.Warn("keeping edited orderings omitted by provider", "count", keptEdited)
 	}
 
 	if series.MetadataState != "matched" {

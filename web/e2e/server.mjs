@@ -144,6 +144,7 @@ function metadata(url) {
   const query = (url.searchParams.get('query') ?? '').toLowerCase();
   if (p === '/configuration') return { images: {} };
   if (p === '/search/movie') return { results: query === 'arc movie' ? [movie(101, 'Arc Movie')] : query === 'resolved movie' ? [movie(202, 'Resolved Movie')] : [] };
+  if (p === '/movie/909') return movie(909, 'Rolling Movie');
   if (p === '/movie/404') return movie(404, 'Remux Movie');
   if (p === '/movie/707') return movie(707, 'Budget Movie');
   if (p === '/movie/808') return movie(808, 'Adaptive Movie');
@@ -237,12 +238,14 @@ try {
   if (ffmpeg !== 'ffmpeg') env.PATH = dirname(ffmpeg) + ';' + (env.PATH ?? env.Path ?? '');
   run('go', ['build', '-o', binary, './cmd/ams']);
   const media = join(root, 'media');
-  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), specials: join(media, 'Specials'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget'), preplay: join(media, 'Preplay') };
+  fixtures = { movies: join(media, 'Movies'), shows: join(media, 'TV'), specials: join(media, 'Specials'), empty: join(media, 'Empty'), playback: join(media, 'Playback'), audio: join(media, 'Audio'), budget: join(media, 'Budget'), preplay: join(media, 'Preplay'), rolling: join(media, 'Rolling') };
   for (const p of Object.values(fixtures)) await mkdir(p, { recursive: true });
   const sample = join(root, 'sample.mp4');
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=120:size=160x90:rate=10',
     '-f', 'lavfi', '-i', 'sine=duration=120', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-movflags', '+faststart', '-shortest', sample]);
+  run(ffmpeg, ['-v','error','-y','-f','lavfi','-i','testsrc2=duration=360:size=320x180:rate=24',
+    '-c:v','mpeg2video','-q:v','4',join(fixtures.rolling,'Rolling Movie (2020) {tmdb-909}.mkv')]);
   for (const name of ['Arc Movie (2020).mp4', 'Unmatched Mystery (2020).mp4']) await copyFile(sample, join(fixtures.movies, name));
   for (const [language, text] of [['eng', 'English fixture subtitle'], ['fre', 'French fixture subtitle']]) {
     await writeFile(join(fixtures.movies, `Arc Movie (2020).${language}.srt`), `1\n00:00:00,000 --> 00:02:00,000\n${text}\n`);

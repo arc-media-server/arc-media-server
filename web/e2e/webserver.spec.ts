@@ -441,7 +441,11 @@ test('web server: a Chromecast that refuses the original gets a 1080p version, r
   await page.route('**/api/cast', route => route.fulfill({ json: { url: 'http://127.0.0.1:18199/receiver-fixture', local_only: false } }));
   await page.addInitScript(() => { (window as any).__refuseOriginal = 1; });
   await page.goto(`/movie/${item.id}`);
+  // A visible player can precede its initial local plan. Finish that phase before
+  // counting the receiver's original request and single conversion fallback.
+  const localPlan = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith(`/api/items/${item.id}/playback`) && r.ok());
   await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await localPlan;
   const player = page.getByRole('region', { name: 'Media player', exact: true });
   await expect(page.locator('video')).toBeVisible();
   heights.length = 0;

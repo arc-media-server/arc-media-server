@@ -1,0 +1,11 @@
+# #350: remember empty automatic-collection descriptions
+
+Opening an automatic collection with an empty TMDB overview repeatedly fetched the same endpoint. Real handler/provider fixtures reproduced two fetches on two successful empty opens; failing providers triggered the client's existing retry sequence on each open. Keep bounded recent-attempt hints: successful results, including empty descriptions, for 24 hours; failed/unconfigured lookups for one minute. Coalesce an active lookup by serving other opens with the currently stored collection details. The first admitted lookup remains synchronous, with the existing eight-second budget now also covering its database save.
+
+At most 256 hints are retained, evicting the oldest completed hint while preserving active attempts. No background jobs, schema migration, extra provider, owner data or persistent server. Eviction, expiry and process restart allow another lookup; a newly configured provider may wait at most the short failure cooldown. This is not a permanent metadata result or a claim that the first page never waits for the provider.
+
+An early fixture changed AMS_TMDB_URL after the provider package had captured it at startup, so it was not reached. Retain those fixture-failure logs separately. Corrected tests use a cloned, trusted local TLS fixture transport that always dials loopback, never production credentials. Regressions then fail on unchanged main and pass with the fix. Tests cover successful empty results, provider errors and bounded retries, one safe warning, absence of keys/URLs in logs, concurrent admission, expiry, cancellation and memory bounds.
+
+Logging: one safe warning per admitted failed lookup/save, with operation, collection id and provider where relevant. Never copy raw provider errors, keys, URLs, request bodies or SQL arguments into it. Request cancellation is quiet and does not become a negative provider result. Successful/cached opens add no info logs. Existing client retries remain bounded; no timing or production-scale performance claim.
+
+Validation: focused regressions/policy/privacy checks, API-doc generation, Go vet, full Go suite and full API race tests passed (API race 255.722s). No API contract/generated-doc or frontend change; no browser checks required.

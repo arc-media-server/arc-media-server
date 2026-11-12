@@ -5,11 +5,30 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"modernc.org/sqlite"
 )
+
+// ErrInvalidBackup is a content/version validation failure, not a storage/context error.
+var ErrInvalidBackup = errors.New("not a valid Arc backup")
+
+func backupReadError(ctx context.Context, err error, message string) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	var sqliteError *sqlite.Error
+	if errors.As(err, &sqliteError) {
+		switch sqliteError.Code() & 255 {
+		case 1, 11, 26:
+			return fmt.Errorf("%w: %s", ErrInvalidBackup, message) // ERROR, CORRUPT, NOTADB
+		}
+	}
+	return err
+}
 
 // BackupTo writes a consistent, compacted copy of the database to path, which must not exist.
 // It's safe to call while AMS is in use.
@@ -17,8 +36,41 @@ func (s *Store) BackupTo(ctx context.Context, path string) error {
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("backup %s already exists", path)
 	}
-	_, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	// VACUUM INTO writes the destination, not the source. The normal read pool is query_only
+	// (which forbids VACUUM); the writer pool would queue every scan/watch-state write behind it.
+	reader, err := s.backupReader(ctx)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	_, err = reader.ExecContext(ctx, `VACUUM INTO ?`, path)
 	return err
+}
+
+// backupReader opens one dedicated read-only source connection. It has no permission to
+// change the main database, but can create the separate VACUUM INTO destination.
+func (s *Store) backupReader(ctx context.Context) (*sql.DB, error) {
+	var source string
+	if err := s.db.QueryRowContext(ctx, `SELECT file FROM pragma_database_list WHERE name = 'main'`).Scan(&source); err != nil {
+		return nil, err
+	}
+	if source == "" {
+		return nil, errors.New("backups require a file-backed database")
+	}
+	path := filepath.ToSlash(source)
+	// Windows drive paths need a leading slash in file URIs.
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	location := url.URL{Scheme: "file", Path: path}
+	query := url.Values{"mode": {"ro"}, "_pragma": {"busy_timeout(10000)"}}
+	location.RawQuery = query.Encode()
+	reader, err := sql.Open("sqlite", location.String())
+	if err != nil {
+		return nil, err
+	}
+	reader.SetMaxOpenConns(1)
+	return reader, nil
 }
 
 // CheckBackup verifies that path is an AMS database this version can restore: it must pass
@@ -34,10 +86,10 @@ func CheckBackup(ctx context.Context, path string) error {
 	defer db.Close()
 	var result string
 	if err := db.QueryRowContext(ctx, `PRAGMA quick_check`).Scan(&result); err != nil {
-		return fmt.Errorf("not a readable database: %w", err)
+		return backupReadError(ctx, err, "not a readable database")
 	}
 	if result != "ok" {
-		return fmt.Errorf("backup is damaged: %s", result)
+		return fmt.Errorf("%w: backup is damaged", ErrInvalidBackup)
 	}
 	known, err := migrationVersions()
 	if err != nil {
@@ -45,17 +97,20 @@ func CheckBackup(ctx context.Context, path string) error {
 	}
 	rows, err := db.QueryContext(ctx, `SELECT version FROM schema_migrations`)
 	if err != nil {
-		return errors.New("not an Arc Media Server database")
+		return backupReadError(ctx, err, "not an Arc Media Server database")
 	}
 	defer rows.Close()
 	applied := map[string]bool{}
 	for rows.Next() {
 		var v string
 		if err := rows.Scan(&v); err != nil {
-			return err
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("%w: invalid migration history", ErrInvalidBackup)
 		}
 		if !known[v] {
-			return fmt.Errorf("backup is from a newer version of Arc Media Server (%s)", v)
+			return fmt.Errorf("%w: backup is from a newer version of Arc Media Server", ErrInvalidBackup)
 		}
 		applied[v] = true
 	}
@@ -63,7 +118,7 @@ func CheckBackup(ctx context.Context, path string) error {
 		return err
 	}
 	if len(applied) == 0 {
-		return errors.New("not an Arc Media Server database: no applied migrations")
+		return fmt.Errorf("%w: not an Arc Media Server database: no applied migrations", ErrInvalidBackup)
 	}
 	names, err := migrationNames()
 	if err != nil {
@@ -73,7 +128,7 @@ func CheckBackup(ctx context.Context, path string) error {
 	// entries would otherwise be replayed against an incompatible schema after restore.
 	for _, name := range names[:len(applied)] {
 		if !applied[migrationVersion(name)] {
-			return errors.New("backup has an incomplete migration history")
+			return fmt.Errorf("%w: backup has an incomplete migration history", ErrInvalidBackup)
 		}
 	}
 	return nil

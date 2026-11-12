@@ -19,6 +19,18 @@ Read `GET /capabilities` on connection/profile changes. Missing feature keys mea
 `supported` means implemented, `available` means the dependency exists now, and `allowed` describes
 role permission. Item/library permissions are still checked on each request.
 
+## Empty lists and profile library access
+
+Playback and playback-preview list fields (`audio_tracks`, `subtitle_tracks`, `versions`,
+`chapters`, `markers`, `reasons`) are arrays, including empty `[]` values in needs-analysis and
+no-video decisions. Optional `reason_codes` can be absent when empty; when present it is an array.
+
+A profile's `library_ids` is deliberately different: `null` means all libraries, `[]` means no
+libraries, and a nonempty array selects those library IDs. Do not replace `null` with `[]` when
+saving a profile or generating an SDK. This is existing v1 access behavior, not missing metadata.
+The recorded v1 type snapshot currently lists the array shape; clients must also accept this
+legacy null sentinel. This change preserves that snapshot and the wire behavior.
+
 ## Browsing and identifiers
 
 Treat IDs and returned URLs as authoritative. Arc item IDs are strings; file/library IDs are integers;
@@ -51,7 +63,9 @@ errors after streaming starts are not JSON; show a safe status fallback and reta
 
 401 requires sign-in/profile selection; 403 does not imply a retry will help. Refetch state on 409,
 particularly queue revision conflicts; don't blindly repeat a destructive operation. Honor
-`Retry-After` when present on 429/503. Back off transient reads with jitter and cancellation. Arc
+`Retry-After` when present on 429/503. Catalog restore/library removal reserves a quiet
+window: active catalog work returns 409 before mutation; new mutation requests during that window
+return 503 with `Retry-After`. Retry after it ends; do not discard authentication for a 503. Back off transient reads with jitter and cancellation. Arc
 does not provide a generic idempotency-key contract: a timeout does not prove a mutation failed.
 
 ## Playback and assets
@@ -104,3 +118,86 @@ unset ARC_TOKEN
 In production code supply authorization through the client's protected credential store, use HTTPS
 for remote access and redact headers from diagnostics. No keys, media or owner data are needed to
 test these contracts with temporary stores and local fixtures.
+
+### Dolby Vision compatible bases
+
+Source streams optionally expose `dv_bl_signal_compatibility_id` from structured FFprobe
+metadata; absence differs from explicit zero. Keep source labels distinct from output capability.
+A plan with reason code `dolby_vision_base_layer` uses a known compatible HDR10/HLG/SDR base
+when the requested DV profile is unsupported. Repackaging strips DV metadata using FFmpeg 8;
+SDR conversion may tone-map a compatible HDR base. Unknown bases remain refused. Older
+stored files acquire this evidence through the existing Media analysis task.
+
+### Converted-stream storage windows
+
+Playback requests may opt into `rolling_hls: true`; a converted plan echoes `rolling_hls: true`.
+Omit it to retain the existing full EVENT playlist. Opt-in clients receive a sliding HLS playlist:
+its media sequence advances as completed segments more than two minutes behind successful segment
+requests are removed. Preserve the media timeline. If seeking before the advertised window, POST
+a new playback plan at the desired source-relative `start_ms`; never keep retrying a removed
+segment. The hls.js web player implements this; native-HLS web playback keeps its existing path.
+All converted sessions have best-effort free-space admission/monitoring. A low-space start returns
+503; a running conversion fails its playlist instead of silently filling the disk. Native apps
+should enable rolling windows only when they implement the older-seek restart behavior.
+
+### Bulk metadata refresh admission
+
+`POST /items/bulk` with `refresh: true` uses one bounded server worker. Repeated pending/in-flight
+ids coalesce; the global bound is 5,000 unique titles and JSON bodies are limited to 2 MiB. A full
+queue returns 429 with `Retry-After` before that request's synchronous edits are applied; temporary
+catalog maintenance returns 503. Accepted jobs appear in Activity and survive HTTP disconnects,
+but stop with Activity cancellation, server shutdown or the batch deadline. They are not durable
+queued jobs across a restart. Metadata, watched-state and watchlist changes from one accepted
+bulk request commit together; invalid or failed writes leave those changes unapplied.
+
+### Profile-visible filesystem details
+
+Media-file `path` remains a string: administrators receive the full server path; household/friend
+profiles receive its filename only. Library `paths` arrays are empty for non-admins. Raw probe/scan
+filesystem diagnostics are administrator detail; ordinary profiles receive a generic failure.
+Use stream URLs/file ids for playback and indexed relative folder endpoints for browsing, rather
+than reconstructing server paths. No stored file identity/path is changed by response masking.
+
+### Event stream capacity
+
+Event streams are bounded to eight simultaneous connections per profile as well as 32 per
+server. A ninth connection gets `429` with `Retry-After: 5`; close disconnected streams and honor
+that backoff rather than repeatedly opening replacements. Sessions/devices using the same
+profile share its allowance. Invalid principals do not reserve a slot; disconnect releases it.
+
+### Validate item paging and atomic playlist edits
+
+Item paging accepts an explicit `limit` from 1 to 500 (default 100) and `offset` from 0 to
+10000000. Invalid, nonnumeric or oversized bounds return `400`; they no longer silently reset.
+Playlist edits validate the entire request before writing. Titles use the same trimmed
+100-Unicode-character limit as creation; a bad filter or rules on an ordinary playlist leaves
+the title unchanged. A valid combined title/rules edit is saved atomically.
+
+### Return 405 and Allow for unsupported API methods
+
+A request using an unsupported HTTP method on a known API path returns `405` and an `Allow`
+header listing supported methods. Unknown paths still return `404`. Do not interpret a 405
+as a missing server feature; check the endpoint's documented method.
+
+### Preserve independent concurrent preference changes
+
+Concurrent profile-preference PATCH requests merge against the latest stored preferences in a
+transaction. Independent fields no longer overwrite one another from stale snapshots; two
+writes to the same field still use the last committed edit. Read request bodies before saving,
+and continue using partial patches rather than sending an old complete preference snapshot.
+
+### Prevent pre-roll selection from exposing non-video files
+
+Pre-roll paths select regular MP4/M4V/MOV/WebM/MKV files or folders of them. Non-video files,
+file symlinks and special files are ignored; configure a linked video's real path instead.
+Configured folder aliases remain supported. These clips are intentionally server-wide assets
+and may live outside libraries; a valid profile can play them. This does not validate codecs or
+make pre-rolls follow a library's visibility rules.
+
+Action failures distinguish invalid input (`400`) from internal database/filesystem problems
+(`500`, generic response with a request ID). Matching's actual upstream provider failures retain
+`502`; a server database error is not an invalid match. Missing selected backups return `404`,
+invalid/incompatible backup contents return `400`, and failure creating a safety backup is an
+internal failure. If restore reports that the database was restored but runtime reload failed,
+restart Arc as instructed rather than assuming no restore happened. Keep authentication on
+internal/upstream errors; those statuses do not mean a device token was revoked.

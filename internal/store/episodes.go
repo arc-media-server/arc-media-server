@@ -129,7 +129,9 @@ func (s *Store) LibraryItemsByKind(ctx context.Context, libraryID int64, kind st
 // different show. It returns how many were removed.
 func (s *Store) DeleteOrphanEpisodes(ctx context.Context, seriesID string) (int64, error) {
 	res, err := s.db.ExecContext(ctx, `
-		DELETE FROM items WHERE parent_id = ? AND kind = 'episode'
+		DELETE FROM items WHERE parent_id = ? AND kind = 'episode' AND locked_fields = ''
+ AND NOT EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id)
+ AND NOT EXISTS (SELECT 1 FROM episode_specials s WHERE s.episode_id = items.id OR s.before_episode_id = items.id)
 			AND NOT EXISTS (SELECT 1 FROM item_files f WHERE f.item_id = items.id)
 			AND NOT EXISTS (SELECT 1 FROM ordering_entries e WHERE e.episode_id = items.id)
 			AND NOT EXISTS (SELECT 1 FROM user_item_data u WHERE u.item_id = items.id)

@@ -4,6 +4,7 @@ package ratings
 
 import (
 	"ams/internal/events"
+	"ams/internal/safeerr"
 	"bufio"
 	"compress/gzip"
 	"context"
@@ -108,6 +109,11 @@ func (m *Manager) Run(ctx context.Context) {
 }
 
 func (m *Manager) pass(ctx context.Context) {
+	release, ok := m.store.BeginCatalogWork()
+	if !ok {
+		return
+	}
+	defer release()
 	// IMDb ingestion is paused: neither download nor apply a cached dataset. See
 	// docs/RATING-SOURCES.md before restoring this path or removing it permanently.
 	if err := m.fetchCritics(ctx); err != nil && ctx.Err() == nil {
@@ -247,11 +253,11 @@ func omdbScores(ctx context.Context, client *http.Client, key, imdbID string) (r
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, safeerr.Transport(err)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, safeerr.Transport(err)
 	}
 	defer resp.Body.Close()
 	var body struct {

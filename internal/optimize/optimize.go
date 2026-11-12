@@ -67,6 +67,13 @@ func key(fileID int64, quality int) string { return fmt.Sprintf("%d-%d", fileID,
 // Usable checks the actual source and artifact, not just a completed database status. A source
 // replacement can precede its next scan, and the artifact may have been removed independently.
 func Usable(o *store.Optimized, f *store.MediaFile) bool {
+	// Existing profile-5 copies were made without a verified DV-aware colour transform.
+	for _, stream := range f.Streams {
+		if stream.Kind == "video" && stream.DolbyVision && stream.DolbyVisionProfile == 5 {
+			return false
+		}
+	}
+
 	if o.Status != "done" || o.AudioStream < -1 || !o.MatchesSource(f) {
 		return false
 	}
@@ -158,15 +165,22 @@ func (m *Manager) Run(ctx context.Context) {
 	}
 	for {
 		for ctx.Err() == nil {
+			release, ok := m.store.BeginCatalogWork()
+			if !ok {
+				break
+			}
 			o, err := m.store.NextOptimize(ctx)
 			if err != nil {
 				m.log.Warn("listing optimized versions failed", "err", err)
+				release()
 				break
 			}
 			if o == nil {
+				release()
 				break
 			}
 			m.make(ctx, o)
+			release()
 		}
 		select {
 		case <-ctx.Done():
@@ -227,6 +241,11 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 	case ffmpeg == "":
 		return fail(fmt.Errorf("FFmpeg wasn't found"))
 	}
+	for _, stream := range f.Streams {
+		if stream.Kind == "video" && stream.DolbyVision && stream.DolbyVisionProfile == 5 {
+			return fail(fmt.Errorf("Dolby Vision profile 5 cannot be safely re-encoded into an optimized copy; use the original on a compatible player"))
+		}
+	}
 	before, err := sourceInfo(o, f)
 	if err != nil {
 		return fail(err)
@@ -264,7 +283,7 @@ func (m *Manager) convert(ctx context.Context, o *store.Optimized, task *activit
 			"-metadata:s:a:0", "language="+o.AudioLanguage, "-metadata:s:a:0", "title="+o.AudioTitle,
 			"-disposition:a:0", "default")
 	}
-	scale := fmt.Sprintf("scale=-2:'min(%d,ih)'", o.Quality)
+	scale := transcode.FitScaleFilter(o.Quality)
 	for _, s := range f.Streams {
 		if s.Kind == "video" && (s.ColorTransfer == "smpte2084" || s.ColorTransfer == "arib-std-b67") && m.ToneMap != nil && m.ToneMap() {
 			scale = transcode.ToneMapFilter + "," + scale // HDR becomes SDR that looks right everywhere

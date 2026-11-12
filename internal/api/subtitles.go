@@ -64,6 +64,7 @@ var episodeNumberRe = regexp.MustCompile(`(?i)s(\d{1,2})[ ._-]?e(\d{1,4})`)
 // online (OpenSubtitles) for a movie or episode, best first.
 func (s *Server) searchSubtitles(w http.ResponseWriter, r *http.Request) {
 	if s.subsOnline == nil || !s.subsOnline.Configured() {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, opensubtitles.ErrNoKey.Error())
 		return
 	}
@@ -101,6 +102,7 @@ func (s *Server) searchSubtitles(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := s.subsOnline.Search(r.Context(), q)
 	if err != nil {
+		s.logProviderFailure(w, r, "opensubtitles", "search")
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
@@ -123,6 +125,7 @@ func (s *Server) downloadSubtitles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.subsOnline == nil || s.subtitles == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, opensubtitles.ErrNoKey.Error())
 		return
 	}
@@ -132,6 +135,7 @@ func (s *Server) downloadSubtitles(w http.ResponseWriter, r *http.Request) {
 	}
 	data, _, remaining, err := s.subsOnline.Download(r.Context(), body.Result)
 	if err != nil {
+		s.logProviderFailure(w, r, "opensubtitles", "download")
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}

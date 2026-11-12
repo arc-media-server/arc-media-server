@@ -17,6 +17,16 @@ import (
 
 var prerollExts = []string{".mp4", ".m4v", ".mov", ".webm", ".mkv"}
 
+// A pre-roll is an explicitly selected regular video file, never an arbitrary config file,
+// pipe/device or file symlink. Folder aliases remain supported; use a linked video's real path.
+func regularPrerollFile(path string) bool {
+	if !slices.Contains(prerollExts, strings.ToLower(filepath.Ext(path))) {
+		return false
+	}
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
 // prerollFiles lists the pre-roll videos: each listed file, and the videos in each listed folder.
 func prerollFiles(paths string) []string {
 	var out []string
@@ -30,15 +40,18 @@ func prerollFiles(paths string) []string {
 		case err != nil:
 			continue
 		case !info.IsDir():
-			out = append(out, p)
+			if regularPrerollFile(p) {
+				out = append(out, p)
+			}
 		default:
 			entries, err := os.ReadDir(p)
 			if err != nil {
 				continue
 			}
 			for _, e := range entries {
-				if !e.IsDir() && slices.Contains(prerollExts, strings.ToLower(filepath.Ext(e.Name()))) {
-					out = append(out, filepath.Join(p, e.Name()))
+				candidate := filepath.Join(p, e.Name())
+				if regularPrerollFile(candidate) {
+					out = append(out, candidate)
 				}
 			}
 		}

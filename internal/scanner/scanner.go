@@ -156,6 +156,13 @@ const (
 )
 
 type Scanner struct {
+	configuring map[int64]bool // protected by mu; short library-save admission, not a scan job
+	// Recent failures only; no persisted negative result or automatic-work setting.
+	probeRetryMu    sync.Mutex
+	probeFailures   map[int64]*recentProbeFailure
+	probeRetrySweep time.Time
+	probeRetryNow   func() time.Time // test clock, configured before workers start
+
 	// Events is configured before workers start; invalidations contain no item metadata.
 	Events *events.Hub
 	ctx    context.Context
@@ -286,10 +293,17 @@ func (s *Scanner) StartItemAnalysis(libraryID int64, itemID string) bool {
 }
 
 func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...string) bool {
+	if s.configuring[libraryID] {
+		return false
+	}
 	if st := s.status[libraryID]; st != nil && st.Running {
 		return false
 	}
 	if s.ctx.Err() != nil {
+		return false
+	}
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
 		return false
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
@@ -302,6 +316,7 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		defer releaseCatalog()
 		defer cancel()
 		var err error
 		switch operation {
@@ -328,7 +343,11 @@ func (s *Scanner) startKindLocked(libraryID int64, operation string, paths ...st
 			if name == "" {
 				name = strconv.FormatInt(libraryID, 10)
 			}
-			s.log.Error("scan failed", "library", name, "library_id", libraryID,
+			level := slog.LevelError
+			if errors.Is(err, ErrScanRootsUnsafe) {
+				level = slog.LevelWarn
+			}
+			s.log.Log(ctx, level, "scan failed", "library", name, "library_id", libraryID,
 				"phase", st.Phase, "files_seen", st.FilesSeen, "err", err)
 		}
 		if s.OnFinish != nil {
@@ -403,6 +422,11 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	if lib == nil {
 		return fmt.Errorf("library %d not found", libraryID)
 	}
+	priorFiles, err := s.store.PresentLibraryFiles(ctx, libraryID)
+	if err != nil {
+		return err
+	}
+
 	s.update(libraryID, func(st *Status) { st.libraryName, st.Phase = lib.Name, "Checking library folders" })
 	log := s.log.With("library", lib.Name)
 	log.Info("scan started", "paths", lib.Paths)
@@ -598,6 +622,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		return err
 	}
 	if allRootsOK {
+		if err := s.checkDiscoveryAnchors(ctx, lib.ID, scanStart, visited, priorFiles); err != nil {
+			return err
+		}
 		var folders []string
 		completeLibrary := len(visited) == len(lib.Paths)
 		for _, f := range visited {
@@ -805,8 +832,16 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 	if err != nil {
 		return 0, err
 	}
+	if existing == nil {
+		existing, err = s.reuseRenamedFile(ctx, lib, path, info)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	unchanged := existing != nil && existing.Size == info.Size() && existing.ModTime == info.ModTime().Unix()
-	if unchanged && (existing.Probed || !probeNow) {
+	recentFailure := unchanged && probeNow && !existing.Probed && s.deferRecentProbeFailure(existing.ID, path, existing.Size, existing.ModTime, existing.ProbeError)
+	if unchanged && (existing.Probed || !probeNow || recentFailure) {
 		if existing.Probed {
 			s.update(lib.ID, func(st *Status) { st.FilesReused++ })
 		}
@@ -839,6 +874,7 @@ func (s *Scanner) recordFile(ctx context.Context, lib *store.Library, path strin
 // saveProbed reads a file with ffprobe and stores what's in it (or why it couldn't be read).
 func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int64) (int64, error) {
 	currentWork(ctx).Update("Inspecting file", "Reading video, audio and HDR details · "+filepath.Base(f.Path))
+	stamp, stampValid := s.probeStamp(f.Path, f.Size, f.ModTime)
 	var probedAt int64
 	if res, err := s.prober.Probe(ctx, f.Path); err != nil {
 		if ctx.Err() != nil {
@@ -847,10 +883,18 @@ func (s *Scanner) saveProbed(ctx context.Context, f *store.MediaFile, seenAt int
 		f.ProbeError = err.Error()
 	} else {
 		probedAt = time.Now().Unix()
+		f.ProbeError = ""
 		applyProbe(f, res)
 	}
 	id, err := s.store.SaveFile(ctx, f, probedAt, seenAt)
 	if err == nil {
+		if f.ProbeError != "" && stampValid {
+			if after, valid := s.probeStamp(f.Path, f.Size, f.ModTime); valid && after == stamp {
+				s.rememberProbeFailure(id, stamp)
+			}
+		} else if probedAt > 0 {
+			s.forgetProbeFailure(id)
+		}
 		s.Events.Publish(events.Event{Topic: "catalog", LibraryID: f.LibraryID})
 	}
 	return id, err
@@ -871,6 +915,22 @@ func (s *Scanner) probePending(ctx context.Context, lib *store.Library, scanStar
 	}
 	if err != nil || len(files) == 0 {
 		return err
+	}
+	eligible := files[:0]
+	deferred := 0
+	for _, f := range files {
+		if s.deferRecentProbeFailure(f.ID, f.Path, f.Size, f.ModTime, f.ProbeError) {
+			deferred++
+			continue
+		}
+		eligible = append(eligible, f)
+	}
+	files = eligible
+	if deferred > 0 {
+		s.log.DebugContext(ctx, "recent file inspection failures deferred", "library", lib.ID, "files", deferred)
+	}
+	if len(files) == 0 {
+		return nil
 	}
 	s.phase(lib.ID, "Reading file details", len(files))
 	return each(ctx, len(files), probeWorkers, func(i int) error {
@@ -976,10 +1036,10 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	}
 	created := false
 	if itemID == "" {
-		itemID, created, err = s.store.EnsureItem(ctx, &store.Item{
+		itemID, created, err = s.ensureNamedItem(ctx, &store.Item{
 			LibraryID: lib.ID, Kind: "movie", Title: name.Title, Year: name.Year,
 			TMDBID: name.TMDBID, IMDBID: name.IMDBID,
-		}, matchKey)
+		}, matchKey, []int64{fileID})
 		if err != nil {
 			return err
 		}
@@ -1175,6 +1235,11 @@ var ErrNoProvider = errors.New("no metadata provider is configured")
 // RefreshMovie fetches a movie's metadata again now. Fields the user locked are kept. It reports
 // whether a match was found.
 func (s *Scanner) RefreshMovie(ctx context.Context, itemID string) (bool, error) {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return false, ErrLibraryBusy
+	}
+	defer release()
 	if !s.tmdb.Configured() {
 		return false, ErrNoProvider
 	}
@@ -1217,7 +1282,7 @@ func applyProbe(f *store.MediaFile, res *probe.Result) {
 			IsDefault: ps.IsDefault, IsForced: ps.IsForced, PixFmt: ps.PixFmt, BitDepth: ps.BitDepth,
 			ColorTransfer: ps.ColorTransfer, ColorPrimaries: ps.ColorPrimaries, FrameRate: ps.FrameRate,
 			Bitrate: ps.Bitrate, ChannelLayout: ps.ChannelLayout, DolbyVision: ps.DolbyVision,
-			DolbyVisionProfile: ps.DolbyVisionProfile, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
+			DolbyVisionProfile: ps.DolbyVisionProfile, DVBLCompatibilityID: ps.DVBLCompatibilityID, HDR10Plus: ps.HDR10Plus, HDRProbeStatus: ps.HDRProbeStatus,
 			AspectRatio: ps.AspectRatio,
 		})
 	}

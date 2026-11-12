@@ -191,6 +191,7 @@ func (s *Scanner) reanalyzeFile(ctx context.Context, file store.MediaFile) error
 	applyProbe(&file, result)
 	_, err = s.store.SaveAnalysis(ctx, &file, time.Now().Unix())
 	if err == nil {
+		s.forgetProbeFailure(file.ID)
 		s.Events.Publish(events.Event{Topic: "catalog", LibraryID: file.LibraryID})
 	}
 	return err

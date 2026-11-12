@@ -15,10 +15,11 @@ import (
 
 // Importing from Plex or Jellyfin is a short conversation: sign in (Plex: approve Arc on plex.tv),
 // choose a server, match its people to Arc profiles, then import in the background. Each import
-// is a session kept in memory for an hour.
+// is a session retained while running and for an hour after completion.
 
 type importSession struct {
 	mu        sync.Mutex
+	preparing bool
 	id        string
 	source    string // plex or jellyfin
 	stage     string // signing_in, choose_server, choose_accounts, running, done, failed
@@ -46,7 +47,10 @@ func (s *importSessions) add(sess *importSession) {
 		s.byID = map[string]*importSession{}
 	}
 	for id, old := range s.byID {
-		if time.Since(old.created) > time.Hour {
+		old.mu.Lock()
+		expired := old.expired(time.Now())
+		old.mu.Unlock()
+		if expired {
 			delete(s.byID, id)
 		}
 	}
@@ -56,7 +60,22 @@ func (s *importSessions) add(sess *importSession) {
 func (s *importSessions) get(id string) *importSession {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.byID[id]
+	sess := s.byID[id]
+	if sess != nil {
+		sess.mu.Lock()
+		expired := sess.expired(time.Now())
+		sess.mu.Unlock()
+		if expired {
+			delete(s.byID, id)
+			return nil
+		}
+	}
+	return sess
+}
+
+// Call with sess.mu held. Running/preparing jobs never expire out from under polling.
+func (sess *importSession) expired(now time.Time) bool {
+	return !sess.preparing && sess.stage != "running" && now.Sub(sess.created) > time.Hour
 }
 
 var importClient = &http.Client{Timeout: 2 * time.Minute}
@@ -153,6 +172,11 @@ func (s *Server) getImport(w http.ResponseWriter, r *http.Request) {
 		if err == nil && token != "" {
 			servers, serr := importer.PlexServers(ctx, importClient, clientID, token)
 			sess.mu.Lock()
+			if sess.stage != "signing_in" {
+				sess.mu.Unlock()
+				s.writeImport(w, r, sess)
+				return
+			}
 			if serr != nil {
 				sess.stage, sess.err = "failed", "couldn't list your Plex servers: "+serr.Error()
 			} else if len(servers) == 0 {
@@ -179,6 +203,15 @@ func (s *Server) chooseImportServer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	sess.mu.Lock()
+	if sess.preparing || (sess.stage != "choose_server" && sess.stage != "choose_accounts" && sess.stage != "done") {
+		sess.mu.Unlock()
+		writeError(w, http.StatusConflict, "this import cannot change servers now")
+		return
+	}
+	sess.preparing = true
+	sess.mu.Unlock()
+	defer func() { sess.mu.Lock(); sess.preparing = false; sess.mu.Unlock() }()
 	sess.mu.Lock()
 	var chosen *importer.PlexServer
 	for i := range sess.servers {
@@ -230,67 +263,126 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess.mu.Lock()
-	if sess.stage != "choose_accounts" && sess.stage != "done" {
+	if sess.preparing || (sess.stage != "choose_accounts" && sess.stage != "done") {
 		sess.mu.Unlock()
 		writeError(w, http.StatusConflict, "this import isn't ready to run")
 		return
 	}
-	accounts, src := sess.accounts, sess.src
+	sess.preparing = true
+	accounts, src := append([]importer.Account(nil), sess.accounts...), sess.src
 	sess.mu.Unlock()
+	defer func() { sess.mu.Lock(); sess.preparing = false; sess.mu.Unlock() }()
 
-	ctx := r.Context()
-	users, err := s.store.ListUsers(ctx)
-	if err != nil {
-		s.fail(w, err)
+	root := s.workContext
+	if root == nil {
+		root = context.Background()
+	}
+	if root.Err() != nil {
+		writeError(w, http.StatusServiceUnavailable, "server is stopping; try again after restart")
 		return
 	}
-	names := map[string]string{}
-	for _, u := range users {
-		names[u.ID] = u.Name
+	// Register before preflight so server shutdown also joins in-flight admission.
+	if s.workers != nil {
+		s.workers.Add(1)
 	}
-	mapping := map[string]string{}
+	registered := true
+	defer func() {
+		if registered && s.workers != nil {
+			s.workers.Done()
+		}
+	}()
+	ctx, cancelPreflight := context.WithCancel(r.Context())
+	stopPreflight := context.AfterFunc(root, cancelPreflight)
+	defer func() { stopPreflight(); cancelPreflight() }()
+	known := map[string]bool{}
+	var targets []store.ImportProfileTarget
 	for _, a := range accounts {
-		target := body.Profiles[a.ID]
-		switch {
-		case target == "":
-			continue
-		case target == "new":
-			u, err := s.store.CreateUser(ctx, a.Name, false, "slate", "", "")
-			if errors.Is(err, store.ErrNameTaken) {
-				u, err = s.store.CreateUser(ctx, a.Name+" ("+sess.sourceName()+")", false, "slate", "", "")
-			}
-			if err != nil {
-				s.fail(w, err)
-				return
-			}
-			target, names[u.ID] = u.ID, u.Name
-		case names[target] == "":
-			writeError(w, http.StatusBadRequest, "no such profile for "+a.Name)
+		known[a.ID] = true
+		targets = append(targets, store.ImportProfileTarget{AccountID: a.ID, Name: a.Name, Target: body.Profiles[a.ID]})
+	}
+	for id := range body.Profiles {
+		if !known[id] {
+			writeError(w, http.StatusBadRequest, "choose only listed import accounts")
 			return
 		}
-		mapping[a.ID] = target
 	}
-	if len(mapping) == 0 {
-		writeError(w, http.StatusBadRequest, "choose a profile for at least one person")
+	if src == nil {
+		writeError(w, http.StatusConflict, "connect to the import server again")
+		return
+	}
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		w.Header().Set("Retry-After", "3")
+		writeError(w, http.StatusServiceUnavailable, "catalog maintenance is in progress; try again shortly")
+		return
+	}
+	releaseOnReturn := true
+	defer func() {
+		if releaseOnReturn {
+			releaseCatalog()
+		}
+	}()
+	mapping, names, err := s.store.PrepareImportProfiles(ctx, targets, sess.sourceName())
+	if err != nil {
+		if ctx.Err() != nil {
+			if r.Context().Err() == nil {
+				writeError(w, http.StatusServiceUnavailable, "server is stopping; try again after restart")
+			}
+			return
+		}
+		switch {
+		case errors.Is(err, store.ErrInvalidImportProfiles):
+			writeError(w, http.StatusBadRequest, err.Error())
+		case errors.Is(err, store.ErrNameTaken):
+			writeError(w, http.StatusConflict, "an imported profile name is already taken; choose an existing profile")
+		default:
+			s.fail(w, err)
+		}
 		return
 	}
 	sess.mu.Lock()
 	sess.stage, sess.err, sess.results, sess.lists = "running", "", nil, nil
 	sess.mu.Unlock()
+	registered = false
+	releaseOnReturn = false
 	go func() {
-		bg, cancel := context.WithTimeout(context.Background(), 3*time.Hour)
+		if s.workers != nil {
+			defer s.workers.Done()
+		}
+		defer releaseCatalog()
+		started := time.Now()
+		s.log.Info("import started", "source", sess.source, "accounts", len(mapping))
+		bg, cancel := context.WithTimeout(root, 3*time.Hour)
 		defer cancel()
 		task := s.activity.Start("import", "Importing from "+sess.sourceName())
 		results, lists, err := importer.Run(bg, s.store, src, accounts, mapping, names, task)
-		task.Finish(err)
+		taskErr := err
+		if err != nil {
+			taskErr = errors.New("The import could not finish. Check the source connection and try again.")
+		}
+		if bg.Err() != nil {
+			taskErr = bg.Err()
+		}
+		task.Finish(taskErr)
 		sess.mu.Lock()
 		sess.results, sess.lists = results, &lists
+		sess.created = time.Now() // retain the finished result for a full hour
 		if err != nil {
-			sess.stage, sess.err = "failed", err.Error()
-			s.log.Warn("import failed", "source", sess.source, "err", err)
+			sess.stage, sess.err = "failed", "The import could not finish. Check the source connection and try again."
+			if bg.Err() != nil {
+				sess.err = "The import was interrupted; run it again to continue merging watch state."
+				s.log.Info("import interrupted", "source", sess.source, "accounts", len(results), "took", time.Since(started))
+			} else {
+				operation, reason := "write_watch_state", "database operation failed"
+				var sourceFailure *importer.SourceError
+				if errors.As(err, &sourceFailure) {
+					operation, reason = "read_account", "source request failed"
+				}
+				s.log.Warn("import failed", "source", sess.source, "operation", operation, "reason", reason, "accounts", len(results), "took", time.Since(started))
+			}
 		} else {
 			sess.stage = "done"
-			s.log.Info("import finished", "source", sess.source, "accounts", len(results))
+			s.log.Info("import finished", "source", sess.source, "accounts", len(results), "took", time.Since(started))
 		}
 		sess.mu.Unlock()
 	}()

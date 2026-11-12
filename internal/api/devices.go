@@ -21,6 +21,7 @@ const linkLife = 10 * time.Minute
 type linkRequest struct {
 	code    string
 	device  string
+	client  string // canonical client IP, never caller-provided forwarding metadata
 	expires time.Time
 	token   string // set once approved, until the TV collects it
 }
@@ -42,7 +43,7 @@ func newCode() string {
 	return string(b)
 }
 
-func (l *linkCodes) add(device string) (code, poll string, ok bool) {
+func (l *linkCodes) add(device, client string) (code, poll string, ok bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.byPoll == nil {
@@ -53,7 +54,13 @@ func (l *linkCodes) add(device string) (code, poll string, ok bool) {
 			delete(l.byPoll, p)
 		}
 	}
-	if len(l.byPoll) >= 100 {
+	clientSlots := 0
+	for _, req := range l.byPoll {
+		if req.client == client {
+			clientSlots++
+		}
+	}
+	if len(l.byPoll) >= 100 || clientSlots >= 5 {
 		return "", "", false
 	}
 	for {
@@ -67,7 +74,7 @@ func (l *linkCodes) add(device string) (code, poll string, ok bool) {
 		}
 	}
 	poll, _ = auth.NewToken()
-	l.byPoll[poll] = &linkRequest{code: code, device: device, expires: time.Now().Add(linkLife)}
+	l.byPoll[poll] = &linkRequest{code: code, device: device, client: client, expires: time.Now().Add(linkLife)}
 	return code, poll, true
 }
 
@@ -90,11 +97,16 @@ func (s *Server) startLink(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Device string `json:"device"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Device) == "" {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || strings.TrimSpace(body.Device) == "" {
 		writeError(w, http.StatusBadRequest, `send {"device": "a name for this device"}`)
 		return
 	}
-	code, poll, ok := s.links.add(strings.TrimSpace(body.Device))
+	device := strings.TrimSpace(body.Device)
+	if len(device) > 256 {
+		writeError(w, http.StatusBadRequest, "device name is too long")
+		return
+	}
+	code, poll, ok := s.links.add(device, clientIP(r))
 	if !ok {
 		writeError(w, http.StatusTooManyRequests, "too many devices are waiting to be linked; try again in a few minutes")
 		return
@@ -129,22 +141,24 @@ func (s *Server) approveLink(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Code string `json:"code"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	key := "link:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
 	req := s.links.pending(body.Code)
 	if req == nil {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusNotFound, "that code isn't right, or has run out")
 		return
 	}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	u := currentUser(r)
 	userID, via := "", "password"
 	switch {

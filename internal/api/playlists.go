@@ -37,7 +37,17 @@ const smartLimit = 500
 // playlistContents is a playlist's entries and titles in order: stored ones, or a smart playlist's
 // (entry ids 0), worked out now for the profile.
 func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.PlaylistEntry, []store.Item, error) {
+	return s.playlistContentsFor(r, p, false)
+}
+
+// Summary mode retains full counts/duration but reads only poster candidates for
+// manual lists, and a narrow bounded projection for movie smart lists.
+func (s *Server) playlistContentsFor(r *http.Request, p *store.Playlist, summary bool) ([]store.PlaylistEntry, []store.Item, error) {
 	if p.Filter == "" {
+		if summary {
+			items, err := s.store.PlaylistPosterItems(r.Context(), p.ID, access(r))
+			return nil, items, err
+		}
 		return s.store.PlaylistEntries(r.Context(), p.ID, access(r))
 	}
 	ctx := r.Context()
@@ -49,12 +59,10 @@ func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.P
 	if err != nil || lib == nil || !access(r).LibraryAllowed(lib.ID) {
 		return nil, nil, err
 	}
-	q := store.ItemQuery{LibraryID: lib.ID, Kind: "movie", Genre: f.Genre, Language: f.Language, Label: f.Label, Decade: f.Decade, Resolution: f.Resolution,
-		Unwatched: f.Unwatched, AddedWithinDays: f.AddedWithin, MinRuntime: f.MinRuntime, MaxRuntime: f.MaxRuntime,
-		MinRating: f.MinRating, Sort: f.Sort, Access: access(r), UserID: currentUserID(r), Limit: smartLimit}
-	f.applyExtended(&q)
-	if lib.Kind == "shows" {
-		q.Kind = "series"
+	q := f.itemQuery(lib, access(r), currentUserID(r), smartLimit)
+	if summary && lib.Kind != "shows" {
+		items, err := s.store.PlaylistMovieSummaries(ctx, q)
+		return nil, items, err
 	}
 	found, _, err := s.store.ListItems(ctx, q)
 	if err != nil || lib.Kind != "shows" {
@@ -97,8 +105,8 @@ func (s *Server) playlistContents(r *http.Request, p *store.Playlist) ([]store.P
 
 // smartFilter checks a smart playlist's filter: a library the profile can see.
 func (s *Server) smartFilter(r *http.Request, f *rowFilter) (string, error) {
-	if err := f.validateExtended(); err != nil {
-		return "", err
+	if err := f.validate(); err != nil {
+		return "", errMsg(err.Error())
 	}
 	lib, err := s.store.GetLibrary(r.Context(), f.LibraryID)
 	if err != nil {
@@ -184,7 +192,7 @@ func (s *Server) listPlaylists(w http.ResponseWriter, r *http.Request) {
 	out := make([]playlistDTO, 0, len(lists))
 	for _, p := range lists {
 		d := toPlaylistDTO(p)
-		if _, items, err := s.playlistContents(r, &p); err == nil {
+		if _, items, err := s.playlistContentsFor(r, &p, true); err == nil {
 			if p.Filter != "" {
 				d.Count, d.DurationMS = len(items), 0
 				for _, it := range items {
@@ -248,7 +256,11 @@ func (s *Server) playlistItemIDs(r *http.Request, ids []string) ([]string, error
 		}
 		switch it.Kind {
 		case "movie", "episode":
-			if ok, err := s.store.CanSee(r.Context(), it, access(r)); err != nil || !ok {
+			ok, err := s.store.CanSee(r.Context(), it, access(r))
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
 				return nil, errMsg("a title to add wasn't found")
 			}
 			out = append(out, it.ID)
@@ -269,6 +281,13 @@ func (s *Server) playlistItemIDs(r *http.Request, ids []string) ([]string, error
 // order doesn't place.
 func (s *Server) orderedEpisodeIDs(r *http.Request, series *store.Item) ([]string, error) {
 	ctx := r.Context()
+	visible, err := s.store.CanSee(ctx, series, access(r))
+	if err != nil {
+		return nil, err
+	}
+	if !visible {
+		return nil, errMsg("a title to add wasn't found")
+	}
 	available, err := s.store.AvailableChildren(ctx, series.ID)
 	if err != nil {
 		return nil, err
@@ -317,13 +336,13 @@ func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := s.playlistItemIDs(r, b.ItemIDs)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	filter := ""
 	if b.Filter != nil {
 		if filter, err = s.smartFilter(r, b.Filter); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			s.inputError(w, r, err)
 			return
 		}
 		ids = nil
@@ -370,25 +389,29 @@ func (s *Server) updatePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.Title != nil {
-		if err := s.store.RenamePlaylist(r.Context(), p.ID, strings.TrimSpace(*b.Title)); err != nil {
-			s.fail(w, err)
+		title := strings.TrimSpace(*b.Title)
+		if title == "" || len([]rune(title)) > 100 {
+			writeError(w, http.StatusBadRequest, "give the playlist a name of up to 100 characters")
 			return
 		}
+		b.Title = &title
 	}
+	var filter *string
 	if b.Filter != nil {
 		if p.Filter == "" {
 			writeError(w, http.StatusConflict, "only a smart playlist has rules")
 			return
 		}
-		filter, err := s.smartFilter(r, b.Filter)
+		validated, err := s.smartFilter(r, b.Filter)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+			s.inputError(w, r, err)
 			return
 		}
-		if err := s.store.SetPlaylistFilter(r.Context(), p.ID, filter); err != nil {
-			s.fail(w, err)
-			return
-		}
+		filter = &validated
+	}
+	if err := s.store.UpdatePlaylistDetails(r.Context(), p.ID, b.Title, filter); err != nil {
+		s.fail(w, err)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -424,7 +447,7 @@ func (s *Server) playlistAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := s.playlistItemIDs(r, b.ItemIDs)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		s.inputError(w, r, err)
 		return
 	}
 	if err := s.store.AddToPlaylist(r.Context(), p.ID, ids); err != nil {

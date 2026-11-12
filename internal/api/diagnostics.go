@@ -13,6 +13,7 @@ import (
 // getDiagnostics: GET /api/diagnostics reports temporary detailed logging and bounded retention (admin).
 func (s *Server) getDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.logs == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "diagnostics unavailable")
 		return
 	}
@@ -23,6 +24,7 @@ func (s *Server) getDiagnostics(w http.ResponseWriter, r *http.Request) {
 // setDiagnostics: PATCH /api/diagnostics {"detailed":true} enables detailed logs for two hours; false stops them (admin).
 func (s *Server) setDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.logs == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "diagnostics unavailable")
 		return
 	}
@@ -43,6 +45,7 @@ func (s *Server) setDiagnostics(w http.ResponseWriter, r *http.Request) {
 // downloadDiagnostics: GET /api/diagnostics/download exports redacted logs, build information, tracked request stages and bounded goroutine call stacks as a ZIP (admin). No database, settings dump or media files are included.
 func (s *Server) downloadDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if s.logs == nil {
+		markExpectedResponse(w)
 		writeError(w, http.StatusServiceUnavailable, "diagnostics unavailable")
 		return
 	}

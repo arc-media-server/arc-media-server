@@ -1,6 +1,7 @@
 package api
 
 import (
+	"ams/internal/auth"
 	"context"
 	"net/http"
 	"net/url"
@@ -30,8 +31,14 @@ var appCORSRefused = map[string]bool{"/api/v1/auth/setup": true}
 func appCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if !strings.HasPrefix(r.URL.Path, "/api/v1/") || origin == "" || sameOrigin(r, origin) {
+		site := r.Header.Get("Sec-Fetch-Site")
+		cross := (origin != "" && !sameOrigin(r, origin)) || site == "cross-site" || site == "same-site"
+		if !strings.HasPrefix(r.URL.Path, "/api/") || !cross {
 			next.ServeHTTP(w, r)
+			return
+		}
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
+			writeError(w, http.StatusForbidden, "cross-origin browser requests must use the token-authenticated versioned API")
 			return
 		}
 		h := w.Header()
@@ -58,15 +65,35 @@ func appCORS(next http.Handler) http.Handler {
 // e.g. the API docs page), directly or through a proxy that reports the original host.
 func sameOrigin(r *http.Request, origin string) bool {
 	u, err := url.Parse(origin)
-	if err != nil || u.Host == "" {
+	scheme := "http"
+	if auth.IsHTTPS(r) {
+		scheme = "https"
+	}
+	if err != nil || u.Host == "" || u.Scheme != scheme || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
 		return false
 	}
-	if strings.EqualFold(u.Host, r.Host) {
+	sameHost := func(host string) bool {
+		target, e := url.Parse(scheme + "://" + host)
+		if e != nil || target.User != nil || target.Host == "" || target.Path != "" || target.RawQuery != "" || target.Fragment != "" {
+			return false
+		}
+		port := func(v *url.URL) string {
+			if v.Port() != "" {
+				return v.Port()
+			}
+			if scheme == "https" {
+				return "443"
+			}
+			return "80"
+		}
+		return strings.EqualFold(u.Hostname(), target.Hostname()) && port(u) == port(target)
+	}
+	if sameHost(r.Host) {
 		return true
 	}
-	fwd := r.Header.Get("X-Forwarded-Host")
-	if i := strings.IndexByte(fwd, ','); i >= 0 {
-		fwd = fwd[:i]
+	if !auth.IsTrustedProxy(r) {
+		return false
 	}
-	return fwd != "" && strings.EqualFold(u.Host, strings.TrimSpace(fwd))
+	forwarded := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Host"), ",")[0])
+	return forwarded != "" && sameHost(forwarded)
 }

@@ -1,17 +1,14 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -68,22 +65,44 @@ func currentUserID(r *http.Request) string {
 
 // session finds the request's valid session, if any. A session started without the password only
 // counts while the request still comes from the home network and that's still allowed.
-func (s *Server) session(r *http.Request) *store.Session {
+func (s *Server) session(r *http.Request) (*store.Session, error) {
 	token := requestToken(r)
 	if token == "" {
-		return nil
+		return nil, nil
 	}
 	se, err := s.store.GetSession(r.Context(), auth.HashToken(token))
-	if err != nil || se == nil {
-		return nil
+	if err != nil {
+		return nil, err
+	}
+	if se == nil {
+		return nil, nil
 	}
 	if se.Via == "local" && !s.bypassApplies(r) {
-		return nil
+		return nil, nil
 	}
 	if time.Since(time.Unix(se.LastSeen, 0)) > 5*time.Minute {
 		s.store.RecordSessionUse(se.TokenHash)
 	}
-	return se
+	return se, nil
+}
+
+// readSession distinguishes unavailable storage from absent/revoked credentials.
+func (s *Server) readSession(w http.ResponseWriter, r *http.Request) (*store.Session, bool) {
+	se, err := s.session(r)
+	if err != nil {
+		s.sessionUnavailable(w, r, err)
+		return nil, false
+	}
+	return se, true
+}
+func (s *Server) sessionUnavailable(w http.ResponseWriter, r *http.Request, err error) {
+	requestStage(r, "reading session", 0)
+	markFailureLogged(w)
+	if r.Context().Err() == nil {
+		s.log.Error("session lookup failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
+	}
+	w.Header().Set("Retry-After", "5")
+	writeError(w, http.StatusServiceUnavailable, "sign-in temporarily unavailable; retry shortly")
 }
 
 // requestToken is the session token a request carries: an app's "Authorization: Bearer" header,
@@ -101,13 +120,16 @@ func requestToken(r *http.Request) string {
 // bypassApplies reports whether this request may pick a profile without the password. Never for a
 // cross-origin call (appCORS): any web page on the home network could make one.
 func (s *Server) bypassApplies(r *http.Request) bool {
-	return s.settings().LocalBypass && auth.IsLocal(r) && !isCrossOriginApp(r)
+	return s.settings().LocalBypass && auth.IsLocal(r) && auth.KnownServerHost(r, s.settings().HTTPSDomain) && !isCrossOriginApp(r)
 }
 
 // signedIn wraps handlers that need a profile.
 func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		se := s.session(r)
+		se, ok := s.readSession(w, r)
+		if !ok {
+			return
+		}
 		if se == nil || se.UserID == "" {
 			writeError(w, http.StatusUnauthorized, "sign in and choose a profile")
 			return
@@ -124,6 +146,9 @@ func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), userKey, u)
 		requestStage(r, "handling request", 0)
 		ctx = context.WithValue(ctx, sessionKey, se.TokenHash)
+		if !boundAuthenticatedBody(w, r) {
+			return
+		}
 		h(w, r.WithContext(context.WithValue(ctx, deviceKey, se.Device)))
 	}
 }
@@ -175,9 +200,7 @@ func (s *Server) deviceSession(r *http.Request, userID, via, device string) (str
 	if err := s.store.CreateSession(r.Context(), hash, userID, via, r.UserAgent()); err != nil {
 		return "", err
 	}
-	if len(device) > 80 {
-		device = device[:80]
-	}
+	device = utf8BytePrefix(device, 80)
 	return token, s.store.SetSessionDevice(r.Context(), hash, device)
 }
 
@@ -236,7 +259,10 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := authStatusDTO{SetupNeeded: n == 0, Profiles: []profileDTO{}, Local: auth.IsLocal(r), Bypass: s.bypassApplies(r)}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	if se != nil {
 		out.SignedIn = true
 		out.PasswordSession = se.Via == "password"
@@ -268,6 +294,10 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 // setup: POST /api/auth/setup {"name", "password", "local_bypass", "tmdb_api_key", "tvdb_api_key"}
 // creates the admin profile the first time AMS runs, and signs in as it.
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
+	if !auth.KnownServerHost(r, s.settings().HTTPSDomain) {
+		writeError(w, http.StatusForbidden, "set up Arc using its IP address or local hostname")
+		return
+	}
 	ctx := r.Context()
 	var body struct {
 		Name        string `json:"name"`
@@ -277,7 +307,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		TVDBKey     string `json:"tvdb_api_key" api:"optional"`
 		Region      string `json:"region" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -299,7 +329,8 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "the password needs at least 8 characters")
 		return
 	}
-	next := s.settings()
+	before := s.settings()
+	next := before
 	next.LocalBypass = body.LocalBypass
 	if k := strings.TrimSpace(body.TMDBKey); k != "" {
 		next.TMDBKey = k
@@ -310,7 +341,11 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	if regionRe.MatchString(body.Region) {
 		next.Region = body.Region
 	}
-	if err := s.applySettings(ctx, next); err != nil {
+	if err := s.applySettings(ctx, before, next); err != nil {
+		if errors.Is(err, settings.ErrConcurrentChange) {
+			writeError(w, http.StatusConflict, "settings changed while being checked; reload and try again")
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -340,12 +375,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		// An app signing in: its name, e.g. "Living Room Apple TV". It gets a token back.
 		Device string `json:"device" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	key := "login:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		s.log.Warn("sign-in blocked after too many attempts", "address", clientIP(r))
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
@@ -356,14 +391,17 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if admin == nil || !auth.Check(admin.PasswordHash, body.Password) {
-		s.limiter.Fail(key)
 		s.log.Warn("sign-in failed: wrong password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
 		writeError(w, http.StatusUnauthorized, "that password isn't right")
 		return
 	}
 	s.limiter.Succeed(key)
 	s.log.Info("signed in with the password", "address", clientIP(r), "device", deviceName(r.UserAgent()))
-	if old := s.session(r); old != nil && body.Device == "" {
+	old, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if old != nil && body.Device == "" {
 		s.store.DeleteSession(r.Context(), old.TokenHash)
 	}
 	s.signIn(w, r, "", "password", strings.TrimSpace(body.Device))
@@ -379,11 +417,14 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		PIN      string `json:"pin" api:"optional"`
 		Password string `json:"password" api:"optional"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	se := s.session(r)
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
 	if se == nil && !s.bypassApplies(r) {
 		writeError(w, http.StatusUnauthorized, "sign in first")
 		return
@@ -402,7 +443,7 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := "profile:" + clientIP(r) + ":" + u.ID
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
@@ -410,7 +451,6 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case u.HasPIN:
 		if !auth.Check(u.PINHash, body.PIN) {
-			s.limiter.Fail(key)
 			s.log.Warn("profile sign-in failed: wrong PIN", "profile", u.Name, "address", clientIP(r))
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "wrong PIN", "needs": "pin"})
 			return
@@ -418,7 +458,6 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 	case u.IsAdmin && !passwordSession:
 		if !auth.Check(u.PasswordHash, body.Password) {
 			if body.Password != "" {
-				s.limiter.Fail(key)
 				s.log.Warn("profile sign-in failed: wrong password", "profile", u.Name, "address", clientIP(r))
 			}
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "enter the password", "needs": "password"})
@@ -453,7 +492,11 @@ func (s *Server) chooseProfile(w http.ResponseWriter, r *http.Request) {
 
 // leaveProfile: DELETE /api/auth/profile goes back to the profile picker.
 func (s *Server) leaveProfile(w http.ResponseWriter, r *http.Request) {
-	if se := s.session(r); se != nil {
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if se != nil {
 		// A friend has only their own profile: leaving it signs them out.
 		if se.Via == "friend" {
 			s.logout(w, r)
@@ -484,18 +527,17 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		Current string `json:"current"`
 		New     string `json:"new"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	admin := currentUser(r)
 	key := "password:" + clientIP(r)
-	if !s.limiter.Allow(key) {
+	if !s.limiter.Attempt(key) {
 		writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
 		return
 	}
 	if !auth.Check(admin.PasswordHash, body.Current) {
-		s.limiter.Fail(key)
 		writeError(w, http.StatusUnauthorized, "the current password isn't right")
 		return
 	}
@@ -514,7 +556,11 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keep := ""
-	if se := s.session(r); se != nil {
+	se, ok := s.readSession(w, r)
+	if !ok {
+		return
+	}
+	if se != nil {
 		keep = se.TokenHash
 	}
 	if err := s.store.DeletePasswordSessions(r.Context(), keep); err != nil {
@@ -770,6 +816,7 @@ func clientIP(r *http.Request) string { return auth.ClientIP(r) }
 // settingsDTO is what the Settings page shows. API keys are only hinted at.
 func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 	ff := s.ffprobeStatus()
+	automatic, bridge := auth.HomeNetworkInfo()
 	return map[string]any{
 		"tmdb_api_key": maskKey(st.TMDBKey),
 		"server_name":  serverDisplayName(st.ServerName),
@@ -790,31 +837,33 @@ func (s *Server) settingsDTO(st settings.Settings) map[string]any {
 		"scan_on_start":          st.ScanOnStart,
 		"scan_interval_hours":    float64(st.ScanMinutes()) / 60,
 		"scan_interval_minutes":  st.ScanMinutes(), "analysis_enabled": st.AnalysisEnabled, "metadata_refresh_enabled": st.MetadataRefreshEnabled, "auto_backups_enabled": st.AutoBackupsEnabled, "empty_trash_enabled": st.EmptyTrashEnabled, "database_upkeep_enabled": st.DatabaseUpkeepEnabled, "cache_cleanup_enabled": st.CacheCleanupEnabled, "preview_mode": st.PreviewMode, "detection_mode": st.DetectionMode,
-		"maintenance_start":  st.MaintenanceStart,
-		"maintenance_end":    st.MaintenanceEnd,
-		"previews_at_night":  st.PreviewsAtNight,
-		"omdb_api_key":       maskKey(st.OMDbKey),
-		"preroll_paths":      st.PrerollPaths,
-		"preroll_mode":       st.PrerollMode,
-		"preroll_found":      len(prerollFiles(st.PrerollPaths)),
-		"theintrodb_api_key": maskKey(st.TheIntroDBKey),
-		"detect_intros":      st.DetectIntros,
-		"remote_kbps":        st.RemoteKbps,
-		"upload_kbps":        st.UploadKbps,
-		"remote_access":      st.RemoteAccess,
-		"remote_port":        st.OutsidePort(),
-		"upnp":               st.UPnP,
-		"https_mode":         st.HTTPSMode,
-		"https_cert":         st.HTTPSCert,
-		"https_key":          st.HTTPSKey,
-		"https_domain":       st.HTTPSDomain,
-		"home_networks":      st.HomeNetworks,
-		"trusted_proxies":    st.TrustedProxies,
-		"transcode_dir":      st.TranscodeDir,
-		"max_transcodes":     st.MaxTranscodes,
-		"listen":             st.ListenAddress(),
-		"from_env":           settings.FromEnv(),
-		"transcoder":         s.transcoderCaps(),
+		"maintenance_start":       st.MaintenanceStart,
+		"maintenance_end":         st.MaintenanceEnd,
+		"previews_at_night":       st.PreviewsAtNight,
+		"omdb_api_key":            maskKey(st.OMDbKey),
+		"preroll_paths":           st.PrerollPaths,
+		"preroll_mode":            st.PrerollMode,
+		"preroll_found":           len(prerollFiles(st.PrerollPaths)),
+		"theintrodb_api_key":      maskKey(st.TheIntroDBKey),
+		"detect_intros":           st.DetectIntros,
+		"remote_kbps":             st.RemoteKbps,
+		"upload_kbps":             st.UploadKbps,
+		"remote_access":           st.RemoteAccess,
+		"remote_port":             st.OutsidePort(),
+		"upnp":                    st.UPnP,
+		"https_mode":              st.HTTPSMode,
+		"https_cert":              st.HTTPSCert,
+		"https_key":               st.HTTPSKey,
+		"https_domain":            st.HTTPSDomain,
+		"home_networks":           st.HomeNetworks,
+		"automatic_home_networks": automatic,
+		"home_network_bridge":     bridge,
+		"trusted_proxies":         st.TrustedProxies,
+		"transcode_dir":           st.TranscodeDir,
+		"max_transcodes":          st.MaxTranscodes,
+		"listen":                  st.ListenAddress(),
+		"from_env":                settings.FromEnv(),
+		"transcoder":              s.transcoderCaps(),
 	}
 }
 
@@ -861,49 +910,6 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 // "scan_interval_minutes" (0, 15, 30, 60, 120, 360, 720 or 1440), legacy
 // "scan_interval_hours", processing modes (off/scheduled/added) and task enable switches.
 // Changes apply without restarting.
-// logSettingChanges records which server settings a successful save changed, and by whom.
-// Keys and passwords are logged only as "(changed)".
-func (s *Server) logSettingChanges(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid body")
-			return
-		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		rec := &settingsRecorder{ResponseWriter: w, status: http.StatusOK}
-		next(rec, r)
-		var changed map[string]json.RawMessage
-		if rec.status >= 300 || json.Unmarshal(body, &changed) != nil || len(changed) == 0 {
-			return
-		}
-		parts := make([]string, 0, len(changed))
-		for k, v := range changed {
-			value := string(v)
-			if strings.Contains(k, "key") || strings.Contains(k, "password") || len(value) > 80 {
-				value = "(changed)"
-			}
-			parts = append(parts, k+"="+value)
-		}
-		slices.Sort(parts)
-		name := ""
-		if u := currentUser(r); u != nil {
-			name = u.Name
-		}
-		s.log.Info("settings changed", "by", name, "settings", strings.Join(parts, ", "))
-	}
-}
-
-type settingsRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (r *settingsRecorder) WriteHeader(status int) {
-	r.status = status
-	r.ResponseWriter.WriteHeader(status)
-}
-
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		ServerName             *string  `json:"server_name"`
@@ -955,7 +961,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		MaxTranscodes          *int     `json:"max_transcodes"`
 	}
 	var raw json.RawMessage
-	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&raw); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
@@ -974,7 +980,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	next := s.settings()
+	before := s.settings()
+	next := before
 	if value, present := fields["server_name"]; present && string(value) == "null" {
 		writeError(w, 400, "server_name cannot be null")
 		return
@@ -1219,9 +1226,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if body.OMDbKey != nil {
 		next.OMDbKey = strings.TrimSpace(*body.OMDbKey)
 	}
-	if err := s.applySettings(r.Context(), next); err != nil {
+	if err := s.applySettings(r.Context(), before, next); err != nil {
+		if errors.Is(err, settings.ErrConcurrentChange) {
+			writeError(w, http.StatusConflict, "settings changed while being checked; reload and try again")
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	s.logCommittedSettings(r, before, next)
 	writeJSON(w, http.StatusOK, s.settingsDTO(s.settings()))
 }

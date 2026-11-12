@@ -422,9 +422,7 @@ func (s *Server) stopPlaying(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	msg := strings.TrimSpace(body.Message)
-	if len(msg) > 300 {
-		msg = msg[:300]
-	}
+	msg = utf8BytePrefix(msg, 300)
 	found, sessionID := s.playing.stop(r.PathValue("id"), msg)
 	if sessionID != "" && s.transcoder != nil {
 		s.transcoder.Stop(sessionID)

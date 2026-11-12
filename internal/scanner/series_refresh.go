@@ -73,6 +73,11 @@ func (s *Scanner) refreshSeries(ctx context.Context, lib *store.Library, id stri
 // RelinkSeries interprets only saved, present files attached to this show. Missing files stay
 // missing, and new/unrelated files are left for explicit or automatic discovery.
 func (s *Scanner) RelinkSeries(ctx context.Context, lib *store.Library, id string) error {
+	release, ok := s.store.BeginCatalogWork()
+	if !ok {
+		return ErrLibraryBusy
+	}
+	defer release()
 	episodes, err := s.store.Children(ctx, id)
 	if err != nil {
 		return err
@@ -119,19 +124,30 @@ func (s *Scanner) finishLibraryWork(libraryID int64) {
 		delete(s.again, libraryID)
 		delete(s.pendingPaths, libraryID)
 	}
+	s.startPendingLibraryWorkLocked(libraryID)
+}
+
+// Caller holds mu. Library settings saves resume watcher requests without inventing a scan outcome.
+func (s *Scanner) startPendingLibraryWorkLocked(libraryID int64) {
 	if s.again[libraryID] {
-		delete(s.again, libraryID)
-		delete(s.pendingPaths, libraryID)
-		s.startLocked(libraryID)
+		if s.startLocked(libraryID) {
+			delete(s.again, libraryID)
+			delete(s.pendingPaths, libraryID)
+		}
 	} else if next := s.pendingPaths[libraryID]; len(next) > 0 {
-		delete(s.pendingPaths, libraryID)
-		s.startLocked(libraryID, next...)
+		if s.startLocked(libraryID, next...) {
+			delete(s.pendingPaths, libraryID)
+		}
 	}
 }
 
 // beginScopedWork shares discovery's single library lease and exact-run cancellation machinery.
 func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phase string) (context.Context, func(error), error) {
 	s.mu.Lock()
+	if s.configuring[id] {
+		s.mu.Unlock()
+		return nil, nil, ErrLibraryBusy
+	}
 	if st := s.status[id]; st != nil && st.Running {
 		s.mu.Unlock()
 		return nil, nil, ErrLibraryBusy
@@ -139,6 +155,11 @@ func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phas
 	if err := s.ctx.Err(); err != nil {
 		s.mu.Unlock()
 		return nil, nil, err
+	}
+	releaseCatalog, ok := s.store.BeginCatalogWork()
+	if !ok {
+		s.mu.Unlock()
+		return nil, nil, ErrLibraryBusy
 	}
 	work, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(s.ctx, cancel)
@@ -149,6 +170,7 @@ func (s *Scanner) beginScopedWork(ctx context.Context, id int64, operation, phas
 	s.mu.Unlock()
 	return work, func(err error) {
 		defer s.wg.Done()
+		defer releaseCatalog()
 		stop()
 		cancel()
 		s.update(id, func(st *Status) {
