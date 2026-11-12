@@ -1,3 +1,7 @@
+> Implemented subset: see [DOWNLOADS-OFFLINE-API.md](DOWNLOADS-OFFLINE-API.md) for the
+> stacked original-transfer implementation. This broader proposal still includes unimplemented
+> offline-sync/converted functionality; do not treat this entire draft as a live contract.
+
 # Downloads API — proposed client handoff
 
 **Not implemented.** This is groundwork for #62, dated 11 November 2026. Do not call these routes

@@ -31,13 +31,14 @@ type Download struct {
 	SourceMTime    int64  `json:"-"`
 	SourceMTimeNS  int64  `json:"-"`
 	SourceCacheKey string `json:"-"`
+	Snapshot       string `json:"-"`
 }
 
-const downloadCols = `id,item_id,file_id,revision,state,reason_code,source_size,sha256,created_at,user_id,session_hash,idempotency_key,source_path,source_mtime,source_mtime_ns,source_cache_key`
+const downloadCols = `id,item_id,file_id,revision,state,reason_code,source_size,sha256,created_at,user_id,session_hash,idempotency_key,source_path,source_mtime,source_mtime_ns,source_cache_key,snapshot`
 
 func scanDownload(row interface{ Scan(...any) error }) (*Download, error) {
 	var d Download
-	err := row.Scan(&d.ID, &d.ItemID, &d.FileID, &d.Revision, &d.State, &d.ReasonCode, &d.Size, &d.SHA256, &d.CreatedAt, &d.UserID, &d.SessionHash, &d.Key, &d.SourcePath, &d.SourceMTime, &d.SourceMTimeNS, &d.SourceCacheKey)
+	err := row.Scan(&d.ID, &d.ItemID, &d.FileID, &d.Revision, &d.State, &d.ReasonCode, &d.Size, &d.SHA256, &d.CreatedAt, &d.UserID, &d.SessionHash, &d.Key, &d.SourcePath, &d.SourceMTime, &d.SourceMTimeNS, &d.SourceCacheKey, &d.Snapshot)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrDownloadNotFound
 	}
@@ -183,14 +184,20 @@ func (s *Store) DownloadSource(ctx context.Context, d *Download) (*MediaFile, er
 }
 
 func (s *Store) FinishDownload(ctx context.Context, d *Download, digest string, mtimeNS int64, reason string) (bool, error) {
+	return s.FinishDownloadBundle(ctx, d, digest, mtimeNS, reason, "")
+}
+
+// FinishDownloadBundle publishes the digest and complete offline snapshot in the same attempt CAS.
+func (s *Store) FinishDownloadBundle(ctx context.Context, d *Download, digest string, mtimeNS int64, reason, snapshot string) (bool, error) {
 	state := "ready"
 	if reason != "" {
 		state = "failed"
+		snapshot = ""
 		digest = ""
 		mtimeNS = 0
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE downloads SET state=?,reason_code=?,sha256=?,source_mtime_ns=? WHERE id=? AND revision=? AND state='preparing' AND source_cache_key=?
- AND (?<>'' OR EXISTS (SELECT 1 FROM media_files m WHERE m.id=downloads.file_id AND m.cache_key=downloads.source_cache_key))`, state, reason, digest, mtimeNS, d.ID, d.Revision, d.SourceCacheKey, reason)
+	result, err := s.db.ExecContext(ctx, `UPDATE downloads SET state=?,reason_code=?,sha256=?,source_mtime_ns=?,snapshot=? WHERE id=? AND revision=? AND state='preparing' AND source_cache_key=?
+ AND (?<>'' OR EXISTS (SELECT 1 FROM media_files m WHERE m.id=downloads.file_id AND m.cache_key=downloads.source_cache_key))`, state, reason, digest, mtimeNS, snapshot, d.ID, d.Revision, d.SourceCacheKey, reason)
 	if err != nil {
 		return false, err
 	}
@@ -207,4 +214,22 @@ func (s *Store) DeleteDownload(ctx context.Context, user, session, id string) er
 		return ErrDownloadNotFound
 	}
 	return err
+}
+
+// DownloadBundleRefs lists only published bundles for root-owned orphan reconciliation.
+func (s *Store) DownloadBundleRefs(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,revision FROM downloads WHERE state='ready' AND snapshot<>''`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	refs := map[string]string{}
+	for rows.Next() {
+		var id, revision string
+		if err = rows.Scan(&id, &revision); err != nil {
+			return nil, err
+		}
+		refs[id] = revision
+	}
+	return refs, rows.Err()
 }
