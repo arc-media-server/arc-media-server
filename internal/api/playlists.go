@@ -80,7 +80,7 @@ func (s *Server) playlistContentsFor(r *http.Request, p *store.Playlist, summary
 			break
 		}
 	}
-	if f.Unwatched {
+	if q.Unwatched {
 		data, err := s.store.UserDataFor(ctx, currentUserID(r), ids)
 		if err != nil {
 			return nil, nil, err
@@ -155,20 +155,15 @@ func (s *Server) playlistItems(r *http.Request, p *store.Playlist) ([]playlistEn
 		return nil, err
 	}
 	out := make([]playlistEntryDTO, 0, len(items))
-	series := map[string]*store.Item{}
-	positions := map[string]map[string][2]int{}
+	contexts := s.episodeContexts(ctx)
 	for i, it := range items {
 		d := toDTO(it)
 		if it.Kind == "episode" {
-			sr, ok := series[it.ParentID]
-			if !ok {
-				sr, _ = s.store.GetItem(ctx, it.ParentID)
-				series[it.ParentID] = sr
-				if sr != nil {
-					positions[sr.ID], _, _ = s.orderPositions(ctx, sr)
-				}
+			context, err := contexts.get(it.ParentID)
+			if err != nil {
+				return nil, err
 			}
-			d = s.episodeDTO(it, sr, positions[it.ParentID])
+			d = s.episodeDTO(it, context.series, context.positions)
 		}
 		out = append(out, playlistEntryDTO{EntryID: entries[i].ID, Item: d})
 	}

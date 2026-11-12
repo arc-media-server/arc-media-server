@@ -103,6 +103,50 @@ func (s *Store) DownloadRecords(ctx context.Context, user, session string) ([]Do
 	}
 	return out, rows.Err()
 }
+
+// VisibleDownloadRecords is a narrow, bounded descriptor projection. Unlike preparation/get,
+// a list needs neither full item metadata nor media streams. Check current owner/grant,
+// source revision and topology in one set query; keep execution-time checks in DownloadSource.
+func (s *Store) VisibleDownloadRecords(ctx context.Context, user, session string) ([]Download, error) {
+	u, err := s.GetUser(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	if u == nil || (!u.IsAdmin && !u.AllowDownloads) {
+		return []Download{}, nil
+	}
+	acc := Access{}
+	if !u.IsAdmin {
+		acc = Access{MaxAge: u.MaxAge, Libraries: u.LibraryIDs, ExcludeLabels: u.ExcludeLabels}
+	}
+	query := `SELECT ` + prefixCols("d.", downloadCols) + ` FROM downloads d
+      JOIN items i ON i.id=d.item_id
+      JOIN media_files m ON m.id=d.file_id
+      JOIN item_files link ON link.item_id=d.item_id AND link.file_id=d.file_id
+      JOIN sessions se ON se.token_hash=d.session_hash AND se.user_id=d.user_id
+      WHERE d.user_id=? AND d.session_hash=? AND m.missing_since IS NULL
+        AND m.path=d.source_path AND m.size=d.source_size AND m.mtime=d.source_mtime
+        AND link.part<=1
+        AND (SELECT count(*) FROM item_files shared WHERE shared.file_id=d.file_id)=1
+        AND NOT EXISTS (SELECT 1 FROM item_files parts WHERE parts.item_id=d.item_id AND parts.part>1)`
+	query, args := acc.Where("i", query, []any{user, session})
+	query += ` ORDER BY d.created_at,d.id LIMIT 100`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Download{}
+	for rows.Next() {
+		d, err := scanDownload(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *d)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) NextDownload(ctx context.Context) (*Download, error) {
 	return scanDownload(s.db.QueryRowContext(ctx, `SELECT `+downloadCols+` FROM downloads WHERE state='preparing' ORDER BY created_at,id LIMIT 1`))
 }

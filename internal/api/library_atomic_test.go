@@ -36,7 +36,7 @@ func TestRejectedLibraryPatchLeavesAllFieldsUnchanged(t *testing.T) {
 			s.scanner = scanner.New(life, s.store, probe.New(""), metadata.NewTMDB(""), metadata.NewTVDB(""), s.log)
 			defer s.scanner.Wait()
 			outcomes := 0
-			s.scanner.OnFinish = func(int64) { outcomes++ }
+			s.scanner.OnFinish = func(int64, scanner.Status) { outcomes++ }
 			before, err := s.store.GetLibrary(t.Context(), lib)
 			if err != nil {
 				t.Fatal(err)
