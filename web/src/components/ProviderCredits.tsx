@@ -1,24 +1,27 @@
 import { Trans, useTranslation } from 'react-i18next';
 import type { Item, Library } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import tmdbLogo from '@/assets/attribution/tmdb.svg';
+import tvdbLightLogo from '@/assets/attribution/thetvdb-light.png';
+import tvdbDarkLogo from '@/assets/attribution/thetvdb-dark.png';
 
-// The providers' official logos, if they have been added to src/assets/attribution (see its
-// README). Until then their names show as text, which still credits and links to them.
-const logoFiles = import.meta.glob<string>('../assets/attribution/*.{svg,png}', { eager: true, query: '?url', import: 'default' });
-const logo = (name: 'tmdb' | 'thetvdb') => Object.entries(logoFiles).find(([path]) => path.includes(`/${name}.`))?.[1];
+// Original provider assets are bundled, so credits also work without external image requests.
+// Provenance and hashes: assets/attribution/README.md. Missing assets must fail the build.
 
 type Provider = 'tmdb' | 'tvdb';
 
-export const providers: Record<Provider, { name: string; logo?: string; home: string }> = {
-  tmdb: { name: 'TMDB', logo: logo('tmdb'), home: 'https://www.themoviedb.org' },
-  tvdb: { name: 'TheTVDB', logo: logo('thetvdb'), home: 'https://thetvdb.com' },
+export const providers: Record<Provider, { name: string; logo: string; darkLogo?: string; home: string }> = {
+  tmdb: { name: 'TMDB', logo: tmdbLogo, home: 'https://www.themoviedb.org' },
+  tvdb: { name: 'TheTVDB', logo: tvdbLightLogo, darkLogo: tvdbDarkLogo, home: 'https://thetvdb.com' },
 };
 
-function ProviderMark({ provider, href, className }: { provider: Provider; href: string; className?: string }) {
+function ProviderMark({ provider, href, className, large = false }: { provider: Provider; href: string; className?: string; large?: boolean }) {
   const p = providers[provider];
+  const imageClass = cn('object-contain', large ? 'h-6 w-20' : 'h-4 w-14');
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className={cn('inline-flex items-center font-medium text-foreground/80 underline-offset-4 hover:underline', className)}>
-      {p.logo ? <img src={p.logo} alt={p.name} className="h-3.5 w-auto" /> : p.name}
+      <img src={p.logo} alt={p.name} className={cn(imageClass, p.darkLogo && 'provider-logo-light')} />
+      {p.darkLogo && <img src={p.darkLogo} alt={p.name} className={cn(imageClass, 'provider-logo-dark')} />}
     </a>
   );
 }
@@ -32,7 +35,7 @@ export function ProviderCredit({ item, library }: { item: Item; library?: Librar
   if (item.metadata_state !== 'matched' && item.metadata_state !== 'locked') return null;
   if (item.kind === 'movie' && library?.kind === 'videos') return null;
   const lines: { label: string; provider: Provider; href: string }[] = [];
-  const tmdbLink = item.tmdb_id ? `${providers.tmdb.home}/${item.kind === 'movie' ? 'movie' : 'tv'}/${item.tmdb_id}` : providers.tmdb.home;
+  const tmdbLink = providers.tmdb.home;
   if (item.kind === 'movie') {
     if (item.tmdb_id) lines.push({ label: 'details', provider: 'tmdb', href: tmdbLink });
   } else {
@@ -63,11 +66,11 @@ export function ProviderCredits() {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-4">
-        <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tmdb" href={providers.tmdb.home} className="text-sm" /></div>
+        <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tmdb" href={providers.tmdb.home} large /></div>
         <p className="text-sm text-muted">{t("profileSettings:providerCredits.thisProductUsesThe")}</p>
       </div>
       <div className="flex items-start gap-4">
-        <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tvdb" href={providers.tvdb.home} className="text-sm" /></div>
+        <div className="flex w-24 shrink-0 justify-center pt-0.5"><ProviderMark provider="tvdb" href={providers.tvdb.home} large /></div>
         <p className="text-sm text-muted"><Trans ns="profileSettings" i18nKey="providerCredits.tvdbNotice" components={{ provider: <a href={providers.tvdb.home} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground/80 underline-offset-4 hover:underline" /> }} /></p>
       </div>
     </div>
