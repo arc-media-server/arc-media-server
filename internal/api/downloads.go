@@ -153,22 +153,10 @@ func (s *Server) listDownloads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	requestStage(r, "listing download preparations", 0)
-	records, err := s.store.DownloadRecords(r.Context(), currentUserID(r), currentSession(r))
+	visible, err := s.store.VisibleDownloadRecords(r.Context(), currentUserID(r), currentSession(r))
 	if err != nil {
 		s.fail(w, err)
 		return
-	}
-	visible := []store.Download{}
-	for _, d := range records {
-		_, err := s.store.DownloadSource(r.Context(), &d)
-		if errors.Is(err, store.ErrDownloadNotFound) {
-			continue
-		}
-		if err != nil {
-			s.fail(w, err)
-			return
-		}
-		visible = append(visible, d)
 	}
 	total := len(visible)
 	start := min(offset, total)
