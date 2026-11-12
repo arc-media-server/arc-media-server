@@ -197,7 +197,7 @@ func TestDownloadMigrationPreservesExistingSQLiteStateAndSafetyBackup(t *testing
 	ctx := t.Context()
 	// Reconstruct the preceding SQLite schema in a disposable fixture, keeping real profile,
 	// session, library/item/file rows rather than testing only an empty installation.
-	for _, query := range []string{`DROP TABLE downloads`, `ALTER TABLE users DROP COLUMN allow_downloads`, `DELETE FROM schema_migrations WHERE version='0068_download_preparation'`} {
+	for _, query := range []string{`DROP TABLE downloads`, `ALTER TABLE users DROP COLUMN allow_downloads`, `DELETE FROM schema_migrations WHERE version>='0068_download_preparation'`} {
 		if _, err := st.db.ExecContext(ctx, query); err != nil {
 			t.Fatal(err)
 		}

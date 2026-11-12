@@ -1,3 +1,8 @@
+> Runtime progress (12 November): original preparation and stacked D1/D2/D3 now implement the
+> supported original bundle/transfer path. Actual client handoff: [DOWNLOADS-OFFLINE-API.md](../DOWNLOADS-OFFLINE-API.md).
+> Historical design below retains future sync/converted phases. Reconcile/retest the stack after
+> pending review merges; no deployed/native acceptance is implied.
+
 # Downloads backend foundation
 
 Status: **design and proposed contract only**, 11 November 2026. Related: #62.

@@ -1,3 +1,8 @@
+> Implementation update (12 November): stacked D1/D2/D3 add source-key/catalog guards,
+> authenticated original transfer and durable supported offline bundles. Their shipped contract
+> is [DOWNLOADS-OFFLINE-API.md](DOWNLOADS-OFFLINE-API.md). The text below records the original
+> preparation slice and its historical boundaries; no claim that the stack is merged/deployed.
+
 # Original-download preparation — backend/client handoff
 
 First runtime slice of #62, built independently of the unmerged #418 server-review work. SQLite
@@ -125,3 +130,17 @@ idempotency keys in worker logs. API failures reuse normal diagnostics and bound
   then versioned idempotent offline progress sync. Only then wire real native download controls.
 - No native repo, Mac signing, external database, production data/server or physical-device test
   is part of this backend slice. Original/converted transfer and native acceptance remain open.
+
+## Source identity and restore integration (D1)
+
+Download provenance privately binds to the persistent media-file cache key as well as path/size/mtime.
+A reused row ID or changed saved source key cannot reuse preparation. Migration0069 keeps old
+records but marks them failed/source_changed and clears their digest: the old schema cannot prove
+that binding. Release and prepare a new operation. The key is never exposed in API replies/logs.
+
+A preparation worker reserves catalog work before capturing its pending record and retains that
+reservation through publication. Online restore/destructive maintenance remains busy while it runs;
+maintenance admission contention pauses the worker without failing records. Direct synchronous
+preparation uses the same guard. Root shutdown joins it before store closure. An uninterruptible
+filesystem read can still delay safe shutdown. Download reads use a narrow source/access projection;
+no full media-stream hydration is needed for periodic checks. No transfer endpoint is added by D1.

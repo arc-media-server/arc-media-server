@@ -635,6 +635,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}, log)
 	workers.OnStop("subtitle extraction", subtitleCache.Close)
 	downloadManager := downloads.New(st, log)
+	downloadManager.ConfigureBundles(filepath.Join(dataDir, "downloads"), filepath.Join(dataDir, "uploads"), art, subtitleCache)
 	handler := api.New(api.Deps{
 		Downloads:   downloadManager,
 		WorkContext: ctx, Workers: &apiWorkers,

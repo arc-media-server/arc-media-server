@@ -431,6 +431,70 @@ GET /downloads/{id} 200 .revision string
 GET /downloads/{id} 200 .sha256 string
 GET /downloads/{id} 200 .size integer
 GET /downloads/{id} 200 .state string
+GET /downloads/{id}/assets/{asset}
+GET /downloads/{id}/assets/{asset} 200
+GET /downloads/{id}/assets/{asset} 206
+GET /downloads/{id}/manifest
+GET /downloads/{id}/manifest 200
+GET /downloads/{id}/manifest 200 .assets array
+GET /downloads/{id}/manifest 200 .assets[] object
+GET /downloads/{id}/manifest 200 .assets[].forced boolean
+GET /downloads/{id}/manifest 200 .assets[].hearing_impaired boolean
+GET /downloads/{id}/manifest 200 .assets[].id string
+GET /downloads/{id}/manifest 200 .assets[].language string
+GET /downloads/{id}/manifest 200 .assets[].media_type string
+GET /downloads/{id}/manifest 200 .assets[].role string
+GET /downloads/{id}/manifest 200 .assets[].sha256 string
+GET /downloads/{id}/manifest 200 .assets[].size integer
+GET /downloads/{id}/manifest 200 .assets[].url string
+GET /downloads/{id}/manifest 200 .download_id string
+GET /downloads/{id}/manifest 200 .item object
+GET /downloads/{id}/manifest 200 .item.container string
+GET /downloads/{id}/manifest 200 .item.duration_ms integer
+GET /downloads/{id}/manifest 200 .item.episode integer
+GET /downloads/{id}/manifest 200 .item.id string
+GET /downloads/{id}/manifest 200 .item.kind string
+GET /downloads/{id}/manifest 200 .item.overview string
+GET /downloads/{id}/manifest 200 .item.season integer
+GET /downloads/{id}/manifest 200 .item.series_id string
+GET /downloads/{id}/manifest 200 .item.series_title string
+GET /downloads/{id}/manifest 200 .item.streams array
+GET /downloads/{id}/manifest 200 .item.streams[] object
+GET /downloads/{id}/manifest 200 .item.streams[].aspect_ratio number
+GET /downloads/{id}/manifest 200 .item.streams[].bit_depth integer
+GET /downloads/{id}/manifest 200 .item.streams[].bitrate integer
+GET /downloads/{id}/manifest 200 .item.streams[].channel_layout string
+GET /downloads/{id}/manifest 200 .item.streams[].channels integer
+GET /downloads/{id}/manifest 200 .item.streams[].codec string
+GET /downloads/{id}/manifest 200 .item.streams[].color_primaries string
+GET /downloads/{id}/manifest 200 .item.streams[].color_transfer string
+GET /downloads/{id}/manifest 200 .item.streams[].dolby_vision boolean
+GET /downloads/{id}/manifest 200 .item.streams[].dolby_vision_profile integer
+GET /downloads/{id}/manifest 200 .item.streams[].dv_bl_signal_compatibility_id integer
+GET /downloads/{id}/manifest 200 .item.streams[].frame_rate number
+GET /downloads/{id}/manifest 200 .item.streams[].hdr10_plus boolean
+GET /downloads/{id}/manifest 200 .item.streams[].hdr_probe_status string
+GET /downloads/{id}/manifest 200 .item.streams[].height integer
+GET /downloads/{id}/manifest 200 .item.streams[].index integer
+GET /downloads/{id}/manifest 200 .item.streams[].is_default boolean
+GET /downloads/{id}/manifest 200 .item.streams[].is_forced boolean
+GET /downloads/{id}/manifest 200 .item.streams[].kind string
+GET /downloads/{id}/manifest 200 .item.streams[].language string
+GET /downloads/{id}/manifest 200 .item.streams[].pix_fmt string
+GET /downloads/{id}/manifest 200 .item.streams[].profile string
+GET /downloads/{id}/manifest 200 .item.streams[].title string
+GET /downloads/{id}/manifest 200 .item.streams[].width integer
+GET /downloads/{id}/manifest 200 .item.title string
+GET /downloads/{id}/manifest 200 .item.year integer
+GET /downloads/{id}/manifest 200 .mode string
+GET /downloads/{id}/manifest 200 .profile_id string
+GET /downloads/{id}/manifest 200 .revision string
+GET /downloads/{id}/manifest 200 .server_id string
+GET /downloads/{id}/manifest 200 .unavailable array
+GET /downloads/{id}/manifest 200 .unavailable[] object
+GET /downloads/{id}/manifest 200 .unavailable[].language string
+GET /downloads/{id}/manifest 200 .unavailable[].reason_code string
+GET /downloads/{id}/manifest 200 .unavailable[].role string
 GET /events
 GET /events 200
 GET /extras/{id}/stream
@@ -5680,6 +5744,8 @@ GET /webhooks 200 .webhooks[].last.ok boolean
 GET /webhooks 200 .webhooks[].last.status string
 GET /webhooks 200 .webhooks[].name string
 GET /webhooks 200 .webhooks[].url string
+HEAD /downloads/{id}/assets/{asset}
+HEAD /downloads/{id}/assets/{asset} 200
 OPTIONS /cast/{token}/{rest}
 OPTIONS /cast/{token}/{rest} 200
 OPTIONS /cast/{token}/{rest} 204
