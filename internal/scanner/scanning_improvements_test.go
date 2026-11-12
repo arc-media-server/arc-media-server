@@ -217,8 +217,8 @@ func TestChangedFolderQueuedDuringScanCompletionIsRetained(t *testing.T) {
 	s.ctx = ctx
 	t.Cleanup(func() { cancel(); s.Wait() })
 	done := make(chan int, 2)
-	s.OnFinish = func(id int64) {
-		seen := s.Status(id).FilesSeen
+	s.OnFinish = func(id int64, completed Status) {
+		seen := completed.FilesSeen
 		if seen == 2 {
 			s.RequestPaths(id, []string{filepath.Join(root, "One", "One.mkv")})
 		}
