@@ -17,7 +17,7 @@ The owner's feedback after moving to the PUID/PGID image on Docker bridge networ
 - **Graphics card choice instead of Retest.** Detection now tests every graphics device at start
   rather than stopping at the first that works, one entry per device (Quick Sync before VA-API on
   Intel, so an iGPU isn't listed twice), named by API, maker for VA-API, and render node when
-  there are several. Converting gets a "Graphics card" menu (Automatic, then each device), like
+  there are several. Converting gets a "Graphics card" menu (Auto, then each device), like
   Plex's "Hardware transcoding device". Devices are listed in the order the system lists them
   (render nodes, renderD128 first; NVENC takes its NVIDIA card's place), and Automatic is simply
   the first, not a ranking of APIs (owner). Stored as `hw_device` (`""` for Automatic); a chosen

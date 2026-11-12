@@ -145,7 +145,7 @@
     "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters.",
     "graphicsCard": "Graphics card",
     "graphicsCardDescription": "Which graphics card converts video.",
-    "graphicsCardAuto": "Automatic"
+    "graphicsCardAuto": "Auto"
   },
   "diagnostics": {
     "detailedLogging": "Detailed logging",

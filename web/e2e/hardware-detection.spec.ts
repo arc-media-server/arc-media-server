@@ -60,7 +60,7 @@ test('hardware detection re-checks on its own and offers a graphics card choice'
   await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeEnabled();
   const card = page.getByRole('combobox', { name: 'Graphics card', exact: true });
   await expect(card).toHaveValue('');
-  await expect(card.locator('option')).toHaveText(['Automatic', 'Intel Quick Sync · renderD128', 'AMD (VA-API) · renderD129']);
+  await expect(card.locator('option')).toHaveText(['Auto', 'Intel Quick Sync · renderD128', 'AMD (VA-API) · renderD129']);
   await card.selectOption('h264_vaapi:/dev/dri/renderD129');
   await expect(card).toHaveValue('h264_vaapi:/dev/dri/renderD129');
   expect((await (await page.request.get('/api/settings')).json()).hw_device).toBe('h264_vaapi:/dev/dri/renderD129');
