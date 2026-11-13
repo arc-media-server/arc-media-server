@@ -136,6 +136,7 @@ test('Manage libraries requests individual and bulk scans with running guards an
 
 test('management pages share Settings navigation and Activity opens Dashboard on desktop and phone', async ({ page }, info) => {
   await seed(page);
+  expect((await page.request.patch('/api/settings', { data: { server_name: 'Living Room' } })).ok()).toBe(true);
   await page.route('**/api/health/libraries', route => route.fulfill({ json: { fixture: 900 } }));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
@@ -146,7 +147,7 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
   await expect(nav.getByLabel('900 library issues')).toBeVisible();
   for (const [label, path, heading] of [
-    ['Dashboard', '/dashboard', 'Dashboard'], ['Insights', '/insights', 'Insights'],
+    ['Dashboard', '/dashboard', 'Living Room - Dashboard'], ['Insights', '/insights', 'Insights'],
     ['Library Health', '/health', 'Library Health'], ['Manage libraries', '/libraries', 'Libraries'],
     ['Profiles', '/profiles', 'Profiles'], ['Backups & restore', '/backups', 'Backups'],
   ]) {
@@ -170,6 +171,9 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   await page.getByRole('button', { name: /^Activity/ }).click();
   const dashboard = page.getByRole('link', { name: 'View Dashboard', exact: true });
   await expect(dashboard).toBeVisible();
+  const activityHeading = page.getByRole('heading', { name: 'Activity', exact: true });
+  await expect(activityHeading).toBeVisible();
+  expect((await dashboard.boundingBox())!.y + (await dashboard.boundingBox())!.height).toBeLessThanOrEqual((await activityHeading.boundingBox())!.y);
   await page.screenshot({ animations: 'disabled', path: info.outputPath('activity-dashboard-desktop.png') });
   await dashboard.focus(); await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -200,11 +204,21 @@ test('management pages share Settings navigation and Activity opens Dashboard on
 
 test('settings groups expose labelled controls and persistent desktop and mobile navigation', async ({ page }, info) => {
   await seed(page);
+  for (const [section, title] of [['profile', 'Your profile'], ['general', 'General'], ['library', 'Libraries & metadata'], ['playback', 'Playback & transcoding'], ['access', 'Access & devices'], ['maintenance', 'Maintenance & diagnostics']]) {
+    await page.goto(section === 'profile' ? '/settings' : `/settings?section=${section}`);
+    await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Server', exact: true })).toHaveCount(0);
+    await expect(page.getByText('Switches and menus save immediately. Text fields use Save.', { exact: true })).toHaveCount(0);
+  }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/settings?section=library');
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'General', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Server name', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
+  await nav.getByRole('link', { name: 'Libraries & metadata', exact: true }).click();
   // Age-rating country is chosen per library (Edit library → Advanced), as Plex does.
   await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toHaveCount(0);
   // Native links work with the keyboard and retain ordinary browser navigation semantics.
@@ -215,14 +229,14 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   // FFmpeg and ffprobe are found automatically here, so Media tools has nothing to show.
   await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
-  await page.getByRole('heading', { name: 'Converting', exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toHaveCount(0);
+  await page.getByRole('heading', { name: 'Video conversion', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('heading', { name: 'Video conversion', exact: true })).toBeInViewport();
   await expect(playback).toBeInViewport();
-  await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Simultaneous video conversions', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
   await page.goBack(); // Group selection participates in browser history.
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
   for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
     await page.goto('/settings?section=' + group);
     const selects = page.locator('main select:visible');
@@ -240,16 +254,16 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   const a = await label.boundingBox(), b = await spoiler.boundingBox();
   expect(b!.x).toBeGreaterThan(a!.x + a!.width);
   await selector.selectOption('library');
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
   await page.reload(); await expect(selector).toHaveValue('library');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('settings-mobile.png'), fullPage: true });
 });
 
-test('server settings keep saving, failure, retry and saved feedback beside the edited control', async ({ page }, info) => {
+test('server settings keep saving, failure and retry feedback beside the edited control', async ({ page }, info) => {
   await seed(page);
   await page.goto('/settings?section=playback');
-  const control = page.getByRole('combobox', { name: 'Videos converted at once', exact: true });
+  const control = page.getByRole('combobox', { name: 'Simultaneous video conversions', exact: true });
   const row = control.locator('..');
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -269,7 +283,9 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await page.screenshot({ path: info.outputPath('settings-local-error.png') });
   await page.unroute('**/api/settings');
   await error.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(row.getByRole('status')).toHaveText('Saved');
+  await expect(row.getByRole('alert')).toHaveCount(0);
+  await expect(row.getByRole('status')).toHaveCount(0);
+  await expect(control).toBeEnabled();
   await expect(control).toHaveValue('2');
   await page.reload(); await expect(control).toHaveValue('2');
   // An async pre-roll save must also surface rejection rather than create an unhandled error.
@@ -277,7 +293,12 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await page.route('**/api/settings', route => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 503, json: { error: 'Pre-roll save failed' } }) : route.continue());
   const preroll = page.getByRole('combobox', { name: 'Pre-roll order', exact: true });
-  await preroll.scrollIntoViewIfNeeded();
+  // Leave room for the inline error before changing a control near the viewport edge.
+  await preroll.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  await expect.poll(async () => {
+    const box = await preroll.boundingBox();
+    return !!box && box.y >= 0 && box.y + box.height < page.viewportSize()!.height - 150;
+  }).toBe(true);
   await preroll.selectOption('all');
   await expect(page.getByRole('alert')).toContainText('Pre-roll save failed');
   await expect(page.getByRole('alert')).toBeInViewport();
@@ -307,6 +328,43 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.reload(); await expect(upload).toHaveValue('25');
   expect(errors).toEqual([]);
+});
+
+test('temporary folder shows the stored path, opens a chooser and can return to default', async ({ page }, info) => {
+  await seed(page);
+  await page.goto('/settings?section=playback');
+  const box = page.getByRole('button', { name: 'Temporary folder', exact: true });
+  await expect(box).toHaveText("Default: Arc's data folder");
+  await box.click();
+  await expect(box).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(box).toHaveAttribute('aria-expanded', 'false');
+  await box.click();
+  const path = page.getByPlaceholder('Choose a drive, or type a folder path', { exact: true });
+  await path.fill(media.movies); await path.press('Enter');
+  await page.getByRole('button', { name: 'Use This Folder', exact: true }).click();
+  await expect(box).toHaveText(media.movies);
+  await expect(box).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await expect(box).toHaveText(media.movies);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await box.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('temporary-folder-mobile.png') });
+  await box.click();
+  await expect(path).toHaveValue(media.movies);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, json: { error: 'Temporary folder save failed' } }) : route.continue());
+  await page.getByRole('button', { name: 'Use Default', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Temporary folder save failed');
+  await expect(box).toHaveText(media.movies);
+  await page.unroute('**/api/settings');
+  await page.getByRole('button', { name: 'Use Default', exact: true }).click();
+  await expect(box).toHaveText("Default: Arc's data folder");
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect((await (await page.request.get('/api/settings')).json()).transcode_dir).toBe('');
+  await page.reload(); await expect(box).toHaveText("Default: Arc's data folder");
 });
 
 test('Home distinguishes request failures from empty libraries and retries rows', async ({ page }) => {
@@ -369,7 +427,8 @@ test('internet streaming quality is saved to the profile and only limits streams
   const saved = page.waitForResponse(r => r.url().endsWith('/api/me/prefs') && r.request().method() === 'PATCH' && r.ok());
   await quality.selectOption({ label: '4 Mbps 720p' });
   expect((await (await saved).json()).remote_quality_kbps).toBe(4000);
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await expect(quality).toBeEnabled();
+  await expect(page.getByText('Saved', { exact: true })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('internet-quality-setting.png') });
   await page.reload();
   await expect(quality.locator('option:checked')).toHaveText('4 Mbps 720p');
@@ -400,7 +459,7 @@ test('mobile profiles, settings sections and player controls remain usable', asy
   await expect(page.getByRole('combobox', { name: 'Preferred audio language', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Preferred audio language', exact: true }).selectOption('jpn');
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).audio_language).toBe('jpn');
-  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Playback & transcoding', 'Converting'], ['Access & devices', 'Devices'], ['Maintenance & diagnostics', 'Scheduled tasks']]) {
+  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Playback & transcoding', 'Video conversion'], ['Access & devices', 'Devices'], ['Maintenance & diagnostics', 'Scheduled tasks']]) {
     await page.getByRole('combobox', { name: 'Settings section', exact: true }).selectOption({ label: tab });
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -531,8 +590,8 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await expect.poll(async () => (await (await page.request.get('/api/home/continue')).json()).some((i: Item) => i.title === 'First Chapter' && (i.user_data?.position_ms || 0) > 65_000)).toBe(true);
 });
 
-test('the server name is set in Access settings and is what apps are told', async ({ page }) => {
-  await page.goto('/settings?section=access');
+test('the server name is set in General settings and is what apps are told', async ({ page }) => {
+  await page.goto('/settings?section=general');
   const name = page.getByRole('textbox', { name: 'Server name', exact: true });
   await name.fill('  Living Room  ');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -563,7 +622,7 @@ test('a reload offers the queue this device was playing, to resume or dismiss', 
   await expect(queue.locator('ol li').nth(1)).toContainText('Second Chapter');
   // Next moves the server's queue on too.
   await queue.getByRole('button', { name: 'Play Second Chapter now', exact: true }).click();
-  // (Auto-Play may already have added the following episode after it, on the server too.)
+  // (Autoplay next episode may already have added the following episode after it, on the server too.)
   await expect.poll(async () => (await serverQueue(page))[0]).toBe('Second Chapter');
   // Leaving the player some other way (a reload) and dismissing the offer discards it.
   await page.reload();
@@ -1068,7 +1127,7 @@ test('series file details show episode source tracks without claiming series-wid
 test('background scheduling exposes modes, task controls and recoverable Run now', async ({ page }, info) => {
   await seed(page);
   await page.goto('/settings?section=library');
-  const interval = page.getByRole('combobox', { name: 'Full library scan', exact: true });
+  const interval = page.getByRole('combobox', { name: 'Scheduled library scans', exact: true });
   await expect(interval.getByRole('option', { name: 'Every 15 minutes', exact: true })).toHaveCount(1);
   await expect(interval.getByRole('option', { name: 'Every 30 minutes', exact: true })).toHaveCount(1);
   await expect(interval.getByRole('option', { name: 'Every 2 hours', exact: true })).toHaveCount(1);

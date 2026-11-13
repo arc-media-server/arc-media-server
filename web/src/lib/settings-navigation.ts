@@ -1,13 +1,13 @@
 import i18n from '../i18n';
 
-export type SettingsGroup = 'profile' | 'library' | 'playback' | 'access' | 'maintenance';
+export type SettingsGroup = 'profile' | 'general' | 'library' | 'playback' | 'access' | 'maintenance';
 
 export const settingsSections: Record<string, SettingsGroup> = {
   'Online metadata': 'library', 'Ratings': 'library', 'Library scanning': 'library',
-  'Moving in': 'library', 'Notifications': 'library',
+  'Moving in': 'library', 'Notifications': 'general',
   'Media tools': 'playback', 'Intro & credit detection': 'playback', 'Pre-roll': 'playback',
   'Subtitle downloads': 'playback', 'Converting': 'playback', 'Optimized Versions': 'playback',
-  'General': 'access', 'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
+  'General': 'general', 'Sign-in': 'access', 'Network': 'access', 'Remote Access': 'access', 'Devices': 'access',
   'Scheduled tasks': 'maintenance', 'Diagnostics': 'maintenance',
 };
 
@@ -15,6 +15,7 @@ export function settingsNavigation() {
   return [
   { label: i18n.t('common:settings.navigation.personal'), links: [{ id: 'profile', label: i18n.t('common:settings.navigation.yourProfile'), to: '/settings' }] },
   { label: i18n.t('common:settings.navigation.server'), links: [
+    { id: 'general', label: i18n.t('common:settings.navigation.general'), to: '/settings?section=general' },
     { id: 'dashboard', label: i18n.t('common:settings.navigation.dashboard'), to: '/dashboard' },
     { id: 'insights', label: i18n.t('common:settings.navigation.insights'), to: '/insights' },
     { id: 'health', label: i18n.t('common:settings.navigation.libraryHealth'), to: '/health' },
@@ -40,7 +41,7 @@ export function isSettingsPath(path: string) {
 }
 
 export function selectedSettingsSection(section: string | null): SettingsGroup {
-  return section === 'library' || section === 'playback' || section === 'access' || section === 'maintenance' ? section : 'profile';
+  return section === 'general' || section === 'library' || section === 'playback' || section === 'access' || section === 'maintenance' ? section : 'profile';
 }
 
 /** Translate visible section names without changing stored group keys or existing anchors. */

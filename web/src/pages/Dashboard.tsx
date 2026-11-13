@@ -18,6 +18,8 @@ import { inputClass } from '@/components/ui/field';
 
 export function DashboardPage() {
   const { t } = useTranslation('reports');
+  const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const serverName = settings.data?.server_name?.trim();
   const playing = useQuery({ queryKey: ['playing'], queryFn: api.playing, refetchInterval: 3000 });
   const [stopping, setStopping] = useState<Playback | null>(null);
 
@@ -25,7 +27,7 @@ export function DashboardPage() {
 
   return (
     <Page className="pb-16">
-      <PageHeader title={t("reports:dashboard.dashboard")} subtitle={t("reports:dashboard.whatSBeingWatched")} />
+      <PageHeader title={serverName ? t("reports:dashboard.serverDashboard", { name: serverName }) : t("reports:dashboard.dashboard")} subtitle={t("reports:dashboard.whatSBeingWatched")} />
       <div className="space-y-10 px-6 md:px-10">
         <section>
           <h2 className="mb-3 text-lg font-semibold">{t("reports:dashboard.nowPlaying")}{playing.data && playing.data.length > 0 && <span className="ml-2 text-muted">{playing.data.length}</span>}

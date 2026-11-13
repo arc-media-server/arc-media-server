@@ -4,12 +4,12 @@ import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FolderOpen, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
+import { mediaToolsNeeded, selectedSettingsSection, settingsNavigation, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
@@ -35,11 +35,11 @@ export function SettingsPage() {
   const admin = useIsAdmin();
   const [params] = useSearchParams();
   const selected = admin ? selectedSettingsSection(params.get('section')) : 'profile';
+  const title = settingsNavigation().flatMap(group => group.links).find(link => link.id === selected)!.label;
   return (
     <Page className="pb-16">
-      <PageHeader title={t("profileSettings:settings.settings")} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
+      <PageHeader title={title} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
       <div className="max-w-[848px] space-y-8 px-6 md:px-10">
-        <p className="text-sm text-muted">{t("profileSettings:settings.switchesAndMenusSave")}</p>
         <SettingsSection.Provider value={selected}>
           {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
         </SettingsSection.Provider>
@@ -265,7 +265,6 @@ function ServerSettings() {
 
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:settings.server")}</h2>
       {!s ? (
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (
@@ -914,8 +913,8 @@ function SaveFeedback({ settings, className }: { settings: string[]; className?:
   const save = useContext(SaveFeedbackContext);
   if (!save || !settings.some(key => save.keys.includes(key))) return null;
   if (save.status === 'error') return <div className={className}><ErrorNotice error={save.error} onRetry={save.retry} /></div>;
-  if (save.status === 'idle') return null;
-  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? t("serverSettings:settings.saving") : t("serverSettings:settings.saved")}</p>;
+  if (save.status !== 'pending') return null;
+  return <p role="status" className={cn('text-xs text-muted', className)}>{t("serverSettings:settings.saving")}</p>;
 }
 
 function Row({ label, description, children, setting, compact = false }: { label: string; description?: ReactNode; children?: ReactNode; setting?: string | string[]; compact?: boolean }) {
@@ -1079,14 +1078,18 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
 function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
   const { t } = useTranslation('serverSettings');
   const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const save = async (v: string) => {
     setError('');
+    setSaving(true);
     try {
       await onSave(v);
       setPicking(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
     }
   };
   return (
@@ -1094,23 +1097,26 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
       <Row
         label={t("serverSettings:settings.temporaryFolder")}
         description={
-          <>{t("serverSettings:settings.whereVideoIsKept")}{' '}
-            <span className="font-mono text-foreground/80">{value || t("serverSettings:settings.arcSDataFolder")}</span>
+          <>{t("serverSettings:settings.whereVideoIsKept")}
+            {saving && <span role="status" className="mt-1 block">{t("serverSettings:settings.saving")}</span>}
             {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
-        <div className="flex gap-2">
-          {value && (
-            <Button size="sm" variant="ghost" onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>
-          )}
-          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>{t("serverSettings:settings.choose")}</Button>
+        <div className="flex w-full min-w-0 flex-wrap gap-2">
+          <button type="button" aria-label={t("serverSettings:settings.temporaryFolder")} aria-expanded={picking} aria-controls="transcode-folder-picker"
+            disabled={saving} onClick={() => setPicking(!picking)} title={value || t("serverSettings:settings.defaultTempFolder")}
+            className={cn(inputClass, 'flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-50')}>
+            <span className={cn('min-w-0 flex-1 truncate', value ? 'font-mono text-xs' : 'text-subtle')}>{value || t("serverSettings:settings.defaultTempFolder")}</span>
+            <FolderOpen className="size-4 shrink-0 text-muted" />
+          </button>
+          {value && <Button size="sm" variant="ghost" disabled={saving} onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>}
         </div>
       </Row>
       {picking && (
-        <div className="px-4 pb-4">
+        <fieldset id="transcode-folder-picker" disabled={saving} className="min-w-0 px-4 pb-4">
           <FolderPicker start={value || undefined} onChoose={(p) => void save(p)} onCancel={() => setPicking(false)} />
-        </div>
+        </fieldset>
       )}
     </>
   );
