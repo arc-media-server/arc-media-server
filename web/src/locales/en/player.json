@@ -134,11 +134,7 @@
     "picture": "Picture",
     "downloaded": "Downloaded",
     "file": "File",
-    "version": "Version",
-    "thisBrowser": "This browser",
-    "edgeWindows": "Edge on Windows",
-    "safariMac": "Safari on Mac",
-    "iphoneIpad": "iPhone and iPad"
+    "version": "Version"
   },
   "method": {
     "optimizedAudio": "Arc is sending the optimized {{quality}}p copy. Audio: {{name}} · {{detail}}.",

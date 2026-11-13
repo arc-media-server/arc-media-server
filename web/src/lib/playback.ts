@@ -156,39 +156,6 @@ export function versionLabel(v: Version) {
   return v.edition ? { name: v.edition, detail: [res, ...rest].filter(Boolean).join(' · ') } : { name: res || i18n.t('player:labels.version'), detail: rest.filter(Boolean).join(' · ') };
 }
 
-/**
- * Devices to check a library against. Browsers' support is what they can do on most computers;
- * HEVC and Dolby audio depend on the hardware and system, so they're left out where uncertain.
- */
-export const devicePresets: { id: string; label: string; caps: () => PlayerCaps }[] = [
-  { id: 'this', get label() { return i18n.t('player:labels.thisBrowser'); }, caps: playerCaps },
-  {
-    id: 'chrome',
-    label: 'Chrome',
-    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
-  },
-  {
-    id: 'edge',
-    get label() { return i18n.t('player:labels.edgeWindows'); },
-    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
-  },
-  {
-    id: 'firefox',
-    label: 'Firefox',
-    caps: () => ({ containers: ['mp4', 'webm'], video: ['h264', 'vp9', 'av1'], audio: ['aac', 'mp3', 'opus', 'flac', 'vorbis'], max_height: 2160 }),
-  },
-  {
-    id: 'safari',
-    get label() { return i18n.t('player:labels.safariMac'); },
-    caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc', 'vp9'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac', 'opus'], max_height: 2160 }),
-  },
-  {
-    id: 'ios',
-    get label() { return i18n.t('player:labels.iphoneIpad'); },
-    caps: () => ({ containers: ['mp4'], video: ['h264', 'hevc'], audio: ['aac', 'mp3', 'ac3', 'eac3', 'flac'], max_height: 2160 }),
-  },
-];
-
 /** The existing player learning policy: forced subtitles do not replace the preferred language. */
 export function rememberedSubtitleLanguage(track: SubtitleTrack | null, mode: SubtitleMode = ''): string | undefined {
   if (track && !track.forced) return track.language ?? '';
