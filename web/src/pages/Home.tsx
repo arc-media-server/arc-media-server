@@ -14,7 +14,7 @@ import { Hero, MetaLine, TitleHeading } from '@/components/Hero';
 import { cardClass, MediaRow as SharedMediaRow, RowShell, type CardStyle } from '@/components/MediaRow';
 import { PosterCard, ThumbCard, type CardOverrides } from '@/components/PosterCard';
 import { useRemoveFromContinue } from '@/components/CardMenu';
-import { HomeActionsProvider, HomeRowActions } from '@/components/HomeRowActions';
+import { HomeRowActions } from '@/components/HomeRowActions';
 import { EditHomeDialog } from '@/components/EditHome';
 import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
@@ -26,7 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useWatchRooms, WatchRoomCard } from '@/components/WatchTogether';
 
 function MediaRow(props: ComponentProps<typeof SharedMediaRow>) {
-  return <HomeRowActions items={props.items} title={props.title}>{cardProps => <SharedMediaRow {...props} cardProps={cardProps} />}</HomeRowActions>;
+  return <HomeRowActions>{cardProps => <SharedMediaRow {...props} cardProps={cardProps} />}</HomeRowActions>;
 }
 
 function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; style: CardStyle; showsOnly: boolean; seasonPosters: boolean }) {
@@ -42,7 +42,7 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   const href = `/library/${lib.id}?sort=added`;
   if (!grouped) return <MediaRow title={title} items={titles.data?.items ?? []} loading={titles.isPending} error={titles.error} onRetry={() => void titles.refetch()} href={href} style={style} />;
   return (
-    <HomeRowActions items={cards.data?.map(c => c.item) ?? []} title={title}>{cardProps => <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
+    <HomeRowActions>{cardProps => <RowShell title={title} href={href} empty={!cards.data?.length} loading={cards.isPending} error={cards.error} onRetry={() => void cards.refetch()}>
       {cards.data?.map((c) => {
         const key = `${c.type}:${c.item.id}:${c.season_number ?? ''}:${c.added_at}`;
         const overrides = recentOverrides(c, style, seasonPosters);
@@ -213,7 +213,7 @@ export function Home() {
   }
 
   return (
-    <HomeActionsProvider><Page className="relative pb-36">
+    <Page className="relative pb-36">
       {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
       {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
       <PageHeader title={t('common:navigation.home')} actions={prefs.data && (
@@ -241,7 +241,7 @@ export function Home() {
           ))}
       </div>
       <EditHomeDialog rows={rows} libraries={navigationLibraries(libraries, prefs.data?.library_order)} watchlistAt={prefs.data?.watchlist_position} open={editing} onOpenChange={setEditing} />
-    </Page></HomeActionsProvider>
+    </Page>
   );
 }
 
