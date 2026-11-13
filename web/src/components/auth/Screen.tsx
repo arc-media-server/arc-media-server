@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { ArcLogo } from '@/components/Sidebar';
+import { ArcLogo } from '@/components/ArcLogo';
 
 /** Full-screen backdrop for the sign-in, setup and profile screens. */
 export function AuthScreen({ children, wide }: { children: ReactNode; wide?: boolean }) {
+  const { t } = useTranslation('common');
   return (
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
       <div className="pointer-events-none absolute -top-1/3 left-1/2 size-[900px] -translate-x-1/2 rounded-full bg-accent-strong/15 blur-3xl" />
@@ -14,8 +16,7 @@ export function AuthScreen({ children, wide }: { children: ReactNode; wide?: boo
         className={wide ? 'relative w-full max-w-3xl' : 'relative w-full max-w-md'}
       >
         <div className="mb-8 flex items-center justify-center gap-2.5">
-          <ArcLogo className="size-9" />
-          <span className="text-2xl font-bold tracking-tight">Arc</span>
+          <ArcLogo className="h-12 w-auto" label={t('common:productName')} />
         </div>
         {children}
       </motion.div>

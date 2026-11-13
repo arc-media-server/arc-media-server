@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { createElement, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { api, type Library } from '@/lib/api';
 import { useAuth, useIsAdmin } from '@/lib/auth';
 import { isSettingsPath } from '@/lib/settings-navigation';
+import { ArcLogo, ArcMark } from './ArcLogo';
 import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
 import { useWatchTogether } from './WatchTogether';
@@ -30,24 +31,6 @@ export function useLibraries() {
     // Poll while a scan is running so progress shows live.
     refetchInterval: (q) => (q.state.data?.some((l) => l.scan.running) ? 1500 : false),
   });
-}
-
-export function ArcLogo({ className }: { className?: string }) {
-  // Each logo needs its own gradient id: a gradient defined inside a hidden element (the desktop
-  // sidebar on phones) doesn't render for other SVGs that reference it.
-  const id = useId();
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7fdccd" />
-          <stop offset="1" stopColor="#0b7d72" />
-        </linearGradient>
-      </defs>
-      <path d="M5 24a11 11 0 0 1 22 0" fill="none" stroke={`url(#${id})`} strokeWidth="4.5" strokeLinecap="round" />
-      <circle cx="16" cy="24" r="2.6" fill={`url(#${id})`} />
-    </svg>
-  );
 }
 
 function SearchBox({ className }: { className?: string }) {
@@ -216,8 +199,7 @@ export function Sidebar() {
   return (
     <aside className="glass fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col border-r border-border md:flex">
       <div className="flex h-16 items-center gap-2.5 px-5">
-        <ArcLogo className="size-7" />
-        <span className="text-[19px] font-bold tracking-tight">Arc</span>
+        <ArcLogo className="h-7 w-auto" label={t('common:productName')} />
         <div className="-mr-1.5 ml-auto flex items-center">
           <NewsButton />
           <ActivityButton />
@@ -268,7 +250,7 @@ export function MobileBar() {
   return (
     <div className="glass relative z-40 border-b border-border md:hidden">
       <div className="flex items-center gap-3 px-4 pt-3">
-        <ArcLogo className="size-6" />
+        <ArcMark className="h-6 w-auto shrink-0" />
         <SearchBox className="flex-1" />
         <NewsButton />
         <ActivityButton />
