@@ -13,6 +13,7 @@ belonged to the previous logo.
 | `arc-logo-stacked-white.svg`, `arc-logo-stacked-black.svg` | The TV above the name, for square spaces: TV apps' sign-in and splash screens. |
 | `arc-icon.svg` | The app icon: the white TV on a rounded black square, for places that show it as drawn. |
 | `arc-icon-square.svg`, `arc-icon-1024.png` | The same icon as a full square, for places that round or mask the corners themselves: the web app's tab and home-screen icons (`web/public`), and the GitHub organisation's picture. |
+| `arc-favicon.svg` | The browser tab icon: a bolder TV on a rounded black square, so it reads at 16px (`web/public/favicon.svg`). |
 | `arc-mark-white.svg`, `arc-mark-black.svg` | The TV alone, on transparent: small places beside other text, over artwork. |
 
 - The lettering is drawn as shapes, so the files need no font installed. The font is Quicksand
@@ -21,4 +22,4 @@ belonged to the previous logo.
 - Where it's used: the web app's sidebar and sign-in screens (the main logo, `web/src/components/ArcLogo.tsx`,
   drawn in the text colour so it follows light and dark), its phone bar (the mark), its tab and
   home-screen icons, and the top of the README (the stacked logo).
-- Not done yet: a bolder mark for very small sizes (favicons, notifications), and the TV apps.
+- Not done yet: the TV apps.
