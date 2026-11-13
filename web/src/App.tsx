@@ -30,6 +30,7 @@ import { AuthGate } from './components/auth/AuthGate';
 import { useProfileTheme } from './lib/theme';
 import { useLiveUpdates } from './lib/live-updates';
 import { useAuth } from './lib/auth';
+import { CardSizeProvider } from './components/PosterSizeControl';
 
 export function App() {
   const { t } = useTranslation('common');
@@ -48,7 +49,8 @@ export function App() {
         <Sidebar />
         <MobileBar />
         <MatchUpdates />
-        <main className="min-h-dvh md:pl-[248px]">
+        <CardSizeProvider>{cardScale => (
+        <main className="min-h-dvh md:pl-[248px]" style={cardScale}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/library/:id" element={<LibraryPage />} />
@@ -82,6 +84,7 @@ export function App() {
             />
           </Routes>
         </main>
+        )}</CardSizeProvider>
       </PlayerProvider>
       </WatchTogetherProvider>
     </AuthGate>

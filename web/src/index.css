@@ -175,3 +175,48 @@
   .video-folder-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(240px * var(--card-scale, 1))), 1fr)); }
   .poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(156px * var(--card-scale, 1))), 1fr)); }
 }
+
+/* The card size slider: a thin track filled up to the knob, in the page's own colours. */
+.card-size-range {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.card-size-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--foreground) var(--fill, 50%), var(--surface-3) var(--fill, 50%));
+}
+.card-size-range::-moz-range-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.card-size-range::-moz-range-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--foreground);
+}
+.card-size-range::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -4.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--foreground);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.2), 0 1px 2px rgb(0 0 0 / 0.3);
+  transition: transform 150ms var(--ease-smooth);
+}
+.card-size-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--foreground);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.2), 0 1px 2px rgb(0 0 0 / 0.3);
+}
+.card-size-range:hover::-webkit-slider-thumb,
+.card-size-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+.card-size-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 999px; }
+.card-size-range:disabled { cursor: wait; opacity: 0.5; }

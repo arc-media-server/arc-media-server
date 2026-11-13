@@ -87,7 +87,8 @@ export function CardActions({ item, title, hover, landscape, arc, menuOpen, onMe
     <div
       className={cn(
         // Rides up with the artwork on hover, so the controls stay lined up with the badge.
-        'pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none',
+        // A size container, so Play keeps its proportion to the card at every card size.
+        '@container pointer-events-none absolute inset-x-0 top-0 z-10 transition-transform duration-300 ease-smooth group-hover:-translate-y-1 motion-reduce:transition-none',
         arc ? 'aspect-[4/3]' : landscape ? 'aspect-video' : 'aspect-[2/3]',
       )}
     >
@@ -113,12 +114,13 @@ export function CardActions({ item, title, hover, landscape, arc, menuOpen, onMe
           onClick={() => void start()}
           disabled={starting}
           className={cn(
-            'pointer-events-auto absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_2px_12px_rgb(0_0_0/0.35)] ring-2 ring-inset ring-white/90 backdrop-blur-sm',
+            // About a fifth of the card's width (32–44px), so a small poster's title art stays visible.
+            'pointer-events-auto absolute left-1/2 top-1/2 flex size-[clamp(32px,22cqw,44px)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white shadow-[0_2px_10px_rgb(0_0_0/0.3)] ring-[1.5px] ring-inset ring-white/85 backdrop-blur-sm',
             'hover:scale-110 hover:bg-accent-strong hover:ring-accent-strong hover:shadow-[0_0_0_4px_rgb(255_255_255/0.2),0_4px_22px_4px_color-mix(in_srgb,var(--accent)_60%,transparent)] focus-visible:bg-accent-strong focus-visible:ring-accent-strong active:scale-100 motion-reduce:hover:scale-100',
             reveal,
           )}
         >
-          {starting ? <Loader2 className="size-5 animate-spin" /> : <Play className="ml-0.5 size-5 fill-current" />}
+          {starting ? <Loader2 className="size-[42%] animate-spin" /> : <Play className="ml-[6%] size-[40%] fill-current" />}
         </button>
       )}
       {hover.onEdit && (
