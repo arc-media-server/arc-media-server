@@ -43,3 +43,19 @@ inspected. Backend runtime/validation is unchanged in this follow-up, so the ear
 preference race result remains historical evidence and is not claimed as a fresh race run.
 Actual logs/artifacts: `/workspace/arc-cloud-evidence/card-size-all-styles/`; earlier24-journey
 evidence remains intact.
+
+
+## Owner follow-up: individual collection pages
+
+Standalone collection item grids now inherit the current profile's Library size through the
+existing preference query and shared scale. No additional slider, saved field or navigation
+write. Hero/summary artwork, typography and arrangement controls retain their dimensions.
+Preference-read failures keep the collection usable and use the existing local Retry notice.
+Two new real-store/browser journeys cover Library→Collections→collection navigation, large/
+small/reload values, independence from Home size, profile defaults, unchanged hero/text and
+initial read failure recovery. Actual results: `/workspace/arc-cloud-evidence/collection-card-size/`.
+
+Final collection follow-up checks: Go vet/full tests (37 tested packages), production/app/e2e
+TypeScript and build passed. All30 affected browser journeys passed (2.1m,0failed/skipped/
+retries), including collection editing/arranging and the two new inheritance/recovery journeys.
+Desktop/phone captures inspected. No backend/API change or new race run for this UI-only slice.

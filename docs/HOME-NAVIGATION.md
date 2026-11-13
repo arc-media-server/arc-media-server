@@ -71,7 +71,7 @@ receiving administrative actions.
 The current profile independently saves `home_poster_size` and `library_poster_size` through
 GET/PATCH `/api/v1/me/prefs` (the existing admin profile-pref routes expose the same fields).
 Both are integer percentages, 75–150; missing/0 retains the current 100% default. Library size
-is shared across that profile's libraries. Existing preference patches are atomic and preserve
+is shared across that profile's libraries and individual collection pages. Existing preference patches are atomic and preserve
 unrelated fields; no database migration or extra service. Invalid sizes return400 without a
 partial write. No fields or existing contract promises are removed.
 
@@ -86,3 +86,10 @@ Videos thumbnail grids and folder covers share the same scale. This includes Con
 and Up Next; hero banners and cast portraits remain outside media-card density. The stored
 preference names remain unchanged. Density does not affect selection, filtering, row identity
 or metadata. The slider is independent of the optional Recently Added caption PR #449.
+
+
+Individual collection pages read the current profile's saved Library size when opened directly
+or from a library, including after reload/profile changes. Their portrait/folder-thumbnail item
+grids inherit the scale; the collection hero, its summary poster, typography and arrangement
+controls keep their existing dimensions. An unavailable preference read leaves the collection
+usable and offers Retry. There is no separate collection-size setting or write on navigation.

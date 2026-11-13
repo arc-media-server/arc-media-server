@@ -208,3 +208,69 @@ test('card sizing: Other videos thumbnail and folder grids follow the Library si
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test('collection sizing: opening a collection inherits Library size, persists and leaves hero/text unchanged', async ({ page, library }, info) => {
+  const items = (await (await page.request.get(`/api/items?library_id=${library.id}`)).json()).items;
+  const response = await page.request.post('/api/collections', { data: { library_id: library.id, kind: 'manual', title: 'Inherited size collection', item_ids: items.map((item: { id: string }) => item.id) } });
+  expect(response.ok()).toBeTruthy();
+  const collection = await response.json();
+  expect((await page.request.patch('/api/me/prefs', { data: { home_poster_size: 150 } })).ok()).toBeTruthy();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const openFromLibrary = async (key: 'Home' | 'End') => {
+    await page.goto(`/library/${library.id}`);
+    const slider = page.getByRole('slider', { name: 'Card size', exact: true });
+    await expect(slider).toBeEnabled();
+    await slider.focus(); await slider.press(key);
+    await expect(slider).toBeEnabled();
+    await page.getByRole('tab', { name: 'Collections', exact: true }).click();
+    await page.locator(`main a[href="/collection/${collection.id}"]`).click();
+    await expect(page.getByRole('heading', { name: collection.title, exact: true, level: 1 })).toBeVisible();
+  };
+  await openFromLibrary('End');
+  const card = page.locator('.poster-grid [data-item]').first();
+  await expect(card).toBeVisible();
+  const large = await width(card);
+  const hero = page.locator('main .w-44');
+  const heroWidth = await width(hero);
+  const heading = page.getByRole('heading', { name: collection.title, exact: true, level: 1 });
+  const fontSize = await heading.evaluate(node => getComputedStyle(node).fontSize);
+  await page.screenshot({ path: info.outputPath('collection-size-desktop.png'), fullPage: true });
+  await openFromLibrary('Home');
+  await expect.poll(() => width(card)).toBeLessThan(large);
+  const small = await width(card);
+  expect(await width(hero)).toBe(heroWidth);
+  expect(await heading.evaluate(node => getComputedStyle(node).fontSize)).toBe(fontSize);
+  expect((await (await page.request.get('/api/me/prefs')).json()).home_poster_size).toBe(150);
+  await page.reload();
+  await expect.poll(() => width(card)).toBe(small);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await card.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: info.outputPath('collection-size-phone.png'), fullPage: true });
+  const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Collection size viewer', is_admin: false } })).json();
+  expect((await page.request.post('/api/auth/profile', { data: { id: viewer.id } })).ok()).toBeTruthy();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.reload();
+  await expect.poll(() => width(card)).toBeGreaterThan(small);
+  expect(await width(card)).toBeLessThan(large);
+});
+
+test('collection sizing: failed preference loading keeps the collection usable and Retry restores its saved size', async ({ page, library }) => {
+  const items = (await (await page.request.get(`/api/items?library_id=${library.id}`)).json()).items;
+  const response = await page.request.post('/api/collections', { data: { library_id: library.id, kind: 'manual', title: 'Size recovery collection', item_ids: items.map((item: { id: string }) => item.id) } });
+  expect(response.ok()).toBeTruthy();
+  const collection = await response.json();
+  expect((await page.request.patch('/api/me/prefs', { data: { library_poster_size: 125 } })).ok()).toBeTruthy();
+  let fail = true;
+  await page.route('**/api/me/prefs', route => fail && route.request().method() === 'GET'
+    ? route.fulfill({ status: 503, json: { error: 'Collection preferences temporarily unavailable' } }) : route.continue());
+  await page.goto(`/collection/${collection.id}`);
+  await expect(page.getByRole('heading', { name: collection.title, exact: true, level: 1 })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Collection preferences temporarily unavailable');
+  const card = page.locator('.poster-grid [data-item]').first();
+  const fallback = await width(card);
+  fail = false;
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect.poll(() => width(card)).toBeGreaterThan(fallback);
+});
