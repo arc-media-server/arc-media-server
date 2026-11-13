@@ -8,6 +8,7 @@ import (
 type episodeContext struct {
 	series    *store.Item
 	positions map[string][2]int
+	entries   []store.OrderingEntry
 }
 
 // episodeContexts is request-local: reuse one parent/order lookup per series without
@@ -33,7 +34,7 @@ func (c *episodeContexts) get(parent string) (episodeContext, error) {
 	}
 	found := episodeContext{series: series}
 	if series != nil {
-		found.positions, _, err = c.server.orderPositions(c.ctx, series)
+		found.positions, found.entries, err = c.server.orderPositions(c.ctx, series)
 		if err != nil {
 			return episodeContext{}, err
 		}
