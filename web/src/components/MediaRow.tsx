@@ -9,8 +9,8 @@ export type CardStyle = 'poster' | 'thumb' | 'arc';
 
 /** The width of a card in a row. */
 export function cardClass(style: CardStyle) {
-  if (style === 'arc') return 'w-[208px] shrink-0 snap-start sm:w-[240px]';
-  return style === 'thumb' ? 'w-[260px] shrink-0 snap-start sm:w-[300px]' : 'w-[132px] shrink-0 snap-start sm:w-[156px]';
+  if (style === 'arc') return 'backdrop-row-card shrink-0 snap-start';
+  return style === 'thumb' ? 'thumbnail-row-card shrink-0 snap-start' : 'poster-row-card shrink-0 snap-start';
 }
 
 /**

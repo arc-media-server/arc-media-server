@@ -3091,8 +3091,10 @@ GET /me/prefs 200 .home[].shows_only boolean
 GET /me/prefs 200 .home[].style string
 GET /me/prefs 200 .home[].title string
 GET /me/prefs 200 .home_is_default boolean
+GET /me/prefs 200 .home_poster_size integer
 GET /me/prefs 200 .library_order array
 GET /me/prefs 200 .library_order[] integer
+GET /me/prefs 200 .library_poster_size integer
 GET /me/prefs 200 .remote_quality_kbps integer
 GET /me/prefs 200 .show_home_hero boolean
 GET /me/prefs 200 .split_up_next boolean
@@ -4085,8 +4087,10 @@ GET /profiles/{id}/prefs 200 .home[].shows_only boolean
 GET /profiles/{id}/prefs 200 .home[].style string
 GET /profiles/{id}/prefs 200 .home[].title string
 GET /profiles/{id}/prefs 200 .home_is_default boolean
+GET /profiles/{id}/prefs 200 .home_poster_size integer
 GET /profiles/{id}/prefs 200 .library_order array
 GET /profiles/{id}/prefs 200 .library_order[] integer
+GET /profiles/{id}/prefs 200 .library_poster_size integer
 GET /profiles/{id}/prefs 200 .remote_quality_kbps integer
 GET /profiles/{id}/prefs 200 .show_home_hero boolean
 GET /profiles/{id}/prefs 200 .split_up_next boolean
@@ -5967,8 +5971,10 @@ PATCH /me/prefs 200 .home[].shows_only boolean
 PATCH /me/prefs 200 .home[].style string
 PATCH /me/prefs 200 .home[].title string
 PATCH /me/prefs 200 .home_is_default boolean
+PATCH /me/prefs 200 .home_poster_size integer
 PATCH /me/prefs 200 .library_order array
 PATCH /me/prefs 200 .library_order[] integer
+PATCH /me/prefs 200 .library_poster_size integer
 PATCH /me/prefs 200 .remote_quality_kbps integer
 PATCH /me/prefs 200 .show_home_hero boolean
 PATCH /me/prefs 200 .split_up_next boolean
@@ -6164,8 +6170,10 @@ PATCH /profiles/{id}/prefs 200 .home[].shows_only boolean
 PATCH /profiles/{id}/prefs 200 .home[].style string
 PATCH /profiles/{id}/prefs 200 .home[].title string
 PATCH /profiles/{id}/prefs 200 .home_is_default boolean
+PATCH /profiles/{id}/prefs 200 .home_poster_size integer
 PATCH /profiles/{id}/prefs 200 .library_order array
 PATCH /profiles/{id}/prefs 200 .library_order[] integer
+PATCH /profiles/{id}/prefs 200 .library_poster_size integer
 PATCH /profiles/{id}/prefs 200 .remote_quality_kbps integer
 PATCH /profiles/{id}/prefs 200 .show_home_hero boolean
 PATCH /profiles/{id}/prefs 200 .split_up_next boolean

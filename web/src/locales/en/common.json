@@ -194,5 +194,9 @@
     "title": "Reorder libraries",
     "hint": "Drag libraries into the order you want, or use the arrows. The order is just for your profile.",
     "reset": "Reset to server order"
+  },
+  "posterSize": {
+    "label": "Card size",
+    "value": "{{size}}%"
   }
 }
