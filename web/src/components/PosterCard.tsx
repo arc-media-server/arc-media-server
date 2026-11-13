@@ -11,7 +11,7 @@ import { cardYear } from '@/lib/kinds';
 import { ArcArtwork } from './ArcArtwork';
 import { Artwork } from './Artwork';
 import { ContinueCardMenu } from './CardMenu';
-import { episodeCode, ProgressBar, progressOf, WatchBadge } from './WatchState';
+import { episodeCode, ProgressBar, progressOf, CountBadge, WatchBadge } from './WatchState';
 
 /** What a card shows, when it's not simply an item's own poster and name. */
 export interface CardOverrides {
@@ -22,6 +22,8 @@ export interface CardOverrides {
   detail?: string;
   /** Leave out the watched tick or unwatched count (it would be the whole show's on a season card). */
   noBadge?: boolean;
+  /** A number to show in the badge's place instead, with what it counts (a season's new episodes). */
+  count?: { value: number; label: string };
 }
 
 /**
@@ -64,7 +66,7 @@ export function PosterCard({
         <Artwork src={image} alt={title} fallbackTitle={title} icon={item.kind === 'movie' ? 'film' : 'tv'} />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/0 via-transparent to-white/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         {hover && !onSelect && <CardScrim />}
-        {!overrides?.noBadge && <WatchBadge item={item} />}
+        {overrides?.count ? <CountBadge count={overrides.count.value} label={overrides.count.label} /> : !overrides?.noBadge && <WatchBadge item={item} />}
         <ProgressBar value={progressOf(item)} />
         {onSelect && <SelectMark selected={!!selected} />}
       </div>
@@ -147,7 +149,7 @@ export function ThumbCard({
             <img src={item.images.logo} alt="" className="pointer-events-none absolute bottom-3 left-3 max-h-[30%] max-w-[55%] object-contain object-left-bottom drop-shadow-[0_2px_10px_rgb(0_0_0/0.6)]" />
           )}
           {hover && !onSelect && <CardScrim />}
-          {!overrides?.noBadge && <WatchBadge item={item} />}
+          {overrides?.count ? <CountBadge count={overrides.count.value} label={overrides.count.label} /> : !overrides?.noBadge && <WatchBadge item={item} />}
           <ProgressBar value={progressOf(item)} />
           {onSelect && <SelectMark selected={!!selected} />}
         </div>
