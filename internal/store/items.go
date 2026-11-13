@@ -915,8 +915,11 @@ func itemFilter(q ItemQuery) (string, []any) {
 // watchedSQL is a condition that a profile has a watch-state row matching cond (on alias u) for a
 // title: for a show, any of its episodes; otherwise the item itself.
 func watchedSQL(userID, cond string, condArgs ...any) (string, []any) {
+	// CROSS JOIN keeps SQLite starting from the show's own episodes (items_parent): left to choose,
+	// it can start from all of the profile's watch history instead and read it once per show,
+	// which on a large library with a long history took seconds.
 	sql := `(CASE WHEN items.kind = 'series' THEN EXISTS (
-			SELECT 1 FROM items e JOIN user_item_data u ON u.item_id = e.id AND u.user_id = ?
+			SELECT 1 FROM items e CROSS JOIN user_item_data u ON u.item_id = e.id AND u.user_id = ?
 			WHERE e.parent_id = items.id AND ` + cond + `)
 		ELSE EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND ` + cond + `) END)`
 	args := append([]any{userID}, condArgs...)
@@ -1002,10 +1005,14 @@ func itemOrdering(q ItemQuery) (string, []any) {
 	case "runtime":
 		order = "runtime_min DESC, sort_title"
 	case "watched":
-		// Most recently watched first (a show by its episodes); never watched last.
-		order = `(SELECT MAX(u.last_played_at) FROM user_item_data u JOIN items w ON w.id = u.item_id
-			WHERE u.user_id = ? AND (w.id = items.id OR w.parent_id = items.id)) DESC NULLS LAST, sort_title`
-		orderArgs = append(orderArgs, q.UserID)
+		// Most recently watched first (a show by its episodes); never watched last. Each kind looks up
+		// only its own rows: a title's (by key), or a show's episodes (items_parent). Matching
+		// "id = X OR parent_id = X" read the profile's whole watch history once per title.
+		order = `(CASE WHEN items.kind = 'series' THEN (
+				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
+				WHERE w.parent_id = items.id)
+			ELSE (SELECT u.last_played_at FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id) END) DESC NULLS LAST, sort_title`
+		orderArgs = append(orderArgs, q.UserID, q.UserID)
 	case "shuffle":
 		// A different order each day, but the same one all day so rows don't jump around.
 		order = "(items.rowid * 2654435761 + ?) % 4294967291"
