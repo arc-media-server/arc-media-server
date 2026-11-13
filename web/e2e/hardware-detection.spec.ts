@@ -27,8 +27,8 @@ test('hardware detection re-checks on its own and offers a graphics card choice'
   let checking = false;
   let available = false;
   const devices = [
-    { id: 'h264_qsv:/dev/dri/renderD128', label: 'Intel Quick Sync · renderD128', encoder: 'h264_qsv', device: '/dev/dri/renderD128' },
-    { id: 'h264_vaapi:/dev/dri/renderD129', label: 'AMD (VA-API) · renderD129', encoder: 'h264_vaapi', device: '/dev/dri/renderD129' },
+    { id: 'h264_qsv:/dev/dri/renderD128', label: 'Intel Quick Sync · renderD128', name: 'Intel UHD Graphics 630', encoder: 'h264_qsv', device: '/dev/dri/renderD128' },
+    { id: 'h264_vaapi:/dev/dri/renderD129', label: 'AMD (VA-API) · renderD129', name: 'AMD Radeon RX 6800 XT', encoder: 'h264_vaapi', device: '/dev/dri/renderD129' },
   ];
   await page.route('**/api/settings', async route => {
     const response = await route.fetch();
@@ -60,7 +60,7 @@ test('hardware detection re-checks on its own and offers a graphics card choice'
   await expect(page.getByRole('switch', { name: 'Use hardware acceleration', exact: true })).toBeEnabled();
   const card = page.getByRole('combobox', { name: 'Graphics card', exact: true });
   await expect(card).toHaveValue('');
-  await expect(card.locator('option')).toHaveText(['Auto', 'Intel Quick Sync · renderD128', 'AMD (VA-API) · renderD129']);
+  await expect(card.locator('option')).toHaveText(['Auto', 'Intel UHD Graphics 630', 'AMD Radeon RX 6800 XT']);
   await card.selectOption('h264_vaapi:/dev/dri/renderD129');
   await expect(card).toHaveValue('h264_vaapi:/dev/dri/renderD129');
   expect((await (await page.request.get('/api/settings')).json()).hw_device).toBe('h264_vaapi:/dev/dri/renderD129');
@@ -68,4 +68,32 @@ test('hardware detection re-checks on its own and offers a graphics card choice'
   const viewer = await (await page.request.post('/api/profiles', { data: { name: 'Hardware viewer', color: 'blue' } })).json();
   await page.request.post('/api/auth/profile', { data: { id: viewer.id } });
   expect((await page.request.post('/api/transcoder/detect')).status()).toBe(403);
+});
+
+
+test('graphics-card names distinguish identical models and explain missing model metadata', async ({ page }, info) => {
+  const devices = [
+    { id: 'h264_qsv:/dev/dri/renderD128', name: 'Intel UHD Graphics 630', label: 'Intel Quick Sync · renderD128', encoder: 'h264_qsv', device: '/dev/dri/renderD128' },
+    { id: 'h264_qsv:/dev/dri/renderD129', name: 'Intel UHD Graphics 630', label: 'Intel Quick Sync · renderD129', encoder: 'h264_qsv', device: '/dev/dri/renderD129' },
+    { id: 'h264_nvenc:', label: 'NVIDIA NVENC', encoder: 'h264_nvenc' },
+  ];
+  await page.route('**/api/settings', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const response = await route.fetch();
+    const settings = await response.json();
+    await route.fulfill({ response, json: { ...settings, hw_accel: true, transcoder: { ...settings.transcoder, checked: true, checking: false, hw_encoder: 'h264_qsv', hw_label: 'Intel Quick Sync', devices } } });
+  });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/settings?section=playback');
+    const select = page.getByRole('combobox', { name: 'Graphics card', exact: true });
+    await expect(select.locator('option')).toHaveText(['Auto', 'Intel UHD Graphics 630 · renderD128', 'Intel UHD Graphics 630 · renderD129', 'Model unavailable · NVIDIA NVENC']);
+    await select.selectOption('h264_qsv:/dev/dri/renderD129');
+    await expect(select).toHaveValue('h264_qsv:/dev/dri/renderD129');
+    expect((await (await page.request.get('/api/settings')).json()).hw_device).toBe('h264_qsv:/dev/dri/renderD129');
+    await select.scrollIntoViewIfNeeded();
+    await expect.poll(() => select.evaluate(node => node.getBoundingClientRect().width)).toBeGreaterThan(width === 1440 ? 300 : 280);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`gpu-model-selector-${width}.png`) });
+  }
 });

@@ -108,6 +108,7 @@ type Manager struct {
 	detectMu      sync.Mutex
 	probeHardware func(context.Context, string, []string, string) ([]byte, error)
 	renderNodes   func() []string
+	gpuNames      func(context.Context, []HardwareDevice, []string) map[int]string
 	gpuVendor     func(node string) string // sysfsGPUVendor; replaced in tests
 	ffmpeg        func() string
 	probe         func() string
@@ -156,7 +157,7 @@ func (m *Manager) Configure(dir string, maxVideo int) {
 // ffmpeg and ffprobe return the binaries to use.
 func New(dir string, ffmpeg, ffprobe func() string, log *slog.Logger) *Manager {
 	os.RemoveAll(dir)
-	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, freeSpace: diskspace.Available, gpuVendor: sysfsGPUVendor, sessions: map[string]*Session{}, throttling: defaultThrottling}
+	return &Manager{dir: dir, ffmpeg: ffmpeg, probe: ffprobe, log: log, freeSpace: diskspace.Available, gpuVendor: sysfsGPUVendor, gpuNames: systemGPUDeviceNames, sessions: map[string]*Session{}, throttling: defaultThrottling}
 }
 
 // Run ends idle sessions until ctx is done, then ends them all.

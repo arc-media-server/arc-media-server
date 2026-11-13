@@ -133,7 +133,7 @@
     "ffmpegWasnTFound": "FFmpeg wasn’t found next to ffprobe, so files a browser can’t play won’t be converted",
     "downloadFfmpeg": "Download FFmpeg",
     "foundAutomatically": "Found automatically",
-    "hardwareDescription": "Convert with the graphics card ({{hardware}}). Faster, and falls back to the processor when needed.",
+    "hardwareDescription": "Convert video using {{hardware}}. Faster, and falls back to the processor when needed.",
     "prerollFound_one": "{{count}} video found",
     "prerollFound_other": "{{count}} videos found",
     "accountName": "Signed in as {{username}}",
@@ -145,7 +145,9 @@
     "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters.",
     "graphicsCard": "Graphics card",
     "graphicsCardDescription": "Which graphics card converts video.",
-    "graphicsCardAuto": "Auto"
+    "graphicsCardAuto": "Auto",
+    "graphicsCardNamedDevice": "{{name}} · {{device}}",
+    "graphicsCardUnknown": "Model unavailable · {{details}}"
   },
   "diagnostics": {
     "detailedLogging": "Detailed logging",

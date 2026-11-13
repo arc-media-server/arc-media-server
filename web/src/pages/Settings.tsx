@@ -436,10 +436,16 @@ function ServerSettings() {
                   value={s.transcoder.devices.some(d => d.id === s.hw_device) ? s.hw_device : ''}
                   disabled={update.isPending || s.transcoder.checking}
                   onChange={(e) => update.mutate({ hw_device: e.target.value })}
-                  className={inputClass + ' w-56 [&>option]:bg-surface'}
+                  className={inputClass + ' w-80 max-w-full [&>option]:bg-surface'}
                 >
                   <option value="">{t('serverSettings:settings.graphicsCardAuto')}</option>
-                  {s.transcoder.devices.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  {s.transcoder.devices.map(d => {
+                    const duplicate = d.name && s.transcoder.devices!.filter(other => other.name === d.name).length > 1;
+                    const name = d.name
+                      ? duplicate ? t('serverSettings:settings.graphicsCardNamedDevice', { name: d.name, device: d.device?.split('/').pop() || d.label }) : d.name
+                      : t('serverSettings:settings.graphicsCardUnknown', { details: d.label });
+                    return <option key={d.id} value={d.id} title={d.label}>{name}</option>;
+                  })}
                 </select>
               </Row>
             )}
