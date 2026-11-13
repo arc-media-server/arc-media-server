@@ -198,5 +198,6 @@
   "posterSize": {
     "label": "Card size",
     "value": "{{size}}%"
-  }
+  },
+  "productName": "Arc Media Server"
 }
