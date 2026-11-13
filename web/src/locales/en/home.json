@@ -38,8 +38,8 @@
     "newEpisodes_one": "{{count}} new episode",
     "newEpisodes_other": "{{count}} new episodes",
     "season": "Season {{season}}",
-    "seasonEpisodes_one": "{{season}} · {{count}} new episode",
-    "seasonEpisodes_other": "{{season}} · {{count}} new episodes",
+    "episodeCode": "S{{season}} · E{{episode}}",
+    "unplacedEpisode": "Unplaced episode",
     "selectionScope": "Loaded titles in {{row}} · {{library}}"
   },
   "rowDescription": {

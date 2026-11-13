@@ -34,7 +34,7 @@ for (const locale of ['en-US', 'fr-FR']) {
   });
 }
 
-test('season cards use singular and plural episode labels on desktop and phone', async ({ page }, info) => {
+test('recent season captions omit counts and episode captions use three lines on desktop and phone', async ({ page }, info) => {
   const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
   expect(reset.ok).toBe(true);
   const media = await reset.json();
@@ -52,21 +52,39 @@ test('season cards use singular and plural episode labels on desktop and phone',
   await expect.poll(async () => (await (await page.request.get(`/api/libraries/${library.id}/scan`)).json()).running).toBe(false);
   const source = (await (await page.request.get(`/api/items?library_id=${library.id}&kind=series`)).json()).items[0];
   expect(source).toBeTruthy();
-  // Explicit layout fixtures isolate the count forms while retaining an actual imported show.
+  // Presentation fixtures use an actual imported show's identity; grouping is tested separately.
+  const episode = { ...source, id: 'caption-episode', kind: 'episode', series_id: source.id, series_title: source.title, title: 'First steps', season_number: 1, episode_number: 1 };
+  const special = { ...episode, id: 'caption-special', title: 'A very long special episode title that needs to fit beneath a small poster', season_number: 0, episode_number: 3 };
+  const unplaced = { ...episode, id: 'caption-unplaced', title: 'Unplaced episode fixture', season_number: undefined, episode_number: undefined };
   await page.route(`**/api/libraries/${library.id}/recent-shows`, route => route.fulfill({ json: [
-    { type: 'season', item: source, season_number: 2, episodes: 1 },
-    { type: 'season', item: source, season_number: 3, episodes: 2 },
-    { type: 'season', item: source, season_number: 0, episodes: 1 },
+    { type: 'season', item: source, season_number: 2, episodes: 8 },
+    { type: 'season', item: source, season_number: 0, episodes: 2 },
+    { type: 'episode', item: episode, episodes: 1 },
+    { type: 'episode', item: special, episodes: 1 },
+    { type: 'episode', item: unplaced, episodes: 1 },
   ] }));
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
     const row = page.getByRole('region', { name: 'Recently Added in Fixture series', exact: true });
-    await expect(row.getByText('Season 2 · 1 new episode', { exact: true })).toBeVisible();
-    await expect(row.getByText('Season 3 · 2 new episodes', { exact: true })).toBeAttached();
-    await expect(row.getByText('Specials · 1 new episode', { exact: true })).toBeAttached();
-    await expect(row.getByText(/1 new episodes/)).toHaveCount(0);
-    await page.screenshot({ path: info.outputPath(`season-episode-labels-${width}.png`) });
+    await expect(row.getByText('Season 2', { exact: true })).toBeAttached();
+    await expect(row.getByText('Specials', { exact: true })).toBeAttached();
+    await expect(row.getByText(/new episodes?/)).toHaveCount(0);
+    for (const [item, code] of [[episode, 'S01 · E01'], [special, 'S00 · E03'], [unplaced, 'Unplaced episode']] as const) {
+      const card = row.locator(`[data-item="${item.id}"]`);
+      const lines = card.locator('a > div').last().locator('p');
+      await expect(lines).toHaveText([source.title, item.title, code]);
+      const boxes = await lines.evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { y: r.y, height: r.height }; }));
+      expect(boxes[0].y + boxes[0].height).toBeLessThanOrEqual(boxes[1].y);
+      expect(boxes[1].y + boxes[1].height).toBeLessThanOrEqual(boxes[2].y);
+      expect(boxes[2].height).toBeLessThanOrEqual(20);
+    }
+    const card = row.locator(`[data-item="${episode.id}"]`);
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.getByText('S01 · E01', { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`recent-captions-${width}.png`) });
+    await card.hover();
+    await expect(card.getByRole('button', { name: `More for ${source.title}`, exact: true })).toBeVisible();
   }
   expect(errors).toEqual([]);
 });

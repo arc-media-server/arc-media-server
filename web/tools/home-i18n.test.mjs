@@ -42,8 +42,11 @@ test('English built-in labels, seasonal dates and filter summaries preserve thei
   assert.equal(i18n.t('filters:preview.movies', { count: 2 }), '2 movies match');
   assert.equal(i18n.t('playlists:titleCount', { count: 1 }), '1 title');
   assert.equal(i18n.t('playlists:titleCount', { count: 2 }), '2 titles');
-  assert.equal(i18n.t('home:rows.seasonEpisodes', { season: 'Season 1', count: 1 }), 'Season 1 · 1 new episode');
-  assert.equal(i18n.t('home:rows.seasonEpisodes', { season: 'Season 1', count: 2 }), 'Season 1 · 2 new episodes');
+  assert.equal(i18n.t('home:rows.season', { season: 1 }), 'Season 1');
+  assert.equal(i18n.t('home:rows.newEpisodes', { count: 1 }), '1 new episode');
+  assert.equal(i18n.t('home:rows.newEpisodes', { count: 2 }), '2 new episodes');
+  assert.equal(i18n.t('home:rows.episodeCode', { season: '01', episode: '01' }), 'S01 · E01');
+  assert.equal(i18n.t('home:rows.unplacedEpisode'), 'Unplaced episode');
 });
 test('language changes update built-ins without translating metadata, custom names, IDs or saved filters', async () => {
   const rows = home.resolveRows(saved, [library]);

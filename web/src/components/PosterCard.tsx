@@ -18,6 +18,8 @@ export interface CardOverrides {
   image?: string;
   title?: string;
   subtitle?: string;
+  /** Optional third caption line, such as a recent episode's display-order code. */
+  detail?: string;
   /** Leave out the watched tick or unwatched count (it would be the whole show's on a season card). */
   noBadge?: boolean;
 }
@@ -69,6 +71,7 @@ export function PosterCard({
       <div className="mt-2.5 px-0.5">
         <p className="truncate text-[13px] font-medium leading-tight text-foreground">{title}</p>
         <p className="mt-0.5 truncate text-xs text-subtle">{subtitle}</p>
+        {overrides?.detail && <p className="mt-0.5 truncate text-xs text-subtle">{overrides.detail}</p>}
       </div>
     </>
   );
@@ -151,6 +154,7 @@ export function ThumbCard({
         <div className="mt-2.5 px-0.5">
           <p className="truncate text-[13px] font-medium leading-tight text-foreground">{title}</p>
           <p className="mt-0.5 truncate text-xs text-subtle">{subtitle}</p>
+          {overrides?.detail && <p className="mt-0.5 truncate text-xs text-subtle">{overrides.detail}</p>}
         </div>
     </>
   );

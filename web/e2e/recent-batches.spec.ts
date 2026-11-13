@@ -28,7 +28,7 @@ test('Recently Added: real initial import makes a season card and one episode ma
     expect(cards[0]).toMatchObject({ type: 'season', season_number: 1, episodes: 2 });
     await page.goto('/');
     const row = page.getByRole('region', { name: 'Recently Added in Batch imports', exact: true });
-    await expect(row.getByText('Season 1 · 2 new episodes', { exact: true })).toBeVisible();
+    await expect(row.getByText('Season 1', { exact: true })).toBeVisible();
     await expect(row.locator(`a[href="/series/${cards[0].item.id}"]`)).toHaveCount(1);
     await rm(join(folder, 'Arc Show - S01E02.mp4'));
     expect((await page.request.post(`/api/libraries/${lib.id}/scan`)).status()).toBe(202);
@@ -38,8 +38,10 @@ test('Recently Added: real initial import makes a season card and one episode ma
     expect(single[0]).toMatchObject({ type: 'episode', episodes: 1 });
     expect(single[0].item.kind).toBe('episode');
     await page.reload();
-    await expect(row.getByText('Season 1 · 2 new episodes', { exact: true })).toHaveCount(0);
-    await expect(row.locator(`[data-item="${single[0].item.id}"]`)).toHaveCount(1);
+    await expect(row.getByText('Season 1', { exact: true })).toHaveCount(0);
+    const episodeCard = row.locator(`[data-item="${single[0].item.id}"]`);
+    await expect(episodeCard).toHaveCount(1);
+    await expect(episodeCard.locator('a > div').last().locator('p')).toHaveText([single[0].item.series_title, single[0].item.title, 'S01 · E01']);
     expect(errors).toEqual([]);
   } finally {
     await rm(join(media.empty, 'Arc Show (2020)'), { recursive: true, force: true });
@@ -77,8 +79,8 @@ test('Recently Added: repeated batches keep counts, artwork and navigation when 
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
     const row = page.getByRole('region', { name: 'Recently Added in Batch layout', exact: true });
-    await expect(row.getByText('Season 1 · 2 new episodes', { exact: true })).toBeAttached();
-    await expect(row.getByText('Season 1 · 3 new episodes', { exact: true })).toBeAttached();
+    await expect(row.getByText('Season 1', { exact: true })).toHaveCount(2);
+    await expect(row.getByText(/Season 1 ·/)).toHaveCount(0);
     await expect(row.getByText('6 new episodes', { exact: true })).toBeAttached();
     await expect(row.locator(`a[href="/series/${show.id}"]`)).toHaveCount(3);
     const rendered = row.locator(`[data-item="${show.id}"]`);
@@ -96,9 +98,9 @@ test('Recently Added: repeated batches keep counts, artwork and navigation when 
   ];
   expect((await page.request.patch(`/api/items/${show.id}`, { data: { title: 'Batch refresh trigger' } })).ok()).toBeTruthy();
   const row = page.getByRole('region', { name: 'Recently Added in Batch layout', exact: true });
-  await expect(row.getByText('Season 1 · 4 new episodes', { exact: true })).toBeAttached();
-  await expect(row.getByText('Season 1 · 2 new episodes', { exact: true })).toBeAttached();
-  await expect(row.getByText('Season 1 · 3 new episodes', { exact: true })).toHaveCount(0);
+  await expect(row.getByText('Season 1', { exact: true })).toHaveCount(2);
+  await expect(row.locator(`[data-item="${show.id}"] img`)).toHaveCount(2);
+  for (const img of await row.locator(`[data-item="${show.id}"] img`).all()) await expect(img).toHaveAttribute('src', seasonArt);
   await expect(row.getByText('6 new episodes', { exact: true })).toHaveCount(0);
   await expect(row.locator(`a[href="/series/${show.id}"]`)).toHaveCount(2);
   expect(errors).toEqual([]);
