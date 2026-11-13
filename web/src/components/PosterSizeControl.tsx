@@ -27,7 +27,7 @@ export function usePosterSize(key: PosterSizeKey) {
   const percent = draft ?? saved;
   return {
     percent, preview: setDraft, submit,
-    style: { '--poster-scale': percent / 100 } as CSSProperties,
+    style: { '--card-scale': percent / 100 } as CSSProperties,
     disabled: !prefs.data || save.isPending,
     busy: save.isPending || prefs.isFetching,
     error: save.error || prefs.error,

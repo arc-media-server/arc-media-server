@@ -239,7 +239,7 @@ export function PosterGrid({
       className={cn(
         'grid gap-x-5 gap-y-7',
         landscape
-          ? 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
+          ? 'thumbnail-grid'
           : 'poster-grid',
       )}
     >

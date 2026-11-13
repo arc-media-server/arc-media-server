@@ -17,7 +17,7 @@ import (
 // kept spoiler-free.
 
 type prefs struct {
-	// Web poster scale in percent: 75–150; zero retains the existing 100% size.
+	// Web media-card scale in percent: 75–150; zero retains the existing 100% size.
 	HomePosterSize int `json:"home_poster_size,omitempty"`
 	// Shared across this profile's library views, independently of Home.
 	LibraryPosterSize int `json:"library_poster_size,omitempty"`

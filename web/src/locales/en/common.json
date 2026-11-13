@@ -196,7 +196,7 @@
     "reset": "Reset to server order"
   },
   "posterSize": {
-    "label": "Poster size",
+    "label": "Card size",
     "value": "{{size}}%"
   }
 }

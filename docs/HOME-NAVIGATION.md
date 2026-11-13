@@ -60,9 +60,9 @@ Physical owner-PC input devices, other browser engines and production deployment
 Current repository policy starts no Actions for PRs. Relevant checks, including the full browser
 suite for this shared UI change, run locally before the PR. The owner merges; no direct main push.
 
-## Poster-size controls and Home header (12 November 2026)
+## Card-size controls and Home header (12 November 2026)
 
-Home now uses the same page heading as Library: Home on the left; a poster-size slider and
+Home now uses the same page heading as Library: Home on the left; a card-size slider and
 three-dot actions menu on the right. Edit Home is inside that menu (the profile-menu link and
 `?edit=1` remain). The duplicate bottom Edit Home button is removed. Library's slider sits next
 to its existing right-hand actions menu on every tab; ordinary profiles get the slider without
@@ -80,6 +80,9 @@ value, with one in-flight save per control. A failed save rolls back and offers 
 initial preference read explains the disabled Library slider and offers Retry. Slider labels
 are translated and native range controls retain keyboard/touch behavior.
 
-Only poster cards and poster/collection grids scale; landscape/backdrop cards retain their
-current sizes. Density does not affect selection, filtering, row identity, poster aspect ratio
-or stored metadata. The slider is independent of the optional Recently Added caption PR #449.
+The slider is labeled **Card size** and scales portrait posters, landscape thumbnails and
+backdrop cards together, preserving each style's aspect ratio. Poster/collection grids, Other
+Videos thumbnail grids and folder covers share the same scale. This includes Continue Watching
+and Up Next; hero banners and cast portraits remain outside media-card density. The stored
+preference names remain unchanged. Density does not affect selection, filtering, row identity
+or metadata. The slider is independent of the optional Recently Added caption PR #449.

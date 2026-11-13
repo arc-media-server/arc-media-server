@@ -1,6 +1,8 @@
 import { test as base, expect, type Locator } from '@playwright/test';
+import { copyFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { extname, join } from 'node:path';
 
-const test = base.extend<{ library: { id: number } }>({
+const test = base.extend<{ library: { id: number; playback: string; empty: string } }>({
   library: async ({ page }, use) => {
     const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
     expect(reset.ok).toBeTruthy();
@@ -18,7 +20,7 @@ const test = base.extend<{ library: { id: number } }>({
     expect(created.ok()).toBeTruthy();
     const library = await created.json();
     await expect.poll(async () => (await (await page.request.get(`/api/libraries/${library.id}/scan`)).json()).running).toBe(false);
-    await use(library);
+    await use({ ...library, playback: media.playback, empty: media.empty });
     expect(errors).toEqual([]);
   },
 });
@@ -33,7 +35,7 @@ test('poster sizing: Home menu, immediate drag preview, one save and independent
   const dialog = page.getByRole('dialog', { name: 'Edit Home', exact: true });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Done', exact: true }).click();
-  const slider = page.getByRole('slider', { name: 'Poster size', exact: true });
+  const slider = page.getByRole('slider', { name: 'Card size', exact: true });
   await expect(slider).toHaveValue('100');
   const card = page.getByRole('region', { name: 'Recently Added in Size library', exact: true }).locator('[data-item]').first();
   await expect.poll(() => width(card)).toBe(156);
@@ -72,7 +74,7 @@ test('poster sizing: failed save rolls back the preview and offers Retry', async
     return fail ? route.fulfill({ status: 503, json: { error: 'Poster preference temporarily unavailable' } }) : route.continue();
   });
   await page.goto('/');
-  const slider = page.getByRole('slider', { name: 'Poster size', exact: true });
+  const slider = page.getByRole('slider', { name: 'Card size', exact: true });
   const card = page.getByRole('region', { name: 'Recently Added in Size library', exact: true }).locator('[data-item]').first();
   const original = await width(card);
   await slider.focus(); await slider.press('End');
@@ -90,7 +92,7 @@ test('poster sizing: failed save rolls back the preview and offers Retry', async
 test('poster sizing: narrow Library controls stay beside the menu and ordinary profiles have independent sliders', async ({ page, library }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/library/${library.id}`);
-  const slider = page.getByRole('slider', { name: 'Poster size', exact: true });
+  const slider = page.getByRole('slider', { name: 'Card size', exact: true });
   const menu = page.locator('main').getByRole('button', { name: 'More for Size library', exact: true });
   await expect(slider).toBeVisible(); await expect(menu).toBeVisible();
   const s = (await slider.boundingBox())!, m = (await menu.boundingBox())!;
@@ -130,7 +132,7 @@ test('poster sizing: unavailable Library preferences explain the disabled slider
   await page.route('**/api/me/prefs', route => fail && route.request().method() === 'GET'
     ? route.fulfill({ status: 503, json: { error: 'Profile preferences unavailable' } }) : route.continue());
   await page.goto(`/library/${library.id}`);
-  const slider = page.getByRole('slider', { name: 'Poster size', exact: true });
+  const slider = page.getByRole('slider', { name: 'Card size', exact: true });
   await expect(slider).toBeDisabled();
   await expect(page.getByRole('alert')).toContainText('Profile preferences unavailable');
   fail = false;
@@ -138,4 +140,71 @@ test('poster sizing: unavailable Library preferences explain the disabled slider
   await expect(slider).toBeEnabled();
   await expect(slider).toHaveValue('140');
   await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('card sizing: thumbnail and backdrop Home rows resize together and preserve their aspect ratios', async ({ page, library }, info) => {
+  const source = (await (await page.request.get(`/api/items?library_id=${library.id}`)).json()).items[0];
+  const episode = { ...source, kind: 'episode', parent_id: 'fixture-series', series_title: 'Size series', title: 'Size episode', season_number: 1, episode_number: 2 };
+  // Explicit presentation responses isolate both row styles; real persistence is exercised above.
+  await page.route('**/api/home/continue*', route => route.fulfill({ json: [episode] }));
+  await page.route('**/api/home/next-up', route => route.fulfill({ json: [episode] }));
+  expect((await page.request.patch('/api/me/prefs', { data: { split_up_next: true, home: [{ id: 'continue', style: 'thumb' }, { id: 'next-up', style: 'arc' }] } })).ok()).toBeTruthy();
+  const slider = page.getByRole('slider', { name: 'Card size', exact: true });
+  for (const viewport of [1440, 390]) {
+    expect((await page.request.patch('/api/me/prefs', { data: { home_poster_size: 100 } })).ok()).toBeTruthy();
+    await page.setViewportSize({ width: viewport, height: 1100 });
+    await page.goto('/');
+    const thumbnail = page.getByRole('region', { name: 'Continue Watching', exact: true }).locator('.thumbnail-row-card');
+    const backdrop = page.getByRole('region', { name: 'Up Next', exact: true }).locator('.backdrop-row-card');
+    const t = viewport === 1440 ? 300 : 260, b = viewport === 1440 ? 240 : 208;
+    await expect.poll(() => width(thumbnail)).toBe(t);
+    await expect.poll(() => width(backdrop)).toBe(b);
+    await slider.focus(); await slider.press('End');
+    await expect.poll(() => width(thumbnail)).toBe(t * 1.5);
+    await expect.poll(() => width(backdrop)).toBe(b * 1.5);
+    await expect(slider).toBeEnabled();
+    for (const [card, ratio] of [[thumbnail, 16 / 9], [backdrop, 4 / 3]] as const) {
+      const art = (await card.locator(':scope > button').first().boundingBox())!;
+      expect(art.width / art.height).toBeCloseTo(ratio, 1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`all-card-styles-${viewport}.png`) });
+  }
+});
+
+test('card sizing: Other videos thumbnail and folder grids follow the Library size', async ({ page, library }, info) => {
+  const names = await readdir(library.playback);
+  const source = names.find(name => /\.(mp4|mkv)$/.test(name));
+  expect(source).toBeTruthy();
+  const folder = join(library.empty, 'Size folder');
+  await mkdir(folder, { recursive: true });
+  await copyFile(join(library.playback, source!), join(folder, `Size clip${extname(source!)}`));
+  try {
+    const created = await page.request.post('/api/libraries', { data: { name: 'Size videos', kind: 'videos', paths: [library.empty] } });
+    expect(created.ok()).toBeTruthy();
+    const lib = await created.json();
+    await expect.poll(async () => (await (await page.request.get(`/api/libraries/${lib.id}/scan`)).json()).running).toBe(false);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/library/${lib.id}`);
+    const slider = page.getByRole('slider', { name: 'Card size', exact: true });
+    const card = page.locator('.thumbnail-grid [data-item]').first();
+    await expect(card).toBeVisible();
+    const before = await width(card);
+    await slider.focus(); await slider.press('End');
+    await expect.poll(() => width(card)).toBeGreaterThan(before);
+    await expect(slider).toBeEnabled();
+    const artwork = card.locator('a > div').first();
+    const box = (await artwork.boundingBox())!;
+    expect(box.width / box.height).toBeCloseTo(16 / 9, 1);
+    await page.screenshot({ path: info.outputPath('library-thumbnails.png') });
+    await page.getByRole('tab', { name: 'Folders', exact: true }).click();
+    const cover = page.locator('.video-folder-grid > a').first();
+    await expect(cover).toBeVisible();
+    const large = await width(cover);
+    await slider.focus(); await slider.press('Home');
+    await expect.poll(() => width(cover)).toBeLessThan(large);
+    await page.screenshot({ path: info.outputPath('library-folder-covers.png') });
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
 });

@@ -160,10 +160,18 @@
   animation: dialog-in 220ms var(--ease-smooth);
 }
 
-/* Profile-controlled poster density; other card shapes retain their existing sizes. */
-.poster-row-card { width: calc(132px * var(--poster-scale, 1)); }
-.poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(132px * var(--poster-scale, 1))), 1fr)); }
+/* One profile-controlled scale for media cards, preserving each style's aspect ratio. */
+.poster-row-card { width: calc(132px * var(--card-scale, 1)); }
+.thumbnail-row-card { width: calc(260px * var(--card-scale, 1)); }
+.backdrop-row-card { width: calc(208px * var(--card-scale, 1)); }
+.thumbnail-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(220px * var(--card-scale, 1))), 1fr)); }
+.video-folder-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(200px * var(--card-scale, 1))), 1fr)); }
+.poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(132px * var(--card-scale, 1))), 1fr)); }
 @media (min-width: 640px) {
-  .poster-row-card { width: calc(156px * var(--poster-scale, 1)); }
-  .poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(156px * var(--poster-scale, 1))), 1fr)); }
+  .poster-row-card { width: calc(156px * var(--card-scale, 1)); }
+  .thumbnail-row-card { width: calc(300px * var(--card-scale, 1)); }
+  .backdrop-row-card { width: calc(240px * var(--card-scale, 1)); }
+  .thumbnail-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(260px * var(--card-scale, 1))), 1fr)); }
+  .video-folder-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(240px * var(--card-scale, 1))), 1fr)); }
+  .poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(156px * var(--card-scale, 1))), 1fr)); }
 }

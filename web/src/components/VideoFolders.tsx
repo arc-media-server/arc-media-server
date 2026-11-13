@@ -56,7 +56,7 @@ export function VideoFolders({ library }: { library: Library }) {
         </EmptyState>
       )}
       {folders.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+        <div className="grid video-folder-grid gap-x-5 gap-y-7">
           {folders.map((f) => (
             <Link key={f.path} to={href(f.path)} onClick={(e) => { e.preventDefault(); open(f.path); }} className="group block outline-none" aria-label={t('library:folders.label', { name: f.name, count: f.count })}>
               <div className="relative overflow-hidden rounded-xl ring-1 ring-border transition group-hover:ring-foreground/30 group-focus-visible:ring-2 group-focus-visible:ring-accent">
