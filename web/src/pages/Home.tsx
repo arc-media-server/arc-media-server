@@ -51,7 +51,7 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   );
 }
 
-/** How a Recently Added card reads: a season shows its own poster and how many episodes are new. */
+/** Recently Added seasons show their label; single episodes separate title and display number. */
 function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean): CardOverrides | undefined {
   const n = c.episodes;
   switch (c.type) {
@@ -61,12 +61,20 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
       const name = c.season_number === 0 ? i18n.t('home:rows.specials') : i18n.t('home:rows.season', { season: c.season_number });
       return {
         image: style === 'poster' && seasonPosters ? (c.season_poster ?? c.item.images?.primary) : undefined,
-        subtitle: i18n.t('home:rows.seasonEpisodes', { season: name, count: n }),
+        subtitle: name,
         noBadge: true,
       };
     }
-    default:
-      return seasonPosters && style === 'poster' && c.item.images?.season_primary ? { image: c.item.images.season_primary } : undefined;
+    default: {
+      const { season_number: season, episode_number: episode } = c.item;
+      return {
+        image: seasonPosters && style === 'poster' ? c.item.images?.season_primary : undefined,
+        subtitle: c.item.title,
+        detail: season !== undefined && episode !== undefined
+          ? i18n.t('home:rows.episodeCode', { season: String(season).padStart(2, '0'), episode: String(episode).padStart(2, '0') })
+          : i18n.t('home:rows.unplacedEpisode'),
+      };
+    }
   }
 }
 
