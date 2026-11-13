@@ -1,18 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from './ui/button';
 
 /** Wraps each page with a gentle fade-and-rise entrance. */
-export function Page({ children, className }: { children: ReactNode; className?: string }) {
+export function Page({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       className={cn('min-h-full', className)}
+      style={style}
     >
       {children}
     </motion.div>

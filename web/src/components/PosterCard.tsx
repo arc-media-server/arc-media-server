@@ -230,7 +230,7 @@ export function PosterGrid({
       if (hideItems) for (const id of ids) hidden.add(id);
     }
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
+      <div className="grid poster-grid gap-x-5 gap-y-7">
         {items.flatMap((item, i) => [
           ...(at.get(item.id) ?? []).map((c) => <CollectionCard key={`c-${c.id}`} collection={c} unit={collectionUnit} />),
           ...(hidden.has(item.id) ? [] : [<PosterCard key={item.id} item={item} hover={hoverFor(item, i)} />]),
@@ -243,8 +243,8 @@ export function PosterGrid({
       className={cn(
         'grid gap-x-5 gap-y-7',
         landscape
-          ? 'grid-cols-[repeat(auto-fill,minmax(220px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
-          : 'grid-cols-[repeat(auto-fill,minmax(132px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]',
+          ? 'thumbnail-grid'
+          : 'poster-grid',
       )}
     >
       {items.map((item, i) => (
@@ -262,7 +262,7 @@ export function PosterGrid({
 
 export function PosterGridSkeleton({ count = 12 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-x-5 gap-y-7 sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
+    <div className="grid poster-grid gap-x-5 gap-y-7">
       {Array.from({ length: count }, (_, i) => (
         <div key={i}>
           <div className="aspect-[2/3] animate-pulse rounded-xl bg-surface-2" />

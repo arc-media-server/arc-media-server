@@ -792,6 +792,10 @@ export interface SubtitleStyle {
 
 /** The current profile's own preferences. */
 export interface Prefs {
+  /** Poster scale in percent, 75–150; absent/zero keeps the existing 100% default. */
+  home_poster_size?: number;
+  /** Shared across this profile's libraries, independently of Home. */
+  library_poster_size?: number;
   /** Large featured Home banner; visible unless explicitly false. */
   show_home_hero?: boolean;
   /** Navigation order only; unavailable/unknown IDs never grant access. */
