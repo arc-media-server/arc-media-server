@@ -26,7 +26,7 @@ const test = base.extend<{ library: { id: number; playback: string; empty: strin
 });
 const width = (item: Locator) => item.evaluate(node => node.getBoundingClientRect().width);
 
-test('poster sizing: Home menu, immediate drag preview, one save and independent Library size survive restart', async ({ page, library }, info) => {
+test('poster sizing: Home menu, immediate drag preview, one save, and the same size in libraries, surviving restart', async ({ page, library }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Home', exact: true, level: 1 })).toBeVisible();
@@ -49,21 +49,22 @@ test('poster sizing: Home menu, immediate drag preview, one save and independent
   await expect.poll(() => width(card)).toBe(234);
   expect(saves).toBe(0);
   await page.mouse.up();
-  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).home_poster_size).toBe(150);
+  // One size for the profile: Home and libraries are saved together.
+  await expect.poll(async () => { const p = await (await page.request.get('/api/me/prefs')).json(); return [p.home_poster_size, p.library_poster_size]; }).toEqual([150, 150]);
   await expect(slider).toBeEnabled();
   expect(saves).toBe(1);
   await page.screenshot({ path: info.outputPath('home-size-desktop.png') });
   await page.goto(`/library/${library.id}`);
-  await expect(slider).toHaveValue('100');
+  await expect(slider).toHaveValue('150');
   const libraryCard = page.locator('main .poster-grid [data-item]').first();
   const original = await width(libraryCard);
   await slider.focus(); await slider.press('Home');
-  await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_poster_size).toBe(75);
+  await expect.poll(async () => { const p = await (await page.request.get('/api/me/prefs')).json(); return [p.home_poster_size, p.library_poster_size]; }).toEqual([75, 75]);
   await expect.poll(() => width(libraryCard)).toBeLessThan(original);
   await page.screenshot({ path: info.outputPath('library-size-desktop.png') });
   expect((await fetch('http://127.0.0.1:18200/restart', { method: 'POST' })).ok).toBeTruthy();
   await page.reload(); await expect(slider).toHaveValue('75');
-  await page.goto('/'); await expect(slider).toHaveValue('150');
+  await page.goto('/'); await expect(slider).toHaveValue('75');
 });
 
 test('poster sizing: failed save rolls back the preview and offers Retry', async ({ page, library: _library }, info) => {
@@ -89,7 +90,7 @@ test('poster sizing: failed save rolls back the preview and offers Retry', async
   expect(saves).toBe(2);
 });
 
-test('poster sizing: narrow Library controls stay beside the menu and ordinary profiles have independent sliders', async ({ page, library }, info) => {
+test('poster sizing: narrow Library controls stay beside the menu and each profile has its own size', async ({ page, library }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/library/${library.id}`);
   const slider = page.getByRole('slider', { name: 'Card size', exact: true });
@@ -97,7 +98,8 @@ test('poster sizing: narrow Library controls stay beside the menu and ordinary p
   await expect(slider).toBeVisible(); await expect(menu).toBeVisible();
   const s = (await slider.boundingBox())!, m = (await menu.boundingBox())!;
   expect(s.x + s.width).toBeLessThan(m.x);
-  expect(Math.abs(s.y - m.y)).toBeLessThan(4);
+  // Lined up with the menu button: their centres level.
+  expect(Math.abs((s.y + s.height / 2) - (m.y + m.height / 2))).toBeLessThan(4);
   await slider.focus(); await slider.press('End');
   await expect(slider).toHaveValue('150');
   await expect(slider).toBeEnabled();
@@ -119,7 +121,7 @@ test('poster sizing: narrow Library controls stay beside the menu and ordinary p
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).library_poster_size).toBe(75);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Home', exact: true, level: 1 })).toBeVisible();
-  await expect(slider).toHaveValue('100');
+  await expect(slider).toHaveValue('75');
   await expect(page.getByRole('button', { name: 'Home actions', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: info.outputPath('home-size-phone.png') });
@@ -209,7 +211,7 @@ test('card sizing: Other videos thumbnail and folder grids follow the Library si
   }
 });
 
-test('collection sizing: opening a collection inherits Library size, persists and leaves hero/text unchanged', async ({ page, library }, info) => {
+test('collection sizing: a collection follows the card size, persists and leaves hero/text unchanged', async ({ page, library }, info) => {
   const items = (await (await page.request.get(`/api/items?library_id=${library.id}`)).json()).items;
   const response = await page.request.post('/api/collections', { data: { library_id: library.id, kind: 'manual', title: 'Inherited size collection', item_ids: items.map((item: { id: string }) => item.id) } });
   expect(response.ok()).toBeTruthy();
@@ -240,7 +242,7 @@ test('collection sizing: opening a collection inherits Library size, persists an
   const small = await width(card);
   expect(await width(hero)).toBe(heroWidth);
   expect(await heading.evaluate(node => getComputedStyle(node).fontSize)).toBe(fontSize);
-  expect((await (await page.request.get('/api/me/prefs')).json()).home_poster_size).toBe(150);
+  expect((await (await page.request.get('/api/me/prefs')).json()).home_poster_size).toBe(75);
   await page.reload();
   await expect.poll(() => width(card)).toBe(small);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -255,22 +257,22 @@ test('collection sizing: opening a collection inherits Library size, persists an
   expect(await width(card)).toBeLessThan(large);
 });
 
-test('collection sizing: failed preference loading keeps the collection usable and Retry restores its saved size', async ({ page, library }) => {
+test('collection sizing: failed preference loading keeps the collection usable, and its saved size returns', async ({ page, library }) => {
   const items = (await (await page.request.get(`/api/items?library_id=${library.id}`)).json()).items;
   const response = await page.request.post('/api/collections', { data: { library_id: library.id, kind: 'manual', title: 'Size recovery collection', item_ids: items.map((item: { id: string }) => item.id) } });
   expect(response.ok()).toBeTruthy();
   const collection = await response.json();
-  expect((await page.request.patch('/api/me/prefs', { data: { library_poster_size: 125 } })).ok()).toBeTruthy();
+  expect((await page.request.patch('/api/me/prefs', { data: { home_poster_size: 125, library_poster_size: 125 } })).ok()).toBeTruthy();
   let fail = true;
   await page.route('**/api/me/prefs', route => fail && route.request().method() === 'GET'
     ? route.fulfill({ status: 503, json: { error: 'Collection preferences temporarily unavailable' } }) : route.continue());
   await page.goto(`/collection/${collection.id}`);
+  // Without the profile's size the cards keep the standard size and the collection still works.
   await expect(page.getByRole('heading', { name: collection.title, exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByRole('alert')).toContainText('Collection preferences temporarily unavailable');
   const card = page.locator('.poster-grid [data-item]').first();
+  await expect(card).toBeVisible();
   const fallback = await width(card);
   fail = false;
-  await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.reload();
   await expect.poll(() => width(card)).toBeGreaterThan(fallback);
 });

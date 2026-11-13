@@ -25,7 +25,7 @@ import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { LibraryMenu } from '@/components/LibraryMenu';
-import { PosterSizeControl, usePosterSize } from '@/components/PosterSizeControl';
+import { PosterSizeControl } from '@/components/PosterSizeControl';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -117,7 +117,6 @@ export function LibraryPage() {
   const { data: libraries } = libraryQuery;
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
-  const posterSize = usePosterSize('library_poster_size');
 
   const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : params.get('view') === 'folders' ? 'folders' : 'titles';
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
@@ -278,7 +277,7 @@ export function LibraryPage() {
 
   return (
     // While choosing, room at the end for the selection bar so it never covers Load more.
-    <Page className={selecting ? 'pb-36' : 'pb-16'} style={posterSize.style}>
+    <Page className={selecting ? 'pb-36' : 'pb-16'}>
       <PageHeader
         title={lib?.name ?? ''}
         subtitle={
@@ -323,7 +322,7 @@ export function LibraryPage() {
             unmatched={admin && lib.kind !== 'videos' ? (lib.kind === 'shows' ? 'shows' : 'movies') : undefined} />
           <ActiveFilters facets={facets.data} filters={filters} onChange={changeFilters} />
           <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
-            <PosterSizeControl size={posterSize} />
+            <PosterSizeControl />
             {admin && <LibraryMenu lib={lib} selectable onSelect={selecting ? undefined : () => setSelecting(true)} />}
           </div>
         </div>
@@ -338,7 +337,7 @@ export function LibraryPage() {
             </Button>
           )}
           <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
-            <PosterSizeControl size={posterSize} />
+            <PosterSizeControl />
             {admin && <LibraryMenu lib={lib} selectable={false} />}
           </div>
         </div>

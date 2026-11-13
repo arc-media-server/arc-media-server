@@ -21,7 +21,7 @@ import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
 import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { PosterSizeControl, usePosterSize } from '@/components/PosterSizeControl';
+import { PosterSizeControl } from '@/components/PosterSizeControl';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useWatchRooms, WatchRoomCard } from '@/components/WatchTogether';
 
@@ -167,7 +167,6 @@ export function Home() {
   const { data: libraries, isLoading } = libraryQuery;
   const admin = useIsAdmin();
   const prefs = usePrefs();
-  const posterSize = usePosterSize('home_poster_size');
   // ?edit=1 opens Edit Home, so the profile menu can link to it from anywhere.
   const [params, setParams] = useSearchParams();
   const editing = params.get('edit') === '1';
@@ -211,12 +210,12 @@ export function Home() {
   }
 
   return (
-    <HomeActionsProvider><Page className="relative pb-36" style={posterSize.style}>
+    <HomeActionsProvider><Page className="relative pb-36">
       {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
       {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
       <PageHeader title={t('common:navigation.home')} actions={prefs.data && (
         <>
-          <PosterSizeControl size={posterSize} />
+          <PosterSizeControl />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label={t('actions')}><MoreHorizontal /></Button>

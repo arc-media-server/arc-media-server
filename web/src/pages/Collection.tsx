@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
@@ -10,11 +10,10 @@ import { api, type Item } from '@/lib/api';
 import { kindUnit } from '@/lib/kinds';
 import { useIsAdmin } from '@/lib/auth';
 import { countUnit } from '@/lib/browsing-labels';
-import { usePrefs } from '@/lib/home';
 import { Artwork } from '@/components/Artwork';
 import { CollectionDialog } from '@/components/Collections';
 import { Hero } from '@/components/Hero';
-import { ErrorNotice, ErrorState, Page } from '@/components/Page';
+import { ErrorState, Page } from '@/components/Page';
 import { PosterGrid } from '@/components/PosterCard';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,6 @@ export function CollectionPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const admin = useIsAdmin();
-  const prefs = usePrefs();
   const { data, error } = useQuery({ queryKey: ['collection', id], queryFn: () => api.collection(id!) });
   const { data: libraries } = useLibraries();
   const [editing, setEditing] = useState(false);
@@ -63,7 +61,7 @@ export function CollectionPage() {
   const unit = kindUnit(library?.kind)[0];
 
   return (
-    <Page className="pb-20" style={{ '--card-scale': (prefs.data?.library_poster_size || 100) / 100 } as CSSProperties}>
+    <Page className="pb-20">
       <Hero backdrop={c.images.backdrop_full ?? c.images.backdrop}className="min-h-[52vh]">
         <div className="flex min-h-[52vh] items-end gap-8 px-6 pb-10 pt-24 md:px-10">
           <Artwork src={c.images.primary} alt={c.title} fallbackTitle={c.title} eager className="hidden w-44 shrink-0 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10 lg:block" />
@@ -107,7 +105,6 @@ export function CollectionPage() {
       </Hero>
 
       <div className="px-6 pt-8 md:px-10">
-        {!!prefs.error && <div className="mb-5"><ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} busy={prefs.isFetching} /></div>}
         {arranging ? <Arrange collectionId={c.id} items={data.items} /> : data.items.length > 0 && <PosterGrid items={data.items} landscape={c.kind === 'folder'} />}
         {!arranging && data.items.length === 0 && (
           <p className="text-sm text-muted">{c.kind === 'manual' ? unit === 'show' ? t('collection:empty.show') : unit === 'video' ? t('collection:empty.video') : t('collection:empty.movie') : t('collection:empty.matches')}</p>
