@@ -970,7 +970,7 @@ export interface ServerSettings {
   opensubtitles_api_key: string;
   opensubtitles_username: string;
   /** What this server's FFmpeg can do. */
-  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[]; devices?: { id: string; label: string; encoder: string; device?: string }[] };
+  transcoder: { hw_encoder: string; hw_label: string; hw_device?: string; hw_driver?: string; hw_low_power?: boolean; tone_mapping: boolean; checked: boolean; checking?: boolean; attempts?: { encoder: string; device?: string; driver?: string; low_power?: boolean; error?: string }[]; devices?: { id: string; label: string; name?: string; encoder: string; device?: string }[] };
   port: number;
   allow_network: boolean;
   /** Country whose age ratings are used, e.g. "GB". */
