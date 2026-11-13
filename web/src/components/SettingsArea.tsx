@@ -39,7 +39,7 @@ export function SettingsArea() {
         </select>
         <div className="hidden lg:block">
           <p className="mb-4 px-3 text-lg font-semibold">{t('navigation.settings')}</p>
-          {navigation.map(group => <div key={group.label} className="mb-3 last:mb-0">
+          {navigation.map(group => <div key={group.label} className="mb-4 border-t border-border pt-4 first:border-0 first:pt-0 last:mb-0">
             <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-subtle">{group.label}</p>
             {group.links.map(link => <Link key={link.id} to={link.to} aria-current={selected === link.id ? 'page' : undefined} className={cn('flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium', selected === link.id ? 'bg-foreground text-background' : 'text-muted hover:bg-surface-2 hover:text-foreground')}>
               <span className="min-w-0 flex-1">{link.label}</span>

@@ -93,14 +93,14 @@
     "metadataProvider": "Where show titles, descriptions, artwork and cast come from.",
     "automaticCollections": "Films TMDB groups together, like a trilogy, become a collection once you have this many.",
     "collectionGrid": "How collections appear when you browse the whole library. Each collection can choose for itself.",
-    "scrubbingPreviews": "A picture while dragging along the timeline. Made in the background, about 5 MB per film; turning this off deletes them.",
+    "scrubbingPreviews": "Preview images shown while seeking. Generated according to your processing settings and stored by Arc; turning this off deletes them.",
     "skipMarkers": "Offer Skip Intro and Skip Recap, found from chapters, online databases or by comparing a season's episodes.",
     "showCredits": "Offer Skip Credits, and start the Up Next countdown when the credits begin.",
-    "movieCredits": "Offer Skip Credits, found from chapters, TheIntroDB or by spotting the closing credits at night."
+    "movieCredits": "Offer Skip Credits using chapters, online markers or local detection according to your processing settings."
   },
   "sourceHints": {
     "tmdbAired": "Files numbered the way TMDB lists them. Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.",
-    "tvdbAired": "Files numbered the way TheTVDB lists them (Sonarr's default). Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.",
+    "tvdbAired": "Files numbered in TheTVDB aired order. Episode details come from the same provider. A show can override this in Edit; display order is separate.",
     "tvdbDvd": "Files numbered like the DVD releases. Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate.",
     "tvdbAbsolute": "Episodes numbered 1, 2, 3… across seasons (common for anime). Episode details come from the same provider. A show can override this in its Edit dialog; display order is separate."
   },

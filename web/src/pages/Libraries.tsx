@@ -89,7 +89,6 @@ export function LibrariesPage() {
         }
       />
       <div className="space-y-4 px-6 md:px-10">
-        {!!libraries?.length && <p className="text-sm text-muted">{t("libraryManagement:libraries.scansCheckForNew")}</p>}
         {scanSummary && <p role="status" className="text-sm text-muted">{scanSummary}</p>}
         {allScanning && <p role="status" className="text-sm text-accent">{t("libraryManagement:libraries.allLibrariesAreAlready")}</p>}
         {libraries?.length === 0 && (

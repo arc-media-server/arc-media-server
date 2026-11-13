@@ -1,7 +1,7 @@
 {
   "profiles": {
     "profiles": "Profiles",
-    "everyoneInYourHousehold": "Everyone in your household gets their own watch history and Continue Watching. A PIN keeps a profile private.",
+    "everyoneInYourHousehold": "Each household profile has its own watch history and Continue Watching. An optional PIN protects profile switching.",
     "theHomePageFor": "The home page for profiles that haven't arranged their own",
     "defaultHome": "Default Home",
     "shareLibrariesWithSomeone": "Share libraries with someone outside your household",
@@ -13,7 +13,7 @@
     "edit": "Edit",
     "removeProfile": "Remove profile",
     "friends": "Friends",
-    "peopleOutsideYourHousehold": "People outside your household. They sign in from anywhere with their own name and password, only see the libraries you share, and never see your profiles.",
+    "peopleOutsideYourHousehold": "Friends have their own sign-in and see only the libraries you share. Remote access must be configured before they can connect from outside your network.",
     "noFriendsYetAdd": "No friends yet. Add Friend makes an invite link to send them.",
     "aNewLinkLets": "A new link lets them choose a new password",
     "aNewInviteLink": "A new invite link (the old one stops working)",
@@ -26,7 +26,7 @@
     "done": "Done",
     "copied": "Copied",
     "copy": "Copy",
-    "thisLinkUsesYour": "This link uses your home address. For a friend elsewhere, open Arc at its outside address (see Remote Access in Settings) and make the link there.",
+    "thisLinkUsesYour": "This link uses a local network address. For a friend elsewhere, configure Remote access under Settings → Access & devices, then open Arc at its external address and create the invite there.",
     "addAFriend": "Add a Friend",
     "addAProfile": "Add a Profile",
     "chooseWhatTheyCan": "Choose what they can watch. Next you'll get an invite link to send them.",
