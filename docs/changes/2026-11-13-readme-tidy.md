@@ -9,8 +9,9 @@ Docker instructions now explain container media paths, optional provider credent
 registry/channel guidance, startup permissions, Docker Desktop networking and current
 settings locations. Provider access and licensing link to the maintained distribution guide;
 the licence section links directly to LICENSE rather than paraphrasing obligations.
-Repeated status/FFmpeg information and internal ownership detail were condensed. Current Home
-card controls and Watch Together are mentioned, with integration-guide links.
+Repeated status/FFmpeg information and internal ownership detail were condensed. The
+expandable feature catalogue was removed to keep the README focused on the overview and
+getting started. Watch Together and download API guides remain linked for integrations.
 
 Checked against current routes, settings navigation, container entrypoint, Compose example,
 provider/distribution guidance and roadmap at 72ec607. Documentation links, image paths,

@@ -72,62 +72,6 @@ maintenance controls optional work, and Activity and Dashboard show progress and
 **🔌 An open API.** The server provides documented, versioned endpoints for the web app,
 native clients and integrations. [Start building a client](docs/CLIENT-INTEGRATION.md).
 
-<details>
-<summary><strong>More features</strong></summary>
-
-**Libraries and metadata**
-- Movie, TV and Other videos libraries, added in the app with a folder browser. Scanning runs in
-  the background, with discovered titles appearing while matching and file inspection continue.
-- Matching from TMDB and TheTVDB with Plex/Jellyfin-style naming, scene release names and
-  `{tmdb-123}` / `{imdb-tt…}` tags. Fix Match shows exactly what Arc read and searched for.
-- Cast and crew, studios and provider ratings; Rotten Tomatoes/Metacritic with an OMDb key.
-  Metadata language and age-rating region are set per library.
-- Edit details and lock changed fields against later metadata refreshes. Choose or upload
-  posters, backgrounds, logos and season posters. Local artwork and NFO IDs are respected.
-- Versions and editions (4K and 1080p, Director's Cut), extras and trailers, theme music.
-- Collections (automatic from TMDB, manual and smart), labels, merge and split titles or
-  shows, and a folder view for home videos.
-- Library Health: unidentified titles, unreadable or missing files, duplicates, missing
-  episodes, skip-marker coverage and how each library plays in each browser.
-
-**Playback**
-- Direct play when the browser can, otherwise remuxing or conversion to HLS, with hardware
-  encoding (NVIDIA, Intel Quick Sync, AMD, VA-API, VideoToolbox) and HDR tone mapping.
-- Automatic quality that adapts to the connection, optimized versions for weak devices, and
-  remote bandwidth limits.
-- Subtitles in the file, beside it or from OpenSubtitles, with per-profile styling and timing.
-- Skip Intro, Recap and Credits from chapters, IntroDB/TheIntroDB, or audio and picture
-  detection overnight. Auto-Play, Up Next, chapters, Picture-in-Picture, a playback queue.
-- Chromecast and AirPlay from the web player.
-- Dolby Vision, HDR10+, Atmos and DTS:X source-format labels. These describe the file;
-  they do not guarantee that a particular device outputs those formats.
-- Watch Together rooms for synchronised viewing on signed-in devices.
-
-**Profiles and home**
-- Household profiles with optional PINs, a "Who's watching?" screen, and configurable sign-in
-  at home. VPN/bridge-network setups may need explicit Home networks settings.
-- Friends with invite links, library access per profile and parental controls by age.
-- Personalised Home content, library order, an optional featured banner, and separate Home/
-  Library card sizes per profile. Continue Watching, Up Next, custom and seasonal rows,
-  collections, playlists, recommendations, New for You and Year in Review.
-- Playlists and smart playlists, search with typo forgiveness, person pages.
-- The app is in English for now and uses a translation framework. More languages
-  with a language picker are planned; see [translating Arc](docs/TRANSLATION.md) to help.
-
-**Running the server**
-- Remote access with UPnP and HTTPS (your own certificate or Let's Encrypt) on one port, and
-  trusted reverse proxies.
-- Dashboard with now playing, resource graphs and the server log; Insights for watch history
-  and storage; an Activity menu for background work.
-- Scheduled maintenance in a quiet window: metadata refresh, previews, intro detection,
-  database backups and optimization, cache clean-up and optional empty trash.
-- Daily database backups with one-click restore, webhooks (Discord, Slack, JSON) and redacted
-  diagnostic downloads.
-- Moving in from Plex or Jellyfin: watch state, resume points, ratings, watchlists, playlists
-  and collections.
-- The web app installs to a phone's home screen, and TVs sign in with a short link code.
-
-</details>
 
 ## Running with Docker
 
