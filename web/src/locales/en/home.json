@@ -39,8 +39,7 @@
     "newEpisodes_other": "{{count}} new episodes",
     "season": "Season {{season}}",
     "episodeCode": "S{{season}} · E{{episode}}",
-    "unplacedEpisode": "Unplaced episode",
-    "selectionScope": "Loaded titles in {{row}} · {{library}}"
+    "unplacedEpisode": "Unplaced episode"
   },
   "rowDescription": {
     "continueMerged": "What you're part-way through, and the next episode of each show",

@@ -33,8 +33,8 @@ async function setup(page: Page) {
   await expect(page.getByRole('heading', { name: 'Libraries', exact: true })).toBeVisible();
 }
 
-test('Home cards share library actions and scope bulk selection to loaded row titles', async ({ page, browser }, info) => {
-  const { item } = await seed(page);
+test('Home cards keep per-title actions without bulk selection and libraries still support it', async ({ page, browser }, info) => {
+  const { item, lib } = await seed(page);
   await page.goto('/');
   const card = page.locator('[data-item="' + item.id + '"]').filter({ visible: true }).first();
   await card.hover();
@@ -45,19 +45,32 @@ test('Home cards share library actions and scope bulk selection to loaded row ti
   await card.getByRole('button', { name: 'More for ' + item.title, exact: true }).click();
   await expect(page.getByRole('menuitem', { name: /mark as watched/i })).toBeVisible();
   await page.keyboard.press('Escape');
-  await card.getByRole('button', { name: 'Select ' + item.title, exact: true }).click();
-  await expect(page.getByText(/^Loaded titles in /)).toBeVisible();
+  for (const style of ['poster', 'thumb', 'arc']) {
+    expect((await page.request.patch('/api/me/prefs', { data: { home: [{ id: `recent:${lib.id}`, style }] } })).ok()).toBe(true);
+    await page.reload();
+    await card.hover();
+    await expect(card.getByRole('button', { name: 'Play ' + item.title, exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'More for ' + item.title, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Select / })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
+  }
+  // Bulk actions remain available in the library rather than a partial Home row.
+  await page.goto(`/library/${lib.id}`);
+  const libraryCard = page.locator('[data-item="' + item.id + '"]').first();
+  await libraryCard.hover();
+  await libraryCard.getByRole('button', { name: 'Select ' + item.title, exact: true }).click();
   await expect(page.getByText('1 selected', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Watched', exact: true }).click();
   await expect.poll(async () => (await (await page.request.get('/api/items/' + item.id)).json()).user_data.played).toBe(true);
   await page.getByRole('button', { name: 'Stop choosing', exact: true }).click();
-  await expect(page.getByText(/^Loaded titles in /)).toHaveCount(0);
+  await page.goto('/');
   await page.setViewportSize({ width: 390, height: 844 });
   const touch = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const phone = await touch.newPage();
   await phone.goto('http://127.0.0.1:18199/');
   const phoneCard = phone.locator('[data-item="' + item.id + '"]').filter({ visible: true }).first();
   await expect(phoneCard.getByRole('button', { name: 'More for ' + item.title, exact: true })).toBeVisible();
+  await expect(phone.getByRole('button', { name: /^Select / })).toHaveCount(0);
   await phone.screenshot({ path: info.outputPath('home-actions-phone.png'), fullPage: true });
   const viewer = await (await phone.request.post('/api/profiles', { data: { name: 'Viewer' } })).json();
   await phone.request.post('/api/auth/profile', { data: { id: viewer.id } });
