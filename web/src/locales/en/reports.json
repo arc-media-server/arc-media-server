@@ -36,7 +36,8 @@
     "convertedTo": "Converted to {{time}}",
     "convertedAhead": "Converted to {{time}} ({{ahead}} ahead)",
     "watchTogether_one": "Watch Together · {{count}} person",
-    "watchTogether_other": "Watch Together · {{count}} people"
+    "watchTogether_other": "Watch Together · {{count}} people",
+    "serverDashboard": "{{name}} - Dashboard"
   },
   "insights": {
     "insights": "Insights",

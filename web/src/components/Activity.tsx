@@ -81,13 +81,14 @@ export function ActivityButton({ className }: { className?: string }) {
           collisionPadding={12}
           className="animate-menu-in z-50 w-[340px] bg-surface max-w-[calc(100vw-24px)] overflow-hidden rounded-2xl border border-border shadow-2xl shadow-black/40"
         >
-          <div className="max-h-[min(70vh,520px)] overflow-y-auto p-4">
-            <SimpleActivity />
-          </div>
           <Popover.Close asChild>
-            <Link to="/dashboard" className="flex min-h-11 items-center gap-2 border-t border-border px-4 py-3 text-sm font-medium text-accent hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+            <Link to="/dashboard" className="flex min-h-11 items-center gap-2 border-b border-border px-4 py-3 text-sm font-medium text-accent hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
               <LayoutDashboard className="size-4" />{' '}{t('activity.viewDashboard')}</Link>
           </Popover.Close>
+          <div className="max-h-[min(70vh,520px)] overflow-y-auto p-4">
+            <h2 className="mb-3 text-sm font-semibold">{t('activity.label')}</h2>
+            <SimpleActivity />
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

@@ -1,6 +1,5 @@
 {
   "settings": {
-    "server": "Server",
     "onlineMetadata": "Online metadata",
     "whereArcGetsDetails": "Where Arc gets details and artwork for movies and shows.",
     "tmdb": "TMDB",

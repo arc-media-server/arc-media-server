@@ -265,7 +265,6 @@ function ServerSettings() {
 
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
-      <h2 className="border-t border-border pt-8 text-xs font-semibold uppercase tracking-wider text-subtle">{t("serverSettings:settings.server")}</h2>
       {!s ? (
         <div className="h-96 animate-pulse rounded-2xl bg-surface" />
       ) : (

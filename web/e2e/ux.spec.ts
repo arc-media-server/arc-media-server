@@ -136,6 +136,7 @@ test('Manage libraries requests individual and bulk scans with running guards an
 
 test('management pages share Settings navigation and Activity opens Dashboard on desktop and phone', async ({ page }, info) => {
   await seed(page);
+  expect((await page.request.patch('/api/settings', { data: { server_name: 'Living Room' } })).ok()).toBe(true);
   await page.route('**/api/health/libraries', route => route.fulfill({ json: { fixture: 900 } }));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
@@ -146,7 +147,7 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
   await expect(nav.getByLabel('900 library issues')).toBeVisible();
   for (const [label, path, heading] of [
-    ['Dashboard', '/dashboard', 'Dashboard'], ['Insights', '/insights', 'Insights'],
+    ['Dashboard', '/dashboard', 'Living Room - Dashboard'], ['Insights', '/insights', 'Insights'],
     ['Library Health', '/health', 'Library Health'], ['Manage libraries', '/libraries', 'Libraries'],
     ['Profiles', '/profiles', 'Profiles'], ['Backups & restore', '/backups', 'Backups'],
   ]) {
@@ -170,6 +171,9 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   await page.getByRole('button', { name: /^Activity/ }).click();
   const dashboard = page.getByRole('link', { name: 'View Dashboard', exact: true });
   await expect(dashboard).toBeVisible();
+  const activityHeading = page.getByRole('heading', { name: 'Activity', exact: true });
+  await expect(activityHeading).toBeVisible();
+  expect((await dashboard.boundingBox())!.y + (await dashboard.boundingBox())!.height).toBeLessThanOrEqual((await activityHeading.boundingBox())!.y);
   await page.screenshot({ animations: 'disabled', path: info.outputPath('activity-dashboard-desktop.png') });
   await dashboard.focus(); await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -203,6 +207,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   for (const [section, title] of [['profile', 'Your profile'], ['library', 'Libraries & metadata'], ['playback', 'Playback & transcoding'], ['access', 'Access & devices'], ['maintenance', 'Maintenance & diagnostics']]) {
     await page.goto(section === 'profile' ? '/settings' : `/settings?section=${section}`);
     await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Server', exact: true })).toHaveCount(0);
     await expect(page.getByText('Switches and menus save immediately. Text fields use Save.', { exact: true })).toHaveCount(0);
   }
   await page.setViewportSize({ width: 1440, height: 900 });

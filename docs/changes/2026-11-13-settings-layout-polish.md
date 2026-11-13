@@ -17,3 +17,10 @@ headings, desktop/mobile navigation, Manage Libraries scanning, pending/error/re
 persisted settings and profile save recovery. Used pinned Chromium, generated media, local
 provider fixtures and temporary stores; inspected the desktop screenshot. No production or
 physical-device acceptance claimed. Existing Vite config/import warnings remain.
+
+Dashboard now prefixes its title with the configured server name (falling back to Dashboard
+while unavailable). The Activity popover places View Dashboard first, above the Activity
+heading and scrollable tasks. Remove the old Server heading from dedicated Settings pages.
+The follow-up production build and e2e TypeScript passed. Both affected browser journeys
+passed again, checking the configured name, Dashboard link above Activity, mobile navigation
+and absence of the old Server headings. No server implementation or logging changes.
