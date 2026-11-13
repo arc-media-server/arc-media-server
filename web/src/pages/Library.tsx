@@ -25,6 +25,7 @@ import { useAuth, useIsAdmin } from '@/lib/auth';
 import { CollectionDialog, CollectionGrid } from '@/components/Collections';
 import { EditDetailsDialog } from '@/components/EditDetails';
 import { LibraryMenu } from '@/components/LibraryMenu';
+import { PosterSizeControl, usePosterSize } from '@/components/PosterSizeControl';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -116,6 +117,7 @@ export function LibraryPage() {
   const { data: libraries } = libraryQuery;
   const lib = libraries?.find((l) => l.id === Number(id));
   const admin = useIsAdmin();
+  const posterSize = usePosterSize('library_poster_size');
 
   const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : params.get('view') === 'folders' ? 'folders' : 'titles';
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
@@ -276,7 +278,7 @@ export function LibraryPage() {
 
   return (
     // While choosing, room at the end for the selection bar so it never covers Load more.
-    <Page className={selecting ? 'pb-36' : 'pb-16'}>
+    <Page className={selecting ? 'pb-36' : 'pb-16'} style={posterSize.style}>
       <PageHeader
         title={lib?.name ?? ''}
         subtitle={
@@ -320,24 +322,24 @@ export function LibraryPage() {
           <FiltersButton facets={facets.data} filters={filters} onChange={changeFilters} onClear={clearFilters}
             unmatched={admin && lib.kind !== 'videos' ? (lib.kind === 'shows' ? 'shows' : 'movies') : undefined} />
           <ActiveFilters facets={facets.data} filters={filters} onChange={changeFilters} />
-          {admin && (
-            <div className="ml-auto flex items-center gap-2">
-              <LibraryMenu lib={lib} selectable onSelect={selecting ? undefined : () => setSelecting(true)} />
-            </div>
-          )}
+          <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+            <PosterSizeControl size={posterSize} />
+            {admin && <LibraryMenu lib={lib} selectable onSelect={selecting ? undefined : () => setSelecting(true)} />}
+          </div>
         </div>
       )}
-      {lib && view !== 'titles' && admin && (
+      {lib && view !== 'titles' && (
         // The other tabs keep the library's ⋯ in the same spot as the Titles filter bar.
         <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
-          {view === 'recommended' && <EditRecommended library={lib} />}
-          {view === 'collections' && (
+          {admin && view === 'recommended' && <EditRecommended library={lib} />}
+          {admin && view === 'collections' && (
             <Button variant="secondary" size="sm" onClick={() => setNewCollection(true)}>
               <Plus /> {t('library:newCollection')}
             </Button>
           )}
-          <div className="ml-auto flex items-center gap-2">
-            <LibraryMenu lib={lib} selectable={false} />
+          <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+            <PosterSizeControl size={posterSize} />
+            {admin && <LibraryMenu lib={lib} selectable={false} />}
           </div>
         </div>
       )}

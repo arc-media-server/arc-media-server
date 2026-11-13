@@ -59,3 +59,27 @@ Physical owner-PC input devices, other browser engines and production deployment
 
 Current repository policy starts no Actions for PRs. Relevant checks, including the full browser
 suite for this shared UI change, run locally before the PR. The owner merges; no direct main push.
+
+## Poster-size controls and Home header (12 November 2026)
+
+Home now uses the same page heading as Library: Home on the left; a poster-size slider and
+three-dot actions menu on the right. Edit Home is inside that menu (the profile-menu link and
+`?edit=1` remain). The duplicate bottom Edit Home button is removed. Library's slider sits next
+to its existing right-hand actions menu on every tab; ordinary profiles get the slider without
+receiving administrative actions.
+
+The current profile independently saves `home_poster_size` and `library_poster_size` through
+GET/PATCH `/api/v1/me/prefs` (the existing admin profile-pref routes expose the same fields).
+Both are integer percentages, 75–150; missing/0 retains the current 100% default. Library size
+is shared across that profile's libraries. Existing preference patches are atomic and preserve
+unrelated fields; no database migration or extra service. Invalid sizes return400 without a
+partial write. No fields or existing contract promises are removed.
+
+Dragging previews immediately; pointer release, keyboard key release or blur saves the final
+value, with one in-flight save per control. A failed save rolls back and offers Retry. A failed
+initial preference read explains the disabled Library slider and offers Retry. Slider labels
+are translated and native range controls retain keyboard/touch behavior.
+
+Only poster cards and poster/collection grids scale; landscape/backdrop cards retain their
+current sizes. Density does not affect selection, filtering, row identity, poster aspect ratio
+or stored metadata. The slider is independent of the optional Recently Added caption PR #449.

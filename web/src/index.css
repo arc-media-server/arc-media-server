@@ -159,3 +159,11 @@
 @utility animate-dialog-in {
   animation: dialog-in 220ms var(--ease-smooth);
 }
+
+/* Profile-controlled poster density; other card shapes retain their existing sizes. */
+.poster-row-card { width: calc(132px * var(--poster-scale, 1)); }
+.poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(132px * var(--poster-scale, 1))), 1fr)); }
+@media (min-width: 640px) {
+  .poster-row-card { width: calc(156px * var(--poster-scale, 1)); }
+  .poster-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(156px * var(--poster-scale, 1))), 1fr)); }
+}

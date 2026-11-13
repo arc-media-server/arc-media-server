@@ -3617,11 +3617,17 @@
           "home_is_default": {
             "type": "boolean"
           },
+          "home_poster_size": {
+            "type": "integer"
+          },
           "library_order": {
             "items": {
               "type": "integer"
             },
             "type": "array"
+          },
+          "library_poster_size": {
+            "type": "integer"
           },
           "remote_quality_kbps": {
             "type": "integer"
@@ -27103,11 +27109,17 @@
                     },
                     "type": "array"
                   },
+                  "home_poster_size": {
+                    "type": "integer"
+                  },
                   "library_order": {
                     "items": {
                       "type": "integer"
                     },
                     "type": "array"
+                  },
+                  "library_poster_size": {
+                    "type": "integer"
                   },
                   "remote_quality_kbps": {
                     "type": "integer"
@@ -31492,11 +31504,17 @@
                     },
                     "type": "array"
                   },
+                  "home_poster_size": {
+                    "type": "integer"
+                  },
                   "library_order": {
                     "items": {
                       "type": "integer"
                     },
                     "type": "array"
+                  },
+                  "library_poster_size": {
+                    "type": "integer"
                   },
                   "remote_quality_kbps": {
                     "type": "integer"

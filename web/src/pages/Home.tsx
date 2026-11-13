@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { FolderPlus, Info, Play, SlidersHorizontal } from 'lucide-react';
+import { FolderPlus, Info, MoreHorizontal, Play, SlidersHorizontal } from 'lucide-react';
 import { api, backdropUrl, itemHref, type Item, type ItemQuery, type Library, type RecentCard } from '@/lib/api';
 import { navigationLibraries } from '@/lib/library-navigation';
 import { resolveRows, rowTitle, rowHref, rowQuery, usePrefs, visibleRows, type ResolvedRow } from '@/lib/home';
@@ -16,11 +16,13 @@ import { PosterCard, ThumbCard, type CardOverrides } from '@/components/PosterCa
 import { useRemoveFromContinue } from '@/components/CardMenu';
 import { HomeActionsProvider, HomeRowActions } from '@/components/HomeRowActions';
 import { EditHomeDialog } from '@/components/EditHome';
-import { EmptyState, ErrorState, ErrorNotice, Page } from '@/components/Page';
+import { EmptyState, ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
 import { usePlayer } from '@/components/Player';
 import { useIsAdmin } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
+import { PosterSizeControl, usePosterSize } from '@/components/PosterSizeControl';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useWatchRooms, WatchRoomCard } from '@/components/WatchTogether';
 
 function MediaRow(props: ComponentProps<typeof SharedMediaRow>) {
@@ -157,6 +159,7 @@ export function Home() {
   const { data: libraries, isLoading } = libraryQuery;
   const admin = useIsAdmin();
   const prefs = usePrefs();
+  const posterSize = usePosterSize('home_poster_size');
   // ?edit=1 opens Edit Home, so the profile menu can link to it from anywhere.
   const [params, setParams] = useSearchParams();
   const editing = params.get('edit') === '1';
@@ -187,6 +190,7 @@ export function Home() {
   if (!libraries?.length) {
     return (
       <Page>
+        <PageHeader title={t('common:navigation.home')} />
         <EmptyState icon={<FolderPlus />} title={t('empty.heading')}>
           <p>{admin ? t('empty.admin') : t('empty.viewer')}</p>
           {admin && <Link to="/libraries?add=1" className="mt-5 inline-block">
@@ -199,15 +203,22 @@ export function Home() {
   }
 
   return (
-    <HomeActionsProvider><Page className="relative pb-36">
+    <HomeActionsProvider><Page className="relative pb-36" style={posterSize.style}>
       {!!libraryQuery.error && <ErrorNotice error={libraryQuery.error} onRetry={() => void libraryQuery.refetch()} />}
       {!!prefs.error && <ErrorNotice error={prefs.error} onRetry={() => void prefs.refetch()} />}
-      {prefs.data && (
-        <div className={hasFeatured ? 'absolute right-6 top-5 z-20 md:right-10' : 'flex justify-end px-6 py-5 md:px-10'}>
-          <Button size="sm" onClick={() => setEditing(true)} className={hasFeatured ? 'bg-black/30 text-white ring-1 ring-white/15 backdrop-blur-md hover:bg-black/45' : undefined}>
-            <SlidersHorizontal />{' '}{t('editor.title')}</Button>
-        </div>
-      )}
+      <PageHeader title={t('common:navigation.home')} actions={prefs.data && (
+        <>
+          <PosterSizeControl size={posterSize} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t('actions')}><MoreHorizontal /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setEditing(true)}><SlidersHorizontal className="size-4" />{t('editor.title')}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      )} />
       {hasFeatured && <section aria-label={t('featured.label')}><Featured items={featuredQuery.data!} /></section>}
       <div className={cn('relative z-10 space-y-10', hasFeatured && '-mt-6')}>
         {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
@@ -219,12 +230,6 @@ export function Home() {
             <HomeRowView key={r.id} row={r} withUpNext={!split} />
           ))}
       </div>
-      {prefs.data && (
-        <div className="mt-12 flex justify-center">
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            <SlidersHorizontal />{' '}{t('editor.title')}</Button>
-        </div>
-      )}
       <EditHomeDialog rows={rows} libraries={navigationLibraries(libraries, prefs.data?.library_order)} watchlistAt={prefs.data?.watchlist_position} open={editing} onOpenChange={setEditing} />
     </Page></HomeActionsProvider>
   );

@@ -39,7 +39,7 @@ export function CollectionCard({ collection: c, unit }: { collection: Collection
 
 export function CollectionGrid({ collections, unit }: { collections: Collection[]; unit: string }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-x-5 gap-y-8 pt-1.5 sm:grid-cols-[repeat(auto-fill,minmax(156px,1fr))]">
+    <div className="grid poster-grid gap-x-5 gap-y-8 pt-1.5">
       {collections.map((c) => (
         <CollectionCard key={c.id} collection={c} unit={unit} />
       ))}

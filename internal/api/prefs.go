@@ -17,6 +17,10 @@ import (
 // kept spoiler-free.
 
 type prefs struct {
+	// Web poster scale in percent: 75–150; zero retains the existing 100% size.
+	HomePosterSize int `json:"home_poster_size,omitempty"`
+	// Shared across this profile's library views, independently of Home.
+	LibraryPosterSize int `json:"library_poster_size,omitempty"`
 	// Large featured banner on Home; absent keeps the existing visible default.
 	ShowHomeHero *bool `json:"show_home_hero,omitempty"`
 	// Library navigation order only; never changes library visibility or Home rows.
@@ -110,6 +114,11 @@ type rowFilter struct {
 }
 
 func (p *prefs) validate() error {
+	for _, size := range []int{p.HomePosterSize, p.LibraryPosterSize} {
+		if size != 0 && (size < 75 || size > 150) {
+			return fmt.Errorf("poster size must be 75–150, or 0 for the 100%% default")
+		}
+	}
 	if p.WatchedPercent != 0 && (p.WatchedPercent < 50 || p.WatchedPercent > 100) {
 		return fmt.Errorf("watched_percent must be 50–100, or 0 for the 90%% default")
 	}
@@ -331,22 +340,24 @@ func (s *Server) setDefaultHome(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID string) {
 	var body struct {
-		ShowHomeHero     *bool          `json:"show_home_hero"`
-		HideSpoilers     *bool          `json:"hide_spoilers"`
-		LibraryOrder     *[]int64       `json:"library_order"`
-		WatchlistAt      *int           `json:"watchlist_position"`
-		WatchedPercent   *int           `json:"watched_percent"`
-		Theme            *string        `json:"theme"`
-		SubtitleLanguage *string        `json:"subtitle_language"`
-		AudioLanguage    *string        `json:"audio_language"`
-		SplitUpNext      *bool          `json:"split_up_next"`
-		AutoPlay         *bool          `json:"auto_play"`
-		ThemeMusic       *bool          `json:"theme_music"`
-		AutoSkip         *bool          `json:"auto_skip"`
-		RemoteQuality    *int           `json:"remote_quality_kbps"`
-		SubtitleMode     *string        `json:"subtitle_mode"`
-		SubtitleStyle    *subtitleStyle `json:"subtitle_style"`
-		Home             []homeRow      `json:"home"`
+		HomePosterSize    *int           `json:"home_poster_size"`
+		LibraryPosterSize *int           `json:"library_poster_size"`
+		ShowHomeHero      *bool          `json:"show_home_hero"`
+		HideSpoilers      *bool          `json:"hide_spoilers"`
+		LibraryOrder      *[]int64       `json:"library_order"`
+		WatchlistAt       *int           `json:"watchlist_position"`
+		WatchedPercent    *int           `json:"watched_percent"`
+		Theme             *string        `json:"theme"`
+		SubtitleLanguage  *string        `json:"subtitle_language"`
+		AudioLanguage     *string        `json:"audio_language"`
+		SplitUpNext       *bool          `json:"split_up_next"`
+		AutoPlay          *bool          `json:"auto_play"`
+		ThemeMusic        *bool          `json:"theme_music"`
+		AutoSkip          *bool          `json:"auto_skip"`
+		RemoteQuality     *int           `json:"remote_quality_kbps"`
+		SubtitleMode      *string        `json:"subtitle_mode"`
+		SubtitleStyle     *subtitleStyle `json:"subtitle_style"`
+		Home              []homeRow      `json:"home"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "send the preferences to change as JSON")
@@ -355,6 +366,12 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 	var p prefs
 	err := s.store.UpdateUserPrefs(r.Context(), userID, func(raw string) (string, error) {
 		p = s.prefsFromJSON(raw, userID)
+		if body.HomePosterSize != nil {
+			p.HomePosterSize = *body.HomePosterSize
+		}
+		if body.LibraryPosterSize != nil {
+			p.LibraryPosterSize = *body.LibraryPosterSize
+		}
 		if body.ShowHomeHero != nil {
 			p.ShowHomeHero = body.ShowHomeHero
 		}

@@ -95,5 +95,6 @@
     "remove": "Remove {{title}}",
     "show": "Show {{title}}",
     "hide": "Hide {{title}}"
-  }
+  },
+  "actions": "Home actions"
 }
