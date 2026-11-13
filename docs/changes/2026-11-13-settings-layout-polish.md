@@ -24,3 +24,20 @@ heading and scrollable tasks. Remove the old Server heading from dedicated Setti
 The follow-up production build and e2e TypeScript passed. Both affected browser journeys
 passed again, checking the configured name, Dashboard link above Activity, mobile navigation
 and absence of the old Server headings. No server implementation or logging changes.
+
+Temporary folder now uses a full-width clickable path box. It shows the saved path, or a
+clear default placeholder when no override is stored. Clicking opens the chooser at the
+current folder; Use Default clears the override. Pending saves disable the controls and
+errors retain the existing path. No change to the server's temporary-storage behaviour.
+
+General is now a dedicated Settings destination under Server, containing Server identity
+(name) and Notifications/webhooks. Notifications move out of Libraries & metadata; sign-in
+and network/device controls stay under Access & devices. Desktop links and the mobile
+selector use the same grouping. An existing pre-roll error-visibility test now centres its
+control before triggering an error so the inline feedback has viewport room.
+Final validation after the folder/General changes: production build, app/e2e TypeScript,
+3 i18n and 3 unit test files passed; 6 focused browser journeys passed (49.6s), including
+notification failure/empty/stale recovery, navigation, inline save recovery, folder chooser/
+cancel/persistence/reset/failure handling, and server identity. Inspected the mobile folder
+screenshot. The preceding browser run passed the new folder journey but exposed the existing
+pre-roll test's viewport assumption; its setup was corrected before the final passing run.

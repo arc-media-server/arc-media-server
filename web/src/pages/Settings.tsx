@@ -4,7 +4,7 @@ import { MaintenanceClock } from '@/components/MaintenanceClock';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FolderOpen, Loader2, XCircle } from 'lucide-react';
 import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type SubtitleStyle, type Theme } from '@/lib/api';
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
@@ -1078,14 +1078,18 @@ function AccountRow({ username, onSave }: { username: string; onSave: (username:
 function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> }) {
   const { t } = useTranslation('serverSettings');
   const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const save = async (v: string) => {
     setError('');
+    setSaving(true);
     try {
       await onSave(v);
       setPicking(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
     }
   };
   return (
@@ -1093,23 +1097,26 @@ function TranscodeDirRow({ value, onSave }: { value: string; onSave: (v: string)
       <Row
         label={t("serverSettings:settings.temporaryFolder")}
         description={
-          <>{t("serverSettings:settings.whereVideoIsKept")}{' '}
-            <span className="font-mono text-foreground/80">{value || t("serverSettings:settings.arcSDataFolder")}</span>
+          <>{t("serverSettings:settings.whereVideoIsKept")}
+            {saving && <span role="status" className="mt-1 block">{t("serverSettings:settings.saving")}</span>}
             {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
           </>
         }
       >
-        <div className="flex gap-2">
-          {value && (
-            <Button size="sm" variant="ghost" onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>
-          )}
-          <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>{t("serverSettings:settings.choose")}</Button>
+        <div className="flex w-full min-w-0 flex-wrap gap-2">
+          <button type="button" aria-label={t("serverSettings:settings.temporaryFolder")} aria-expanded={picking} aria-controls="transcode-folder-picker"
+            disabled={saving} onClick={() => setPicking(!picking)} title={value || t("serverSettings:settings.defaultTempFolder")}
+            className={cn(inputClass, 'flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-50')}>
+            <span className={cn('min-w-0 flex-1 truncate', value ? 'font-mono text-xs' : 'text-subtle')}>{value || t("serverSettings:settings.defaultTempFolder")}</span>
+            <FolderOpen className="size-4 shrink-0 text-muted" />
+          </button>
+          {value && <Button size="sm" variant="ghost" disabled={saving} onClick={() => void save('')}>{t("serverSettings:settings.useDefault")}</Button>}
         </div>
       </Row>
       {picking && (
-        <div className="px-4 pb-4">
+        <fieldset id="transcode-folder-picker" disabled={saving} className="min-w-0 px-4 pb-4">
           <FolderPicker start={value || undefined} onChoose={(p) => void save(p)} onCancel={() => setPicking(false)} />
-        </div>
+        </fieldset>
       )}
     </>
   );

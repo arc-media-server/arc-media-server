@@ -122,10 +122,8 @@
     "signIn2": "Sign In",
     "signOut": "Sign Out",
     "temporaryFolder": "Temporary folder",
-    "whereVideoIsKept": "Where video is kept while it's converted. A fast drive with free space works best.",
-    "arcSDataFolder": "Arc's data folder",
+    "whereVideoIsKept": "Temporary files used during video conversion. Click the box to choose a folder; leave it blank to use Arc's data folder.",
     "useDefault": "Use Default",
-    "choose": "Choose…",
     "ffprobe": "ffprobe",
     "ffmpegFoundFilesA": "FFmpeg found: files a browser can’t play are converted as they’re watched",
     "ffmpegWasnTFound": "FFmpeg wasn’t found next to ffprobe, so files a browser can’t play won’t be converted",
@@ -137,7 +135,7 @@
     "accountName": "Signed in as {{username}}",
     "notifications": "Notifications",
     "openSubtitles": "OpenSubtitles",
-    "general": "General",
+    "general": "Server identity",
     "generalHint": "What this server is called.",
     "serverName": "Server name",
     "serverNameHint": "How Arc's apps and sign-in pages name this server, e.g. “Living Room”. Up to 80 characters.",
@@ -145,7 +143,8 @@
     "graphicsCardDescription": "Which graphics card converts video.",
     "graphicsCardAuto": "Auto",
     "graphicsCardNamedDevice": "{{name}} · {{device}}",
-    "graphicsCardUnknown": "Model unavailable · {{details}}"
+    "graphicsCardUnknown": "Model unavailable · {{details}}",
+    "defaultTempFolder": "Default: Arc's data folder"
   },
   "diagnostics": {
     "detailedLogging": "Detailed logging",

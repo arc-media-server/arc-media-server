@@ -204,7 +204,7 @@ test('management pages share Settings navigation and Activity opens Dashboard on
 
 test('settings groups expose labelled controls and persistent desktop and mobile navigation', async ({ page }, info) => {
   await seed(page);
-  for (const [section, title] of [['profile', 'Your profile'], ['library', 'Libraries & metadata'], ['playback', 'Playback & transcoding'], ['access', 'Access & devices'], ['maintenance', 'Maintenance & diagnostics']]) {
+  for (const [section, title] of [['profile', 'Your profile'], ['general', 'General'], ['library', 'Libraries & metadata'], ['playback', 'Playback & transcoding'], ['access', 'Access & devices'], ['maintenance', 'Maintenance & diagnostics']]) {
     await page.goto(section === 'profile' ? '/settings' : `/settings?section=${section}`);
     await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Server', exact: true })).toHaveCount(0);
@@ -214,7 +214,11 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await page.goto('/settings?section=library');
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
   await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'General', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Server name', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toBeVisible();
+  await nav.getByRole('link', { name: 'Libraries & metadata', exact: true }).click();
   // Age-rating country is chosen per library (Edit library → Advanced), as Plex does.
   await expect(page.getByRole('combobox', { name: 'Region', exact: true })).toHaveCount(0);
   // Native links work with the keyboard and retain ordinary browser navigation semantics.
@@ -289,7 +293,12 @@ test('server settings keep saving, failure and retry feedback beside the edited 
   await page.route('**/api/settings', route => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 503, json: { error: 'Pre-roll save failed' } }) : route.continue());
   const preroll = page.getByRole('combobox', { name: 'Pre-roll order', exact: true });
-  await preroll.scrollIntoViewIfNeeded();
+  // Leave room for the inline error before changing a control near the viewport edge.
+  await preroll.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  await expect.poll(async () => {
+    const box = await preroll.boundingBox();
+    return !!box && box.y >= 0 && box.y + box.height < page.viewportSize()!.height - 150;
+  }).toBe(true);
   await preroll.selectOption('all');
   await expect(page.getByRole('alert')).toContainText('Pre-roll save failed');
   await expect(page.getByRole('alert')).toBeInViewport();
@@ -319,6 +328,43 @@ test('server settings keep saving, failure and retry feedback beside the edited 
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.reload(); await expect(upload).toHaveValue('25');
   expect(errors).toEqual([]);
+});
+
+test('temporary folder shows the stored path, opens a chooser and can return to default', async ({ page }, info) => {
+  await seed(page);
+  await page.goto('/settings?section=playback');
+  const box = page.getByRole('button', { name: 'Temporary folder', exact: true });
+  await expect(box).toHaveText("Default: Arc's data folder");
+  await box.click();
+  await expect(box).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(box).toHaveAttribute('aria-expanded', 'false');
+  await box.click();
+  const path = page.getByPlaceholder('Choose a drive, or type a folder path', { exact: true });
+  await path.fill(media.movies); await path.press('Enter');
+  await page.getByRole('button', { name: 'Use This Folder', exact: true }).click();
+  await expect(box).toHaveText(media.movies);
+  await expect(box).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await expect(box).toHaveText(media.movies);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await box.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('temporary-folder-mobile.png') });
+  await box.click();
+  await expect(path).toHaveValue(media.movies);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.route('**/api/settings', route => route.request().method() === 'PATCH'
+    ? route.fulfill({ status: 503, json: { error: 'Temporary folder save failed' } }) : route.continue());
+  await page.getByRole('button', { name: 'Use Default', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Temporary folder save failed');
+  await expect(box).toHaveText(media.movies);
+  await page.unroute('**/api/settings');
+  await page.getByRole('button', { name: 'Use Default', exact: true }).click();
+  await expect(box).toHaveText("Default: Arc's data folder");
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect((await (await page.request.get('/api/settings')).json()).transcode_dir).toBe('');
+  await page.reload(); await expect(box).toHaveText("Default: Arc's data folder");
 });
 
 test('Home distinguishes request failures from empty libraries and retries rows', async ({ page }) => {
@@ -543,8 +589,8 @@ test('queue editing preserves current playback, browsing and saved episode progr
   await expect.poll(async () => (await (await page.request.get('/api/home/continue')).json()).some((i: Item) => i.title === 'First Chapter' && (i.user_data?.position_ms || 0) > 65_000)).toBe(true);
 });
 
-test('the server name is set in Access settings and is what apps are told', async ({ page }) => {
-  await page.goto('/settings?section=access');
+test('the server name is set in General settings and is what apps are told', async ({ page }) => {
+  await page.goto('/settings?section=general');
   const name = page.getByRole('textbox', { name: 'Server name', exact: true });
   await name.fill('  Living Room  ');
   await page.getByRole('button', { name: 'Save', exact: true }).click();

@@ -126,7 +126,8 @@
       "playbackTranscoding": "Playback & transcoding",
       "profiles": "Profiles",
       "server": "Server",
-      "yourProfile": "Your profile"
+      "yourProfile": "Your profile",
+      "general": "General"
     },
     "section": "Settings section",
     "sections": {

@@ -180,7 +180,7 @@ test('recovery: episode Space and Enter activate once without nested-action play
 const panels = [
   { name: 'Devices', group: 'access', link: 'Access & devices', endpoint: 'devices', empty: 'No devices are signed in.', entry: 'Saved TV' },
   { name: 'Optimized Versions', group: 'playback', link: 'Playback & transcoding', endpoint: 'optimized', empty: 'None yet.', entry: 'Saved copy' },
-  { name: 'Notifications', group: 'library', link: 'Libraries & metadata', endpoint: 'webhooks', empty: 'No notifications configured yet.', entry: 'Saved notification' },
+  { name: 'Notifications', group: 'general', link: 'General', endpoint: 'webhooks', empty: 'No notifications configured yet.', entry: 'Saved notification' },
 ] as const;
 
 for (const panel of panels) {
