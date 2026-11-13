@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"time"
@@ -129,6 +130,23 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 	now := time.Now()
 	day := int(now.Unix() / 86400)
 	rows := []recommendedRow{}
+	// With detailed logging on, how long each row (or lookup) took, to find slow ones on a big
+	// library. Only the full view is timed; one row's continuation is a single step.
+	timed := targetID == "" && s.log != nil && s.log.Enabled(ctx, slog.LevelDebug)
+	var steps []any
+	mark := now
+	step := func(name string) {
+		if timed {
+			at := time.Now()
+			steps = append(steps, name, at.Sub(mark).Round(time.Millisecond))
+			mark = at
+		}
+	}
+	defer func() {
+		if timed {
+			s.log.Debug("recommended row timings", append([]any{"library", lib.Name}, steps...)...)
+		}
+	}()
 	wanted := func(row recommendedRow) bool { return targetID == "" || targetID == recommendedRowID(row) }
 	var nextQuery *store.ItemQuery
 	var nextTotal int
@@ -195,6 +213,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 		}
 		row.Items = items
 		add(row)
+		step(row.Type)
 		return targetID != "", nil
 	}
 	continueRow := recommendedRow{Type: "continue"}
@@ -217,6 +236,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 		}
 		continueRow.Items = items
 		add(continueRow)
+		step("continue")
 		if targetID != "" {
 			return rows, nil
 		}
@@ -241,6 +261,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 	if err != nil {
 		return nil, err
 	}
+	step("recently_watched_titles")
 	for _, source := range recent {
 		row := recommendedRow{Type: "because_you_watched", Name: source.Title, sourceID: source.ID}
 		if !wanted(row) {
@@ -265,6 +286,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 			return nil, err
 		}
 		add(row)
+		step(row.Type)
 		if targetID != "" {
 			return rows, nil
 		}
@@ -289,6 +311,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 	if err != nil {
 		return nil, err
 	}
+	step("favourite_genres")
 	for _, genre := range favourites {
 		row := recommendedRow{Type: "more_in_genre", Name: genre, Genre: genre}
 		if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "shuffle", Unwatched: true}); stop || err != nil {
@@ -299,6 +322,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 	if err != nil {
 		return nil, err
 	}
+	step("library_genres")
 	genres = slices.DeleteFunc(genres, func(g string) bool { return slices.Contains(favourites, g) })
 	if len(genres) > 0 {
 		genre := genres[day%len(genres)]
@@ -311,6 +335,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 	if err != nil {
 		return nil, err
 	}
+	step("featured_people")
 	pool := people
 	if len(people) > 0 && people[0].LastWatchedAt > 0 {
 		pool = slices.DeleteFunc(slices.Clone(people), func(p store.FeaturedPerson) bool { return p.LastWatchedAt == 0 })

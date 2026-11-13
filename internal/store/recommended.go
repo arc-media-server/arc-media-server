@@ -38,19 +38,8 @@ type FeaturedPerson struct {
 // minTitles movies or shows (kind) in a library that a profile can see: those credited on what
 // the profile watched most recently first, then those with the most titles.
 func (s *Store) FeaturedPeople(ctx context.Context, userID string, libraryID int64, kind string, minTitles int, acc Access, limit int) ([]FeaturedPerson, error) {
-	// When the profile last played each title of the library (a show by its episodes).
-	q, args := acc.Where("items", `WITH watched AS (
-			SELECT COALESCE(CASE WHEN w.kind = 'episode' THEN w.parent_id END, w.id) AS item_id, MAX(u.last_played_at) AS at
-			FROM user_item_data u JOIN items w ON w.id = u.item_id
-			WHERE u.user_id = ? AND w.library_id = ? AND u.last_played_at IS NOT NULL AND (u.played = 1 OR u.position_ms > 0)
-			GROUP BY 1)
-		SELECT p.person_id, pe.name, p.role, COUNT(*), MAX(COALESCE(watched.at, 0)) FROM item_people p
-		JOIN items ON items.id = p.item_id JOIN people pe ON pe.id = p.person_id
-		LEFT JOIN watched ON watched.item_id = items.id
-		WHERE items.library_id = ? AND items.kind = ? AND (p.role = 'director' OR (p.role = 'actor' AND p.ord < 10))
-			AND `+playableSQL, []any{userID, libraryID, libraryID, kind})
-	rows, err := s.db.QueryContext(ctx, q+` GROUP BY p.person_id, p.role HAVING COUNT(*) >= ?
-		ORDER BY 5 DESC, 4 DESC, pe.name, p.role LIMIT ?`, append(args, minTitles, limit)...)
+	q, args := featuredPeopleSQL(userID, libraryID, kind, minTitles, limit, acc)
+	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,4 +53,24 @@ func (s *Store) FeaturedPeople(ctx context.Context, userID string, libraryID int
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// featuredPeopleSQL is FeaturedPeople's query.
+func featuredPeopleSQL(userID string, libraryID int64, kind string, minTitles int, limit int, acc Access) (string, []any) {
+	// The library's playable titles with when the profile last played each (a show by its
+	// episodes), worked out once per title by key, then joined to their cast and crew by title.
+	// A summary of the whole history joined to every credit was scanned in full for each credit:
+	// hundreds of milliseconds for a couple of thousand films, more on a slower server.
+	titles, args := acc.Where("items", `SELECT items.id, COALESCE(CASE WHEN items.kind = 'series' THEN (
+				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
+				WHERE w.parent_id = items.id AND u.last_played_at IS NOT NULL AND (u.played = 1 OR u.position_ms > 0))
+			ELSE (SELECT u.last_played_at FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id
+				AND u.last_played_at IS NOT NULL AND (u.played = 1 OR u.position_ms > 0)) END, 0) AS at
+		FROM items WHERE items.library_id = ? AND items.kind = ? AND `+playableSQL, []any{userID, userID, libraryID, kind})
+	q := `WITH titles AS MATERIALIZED (` + titles + `)
+		SELECT p.person_id, pe.name, p.role, COUNT(*), MAX(titles.at) FROM titles
+		CROSS JOIN item_people p ON p.item_id = titles.id JOIN people pe ON pe.id = p.person_id
+		WHERE (p.role = 'director' OR (p.role = 'actor' AND p.ord < 10))`
+	return q + ` GROUP BY p.person_id, p.role HAVING COUNT(*) >= ?
+		ORDER BY 5 DESC, 4 DESC, pe.name, p.role LIMIT ?`, append(args, minTitles, limit)
 }
