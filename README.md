@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="web/public/icon.svg" width="112" alt="Arc logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/arc-logo-stacked-white.svg">
+    <img src="docs/brand/arc-logo-stacked-black.svg" width="220" alt="Arc Media Server">
+  </picture>
 </p>
-
-<h1 align="center">Arc Media Server</h1>
 
 <p align="center">
   <strong>Your films, shows and home videos, beautifully organised and ready to play anywhere.</strong>
