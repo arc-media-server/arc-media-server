@@ -415,7 +415,7 @@ test('restoring a backup immediately restores running settings and access contro
 
 async function setup(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to Arc' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
   await page.getByLabel('Your name', { exact: true }).fill('Admin');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Password again', { exact: true }).fill(password);

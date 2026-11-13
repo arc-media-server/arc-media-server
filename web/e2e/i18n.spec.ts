@@ -19,8 +19,8 @@ for (const locale of ['en-US', 'fr-FR']) {
         }).observe(document, { childList: true, subtree: true, characterData: true });
       });
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Welcome to Arc', exact: true })).toBeVisible();
-      expect(await page.evaluate(() => (window as Window & { firstHeadings?: string[] }).firstHeadings?.[0])).toBe('Welcome to Arc');
+      await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
+      expect(await page.evaluate(() => (window as Window & { firstHeadings?: string[] }).firstHeadings?.[0])).toBe('Welcome');
       const name = 'Owner <b>& "Name"';
       expect((await page.request.post('/api/auth/setup', { data: { name, password: 'Arc-browser-test-123', local_bypass: false } })).ok()).toBe(true);
       await page.reload();
