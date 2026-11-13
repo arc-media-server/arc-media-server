@@ -10,7 +10,7 @@ separately).
   size is applied once around every page (`--card-scale` on the app's main area) rather than per
   page.
 - **The slider.** It was the browser's default range control (a heavy bar and knob) between two
-  hard-to-read poster outlines. It is now a thin track filled up to a round knob in the page's
+  hard-to-read poster outlines. It is now a fine 3px track filled up to a 12px round knob in the page's
   own foreground colour, with a grid icon (smaller cards) and a square (larger), in light and dark.
 - **Hover Play.** The Play circle was a fixed 48px with a thick ring, covering much of a small
   poster's title art. It is now about a fifth of the card's width (32–44px, a CSS container size)

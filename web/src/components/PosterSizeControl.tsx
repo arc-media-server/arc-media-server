@@ -56,9 +56,9 @@ export function PosterSizeControl() {
   if (!size) return null;
   return (
     <div className="flex max-w-full flex-wrap items-center gap-2">
-      <label className="flex items-center gap-2.5 text-muted" title={t('posterSize.label')}>
+      <label className="flex items-center gap-2 text-muted" title={t('posterSize.label')}>
         <span className="sr-only">{t('posterSize.label')}</span>
-        <LayoutGrid aria-hidden className="size-3.5 shrink-0" />
+        <LayoutGrid aria-hidden className="size-3 shrink-0" />
         <input type="range" min={75} max={150} step={5} value={size.percent}
           aria-valuetext={t('posterSize.value', { size: size.percent })}
           disabled={size.disabled}
@@ -68,8 +68,8 @@ export function PosterSizeControl() {
           onBlur={event => size.submit(Number(event.currentTarget.value))}
           onPointerCancel={() => size.preview(undefined)}
           style={{ '--fill': `${((size.percent - 75) / 75) * 100}%` } as CSSProperties}
-          className="card-size-range w-24 min-w-0 sm:w-28" />
-        <Square aria-hidden className="size-4 shrink-0" />
+          className="card-size-range w-20 min-w-0" />
+        <Square aria-hidden className="size-3.5 shrink-0" />
       </label>
       {size.error && <ErrorNotice error={size.error} onRetry={size.retry} busy={size.busy} />}
     </div>
