@@ -81,6 +81,9 @@ test('Recently Added: repeated batches keep counts, artwork and navigation when 
     const row = page.getByRole('region', { name: 'Recently Added in Batch layout', exact: true });
     await expect(row.getByText('Season 1', { exact: true })).toHaveCount(2);
     await expect(row.getByText(/Season 1 ·/)).toHaveCount(0);
+    // The new-episode count is the season card's corner badge.
+    await expect(row.getByLabel('2 new episodes', { exact: true })).toHaveCount(1);
+    await expect(row.getByLabel('3 new episodes', { exact: true })).toHaveCount(1);
     await expect(row.getByText('6 new episodes', { exact: true })).toBeAttached();
     await expect(row.locator(`a[href="/series/${show.id}"]`)).toHaveCount(3);
     const rendered = row.locator(`[data-item="${show.id}"]`);

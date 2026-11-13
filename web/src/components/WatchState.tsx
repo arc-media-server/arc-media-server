@@ -42,6 +42,19 @@ export function WatchBadge({ item, className }: { item: Item; className?: string
   );
 }
 
+/** A number in the watch badge's place and style, such as a Recently Added season's new episodes. */
+export function CountBadge({ count, label, className }: { count: number; label: string; className?: string }) {
+  return (
+    <span
+      className={cn('absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-accent-strong px-1.5 text-[11px] font-bold text-accent-foreground shadow-lg', className)}
+      title={label}
+      aria-label={label}
+    >
+      {count}
+    </span>
+  );
+}
+
 /** "S1 E3" or "Special 2". */
 export function episodeCode(season?: number, episode?: number): string {
   if (season === undefined || episode === undefined) return '';

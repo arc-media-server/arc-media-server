@@ -53,7 +53,8 @@ function LibraryRow({ lib, style, showsOnly, seasonPosters }: { lib: Library; st
   );
 }
 
-/** Recently Added seasons show their label; single episodes separate title and display number. */
+/** Recently Added seasons show their label, with the new-episode count in the corner badge; single
+ * episodes separate title and display number. */
 function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean): CardOverrides | undefined {
   const n = c.episodes;
   switch (c.type) {
@@ -64,6 +65,8 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
       return {
         image: style === 'poster' && seasonPosters ? (c.season_poster ?? c.item.images?.primary) : undefined,
         subtitle: name,
+        // How many episodes are new, in the badge's corner (as Plex), with the season as its caption.
+        count: n > 0 ? { value: n, label: i18n.t('home:rows.newEpisodes', { count: n }) } : undefined,
         noBadge: true,
       };
     }
