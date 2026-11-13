@@ -106,7 +106,7 @@ async function setupLanguage(browserLanguages, extraModules = {}) {
 test('unsupported browser languages keep bundled English and load no chunks', async () => {
   const { instance, ready, requests } = await setupLanguage(['fr-FR', 'es']);
   await ready;
-  assert.equal(instance.t('auth:setup.heading'), 'Welcome to Arc');
+  assert.equal(instance.t('auth:setup.heading'), 'Welcome');
   assert.equal(instance.resolvedLanguage, 'en');
   assert.deepEqual(requests, []);
 });
@@ -115,20 +115,20 @@ test('an available language loads on demand while English stays usable, includin
   const loading = new Promise(resolve => { release = resolve; });
   const { instance, ready, requests } = await setupLanguage(['fr-FR'], { './locales/fr/common.json': () => loading });
   assert.equal(instance.isInitialized, true);
-  assert.equal(instance.t('auth:setup.heading'), 'Welcome to Arc');
+  assert.equal(instance.t('auth:setup.heading'), 'Welcome');
   assert.equal(instance.t('navigation.home'), 'Home');
   release({ default: { navigation: { home: 'synthetic translated Home' } } });
   await ready;
   assert.equal(instance.resolvedLanguage, 'fr');
   assert.equal(instance.t('navigation.home'), 'synthetic translated Home');
-  assert.equal(instance.t('auth:setup.heading'), 'Welcome to Arc');
+  assert.equal(instance.t('auth:setup.heading'), 'Welcome');
   assert.deepEqual(requests, ['./locales/fr/common.json']);
 });
 test('a failed locale chunk leaves usable English text', async () => {
   const { instance, ready } = await setupLanguage(['fr'], { './locales/fr/common.json': async () => { throw new Error('fixture offline'); } });
   await ready;
   assert.equal(instance.t('navigation.home'), 'Home');
-  assert.equal(instance.t('auth:setup.heading'), 'Welcome to Arc');
+  assert.equal(instance.t('auth:setup.heading'), 'Welcome');
 });
 test('hook namespaces are scoped to each component', () => {
   assert.deepEqual(audit({ auth: { heading: 'Welcome' }, common: { heading: 'Home' } }, { 'test.tsx': `function Auth() { const { t } = useTranslation('auth'); return t('heading'); } function Home() { const { t } = useTranslation('common'); return t('heading'); }` }), []);
