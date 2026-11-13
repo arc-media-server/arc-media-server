@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils';
 import { kindIcon } from '@/lib/kinds';
 import { Artwork } from '@/components/Artwork';
 import { FixMatchDialog } from '@/components/FixMatch';
-import { PlaybackReport } from '@/components/PlaybackReport';
 import { MarkerCoverageReport } from '@/components/MarkerCoverage';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { useLibraries } from '@/components/Sidebar';
@@ -57,7 +56,6 @@ export function HealthPage() {
           !healthy &&
           reports.map((r) => <LibraryReport key={r.data!.library.id} report={r.data!} onIdentify={setIdentifying} />)}
         {libraries && libraries.length > 0 && <MarkerCoverageReport libraries={libraries} />}
-        {libraries && libraries.length > 0 && <PlaybackReport libraries={libraries} />}
       </div>
       {identifying && <FixMatchDialog item={identifying} open onOpenChange={(o) => !o && setIdentifying(null)} />}
     </Page>

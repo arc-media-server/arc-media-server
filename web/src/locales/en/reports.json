@@ -150,30 +150,6 @@
     "lastDay": "Last 24 hours",
     "sentToPlayers": "Sent by Arc to players and browsers"
   },
-  "playbackReport": {
-    "playback": "Playback",
-    "device": "Device",
-    "howYourTitlesWould": "How your titles would play on this kind of device. Repackaging is quick and loses nothing; converting uses the server's processor or graphics card.",
-    "showFewer": "Show fewer",
-    "directCount_one": "{{count}} direct play",
-    "directCount_other": "{{count}} direct play",
-    "remuxCount_one": "{{count}} repackaged",
-    "remuxCount_other": "{{count}} repackaged",
-    "transcodeCount_one": "{{count}} converted",
-    "transcodeCount_other": "{{count}} converted",
-    "ofEpisodes_one": "of {{count}} episode",
-    "ofEpisodes_other": "of {{count}} episodes",
-    "ofShows_one": "of {{count}} show",
-    "ofShows_other": "of {{count}} shows",
-    "ofVideos_one": "of {{count}} video",
-    "ofVideos_other": "of {{count}} videos",
-    "ofMovies_one": "of {{count}} movie",
-    "ofMovies_other": "of {{count}} movies",
-    "showAll_one": "Show all {{count}}",
-    "showAll_other": "Show all {{count}}",
-    "whyConverted_one": "Why {{count}} are converted",
-    "whyConverted_other": "Why {{count}} are converted"
-  },
   "logLevels": {
     "allLevels": "Everything",
     "info": "Info",
@@ -193,8 +169,7 @@
   "methods": {
     "converted": "Converted",
     "remux": "Repackaged",
-    "direct": "Direct play",
-    "transcode": "Converted"
+    "direct": "Direct play"
   },
   "counts": {
     "plays_one": "{{count}} play",
