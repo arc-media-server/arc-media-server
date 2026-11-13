@@ -139,7 +139,9 @@ current detail-window, request tracking and export limits are in `docs/LOGGING.m
   `arc-media-server/arc-media-server` (private). Close issues with the commit hash when done, tick the box in
   `ROADMAP.md`, and close the milestone when it's finished.
 - Commit finished work to your branch and open a PR (see Workflow). Commit messages: a summary line, a body describing what changed,
-  and the Co-Authored-By trailer.
+  and the Co-Authored-By trailer. No agent session links in commits or PRs (no `Claude-Session:` or
+  other chat URLs; owner, 13 November): Co-Authored-By is the only attribution. Earlier links are
+  removed once, before the repositories go public (`docs/ALPHA-CHECKLIST.md`).
 - Silo (github.com/Silo-Server/silo-server, a Go + React media server) is a design reference only:
   it's AGPL-3.0, so never copy its code or exact designs.
 
