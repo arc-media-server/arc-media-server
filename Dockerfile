@@ -31,7 +31,7 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-only" \
 # checked. It brings its own Intel and AMD video drivers (libva, iHD/VPL, Mesa, Vulkan) and adds
 # tonemapx, a fast HDR-to-SDR filter. Chromaprint (intro detection) and zimg come with it. i965 stays
 # for older Intel graphics. Certificates for TMDB/TheTVDB, curl for the health check, tzdata for
-# local times.
+# local times. pci.ids supplies offline GPU model names from PCI device IDs.
 ARG JELLYFIN_FFMPEG=8.1.3-2
 RUN apt-get update \
  && arch="$(dpkg --print-architecture)" \
@@ -40,7 +40,7 @@ RUN apt-get update \
       arm64) sum=21e7f67d3fe70b4c757f8c5064f1317e2580a08b3b84460b7a79af0a99c1095f; hw_packages="" ;; \
       *) echo "no jellyfin-ffmpeg for $arch" >&2; exit 1 ;; \
     esac \
- && apt-get install -y --no-install-recommends ca-certificates curl tzdata util-linux $hw_packages \
+ && apt-get install -y --no-install-recommends ca-certificates curl tzdata util-linux pci.ids $hw_packages \
  && curl -fsSL -o /tmp/jellyfin-ffmpeg.deb \
       "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG}/jellyfin-ffmpeg8_${JELLYFIN_FFMPEG}-trixie_${arch}.deb" \
  && echo "$sum  /tmp/jellyfin-ffmpeg.deb" | sha256sum -c - \

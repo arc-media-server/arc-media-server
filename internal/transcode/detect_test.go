@@ -11,6 +11,7 @@ import (
 
 func TestDetectRenderNodeDriverFallbackAndLowPower(t *testing.T) {
 	m := New(t.TempDir(), func() string { return "fixture-ffmpeg" }, func() string { return "fixture-probe" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.gpuNames = nil
 	m.renderNodes = func() []string { return []string{"/dev/dri/renderD129"} }
 	m.probeHardware = func(ctx context.Context, bin string, args []string, driver string) ([]byte, error) {
 		joined := strings.Join(args, " ")
@@ -48,6 +49,7 @@ func TestDetectRenderNodeDriverFallbackAndLowPower(t *testing.T) {
 
 func TestHardwareRetestCoalescesAndRetainsExistingCapsDuringCheck(t *testing.T) {
 	m := New(t.TempDir(), func() string { return "fixture" }, func() string { return "fixture" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.gpuNames = nil
 	m.caps = Capabilities{HWEncoder: "old-encoder", Checked: true}
 	release := make(chan struct{})
 	m.probeHardware = func(ctx context.Context, _ string, args []string, _ string) ([]byte, error) {
@@ -83,6 +85,7 @@ func TestHardwareProbeOutputBound(t *testing.T) {
 
 func TestDetectListsEachDeviceOnceAndUsesTheChosenOne(t *testing.T) {
 	m := New(t.TempDir(), func() string { return "fixture-ffmpeg" }, func() string { return "fixture-probe" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.gpuNames = nil
 	// An Intel iGPU (Quick Sync and VA-API both work) and an AMD card (VA-API only).
 	m.renderNodes = func() []string { return []string{"/dev/dri/renderD128", "/dev/dri/renderD129"} }
 	m.gpuVendor = func(node string) string {
@@ -123,10 +126,13 @@ func TestDetectListsEachDeviceOnceAndUsesTheChosenOne(t *testing.T) {
 
 func TestAutomaticIsTheSystemsFirstDeviceNotAnAPIRanking(t *testing.T) {
 	m := New(t.TempDir(), func() string { return "fixture-ffmpeg" }, func() string { return "fixture-probe" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.gpuNames = nil
 	// The system lists an AMD card first and an NVIDIA card second. NVENC would rank first by API,
 	// but Automatic is the first device the system lists.
 	m.renderNodes = func() []string { return []string{"/dev/dri/renderD128", "/dev/dri/renderD129"} }
-	m.gpuVendor = func(node string) string { return map[string]string{"/dev/dri/renderD128": "AMD", "/dev/dri/renderD129": "NVIDIA"}[node] }
+	m.gpuVendor = func(node string) string {
+		return map[string]string{"/dev/dri/renderD128": "AMD", "/dev/dri/renderD129": "NVIDIA"}[node]
+	}
 	m.probeHardware = func(_ context.Context, _ string, args []string, _ string) ([]byte, error) {
 		joined := strings.Join(args, " ")
 		switch {

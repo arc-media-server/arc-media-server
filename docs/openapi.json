@@ -1344,6 +1344,9 @@
           },
           "low_power": {
             "type": "boolean"
+          },
+          "name": {
+            "type": "string"
           }
         },
         "required": [

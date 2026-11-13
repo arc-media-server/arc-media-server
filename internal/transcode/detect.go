@@ -27,8 +27,10 @@ type HardwareAttempt struct {
 // HardwareDevice is one graphics device that passed the test encode, offered in Settings.
 type HardwareDevice struct {
 	// ID is what Settings stores: the encoder and device ("h264_qsv:/dev/dri/renderD128").
-	ID       string `json:"id"`
-	Label    string `json:"label"`
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	// Name is the actual adapter model, when the system can identify it reliably.
+	Name     string `json:"name,omitempty"`
 	Encoder  string `json:"encoder"`
 	Device   string `json:"device,omitempty"`
 	Driver   string `json:"driver,omitempty"`
@@ -88,6 +90,7 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 	} else {
 		nodes, _ = filepath.Glob("/dev/dri/renderD*")
 	}
+	nameNodes := append([]string(nil), nodes...)
 	if len(nodes) > 4 {
 		nodes = nodes[:4]
 	}
@@ -162,9 +165,17 @@ func (m *Manager) detect(ctx context.Context) Capabilities {
 		}
 		systemOrder(caps.Devices, nodes, m.gpuVendor)
 		labelDevices(caps.Devices, m.gpuVendor)
+
 		out, _ := run(ctx, bin, []string{"-hide_banner", "-filters"}, "")
 		caps.FastToneMap = strings.Contains(string(out), " tonemapx ")
 		caps.ToneMapping = caps.FastToneMap || strings.Contains(string(out), " zscale ")
+		if m.gpuNames != nil && len(caps.Devices) > 0 {
+			for i, name := range m.gpuNames(ctx, caps.Devices, nameNodes) {
+				if i >= 0 && i < len(caps.Devices) {
+					caps.Devices[i].Name = cleanGPUName(name)
+				}
+			}
+		}
 	}
 	m.mu.Lock()
 	if parent.Err() != nil {
@@ -272,15 +283,7 @@ func sysfsGPUVendor(node string) string {
 	if err != nil {
 		return ""
 	}
-	switch strings.TrimSpace(string(raw)) {
-	case "0x8086":
-		return "Intel"
-	case "0x1002":
-		return "AMD"
-	case "0x10de":
-		return "NVIDIA"
-	}
-	return ""
+	return gpuMaker(string(raw))
 }
 func hardwareProbeArgs(encoder, device string, low bool) []string {
 	args := []string{"-hide_banner", "-nostdin", "-v", "error"}

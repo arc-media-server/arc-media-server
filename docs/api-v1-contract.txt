@@ -5004,6 +5004,7 @@ GET /settings 200 .transcoder.devices[].encoder string
 GET /settings 200 .transcoder.devices[].id string
 GET /settings 200 .transcoder.devices[].label string
 GET /settings 200 .transcoder.devices[].low_power boolean
+GET /settings 200 .transcoder.devices[].name string
 GET /settings 200 .transcoder.fast_tone_map boolean
 GET /settings 200 .transcoder.hw_device string
 GET /settings 200 .transcoder.hw_driver string
@@ -6283,6 +6284,7 @@ PATCH /settings 200 .transcoder.devices[].encoder string
 PATCH /settings 200 .transcoder.devices[].id string
 PATCH /settings 200 .transcoder.devices[].label string
 PATCH /settings 200 .transcoder.devices[].low_power boolean
+PATCH /settings 200 .transcoder.devices[].name string
 PATCH /settings 200 .transcoder.fast_tone_map boolean
 PATCH /settings 200 .transcoder.hw_device string
 PATCH /settings 200 .transcoder.hw_driver string
