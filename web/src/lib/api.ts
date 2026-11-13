@@ -1149,7 +1149,6 @@ export const api = {
   unmatched: (libraryId: number) => request<Item[]>('GET', `/api/libraries/${libraryId}/unmatched`),
   libraryHealth: (libraryId: number) => request<LibraryHealth>('GET', `/api/libraries/${libraryId}/health`),
   markerCoverage: (libraryId: number) => request<{ skip_intros: boolean; skip_credits: boolean; titles: MarkerCoverage[] }>('GET', `/api/libraries/${libraryId}/markers`),
-  compatibility: (libraryId: number, caps: PlayerCaps) => request<Compatibility>('POST', `/api/libraries/${libraryId}/compatibility`, { caps }),
   collections: (libraryId: number) => request<Collection[]>('GET', `/api/libraries/${libraryId}/collections`),
   collection: (id: string) => request<{ collection: Collection; items: Item[] }>('GET', `/api/collections/${id}`),
   createCollection: (c: { library_id: number; kind: 'manual' | 'smart'; title: string; overview?: string; filter?: RowFilter; item_ids?: string[] }) =>
@@ -1363,16 +1362,6 @@ export function itemHref(item: Item): string {
     default:
       return `/movie/${item.id}`;
   }
-}
-
-/** How a library's titles would play on a device. */
-export interface Compatibility {
-  total: number;
-  counts: Record<PlaybackMethod, number>;
-  /** Why titles can't play as they are, with how many. */
-  reasons: Record<string, number>;
-  /** Titles that would be converted, and why. */
-  converted: { item: Item; reasons: string[] }[];
 }
 
 /** A group of a library's titles: automatic (a TMDB collection), manual, or smart (a filter). */
