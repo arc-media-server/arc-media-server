@@ -9,7 +9,7 @@ import { api, type RemoteStatus, type ServerSettings, type SubtitleMode, type Su
 import { subtitleLook } from '@/components/Player';
 import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { mediaToolsNeeded, selectedSettingsSection, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
+import { mediaToolsNeeded, selectedSettingsSection, settingsNavigation, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useIsAdmin } from '@/lib/auth';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
@@ -35,11 +35,11 @@ export function SettingsPage() {
   const admin = useIsAdmin();
   const [params] = useSearchParams();
   const selected = admin ? selectedSettingsSection(params.get('section')) : 'profile';
+  const title = settingsNavigation().flatMap(group => group.links).find(link => link.id === selected)!.label;
   return (
     <Page className="pb-16">
-      <PageHeader title={t("profileSettings:settings.settings")} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
+      <PageHeader title={title} subtitle={selected === 'profile' ? t('profileSettings:settings.profileDescription') : t('profileSettings:settings.serverDescription')} />
       <div className="max-w-[848px] space-y-8 px-6 md:px-10">
-        <p className="text-sm text-muted">{t("profileSettings:settings.switchesAndMenusSave")}</p>
         <SettingsSection.Provider value={selected}>
           {selected === 'profile' ? <ProfileSettings /> : admin && <ServerSettings key={selected} />}
         </SettingsSection.Provider>
@@ -914,8 +914,8 @@ function SaveFeedback({ settings, className }: { settings: string[]; className?:
   const save = useContext(SaveFeedbackContext);
   if (!save || !settings.some(key => save.keys.includes(key))) return null;
   if (save.status === 'error') return <div className={className}><ErrorNotice error={save.error} onRetry={save.retry} /></div>;
-  if (save.status === 'idle') return null;
-  return <p role="status" className={cn('text-xs text-muted', className)}>{save.status === 'pending' ? t("serverSettings:settings.saving") : t("serverSettings:settings.saved")}</p>;
+  if (save.status !== 'pending') return null;
+  return <p role="status" className={cn('text-xs text-muted', className)}>{t("serverSettings:settings.saving")}</p>;
 }
 
 function Row({ label, description, children, setting, compact = false }: { label: string; description?: ReactNode; children?: ReactNode; setting?: string | string[]; compact?: boolean }) {

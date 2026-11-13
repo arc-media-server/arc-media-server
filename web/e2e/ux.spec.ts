@@ -200,6 +200,11 @@ test('management pages share Settings navigation and Activity opens Dashboard on
 
 test('settings groups expose labelled controls and persistent desktop and mobile navigation', async ({ page }, info) => {
   await seed(page);
+  for (const [section, title] of [['profile', 'Your profile'], ['library', 'Libraries & metadata'], ['playback', 'Playback & transcoding'], ['access', 'Access & devices'], ['maintenance', 'Maintenance & diagnostics']]) {
+    await page.goto(section === 'profile' ? '/settings' : `/settings?section=${section}`);
+    await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByText('Switches and menus save immediately. Text fields use Save.', { exact: true })).toHaveCount(0);
+  }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/settings?section=library');
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
@@ -246,7 +251,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await page.screenshot({ path: info.outputPath('settings-mobile.png'), fullPage: true });
 });
 
-test('server settings keep saving, failure, retry and saved feedback beside the edited control', async ({ page }, info) => {
+test('server settings keep saving, failure and retry feedback beside the edited control', async ({ page }, info) => {
   await seed(page);
   await page.goto('/settings?section=playback');
   const control = page.getByRole('combobox', { name: 'Videos converted at once', exact: true });
@@ -269,7 +274,9 @@ test('server settings keep saving, failure, retry and saved feedback beside the 
   await page.screenshot({ path: info.outputPath('settings-local-error.png') });
   await page.unroute('**/api/settings');
   await error.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(row.getByRole('status')).toHaveText('Saved');
+  await expect(row.getByRole('alert')).toHaveCount(0);
+  await expect(row.getByRole('status')).toHaveCount(0);
+  await expect(control).toBeEnabled();
   await expect(control).toHaveValue('2');
   await page.reload(); await expect(control).toHaveValue('2');
   // An async pre-roll save must also surface rejection rather than create an unhandled error.

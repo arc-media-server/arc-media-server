@@ -1,10 +1,9 @@
 {
   "libraries": {
     "libraries": "Libraries",
-    "theFoldersArcLooks": "The folders Arc looks in. New files show up on their own; Arc never changes them.",
+    "theFoldersArcLooks": "Add and manage your movie, TV and other video libraries.",
     "scanAllLibraries": "Scan all libraries",
     "addLibrary": "Add Library",
-    "scansCheckForNew": "Scans check for new or changed files. Follow progress in Activity. Libraries already scanning continue their current scan.",
     "allLibrariesAreAlready": "All libraries are already scanning.",
     "noLibrariesYet": "No libraries yet",
     "addAFolderOf": "Add a folder of movies or TV shows to get started.",

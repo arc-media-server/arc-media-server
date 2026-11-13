@@ -1,7 +1,5 @@
 {
   "settings": {
-    "settings": "Settings",
-    "switchesAndMenusSave": "Switches and menus save immediately. Text fields use Save.",
     "aboutArc": "About Arc",
     "arcMediaServer": "Arc Media Server",
     "credits": "Credits",
