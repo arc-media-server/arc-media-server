@@ -213,7 +213,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/settings?section=library');
   const nav = page.getByRole('navigation', { name: 'Settings sections' });
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Notifications', exact: true })).toHaveCount(0);
   await nav.getByRole('link', { name: 'General', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Server name', exact: true })).toBeVisible();
@@ -229,14 +229,14 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   // FFmpeg and ffprobe are found automatically here, so Media tools has nothing to show.
   await expect(page.getByRole('heading', { name: 'Media tools', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Media tools', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toHaveCount(0);
-  await page.getByRole('heading', { name: 'Converting', exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('heading', { name: 'Converting', exact: true })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toHaveCount(0);
+  await page.getByRole('heading', { name: 'Video conversion', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('heading', { name: 'Video conversion', exact: true })).toBeInViewport();
   await expect(playback).toBeInViewport();
-  await expect(page.getByRole('combobox', { name: 'Videos converted at once', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Simultaneous video conversions', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
   await page.goBack(); // Group selection participates in browser history.
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
   for (const group of ['profile', 'library', 'playback', 'access', 'maintenance']) {
     await page.goto('/settings?section=' + group);
     const selects = page.locator('main select:visible');
@@ -254,7 +254,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
   const a = await label.boundingBox(), b = await spoiler.boundingBox();
   expect(b!.x).toBeGreaterThan(a!.x + a!.width);
   await selector.selectOption('library');
-  await expect(page.getByRole('heading', { name: 'Moving in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Import from another server', exact: true })).toBeVisible();
   await page.reload(); await expect(selector).toHaveValue('library');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('settings-mobile.png'), fullPage: true });
@@ -263,7 +263,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
 test('server settings keep saving, failure and retry feedback beside the edited control', async ({ page }, info) => {
   await seed(page);
   await page.goto('/settings?section=playback');
-  const control = page.getByRole('combobox', { name: 'Videos converted at once', exact: true });
+  const control = page.getByRole('combobox', { name: 'Simultaneous video conversions', exact: true });
   const row = control.locator('..');
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -427,7 +427,8 @@ test('internet streaming quality is saved to the profile and only limits streams
   const saved = page.waitForResponse(r => r.url().endsWith('/api/me/prefs') && r.request().method() === 'PATCH' && r.ok());
   await quality.selectOption({ label: '4 Mbps 720p' });
   expect((await (await saved).json()).remote_quality_kbps).toBe(4000);
-  await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+  await expect(quality).toBeEnabled();
+  await expect(page.getByText('Saved', { exact: true })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('internet-quality-setting.png') });
   await page.reload();
   await expect(quality.locator('option:checked')).toHaveText('4 Mbps 720p');
@@ -458,7 +459,7 @@ test('mobile profiles, settings sections and player controls remain usable', asy
   await expect(page.getByRole('combobox', { name: 'Preferred audio language', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: 'Preferred audio language', exact: true }).selectOption('jpn');
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).audio_language).toBe('jpn');
-  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Playback & transcoding', 'Converting'], ['Access & devices', 'Devices'], ['Maintenance & diagnostics', 'Scheduled tasks']]) {
+  for (const [tab, heading] of [['Libraries & metadata', 'Library scanning'], ['Playback & transcoding', 'Video conversion'], ['Access & devices', 'Devices'], ['Maintenance & diagnostics', 'Scheduled tasks']]) {
     await page.getByRole('combobox', { name: 'Settings section', exact: true }).selectOption({ label: tab });
     await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -621,7 +622,7 @@ test('a reload offers the queue this device was playing, to resume or dismiss', 
   await expect(queue.locator('ol li').nth(1)).toContainText('Second Chapter');
   // Next moves the server's queue on too.
   await queue.getByRole('button', { name: 'Play Second Chapter now', exact: true }).click();
-  // (Auto-Play may already have added the following episode after it, on the server too.)
+  // (Autoplay next episode may already have added the following episode after it, on the server too.)
   await expect.poll(async () => (await serverQueue(page))[0]).toBe('Second Chapter');
   // Leaving the player some other way (a reload) and dismissing the offer discards it.
   await page.reload();
@@ -1126,7 +1127,7 @@ test('series file details show episode source tracks without claiming series-wid
 test('background scheduling exposes modes, task controls and recoverable Run now', async ({ page }, info) => {
   await seed(page);
   await page.goto('/settings?section=library');
-  const interval = page.getByRole('combobox', { name: 'Full library scan', exact: true });
+  const interval = page.getByRole('combobox', { name: 'Scheduled library scans', exact: true });
   await expect(interval.getByRole('option', { name: 'Every 15 minutes', exact: true })).toHaveCount(1);
   await expect(interval.getByRole('option', { name: 'Every 30 minutes', exact: true })).toHaveCount(1);
   await expect(interval.getByRole('option', { name: 'Every 2 hours', exact: true })).toHaveCount(1);

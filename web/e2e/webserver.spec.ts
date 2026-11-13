@@ -201,7 +201,7 @@ test('web server: watched threshold preserves resume until the selected boundary
   const items: Item[] = await addLibrary(page, media.movies);
   const item = items[0];
   await page.goto('/settings');
-  const threshold = page.getByRole('combobox', { name: 'Mark as watched at', exact: true });
+  const threshold = page.getByRole('combobox', { name: 'Mark as watched after', exact: true });
   await expect(threshold).toHaveValue('90');
   await threshold.selectOption('95');
   await expect.poll(async () => (await (await page.request.get('/api/me/prefs')).json()).watched_percent).toBe(95);

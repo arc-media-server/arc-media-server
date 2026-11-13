@@ -738,7 +738,7 @@ test('profile switching enforces library access and protects admin pages', async
   await page.goto('/profiles');
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole('navigation', { name: 'Settings sections' })).toHaveCount(0);
-  await expect(page.getByRole('switch', { name: 'Auto-Play', exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Autoplay next episode', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Activity/ })).toHaveCount(0);
   for (const path of ['/dashboard', '/insights', '/health', '/libraries', '/backups']) {
     await page.goto(path);
@@ -785,7 +785,7 @@ test('global scanning controls persist, apply live and respect startup Off', asy
   await page.goto('/settings?section=library');
   const automatic = page.getByRole('switch', { name: 'Scan automatically when files change', exact: true });
   await expect(automatic).toBeChecked();
-  const schedule = page.getByRole('combobox', { name: 'Full library scan', exact: true });
+  const schedule = page.getByRole('combobox', { name: 'Scheduled library scans', exact: true });
   await expect(schedule).toHaveValue('60');
   await page.getByText('Advanced scanning options', { exact: true }).click();
   const partial = page.getByRole('switch', { name: 'Scan only changed folders', exact: true });
@@ -799,7 +799,7 @@ test('global scanning controls persist, apply live and respect startup Off', asy
   await expect(startup).toBeEnabled();
   await startup.click();
   await expect(startup).not.toBeChecked();
-  await expect(page.getByText(/Libraries update when you scan them or change their folders/)).toBeVisible();
+  await expect(page.getByText(/Automatic, scheduled and startup scans are off/)).toBeVisible();
   await page.reload();
   await expect(automatic).not.toBeChecked();
   await expect(schedule).toHaveValue('0');
