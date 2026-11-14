@@ -160,6 +160,20 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 			mark = at
 		}
 	}
+	// The profile's history in this library, read once for the rows that start from it
+	// (Because You Watched, favourite genres, featured people) when the first of them needs it.
+	var history *store.WatchHistory
+	watchHistory := func() (*store.WatchHistory, error) {
+		if history == nil {
+			h, err := s.store.LibraryWatchHistory(ctx, userID, lib.ID)
+			if err != nil {
+				return nil, err
+			}
+			history = h
+			step("watch_history")
+		}
+		return history, nil
+	}
 	defer func() {
 		if timed {
 			s.log.Debug("recommended row timings", append([]any{"library", lib.Name}, steps...)...)
@@ -295,7 +309,11 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 		}
 	}
 	if !hidden["because_you_watched"] {
-		recent, err := s.store.RecentlyWatchedTitles(ctx, userID, lib.ID, 3)
+		h, err := watchHistory()
+		if err != nil {
+			return nil, err
+		}
+		recent, err := s.store.RecentlyWatchedFrom(ctx, h, 3)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +365,11 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 		}
 	}
 	if !hidden["more_in_genre"] || !hidden["top_in_genre"] {
-		favourites, err := s.store.FavouriteGenres(ctx, userID, lib.ID, 2)
+		h, err := watchHistory()
+		if err != nil {
+			return nil, err
+		}
+		favourites, err := s.store.FavouriteGenresFrom(ctx, h, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -375,7 +397,11 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 		}
 	}
 	if !hidden["top_by_person"] {
-		people, err := s.store.FeaturedPeople(ctx, userID, lib.ID, kind, 3, acc, 10)
+		h, err := watchHistory()
+		if err != nil {
+			return nil, err
+		}
+		people, err := s.store.FeaturedPeopleFrom(ctx, h, lib.ID, kind, 3, acc, 10)
 		if err != nil {
 			return nil, err
 		}
