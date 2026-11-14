@@ -793,45 +793,58 @@ func (s *Store) ListItemsWindow(ctx context.Context, q ItemQuery) ([]Item, bool,
 	return items, more, nil
 }
 
+// recentHistoryWindow bounds speculative history work independently of catalogue size.
+// A sparse library, restrictive filter, or large timestamp tie falls back to the catalogue.
+const recentHistoryWindow = 512
+
 func (s *Store) listItemWindow(ctx context.Context, q ItemQuery, limit, offset int) ([]Item, error) {
-	query, args := itemWindowSQL(q, limit, offset)
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var it Item
-		if err := scanItem(rows, &it); err != nil {
+	if q.UserID != "" && q.Sort == "watched" && q.Played && !q.Reverse &&
+		(q.Kind == "episode" || q.Kind == "movie") && offset+limit <= recentHistoryWindow {
+		var cutoff sql.NullInt64
+		err := s.db.QueryRowContext(ctx, `SELECT last_played_at FROM user_item_data
+			WHERE user_id = ? ORDER BY last_played_at DESC LIMIT 1 OFFSET ?`, q.UserID, recentHistoryWindow-1).Scan(&cutoff)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, err
 		}
-		items = append(items, it)
+		query, args := recentItemWindowSQL(q, limit, offset, cutoff)
+		items, err := s.queryItems(ctx, query, args...)
+		if err != nil || len(items) == limit {
+			return items, err
+		}
+		// An incomplete speculative window cannot prove there are no older eligible items.
+		// Re-run with all filters and the library-driven plan, including NULL timestamps.
 	}
-	return items, rows.Err()
+	query, args := itemWindowSQL(q, limit, offset)
+	return s.queryItems(ctx, query, args...)
 }
 
-// itemWindowSQL is shared by count-free windows and exact-total browsing.
+// itemWindowSQL is the catalogue-driven fallback, shared by windows and exact-total browsing.
 func itemWindowSQL(q ItemQuery, limit, offset int) (string, []any) {
-	recentHistory := q.UserID != "" && q.Sort == "watched" && q.Played && !q.Reverse && (q.Kind == "episode" || q.Kind == "movie")
-	filter := q
-	if recentHistory {
-		filter.Played = false // the driving watch record supplies this predicate directly
-	}
-	cond, args := itemFilter(filter)
+	cond, args := itemFilter(q)
 	order, orderArgs := itemOrdering(q)
-	from := "items"
-	if recentHistory {
-		// Recently Watched needs the newest watch records, not a sort of the entire episode
-		// catalogue. Keep the same filters/ties; CROSS JOIN preserves the indexed history driver.
-		from = "user_item_data watched CROSS JOIN items ON items.id = watched.item_id"
-		cond = "watched.user_id = ? AND watched.played = 1 AND " + cond
-		args = append([]any{q.UserID}, args...)
-		order, orderArgs = "watched.last_played_at DESC NULLS LAST, items.sort_title", nil
-	}
 	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
-	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM ` + from + ` WHERE ` + cond +
+	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM items WHERE ` + cond +
 		` ORDER BY ` + order + ` LIMIT ? OFFSET ?`, all
+}
+
+func recentItemWindowSQL(q ItemQuery, limit, offset int, cutoff sql.NullInt64) (string, []any) {
+	filter := q
+	filter.Played = false // supplied by the driving record
+	cond, args := itemFilter(filter)
+	bound := "watched.last_played_at IS NOT NULL"
+	prefix := []any{q.UserID}
+	if cutoff.Valid {
+		// Exclude the entire boundary tie. Enough results strictly newer than this timestamp
+		// are exact; otherwise the fallback sorts the complete tie by title before paging.
+		bound = "watched.last_played_at > ?"
+		prefix = append(prefix, cutoff.Int64)
+	}
+	args = append(prefix, args...)
+	args = append(args, limit, offset)
+	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM user_item_data watched
+		CROSS JOIN items ON items.id = watched.item_id
+		WHERE watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
+		` ORDER BY watched.last_played_at DESC NULLS LAST, items.sort_title LIMIT ? OFFSET ?`, args
 }
 
 // itemFilter is the WHERE clause (and its arguments) for a listing's filters and access.
