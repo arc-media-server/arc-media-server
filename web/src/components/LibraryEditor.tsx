@@ -22,15 +22,15 @@ export const orderings: { value: SourceOrdering; label: string }[] = [
 ];
 
 /** Adds a library for background scanning; a folder preview is optional. */
-export function LibraryEditorDialog({ library, open, onOpenChange }: { library?: Library; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function LibraryEditorDialog({ library, open, onOpenChange, onAdded }: { library?: Library; open: boolean; onOpenChange: (open: boolean) => void; onAdded?: (library: Library) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && <Editor library={library} onDone={() => onOpenChange(false)} />}
+      {open && <Editor library={library} onAdded={onAdded} onDone={() => onOpenChange(false)} />}
     </Dialog>
   );
 }
 
-function Editor({ library, onDone }: { library?: Library; onDone: () => void }) {
+function Editor({ library, onDone, onAdded }: { library?: Library; onDone: () => void; onAdded?: (library: Library) => void }) {
   const { t } = useTranslation('libraryEditor');
   const qc = useQueryClient();
   const gridLabels = { items: t('libraryEditor:grid.items'), collection: t('libraryEditor:grid.collection'), both: t('libraryEditor:grid.both') };
@@ -90,8 +90,9 @@ function Editor({ library, onDone }: { library?: Library; onDone: () => void }) 
       editing
         ? api.updateLibrary(library.id, { name, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
         : api.createLibrary({ name, kind, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       qc.invalidateQueries();
+      if (!editing) onAdded?.(saved);
       onDone();
     },
   });
