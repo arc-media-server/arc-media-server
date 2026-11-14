@@ -99,3 +99,80 @@ After deployment, ordinary owner use must confirm whether the earlier library/wa
 returns. If it does, capture a fresh diagnostics bundle while it is stalled, before restarting,
 including the approximate time and active scan/maintenance operation. Cloud fixtures alone cannot
 close that owner-server acceptance item.
+
+## 14 November: enriched Recommended and facet follow-up
+
+The earlier fixture above did not represent the owner's full watch history, cast data or
+long-running shows. New server-side observations after #465 put Series Recommended at 2.180s
+and Anime at 1.280s, while Recently Watched itself fell from the earlier 735ms to 6ms. Those
+are separate requests/libraries, not a controlled whole-page comparison. The same server
+snippet includes a 1.823s facets request. Kodi rendering/artwork is outside these server times.
+
+Astra's focused source/profile investigation found SQLite execution dominating the enriched
+fixture (~87% of sampled CPU). Continue/up-next, person/similarity queries, history aggregates
+and unwatched counts remain meaningful costs; JSON serialization was comparatively small.
+The older random 10–25s outliers did not recur in the instrumented comparison. Their cause
+remains unproven: cumulative throttling counters cannot attribute historical stalls to CPU
+quota, database locks, disk or GC.
+
+Four narrow follow-ups were developed on separate branches from main a799187:
+
+| Scope | What changes | Local result |
+| --- | --- | --- |
+| [Sparse watched library (#466)](https://github.com/arc-media-server/arc-media-server/pull/466) | Bound recent-history probes, with complete catalogue fallback | A 100-movie window behind 100k newer watched episodes: 140.9→3.35ms; dense episodes remain ~1ms |
+| [Continue/up-next (#467)](https://github.com/arc-media-server/arc-media-server/pull/467) | Query ordered successor candidates in 128-entry windows; avoid unused special-placement maps | 200×500 Continue stage 491→388ms; Series allocation 55.8→21.5MB/request |
+| [Favourite genres (#468)](https://github.com/arc-media-server/arc-media-server/pull/468) | Aggregate episode votes per title before joining its genres | Isolated query median 165.8→119.8ms, preserving per-episode weighting |
+| Library facets | Share accessible present streams across four media aggregates | 1,000×100 Series facets 2,057→1,254ms; Movies 1,183→569ms |
+
+These are separate-query/branch measurements, not additive savings or a combined deployment
+claim. Continue's 1,000×100 stage was essentially unchanged (283→285ms); its full Series page
+was 1,243→1,257ms. For 200×500 the page changed 1,326→1,205ms. FavouriteGenres improved its
+stage (141→111ms and 136→108ms) but barely moved complete pages (1,243→1,218ms and
+1,326→1,324ms). Other work and sample variation still dominate. Movie page differences on
+these branches are not claimed improvements.
+
+Full Recommended comparisons used 10,000 movies plus 100,000 episodes, roughly 68k watch-state
+records, shared cast/directors, genres, descriptions and real display ordering entries. Both
+1,000×100 and 200×500 shapes were tested, with first plus five repeated requests per library.
+History timestamps and UTC-day selections were fixed/matched; whole decoded JSON snapshots
+matched baseline in all four cases. Both facet payload hashes matched on every first/repeated
+request (first plus three repeats per library). Fixture setup ran before measurement; benchmark
+processes ran sequentially without concurrent builds/tests. These are in-process HTTP responses
+including authentication and encoding, excluding network/Kodi/browser/storage acceptance and
+without dropping OS caches. A few milliseconds of cgroup throttling occurred in the final
+Continue run, not enough evidence to explain the historical outliers.
+
+A simpler planner-selected watched JOIN fixed the sparse library but cost 422–489ms on the
+dense episode window, so it was rejected. Continue's initial 32-entry probe added round trips
+for shorter shows; the final 128-entry probe retained their stage latency. Initial facet samples
+before excluding unused subtitle streams were also retained. No preliminary/outlier samples
+are substituted for final-implementation results. Raw logs, fixed-fixture measurement helper,
+CPU profiles, snapshots and the investigation report are saved outside Git under
+`/workspace/arc-cloud-evidence/recommended-pipeline/` and
+`/workspace/arc-cloud-evidence/recommended-followups/`.
+
+Remaining work is deliberately explicit:
+
+- FeaturedPeople (~201ms in the owner's sample), three Similar sources and the recently-watched
+  title/history queries remain. Evaluate shared request-local aggregation or targeted query-plan
+  changes with exact profile/access/tie and episode-vote semantics before implementing them.
+- Continue still builds the selected display orders and selects recent series. A bounded
+  candidate window reduces state/file work, but does not make the entire request constant time.
+- Large simultaneous scans/maintenance, rare filters, multiple profiles and real disk/network
+  behavior need separate acceptance. The old library-disappearance/watchlist stall remains an
+  owner-server validation item; these fixtures do not close it.
+- Correlate the next deployment's per-request row/query/details timings. If a long stall recurs,
+  capture diagnostics before restart; compare the same library/request scope rather than
+  subtracting unrelated server and client timings.
+
+The new opt-in tests accept no external database/media path and skip in ordinary suites:
+
+```sh
+ARC_RUN_WATCHED_SCALE=1 go test ./internal/store -run '^TestWatchedWindowScaleMeasurements$' -count=1 -v
+ARC_RUN_GENRE_SCALE=1 go test ./internal/store -run '^TestFavouriteGenreScaleMeasurements$' -count=1 -v
+ARC_RUN_FACETS_SCALE=1 go test ./internal/api -run '^TestLibraryFacetScaleMeasurements$' -count=1 -v
+```
+
+Run each command in the branch/merged tree containing that test. Existing full Recommended
+measurements remain available through `ARC_RUN_RECOMMENDED_SCALE=1`. No persistent cache,
+new settings, schema/index migration or public API changes were introduced by these follow-ups.
