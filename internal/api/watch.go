@@ -404,18 +404,6 @@ func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts 
 			continue
 		}
 		entries := context.entries
-		available, err := s.store.AvailableChildren(ctx, series.ID)
-		if err != nil {
-			return nil, err
-		}
-		var ids []string
-		for _, e := range entries {
-			ids = append(ids, e.EpisodeID)
-		}
-		data, err := s.store.UserDataFor(ctx, userID, ids)
-		if err != nil {
-			return nil, err
-		}
 		// Start after the last episode watched; specials don't count as next.
 		start := -1
 		for i, e := range entries {
@@ -427,21 +415,40 @@ func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts 
 		if start < 0 {
 			continue // the last one watched isn't in this order
 		}
-		for _, e := range entries[start+1:] {
-			d := data[e.EpisodeID]
-			if e.Season == 0 && !e.InlineSpecial || !available[e.EpisodeID] || d.Played || e.EpisodeID == ws.LastEpisodeID {
-				continue
-			}
-			if d.PositionMS == 0 { // part-watched ones are in Continue Watching
-				ep, err := s.store.GetItem(ctx, e.EpisodeID)
-				if err != nil {
-					return nil, err
+		// Probe small windows after the last watched entry. Preserve the shared display
+		// traversal (including custom orders/specials), but avoid loading state and file
+		// availability for the whole show when only its next playable episode is needed.
+		const candidateWindow = 128
+		found := false
+		for at := start + 1; at < len(entries) && !found; at += candidateWindow {
+			batch := entries[at:min(at+candidateWindow, len(entries))]
+			ids := make([]string, 0, len(batch))
+			for _, e := range batch {
+				if e.Season != 0 || e.InlineSpecial {
+					ids = append(ids, e.EpisodeID)
 				}
-				if ep != nil {
-					out = append(out, homeEntry{*ep, ws.LastPlayedAt})
-				}
 			}
-			break
+			positions, err := s.store.AvailableUnwatched(ctx, userID, series.ID, ids)
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range batch {
+				position, ok := positions[e.EpisodeID]
+				if !ok || e.Season == 0 && !e.InlineSpecial || e.EpisodeID == ws.LastEpisodeID {
+					continue
+				}
+				found = true
+				if position == 0 { // part-watched successors already appear in Continue Watching
+					ep, err := s.store.GetItem(ctx, e.EpisodeID)
+					if err != nil {
+						return nil, err
+					}
+					if ep != nil {
+						out = append(out, homeEntry{*ep, ws.LastPlayedAt})
+					}
+				}
+				break
+			}
 		}
 		if len(out) >= 20 {
 			break

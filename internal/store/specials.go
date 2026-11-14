@@ -91,6 +91,22 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]Orderin
 			return nil, err
 		}
 	}
+	if len(before) == 0 {
+		// With no inline placements there is nothing to map or deduplicate. Preserve all
+		// regular entries (including repeated identities) and append Specials as before.
+		out := make([]OrderingEntry, 0, len(entries))
+		for _, e := range entries {
+			if e.Season != 0 {
+				out = append(out, e)
+			}
+		}
+		for _, e := range entries {
+			if e.Season == 0 {
+				out = append(out, e)
+			}
+		}
+		return out, nil
+	}
 	// First position wins, matching the existing season response's identity de-duplication.
 	unique := []OrderingEntry{}
 	seen := map[string]bool{}

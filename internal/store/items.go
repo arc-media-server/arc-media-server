@@ -676,44 +676,60 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 		WHERE ` + base + ` AND year > 0 GROUP BY year / 10 ORDER BY year / 10 DESC`); err != nil {
 		return out, err
 	}
-	// Streams of each title's present files: a movie's own, or a show's accessible episodes'.
+	// Collect each accessible title's present streams once. Separate own/child joins keep
+	// indexed identity lookups; an OR join plus four independent passes repeatedly walked
+	// the same episode/file/stream relations for show libraries.
 	child, childArgs := acc.Conds("e")
-	identity := "(e.id = items.id OR (items.kind = 'series' AND e.parent_id = items.id))"
+	childWhere := "1"
 	if len(child) > 0 {
-		identity += " AND " + strings.Join(child, " AND ")
+		childWhere = strings.Join(child, " AND ")
 	}
-	media := func(value, streamKind, extra string) ([]Facet, error) {
-		q := `SELECT v, COUNT(DISTINCT id) FROM (SELECT items.id AS id, ` + value + ` AS v FROM items
-			JOIN items e ON ` + identity + `
-			JOIN item_files f ON f.item_id = e.id JOIN media_files m ON m.id = f.file_id
-			JOIN media_streams st ON st.file_id = m.id
-			WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = '` + streamKind + `'` + extra + `)
-			GROUP BY v ORDER BY COUNT(DISTINCT id) DESC, v`
-		rows, err := s.db.QueryContext(ctx, q, append(append([]any{}, childArgs...), args...)...)
-		if err != nil {
-			return nil, err
+	mediaSQL := `WITH titles AS MATERIALIZED (SELECT items.id,items.kind FROM items WHERE ` + base + `),
+		files AS (
+			SELECT t.id,f.file_id FROM titles t JOIN items e ON e.id=t.id
+			JOIN item_files f ON f.item_id=e.id WHERE ` + childWhere + `
+			UNION ALL
+			SELECT t.id,f.file_id FROM titles t JOIN items e ON e.parent_id=t.id
+			JOIN item_files f ON f.item_id=e.id WHERE t.kind='series' AND ` + childWhere + `),
+		streams AS MATERIALIZED (
+			SELECT f.id,st.kind,LOWER(st.codec) AS codec,CAST(st.channels AS TEXT) AS channels,
+				st.channels AS channel_count,` + dynamicRangeSQL + ` AS dynamic_range FROM files f
+			JOIN media_files m ON m.id=f.file_id JOIN media_streams st ON st.file_id=m.id
+			WHERE m.missing_since IS NULL AND st.kind IN ('video','audio')),
+		values_by_kind AS (
+			SELECT id,'video' AS facet,codec AS value FROM streams WHERE kind='video' AND codec<>''
+			UNION ALL SELECT id,'range',dynamic_range FROM streams WHERE kind='video'
+			UNION ALL SELECT id,'audio',codec FROM streams WHERE kind='audio' AND codec<>''
+			UNION ALL SELECT id,'channels',channels FROM streams WHERE kind='audio' AND channel_count>0)
+		SELECT facet,value,COUNT(DISTINCT id) FROM values_by_kind
+		GROUP BY facet,value ORDER BY facet,COUNT(DISTINCT id) DESC,value`
+	mediaArgs := append(append(append([]any{}, args...), childArgs...), childArgs...)
+	rows, err := s.db.QueryContext(ctx, mediaSQL, mediaArgs...)
+	if err != nil {
+		return out, err
+	}
+	out.VideoCodecs, out.DynamicRanges, out.AudioCodecs, out.AudioChannels = []Facet{}, []Facet{}, []Facet{}, []Facet{}
+	for rows.Next() {
+		var kind string
+		var f Facet
+		if err = rows.Scan(&kind, &f.Value, &f.Count); err != nil {
+			rows.Close()
+			return out, err
 		}
-		defer rows.Close()
-		out := []Facet{}
-		for rows.Next() {
-			var f Facet
-			if err := rows.Scan(&f.Value, &f.Count); err != nil {
-				return nil, err
-			}
-			out = append(out, f)
+		switch kind {
+		case "video":
+			out.VideoCodecs = append(out.VideoCodecs, f)
+		case "range":
+			out.DynamicRanges = append(out.DynamicRanges, f)
+		case "audio":
+			out.AudioCodecs = append(out.AudioCodecs, f)
+		case "channels":
+			out.AudioChannels = append(out.AudioChannels, f)
 		}
-		return out, rows.Err()
 	}
-	if out.VideoCodecs, err = media("LOWER(st.codec)", "video", " AND st.codec <> ''"); err != nil {
-		return out, err
-	}
-	if out.DynamicRanges, err = media(dynamicRangeSQL, "video", ""); err != nil {
-		return out, err
-	}
-	if out.AudioCodecs, err = media("LOWER(st.codec)", "audio", " AND st.codec <> ''"); err != nil {
-		return out, err
-	}
-	if out.AudioChannels, err = media("CAST(st.channels AS TEXT)", "audio", " AND st.channels > 0"); err != nil {
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
 		return out, err
 	}
 	out.Resolutions = []Facet{}
@@ -793,45 +809,58 @@ func (s *Store) ListItemsWindow(ctx context.Context, q ItemQuery) ([]Item, bool,
 	return items, more, nil
 }
 
+// recentHistoryWindow bounds speculative history work independently of catalogue size.
+// A sparse library, restrictive filter, or large timestamp tie falls back to the catalogue.
+const recentHistoryWindow = 512
+
 func (s *Store) listItemWindow(ctx context.Context, q ItemQuery, limit, offset int) ([]Item, error) {
-	query, args := itemWindowSQL(q, limit, offset)
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var it Item
-		if err := scanItem(rows, &it); err != nil {
+	if q.UserID != "" && q.Sort == "watched" && q.Played && !q.Reverse &&
+		(q.Kind == "episode" || q.Kind == "movie") && offset+limit <= recentHistoryWindow {
+		var cutoff sql.NullInt64
+		err := s.db.QueryRowContext(ctx, `SELECT last_played_at FROM user_item_data
+			WHERE user_id = ? ORDER BY last_played_at DESC LIMIT 1 OFFSET ?`, q.UserID, recentHistoryWindow-1).Scan(&cutoff)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return nil, err
 		}
-		items = append(items, it)
+		query, args := recentItemWindowSQL(q, limit, offset, cutoff)
+		items, err := s.queryItems(ctx, query, args...)
+		if err != nil || len(items) == limit {
+			return items, err
+		}
+		// An incomplete speculative window cannot prove there are no older eligible items.
+		// Re-run with all filters and the library-driven plan, including NULL timestamps.
 	}
-	return items, rows.Err()
+	query, args := itemWindowSQL(q, limit, offset)
+	return s.queryItems(ctx, query, args...)
 }
 
-// itemWindowSQL is shared by count-free windows and exact-total browsing.
+// itemWindowSQL is the catalogue-driven fallback, shared by windows and exact-total browsing.
 func itemWindowSQL(q ItemQuery, limit, offset int) (string, []any) {
-	recentHistory := q.UserID != "" && q.Sort == "watched" && q.Played && !q.Reverse && (q.Kind == "episode" || q.Kind == "movie")
-	filter := q
-	if recentHistory {
-		filter.Played = false // the driving watch record supplies this predicate directly
-	}
-	cond, args := itemFilter(filter)
+	cond, args := itemFilter(q)
 	order, orderArgs := itemOrdering(q)
-	from := "items"
-	if recentHistory {
-		// Recently Watched needs the newest watch records, not a sort of the entire episode
-		// catalogue. Keep the same filters/ties; CROSS JOIN preserves the indexed history driver.
-		from = "user_item_data watched CROSS JOIN items ON items.id = watched.item_id"
-		cond = "watched.user_id = ? AND watched.played = 1 AND " + cond
-		args = append([]any{q.UserID}, args...)
-		order, orderArgs = "watched.last_played_at DESC NULLS LAST, items.sort_title", nil
-	}
 	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
-	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM ` + from + ` WHERE ` + cond +
+	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM items WHERE ` + cond +
 		` ORDER BY ` + order + ` LIMIT ? OFFSET ?`, all
+}
+
+func recentItemWindowSQL(q ItemQuery, limit, offset int, cutoff sql.NullInt64) (string, []any) {
+	filter := q
+	filter.Played = false // supplied by the driving record
+	cond, args := itemFilter(filter)
+	bound := "watched.last_played_at IS NOT NULL"
+	prefix := []any{q.UserID}
+	if cutoff.Valid {
+		// Exclude the entire boundary tie. Enough results strictly newer than this timestamp
+		// are exact; otherwise the fallback sorts the complete tie by title before paging.
+		bound = "watched.last_played_at > ?"
+		prefix = append(prefix, cutoff.Int64)
+	}
+	args = append(prefix, args...)
+	args = append(args, limit, offset)
+	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM user_item_data watched
+		CROSS JOIN items ON items.id = watched.item_id
+		WHERE watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
+		` ORDER BY watched.last_played_at DESC NULLS LAST, items.sort_title LIMIT ? OFFSET ?`, args
 }
 
 // itemFilter is the WHERE clause (and its arguments) for a listing's filters and access.
