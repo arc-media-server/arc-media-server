@@ -147,6 +147,44 @@ func (s *Store) UserDataFor(ctx context.Context, userID string, itemIDs []string
 	return out, nil
 }
 
+// AvailableUnwatched returns positions for the given series episodes that have a present
+// file and are not watched by this profile. Callers page ordered candidates rather than
+// loading every episode's complete watch state. Missing records mean unplayed, position zero.
+func (s *Store) AvailableUnwatched(ctx context.Context, userID, seriesID string, episodeIDs []string) (map[string]int64, error) {
+	out := map[string]int64{}
+	for start := 0; start < len(episodeIDs); start += 500 {
+		batch := episodeIDs[start:min(start+500, len(episodeIDs))]
+		args := []any{userID, seriesID}
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT i.id, COALESCE(u.position_ms,0) FROM items i
+			LEFT JOIN user_item_data u ON u.user_id = ? AND u.item_id = i.id
+			WHERE i.parent_id = ? AND i.id IN (`+placeholders(len(batch))+`)
+			AND COALESCE(u.played,0) = 0 AND EXISTS (
+				SELECT 1 FROM item_files f JOIN media_files m ON m.id=f.file_id
+				WHERE f.item_id=i.id AND m.missing_since IS NULL)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id string
+			var position int64
+			if err := rows.Scan(&id, &position); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id] = position
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 // UnwatchedCounts returns, per series, how many of its episodes on disk a profile hasn't watched.
 func (s *Store) UnwatchedCounts(ctx context.Context, userID string, seriesIDs []string) (map[string]int, error) {
 	out := map[string]int{}
