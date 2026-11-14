@@ -67,7 +67,23 @@ func TestRecommendedRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A library starts without Rediscover, Top in Genre, the featured person and Top Unwatched.
 	var types []string
+	for _, row := range rows {
+		types = append(types, row.Type)
+	}
+	if want := []string{"continue", "recently_released", "recently_added", "top_rated", "recently_watched", "more_in_genre"}; !slices.Equal(types, want) {
+		t.Errorf("default rows %v, want %v", types, want)
+	}
+	// Turned on in Edit Recommended, they're built as before.
+	all := `[{"type":"rediscover"},{"type":"top_in_genre"},{"type":"top_by_person"},{"type":"top_unwatched"}]`
+	if err := st.SetRecommendedLayout(ctx, lib, all); err != nil {
+		t.Fatal(err)
+	}
+	if rows, err = s.recommendedRows(r, l); err != nil {
+		t.Fatal(err)
+	}
+	types = nil
 	for _, row := range rows {
 		filtered, err := s.recommendedRowsLimitTarget(r, l, recommendedLimit, row.ID)
 		if err != nil || len(filtered) != 1 {

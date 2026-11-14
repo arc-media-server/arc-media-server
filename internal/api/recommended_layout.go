@@ -14,17 +14,31 @@ type recommendedLook struct {
 
 var recommendedTypes = []string{"continue", "recently_released", "recently_added", "start_watching", "because_you_watched", "top_rated", "recently_watched", "rediscover", "more_in_genre", "top_in_genre", "top_by_person", "top_unwatched"}
 
+// recommendedHiddenByDefault are the row families a library starts without (owner, 14 November):
+// they overlap other rows (Top Unwatched, Top in Genre) or are extras (Rediscover, the featured
+// person), and each costs a slow query on a large library. Edit Recommended turns them on.
+var recommendedHiddenByDefault = []string{"rediscover", "top_in_genre", "top_by_person", "top_unwatched"}
+
 func (s *Server) readRecommendedLayout(r *http.Request, id int64) ([]recommendedLook, error) {
 	raw, err := s.store.RecommendedLayout(r.Context(), id)
 	if err != nil {
 		return nil, err
 	}
 	rows := []recommendedLook{}
-	err = json.Unmarshal([]byte(raw), &rows)
-	return rows, err
+	if err := json.Unmarshal([]byte(raw), &rows); err != nil {
+		return nil, err
+	}
+	// Families the saved layout doesn't mention (none, for a library never edited) follow it in
+	// the default order with their default visibility.
+	for _, family := range recommendedTypes {
+		if !slices.ContainsFunc(rows, func(r recommendedLook) bool { return r.Type == family }) {
+			rows = append(rows, recommendedLook{Type: family, Hidden: slices.Contains(recommendedHiddenByDefault, family)})
+		}
+	}
+	return rows, nil
 }
 
-// getRecommendedLayout: GET /api/libraries/{id}/recommended/layout returns the library's shared row-family order, visibility and style (admin).
+// getRecommendedLayout: GET /api/libraries/{id}/recommended/layout returns the library's shared row-family order, visibility and style for every family, defaults included (admin).
 func (s *Server) getRecommendedLayout(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
@@ -38,7 +52,7 @@ func (s *Server) getRecommendedLayout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"rows": rows})
 }
 
-// setRecommendedLayout: PUT /api/libraries/{id}/recommended/layout {"rows":[{"type","hidden","style"}]} sets shared Recommended rows (admin). Empty rows resets defaults; omitted/new families remain visible. Styles: poster, thumb, arc or empty for automatic.
+// setRecommendedLayout: PUT /api/libraries/{id}/recommended/layout {"rows":[{"type","hidden","style"}]} sets shared Recommended rows (admin). Empty rows resets defaults; omitted/new families take their default visibility (rediscover, top_in_genre, top_by_person and top_unwatched start hidden). Styles: poster, thumb, arc or empty for automatic.
 func (s *Server) setRecommendedLayout(w http.ResponseWriter, r *http.Request) {
 	lib, ok := s.libraryFromPath(w, r)
 	if !ok {
