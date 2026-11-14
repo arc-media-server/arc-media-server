@@ -85,6 +85,6 @@ func TestRecommendedQueriesLookUpWatchStateByTitle(t *testing.T) {
 	listing("Recently Watched (shows)", ItemQuery{Kind: "series", Played: true, Sort: "watched"})
 	listing("Rediscover", ItemQuery{Kind: "series", PlayedBefore: time.Now().Add(-180 * 24 * time.Hour).Unix(), Sort: "shuffle"})
 	listing("Unwatched", ItemQuery{Kind: "series", Unwatched: true, Sort: "rating"})
-	q, args := featuredPeopleSQL(u.ID, lib, "series", 3, 10, Access{})
+	q, args := featuredPeopleSQL(lib, "series", 3, Access{})
 	plan("Featured people", q, args)
 }

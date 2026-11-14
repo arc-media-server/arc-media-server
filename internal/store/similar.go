@@ -66,37 +66,3 @@ func (s *Store) Similar(ctx context.Context, it *Item, acc Access, limit int) ([
 	}
 	return out, rows.Err()
 }
-
-// RecentlyWatchedTitles lists the movies and shows in a library a profile watched most recently
-// (a show counts when any of its episodes was played), newest first.
-func (s *Store) RecentlyWatchedTitles(ctx context.Context, userID string, libraryID int64, limit int) ([]Item, error) {
-	return s.queryItems(ctx, `SELECT `+itemCols+` FROM items WHERE id IN (
-			SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) FROM user_item_data u
-			JOIN items i ON i.id = u.item_id
-			WHERE u.user_id = ? AND i.library_id = ? AND (u.played = 1 OR u.position_ms > 0) AND u.last_played_at IS NOT NULL
-			GROUP BY 1 ORDER BY MAX(u.last_played_at) DESC LIMIT ?)`, userID, libraryID, limit)
-}
-
-// FavouriteGenres lists the genres of the titles a profile has watched in a library, most watched
-// first.
-func (s *Store) FavouriteGenres(ctx context.Context, userID string, libraryID int64, limit int) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `WITH watched_titles AS MATERIALIZED (
-		SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) AS title_id,
-			COUNT(*) AS watches FROM user_item_data u JOIN items i ON i.id = u.item_id
-		WHERE u.user_id = ? AND i.library_id = ? AND u.played = 1 GROUP BY 1)
-		SELECT g.name FROM watched_titles w JOIN item_genres g ON g.item_id = w.title_id
-		GROUP BY g.name ORDER BY SUM(w.watches) DESC, g.name LIMIT ?`, userID, libraryID, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var g string
-		if err := rows.Scan(&g); err != nil {
-			return nil, err
-		}
-		out = append(out, g)
-	}
-	return out, rows.Err()
-}
