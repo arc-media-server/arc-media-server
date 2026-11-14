@@ -248,7 +248,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
-- [ ] TheTVDB and TMDB attribution (required by their API terms)
+- [x] TheTVDB and TMDB attribution (required by their API terms) (#64)
 - [ ] Check TheTVDB licence terms for open-source distribution (shipped key vs each user's own key)
 - [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
 

@@ -38,7 +38,7 @@ test('developer docs: the served guide link opens the bundled canonical walkthro
   await expect(page.getByRole('heading', { name: 'Browse episodes and alternate orders', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Watch Together: enter a room, then run ordinary playback', exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Downloads: check support before showing offline controls', exact: true })).toHaveCount(1);
-  await expect(page.getByRole('link', { name: 'versioned original-download handoff', exact: true })).toHaveAttribute('href', 'https://github.com/arc-media-server/arc-media-server/blob/50d7298f21964e46663751cc6a4078e33bac4628/docs/DOWNLOADS-OFFLINE-API.md');
+  await expect(page.getByRole('link', { name: 'original-download guide', exact: true })).toHaveAttribute('href', 'https://github.com/arc-media-server/arc-media-server/blob/main/docs/DOWNLOADS-OFFLINE-API.md');
   await page.getByRole('heading', { name: 'Browse episodes and alternate orders', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('developer-guide-desktop.png') });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -188,8 +188,11 @@ test('developer docs: Watch Together examples use device ownership, revisions an
   const guest = await deviceHeaders(page, owner.id); // Same profile, a separate device session.
   const caps = await (await page.request.get('/api/v1/capabilities', { headers: host })).json();
   expect(caps.features.watch_together).toEqual({ supported: true, available: true, allowed: true });
-  expect(caps.features.downloads_original).toBeUndefined(); // Pending downloads are not implemented by this docs PR.
-  expect(caps.features.downloads_preparation).toBeUndefined();
+  // Original downloads are merged (#62): an administrator is allowed them on this server.
+  for (const feature of ['downloads_original', 'downloads_preparation']) {
+    expect(caps.features[feature]).toMatchObject({ supported: true, allowed: true });
+    expect(typeof caps.features[feature].available).toBe('boolean');
+  }
   const created = await page.request.post('/api/v1/watch-together', { headers: host, data: { ...example('watch-room'), item_id: item.id } });
   expect(created.status()).toBe(201);
   const invitation = await created.json();

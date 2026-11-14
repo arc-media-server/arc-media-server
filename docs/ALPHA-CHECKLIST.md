@@ -23,7 +23,7 @@ link for each result. Earlier green runs are historical evidence; unknown is not
 - [ ] #136: complete recovery/storage/mount/external-config rehearsal on disposable deployment
   copies; follow RECOVERY.md. A SQLite backup alone cannot restore uploaded artwork.
 - [ ] #137: completed 7–14 day server trial with resource observations and outstanding problems.
-- [ ] #64: required provider attribution is visible in its agreed UI locations.
+- [x] #64: required provider attribution is visible in its agreed UI locations (film and show pages, and Credits in Settings).
 - [ ] #65: provider distribution/access model is confirmed; no owner key is embedded or shipped.
 - [ ] Installation, networking, version/rollback and recovery documentation match the candidate;
   test external configuration and hardware separately where claimed.
