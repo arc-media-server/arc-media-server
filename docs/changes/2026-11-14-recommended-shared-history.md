@@ -26,7 +26,7 @@ Decisions and limits:
 - A show's own watch row (from an older import) still counts for Because You Watched and
   genres, and still doesn't date the show's cast, as before.
 - The history is held for one request only; nothing is cached or stored, no migration.
-- Stacked on #466–#469 (Codex's Recommended PRs); merge those first.
+- Builds on #466–#469 (Codex's Recommended PRs, merged).
 
 Validation: a new store test compares all three rows with the old queries on a library with
 ties, part-watched and undated plays, missing files, an age limit, a second profile and walk
