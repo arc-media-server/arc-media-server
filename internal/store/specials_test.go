@@ -213,3 +213,43 @@ func TestCreditCountsReplaceWithoutChangingPeopleOrLocks(t *testing.T) {
 		t.Fatalf("stale credits=%+v %v", cs, err)
 	}
 }
+
+func TestDisplayEntriesWithoutPlacementsKeepsRepeatedIdentities(t *testing.T) {
+	st := openTest(t)
+	ctx := t.Context()
+	lib, err := st.SyncLibrary(ctx, "Shows", "shows", "tmdb_aired", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "series", Title: "Show"}, "show")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "episode", ParentID: sid, Title: "Episode"}, "episode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	special, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "episode", ParentID: sid, Title: "Special"}, "special")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid, err := st.UpsertOrdering(ctx, sid, "tmdb_aired", "", "Aired", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = st.ReplaceOrdering(ctx, oid, nil, nil, []OrderingEntry{{EpisodeID: special, Season: 0, Episode: 1}, {EpisodeID: ep, Season: 1, Episode: 1}, {EpisodeID: ep, Season: 2, Episode: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, inline := range []bool{false, true} {
+		if err = st.SetInlineSpecials(ctx, sid, &inline); err != nil {
+			t.Fatal(err)
+		}
+		got, err := st.DisplayEntries(ctx, oid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 3 || got[0].EpisodeID != ep || got[1].EpisodeID != ep || got[2].EpisodeID != special || got[1].GroupSeason != 2 || got[2].InlineSpecial {
+			t.Fatalf("inline%v: %+v", inline, got)
+		}
+	}
+}
