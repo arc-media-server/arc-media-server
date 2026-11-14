@@ -764,27 +764,74 @@ func (s *Store) ListItemsPage(ctx context.Context, q ItemQuery) ([]Item, int, in
 		}
 	}
 
-	order, orderArgs := itemOrdering(q)
 	limit := q.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
-	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM items WHERE `+cond+
-		` ORDER BY `+order+` LIMIT ? OFFSET ?`, all...)
+	items, err := s.listItemWindow(ctx, q, limit, offset)
+	return items, total, offset, err
+}
+
+// ListItemsWindow lists one bounded recommendation window without counting every matching
+// title. The extra record determines continuation; ordinary browsing keeps its exact totals.
+func (s *Store) ListItemsWindow(ctx context.Context, q ItemQuery) ([]Item, bool, error) {
+	if q.Jump != "" {
+		return nil, false, errors.New("recommendation windows do not support letter jumps")
+	}
+	limit := q.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	items, err := s.listItemWindow(ctx, q, limit+1, max(0, q.Offset))
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, false, err
+	}
+	more := len(items) > limit
+	if more {
+		items = items[:limit]
+	}
+	return items, more, nil
+}
+
+func (s *Store) listItemWindow(ctx context.Context, q ItemQuery, limit, offset int) ([]Item, error) {
+	query, args := itemWindowSQL(q, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 	items := []Item{}
 	for rows.Next() {
 		var it Item
 		if err := scanItem(rows, &it); err != nil {
-			return nil, 0, 0, err
+			return nil, err
 		}
 		items = append(items, it)
 	}
-	return items, total, offset, rows.Err()
+	return items, rows.Err()
+}
+
+// itemWindowSQL is shared by count-free windows and exact-total browsing.
+func itemWindowSQL(q ItemQuery, limit, offset int) (string, []any) {
+	recentHistory := q.UserID != "" && q.Sort == "watched" && q.Played && !q.Reverse && (q.Kind == "episode" || q.Kind == "movie")
+	filter := q
+	if recentHistory {
+		filter.Played = false // the driving watch record supplies this predicate directly
+	}
+	cond, args := itemFilter(filter)
+	order, orderArgs := itemOrdering(q)
+	from := "items"
+	if recentHistory {
+		// Recently Watched needs the newest watch records, not a sort of the entire episode
+		// catalogue. Keep the same filters/ties; CROSS JOIN preserves the indexed history driver.
+		from = "user_item_data watched CROSS JOIN items ON items.id = watched.item_id"
+		cond = "watched.user_id = ? AND watched.played = 1 AND " + cond
+		args = append([]any{q.UserID}, args...)
+		order, orderArgs = "watched.last_played_at DESC NULLS LAST, items.sort_title", nil
+	}
+	all := append(append(append([]any{}, args...), orderArgs...), limit, offset)
+	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM ` + from + ` WHERE ` + cond +
+		` ORDER BY ` + order + ` LIMIT ? OFFSET ?`, all
 }
 
 // itemFilter is the WHERE clause (and its arguments) for a listing's filters and access.

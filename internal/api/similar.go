@@ -43,7 +43,6 @@ type recommendedRow struct {
 	HasMore  bool   `json:"has_more"`
 	sourceID string
 	query    *store.ItemQuery
-	total    int
 
 	Style string `json:"style,omitempty"`
 	// What the row is: continue, recently_released, recently_added, start_watching,
@@ -90,12 +89,12 @@ func (s *Server) recommended(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	started := time.Now()
-	rows, err := s.recommendedRows(r, lib)
+	layout, err := s.readRecommendedLayout(r, lib.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	layout, err := s.readRecommendedLayout(r, lib.ID)
+	rows, err := s.recommendedRowsWithLayout(r, lib, recommendedLimit, "", layout)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -120,6 +119,25 @@ func recommendedRowID(row recommendedRow) string {
 }
 
 func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library, limit int, targetID string) ([]recommendedRow, error) {
+	layout, err := s.readRecommendedLayout(r, lib.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.recommendedRowsWithLayout(r, lib, limit, targetID, layout)
+}
+
+func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, limit int, targetID string, layout []recommendedLook) ([]recommendedRow, error) {
+	hidden := map[string]bool{}
+	for _, look := range layout {
+		if _, seen := hidden[look.Type]; !seen {
+			hidden[look.Type] = look.Hidden
+		}
+	}
+	data := s.itemData(r)
+	contexts, posters := s.episodeContexts(r.Context()), seasonPosterCache{}
+	home := func(entries []homeEntry) ([]itemDTO, error) {
+		return s.homeDTOsWith(r, entries, contexts, posters, data.fill)
+	}
 	ctx := r.Context()
 	userID := currentUserID(r)
 	acc := access(r)
@@ -147,28 +165,47 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 			s.log.Debug("recommended row timings", append([]any{"library", lib.Name}, steps...)...)
 		}
 	}()
-	wanted := func(row recommendedRow) bool { return targetID == "" || targetID == recommendedRowID(row) }
+	wanted := func(row recommendedRow) bool {
+		return !hidden[row.Type] && (targetID == "" || targetID == recommendedRowID(row))
+	}
 	var nextQuery *store.ItemQuery
-	var nextTotal int
+	var nextMore bool
 	add := func(row recommendedRow) {
-		row.query, row.total = nextQuery, nextTotal
-		nextQuery, nextTotal = nil, 0
+		row.query = nextQuery
+		hasMore := nextMore
+		nextQuery, nextMore = nil, false
 		if len(row.Items) > 0 {
 			row.ID = recommendedRowID(row)
 			row.ItemsURL = fmt.Sprintf("/api/v1/libraries/%d/recommended/rows/%s", lib.ID, row.ID)
-			row.HasMore = row.total > len(row.Items) || (row.query == nil && (len(row.Items) >= limit || row.Type == "because_you_watched"))
+			row.HasMore = hasMore || (row.query == nil && (len(row.Items) >= limit || row.Type == "because_you_watched"))
 			row.Title = englishRowTitle(row, kind == "series")
 			rows = append(rows, row)
 		}
 	}
 	// list lists the library's titles (or episodes) with the profile's watch state.
-	list := func(q store.ItemQuery) ([]itemDTO, error) {
+	list := func(q store.ItemQuery, rowType string) ([]itemDTO, error) {
 		q.LibraryID, q.UserID, q.Access, q.Limit = lib.ID, userID, acc, limit
 		if q.Kind == "" {
 			q.Kind = kind
 		}
-		items, total, err := s.store.ListItems(ctx, q)
-		nextQuery, nextTotal = &q, total
+		queryStart := time.Time{}
+		if timed {
+			queryStart = time.Now()
+		}
+		items, more, err := s.store.ListItemsWindow(ctx, q)
+		if timed {
+			steps = append(steps, rowType+"_query", time.Since(queryStart).Round(time.Millisecond))
+		}
+		nextQuery, nextMore = &q, more
+		detailStart := time.Time{}
+		if timed {
+			detailStart = time.Now()
+		}
+		defer func() {
+			if timed {
+				steps = append(steps, rowType+"_details", time.Since(detailStart).Round(time.Millisecond))
+			}
+		}()
 		if err != nil {
 			return nil, err
 		}
@@ -177,15 +214,15 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 			for i, it := range items {
 				entries[i] = homeEntry{item: it}
 			}
-			return s.homeDTOs(r, entries)
+			return home(entries)
 		}
 		dtos := toDTOs(items)
-		return dtos, s.fillUserData(r, ptrs(dtos))
+		return dtos, data.fill(ptrs(dtos))
 	}
 	// unseen keeps the titles the profile hasn't finished, with their watch state.
 	unseen := func(items []store.Item) ([]itemDTO, error) {
 		dtos := toDTOs(items)
-		if err := s.fillUserData(r, ptrs(dtos)); err != nil {
+		if err := data.fill(ptrs(dtos)); err != nil {
 			return nil, err
 		}
 		out := []itemDTO{}
@@ -207,7 +244,7 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 		if !wanted(row) {
 			return false, nil
 		}
-		items, err := list(q)
+		items, err := list(q, row.Type)
 		if err != nil {
 			return false, err
 		}
@@ -226,11 +263,11 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 		}
 		var next []homeEntry
 		if lib.Kind == "shows" {
-			if next, err = s.upNext(r, here); err != nil {
+			if next, err = s.upNextWithContexts(r, here, contexts); err != nil {
 				return nil, err
 			}
 		}
-		items, err := s.homeDTOs(r, mergeHome(inProgress, next, limit))
+		items, err := home(mergeHome(inProgress, next, limit))
 		if err != nil {
 			return nil, err
 		}
@@ -257,38 +294,40 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 			return rows, err
 		}
 	}
-	recent, err := s.store.RecentlyWatchedTitles(ctx, userID, lib.ID, 3)
-	if err != nil {
-		return nil, err
-	}
-	step("recently_watched_titles")
-	for _, source := range recent {
-		row := recommendedRow{Type: "because_you_watched", Name: source.Title, sourceID: source.ID}
-		if !wanted(row) {
-			continue
-		}
-		visible, err := s.store.CanSee(ctx, &source, acc)
+	if !hidden["because_you_watched"] {
+		recent, err := s.store.RecentlyWatchedTitles(ctx, userID, lib.ID, 3)
 		if err != nil {
 			return nil, err
 		}
-		if !visible {
+		step("recently_watched_titles")
+		for _, source := range recent {
+			row := recommendedRow{Type: "because_you_watched", Name: source.Title, sourceID: source.ID}
+			if !wanted(row) {
+				continue
+			}
+			visible, err := s.store.CanSee(ctx, &source, acc)
+			if err != nil {
+				return nil, err
+			}
+			if !visible {
+				if targetID != "" {
+					return rows, nil
+				}
+				continue
+			}
+			similar, err := s.store.Similar(ctx, &source, acc, limit)
+			if err != nil {
+				return nil, err
+			}
+			row.Items, err = unseen(similar)
+			if err != nil {
+				return nil, err
+			}
+			add(row)
+			step(row.Type)
 			if targetID != "" {
 				return rows, nil
 			}
-			continue
-		}
-		similar, err := s.store.Similar(ctx, &source, acc, limit)
-		if err != nil {
-			return nil, err
-		}
-		row.Items, err = unseen(similar)
-		if err != nil {
-			return nil, err
-		}
-		add(row)
-		step(row.Type)
-		if targetID != "" {
-			return rows, nil
 		}
 	}
 	watched := store.ItemQuery{Played: true, Sort: "watched"}
@@ -307,45 +346,51 @@ func (s *Server) recommendedRowsLimitTarget(r *http.Request, lib *store.Library,
 			return rows, err
 		}
 	}
-	favourites, err := s.store.FavouriteGenres(ctx, userID, lib.ID, 2)
-	if err != nil {
-		return nil, err
-	}
-	step("favourite_genres")
-	for _, genre := range favourites {
-		row := recommendedRow{Type: "more_in_genre", Name: genre, Genre: genre}
-		if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "shuffle", Unwatched: true}); stop || err != nil {
-			return rows, err
+	if !hidden["more_in_genre"] || !hidden["top_in_genre"] {
+		favourites, err := s.store.FavouriteGenres(ctx, userID, lib.ID, 2)
+		if err != nil {
+			return nil, err
+		}
+		step("favourite_genres")
+		for _, genre := range favourites {
+			row := recommendedRow{Type: "more_in_genre", Name: genre, Genre: genre}
+			if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "shuffle", Unwatched: true}); stop || err != nil {
+				return rows, err
+			}
+		}
+		if !hidden["top_in_genre"] {
+			genres, err := s.store.LibraryGenres(ctx, lib.ID, kind, 5, acc)
+			if err != nil {
+				return nil, err
+			}
+			step("library_genres")
+			genres = slices.DeleteFunc(genres, func(g string) bool { return slices.Contains(favourites, g) })
+			if len(genres) > 0 {
+				genre := genres[day%len(genres)]
+				row := recommendedRow{Type: "top_in_genre", Name: genre, Genre: genre}
+				if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "rating"}); stop || err != nil {
+					return rows, err
+				}
+			}
 		}
 	}
-	genres, err := s.store.LibraryGenres(ctx, lib.ID, kind, 5, acc)
-	if err != nil {
-		return nil, err
-	}
-	step("library_genres")
-	genres = slices.DeleteFunc(genres, func(g string) bool { return slices.Contains(favourites, g) })
-	if len(genres) > 0 {
-		genre := genres[day%len(genres)]
-		row := recommendedRow{Type: "top_in_genre", Name: genre, Genre: genre}
-		if stop, err := queryRow(row, store.ItemQuery{Genre: genre, Sort: "rating"}); stop || err != nil {
-			return rows, err
+	if !hidden["top_by_person"] {
+		people, err := s.store.FeaturedPeople(ctx, userID, lib.ID, kind, 3, acc, 10)
+		if err != nil {
+			return nil, err
 		}
-	}
-	people, err := s.store.FeaturedPeople(ctx, userID, lib.ID, kind, 3, acc, 10)
-	if err != nil {
-		return nil, err
-	}
-	step("featured_people")
-	pool := people
-	if len(people) > 0 && people[0].LastWatchedAt > 0 {
-		pool = slices.DeleteFunc(slices.Clone(people), func(p store.FeaturedPerson) bool { return p.LastWatchedAt == 0 })
-		pool = pool[:min(3, len(pool))]
-	}
-	if len(pool) > 0 {
-		person := pool[day%len(pool)]
-		row := recommendedRow{Type: "top_by_person", Name: person.Name, PersonID: person.ID, Role: person.Role}
-		if stop, err := queryRow(row, store.ItemQuery{PersonID: person.ID, PersonRole: person.Role, Sort: "rating"}); stop || err != nil {
-			return rows, err
+		step("featured_people")
+		pool := people
+		if len(people) > 0 && people[0].LastWatchedAt > 0 {
+			pool = slices.DeleteFunc(slices.Clone(people), func(p store.FeaturedPerson) bool { return p.LastWatchedAt == 0 })
+			pool = pool[:min(3, len(pool))]
+		}
+		if len(pool) > 0 {
+			person := pool[day%len(pool)]
+			row := recommendedRow{Type: "top_by_person", Name: person.Name, PersonID: person.ID, Role: person.Role}
+			if stop, err := queryRow(row, store.ItemQuery{PersonID: person.ID, PersonRole: person.Role, Sort: "rating"}); stop || err != nil {
+				return rows, err
+			}
 		}
 	}
 	if _, err := queryRow(recommendedRow{Type: "top_unwatched"}, store.ItemQuery{Sort: "rating", Unwatched: true}); err != nil {

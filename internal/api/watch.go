@@ -15,34 +15,7 @@ import (
 // fillUserData adds the current profile's watch state to items: progress and watched for movies
 // and episodes, unwatched episode counts for series.
 func (s *Server) fillUserData(r *http.Request, items []*itemDTO) error {
-	userID := currentUserID(r)
-	if userID == "" || len(items) == 0 {
-		return nil
-	}
-	var ids, seriesIDs []string
-	for _, d := range items {
-		ids = append(ids, d.ID) // ratings and the watchlist apply to shows too
-		if d.Kind == "series" {
-			seriesIDs = append(seriesIDs, d.ID)
-		}
-	}
-	data, err := s.store.UserDataFor(r.Context(), userID, ids)
-	if err != nil {
-		return err
-	}
-	counts, err := s.store.UnwatchedCounts(r.Context(), userID, seriesIDs)
-	if err != nil {
-		return err
-	}
-	for _, d := range items {
-		u := data[d.ID]
-		d.UserData = &u
-		if d.Kind == "series" {
-			n := counts[d.ID]
-			d.UnwatchedCount = &n
-		}
-	}
-	return nil
+	return s.itemData(r).fill(items)
 }
 
 func ptrs(items []itemDTO) []*itemDTO {
@@ -341,10 +314,13 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 // homeDTOs describes home entries: episodes with their series and their numbers in its order,
 // all with the profile's watch state.
 func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, error) {
-	ctx := r.Context()
+	return s.homeDTOsWith(r, entries, s.episodeContexts(r.Context()), seasonPosterCache{}, func(items []*itemDTO) error {
+		return s.fillUserData(r, items)
+	})
+}
+
+func (s *Server) homeDTOsWith(r *http.Request, entries []homeEntry, contexts *episodeContexts, posters seasonPosterCache, fill func([]*itemDTO) error) ([]itemDTO, error) {
 	out := make([]itemDTO, 0, len(entries))
-	contexts := s.episodeContexts(ctx)
-	posters := seasonPosterCache{}
 	for _, e := range entries {
 		it := e.item
 		if it.Kind != "episode" {
@@ -362,7 +338,7 @@ func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, erro
 		}
 		out = append(out, d)
 	}
-	if err := s.fillUserData(r, ptrs(out)); err != nil {
+	if err := fill(ptrs(out)); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -395,6 +371,10 @@ func (s *Server) inProgress(r *http.Request, acc store.Access) ([]homeEntry, err
 // upNext finds the next episode to watch of each show the profile has been watching and may see
 // (acc).
 func (s *Server) upNext(r *http.Request, acc store.Access) ([]homeEntry, error) {
+	return s.upNextWithContexts(r, acc, s.episodeContexts(r.Context()))
+}
+
+func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts *episodeContexts) ([]homeEntry, error) {
 	ctx := r.Context()
 	userID := currentUserID(r)
 	watched, err := s.store.RecentlyWatchedSeries(ctx, userID, 40, acc)
@@ -410,10 +390,11 @@ func (s *Server) upNext(r *http.Request, acc store.Access) ([]homeEntry, error) 
 		if dismissed[ws.SeriesID] >= ws.LastPlayedAt {
 			continue // removed since an episode was last watched
 		}
-		series, err := s.store.GetItem(ctx, ws.SeriesID)
+		context, err := contexts.get(ws.SeriesID)
 		if err != nil {
 			return nil, err
 		}
+		series := context.series
 		if series == nil {
 			continue
 		}
@@ -422,10 +403,7 @@ func (s *Server) upNext(r *http.Request, acc store.Access) ([]homeEntry, error) 
 		} else if !ok {
 			continue
 		}
-		_, entries, err := s.orderPositions(ctx, series)
-		if err != nil {
-			return nil, err
-		}
+		entries := context.entries
 		available, err := s.store.AvailableChildren(ctx, series.ID)
 		if err != nil {
 			return nil, err

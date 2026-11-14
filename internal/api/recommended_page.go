@@ -26,12 +26,12 @@ func (s *Server) recommendedPage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, err.Error())
 		return
 	}
-	rows, err := s.recommendedRowsLimitTarget(r, lib, recommendedLimit, r.PathValue("row"))
+	layout, err := s.readRecommendedLayout(r, lib.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	layout, err := s.readRecommendedLayout(r, lib.ID)
+	rows, err := s.recommendedRowsWithLayout(r, lib, recommendedLimit, r.PathValue("row"), layout)
 	if err != nil {
 		s.fail(w, err)
 		return
