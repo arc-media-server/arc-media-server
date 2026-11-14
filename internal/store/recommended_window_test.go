@@ -1,8 +1,11 @@
 package store
 
 import (
+	"ams/internal/perftest"
 	"context"
+	"database/sql"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -132,9 +135,102 @@ func TestRecommendationWindowsPreserveWatchOrderAccessAndBoundaries(t *testing.T
 			if err = rows.Err(); err != nil {
 				t.Fatal(err)
 			}
-			if !strings.Contains(plan, "SEARCH watched USING INDEX user_item_data_recent") {
-				t.Fatalf("recent history must drive listing:\n%s", plan)
+			if !strings.Contains(plan, "SEARCH items USING INDEX items_library_kind") {
+				t.Fatalf("fallback must use the library catalogue rather than global history:\n%s", plan)
 			}
 		})
+	}
+}
+
+// Cross-library history must not hide older matches, cutoff ties, or NULL timestamps.
+func TestWatchedWindowsFallBackWithoutChangingResults(t *testing.T) {
+	st := openTest(t)
+	ctx := t.Context()
+	tx, err := st.db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = perftest.Seed(ctx, tx, 100, 4, 200); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM user_item_data`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO user_item_data(user_id,item_id,played,last_played_at)
+ SELECT 'perf-owner',id,1,CASE WHEN kind='movie' THEN 1 ELSE 1000+rowid END FROM items WHERE kind<>'series'`); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"older-library", "boundary-ties", "null-history"} {
+		if mode == "boundary-ties" {
+			_, err = st.db.ExecContext(ctx, `UPDATE user_item_data SET last_played_at=2000`)
+		}
+		if mode == "null-history" {
+			_, err = st.db.ExecContext(ctx, `UPDATE user_item_data SET last_played_at=NULL WHERE item_id LIKE 'm-%' OR item_id='e-1'`)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, q := range []ItemQuery{
+			{LibraryID: 1, Kind: "movie"}, {LibraryID: 2, Kind: "episode"},
+			{LibraryID: 2, Kind: "episode", Search: "not a title"},
+			{LibraryID: 2, Kind: "episode", Access: Access{Libraries: []int64{1}}},
+			{LibraryID: 1, Kind: "movie", Genre: "absent"},
+		} {
+			q.UserID, q.Sort, q.Played = perftest.UserID, "watched", true
+			for _, offset := range []int{0, 19, 99, 600, 10000} {
+				q.Offset, q.Limit = offset, 20
+				query, args := itemWindowSQL(q, 21, offset)
+				want, err := st.queryItems(ctx, query, args...)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := st.listItemWindow(ctx, q, 21, offset)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("%s library%d offset%d: changed rows", mode, q.LibraryID, offset)
+				}
+				window, more, err := st.ListItemsWindow(ctx, q)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(window) != min(20, len(want)) || more != (len(want) > 20) {
+					t.Fatalf("%s: boundary changed", mode)
+				}
+				page, total, err := st.ListItems(ctx, q)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(page) != len(window) || (offset == 0 && total < len(window)) {
+					t.Fatalf("%s: exact page changed", mode)
+				}
+			}
+		}
+	}
+	// Fast-path SQL must include an indexed timestamp range; no unbounded global-history scan.
+	query, args := recentItemWindowSQL(ItemQuery{LibraryID: 1, Kind: "movie", UserID: perftest.UserID, Played: true, Sort: "watched"}, 21, 0, sql.NullInt64{Int64: 2000, Valid: true})
+	rows, err := st.db.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan string
+	for rows.Next() {
+		var a, b, c int
+		var line string
+		if err = rows.Scan(&a, &b, &c, &line); err != nil {
+			t.Fatal(err)
+		}
+		plan += line + "\n"
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(plan, "last_played_at>?") {
+		t.Fatalf("history lookup is not range-bounded:\n%s", plan)
 	}
 }
