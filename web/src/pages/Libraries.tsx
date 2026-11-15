@@ -21,6 +21,8 @@ export function LibrariesPage() {
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Library | 'new' | null>(null);
   const [removing, setRemoving] = useState<Library | null>(null);
+  // The library just added, for a note that its media is still being found in the background.
+  const [added, setAdded] = useState<string | null>(null);
   const [scanErrors, setScanErrors] = useState<Record<number, string>>({});
   const [requested, setRequested] = useState<number[]>([]);
   const [scanSummary, setScanSummary] = useState('');
@@ -89,6 +91,7 @@ export function LibrariesPage() {
         }
       />
       <div className="space-y-4 px-6 md:px-10">
+        {added && <p role="status" className="rounded-2xl bg-surface-2/60 p-4 text-sm leading-relaxed ring-1 ring-border">{t('libraryManagement:libraries.addedNotice', { name: added })}</p>}
         {scanSummary && <p role="status" className="text-sm text-muted">{scanSummary}</p>}
         {allScanning && <p role="status" className="text-sm text-accent">{t("libraryManagement:libraries.allLibrariesAreAlready")}</p>}
         {libraries?.length === 0 && (
@@ -109,6 +112,7 @@ export function LibrariesPage() {
         library={editing && editing !== 'new' ? editing : undefined}
         open={!!editing}
         onOpenChange={(o) => !o && setEditing(null)}
+        onAdded={(lib) => setAdded(lib.name)}
       />
       <ConfirmDialog
         open={!!removing}
