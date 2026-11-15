@@ -27,7 +27,8 @@
     "videoCount_other": "{{count}} videos",
     "movieCount_one": "{{count}} movie",
     "movieCount_other": "{{count}} movies",
-    "scanError": "The scan could not be requested. Try again."
+    "scanError": "The scan could not be requested. Try again.",
+    "addedNotice": "{{name}} is added. Arc is now finding and matching its media in the background, and titles appear as they're found. The Activity icon beside the notifications bell shows progress and anything that needs attention."
   },
   "health": {
     "libraryHealth": "Library Health",

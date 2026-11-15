@@ -50,13 +50,13 @@ export function Setup() {
             </label>
             <label className="block">
               <Label>{t('auth:password')}</Label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldClass} autoComplete="new-password" />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={fieldClass} autoComplete="new-password" aria-describedby={accountError ? 'setup-account-error' : undefined} aria-invalid={!!accountError && password.length < 8} />
             </label>
             <label className="block">
               <Label>{t('auth:setup.confirmPassword')}</Label>
-              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={fieldClass} autoComplete="new-password" />
+              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={fieldClass} autoComplete="new-password" aria-describedby={accountError ? 'setup-account-error' : undefined} aria-invalid={!!confirm && confirm !== password} />
             </label>
-            {accountError && <p className="text-sm text-warning">{accountError}</p>}
+            {accountError && <p id="setup-account-error" role="alert" className="text-sm text-warning">{accountError}</p>}
             <div className="flex items-start gap-3 rounded-2xl bg-surface-2/60 p-4 ring-1 ring-border">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{t('auth:setup.bypass')}</p>
@@ -88,7 +88,8 @@ export function Setup() {
               <input value={tvdb} onChange={(e) => setTvdb(e.target.value)} className={fieldClass} placeholder={t('auth:setup.keyPlaceholder')} spellCheck={false} />
               <KeyLink href="https://thetvdb.com/api-information">{t('auth:setup.getTvdbKey')}</KeyLink>
             </label>
-            {setup.error && <p className="text-sm text-warning">{setup.error.message}</p>}
+            {!tmdb && !tvdb && <p className="text-xs leading-relaxed text-muted">{t('auth:setup.withoutKeys')}</p>}
+            {setup.error && <p role="alert" className="text-sm text-warning">{setup.error.message}</p>}
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="ghost" size="lg" onClick={() => setStep('account')} disabled={setup.isPending}>{t('common:actions.back')}</Button>
               <Button type="submit" variant="primary" size="lg" className="flex-1" disabled={setup.isPending}>
