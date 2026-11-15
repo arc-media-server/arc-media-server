@@ -385,7 +385,15 @@ func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts 
 	if err != nil {
 		return nil, err
 	}
-	out := []homeEntry{}
+	// Each show the profile is watching, with its display order and where its last watched
+	// episode is in it.
+	type watching struct {
+		show    store.WatchedSeries
+		series  *store.Item
+		entries []store.OrderingEntry
+		start   int
+	}
+	var shows []watching
 	for _, ws := range watched {
 		if dismissed[ws.SeriesID] >= ws.LastPlayedAt {
 			continue // removed since an episode was last watched
@@ -403,55 +411,74 @@ func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts 
 		} else if !ok {
 			continue
 		}
-		entries := context.entries
 		// Start after the last episode watched; specials don't count as next.
-		start := -1
-		for i, e := range entries {
-			if e.EpisodeID == ws.LastEpisodeID {
-				start = i
-				break
-			}
-		}
+		start := slices.IndexFunc(context.entries, func(e store.OrderingEntry) bool { return e.EpisodeID == ws.LastEpisodeID })
 		if start < 0 {
 			continue // the last one watched isn't in this order
 		}
-		// Probe small windows after the last watched entry. Preserve the shared display
-		// traversal (including custom orders/specials), but avoid loading state and file
-		// availability for the whole show when only its next playable episode is needed.
-		const candidateWindow = 128
-		found := false
-		for at := start + 1; at < len(entries) && !found; at += candidateWindow {
-			batch := entries[at:min(at+candidateWindow, len(entries))]
-			ids := make([]string, 0, len(batch))
-			for _, e := range batch {
-				if e.Season != 0 || e.InlineSpecial {
-					ids = append(ids, e.EpisodeID)
-				}
+		shows = append(shows, watching{ws, series, context.entries, start})
+	}
+
+	// The next episode is the first after the last watched that's on disk and not watched,
+	// following the shared display traversal (custom orders, inline specials). It's nearly
+	// always one of the next few, so those are checked for every show in one query; a show
+	// whose next is further on probes growing windows of its own, so its whole order's watch
+	// state and files are never loaded when only the next episode is needed.
+	const firstWindow = 8
+	candidates := func(entries []store.OrderingEntry, ws store.WatchedSeries) []string {
+		ids := make([]string, 0, len(entries))
+		for _, e := range entries {
+			if (e.Season != 0 || e.InlineSpecial) && e.EpisodeID != ws.LastEpisodeID {
+				ids = append(ids, e.EpisodeID)
 			}
-			positions, err := s.store.AvailableUnwatched(ctx, userID, series.ID, ids)
+		}
+		return ids
+	}
+	var firstIDs []string
+	for _, w := range shows {
+		firstIDs = append(firstIDs, candidates(w.entries[w.start+1:min(w.start+1+firstWindow, len(w.entries))], w.show)...)
+	}
+	firstState, err := s.store.AvailableUnwatched(ctx, userID, firstIDs)
+	if err != nil {
+		return nil, err
+	}
+	// next is the first candidate in a window that's available and unwatched in this show.
+	next := func(w watching, ids []string, state map[string]store.UnwatchedEpisode) (string, int64, bool) {
+		for _, id := range ids {
+			if st, ok := state[id]; ok && st.SeriesID == w.series.ID {
+				return id, st.PositionMS, true
+			}
+		}
+		return "", 0, false
+	}
+	var picked []string
+	var pickedFrom []store.WatchedSeries
+	for _, w := range shows {
+		id, position, found := next(w, candidates(w.entries[w.start+1:min(w.start+1+firstWindow, len(w.entries))], w.show), firstState)
+		for at, window := w.start+1+firstWindow, 32; !found && at < len(w.entries); at, window = at+window, min(window*4, 128) {
+			ids := candidates(w.entries[at:min(at+window, len(w.entries))], w.show)
+			state, err := s.store.AvailableUnwatched(ctx, userID, ids)
 			if err != nil {
 				return nil, err
 			}
-			for _, e := range batch {
-				position, ok := positions[e.EpisodeID]
-				if !ok || e.Season == 0 && !e.InlineSpecial || e.EpisodeID == ws.LastEpisodeID {
-					continue
-				}
-				found = true
-				if position == 0 { // part-watched successors already appear in Continue Watching
-					ep, err := s.store.GetItem(ctx, e.EpisodeID)
-					if err != nil {
-						return nil, err
-					}
-					if ep != nil {
-						out = append(out, homeEntry{*ep, ws.LastPlayedAt})
-					}
-				}
+			id, position, found = next(w, ids, state)
+		}
+		if found && position == 0 { // part-watched successors already appear in Continue Watching
+			picked = append(picked, id)
+			pickedFrom = append(pickedFrom, w.show)
+			if len(picked) >= 20 {
 				break
 			}
 		}
-		if len(out) >= 20 {
-			break
+	}
+	episodes, err := s.store.ItemsByID(ctx, picked)
+	if err != nil {
+		return nil, err
+	}
+	out := []homeEntry{}
+	for i, id := range picked {
+		if ep, ok := episodes[id]; ok {
+			out = append(out, homeEntry{ep, pickedFrom[i].LastPlayedAt})
 		}
 	}
 	return out, nil

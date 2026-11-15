@@ -147,20 +147,27 @@ func (s *Store) UserDataFor(ctx context.Context, userID string, itemIDs []string
 	return out, nil
 }
 
-// AvailableUnwatched returns positions for the given series episodes that have a present
-// file and are not watched by this profile. Callers page ordered candidates rather than
-// loading every episode's complete watch state. Missing records mean unplayed, position zero.
-func (s *Store) AvailableUnwatched(ctx context.Context, userID, seriesID string, episodeIDs []string) (map[string]int64, error) {
-	out := map[string]int64{}
+// UnwatchedEpisode is an episode on disk that a profile hasn't watched.
+type UnwatchedEpisode struct {
+	SeriesID string
+	// How far into it the profile is, 0 if not started.
+	PositionMS int64
+}
+
+// AvailableUnwatched returns, of the given episodes, those with a present file that the profile
+// hasn't watched, with their show and how far into them it is. Each is looked up by id, so a few
+// candidates cost a few lookups whatever the size of their shows.
+func (s *Store) AvailableUnwatched(ctx context.Context, userID string, episodeIDs []string) (map[string]UnwatchedEpisode, error) {
+	out := map[string]UnwatchedEpisode{}
 	for start := 0; start < len(episodeIDs); start += 500 {
 		batch := episodeIDs[start:min(start+500, len(episodeIDs))]
-		args := []any{userID, seriesID}
+		args := []any{userID}
 		for _, id := range batch {
 			args = append(args, id)
 		}
-		rows, err := s.db.QueryContext(ctx, `SELECT i.id, COALESCE(u.position_ms,0) FROM items i
+		rows, err := s.db.QueryContext(ctx, `SELECT i.id, i.parent_id, COALESCE(u.position_ms,0) FROM items i
 			LEFT JOIN user_item_data u ON u.user_id = ? AND u.item_id = i.id
-			WHERE i.parent_id = ? AND i.id IN (`+placeholders(len(batch))+`)
+			WHERE i.id IN (`+placeholders(len(batch))+`) AND i.kind = 'episode'
 			AND COALESCE(u.played,0) = 0 AND EXISTS (
 				SELECT 1 FROM item_files f JOIN media_files m ON m.id=f.file_id
 				WHERE f.item_id=i.id AND m.missing_since IS NULL)`, args...)
@@ -169,12 +176,12 @@ func (s *Store) AvailableUnwatched(ctx context.Context, userID, seriesID string,
 		}
 		for rows.Next() {
 			var id string
-			var position int64
-			if err := rows.Scan(&id, &position); err != nil {
+			var e UnwatchedEpisode
+			if err := rows.Scan(&id, &e.SeriesID, &e.PositionMS); err != nil {
 				rows.Close()
 				return nil, err
 			}
-			out[id] = position
+			out[id] = e
 		}
 		err = rows.Err()
 		rows.Close()
@@ -257,23 +264,29 @@ type WatchedSeries struct {
 // RecentlyWatchedSeries lists the series a profile has finished episodes of and may see (acc,
 // so a library's own list is acc limited to that library), most recent first.
 func (s *Store) RecentlyWatchedSeries(ctx context.Context, userID string, limit int, acc Access) ([]WatchedSeries, error) {
-	// SQLite returns the other columns from the row that has the MAX.
+	// Newest watches first (the profile's recent-history index), keeping each show's first, so
+	// only as much history is read as it takes to find limit shows. Grouping the whole history
+	// by show read every episode the profile ever watched, on every Continue Watching.
 	q, args := acc.Where("sr", `
-		SELECT i.parent_id, i.id, MAX(u.last_played_at) FROM user_item_data u JOIN items i ON i.id = u.item_id
+		SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i ON i.id = u.item_id
 		JOIN items sr ON sr.id = i.parent_id
 		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
-	rows, err := s.db.QueryContext(ctx, q+` GROUP BY i.parent_id ORDER BY 3 DESC LIMIT ?`, append(args, limit)...)
+	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []WatchedSeries
-	for rows.Next() {
+	seen := map[string]bool{}
+	for len(out) < limit && rows.Next() {
 		var w WatchedSeries
 		if err := rows.Scan(&w.SeriesID, &w.LastEpisodeID, &w.LastPlayedAt); err != nil {
 			return nil, err
 		}
-		out = append(out, w)
+		if !seen[w.SeriesID] {
+			seen[w.SeriesID] = true
+			out = append(out, w)
+		}
 	}
 	return out, rows.Err()
 }
