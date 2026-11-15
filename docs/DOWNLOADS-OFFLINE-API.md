@@ -1,9 +1,9 @@
 # Original downloads — backend handoff for native clients
 
 Implements original movie/episode preparation, durable offline bundles and authenticated resumable
-transfer for #62. Use `/api/v1` and the generated OpenAPI reference. D1/D2/D3 are stacked review
-PRs; this guide does not mean they are deployed on main. Offline progress sync and converted
-media are separate future capabilities. No native controls or physical-device acceptance included.
+transfer for #62 (merged through #441/#444). Use `/api/v1` and the generated OpenAPI reference;
+older servers don't advertise these capabilities. Offline progress sync and converted media are
+separate future capabilities. No native controls or physical-device acceptance included.
 
 ## Discover and select
 

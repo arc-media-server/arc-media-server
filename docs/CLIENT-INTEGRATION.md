@@ -237,18 +237,18 @@ reading before shipping a synchronized player; the short flow above is not a com
 
 ## Downloads: check support before showing offline controls
 
-**Pending implementation, not present on the guide's main baseline:** preparation PR #421 and
-original-bundle/transfer PRs #431–#433 are awaiting review/merge. This documentation update does
-not enable their routes or advertise a download feature on older servers.
+Original downloads are implemented on current servers (#62): preparation, offline bundles and
+authenticated resumable transfer. Older servers don't advertise them, so always gate on
+capabilities. Offline progress sync and converted downloads aren't implemented yet, and no
+native app has been accepted on a real device.
 
 Read capabilities after selecting a profile. A missing feature key means unsupported; do not
 probe guessed transfer URLs or offer a download merely because ordinary streaming works.
-`downloads_preparation` alone is not original-byte transfer. On a server that implements the
-pending contract, enable original downloads only when `features.downloads_original` has
+`downloads_preparation` alone is not original-byte transfer. Enable original downloads only when `features.downloads_original` has
 supported, available and allowed all true. Ordinary profiles need an explicit administrator
 grant. Server availability is not a device free-space/codec guarantee.
 
-The pending workflow is: choose a returned movie/episode file → create an owned original
+The workflow is: choose a returned movie/episode file → create an owned original
 preparation → wait for readiness → obtain its manifest → download its returned authenticated
 asset URLs → verify assembled size and SHA-256 → publish locally. Bind partial bytes to the
 manifest revision. If a resume request returns HTTP200, replace the partial file; never append
@@ -259,10 +259,9 @@ Client-local storage, background transfers and offline playback remain app respo
 Already copied bytes cannot be remotely recalled. Offline progress synchronization and converted
 downloads are separate future work; do not infer either from original-download support.
 
-The [versioned original-download handoff](https://github.com/arc-media-server/arc-media-server/blob/50d7298f21964e46663751cc6a4078e33bac4628/docs/DOWNLOADS-OFFLINE-API.md)
-is a repository document from pending #433, not part of this server's deployed contract. Check
-its PR/commit and the running server's capabilities/OpenAPI before implementing it. Specialist
-repository links require network/repository access; the core guidance on this page is bundled.
+The [original-download guide](https://github.com/arc-media-server/arc-media-server/blob/main/docs/DOWNLOADS-OFFLINE-API.md)
+has the full contract. Check the running server's capabilities and OpenAPI before relying on it.
+Repository links need network access; the core guidance on this page is bundled.
 
 ## Profile library selection
 

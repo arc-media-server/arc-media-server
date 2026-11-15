@@ -248,7 +248,7 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 
 ### Before public release
 _Doesn't block development; must be done before AMS is shared or published._
-- [ ] TheTVDB and TMDB attribution (required by their API terms)
+- [x] TheTVDB and TMDB attribution (required by their API terms) (#64)
 - [ ] Check TheTVDB licence terms for open-source distribution (shipped key vs each user's own key)
 - [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
 
@@ -262,10 +262,11 @@ _Doesn't block development; must be done before AMS is shared or published._
   Reassess integration and current-schema compatibility only when the owner resumes it.
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
-- Offline downloads/sync (#62): [backend foundation](docs/plans/DOWNLOADS.md) and
-  [proposed client contract](docs/DOWNLOADS-API-DRAFT.md); design only, not implemented.
+- Offline downloads/sync (#62): original downloads are implemented on the server
+  ([client contract](docs/DOWNLOADS-OFFLINE-API.md)); offline progress sync, converted downloads
+  and native app support remain.
 - Translate the web app into other languages (react-i18next + Weblate) (#122)
-- Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)
+- ~~Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)~~ Done: served at `/docs/`, linked from Settings → Diagnostics
 - Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
 - Keep every country's age rating (#105)
 - Conversion pacing/storage budgets (#193), optional dialogue/normalization (#198): reviewed/deferred with task/evidence and acceptance criteria in docs/WEB-SERVER-REVIEW.md. Automatic browser quality (#197) subsequently accepted/implemented: docs/ADAPTIVE-QUALITY.md; physical remote-network acceptance remains separate.
