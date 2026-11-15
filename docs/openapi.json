@@ -25065,7 +25065,7 @@
     },
     "/libraries/{id}/recommended/layout": {
       "get": {
-        "description": "Returns the library's shared row-family order, visibility and style .\n\nWho may call it: **admin**.",
+        "description": "Returns the library's shared row-family order, visibility and style for every family, defaults included .\n\nWho may call it: **admin**.",
         "operationId": "getRecommendedLayout",
         "parameters": [
           {
@@ -25205,14 +25205,14 @@
             }
           }
         },
-        "summary": "Returns the library's shared row-family order, visibility and style ",
+        "summary": "Returns the library's shared row-family order, visibility and style for every family, defaults included ",
         "tags": [
           "Libraries"
         ],
         "x-arc-access": "admin"
       },
       "put": {
-        "description": "{\"rows\":[{\"type\",\"hidden\",\"style\"}]} sets shared Recommended rows . Empty rows resets defaults; omitted/new families remain visible. Styles: poster, thumb, arc or empty for automatic.\n\nWho may call it: **admin**.",
+        "description": "{\"rows\":[{\"type\",\"hidden\",\"style\"}]} sets shared Recommended rows . Empty rows resets defaults; omitted/new families take their default visibility (rediscover, top_in_genre, top_by_person and top_unwatched start hidden). Styles: poster, thumb, arc or empty for automatic.\n\nWho may call it: **admin**.",
         "operationId": "setRecommendedLayout",
         "parameters": [
           {

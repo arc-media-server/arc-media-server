@@ -313,7 +313,7 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 		if err != nil {
 			return nil, err
 		}
-		recent, err := s.store.RecentlyWatchedFrom(ctx, h, 3)
+		recent, err := s.store.RecentlyWatchedFrom(ctx, h, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -369,7 +369,7 @@ func (s *Server) recommendedRowsWithLayout(r *http.Request, lib *store.Library, 
 		if err != nil {
 			return nil, err
 		}
-		favourites, err := s.store.FavouriteGenresFrom(ctx, h, 2)
+		favourites, err := s.store.FavouriteGenresFrom(ctx, h, 1)
 		if err != nil {
 			return nil, err
 		}
