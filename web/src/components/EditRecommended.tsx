@@ -10,8 +10,10 @@ import { inputClass } from './ui/field';
 import { ErrorNotice } from './Page';
 
 const families: RecommendedLook['type'][] = ['continue', 'recently_released', 'recently_added', 'start_watching', 'because_you_watched', 'top_rated', 'recently_watched', 'rediscover', 'more_in_genre', 'top_in_genre', 'top_by_person', 'top_unwatched'];
+// The families a library starts without (the server's defaults), for Reset.
+const hiddenByDefault: RecommendedLook['type'][] = ['rediscover', 'top_in_genre', 'top_by_person', 'top_unwatched'];
 function complete(saved: RecommendedLook[], shows: boolean): RecommendedLook[] {
-  return [...saved.filter(r => families.includes(r.type)), ...families.filter(type => !saved.some(r => r.type === type)).map((type): RecommendedLook => ({ type }))]
+  return [...saved.filter(r => families.includes(r.type)), ...families.filter(type => !saved.some(r => r.type === type)).map((type): RecommendedLook => hiddenByDefault.includes(type) ? { type, hidden: true } : { type })]
     .filter(r => shows || (r.type !== 'start_watching' && r.type !== 'recently_watched'));
 }
 
