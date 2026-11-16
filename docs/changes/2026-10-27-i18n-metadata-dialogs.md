@@ -1,6 +1,6 @@
 # Metadata-dialog translation preparation — 27 October 2026
 
-Phase 4c of #122, independent `codex/i18n-metadata-dialogs` branch from main ad42920.
+Phase 4c of #122, independent `codex/i18n-metadata-dialogs` branch from main 7b1e4d3.
 Choose Artwork, season posters, Fix Match/explanations, skip-marker editing and removable
 chips now use 88 bundled English entries in metadata.json. Dynamic names/IDs, provider data,
 source-kind/marker enums and API requests are unchanged. Complete per-artwork phrases avoid
@@ -15,7 +15,7 @@ Actual local verification: production/e2e TypeScript and production/embedded bui
 or failures. 5/5 unchanged focused browser journeys
 passed in 29.978s with no skips/retries/flaky results/suite errors.
 Two additional desktop/phone visual journeys passed; four pairs compared against separately
-built clean main ad42920. Artwork is byte-identical at both widths; matching differs at 73
+built clean main 7b1e4d3. Artwork is byte-identical at both widths; matching differs at 73
 and 65 pixels around small icons/text. Captures inspected; wording/styles unchanged. These
 are compared captures, not a claim of four byte-identical pairs.
 

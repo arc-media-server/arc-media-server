@@ -1,6 +1,6 @@
 # #350: guard cookie routes and setup against cross-origin requests
 
-Confirmed with failing real-router regressions on d94283c: a cross-origin admin cookie could
+Confirmed with failing real-router regressions on 2d8d4ea: a cross-origin admin cookie could
 change settings, unversioned setup reached normal setup handling, Fetch Metadata-only cross-site
 requests reached mutations, and all-address home/proxy CIDRs were accepted.
 

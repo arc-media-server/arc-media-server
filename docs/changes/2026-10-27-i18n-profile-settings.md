@@ -1,6 +1,6 @@
 # Profile preferences and provider attribution translation preparation — 27 October 2026
 
-Phase 6a of #122, independent codex/i18n-profile-settings branch from main ad42920.
+Phase 6a of #122, independent codex/i18n-profile-settings branch from main 7b1e4d3.
 Profile display/playback/subtitle preferences, password controls, About and provider credits, and library navigation preferences now use a bundled English namespace, static readable keys, complete phrases,
 explicit label maps and plural families. English wording, punctuation, accessible names,
 API behavior and layout are preserved. No translations, picker, dependencies or server schema changes.

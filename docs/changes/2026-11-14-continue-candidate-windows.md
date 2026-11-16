@@ -21,7 +21,7 @@ custom orders, inline specials, in-progress successors, dismissals and unmapped 
 Existing special traversal and access tests remain relevant. Existing Continue/request debug
 and boundary error logging is retained; no per-episode or info-level records are added.
 
-Controlled measurements against main a799187, 10,000 movies +100,000 episodes, fixed history
+Controlled measurements against main d58a433, 10,000 movies +100,000 episodes, fixed history
 and matching daily selections: long-show Continue stage median 491→388 ms; complete Series
 page 1,326→1,205 ms. For 1,000×100, Continue was essentially unchanged (283→285 ms; whole page
 1,243→1,257 ms). Series allocation fell 55.8→21.5 MB/request on 200×500 and 12.7→8.0 MB on

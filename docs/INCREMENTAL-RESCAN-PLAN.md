@@ -1,6 +1,6 @@
 # Routine scans and metadata maintenance
 
-Owner approved, 23 October 2026. Tracking: #169. Baseline ab9ff78.
+Owner approved, 23 October 2026. Tracking: #169. Baseline 6d60ce9.
 
 1. Ordinary scans check files and local sidecars, preserve successful inspection and title
    identity, discover/match new or pending content and recover unfinished initial imports.

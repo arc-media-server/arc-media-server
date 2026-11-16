@@ -36,7 +36,7 @@ that every Home row, filter combination or production library size has been exha
 Five requests per endpoint on the same 10,000-movie / 1,000-show / 100,000-episode fixture. API calls
 traverse the real versioned router, Bearer/profile checks, store reads and JSON serialization through
 httptest; they exclude network transport, browser rendering and owner disk/network performance.
-Both versions use the same fixture and prepared compiler. The baseline is unchanged commit 0ca1d9b
+Both versions use the same fixture and prepared compiler. The baseline is unchanged commit 1e48240
 with only untracked measurement helpers added in a separate detached worktree.
 
 | API work | Baseline median | Candidate median |
@@ -115,7 +115,7 @@ The older random 10–25s outliers did not recur in the instrumented comparison.
 remains unproven: cumulative throttling counters cannot attribute historical stalls to CPU
 quota, database locks, disk or GC.
 
-Four narrow follow-ups were developed on separate branches from main a799187:
+Four narrow follow-ups were developed on separate branches from main d58a433:
 
 | Scope | What changes | Local result |
 | --- | --- | --- |

@@ -12,7 +12,7 @@ Run explicitly with:
 ARC_RUN_RECOMMENDED_SCALE=1 go test ./internal/api -run '^TestRecommendedScaleMeasurements$' -count=1 -v
 ```
 
-Baseline main `95fb123` versus PR product commit `12ecf00`, same UTC-day recommendations,
+Baseline main `7819257` versus PR product commit `8ce3947`, same UTC-day recommendations,
 one first request plus five repeated requests per library:
 
 | Shape / library | Baseline repeated median | PR repeated median |

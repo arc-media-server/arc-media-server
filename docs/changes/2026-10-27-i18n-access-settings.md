@@ -1,6 +1,6 @@
 # Access, device linking and imports translation preparation — 27 October 2026
 
-Phase 6c of #122, independent codex/i18n-access-settings branch from main ad42920.
+Phase 6c of #122, independent codex/i18n-access-settings branch from main 7b1e4d3.
 Remote/home networking, HTTPS/ports, device listing/linking and watched-history imports now use a bundled English namespace, static readable keys, complete phrases,
 explicit label maps and plural families. English wording, punctuation, accessible names,
 API behavior and layout are preserved. No translations, picker, dependencies or server schema changes.

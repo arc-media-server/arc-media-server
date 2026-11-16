@@ -19,7 +19,7 @@ and denied-library cases cover the shared pass. The opt-in full-handler measurem
 Existing request timing/error logging covers this synchronous operation; no success/info floods
 or per-file records are added. Only disposable synthetic stores are used.
 
-Same-day, sequential first plus three repeats against main a799187: Series facets median
+Same-day, sequential first plus three repeats against main d58a433: Series facets median
 2,057→1,254 ms and Movies 1,183→569 ms. All response hashes matched across versions and
 repeats. A preliminary pass before excluding unused subtitle streams measured 1,229/468 ms;
 those samples are retained, not substituted for the final implementation's results. The

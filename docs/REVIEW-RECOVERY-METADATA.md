@@ -1,6 +1,6 @@
 # Recovery, local metadata and retained decisions (#136/#191/#194/#104/#195)
 
-Review baseline: 7659488, 25 October 2026. These five items come from audit findings
+Review baseline: 791a471, 25 October 2026. These five items come from audit findings
 F14/F23/F30/F31/F32 in #162. A finding is reviewed individually; optional Plex features
 are not automatically accepted changes.
 

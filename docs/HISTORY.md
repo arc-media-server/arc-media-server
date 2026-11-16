@@ -106,7 +106,7 @@ project at the time they were written; later entries and the code supersede them
   Compare orders is a separate button. Saved choices are distinguished from inherited effective
   order without changing files/metadata or Save/Cancel/profile behavior. Actual focused checks
   and hosted publication timing: READINESS and GitHub handoff. No full-suite claim for this UI/
-  workflow change; prior 93/93 acceptance at 2ba97df is historical.
+  workflow change; prior 93/93 acceptance at 168b5ca is historical.
 
 
 - Metadata/order simplification and Recently Added (26 October): library Metadata provider
@@ -185,7 +185,7 @@ project at the time they were written; later entries and the code supersede them
   across restarts. Partial discovery never sweeps unvisited files. Existing bulk refresh is
   cancellable too. A server-derived maintenance clock handles overnight/all-day/DST policy.
   Contract: LIBRARY-WORK-CONTROLS.md; actual local/hosted evidence and limits: READINESS/issues.
-  First hosted 8594200 passed 76/77 browser journeys but blocked publication on an older
+  First hosted 7ae464d passed 76/77 browser journeys but blocked publication on an older
   Refresh-button selector. The existing recovery test now opens More → Refresh metadata;
   its failure/Retry/persisted-watchlist assertions and all runtime/CI behavior remain.
 - Title actions (#187): Refresh metadata lives in More, with existing failure Retry retained.
@@ -224,7 +224,7 @@ project at the time they were written; later entries and the code supersede them
   list refresh. Episode artwork/details have a native playback button with Enter/Space,
   a visible focus ring and separate sibling actions. No API/schema/scanning policy change.
   Isolated actual results and fixture limitations are in READINESS and #176–#180. First
-  hosted b0fc9dc passed 60/62 journeys but blocked publication: two older /^Play S/ selectors
+  hosted e78a54f passed 60/62 journeys but blocked publication: two older /^Play S/ selectors
   also matched the new Play Second Chapter button. They now target the season/episode-code
   button explicitly; all queue/progress/countdown assertions and runtime labels stay intact.
 
@@ -258,7 +258,7 @@ project at the time they were written; later entries and the code supersede them
   a reason. Work starts with CI #173, then optimized playback #170–#172; optional/intentional
   differences are not automatically accepted changes. #173 replaces a scheduler-dependent
   TestEach assertion with gated concurrency, exact single-worker stop and delayed-error tests.
-  Scanner runtime and CI gates are unchanged. Commit 6886f1f passed hosted run 40023241460,
+  Scanner runtime and CI gates are unchanged. Commit 3643959 passed hosted run 40023241460,
   including all 50 browser journeys, container checks and image publication; #173 is closed.
 - Incremental rescans (#169, 23 October): ordinary scans no longer refresh matched titles
   because of age or retry old unmatched titles. Maintenance owns overdue/incomplete movie
@@ -398,10 +398,10 @@ project at the time they were written; later entries and the code supersede them
   is real deployment evidence, not a claim of completed timed resource/device measurements.
   First changes fix forwarded home-network bypass, HTTPS cookie protection, revoked cast sessions
   and concurrent conversion admission, with regression tests. Linux/Windows checks, Linux race
-  detection and media tests passed for b5d8e39 and now gate Docker publishing. See docs/READINESS.md.
+  detection and media tests passed for 324c0ae and now gate Docker publishing. See docs/READINESS.md.
   Browser journeys (#133) implemented: six Playwright Chromium tests pass locally against the real
   embedded app, fresh temporary databases, generated clips and local metadata. Linux CI passed for
-  49ac1f5 (run 39635142227), including the browser suite and race checks; Windows checks also passed.
+  b4c0052 (run 39635142227), including the browser suite and race checks; Windows checks also passed.
   They found #140, final resume progress lost on player close; fixed with layout cleanup.
   Run from web: `npx playwright install chromium`, then `npm run test:e2e` (Go/FFmpeg required).
   Ports 18199/18200 must be free; never point the harness at owner data. Failure reports/traces stay
@@ -431,8 +431,8 @@ project at the time they were written; later entries and the code supersede them
   controls) without online key validation; a real-app browser regression covers the previous
   stale-settings bug. Container acceptance gate added for isolated root/non-root, read-only media,
   restore/restart/recreation persistence; Docker unavailable locally. First Linux container smoke
-  and Linux/Windows checks passed for 2387a56 (run 39654467547). Cross-image upgrade/snapshot
-  rollback gate passed for 31597fa (run 39655440173), pinned to previous 2a7029a image.
+  and Linux/Windows checks passed for b14947f (run 39654467547). Cross-image upgrade/snapshot
+  rollback gate passed for 4ebafa4 (run 39655440173), pinned to previous ca4a8ac image.
   More isolated readiness coverage: a killed scanner/store subprocess recovers stable IDs/edits/
   resume; SQLite capacity-limited writes are atomic and recover; full HTTP metadata sync against
   local TLS TMDB/TVDB fixtures preserves identity/locks/resume/custom order through provider
@@ -487,7 +487,7 @@ project at the time they were written; later entries and the code supersede them
   61-file TV show 8.47–10.00ms. Full generated-video import remains probe-bound:
   120 movies direct 21.66s (first match 0.50s); completed-preview flow 26.08s, now 240 total
   requests instead of 360. See scanbench/READINESS for boundaries; no Plex/Unraid speed claim.
-  Handoff after dd2291e (21 October): all Linux/Windows checks, Linux race detection, 22 Linux
+  Handoff after 4b2b388 (21 October): all Linux/Windows checks, Linux race detection, 22 Linux
   browser journeys, container installation/persistence/restore/upgrade/rollback and Docker
   publication passed (Actions run 39682197648). #145 is closed; the local checkout was clean
   and matched origin/main before this notes update. Owner's Unraid/data/media were untouched.
@@ -542,7 +542,7 @@ project at the time they were written; later entries and the code supersede them
   concurrent. The expanded 18-folder regression failed 7/10 before the fix and passes 30/30
   after it. See READINESS/#153 for final server/CI evidence. This is a production synchronization
   bug, separate from the watcher test-counter race; owner data/media was untouched.
-  Final CI for 4f09795 passed Linux/Windows, Linux race/browser checks, container acceptance and
+  Final CI for b52af62 passed Linux/Windows, Linux race/browser checks, container acceptance and
   image publication (run 39785261123); #153 is closed. The owner subsequently reported repeated
   SQLITE_BUSY errors (#154). A disposable concurrency regression reproduced the exact error
   after the ten-second writer timeout. Store writes now share one queued connection, with
@@ -572,7 +572,7 @@ project at the time they were written; later entries and the code supersede them
   passes together without retries (7.4m); diagnostics retry/download/restart/admin/390px and
   poster-only request/progress/lock regressions are included. Screenshots inspected. Linux race,
   container/image and actual deployment acceptance remain separate evidence on #155/#156.
-  Earlier database-lock fix 1348aed and logging 48cb242 passed all release gates and publication
+  Earlier database-lock fix acc66dd and logging 59cc0a0 passed all release gates and publication
   (run 39801816884); #154 closed. No owner data/settings/media or Unraid deployment was changed.
 - Cloud handoff (#157, 22 October): owner approved moving cross-PC development to Codex Cloud while
   retaining GitHub. Read docs/CODEX-CLOUD.md for setup, verification and task handoff. Linux setup
@@ -588,14 +588,14 @@ project at the time they were written; later entries and the code supersede them
   launch with existing libraries; setup now supports this path with mandatory launch checks.
   At that draft stage, full verification, publication and fresh-task acceptance were pending.
   Completed follow-up: arc-media-server is Published and Only me. A separate restored task at
-  e8e315d confirmed the saved toolchain/dependencies/browsers/caches and matched live GitHub main.
+  3127c42 confirmed the saved toolchain/dependencies/browsers/caches and matched live GitHub main.
   Its exact verifier passed all 38 browser journeys with no failures/skips/retries; supplemental
   uncached ordinary Go and race runs also passed. Each run counted 231 tests/subtests,
   no failures/skips, 26 test-bearing packages plus six with no tests. Platform per-command
   permission review was needed for browser/proxy operations; no global restrictions were disabled.
   Continue in the private chat "Arc — stability and readiness (Cloud)" linked from CODEX-CLOUD.
   Full evidence lives in /workspace/arc-cloud-evidence/FRESH-TASK.md in that chat and GitHub #157.
-  e8e315d also passed cloud preflight (39847970913) and all release/publication gates (39847970870).
+  3127c42 also passed cloud preflight (39847970913) and all release/publication gates (39847970870).
   Actual reopening from the owner's other PC has not been physically exercised. GitHub stays
   authoritative; keep handoffs current, follow the current workflow policy below, and never infer
   deployment/device readiness from this developer-environment acceptance.
@@ -609,7 +609,7 @@ project at the time they were written; later entries and the code supersede them
   Isolated cleanup/upgrade/restore and busy-writer authentication regressions pass. The cloud
   verifier passes production/app/e2e TypeScript, Go vet/tests/race, embedded build and all 39
   browser journeys without retries; final queue/cancellation race checks pass separately.
-  Results and limits are recorded in READINESS. PR #159 was merged as 2440fbe; actual
+  Results and limits are recorded in READINESS. PR #159 was merged as f6dfdfc; actual
   owner-deployment latency confirmation remains separate. Owner data/media untouched.
 - Current workflow policy (owner, 26 October): ALL additions and fixes go through pull requests,
   by Claude and Codex alike. This supersedes the 22 October direct-to-main policy. Never push to

@@ -21,7 +21,7 @@ formatting and real initialization/detection/loading/failure fallback with isola
 `docs/TRANSLATION.md` explains keys, placeholders, plurals, Trans, adding language files and
 later Weblate integration. Existing Playwright tests and selectors remain untouched.
 
-Validation on main base `b22d6de24c06a42cd2465fc96f961783e4d0cdb3`, Linux amd64, prepared
+Validation on main base `bc272ab9b0544744cbeaf24a63949baab765f2e9`, Linux amd64, prepared
 Go 1.27.0 / Node 24.19.0 / npm 11.9.0 and pinned Chromium 156 revision 1248:
 
 - Full browser suite: **113/113 passed** in **679.637 seconds**, no failures, skips, flaky

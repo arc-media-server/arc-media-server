@@ -1,6 +1,6 @@
 # Server settings and maintenance translation preparation — 27 October 2026
 
-Phase 6b of #122, independent codex/i18n-server-settings branch from main ad42920.
+Phase 6b of #122, independent codex/i18n-server-settings branch from main 7b1e4d3.
 Library/playback/server settings, diagnostics, webhooks, maintenance scheduling/window feedback and empty-trash controls now use a bundled English namespace, static readable keys, complete phrases,
 explicit label maps and plural families. English wording, punctuation, accessible names,
 API behavior and layout are preserved. No translations, picker, dependencies or server schema changes.

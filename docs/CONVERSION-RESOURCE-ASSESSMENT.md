@@ -1,7 +1,7 @@
 # Conversion resource assessment (#193)
 
 Controlled cloud assessment, 12 November 2026. Main baseline:
-`d94283c398df93f2a26f8b1d9c56c613388af0a5`. This is a measurement report, not a change to
+`2d8d4ea4aefe5ee4974b961e63b184e3a76b59e3`. This is a measurement report, not a change to
 conversion scheduling, storage policy or any API. Pending review fixes are identified separately.
 
 ## What current code already does
@@ -109,7 +109,7 @@ Fresh focused current-main tests: **11 passed, zero failed/skipped**:
 - Optional-work preemption: TestForegroundAndSettingsCancelLeaseAndResume,
   TestUpkeepYieldsAndReportsInterruptedWork, TestManualUpkeepQueuedStatusAndPreemption.
 
-Separately, on pending PR #372 at `0de7b6c`, **two tests passed, zero failed/skipped**:
+Separately, on pending PR #372 at `ed0d7d5`, **two tests passed, zero failed/skipped**:
 TestConversionFreeSpaceAdmissionAndStop injects free space below 512MiB and checks rejected
 admission, released capacity and a diagnosable active-session stop; TestRollingHLSRealConvertedSegments
 checks consumed-segment eviction using real Jellyfin FFmpeg 8 output. This does not establish that

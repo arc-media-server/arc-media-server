@@ -39,7 +39,7 @@ Validation (Go 1.27.0, prepared Jellyfin FFmpeg 8.1.3, temporary stores/local fi
   empty states, links/titles and staged/persisted/reset shared row settings. No full browser
   suite or production/device acceptance claimed.
 
-Three-run synthetic medians against parent 95fb123: 276 shows ×30 episodes, 178→138 ms;
+Three-run synthetic medians against parent 7819257: 276 shows ×30 episodes, 178→138 ms;
 2,000 movies, 187→173 ms. A separate fixture with episode orders and descriptions changed
 211→152 ms (14 rows). In the TV fixture Recently Watched changed from about 36 to 4 ms.
 Samples vary and are local measurements; the owner's post-deployment timings remain necessary.

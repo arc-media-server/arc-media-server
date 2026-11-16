@@ -1,6 +1,6 @@
 # Everyday UI and feature-gap review
 
-Reviewed 22 October 2026 against `554120b`. The assessment below preserves the original findings.
+Reviewed 22 October 2026 against `e8b4e3a`. The assessment below preserves the original findings.
 The owner subsequently approved implementation of all findings and proposals, including the
 editable queue. The completed follow-up and its verification are recorded at the end.
 The previous #144 bug pass and #147 scanning work are completed context.

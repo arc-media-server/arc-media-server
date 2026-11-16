@@ -13,23 +13,23 @@ and the final cross-area corrections. **Review the area PRs, then merge the comb
 there is no need to separately merge the overlapping snapshots. Its commit retains all 13 area
 heads as parents; use a merge commit to retain that ancestry. Everything remains unmerged until
 the owner reviews. Keep #122 open pending review and first-language acceptance. Other agents'
-branches/PRs are untouched. GitHub main remains ad429207462e40c5609d27db94c820c5268507df.
+branches/PRs are untouched. GitHub main remains 7b1e4d3b7078780f63efce387ebc4c92d600c212.
 
 | Area | Review PR | Validated area head |
 | --- | --- | --- |
-| Browsing | [#238](https://github.com/JonzaUK/arc-media-server/pull/238) | `b3ae38b3583c` |
-| Titles | [#240](https://github.com/JonzaUK/arc-media-server/pull/240) | `d038735e9834` |
-| Artwork and matching | [#241](https://github.com/JonzaUK/arc-media-server/pull/241) | `231fd95ed472` |
-| Details and orders | [#242](https://github.com/JonzaUK/arc-media-server/pull/242) | `1ee9e54d08a2` |
-| Title actions | [#243](https://github.com/JonzaUK/arc-media-server/pull/243) | `9f32bcc5d818` |
-| Player | [#244](https://github.com/JonzaUK/arc-media-server/pull/244) | `2aacae70815c` |
-| Profile Settings | [#245](https://github.com/JonzaUK/arc-media-server/pull/245) | `a206572b1ad8` |
-| Server Settings | [#246](https://github.com/JonzaUK/arc-media-server/pull/246) | `42efa8dd63e2` |
-| Access Settings | [#247](https://github.com/JonzaUK/arc-media-server/pull/247) | `e6f8b361f2c6` |
-| Library editor | [#248](https://github.com/JonzaUK/arc-media-server/pull/248) | `0df6fa6beb4d` |
-| Library management | [#249](https://github.com/JonzaUK/arc-media-server/pull/249) | `9d4965c418fb` |
-| Reports | [#250](https://github.com/JonzaUK/arc-media-server/pull/250) | `32d4451c489f` |
-| Profiles and backups | [#251](https://github.com/JonzaUK/arc-media-server/pull/251) | `a924ef332a79` |
+| Browsing | [#238](https://github.com/JonzaUK/arc-media-server/pull/238) | `b738ff3ea945` |
+| Titles | [#240](https://github.com/JonzaUK/arc-media-server/pull/240) | `ae5259e57100` |
+| Artwork and matching | [#241](https://github.com/JonzaUK/arc-media-server/pull/241) | `34bdc1057fe3` |
+| Details and orders | [#242](https://github.com/JonzaUK/arc-media-server/pull/242) | `c03d1f84b5f3` |
+| Title actions | [#243](https://github.com/JonzaUK/arc-media-server/pull/243) | `4342d61969d3` |
+| Player | [#244](https://github.com/JonzaUK/arc-media-server/pull/244) | `21cb30fb5454` |
+| Profile Settings | [#245](https://github.com/JonzaUK/arc-media-server/pull/245) | `4ee1f2603f76` |
+| Server Settings | [#246](https://github.com/JonzaUK/arc-media-server/pull/246) | `543a626de221` |
+| Access Settings | [#247](https://github.com/JonzaUK/arc-media-server/pull/247) | `ca33d8256469` |
+| Library editor | [#248](https://github.com/JonzaUK/arc-media-server/pull/248) | `0481fb2865dd` |
+| Library management | [#249](https://github.com/JonzaUK/arc-media-server/pull/249) | `b2750b252d70` |
+| Reports | [#250](https://github.com/JonzaUK/arc-media-server/pull/250) | `3001bbdf2d89` |
+| Profiles and backups | [#251](https://github.com/JonzaUK/arc-media-server/pull/251) | `10e2257047f2` |
 
 ## Final integration changes
 

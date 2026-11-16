@@ -1,6 +1,6 @@
 # #350: choose font attachment output paths inside Arc
 
-Rechecked the report at main d94283c after #349. The exact pinned amd64 package
+Rechecked the report at main 2d8d4ea after #349. The exact pinned amd64 package
 jellyfin-ffmpeg8 8.1.3-2 (FFmpeg 8.1.3-Jellyfin), SHA-256
 82bd7422530740af738891c54b548eadf9bb572ff875976eddbe231e6f02482b, already refuses unsafe
 attachment filenames: the original outside-cache write does not reproduce on this build.

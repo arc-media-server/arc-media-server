@@ -19,7 +19,7 @@ identity/presence/history. Stop cancels scanner-owned follow-ups/retry timers an
 independent across server lifetimes. Server clock/window values are server-derived, including
 DST and all-day/overnight cases. Title Refresh moved into More; queue/playlist labels/icons
 are distinct. #188 was initially deferred; the owner subsequently selected jump-to-letter (handoff below).
-First hosted 8594200 passed 76/77 journeys and blocked publication: the older refresh-recovery
+First hosted 7ae464d passed 76/77 journeys and blocked publication: the older refresh-recovery
 journey still targeted a Refresh button. It now opens More → Refresh metadata, retaining
 all failure/Retry/watchlist assertions and runtime/CI behavior. Final hosted outcome is
 recorded on the issues and in the task evidence folder. Contract:
@@ -47,7 +47,7 @@ cached news/playlists/devices/optimized copies/notifications remain visible with
 Dependent playlist/webhook actions explain unavailable prerequisites. Failed news refresh is not
 marked seen; per-device errors stay independent and successful revocation is retained if list
 refresh fails. Episode playback uses a native button separate from row actions. No backend or
-schema changes. First hosted b0fc9dc passed 60/62 browser journeys and blocked publication on
+schema changes. First hosted e78a54f passed 60/62 browser journeys and blocked publication on
 ambiguous older /^Play S/ queue-test selectors. The follow-up narrows those two selectors to
 season/episode codes without changing assertions or runtime labels. READINESS and individual
 issues record actual checks and hosted outcome.
@@ -76,7 +76,7 @@ Audit review queue: [#162](https://github.com/arc-media-server/arc-media-server/
 36 Arc/Plex findings, with independent review/implementation-or-close decisions. Start with
 CI #173, then optimized-copy correctness #170–#172. The #173 TestEach correction uses controlled
 worker gates instead of assuming a failing callback runs before later indices. It preserves
-the runtime helper and CI gates. Commit 6886f1f passed run 40023241460, all 50 browser journeys,
+the runtime helper and CI gates. Commit 3643959 passed run 40023241460, all 50 browser journeys,
 container acceptance and publication; #173 is closed. See READINESS and the issue for evidence.
 
 Navigation handoff (#166, 23 October): server management lives within Settings, including
@@ -122,7 +122,7 @@ issues/#162 for exact decisions, actual checks and separate hosted publication e
 
 ## Web and Server audit handoff (25 October)
 
-Baseline ad40546. #189 adds profile-only all-visible library ordering; #190 adds future watched
+Baseline 49063be. #189 adds profile-only all-visible library ordering; #190 adds future watched
 percentage with 90% default and shared watch/history boundary; #199 adds session/file/track
 text-caption timing and native PiP cue-clock wiring. #192 corrects source/audio/position and
 conversion ownership during sender handoff/retry/seek/handback, and explains app cast/AirPlay
@@ -225,7 +225,7 @@ publishes the development image after its gates. Local PCs can pull completed ch
 
 - `AGENTS.md` points agents to shared instructions; `CLAUDE.md` records architecture
   and current state; ROADMAP/READINESS and GitHub hold plan and verification evidence.
-- Before cloud preparation, local and GitHub main matched `a0de3eb`. All release
+- Before cloud preparation, local and GitHub main matched `6a1f7b3`. All release
   gates and image publication passed in Actions run 39816525377. Local production UI,
   Go vet and Go tests also passed after syncing nine laptop commits.
 - Browser coverage at cloud acceptance had 38 journeys; subsequent fixes add coverage.
@@ -240,7 +240,7 @@ publishes the development image after its gates. Local PCs can pull completed ch
   put that compiler ahead of the unrelated system `go` board-game executable.
   Both pinned Chromium 156 binaries launched with existing libraries and no sudo.
 - Publication completed and a new task restored the prepared Go compiler, npm
-  dependencies, pinned browsers and caches at `e8e315d`, matching live main. The exact
+  dependencies, pinned browsers and caches at `3127c42`, matching live main. The exact
   verifier passed there, including all 38 browser journeys without failures/skips/retries.
   Supplemental uncached ordinary Go and race runs both passed; each recorded
   231 tests/subtests with no failures or skips across 26 test-bearing packages (six
@@ -254,7 +254,7 @@ publishes the development image after its gates. Local PCs can pull completed ch
   running. The platform's normal per-command permission review allowed those operations;
   no global protection or network restriction was disabled. Use that supported review
   when needed; do not replace the pinned browser or bypass access controls.
-- Independent GitHub preflight for `e8e315d` passed in
+- Independent GitHub preflight for `3127c42` passed in
   [run 39847970913](https://github.com/arc-media-server/arc-media-server/actions/runs/39847970913).
   Linux/Windows/race/browser/container and image-publication gates also passed in
   [run 39847970870](https://github.com/arc-media-server/arc-media-server/actions/runs/39847970870).

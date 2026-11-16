@@ -1,6 +1,6 @@
 # Combine the #350 review fixes for an isolated integration rehearsal
 
-The independently tested review PRs share API, scanning, playback, lifecycle and test foundations. Combine pinned heads #351–#417 in a separate codex branch based on main d94283c, preserving each original head and resolving 29 conflicting merges across 20 files. Main and the original PRs are unchanged; this rehearsal is not authorization to merge or publish.
+The independently tested review PRs share API, scanning, playback, lifecycle and test foundations. Combine pinned heads #351–#417 in a separate codex branch based on main 2d8d4ea, preserving each original head and resolving 29 conflicting merges across 20 files. Main and the original PRs are unchanged; this rehearsal is not authorization to merge or publish.
 
 The review handoff in `docs/INTEGRATION-350-REHEARSAL.md` lists every pinned PR and resolution. Preserve atomic rate limiting alongside constant-time friend checks, cancellation/storage/Dolby Vision/scaling behavior together, transactional library changes and typed errors, bounded bulk/import work under complete process shutdown, safe webhook retries, shared filters with narrow playlist summaries and both allocation regressions. Remove a duplicate import admission wrapper introduced by automatic merging. Regenerate additive API documentation from the combined handlers.
 

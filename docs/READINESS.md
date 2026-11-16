@@ -2,8 +2,8 @@
 
 ## Desktop row navigation and profile Home hero (26 October 2026)
 
-Started clean at main `3c0a480`, branch `codex/desktop-row-navigation`; rebased cleanly onto
-`5833fbb` after Claude’s Activity #217 merged. Poster/thumb, cast and
+Started clean at main `f308b4f`, branch `codex/desktop-row-navigation`; rebased cleanly onto
+`813fe25` after Claude’s Activity #217 merged. Poster/thumb, cast and
 Extras rows share actual-overflow-aware visible header arrows, disabled at each end. Keyboard
 row navigation, focus reveal, resize updates, reduced motion and native horizontal input remain;
 normal mouse-wheel vertical page scrolling is explicitly checked. Fixed cast-count gating and
@@ -45,8 +45,8 @@ starts no Actions on PRs; checks are local and the owner merges after review.
 
 ## Weekly database/cache upkeep (#203, 26 October 2026)
 
-Started clean from main `fadb49c` after #204 merged, on `codex/maintenance-upkeep-203`.
-Rebased cleanly onto `dc021f8` after Claude’s Activity #209 merged, preserving that work.
+Started clean from main `e020b77` after #204 merged, on `codex/maintenance-upkeep-203`.
+Rebased cleanly onto `c88a1a9` after Claude’s Activity #209 merged, preserving that work.
 Optimize database and Clean up cached files default On, with weekly quiet-window scheduling,
 coalesced Run now and persisted last result/error. The shared optional-work slot and existing
 writer queue coordinate work; playback/scanning preempt it. Integrity failures and unavailable
@@ -84,7 +84,7 @@ explicitly requests stopping after opening the PR. No merge or image publication
 
 ## Empty trash (#204, 26 October 2026)
 
-Started clean at main `369388e`; branch `codex/empty-trash-204`, rebased onto `55100d1`
+Started clean at main `f9bbc11`; branch `codex/empty-trash-204`, rebased onto `1ad941e`
 after Claude’s #202/#201 changes merged. Shared manual confirmation in Health
 and library More now holds the scan lease through the required safety backup and deletion.
 Maintenance adds an opt-in row in #202’s task list, Off by default with confirmation. Automatic cleanup
@@ -122,7 +122,7 @@ A rebase conflict was resolved by retaining both agents’ handoff entries and C
 ## Fast owner images and ordering form (26 October 2026)
 
 Owner explicitly requested shorter internal testing feedback and a form-native Display order
-control. Baseline 2ba97df matched main; branch codex/fast-images-ordering-form. Current policy:
+control. Baseline 168b5ca matched main; branch codex/fast-images-ordering-form. Current policy:
 [IMAGE-PUBLISHING.md](IMAGE-PUBLISHING.md). Normal main pushes now publish development latest/
 SHA after successful multi-architecture compilation/image build, without full verification.
 Full manual verification remains the default; v-prefixed tags require the complete gates.
@@ -160,7 +160,7 @@ Actual focused checks:
 Measured previous hosted run 40315984922: image preparation 3.9m, Linux checks 17.1m including
 9.6m browser journeys, publication 0.5m. The new policy removes verification waiting, not build/
 queue/registry time. Actual fresh publication and skipped-job status are recorded separately in
-GitHub handoff/evidence when complete. Prior 93/93 verified acceptance at 2ba97df is historical.
+GitHub handoff/evidence when complete. Prior 93/93 verified acceptance at 168b5ca is historical.
 Evidence: /workspace/arc-cloud-evidence/fast-images-ordering-form/. Only temporary stores/local
 provider fixtures; no owner data/settings/media/keys, Unraid, installation or persistent server.
 
@@ -169,7 +169,7 @@ provider fixtures; no owner data/settings/media/keys, Unraid, installation or pe
 
 Owner accepted library-only show metadata provider, file-order-derived episode metadata,
 per-show file/display controls together in Edit Show, and the grouped Home cutoff fix.
-Baseline 150b148 matched GitHub main; branch codex/metadata-ordering. Prepared Go 1.27.0,
+Baseline 3222222 matched GitHub main; branch codex/metadata-ordering. Prepared Go 1.27.0,
 Node 24.19.0/npm 11.9.0 and pinned Chromium 1248/dependencies were used without installations.
 Contract and compatibility boundary: [METADATA-ORDERING.md](METADATA-ORDERING.md).
 
@@ -233,7 +233,7 @@ Hosted full-suite/publication results are recorded separately in the GitHub hand
 
 ## Automatic quality and episode action layout (26 October 2026)
 
-Owner accepted #197 after the earlier deferral. Baseline 4917e48 matched GitHub main; branch
+Owner accepted #197 after the earlier deferral. Baseline ccb3b29 matched GitHub main; branch
 codex/adaptive-quality. Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5, dependencies
 and pinned Chromium revision 1248 were used without installations. No owner data/settings/keys/
 media, Unraid, remote production route or persistent server. Contract: ADAPTIVE-QUALITY.md.
@@ -284,7 +284,7 @@ remote-network behavior, HDR/Atmos output and owner-server performance remain un
 
 
 First hosted [40302917950](https://github.com/JonzaUK/arc-media-server/actions/runs/40302917950)
-at d17e523 passed **91/92 browser journeys (9.1m)**. The episode action checks and real
+at 589f5d2 passed **91/92 browser journeys (9.1m)**. The episode action checks and real
 constrained-delivery journey passed. Windows, Linux Go/vet/race, container acceptance and image
 preparation passed; publication was skipped. The held-response journey completed its playback
 assertions but caught an uncaught HLS `loadingPlaylist` timer against a destroyed controller.
@@ -300,7 +300,7 @@ evidence; this first hosted failure remains failed evidence, not publication acc
 
 ## Episode details and specials (#106/#109, 25 October 2026)
 
-The owner accepted both recommendations after the Web/Server review. Clean baseline ba4fab1
+The owner accepted both recommendations after the Web/Server review. Clean baseline d8b178e
 matched GitHub main; work branch codex/episode-details-specials. Saved activation selected
 Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5 and prepared dependencies/caches/pinned
 Chromium revision 1248. No new tools/dependencies, owner data/settings/media/keys, Unraid or
@@ -371,7 +371,7 @@ backup as usual; real owner data was never opened.
 
 ## Remaining Web and Server audit pass (25 October 2026)
 
-Clean baseline ad40546 matched GitHub main; branch codex/web-server-review. Saved activation
+Clean baseline 49063be matched GitHub main; branch codex/web-server-review. Saved activation
 selected Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5 and prepared compiler/dependencies/
 caches/pinned Chromium revision 1248. No installation, owner data/settings/media/keys, Unraid
 or persistent server. This pass addresses nine findings; native/offline and physical HDR/Atmos
@@ -453,7 +453,7 @@ listening, release/distribution and sustained-use acceptance remain separate.
 
 ## Recovery/local-metadata and retained-policy review (#136/#191/#194/#104/#195, 25 October 2026)
 
-Starting 7659488 matched live GitHub main; clean isolated branch codex/recovery-metadata-review.
+Starting 791a471 matched live GitHub main; clean isolated branch codex/recovery-metadata-review.
 Saved activation selected Go 1.27.0, Node 24.19.0/npm 11.9.0 and FFprobe 7.1.5; compiler,
 locked dependencies, Go/browser caches and pinned Chromium revision 1248 were present.
 No installations, owner data/settings/media/keys, Unraid or persistent server.
@@ -514,7 +514,7 @@ recovery rehearsal remain on #136. No physical-device or sustained-use acceptanc
 This supersedes #188's earlier deferral below: the owner explicitly chose **Jump to a
 letter**. The accepted task is reaching a chosen alphabetical section without traversing
 all earlier posters. No real owner-navigation performance measurement is claimed.
-Baseline a68537c matched live GitHub main; isolated branch codex/library-letter-jump.
+Baseline b236305 matched live GitHub main; isolated branch codex/library-letter-jump.
 Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0, FFprobe 7.1.5, compiler/dependencies/caches
 and pinned Chromium revision 1248 were present; no installation or production access.
 
@@ -560,7 +560,7 @@ on the existing page cache, not durable or cross-device scroll storage.
 
 ## Library work, safe Stop, clock and title-action reviews (#183/#184/#196/#187/#188, 25 October 2026)
 
-Clean starting commit f8261f7 matched GitHub main read-only; work branch
+Clean starting commit a1cd98f matched GitHub main read-only; work branch
 codex/library-maintenance-controls. Saved activation selected Go 1.27.0, with prepared
 Node/npm, compiler, FFmpeg, pinned Chromium/dependencies/caches present. No installation,
 owner settings/media/keys, Unraid or persistent server. Earlier hosted results remain history.
@@ -626,7 +626,7 @@ await in the actual provider-response branch, producing 5 passes/2 failures; cor
 seven pass. A wrong working-directory harness preparation and an obsolete interrupted run
 (exit 130) are also retained. Production failures were not concealed by retries.
 
-First hosted run 40176974946 at 8594200 passed Windows, Linux Go/vet/race, container
+First hosted run 40176974946 at 7ae464d passed Windows, Linux Go/vet/race, container
 acceptance and all seven new journeys, but finished with 76/77 browser passes. Publication
 was correctly skipped. The existing ratings/watchlist/refresh recovery journey still searched
 for the former Refresh button. Its follow-up opens More and selects Refresh metadata; all
@@ -642,7 +642,7 @@ remain separate. No native-client, HDR/Atmos-output or owner-deployment acceptan
 
 ## Preplay source/track choices (#186, 25 October 2026)
 
-Clean starting commit becadf5 matched GitHub main read-only; work branch
+Clean starting commit 40cc9c9 matched GitHub main read-only; work branch
 codex/preplay-track-options. Saved activation selected Go 1.27.0 and the prepared Node/npm,
 FFmpeg, dependencies/caches and pinned Chromium 156 revision 1248. No installation or owner
 media/settings/keys/Unraid access. Only generated clips, disposable stores and local providers.
@@ -708,7 +708,7 @@ and owner-server/sustained-use checks remain unverified here. No persistent serv
 
 ## Library, backup and bulk-selection clarity (#181/#182/#185, 25 October 2026)
 
-Starting checkout c8dc62c was clean and matched GitHub main read-only. Work branch:
+Starting checkout 6f41919 was clean and matched GitHub main read-only. Work branch:
 codex/library-backup-selection-clarity. Prepared Go 1.27.0, Node 24.19.0/npm 11.9.0,
 FFprobe 7.1.5, dependencies/caches and pinned Chromium 156 revision 1248 were present;
 no tools or dependencies were installed. Only disposable stores, generated media and local
@@ -761,7 +761,7 @@ remain separate from Chromium accessibility-name/keyboard and temporary-store ch
 
 ## Recoverable UI errors and episode keyboard playback (#176–#180, 24 October 2026)
 
-The clean starting checkout 14094bb matched GitHub main read-only. Work branch:
+The clean starting checkout e1f893e matched GitHub main read-only. Work branch:
 codex/recoverable-ui-errors. Fresh pre-fix browser fixtures reproduced all five findings:
 **seven journeys failed at the expected checks** (News, playlist picker, Space activation,
 Devices/Optimized Versions/Notifications, and device sign-out feedback). Raw before.json and
@@ -826,7 +826,7 @@ remain retained. All stores/media/provider fixtures were temporary; no owner dat
 production keys, Unraid, new tools/dependencies or persistent server. Evidence:
 `/workspace/arc-cloud-evidence/review-176-180/`.
 
-Hosted follow-up: run 40137947443 at b0fc9dc passed Windows, container checks, Linux Go/race
+Hosted follow-up: run 40137947443 at e78a54f passed Windows, container checks, Linux Go/race
 and **60/62 browser journeys**, including all eight new recovery checks. Publication was skipped
 because two existing queue/compact-player tests used the broad button selector /^Play S/; the
 new valid Play Second Chapter button made it ambiguous with Play S1 E1. The correction targets
@@ -839,7 +839,7 @@ evidence folder and on #176–#180.
 
 ## Audit corrections: bitrate, Search and phone filter recovery (#172/#174/#175, 24 October 2026)
 
-Starting clean baseline d232230 matched GitHub main read-only. Work branch:
+Starting clean baseline a4c99d8 matched GitHub main read-only. Work branch:
 codex/bitrate-search-filter-recovery. The next three unresolved items in #162 were confirmed
 against current code before implementing. Only isolated stores, generated clips and local
 providers were used; no owner data/settings/media, production keys, Unraid or persistent server.
@@ -901,7 +901,7 @@ was weakened to accept stale results or a hidden button. Final evidence and limi
 
 ## Optimized audio selection correctness (#171, 24 October 2026)
 
-Starting clean baseline: 226d05d (GitHub main matched read-only); working branch
+Starting clean baseline: 0f110c7 (GitHub main matched read-only); working branch
 codex/optimized-audio. The new preferred-French API regression failed before the change:
 playback reported source audio stream 2 while returning the English optimized MP4. The original
 failing response is retained at `/workspace/arc-cloud-evidence/optimized-171/before.log`.
@@ -955,7 +955,7 @@ Evidence, versions and initial/final results: `/workspace/arc-cloud-evidence/opt
 ## Optimized-copy source revision correctness (#170)
 
 Contract and compatibility behavior: [OPTIMIZED-COPIES.md](OPTIMIZED-COPIES.md). A fresh
-regression at 6886f1f reproduced the audit finding: after SaveFile updated a source, the old
+regression at 3643959 reproduced the audit finding: after SaveFile updated a source, the old
 optimized copy still appeared playable. The initial failing log is preserved, not counted
 as a pass.
 
@@ -1011,7 +1011,7 @@ and bitrate findings are outside this source-revision fix.
 ## Scanner worker CI regression (#173, 23 October 2026)
 
 Arc/Plex review #162 now tracks all 36 audit findings through separate review issues or
-existing dedicated issues. First review: failed publication run 39974633288 at a5f0a711.
+existing dedicated issues. First review: failed publication run 39974633288 at ff73ba45.
 Linux TestEach returned the expected boom error but counted 166 callbacks beyond index 100;
 its arbitrary maximum of 50 assumed callback 10 had already run. Concurrent dispatch does
 not guarantee that callback execution order. This failure does not establish that the
@@ -1190,11 +1190,11 @@ hosted checks/publication and owner deployment remain separate evidence. No pers
 ## CI FFmpeg package download timeout (#165, 23 October 2026)
 
 Run [39941884612](https://github.com/JonzaUK/arc-media-server/actions/runs/39941884612)
-at `3a470b1` failed at the five-minute FFmpeg installation limit. Apt selected
+at `3da197e` failed at the five-minute FFmpeg installation limit. Apt selected
 `http://azure.archive.ubuntu.com/ubuntu`; downloading the 9 MB libcodec2 package
 took over three minutes. Linux Go/race/browser checks never started. Windows checks,
 container acceptance and multi-platform image preparation passed; release tagging was
-skipped, leaving the prior published image in place. HDR/audio commit `e5f36e0` had
+skipped, leaving the prior published image in place. HDR/audio commit `7f98b21` had
 passed its separate run 39931694480; that does not validate the scheduling commit.
 
 The shared GitHub-runner prerequisite helper now replaces official Ubuntu HTTP/Azure
@@ -1280,8 +1280,8 @@ and generated-video viewport checks do not establish actual device or sustained-
 | --- | --- | --- |
 | Access controls (#130) | Regressions for forwarded sign-in, HTTPS cookies, cast revocation | Implemented; local regression tests pass |
 | Conversion admission (#131) | Simultaneous starts respect limits; remux allowed; stopped/failed starts release capacity | Implemented; local regression tests pass |
-| Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for b5d8e39; see verification below |
-| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for 49ac1f5 |
+| Build gates (#132) | Linux/Windows checks and Linux race/media tests pass before Docker publication | Passed for 324c0ae; see verification below |
+| Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for b4c0052 |
 | Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally and in Linux CI |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Synthetic rescan/order/edition/local-asset regressions pass; broader and real-library validation pending |
 | Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Automated Chromium direct/remux/software conversion coverage; actual device matrix pending |
@@ -1326,7 +1326,7 @@ Real-device playback, proxy deployments and sustained use remain pending.
 
 ## Verification on 21 October 2026
 
-Code commit: `b5d8e3915614b8f2c854164d9b43cf30099340cb`.
+Code commit: `324c0aeebf6db4c069061122009a3124df01d2fb`.
 [GitHub run 39630770097](https://github.com/JonzaUK/arc-media-server/actions/runs/39630770097):
 
 - Windows and Linux: production web build (including TypeScript), `go vet ./...`,
@@ -1367,7 +1367,7 @@ the saved point. The local run passed all six journeys and captured the saved 1:
 Linux CI runs the suite with no retries and uploads the HTML report and failure traces/screenshots/
 video for seven days. These tests do not replace the device matrix or sustained server trial.
 
-Verified code commit: `49ac1f5fdd079ebe7131cc7b8a98ccf2c9fc89db`.
+Verified code commit: `b4c005201b2ec0e9d5d0e6526cb2658aedcc998d`.
 [GitHub run 39635142227](https://github.com/JonzaUK/arc-media-server/actions/runs/39635142227)
 passed both Windows and Linux check jobs, including the Linux browser suite and race checks.
 The Docker publish job started after both check jobs succeeded. Local verification also passed
@@ -1478,7 +1478,7 @@ FFmpeg/ffprobe, read-only root filesystem and media, root/non-root execution wit
 volume ownership, database ownership, backup/restore, health, restart and replacement-container
 persistence. GitHub builds a local linux/amd64 image for this test and image publication depends
 on its success as well as the existing Linux/Windows checks. Initial linux/amd64 acceptance passed
-for `2387a56` in [run 39654467547](https://github.com/JonzaUK/arc-media-server/actions/runs/39654467547),
+for `b14947f` in [run 39654467547](https://github.com/JonzaUK/arc-media-server/actions/runs/39654467547),
 including both root/non-root scenarios; Linux/Windows check jobs also passed.
 Docker is not installed on this Windows PC; no local container result is claimed.
 
@@ -1491,8 +1491,8 @@ recorded with official sources in [DISTRIBUTION.md](DISTRIBUTION.md); #64/#65 re
 The gate now also accepts a previous immutable image tag. On main pushes it seeds that image,
 stops it, copies its complete data volume (including a sentinel in uploads), upgrades the
 original volume to the new image, then runs the previous image against the separate snapshot.
-The pinned baseline is `2a7029a1a0871a459424336146a9fdb73c107001`; cross-image CI acceptance passed
-for `31597fa` in [run 39655440173](https://github.com/JonzaUK/arc-media-server/actions/runs/39655440173).
+The pinned baseline is `ca4a8ac6ef8ab36670440832e89e2b60206c8b22`; cross-image CI acceptance passed
+for `4ebafa4` in [run 39655440173](https://github.com/JonzaUK/arc-media-server/actions/runs/39655440173).
 Both root/non-root scenarios passed, including the separately preserved uploads sentinel.
 Pull requests run the fresh-install gate without requiring private-registry access.
 
@@ -1513,7 +1513,7 @@ Pull requests run the fresh-install gate without requiring private-registry acce
   resume, custom display order and manual placement. This exercises HTTP parsing and sync as
   well as rekeying; live-provider variations and representative real libraries remain pending.
 
-Local Windows full `go vet ./...` and `go test ./...` pass. The previous `2a7029a` and `b0bb836` GitHub runs completed
+Local Windows full `go vet ./...` and `go test ./...` pass. The previous `ca4a8ac` and `4a9c57d` GitHub runs completed
 successfully, including Linux race/browser checks, Windows checks and image publication.
 
 ## Converted playback regression follow-up (#135)
@@ -1555,7 +1555,7 @@ Reproduced with isolated fixtures:
   backups. The UI now recognizes `before-delete` and shows “Saved before a removal”. A real-app
   journey removes an isolated library and verifies the backup's label.
 
-The previous `ba031d4` passed all GitHub jobs in run 39657158172, including Linux race/browser,
+The previous `745d549` passed all GitHub jobs in run 39657158172, including Linux race/browser,
 Windows and container upgrade/rollback checks. Current fixes pass the production web build,
 TypeScript/e2e type checks, all twelve local Chromium journeys without retries, `go vet ./...`
 and `go test ./...`. Continue Watching tests cover movies and episodes with show-level controls.
@@ -1590,7 +1590,7 @@ Seven new browser checks bring the suite to nineteen journeys; screenshot eviden
 the paging control, search failure and desktop/narrow layouts. This bounded review does not
 establish that every UI action, real device, provider or sustained Unraid run is defect-free.
 
-The previous `f3de41d` passed all GitHub jobs in run 39672301946. This pass completed the
+The previous `2690808` passed all GitHub jobs in run 39672301946. This pass completed the
 production web build, TypeScript/e2e checks, all nineteen Chromium journeys without retries,
 `go vet ./...`, `go test ./...`, the embedded-server build and `git diff --check` locally.
 The current commit's CI outcome must be checked separately; local checks do not establish it.
@@ -1603,7 +1603,7 @@ changed in this investigation. [Issue #145](https://github.com/JonzaUK/arc-media
 tracks proposed work and [the scanbench notes](../tools/scanbench/README.md) record commands,
 measurement boundaries and results.
 
-Against product baseline `c22b671`, a fresh real-server import of 120 generated MP4s with a
+Against product baseline `009209b`, a fresh real-server import of 120 generated MP4s with a
 local provider delayed by 200ms and real ffprobe delayed by 300ms finished in 21.97s for direct
 API addition, or 30.06s including a completed Preview. Requests were 240 vs 360: movie Preview
 fetches full details but only its match candidate is reused. The UI allows adding before the
@@ -1756,7 +1756,7 @@ TypeScript checks pass after this change. The final combined CI result is record
 ## CI-discovered split-show scanner synchronization (#153)
 
 Final combined local UI verification passed all 36 Chromium journeys without retries (6.4m).
-CI for 32e819c then failed Windows tests and Linux race tests in the existing split-show scan
+CI for 3a06d26 then failed Windows tests and Linux race tests in the existing split-show scan
 regression; the container installation/persistence/upgrade/rollback job passed. The failure was
 a SQLite FOREIGN KEY error, not a Go race report. Unlike the earlier watcher test-counter race,
 this exposed a production scanner synchronization defect.
@@ -1772,7 +1772,7 @@ failure in 7/10 local repetitions before the fix; 30 consecutive repetitions pas
 No real library/data was used. Final full server and CI outcomes are recorded on #153/#148.
 Full local Go vet/tests pass after this correction; Linux race verification remains a CI gate.
 
-Final verification for 4f09795 subsequently passed all Linux/Windows checks, Linux race and
+Final verification for b52af62 subsequently passed all Linux/Windows checks, Linux race and
 browser checks, container installation/persistence/restore/upgrade/rollback and image publication
 ([run 39785261123](https://github.com/JonzaUK/arc-media-server/actions/runs/39785261123)).
 
@@ -1879,10 +1879,10 @@ has the required browser libraries. The repo setup helper now supports this case
 real launch/content checks of both pinned Chromium and its headless shell; missing libraries
 still fail, without browser substitution, suppressed validation or privilege bypass.
 
-The setup task passed the complete verifier at fc3ace2, then fast-forwarded to e8e315d and
+The setup task passed the complete verifier at ba8cb9d, then fast-forwarded to 3127c42 and
 passed the exact corrected setup command. No Go/web product or test source changed between
 those commits. Publication was followed by a distinct task restoring the compiler, npm deps,
-browsers and caches at e8e315d, matching GitHub main. Its exact verifier passed UI/app/e2e type
+browsers and caches at 3127c42, matching GitHub main. Its exact verifier passed UI/app/e2e type
 checks, Go vet/tests/race, embedded-server build and all 38 browser journeys with zero browser
 failures/skips/retries. Because most Go results were initially cached, it also ran uncached
 ordinary Go and race suites; both exited zero. Each suite recorded 231 tests/subtests,
@@ -1891,7 +1891,7 @@ retained at /workspace/arc-cloud-evidence/FRESH-TASK.md in the cloud chat and on
 
 The normal cloud command-permission review was required for browser/proxy access; environment
 network policy and global security protections were retained. GitHub independently passed the
-exact Linux setup/verification recipe for e8e315d in run 39847970913 and its full release/image
+exact Linux setup/verification recipe for 3127c42 in run 39847970913 and its full release/image
 gates in run 39847970870. See [CODEX-CLOUD](CODEX-CLOUD.md) for the private chat and rebuild steps.
 Physical confirmation from the owner's second PC remains unperformed. These are developer-
 environment results, not real-library, device, GPU, casting, Unraid or sustained-use acceptance.
@@ -1899,7 +1899,7 @@ environment results, not real-library, device, GPU, casting, Unraid or sustained
 
 ## Rescan feedback and request responsiveness (#158, 22 October 2026)
 
-An owner-supplied diagnostic export from e8e315d showed a repeated Series scan checking 14,627
+An owner-supplied diagnostic export from 3127c42 showed a repeated Series scan checking 14,627
 files with zero probe attempts and zero new matches. Its general matching phase did not mean
 all files were probed again. An earlier scan did probe 1,320 files, but the export does not
 explain why those needed reading. The repeated scan also coincided with authenticated Activity,
@@ -2106,7 +2106,7 @@ production-container binary behaviour or sustained-use acceptance. #134–#138 r
 
 The owner approved the written [background-work plan](BACKGROUND-WORK-PLAN.md) and its
 implementation after comparing Arc with Plex's Library/Scheduled Tasks controls. Baseline
-e5f36e0. Discovery remains independent, with 15/30-minute and 2-hour choices added to the
+7f98b21. Discovery remains independent, with 15/30-minute and 2-hour choices added to the
 existing intervals. Canonical minute settings retain legacy hour API requests, including
 fractional hours for 15/30-minute round trips, and preserve explicit Off/restored values.
 

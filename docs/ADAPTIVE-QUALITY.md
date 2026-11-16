@@ -1,6 +1,6 @@
 # Automatic browser quality (#197)
 
-Owner-authorized implementation plan, 25 October 2026. Baseline 4917e48.
+Owner-authorized implementation plan, 25 October 2026. Baseline ccb3b29.
 No managed relay, discovery/account service, owner network configuration or #193 storage policy.
 
 1. Add Automatic to the existing device quality choice; preserve stored manual limits and

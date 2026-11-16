@@ -1,6 +1,6 @@
 # Library editor and folder picker translation preparation — 28 October 2026
 
-Part of #122, separate codex/i18n-library-editor branch from main ad42920.
+Part of #122, separate codex/i18n-library-editor branch from main 7b1e4d3.
 Add/edit library controls, source ordering, metadata language, preview/progress and folder selection use a dedicated bundled English namespace, static keys and noun-specific plural
 families. Technical IDs, matching tokens, paths, metadata, user edits and server results stay raw.
 English wording, labels, defaults and layout are preserved. No dependencies, translated language,
@@ -12,7 +12,7 @@ Actual isolated validation:
   (275 top-level tests; 30 test-bearing packages, six without tests). No Go failures/skips.
 - 8/8 unchanged focused browser journeys passed; zero skips/flaky tests/retries.
 - Two additional desktop/phone visual journeys before and after passed. Four desktop/phone pairs differ at 214–679 pixels, within fixture path/text rendering regions.
-  Compared with separately built clean main ad42920. Source/visual review found no wording or
+  Compared with separately built clean main 7b1e4d3. Source/visual review found no wording or
   layout change; this is not an all-pixel-identical claim. Random item file roots are normalized
   only in fixture GET presentation; library folder paths remain random and explain differences.
 

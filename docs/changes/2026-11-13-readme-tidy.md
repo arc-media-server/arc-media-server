@@ -14,6 +14,6 @@ expandable feature catalogue was removed to keep the README focused on the overv
 getting started. Watch Together and download API guides remain linked for integrations.
 
 Checked against current routes, settings navigation, container entrypoint, Compose example,
-provider/distribution guidance and roadmap at 72ec607. Documentation links, image paths,
+provider/distribution guidance and roadmap at be22867. Documentation links, image paths,
 Markdown fences and shell-example syntax were checked; no server, browser or hardware tests
 were run for this documentation-only change. Runtime behaviour and logging are unchanged.

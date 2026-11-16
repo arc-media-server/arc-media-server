@@ -37,7 +37,7 @@ It removes inherited `AMS_*` settings, never targets an existing server/data dir
 only generated media, and cleans up its exact temporary directory. No real API keys are used.
 
 The stand-in responds after 200ms; each real ffprobe call has 300ms artificial delay. Current
-product baseline: `c22b671`, Windows amd64, Ryzen 7 7700X. All times start before preview/add:
+product baseline: `009209b`, Windows amd64, Ryzen 7 7700X. All times start before preview/add:
 
 | Flow | Preview | First matched | All matched | Scan finished | Provider requests |
 | --- | ---: | ---: | ---: | ---: | ---: |

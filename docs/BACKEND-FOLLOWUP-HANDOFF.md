@@ -1,6 +1,6 @@
 # Backend follow-up: Claude/app handoff
 
-Three independent PRs start from main `ad2f538` (3 November 2026). Merge through GitHub; no
+Three independent PRs start from main `98a6b3f` (3 November 2026). Merge through GitHub; no
 frontend work is included apart from waiting correctly for an existing playback-speed event
 in a browser test. Watch Together itself is separate PR #333 and not a dependency of these PRs.
 

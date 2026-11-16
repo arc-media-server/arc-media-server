@@ -24,7 +24,7 @@ failure boundary. No routine logs were added: logging filter values on every nav
 noise and could disclose browsing choices. Existing request/error feedback remains, and focused
 browser checks cover storage failure and profile/navigation boundaries.
 
-Validation (prepared Go 1.27.0, Node 24.19.0 and pinned Chromium, starting main b14bda5):
+Validation (prepared Go 1.27.0, Node 24.19.0 and pinned Chromium, starting main 25591c5):
 
 - UI production build, app TypeScript and e2e TypeScript passed; all 20 translation checks passed.
 - Six focused browser journeys passed together (46.8 seconds), zero skips/retries: movie and

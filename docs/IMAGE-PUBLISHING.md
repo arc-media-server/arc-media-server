@@ -40,7 +40,7 @@ Measured previous run 40315984922: image preparation 3.9 minutes, Linux checks 1
 including 9.6 minutes of browser journeys; publication added 0.5 minutes after the gates. The
 new main path removes that verification wait, not compilation, runner queueing or registry time.
 Actual new publication timing is recorded in READINESS/GitHub evidence; no fixed duration is
-promised. Full verified acceptance at 2ba97df (93/93 journeys) remains historical evidence.
+promised. Full verified acceptance at 168b5ca (93/93 journeys) remains historical evidence.
 
 ## After the move to the organisation (28 October 2026)
 

@@ -4,7 +4,7 @@ Owner follow-up: #106/#109 were subsequently accepted for implementation. Their 
 contract is in [EPISODE-DETAILS-SPECIALS.md](EPISODE-DETAILS-SPECIALS.md); the original
 review/deferral and plan below remain historical. READINESS and the issues record actual checks.
 
-Baseline ad40546, 25 October 2026. This pass covers nine Astra findings from #162;
+Baseline 49063be, 25 October 2026. This pass covers nine Astra findings from #162;
 native/offline apps (F25) and physical HDR/Atmos output acceptance (F26) are excluded.
 The current pass implements bounded controls and sender fixes, and records concrete
 plans for larger optional projects. It does not equate a review decision with feature delivery.

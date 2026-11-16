@@ -30,7 +30,7 @@ Native client repositories remain separate; no client implementation is included
 
 ## Current implementation evidence
 
-Inspected main d94283c (PR #349/Jellyfin FFmpeg 8). These are reuse points, not download support:
+Inspected main 2d8d4ea (PR #349/Jellyfin FFmpeg 8). These are reuse points, not download support:
 
 | Existing code | Reuse / boundary |
 |---|---|

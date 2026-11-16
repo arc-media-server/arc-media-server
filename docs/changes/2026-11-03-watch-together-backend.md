@@ -27,7 +27,7 @@ Validation results are recorded in the PR; fixtures never use owner media/settin
 - Focused room/auth/API race checks passed, including concurrent commands, global detached-stream
   bounds, atomic attempts, authenticated-router SSE and revocation. API-doc/contract checks pass.
 - An earlier full run and isolated recheck failed the existing TestConversionWaitsForThePlayer.
-  The same failure reproduced on unchanged starting main ad2f538; the final full run passed.
+  The same failure reproduced on unchanged starting main 98a6b3f; the final full run passed.
   No transcode implementation/test changes or relaxed checks were made; this remains an observed
   baseline timing-sensitive test. Original failure and final success logs are retained separately.
 - Browser journeys and real-device/multi-device synchronization were not run for this backend-only

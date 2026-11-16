@@ -22,7 +22,7 @@ unavailable test field, a disabled upkeep fixture and a done-only optimized-list
 Those failed attempts remain in local evidence. Isolated fixtures only, no owner production access.
 
 
-Integration check: applied #334, #335 and this source commit (`5fef77f`) to main `ad2f538` in a
+Integration check: applied #334, #335 and this source commit (`e13c6ad`) to main `98a6b3f` in a
 separate detached temporary worktree, producing `4ae3c99`. The three applied without conflicts;
 regenerating API docs produced no differences. All 32 Go test packages, full vet and embedded
 build passed together. This does not erase the standalone 31-pass/1-fail result above. Merge
