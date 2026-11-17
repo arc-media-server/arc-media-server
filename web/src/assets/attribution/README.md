@@ -24,4 +24,4 @@ profile/system light/dark rules as Arc's theme tokens. Provider marks retain the
 
 Provider marks belong to their respective owners; Arc's source licence does not grant rights
 to them. These are attribution assets, not an endorsement or a provider distribution licence.
-TheTVDB's distribution/access agreement remains an owner decision in #80.
+TheTVDB's distribution/access agreement remains an owner decision in #478.

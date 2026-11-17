@@ -2,6 +2,11 @@
 
 Describe the user problem and resulting behaviour.
 
+## Decisions
+
+Product defaults this PR picks (what, why, how Plex does it, the alternative), or "None".
+If the owner has to choose, link the arc-media-server issue labelled `owner decision`.
+
 ## Validation
 
 List actual checks and material limits. Do not claim production/device acceptance from fixtures.

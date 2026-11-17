@@ -45,10 +45,11 @@ The owner works from more than one PC (Windows). On a fresh clone:
   reference work. Do not maintain a parallel PostgreSQL schema/query path or resume that work
   unless the owner asks. New backend work targets the existing SQLite migration/backup system.
 - **Provider attribution:** official TMDB/TheTVDB marks are bundled in `web/src/assets/attribution/`
-  with source hashes (#64); TheTVDB distribution/access approval remains an owner decision (#80).
+  with source hashes (#64); TheTVDB distribution/access approval remains an owner decision (#478).
 - **Open owner items:** translations beyond English and a language picker (#122, Codex
   has done the extraction); real-device playback and casting checks (#135, #192); the optimized
-  copies storage budget (#193, deferred). Decisions waiting for the owner are on #80.
+  copies storage budget (#193, deferred). Decisions waiting for the owner are open issues labelled
+  `owner decision`; #80 is closed and kept as history.
 - **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)
   and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
 - **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
@@ -79,8 +80,10 @@ The owner works from more than one PC (Windows). On a fresh clone:
 - Record each change in `docs/changes/YYYY-MM-DD-<slug>.md` (what changed, why, decisions,
   limits), not in this file. Keep the status above current when it changes.
 - Keep working without check-ins. For product decisions, pick a sensible default that is easy to
-  change and log it on #80 ("Decisions waiting for the owner"). Only stop for risky or
-  irreversible things.
+  change and note it in the PR description (a "Decisions" section: what, why, how Plex does it,
+  the alternative). Only when the owner really has to choose, open one issue per decision,
+  labelled `owner decision`, with a recommendation. #80 is closed (owner, 17 November) and kept as
+  history; don't add to it. Only stop for risky or irreversible things.
 - Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
   logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
   and share the existing one rather than writing a second copy.
@@ -120,7 +123,7 @@ current detail-window, request tracking and export limits are in `docs/LOGGING.m
 1. **Never modify media files.** AMS only reads: no renaming, moving, tagging or writing beside them.
 2. **Ease over options.** Apple-level polish and simplicity; no setting without a reason. For every new
    feature, first check how Plex does it and match its behaviour, defaults and where its settings live
-   (per library, server or profile) unless there's a clear reason to differ; log any difference on #80.
+   (per library, server or profile) unless there's a clear reason to differ; note any difference in the PR.
 3. **No plugin system.** Features are built into AMS.
 4. **Storage order ≠ display order.** Episode identity is separate from how a series is displayed.
 5. **Nothing silently disappears.** Unmatched or unplaced items are shown and listed, never hidden.
