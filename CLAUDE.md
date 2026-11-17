@@ -1,261 +1,67 @@
 # Arc Media Server (AMS): notes for AI agents
 
-An open source media server (Plex/Jellyfin alternative) written in Go with an embedded React web
-app. The owner (GitHub: JonzaUK) drives product vision; the agent does most implementation.
-Read `ROADMAP.md` for the plan and `README.md` for features and the API.
+An open source media server (Plex/Jellyfin alternative) in Go with an embedded React web app.
+@docs/AGENT-RULES.md
 
-## Setting up a new machine
-
-The owner works from more than one PC (Windows). On a fresh clone:
-
-1. Install the tools (then open a new terminal so PATH updates):
-   ```
-   winget install GoLang.Go Gyan.FFmpeg OpenJS.NodeJS.LTS GitHub.cli
-   ```
-2. Log in to GitHub and clone:
-   ```
-   gh auth login --web
-   gh repo clone arc-media-server/arc-media-server
-   cd arc-media-server
-   ```
-3. Start Claude Code in the folder and say "let's continue".
-
-**Agent: when starting on a fresh clone, do this for the owner:**
-- Check `go version`, `node --version`, `ffprobe -version` and `gh auth status`. If any are missing,
-  give the owner the exact command above (installs need their go-ahead). If `go` or `ffprobe` aren't
-  found right after installing, the shell's PATH is stale: use `C:\Program Files\Go\bin\go.exe`, and
-  find ffprobe under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\...\bin`.
-- Create the test library outside the repo with `go run ./tools/testmedia -out ../ams-test-media`,
-  unless the owner gives real media paths.
-- Build the UI (`cd web && npm install && npm run build`), then `go run ./cmd/ams`, and tell the
-  owner to open http://127.0.0.1:8099. There are no config files: first-run setup in the browser
-  creates their admin profile and takes the TMDB/TVDB keys (they have both; keys never go in git),
-  then libraries are added in the app (the test library's `Movies` and `TV` folders). ffprobe is
-  found automatically (PATH, winget folder, next to the binary). An old `ams.yaml` is imported once.
-- Check `ROADMAP.md` and the open GitHub milestones (`gh issue list -R arc-media-server/arc-media-server`) to
-  see what's next, then carry on (see "Where things stand").
+The shared rules above apply to every Arc repository. This file adds the server's own. Reference
+material read when needed: `docs/DEVELOPING.md` (setting up a new machine, code layout, build and
+test details, how TV orderings work, gotchas), `ROADMAP.md`, `README.md`.
 
 ## Where things stand
 
-- **Status:** private alpha. Milestones 1–20 are done (see `ROADMAP.md`); the focus is milestone 21,
-  stability and alpha release readiness (#130–#138), plus the owner's requests as they come in.
-  Arc runs day to day on the owner's Unraid server in Docker.
-- **Release focus (owner, 11 November):** prioritize stability and release readiness with SQLite.
-  External databases/PostgreSQL are deferred under #308; preserve PRs #337/#339 unmerged as
-  reference work. Do not maintain a parallel PostgreSQL schema/query path or resume that work
-  unless the owner asks. New backend work targets the existing SQLite migration/backup system.
-- **Provider attribution:** official TMDB/TheTVDB marks are bundled in `web/src/assets/attribution/`
-  with source hashes (#64); TheTVDB distribution/access approval remains an owner decision (#478).
-- **Open owner items:** translations beyond English and a language picker (#122, Codex
-  has done the extraction); real-device playback and casting checks (#135, #192); the optimized
-  copies storage budget (#193, deferred). Decisions waiting for the owner are open issues labelled
-  `owner decision`; #80 is closed and kept as history.
-- **History:** what was built and why is in `docs/changes/` (one note per change since 27 October)
-  and `docs/HISTORY.md` (the older running notes). Readiness evidence is in `docs/READINESS.md`.
-- **Ratings:** IMDb dataset downloads/application and web scores/sort are paused; identifiers remain.
-  Deferred removal and source/licensing options: `docs/RATING-SOURCES.md`.
-- **Client API:** integration guide `docs/CLIENT-INTEGRATION.md`; current backend/UI handoff
-  `docs/BACKEND-API-HANDOFF.md`. Regenerate the contract with `go run ./tools/apidoc` after API changes.
-- **Downloads (#62):** original preparation, durable offline metadata/art/text-caption bundles and
-  authenticated resumable asset transfer are implemented in the stacked D1/D2/D3 PRs; reconcile
-  with reviewed main before deployment. Client contract: `docs/DOWNLOADS-OFFLINE-API.md`.
-  SQLite only; no converted downloads, offline progress sync or native acceptance yet.
-- **Apps:** the Android app (TV first, phone later) lives in its own repository, arc-media-server/arc-android
-  (Kotlin, Compose for TV, Media3), and uses only `/api/v1`; API gaps it needs are fixed here.
-  The LG webOS / Samsung Tizen app goes in arc-media-server/arc-tv (one web app with Enact
-  Spotlight, packaged as .ipk and .wgt, each TV's own player); it also uses only `/api/v1`.
-- **Licence:** AGPL-3.0-only, copyright "The Arc Media Server Authors" (owner, 28 October).
+- **Status:** private alpha. Milestones 1–20 are done; the focus is milestone 21, stability and
+  release readiness (#130–#138), plus the owner's requests. Arc runs day to day on the owner's
+  Unraid server in Docker. On a fresh clone, follow "Setting up a new machine" in
+  `docs/DEVELOPING.md`.
+- **SQLite only (owner, 11 November):** PostgreSQL is deferred under #308; keep PRs #337/#339
+  unmerged as reference and don't maintain a parallel PostgreSQL path unless the owner asks.
+- **Open owner items:** translations beyond English (#122); real-device playback and casting
+  (#135, #192); the optimized copies storage budget (#193, deferred); decisions labelled
+  `owner decision` (TheTVDB access is #478).
+- **Ratings:** IMDb downloads and web scores/sort are paused; identifiers remain
+  (`docs/RATING-SOURCES.md`).
+- **Downloads (#62):** originals, offline bundles and resumable transfer are in; no converted
+  downloads, offline progress sync or native acceptance yet (`docs/DOWNLOADS-OFFLINE-API.md`).
+- **Apps:** arc-android, arc-apple, arc-kodi, arc-roku and arc-tv (LG/Samsung), each in its own
+  repository, all on `/api/v1` only; API gaps they need are fixed here.
+- **History:** `docs/changes/` (one note per change), `docs/HISTORY.md` (older notes); readiness
+  evidence in `docs/READINESS.md`.
 
-## Workflow (owner, 26 October; applies to Claude and Codex alike)
+## Server rules
 
-- Everything goes through pull requests. Never push to main and never force push. Work on the
-  branch the session assigns (Claude: `claude/...`; Codex: `codex/...`), one agent per branch.
-- PRs start no GitHub Actions runs (to save minutes). Before opening a PR, run the relevant checks
-  yourself (go vet/test, `npx tsc -b`, production build, affected browser journeys; the full
-  browser suite for broad changes) and list the actual results in the PR. Full verification
-  (container checks) is the manual "Run workflow", which release tags also require.
-- The owner merges, or tells the agent to. Merging to main publishes the development `latest`
-  image (`docs/IMAGE-PUBLISHING.md`). After a PR merges, restart the branch from the latest main
-  rather than stacking on merged history.
-- Record each change in `docs/changes/YYYY-MM-DD-<slug>.md` (what changed, why, decisions,
-  limits), not in this file. Keep the status above current when it changes.
-- Keep working without check-ins. For product decisions, pick a sensible default that is easy to
-  change and note it in the PR description (a "Decisions" section: what, why, how Plex does it,
-  the alternative). Only when the owner really has to choose, open one issue per decision,
-  labelled `owner decision`, with a recommendation. #80 is closed (owner, 17 November) and kept as
-  history; don't add to it. Only stop for risky or irreversible things.
-- Reuse before building (owner, 29 October): when a feature needs a menu, dialog, screen or
-  logic Arc already has (e.g. the library ⋯ actions, the Edit dialog, Home's rows), open or extract
-  and share the existing one rather than writing a second copy.
-- The /api/v1 promise is enforced: `docs/api-v1-contract.txt` lists every endpoint, success status
-  and response field apps may rely on, and a test fails if one disappears or changes type. Add
-  fields instead of renaming or removing them; delete a contract line only for a deliberate break.
-- Necessary configuration belongs in the web UI, never config files (#66). Choose good automatic
-  defaults and keep advanced choices and implementation details (worker counts, cache knobs) out
-  of ordinary flows.
-- Never mark hardware, deployment, real-device or sustained-use checks complete without actual
-  evidence. Never point tests or tools at the owner's data, settings or media.
-- Settled decisions: no Jellyfin-compatible API layer, ever (Arc has its own clients and open API);
-  no deleting media from the app; a show's details come from its library's one metadata provider
-  and gaps are never backfilled from the other.
+- **Checks before a PR:** `go vet ./...`, `go test ./...`, `cd web && npx tsc -b`, the production
+  build, the affected browser journeys (the full suite for broad changes). Full container
+  verification is the owner's manual "Run workflow", which release tags also require. Merging to
+  main publishes the development `latest` image (`docs/IMAGE-PUBLISHING.md`).
+- **API:** after API changes run `go run ./tools/apidoc` (rewrites `docs/API.md`,
+  `docs/openapi.json` and adds to `docs/api-v1-contract.txt`). Delete a contract line only for a
+  deliberate break.
+- **Web text:** all new UI text goes through `t()` and the English catalogs in
+  `web/src/locales/en`; `Trans` for rich text, whole phrases and plural keys. Never translate API
+  enums, tokens, key values or stored identifiers (`docs/TRANSLATION.md`).
+- **Metadata:** provider data is written only through `store.UpdateMetadata` (it honours
+  `locked_fields`). Episode identity is separate from display order; watch history must survive
+  re-keying (`docs/DEVELOPING.md`, TV orderings).
+- **SQLite:** WAL with `_txlock=immediate`; keep write transactions short; INSERT/UPDATE RETURNING
+  uses `WriteRowContext`. A new migration triggers a `before-upgrade` backup automatically.
+- **Scratch servers only:** `AMS_LISTEN=127.0.0.1:8199 ams -data <scratch> -config none`, with the
+  `tools/testmedia` library. Settings and keys live in the database, never in files.
+- **Milestones:** work milestone by milestone (`ROADMAP.md`) and add web UI for new features as you
+  build them. Close issues with the commit hash, tick the box in `ROADMAP.md`, close the milestone
+  when it's finished. Provider attribution marks live in `web/src/assets/attribution/` (#64).
+- **Build order:** `cd web && npm install && npm run build` before `go build` (the UI is embedded).
 
 ## Logging and PR review
 
-Every PR must consider whether failures and stalls in its scope can be diagnosed; describe the
-coverage or why no additional logging is needed. Use `.github/pull_request_template.md`;
-current detail-window, request tracking and export limits are in `docs/LOGGING.md`.
+Every PR considers whether failures and stalls in its scope can be diagnosed and says what it logs
+(`.github/pull_request_template.md`; limits in `docs/LOGGING.md`).
 
-- Log meaningful background-job starts/outcomes with duration and useful counts, and important
-  decisions such as conversion reasons. Successful page loads/polls need no info-level record.
-- Log actionable failures once at the responsible boundary, including safe operation/provider
-  context. Expected cancellations, empty results and ordinary validation are not server errors.
-- Per-item detail belongs at debug level behind temporary detailed logging. Guard expensive debug
-  argument preparation with `log.Enabled`; disabled logging still evaluates Go arguments.
-- Never log at info in file/segment/progress loops. Summarise and rate-limit repeated warnings.
-  Use bounded, threshold-based diagnostics for unfinished work instead of a flood of start logs.
+- Log background-job starts/outcomes with duration and counts, and important decisions such as
+  conversion reasons. Successful page loads and polls need no info-level record.
+- Log actionable failures once at the responsible boundary, with safe operation/provider context.
+  Expected cancellations, empty results and ordinary validation aren't server errors.
+- Per-item detail at debug, behind temporary detailed logging; guard expensive debug arguments
+  with `log.Enabled`. Never info in file/segment/progress loops; summarise and rate-limit repeats.
 - Never log passwords, keys, tokens, raw URLs/query strings, request bodies or SQL arguments.
-  Preserve redaction and bounded retention; diagnostic stacks are admin-only and on demand.
-- Test meaningful failure/stall and privacy boundaries using isolated fixtures. State what the PR
-  logs, relevant performance/volume bounds and remaining diagnostic limitations.
-
-## Principles (non-negotiable)
-
-1. **Never modify media files.** AMS only reads: no renaming, moving, tagging or writing beside them.
-2. **Ease over options.** Apple-level polish and simplicity; no setting without a reason. For every new
-   feature, first check how Plex does it and match its behaviour, defaults and where its settings live
-   (per library, server or profile) unless there's a clear reason to differ; note any difference in the PR.
-3. **No plugin system.** Features are built into AMS.
-4. **Storage order ≠ display order.** Episode identity is separate from how a series is displayed.
-5. **Nothing silently disappears.** Unmatched or unplaced items are shown and listed, never hidden.
-6. **All new UI text goes through `t()` and `en.json`.** Here `en.json` means the bundled English
-   namespace catalogs in `web/src/locales/en`; use `Trans` for rich text, whole phrases/placeholders
-   and noun-specific plural keys. Never translate API enums, matching tokens, keyboard event values
-   or stored identifiers. See `docs/TRANSLATION.md`.
-
-## Working with the owner
-
-- Explain trade-offs in plain language with a recommendation; they're a Plex/Jellyfin power user,
-  not a Go/React expert.
-- Work milestone by milestone (`ROADMAP.md`). The web app was pulled forward so progress is visible:
-  add UI for new features as you build them.
-- Track work in GitHub: each roadmap item is an issue under a milestone in
-  `arc-media-server/arc-media-server` (private). Close issues with the commit hash when done, tick the box in
-  `ROADMAP.md`, and close the milestone when it's finished.
-- Commit finished work to your branch and open a PR (see Workflow). Commit messages: a summary line, a body describing what changed,
-  and the Co-Authored-By trailer. No agent session links in commits or PRs (no `Claude-Session:` or
-  other chat URLs; owner, 13 November): Co-Authored-By is the only attribution. Earlier links are
-  removed once, before the repositories go public (`docs/ALPHA-CHECKLIST.md`).
-- Silo (github.com/Silo-Server/silo-server, a Go + React media server) is a design reference only:
-  it's AGPL-3.0, so never copy its code or exact designs.
-
-## Layout
-
-```
-cmd/ams/             entrypoint (flags: -data, -debug, -reset-password; -config only imports an old ams.yaml)
-internal/settings/   server settings in the DB (keys, ffprobe, port, network, sign-in at home); env overrides
-internal/auth/       password/PIN hashing (bcrypt), session tokens, home-network check, rate limiting
-internal/config/     reads an old ams.yaml once, to import it
-internal/lifecycle/  process work admission, cancellation, bounded shutdown diagnostics and dependency-safe joining
-internal/downloads/  profile/device-owned original-file checksum preparation (no transfer yet)
-internal/filecache/  persistent source revision keys; catalog reservations protect captured identities
-internal/store/      SQLite (modernc, pure Go) + embedded migrations in store/migrations/*.sql
-internal/probe/      ffprobe wrapper
-internal/scanner/    folder walking, filename parsing (parse.go movies, parse_tv.go TV), shows.go TV sync
-internal/metadata/   TMDB (movies + TV + episode groups) and TheTVDB v4 clients
-internal/api/        REST API (net/http patterns); serves the web app for non-/api paths
-internal/artwork/    local artwork cache (data/artwork, keyed by source URL hash; safe to delete)
-internal/backup/     daily DB backups in data/backups (VACUUM INTO), retention, online restore
-internal/watcher/    fsnotify on library folders -> scanner.Request after 10s quiet; hourly rescan
-internal/transcode/  FFmpeg sessions writing fMP4 HLS into data/transcode; remux (copyts, measured start) or H.264 encode
-internal/logbuf/     the last log lines in memory for the Dashboard
-internal/schedule/   the maintenance window (hours of the night heavy work waits for)
-internal/markers/    intro/recap/credits markers: chapters, IntroDB, TheIntroDB, Chromaprint detection (ffmpeg)
-internal/optimize/   optimized versions (H.264/AAC MP4 copies in data/optimized), used by playback when needed
-internal/sysstats/   CPU, memory and network samples for the Dashboard (Windows and Linux; Arc's own elsewhere)
-internal/remote/     remote access: HTTP and HTTPS on one port, certificates (files or Let's Encrypt, data/certs), UPnP port forwarding; AMS_UPNP_URL / AMS_PUBLIC_IP_URL / AMS_ACME_URL for stand-ins
-internal/notify/     webhook events (library.new, playback.start/watched, server.problem); Discord/Slack formats
-internal/importer/   imports watch state from Plex (plex.tv PIN sign-in) and Jellyfin; AMS_PLEX_TV_URL for a stand-in
-internal/ratings/    IMDb ratings file (weekly) and OMDb critics' scores; AMS_OMDB_URL / AMS_IMDB_RATINGS_URL for stand-ins
-internal/activity/   running and recent background tasks (scans, refreshes, previews, backups) for the Activity menu
-internal/trickplay/  timeline thumbnails per library (keyframes only, nearest per 10s slot), data/trickplay
-internal/opensubtitles/ OpenSubtitles.com client (search, download, file hash); AMS_OPENSUBTITLES_URL for a stand-in
-internal/subtitles/  subtitle tracks (in the file and beside it), extracted to cues with FFmpeg, cached in data/subtitles
-internal/insights/   watch-history stats: activity overview and a profile's year in review
-internal/search/     search normalising and fuzzy scoring (accents, case, small typos)
-internal/webui/      embeds web/ build output (internal/webui/dist)
-web/                 React 19 + TypeScript + Tailwind 4 + Radix UI + Motion + TanStack Query
-tools/testmedia/     generates a fake test library
-tools/apidoc/        regenerates docs/API.md from internal/api (internal/apidoc; a test fails when it's stale)
-tools/scanbench/     times first scans against a stand-in TMDB with slow disks simulated (AMS_TMDB_URL, AMS_PROBE_DELAY_MS)
-```
-
-## Build, run, test
-
-```sh
-cd web && npm install && npm run build && cd ..   # MUST run before go build: the UI is embedded
-go vet ./... && go test ./...
-go run ./cmd/ams                                    # data in ./data, serves http://127.0.0.1:8099
-cd web && npm run dev                               # UI hot reload; proxies /api to :8099
-cd web && npx tsc -b                                # type-check the UI
-go run ./tools/apidoc                               # after API changes: rewrites docs/API.md + docs/openapi.json, adds to docs/api-v1-contract.txt
-```
-
-- Settings (incl. API keys) live in the database; this PC's `data/ams.db` already has the owner's keys.
-- To test first-run setup or anything needing a clean slate without touching the owner's data, run a
-  second copy: `AMS_LISTEN=127.0.0.1:8199 ams -data <scratch folder> -config none`.
-- API calls from scripts need a session: `POST /api/auth/setup` or sign in, keeping the cookie.
-- One-line `useEffect(() => fn())` is a bug if fn returns anything (e.g. `window.scrollTo` returns a
-  promise in new Chromium): React treats it as the cleanup and crashes on unmount. Use braces.
-- Test library: `go run ./tools/testmedia -out ../ams-test-media` (needs ffmpeg); add its `Movies`
-  and `TV` folders as libraries. It includes Firefly (TVDB 78874: aired vs DVD vs TMDB "Intended
-  Order"), Mushoku Tensei (TVDB 371310: TMDB groups Cours/Crunchyroll/Seasons), a fake show (unmatched)
-  and an S01E20 that doesn't exist (file-only episode).
-- Verify UI changes visually: run the server and screenshot with headless Chrome, e.g.
-  `chrome --headless=new --hide-scrollbars --force-dark-mode --window-size=1440,1000 --virtual-time-budget=8000 --screenshot=out.png http://localhost:8099/`.
-  Headless Chrome won't render narrower than ~500px.
-- The data dir (`data/ams.db`) can be deleted to start fresh; migrations recreate it.
-- A new migration triggers a `before-upgrade` backup automatically when an existing database is opened.
-  Restores run online (SQLite backup API) and then re-apply migrations, so old backups stay restorable.
-
-## How TV orderings work (the headline feature)
-
-- A TV library's `source_ordering` (tvdb_aired default, or tmdb_aired) says how files are numbered.
-  That provider is "canonical": its episodes become items, keyed `ep:<series>:<provider>:<id>`.
-- All orderings from both providers are stored (`orderings`, `ordering_entries`, `ordering_seasons`).
-  The other provider's episodes are mapped onto canonical ones: cached ids → air date + title (free).
-  The expensive per-episode TMDB external-id lookups ("deep" mapping) run only when a series is
-  displayed in the other provider's ordering (`store.DisplaysProvider`) or `refresh?deep=1`.
-- Files whose SxxEyy isn't in the source ordering become file-only episodes (`ep:<series>:file:s1e20`),
-  later adopted (re-keyed, same id) when a provider learns them. Watch history must survive this.
-- Display ordering: `series_display` with `user_id ''` = server default; per-user rows come with users
-  (milestone 4). Custom orderings are copies with locked entries; manual placements are `locked=1` and
-  survive refreshes.
-
-## Gotchas
-
-- Windows: Go handles paths over 260 chars, and so does ffprobe 9; scripts creating test files may need
-  the `\\?\` prefix.
-- TVDB returns relative image paths (`/banners/...`); `tvdbImage()` prefixes artworks.thetvdb.com.
-- TVDB and TMDB both require visible attribution in the UI (tracked in "Before public release").
-- SQLite runs with WAL and `_txlock=immediate`; keep write transactions short. The store's
-  database wrapper queues Exec/BeginTx/raw restore through one write connection and keeps
-  independent query-only read connections. INSERT/UPDATE RETURNING must use WriteRowContext,
-  not the read QueryRowContext. Release any raw write connection before calling store methods.
-- Other videos libraries are stored as kind 'movies' with `libraries.videos = 1` (the original
-  CHECK constraint only allows movies/shows) and read back as kind "videos". Their videos are movie
-  items with metadata_state 'locked' (never looked up online); folders are collections of kind 'folder'.
-- Items are hidden from listings while none of their files are present (`missing_since`), but never
-  deleted, so history survives drives going offline.
-- Match explanations: provider clients `record()` each search/lookup into a `metadata.Trace` carried
-  in the context; `scanner.traced()` saves it to `items.match_info`. Nested calls share the outer trace.
-- Provider data is written only through `store.UpdateMetadata`, which skips fields in the item's
-  `locked_fields` (set by user edits). Don't write metadata columns any other way, or locks break.
-- UI checks that need clicks: drive headless Edge over CDP (a small Node script; Node 24 has
-  WebSocket built in). In Git Bash set `MSYS_NO_PATHCONV=1` or `/movie/...` args become Windows paths.
-- Playback: `POST /api/items/{id}/playback` decides direct/remux/transcode from the caps the player
-  reports (`web/src/lib/playback.ts`). Converted streams start at the seek point and the player adds
-  `offset_ms` to its clock; seeking past what's converted starts a new session. Copied (remuxed) video
-  uses `-ss -noaccurate_seek -copyts` and `Manager.Ready` measures the real start with ffprobe;
-  predicting keyframes failed for MKV (sparse cues) and x265's open GOPs. HEVC copies need `-tag:v hvc1`.
-- Headless Chrome/Edge marks pages hidden after a few seconds and stops loading media; UI scripts
-  driving playback must keep the page active (CDP `Emulation.setFocusEmulationEnabled`).
+  Diagnostic stacks are admin-only and on demand.
+- Test meaningful failure/stall and privacy boundaries with isolated fixtures.

@@ -1,7 +1,8 @@
 # Arc Media Server: instructions for Codex and other agents
 
-Read `CLAUDE.md` in this repository before starting work. It is the shared source of project
-instructions, architecture, principles, build/test commands, decisions and current status.
+Read `docs/AGENT-RULES.md` (the rules shared by every Arc repository) and `CLAUDE.md` (this
+server's status and rules) before starting work. Build/test details, code layout and gotchas are
+in `docs/DEVELOPING.md`.
 Read `ROADMAP.md` and `docs/READINESS.md` for the active plan and required verification evidence.
 
 The project is now in milestone 21, stability and release readiness. Earlier milestone-3 status
