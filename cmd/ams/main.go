@@ -532,7 +532,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	applyHomeNetworks(cfg.HomeNetworks, cfg.TrustedProxies)
 	transcoder.Configure(transcodeDir(cfg), cfg.MaxTranscodes)
 	transcoder.UseDevice(cfg.HWDevice)
-	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain)
+	remoteAccess.Configure(cfg.RemoteAccess, cfg.UPnP, listenPort(cfg), cfg.OutsidePort(), cfg.HTTPSDomain, cfg.PublicURL)
 	workers.Go("remote mapping", func() { remoteAccess.Mapper.Run(ctx) })
 	// CPU, memory and network use for the Dashboard's graphs.
 	stats := sysstats.New()
@@ -555,7 +555,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		transcoder.Configure(transcodeDir(next), next.MaxTranscodes)
 		transcoder.UseDevice(next.HWDevice)
 		remoteAccess.Certs.Configure(next.HTTPSMode, next.HTTPSCert, next.HTTPSKey, next.HTTPSDomain)
-		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain)
+		remoteAccess.Configure(next.RemoteAccess, next.UPnP, listenPort(next), next.OutsidePort(), next.HTTPSDomain, next.PublicURL)
 	}
 	applySettings := func(ctx context.Context, before, next settings.Settings) error {
 		mu.Lock()
@@ -856,6 +856,9 @@ func secureRemote(h http.Handler, certs *remote.Certs) http.Handler {
 
 // publicURL is the address other devices can open this server at ("" if it can't be worked out).
 func publicURL(c settings.Settings) string {
+	if c.RemoteAccess && c.PublicURL != "" {
+		return c.PublicURL
+	}
 	host, port, err := net.SplitHostPort(c.ListenAddress())
 	if err != nil {
 		return ""

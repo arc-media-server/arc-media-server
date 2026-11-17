@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -21,23 +20,24 @@ type Service struct {
 	Certs  *Certs
 	Mapper *Mapper
 
-	mu       sync.Mutex
-	enabled  bool
-	external int // the port people outside connect to
-	domain   string
-	ip       string
-	ipAt     time.Time
+	mu        sync.Mutex
+	enabled   bool
+	external  int // the port people outside connect to
+	domain    string
+	publicURL string
+	ip        string
+	ipAt      time.Time
 }
 
 func New(certs *Certs, mapper *Mapper) *Service { return &Service{Certs: certs, Mapper: mapper} }
 
 // Configure applies the remote access settings.
-func (s *Service) Configure(enabled, upnp bool, internal, external int, domain string) {
+func (s *Service) Configure(enabled, upnp bool, internal, external int, domain, publicURL string) {
 	if external == 0 {
 		external = internal
 	}
 	s.mu.Lock()
-	s.enabled, s.external, s.domain = enabled, external, domain
+	s.enabled, s.external, s.domain, s.publicURL = enabled, external, domain, publicURL
 	s.mu.Unlock()
 	s.Mapper.Configure(enabled && upnp, internal, external)
 }
@@ -91,7 +91,8 @@ func isPrivate(ip string) bool {
 
 // Status is what Settings shows.
 type Status struct {
-	Enabled bool `json:"enabled"`
+	Enabled   bool `json:"enabled"`
+	customURL bool // Snapshot: custom origins require normal TLS verification in Check.
 	// The address to use away from home ("" until it's known).
 	URL      string     `json:"url,omitempty"`
 	PublicIP string     `json:"public_ip,omitempty"`
@@ -105,10 +106,14 @@ type Status struct {
 
 func (s *Service) Status(ctx context.Context) Status {
 	s.mu.Lock()
-	enabled, port, domain := s.enabled, s.external, s.domain
+	enabled, port, domain, publicURL := s.enabled, s.external, s.domain, s.publicURL
 	s.mu.Unlock()
 	out := Status{Enabled: enabled, Port: port, UPnP: s.Mapper.Status(), HTTPS: s.Certs.Status(ctx)}
 	if !enabled {
+		return out
+	}
+	if publicURL != "" {
+		out.URL, out.customURL = publicURL, true
 		return out
 	}
 	out.DoubleNAT = out.UPnP.ExternalIP != "" && isPrivate(out.UPnP.ExternalIP)
@@ -143,23 +148,24 @@ func (s *Service) Check(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
 	client := &http.Client{Transport: &http.Transport{
-		// The certificate is for a name; here it's only whether something answers that matters.
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}}
+		// Keep legacy certificate tolerance for inferred IPs; configured origins must verify TLS.
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: !st.customURL},
+	}, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	defer client.CloseIdleConnections()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, st.URL+"/api/health", nil)
 	if err != nil {
-		return err
+		return errors.New("the outside address is invalid")
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("nothing answered at %s", st.URL)
+		return errors.New("could not reach Arc at the outside address; check the address, routing and HTTPS certificate")
 	}
 	defer resp.Body.Close()
 	var h struct {
 		Name string `json:"name"`
 	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&h) != nil || h.Name != "Arc Media Server" {
-		return fmt.Errorf("something else answered at %s", st.URL)
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&h) != nil || h.Name != "Arc Media Server" {
+		return errors.New("the outside address did not answer with Arc health; check the proxy destination")
 	}
 	return nil
 }

@@ -641,7 +641,7 @@ function UploadRow({ kbps, onSave }: { kbps: number; onSave: (kbps: number) => P
 function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; onSave: (p: Patch) => Promise<unknown>; busy: boolean }) {
   const { t } = useTranslation('accessSettings');
   const status = useQuery({
-    queryKey: ['remote', s.remote_access, s.upnp, s.remote_port, s.https_mode, s.https_domain, s.https_cert],
+    queryKey: ['remote', s.public_url, s.remote_access, s.upnp, s.remote_port, s.https_mode, s.https_domain, s.https_cert],
     queryFn: api.remote,
     refetchInterval: (q) => (q.state.data?.upnp.state === 'working' || q.state.data?.https.fetching ? 2000 : 30000),
   });
@@ -654,6 +654,8 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
     }
   };
   const r = status.data;
+  const resetCheck = check.reset;
+  useEffect(() => { resetCheck(); }, [r?.url, resetCheck]);
   return (
     <>
       <Row
@@ -664,6 +666,7 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
       >
         <Switch checked={s.remote_access} disabled={busy} onCheckedChange={(v) => save({ remote_access: v })} aria-label={t("accessSettings:settings.remoteAccess")} />
       </Row>
+      <PublicURLRow value={s.public_url ?? ''} busy={busy} onSave={onSave} />
       {s.remote_access && (
         <>
           <Row
@@ -673,8 +676,8 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
                 t("accessSettings:settings.findingIt")
               ) : r.url ? (
                 <>
-                  <span className="font-mono text-foreground/80">{r.url}</span>
-                  {r.double_nat && (
+                  <span className="break-all font-mono text-foreground/80">{r.url}</span>
+                  {r.double_nat && !s.public_url && (
                     <span className="mt-1 flex items-start gap-1.5 text-warning">
                       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.yourRouterIsBehind")}</span>
                   )}
@@ -702,11 +705,17 @@ function RemoteRows({ settings: s, onSave, busy }: { settings: ServerSettings; o
               </div>
             )}
           </Row>
+        </>
+      )}
+      {(s.remote_access || !!s.public_url) && (
+        <>
           <Row
             compact setting="upnp" label={t("accessSettings:settings.openThePortOn")}
             description={
-              !s.upnp ? (
-                <>{t('accessSettings:settings.forwardDescription', { outside: s.remote_port, inside: s.port })}</>
+              s.upnp && !s.remote_access ? (
+                t('accessSettings:settings.routerOffUntilRemote')
+              ) : !s.upnp ? (
+                <>{s.public_url ? t('accessSettings:settings.proxyPortHint') : t('accessSettings:settings.forwardDescription', { outside: s.remote_port, inside: s.port })}</>
               ) : r?.upnp.state === 'mapped' ? (
                 <span className="inline-flex items-center gap-1 text-foreground/80">
                   <CheckCircle2 className="size-3.5 text-accent" /> {r.upnp.router ? t('accessSettings:settings.forwardedRouter', { port: r.port, router: r.upnp.router }) : t('accessSettings:settings.forwarded', { port: r.port })}
@@ -735,7 +744,7 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
   return (
     <Row
       setting="remote_port" label={t("accessSettings:settings.outsidePort")}
-      description={t('accessSettings:settings.outsidePortDescription', { port: s.port })}
+      description={s.public_url ? t('accessSettings:settings.proxyOutsidePortHint') : t('accessSettings:settings.outsidePortDescription', { port: s.port })}
     >
       <form
         className="flex gap-2"
@@ -751,6 +760,29 @@ function OutsidePortRow({ settings: s, onSave }: { settings: ServerSettings; onS
       </form>
     </Row>
   );
+}
+
+/** The public origin is independent of router mapping and Arc's own certificates. */
+function PublicURLRow({ value, busy, onSave }: { value: string; busy: boolean; onSave: (p: Patch) => Promise<unknown> }) {
+  const { t } = useTranslation('accessSettings');
+  const [text, setText] = useState(value);
+  const [error, setError] = useState('');
+  useEffect(() => { setText(value); }, [value]);
+  const apply = async () => {
+    setError('');
+    try { await onSave({ public_url: text.trim() }); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+  return <Row setting="public_url" label={t('settings.publicServerURL')} description={<>
+    {t('settings.publicServerURLHint')}
+    {error && <span role="alert" className="mt-1 block text-warning">{error}</span>}
+  </>}>
+    <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); void apply(); }}>
+      <input type="url" value={text} onChange={(e) => setText(e.target.value)} disabled={busy} maxLength={2048}
+        aria-label={t('settings.publicServerURL')} placeholder={t('settings.publicServerURLPlaceholder')} className={`${inputClass} w-64 max-w-full`} />
+      {text.trim() !== value && <Button size="sm" variant="primary" type="submit" disabled={busy}>{t('common:actions.save')}</Button>}
+    </form>
+  </Row>;
 }
 
 /** HTTPS: off, your own certificate, or Let's Encrypt; and how the certificate stands. */
@@ -777,7 +809,9 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
         <div className="min-w-0 flex-1 basis-64">
           <p className="text-sm font-medium">{t("accessSettings:settings.https")}</p>
           <div className="mt-0.5 text-xs leading-relaxed text-muted">
-            {s.https_mode === '' ? (
+            {s.https_mode === '' && s.public_url?.startsWith('https://') ? (
+              t('accessSettings:settings.publicHTTPSHint')
+            ) : s.https_mode === '' ? (
               <span className="flex items-start gap-1.5 text-warning">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />{t("accessSettings:settings.offAwayFromHome")}</span>
             ) : status?.error ? (
@@ -791,7 +825,7 @@ function HTTPSRows({ settings: s, status, onSave }: { settings: ServerSettings; 
             ) : s.https_mode === 'letsencrypt' ? (
               t("accessSettings:settings.theCertificateIsFetched")
             ) : null}
-            <span className="mt-1 block">{t("accessSettings:settings.onTheSamePort")}</span>
+            {!(s.https_mode === '' && s.public_url?.startsWith('https://')) && <span className="mt-1 block">{t("accessSettings:settings.onTheSamePort")}</span>}
           </div>
         </div>
         <select aria-label={t("accessSettings:settings.httpsMode")} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className={`${inputClass} w-56 [&>option]:bg-surface`}>

@@ -123,7 +123,7 @@ func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := s.cast.add(&castGrant{userID: currentUser(r).ID, session: currentSession(r), itemID: itemID})
-	link := castBase(r) + "/api/cast/" + token + u.Path
+	link := s.castAddress(r) + "/api/cast/" + token + u.Path
 	if u.RawQuery != "" {
 		link += "?" + u.RawQuery
 	}
@@ -133,11 +133,19 @@ func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"url": link, "local_only": ip != nil && ip.IsLoopback()})
 }
 
+// castAddress keeps direct LAN links local and uses the explicit public origin away from home.
+func (s *Server) castAddress(r *http.Request) string {
+	if cfg := s.settings(); cfg.RemoteAccess && cfg.PublicURL != "" && !auth.IsLocal(r) {
+		return cfg.PublicURL
+	}
+	return castBase(r)
+}
+
 // castBase is this server's address as a device on the home network can reach it: the address
 // the browser used, unless that's this computer's own name for itself.
 func castBase(r *http.Request) string {
 	scheme := "http"
-	if r.TLS != nil {
+	if auth.IsHTTPS(r) {
 		scheme = "https"
 	}
 	host, port, err := net.SplitHostPort(r.Host)
