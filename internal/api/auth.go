@@ -848,6 +848,7 @@ func (s *Server) settingsDTO(r *http.Request, st settings.Settings) map[string]a
 		"detect_intros":           st.DetectIntros,
 		"remote_kbps":             st.RemoteKbps,
 		"upload_kbps":             st.UploadKbps,
+		"public_url":              st.PublicURL,
 		"remote_access":           st.RemoteAccess,
 		"remote_port":             st.OutsidePort(),
 		"upnp":                    st.UPnP,
@@ -897,6 +898,7 @@ func maskKey(k string) string {
 
 // getSettings: GET /api/settings. Server settings: API keys, ffprobe, sign-in at home, port,
 // network, `maintenance_start`/`maintenance_end` (hours) and `previews_at_night`; remote access:
+// `public_url` (optional HTTP(S) origin for reverse proxies; empty restores automatic detection),
 // `remote_access`, `remote_port`, `upnp`, `https_mode` (`""`, `files`, `letsencrypt`),
 // `https_cert`, `https_key`, `https_domain`; `home_networks` (e.g. `"100.64.0.0/10, 10.8.0.0/24"`);
 // `transcode_dir` (a full path, `""` for the data folder), `max_transcodes` (0 for no limit).
@@ -953,6 +955,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		DetectIntros           *bool    `json:"detect_intros"`
 		RemoteKbps             *int     `json:"remote_kbps"`
 		UploadKbps             *int     `json:"upload_kbps"`
+		PublicURL              *string  `json:"public_url"`
 		RemoteAccess           *bool    `json:"remote_access"`
 		RemotePort             *int     `json:"remote_port"`
 		UPnP                   *bool    `json:"upnp"`
@@ -975,7 +978,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	for _, key := range []string{"scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours", "scan_interval_minutes", "preview_mode", "detection_mode", "analysis_enabled", "metadata_refresh_enabled", "auto_backups_enabled", "empty_trash_enabled", "database_upkeep_enabled", "cache_cleanup_enabled"} {
+	for _, key := range []string{"public_url", "scan_automatic", "scan_partial", "scan_on_start", "scan_interval_hours", "scan_interval_minutes", "preview_mode", "detection_mode", "analysis_enabled", "metadata_refresh_enabled", "auto_backups_enabled", "empty_trash_enabled", "database_upkeep_enabled", "cache_cleanup_enabled"} {
 		if v, ok := fields[key]; ok && string(v) == "null" {
 			writeError(w, http.StatusBadRequest, key+" cannot be null")
 			return
@@ -1193,6 +1196,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		next.TrustedProxies = tidy
+	}
+	if body.PublicURL != nil {
+		value, err := remote.NormalizePublicURL(*body.PublicURL)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		next.PublicURL = value
 	}
 	if body.RemoteAccess != nil {
 		next.RemoteAccess = *body.RemoteAccess

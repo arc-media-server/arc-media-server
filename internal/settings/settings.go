@@ -66,6 +66,7 @@ type Settings struct {
 	RemoteKbps, UploadKbps int
 	// Remote access: reachable from the internet (listening on the network), at an outside port
 	// (0 for the same as Port), opened on the router with UPnP (on unless turned off).
+	PublicURL    string // Optional public HTTP(S) origin; empty keeps automatic remote address detection.
 	RemoteAccess bool
 	RemotePort   int
 	UPnP         bool
@@ -116,6 +117,7 @@ const (
 	keyDetectIntros   = "detect_intros"
 	keyRemoteKbps     = "remote_kbps"
 	keyUploadKbps     = "upload_kbps"
+	keyPublicURL      = "public_url"
 	keyRemoteAccess   = "remote_access"
 	keyRemotePort     = "remote_port"
 	keyUPnP           = "upnp"
@@ -257,6 +259,9 @@ func Load(ctx context.Context, st *store.Store) (Settings, error) {
 		return s, err
 	}
 	s.UploadKbps, _ = strconv.Atoi(v)
+	if s.PublicURL, err = get(keyPublicURL); err != nil {
+		return s, err
+	}
 	if v, err = get(keyRemoteAccess); err != nil {
 		return s, err
 	}
@@ -387,7 +392,7 @@ func Save(ctx context.Context, st *store.Store, s Settings) error {
 		keyPrerollPaths: s.PrerollPaths, keyPrerollMode: s.PrerollMode,
 		keyTheIntroDB: s.TheIntroDBKey, keyDetectIntros: boolString(s.DetectIntros),
 		keyRemoteKbps: strconv.Itoa(s.RemoteKbps), keyUploadKbps: strconv.Itoa(s.UploadKbps),
-		keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
+		keyPublicURL: s.PublicURL, keyRemoteAccess: boolString(s.RemoteAccess), keyRemotePort: strconv.Itoa(s.RemotePort), keyUPnP: boolString(s.UPnP),
 		keyHTTPSMode: s.HTTPSMode, keyHTTPSCert: s.HTTPSCert, keyHTTPSKey: s.HTTPSKey, keyHTTPSDomain: s.HTTPSDomain,
 		keyHomeNetworks: s.HomeNetworks, keyTrustedProxies: s.TrustedProxies, keyTranscodeDir: s.TranscodeDir, keyMaxTranscodes: strconv.Itoa(s.MaxTranscodes),
 	} {

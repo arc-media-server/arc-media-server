@@ -4971,6 +4971,7 @@ GET /settings 200 .preroll_mode string
 GET /settings 200 .preroll_paths string
 GET /settings 200 .preview_mode string
 GET /settings 200 .previews_at_night boolean
+GET /settings 200 .public_url string
 GET /settings 200 .region string
 GET /settings 200 .remote_access boolean
 GET /settings 200 .remote_kbps integer
@@ -6251,6 +6252,7 @@ PATCH /settings 200 .preroll_mode string
 PATCH /settings 200 .preroll_paths string
 PATCH /settings 200 .preview_mode string
 PATCH /settings 200 .previews_at_night boolean
+PATCH /settings 200 .public_url string
 PATCH /settings 200 .region string
 PATCH /settings 200 .remote_access boolean
 PATCH /settings 200 .remote_kbps integer

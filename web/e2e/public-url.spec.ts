@@ -1,0 +1,47 @@
+import { test, expect } from '@playwright/test';
+
+for (const width of [1280, 390]) test(`public server URL saves, rejects invalid origins and clears at ${width}`, async ({ page }, info) => {
+  const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
+  expect(reset.ok).toBeTruthy();
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.context().route('**/*', route => {
+    const u = new URL(route.request().url());
+    return u.hostname === '127.0.0.1' || u.protocol === 'data:' ? route.continue() : route.abort();
+  });
+  expect((await page.request.post('/api/auth/setup', { data: { name: 'Admin', password: 'Arc-public-url-fixture-123', local_bypass: false } })).ok()).toBeTruthy();
+  expect((await page.request.patch('/api/settings', { data: { remote_access: false, upnp: true } })).ok()).toBeTruthy();
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto('/settings?section=access');
+  const input = page.getByRole('textbox', { name: 'Public server URL', exact: true });
+  await input.fill('https://ARC.example.com:443/');
+  const form = input.locator('..');
+  await form.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(input).toHaveValue('https://arc.example.com');
+  const router = page.getByRole('switch', { name: 'Open the port with UPnP', exact: true });
+  await expect(router).toBeChecked();
+  await router.click();
+  await expect(router).not.toBeChecked();
+  const remote = page.getByRole('switch', { name: 'Remote access', exact: true });
+  await remote.click();
+  await expect(remote).toBeChecked();
+  await expect(page.getByText('https://arc.example.com', { exact: true })).toBeVisible();
+  await expect(page.getByRole('switch', { name: 'Open the port with UPnP', exact: true })).not.toBeChecked();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.getByText(/Your public URL uses HTTPS/)).toBeVisible();
+  await page.screenshot({ path: info.outputPath('public-server-url.png'), fullPage: true });
+  await page.reload();
+  await expect(input).toHaveValue('https://arc.example.com');
+  await input.fill('https://arc.example.com/arc');
+  await form.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'public server URL must' }).first()).toBeVisible();
+  expect((await (await page.request.get('/api/settings')).json()).public_url).toBe('https://arc.example.com');
+  await input.fill('');
+  await form.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(input).toHaveValue('');
+  await expect(page.getByText('http://203.0.113.8:8099', { exact: true })).toBeVisible();
+  const settings = await (await page.request.get('/api/settings')).json();
+  expect(settings.public_url).toBe('');
+  expect(settings.upnp).toBe(false);
+  expect(errors).toEqual([]);
+});

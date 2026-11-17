@@ -127,3 +127,34 @@ func TestUpkeepDefaultsOnAndOffPersists(t *testing.T) {
 		t.Fatalf("off lost: %+v %v", cfg, err)
 	}
 }
+
+func TestPublicURLPersistsWithoutChangingRouterSettings(t *testing.T) {
+	st, err := store.Open(t.Context(), filepath.Join(t.TempDir(), "url.db"), store.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	s, err := Load(t.Context(), st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.PublicURL != "" {
+		t.Fatal("nonempty default")
+	}
+	s.PublicURL, s.UPnP = "https://arc.example.com", false
+	if err = Save(t.Context(), st, s); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(t.Context(), st)
+	if err != nil || got.PublicURL != s.PublicURL || got.UPnP {
+		t.Fatalf("reload: %+v %v", got, err)
+	}
+	got.PublicURL = ""
+	if err = Save(t.Context(), st, got); err != nil {
+		t.Fatal(err)
+	}
+	got, err = Load(t.Context(), st)
+	if err != nil || got.PublicURL != "" || got.UPnP {
+		t.Fatal("clear", got.PublicURL, err)
+	}
+}

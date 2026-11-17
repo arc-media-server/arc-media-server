@@ -86,6 +86,7 @@ async function reset(restart = false) {
   const data = join(root, `data-${restart ? generation : ++generation}`);
   child = spawn(binary, ['-data', data, '-config', 'none'], {
     cwd: root, env: { ...env, AMS_LISTEN: '127.0.0.1:18199', AMS_TMDB_URL: 'http://127.0.0.1:18200/tmdb', AMS_TVDB_URL: 'http://127.0.0.1:18200/tvdb',
+      AMS_PUBLIC_IP_URL: 'http://127.0.0.1:18200/public-ip', AMS_UPNP_URL: 'http://127.0.0.1:18200/no-upnp',
       AMS_IMDB_RATINGS_URL: 'http://127.0.0.1:18200/no-ratings', AMS_OMDB_URL: 'http://127.0.0.1:18200/no-scores',
       AMS_INTRODB_URL: 'http://127.0.0.1:18200/no-markers', AMS_THEINTRODB_URL: 'http://127.0.0.1:18200/no-markers' },
     stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true,
@@ -166,6 +167,7 @@ const server = createServer(async (req, res) => {
   const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
   try {
     if (url.pathname === '/health') return json(200, { ready: true });
+    if (url.pathname === '/public-ip') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('203.0.113.8'); }
     if (url.pathname === '/fixtures') return json(200, fixtures);
     if (url.pathname === '/adaptive-media' && req.method === 'POST') {
       const folder = join(root, 'adaptive-media');
