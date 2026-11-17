@@ -39,5 +39,5 @@ Arc needs a per-server PIN input and login support before that model can ship. A
 accepts a key and sends `apikey` alone; it does not implement subscriber PIN authentication.
 
 No provider registration, agreement or external contact has been made by the agent. #65 was
-closed administratively; the owner's distribution/access decision remains open on #80. That
+closed administratively; the owner's distribution/access decision remains open on #478. That
 closure is not evidence of provider approval.
