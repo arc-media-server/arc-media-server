@@ -110,8 +110,10 @@ For PostgreSQL Optimize database, say it updates statistics; vacuuming belongs t
 Do not claim SQLite integrity/compaction/WAL work ran. The result adds optional backend:"postgres";
 all existing v1 fields remain. No frontend/backend compatibility break is intended.
 
-The bootstrap stores protected credentials locally and does not need a UI editor. Keep the
-advanced feature labelled according to actual deployment readiness: this backend has an exact
-schema-version guard. Future schema releases need a tested PostgreSQL upgrade path; generated
-baseline regeneration alone is insufficient. Do not close #308 until UX, deployment and upgrade
-acceptance have been reviewed. Native and physical-device acceptance remain separate.
+The bootstrap stores protected credentials locally and does not need a UI editor. Recognised Arc
+schema releases now upgrade automatically at startup, with a verified safety backup and transactional
+rollback. See POSTGRESQL-UPGRADES.md. Existing API payloads do not change; clients should tolerate
+startup downtime and reconnect normally. Do not offer manual schema-version controls, promise zero
+downtime, or describe a PostgreSQL container major-version upgrade as automatic. Unknown/newer or
+modified structures are refused. Keep #308 open for remaining UX/deployment acceptance; native and
+physical-device acceptance remain separate.

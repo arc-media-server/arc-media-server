@@ -156,6 +156,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	}
 	backupDir := filepath.Join(dataDir, "backups")
 	st, err := database.Open(ctx, store.Options{
+		Log: log,
 		// A new AMS version is about to change the database: keep a copy of it as it was.
 		BeforeMigrate: func(s *store.Store) error {
 			_, err := backup.New(backupDir, s, log).Create(ctx, backup.ReasonBeforeUpgrade)

@@ -89,13 +89,28 @@ func CompletedTransfer(ctx context.Context, source, dsn, id string) (report Tran
 	if err = tx.QueryRowContext(ctx, "SELECT transfer_id,transfer_report,fingerprint FROM arc_postgres_schema WHERE singleton=1").Scan(&savedID, &raw, &fingerprint); err != nil {
 		return report, false, err
 	}
-	if fingerprint != postgresFingerprint() {
-		return report, false, errors.New("PostgreSQL schema differs from this Arc build")
+	releases, err := postgresReleases()
+	if err != nil {
+		return report, false, err
 	}
+	var release *postgresRelease
+	for i := range releases {
+		if releases[i].fingerprint == fingerprint {
+			release = &releases[i]
+			break
+		}
+	}
+	if release == nil {
+		return report, false, errors.New("PostgreSQL transfer schema is newer or unsupported")
+	}
+	if err = verifyPostgresRelease(ctx, tx, *release); err != nil {
+		return report, false, err
+	}
+	layout := releasePortableLayout(*release)
 	if savedID != id {
 		return report, false, errors.New("PostgreSQL target belongs to another installation or transfer")
 	}
-	if err = json.Unmarshal([]byte(raw), &report); err != nil || !report.Verified || len(report.Tables) != len(pgColumns) {
+	if err = json.Unmarshal([]byte(raw), &report); err != nil || !report.Verified || len(report.Tables) != len(layout.columns) {
 		return report, false, errors.New("PostgreSQL transfer marker is incomplete")
 	}
 	src, err := sql.Open("sqlite", "file:"+filepath.ToSlash(source)+"?mode=ro&_pragma=query_only(1)")
@@ -108,15 +123,15 @@ func CompletedTransfer(ctx context.Context, source, dsn, id string) (report Tran
 		return report, false, err
 	}
 	defer read.Rollback()
-	if err = checkPortableSchema(ctx, read); err != nil {
+	if err = checkPortableSchemaLayout(ctx, read, layout); err != nil {
 		return report, false, err
 	}
-	for _, name := range tableNames() {
-		a, e := tableDigest(ctx, read, name, false)
+	for _, name := range layout.tableNames() {
+		a, e := tableDigestLayout(ctx, read, name, false, layout)
 		if e != nil {
 			return report, false, e
 		}
-		b, e := tableDigest(ctx, tx, name, true)
+		b, e := tableDigestLayout(ctx, tx, name, true, layout)
 		if e != nil {
 			return report, false, e
 		}

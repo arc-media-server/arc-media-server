@@ -23,13 +23,12 @@ read connections are read-only, plus a control connection holding an advisory lo
 use a five-second connect timeout, 30-second statement timeout and 60-second idle transaction
 timeout. These are internal defaults. This does not make Arc multi-node or promise faster scans.
 
-**Schema upgrades are deliberately fail-closed.** This initial version opens only its exact
-PostgreSQL schema fingerprint and matching migration ledger. It does not replay SQLite SQL on
-PostgreSQL. Future SQLite or PostgreSQL schema changes must supply an explicit tested PostgreSQL
-upgrade path, with a portable pre-upgrade safety backup, before shipping to PostgreSQL users.
-Regenerating a fresh baseline alone is not an existing-installation upgrade implementation.
-Until that upgrade path exists, keep the matching Arc binary with a PostgreSQL installation;
-a different schema is rejected without altering it. SQLite upgrades retain their existing flow.
+**Arc schema upgrades are automatic for recognised releases.** Startup verifies the old structure,
+takes a verified portable before-upgrade backup, applies the ordered native PostgreSQL migration
+chain transactionally, then verifies the result before serving requests. Unknown/newer or modified
+schemas are still refused safely. See [POSTGRESQL-UPGRADES.md](POSTGRESQL-UPGRADES.md) for the
+operator flow, recovery limits and developer migration recipe. Future changes must ship an explicit
+migration and tests; regenerating a fresh baseline alone is insufficient. SQLite keeps its existing flow.
 
 ## Moving an existing instance
 
@@ -133,5 +132,6 @@ fixture populates every persistent table and includes large integers, nulls, Uni
 probe data, access, edits, history, custom orders, queues and file-backed references.
 
 Owner-server/Unraid deployment, real media, sustained load, large-library downtime measurements,
-physical Windows behavior and future-version PostgreSQL upgrades are not accepted by these tests.
+physical Windows behavior and PostgreSQL engine/container upgrades are not accepted by these tests.
+Arc schema-upgrade evidence is recorded separately in the schema-upgrade change note.
 No multi-instance failover, automatic old-SQLite rollback or complete filesystem migration is offered.

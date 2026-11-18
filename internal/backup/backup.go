@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -139,12 +140,24 @@ func (m *Manager) create(ctx context.Context, reason string) (b Backup, err erro
 		os.Remove(tmp)
 		return Backup{}, err
 	}
+	// Persist the published backup name before a schema upgrade can begin.
+	if runtime.GOOS != "windows" {
+		dir, e := os.Open(m.dir)
+		if e != nil {
+			return Backup{}, e
+		}
+		e = dir.Sync()
+		dir.Close()
+		if e != nil {
+			return Backup{}, e
+		}
+	}
 	b, _ = parseName(name)
 	if info, err := os.Stat(path); err == nil {
 		b.Size = info.Size()
 	}
 	m.log.Info("database backed up", "file", path, "reason", reason)
-	if err := m.prune(); err != nil {
+	if err := m.prune(name); err != nil {
 		m.log.Warn("removing old backups failed", "err", err)
 	}
 	return b, nil
@@ -152,12 +165,16 @@ func (m *Manager) create(ctx context.Context, reason string) (b Backup, err erro
 
 // prune deletes automatic backups beyond the retention rules, and old safety copies. Manual
 // backups are never deleted automatically.
-func (m *Manager) prune() error {
+func (m *Manager) prune(protected string) error {
 	all, err := m.List()
 	if err != nil {
 		return err
 	}
 	for _, b := range expired(all) {
+		// A clock correction must never prune the safety copy just published for this operation.
+		if b.Name == protected {
+			continue
+		}
 		if err := os.Remove(filepath.Join(m.dir, b.Name)); err != nil {
 			return err
 		}

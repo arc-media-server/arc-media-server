@@ -148,37 +148,23 @@ func (s *Store) migratePostgres(ctx context.Context, opts Options, initialize fu
 		return err
 	}
 	if exists {
-		var marker sql.NullString
-		if err := s.db.QueryRowContext(ctx, "SELECT fingerprint FROM arc_postgres_schema WHERE singleton=1").Scan(&marker); err != nil || marker.String != postgresFingerprint() {
-			return errors.New("PostgreSQL schema marker differs; use matching Arc version or a verified portable backup")
-		}
-
 		if initialize != nil {
 			return errors.New("PostgreSQL transfer destination must be empty; existing Arc data is never overwritten")
 		}
-		var n int
-		if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM schema_migrations").Scan(&n); err != nil {
-			return err
-		}
-		known, _ := migrationVersions()
-		if n != len(known) {
-			return errors.New("PostgreSQL schema differs from this Arc build; use the matching version and a safety backup")
-		}
-		rows, err := s.db.QueryContext(ctx, "SELECT version FROM schema_migrations")
+		releases, err := postgresReleases()
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var v string
-			if err = rows.Scan(&v); err != nil {
-				return err
-			}
-			if !known[v] {
-				return errors.New("PostgreSQL schema is newer or unsupported")
+		var marker string
+		if err = s.db.QueryRowContext(ctx, "SELECT fingerprint FROM arc_postgres_schema WHERE singleton=1").Scan(&marker); err != nil {
+			return errors.New("PostgreSQL schema marker is missing or invalid")
+		}
+		for index, release := range releases {
+			if marker == release.fingerprint {
+				return s.upgradePostgres(ctx, opts, releases, index)
 			}
 		}
-		return rows.Err()
+		return errors.New("PostgreSQL schema is newer or unsupported; use the matching Arc build or restore a verified backup")
 	}
 	var n int
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND c.relkind IN ('r','v','m','S','f','p')").Scan(&n); err != nil {
@@ -220,6 +206,13 @@ func (s *Store) migratePostgres(ctx context.Context, opts Options, initialize fu
 		if err = initialize(tx); err != nil {
 			return err
 		}
+	}
+	releases, err := postgresReleases()
+	if err != nil {
+		return err
+	}
+	if err = verifyPostgresRelease(ctx, tx, releases[len(releases)-1]); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

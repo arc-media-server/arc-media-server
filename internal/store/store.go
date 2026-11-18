@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path"
 	"sort"
 	"strings"
@@ -17,10 +18,13 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver, no CGO needed
 )
 
-// Options tweak Open. The zero value is fine.
+// Options customize startup. PostgreSQL schema upgrades require BeforeMigrate.
 type Options struct {
+	// Log receives infrequent PostgreSQL schema-upgrade start/completion records.
+	Log *slog.Logger
 	// BeforeMigrate is called when an existing database is about to be upgraded to a new schema,
-	// so a backup can be taken first. Opening fails if it returns an error.
+	// so a backup can be taken first. Opening fails if it returns an error. PostgreSQL
+	// upgrades require this hook to successfully call BackupTo before DDL may start.
 	BeforeMigrate func(s *Store) error
 }
 
@@ -28,13 +32,15 @@ type Options struct {
 var migrationsFS embed.FS
 
 type Store struct {
-	backend        string
-	pgLock         *sql.Conn
-	pgLockDB       *sql.DB
-	pgConfigID     string
-	db             *database
-	sessionUses    *sessionUseQueue
-	pgReadConfigID string
+	backend                 string
+	pgLock                  *sql.Conn
+	pgLockDB                *sql.DB
+	pgConfigID              string
+	db                      *database
+	sessionUses             *sessionUseQueue
+	pgReadConfigID          string
+	pgBackupRelease         *postgresRelease
+	pgUpgradeBackupVerified bool
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.
