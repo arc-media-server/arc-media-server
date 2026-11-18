@@ -1,20 +1,12 @@
 # Arc Media Server: instructions for Codex and other agents
 
-Read `docs/AGENT-RULES.md` (the rules shared by every Arc repository) and `CLAUDE.md` (this
-server's status and rules) before starting work. Build/test details, code layout and gotchas are
-in `docs/DEVELOPING.md`.
-Read `ROADMAP.md` and `docs/READINESS.md` for the active plan and required verification evidence.
+Read `docs/AGENT-RULES.md` (shared rules) and `CLAUDE.md` (server rules and current status)
+before starting work. Follow applicable directory instructions too.
 
-The project is now in milestone 21, stability and release readiness. Earlier milestone-3 status
-from an older checkout is obsolete. Preserve the owner's database, settings and media; use
-isolated test data for checks. Never mark real-device or sustained-use validation complete from
-simulations. Track completed work in GitHub, record each change in `docs/changes/`, and keep the status in `CLAUDE.md` current.
+Load reference documents only when relevant to the task; use the shared rules' context guidance.
+- `docs/DEVELOPING.md`: machine setup, code layout, build/test details and implementation gotchas.
+- `ROADMAP.md` and `docs/READINESS.md`: planning, milestone status and release verification.
+- `docs/CODEX-CLOUD.md`: cloud startup, isolated verification and cross-device handoff; follow
+  its startup instructions before running cloud development commands.
 
-For Codex Cloud development, also read `docs/CODEX-CLOUD.md` for environment setup,
-isolated verification, cross-device handoff and the branch/PR workflow. Cloud task
-state does not replace GitHub commits or establish actual deployment validation.
-
-Workflow rule (owner, 26 October): all additions and fixes use pull requests, for Codex and
-Claude alike. Never push to main; use a branch (`codex/...`) and open a PR. PRs start no GitHub
-Actions runs: run the relevant checks yourself first and list the results in the PR. One agent
-per branch. See the Workflow section in `CLAUDE.md`.
+Use `codex/...` branches and PRs; never push to main. Other workflow and safety rules are shared.

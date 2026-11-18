@@ -3,9 +3,10 @@
 An open source media server (Plex/Jellyfin alternative) in Go with an embedded React web app.
 @docs/AGENT-RULES.md
 
-The shared rules above apply to every Arc repository. This file adds the server's own. Reference
-material read when needed: `docs/DEVELOPING.md` (setting up a new machine, code layout, build and
-test details, how TV orderings work, gotchas), `ROADMAP.md`, `README.md`.
+The shared rules above apply to every Arc repository, including loading references only when
+relevant. This file adds the server's own. Read `docs/DEVELOPING.md` when needed for machine
+setup, code layout, build/test details and TV ordering gotchas; `ROADMAP.md` for planning and
+`README.md` for the project overview.
 
 ## Where things stand
 
