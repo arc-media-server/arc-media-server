@@ -93,7 +93,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| POST | `/api/cast` | profile | {"url"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's stream link (GET /api/extras/{id}/stream). |
+| POST | `/api/cast` | profile | {"url"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's stream link (GET /api/extras/{id}/stream), or a pre-roll link (GET /api/preroll/{n}). |
 | GET | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
 | OPTIONS | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
 

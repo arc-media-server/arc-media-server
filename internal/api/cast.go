@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"ams/internal/artwork"
 	"ams/internal/auth"
 )
 
@@ -71,16 +73,31 @@ var (
 	castSubtitleRe = regexp.MustCompile(`^/api/items/([0-9a-f]+)/subtitles/([A-Za-z0-9_-]+)/vtt$`)
 	// A trailer or other extra (an item's extras[].stream_url), for players that can't send the
 	// sign-in with a request (the Roku and LG/Samsung apps' players).
-	castExtraRe = regexp.MustCompile(`^/api/extras/([0-9a-f]+)/stream$`)
+	// Pre-roll uses a clip-scoped grant, never an item or conversion grant.
+	castPrerollRe = regexp.MustCompile(`^/api/preroll/([0-9]+)$`)
+	castExtraRe   = regexp.MustCompile(`^/api/extras/([0-9a-f]+)/stream$`)
 )
 
 // castExtraGrant prefixes a grant's itemID when it's for an extra, so it never equals an item's.
 const castExtraGrant = "extra:"
 
+// Pre-roll: bind the grant to the configured file and index. Reordering settings invalidates
+// the link instead of allowing it to open another clip. Paths never leave the server.
+const castPrerollPrefix = "preroll:"
+
+func (s *Server) castPrerollTarget(number string) (scope, path string, ok bool) {
+	n, err := strconv.Atoi(number)
+	files := prerollFiles(s.settings().PrerollPaths)
+	if err != nil || n < 0 || n >= len(files) {
+		return "", "", false
+	}
+	return castPrerollPrefix + strconv.Itoa(n) + ":" + artwork.Key(files[n]), files[n], true
+}
+
 // castLink: POST /api/cast {"url"} turns a stream URL from POST /api/items/{id}/playback into a
 // link a cast device can open: absolute, at an address it can reach, with a token. It also takes a
 // text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's
-// stream link (GET /api/extras/{id}/stream).
+// stream link (GET /api/extras/{id}/stream), or a pre-roll link (GET /api/preroll/{n}).
 func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		URL string `json:"url"`
@@ -99,6 +116,13 @@ func (s *Server) castLink(w http.ResponseWriter, r *http.Request) {
 		itemID = m[1]
 	} else if m := castSubtitleRe.FindStringSubmatch(u.Path); m != nil {
 		itemID = m[1]
+	} else if m := castPrerollRe.FindStringSubmatch(u.Path); m != nil {
+		scope, _, ok := s.castPrerollTarget(m[1])
+		if !ok {
+			writeError(w, http.StatusNotFound, "no such pre-roll video")
+			return
+		}
+		itemID = scope
 	} else if m := castExtraRe.FindStringSubmatch(u.Path); m != nil {
 		e, err := s.store.GetExtra(r.Context(), m[1])
 		if err != nil {
@@ -207,6 +231,18 @@ func (s *Server) castStream(w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(context.WithValue(r.Context(), userKey, u), sessionKey, g.session)
 	r = r.WithContext(ctx)
 	rest := "/" + r.PathValue("rest")
+	// Close clip grants before reaching the ordinary item/extra/transcode routes.
+	if strings.HasPrefix(g.itemID, castPrerollPrefix) {
+		if m := castPrerollRe.FindStringSubmatch(rest); m != nil {
+			scope, path, ok := s.castPrerollTarget(m[1])
+			if ok && scope == g.itemID {
+				http.ServeFile(w, r, path)
+				return
+			}
+		}
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
 	if m := castStreamRe.FindStringSubmatch(rest); m != nil && m[1] == g.itemID {
 		r.SetPathValue("id", m[1])
 		s.stream(w, r)
