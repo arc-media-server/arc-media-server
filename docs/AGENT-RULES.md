@@ -5,6 +5,20 @@ arc-tv), for Claude and Codex alike. Each repository's own `CLAUDE.md` or `AGENT
 must-never rules and adds only what's particular to it. Read this at the start of a session. The
 owner (GitHub: JonzaUK) drives product vision; agents do most implementation.
 
+## Context and reference documents
+
+- Read the repository's entry instructions (`AGENTS.md` / `CLAUDE.md`), these shared rules and
+  applicable directory instructions first. Read each unchanged document once per session;
+  re-read after relevant updates or when its contents are no longer available in context.
+- Load reference documents only when relevant: setup guidance before environment commands,
+  build/test guidance for validation, API guidance for API work, and roadmap/readiness documents
+  for planning or release work. Follow explicit reading requirements and linked prerequisites;
+  this does not waive rules or required checks.
+- Search for relevant sections and symbols before reading large documents or source files.
+  Keep tool output to useful excerpts, diffs and check summaries; retain full logs in files when
+  needed. Handoffs record the branch/commit, completed work, actual checks and next steps so
+  resumed work does not repeat completed investigation.
+
 ## Workflow
 
 - Everything goes through pull requests: never push to main, never force push. Work on the branch
