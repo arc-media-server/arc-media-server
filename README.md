@@ -43,6 +43,10 @@ analytics or telemetry.
     <td width="50%"><img src="docs/screenshots/library.png" alt="Browsing a library"></td>
     <td width="50%"><img src="docs/screenshots/profiles.png" alt="Who's watching?"></td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/watch-together.png" alt="Watch Together invitations on Home"></td>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="The Dashboard: who's watching and how busy the server is"></td>
+  </tr>
 </table>
 
 <sub>Artwork and details from <a href="https://www.themoviedb.org">TMDB</a>. Films and shows belong

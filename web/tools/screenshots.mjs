@@ -215,9 +215,10 @@ Press Ctrl+C to stop; the scratch copy is deleted${args.keep ? ' (kept with --ke
     const context = await browser.newContext({ baseURL: base, viewport: { width: 1600, height: 1000 }, colorScheme: 'dark',
       storageState: await api.storageState() });
     const page = await context.newPage();
-    const shoot = async (path, file) => {
+    const shoot = async (path, file, prepare) => {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
+      await prepare?.();
       // Off-screen images load lazily and may never finish, so wait a few seconds at most.
       await page.evaluate(() => Promise.race([new Promise(r => setTimeout(r, 5000)),
         Promise.all([...document.images].map(i => i.complete ? null : new Promise(r => { i.onload = i.onerror = r; })))]));
@@ -229,6 +230,65 @@ Press Ctrl+C to stop; the scratch copy is deleted${args.keep ? ' (kept with --ke
     if (movie) await shoot(`/movie/${movie.id}`, 'movie.png');
     if (show) await shoot(`/series/${show.id}`, 'show.png');
     await shoot(`/library/${movieLib.id}`, 'library.png');
+
+    // Other people watching, on their own devices, for the Dashboard and Watch Together.
+    const devices = new Map();
+    const device = async (name, profile) => {
+      if (devices.has(name)) return devices.get(name);
+      const { token } = await call('POST', '/api/v1/auth/login', { password: library.admin.password, device: name });
+      const d = await request.newContext({ baseURL: base, extraHTTPHeaders: { Authorization: `Bearer ${token}` } });
+      const as = async (method, path, data) => {
+        const r = await d.fetch(path, { method, data });
+        if (!r.ok()) throw new Error(`${name}: ${method} ${path}: ${r.status()} ${await r.text()}`);
+        return r.status() === 204 ? null : r.json().catch(() => null);
+      };
+      const status = await as('GET', '/api/v1/auth/status');
+      await as('POST', '/api/v1/auth/profile', { id: status.profiles.find(p => p.name === profile).id });
+      const entry = { as, dispose: () => d.dispose(), profiles: status.profiles };
+      devices.set(name, entry);
+      return entry;
+    };
+    try {
+      for (const { profile, device: name, title, part } of library.playing) {
+        const d = await device(name, profile);
+        const it = (await find(movieLib, title)) ?? (await find(tvLib, title));
+        if (!it) continue;
+        const duration = (it.runtime_min || 100) * 60_000;
+        await d.as('PUT', `/api/v1/items/${it.id}/progress`, { position_ms: Math.round(duration * part), duration_ms: duration, state: 'playing' });
+      }
+      await shoot('/dashboard', 'dashboard.png');
+
+      const inRoom = new Set();
+      for (const { host, device: name, title, episode, invite, joined } of library.watchTogether) {
+        const d = await device(name, host);
+        let it = (await find(movieLib, title, true)) ?? (await find(tvLib, title));
+        if (it && episode) {
+          const seasons = await call('GET', `/api/series/${it.id}/seasons`);
+          it = (seasons.seasons ?? seasons).flatMap(s => s.episodes)[episode - 1];
+        }
+        if (!it) continue;
+        const ids = d.profiles.filter(p => invite.includes(p.name)).map(p => p.id);
+        const made = await d.as('POST', '/api/v1/watch-together/rooms', { item_id: it.id, start_ms: 0, profile_ids: ids });
+        const roomId = made.room?.id ?? made.id;
+        // Someone is in one room at a time: a host already in another room has just invited.
+        if (!inRoom.has(host)) await d.as('POST', `/api/v1/watch-together/rooms/${roomId}/join`);
+        inRoom.add(host);
+        for (const who of joined) {
+          inRoom.add(who);
+          const other = [...library.playing, ...library.watchTogether].find(x => (x.profile ?? x.host) === who);
+          const guest = await device(other?.device ?? `${who}'s TV`, who);
+          await guest.as('POST', `/api/v1/watch-together/rooms/${roomId}/join`);
+        }
+      }
+      // Home's Watch Together row, with the hero's foot above it and Continue Watching below.
+      await shoot('/', 'watch-together.png', async () => {
+        const heading = page.getByRole('heading', { name: 'Watch Together' });
+        await heading.waitFor({ timeout: 10_000 });
+        await heading.evaluate(h => window.scrollBy(0, h.getBoundingClientRect().top - 330));
+      });
+    } finally {
+      for (const d of devices.values()) await d.dispose();
+    }
     await context.request.fetch('/api/auth/profile', { method: 'DELETE' });
     await shoot('/', 'profiles.png');
     await browser.close();
