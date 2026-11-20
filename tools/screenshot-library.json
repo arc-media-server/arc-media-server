@@ -1,40 +1,115 @@
 {
-  "about": "The shared screenshot library every Arc app photographs (docs/SCREENSHOTS.md). Films and shows are Creative Commons (Blender Studio) or public domain; Arc matches them on TMDB/TheTVDB, so artwork and details are real. Each title has a poster on TMDB. watching and showProgress are in Continue Watching order, most recent first (shows come before films).",
+  "about": "The shared screenshot library every Arc app photographs (docs/SCREENSHOTS.md): well-known films and shows, matched on TMDB/TheTVDB so the artwork and details are real (owner, 20 November). For READMEs and docs only; store listings use licence-checked artwork. watching and showProgress are in Continue Watching order, most recent first (shows come before films).",
   "movies": [
-    "Big Buck Bunny (2008)", "Sintel (2010)", "Tears of Steel (2012)", "Elephants Dream (2006)",
-    "Cosmos Laundromat (2015)", "Spring (2019)", "Sprite Fright (2021)", "The Gold Rush (1925)",
-    "Steamboat Bill, Jr. (1928)", "Agent 327 Operation Barbershop (2017)", "Night of the Living Dead (1968)",
-    "Nosferatu (1922)", "Metropolis (1927)", "The General (1926)", "Sherlock Jr. (1924)", "The Kid (1921)",
-    "Charade (1963)", "His Girl Friday (1940)", "Plan 9 from Outer Space (1957)",
-    "The Phantom of the Opera (1925)", "A Trip to the Moon (1902)", "The Cabinet of Dr. Caligari (1920)",
-    "Detour (1945)", "The Last Man on Earth (1964)"
+    "The Shawshank Redemption (1994)",
+    "The Dark Knight (2008)",
+    "Inception (2010)",
+    "Interstellar (2014)",
+    "Dune (2021)",
+    "Dune Part Two (2024)",
+    "Oppenheimer (2023)",
+    "Top Gun Maverick (2022)",
+    "Spider-Man Into the Spider-Verse (2018)",
+    "Toy Story (1995)",
+    "Finding Nemo (2003)",
+    "Up (2009)",
+    "Back to the Future (1985)",
+    "Jurassic Park (1993)",
+    "The Matrix (1999)",
+    "Gladiator (2000)",
+    "Mad Max Fury Road (2015)",
+    "Blade Runner 2049 (2017)",
+    "Arrival (2016)",
+    "La La Land (2016)",
+    "Everything Everywhere All at Once (2022)",
+    "Parasite (2019)",
+    "The Grand Budapest Hotel (2014)",
+    "Knives Out (2019)"
   ],
   "shows": [
-    { "folder": "The Beverly Hillbillies (1962)", "episodes": 8 },
-    { "folder": "Bonanza (1959)", "episodes": 6 },
-    { "folder": "The Dick Van Dyke Show (1961)", "episodes": 6 },
-    { "folder": "One Step Beyond (1959)", "episodes": 6 },
-    { "folder": "The Lucy Show (1962)", "episodes": 6 }
+    {
+      "folder": "Breaking Bad (2008)",
+      "episodes": 7
+    },
+    {
+      "folder": "Stranger Things (2016)",
+      "episodes": 8
+    },
+    {
+      "folder": "The Office (2005)",
+      "episodes": 6
+    },
+    {
+      "folder": "Severance (2022)",
+      "episodes": 9
+    },
+    {
+      "folder": "The Last of Us (2023)",
+      "episodes": 9
+    }
   ],
   "collections": [
-    { "title": "Buster Keaton", "overview": "The silent comedian's best-loved features.", "movies": ["The General", "Sherlock Jr.", "Steamboat Bill, Jr."] },
-    { "title": "Blender Studio Open Films", "overview": "Short films made in the open and shared under Creative Commons.", "movies": ["Big Buck Bunny", "Sintel", "Tears of Steel", "Elephants Dream", "Cosmos Laundromat", "Spring", "Sprite Fright", "Agent 327"] }
+    {
+      "title": "Christopher Nolan",
+      "overview": "Mind-bending blockbusters from the director of Inception.",
+      "movies": [
+        "The Dark Knight",
+        "Inception",
+        "Interstellar",
+        "Oppenheimer"
+      ]
+    }
   ],
   "watching": [
-    { "title": "Sintel", "part": 0.6 },
-    { "title": "Metropolis", "part": 0.2 },
-    { "title": "Charade", "part": 0.35 }
+    {
+      "title": "Dune: Part Two",
+      "part": 0.6
+    },
+    {
+      "title": "Oppenheimer",
+      "part": 0.35
+    },
+    {
+      "title": "Spider-Man: Into the Spider-Verse",
+      "part": 0.2
+    }
   ],
   "showProgress": [
-    { "title": "Bonanza", "watched": 1 },
-    { "title": "The Beverly Hillbillies", "watched": 2 }
+    {
+      "title": "Severance",
+      "watched": 1
+    },
+    {
+      "title": "Breaking Bad",
+      "watched": 2
+    }
   ],
-  "watchlist": ["Tears of Steel", "Nosferatu", "The Dick Van Dyke Show"],
+  "watchlist": [
+    "Interstellar",
+    "Arrival",
+    "The Last of Us"
+  ],
   "profiles": [
-    { "name": "Sam", "color": "teal" },
-    { "name": "Alex", "color": "amber" },
-    { "name": "Kids", "color": "rose", "maxAge": 7 }
+    {
+      "name": "Sam",
+      "color": "teal"
+    },
+    {
+      "name": "Alex",
+      "color": "amber"
+    },
+    {
+      "name": "Kids",
+      "color": "rose",
+      "maxAge": 7
+    }
   ],
-  "admin": { "name": "Jordan", "password": "screenshots-only" },
-  "featured": { "movie": "Sintel", "show": "The Beverly Hillbillies" }
+  "admin": {
+    "name": "Jordan",
+    "password": "screenshots-only"
+  },
+  "featured": {
+    "movie": "Dune: Part Two",
+    "show": "Breaking Bad"
+  }
 }

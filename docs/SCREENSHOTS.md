@@ -1,19 +1,19 @@
 # Screenshots: the shared library
 
-Every Arc repository's screenshots (READMEs, change notes, docs) show the same library: Creative
-Commons films from Blender Studio and public-domain films and TV shows, matched on TMDB and
-TheTVDB, so the posters, backgrounds, logos, descriptions and cast are real. That keeps the apps
-looking alike side by side and avoids recent commercial titles and hand-written fixture data
-(owner, 20 November).
+Every Arc repository's screenshots (READMEs, change notes, docs) show the same library:
+well-known films and TV shows, matched on TMDB and TheTVDB, so the posters, backgrounds, logos,
+descriptions and cast are real and recognisable. That keeps the apps looking alike side by side
+and replaces hand-written fixture data (owner, 20 November). No films are included: the media is
+copies of one ten-second generated clip named after each title.
 
-- **What's in it:** `tools/screenshot-library.json`: 24 films, 5 shows with a season each, two
-  collections, three extra profiles (one a Kids profile), what's part-way through, finished and on
-  the watchlist, and the featured film and show (Sintel, The Beverly Hillbillies) to photograph
+- **What's in it:** `tools/screenshot-library.json`: 24 films, 5 shows with their first season,
+  a collection (TMDB adds its own too, such as Dune's), three extra profiles (one a Kids profile), what's part-way through, finished and on
+  the watchlist, and the featured film and show (Dune: Part Two, Breaking Bad) to photograph
   for a title page. Change the library there, not in an app.
 - **Credit:** every README with these pictures says "Artwork and details from TMDB. Films and
-  shows are Creative Commons or public domain." TMDB's terms ask for that credit.
+  shows belong to their owners; Arc doesn't include any media." TMDB's terms ask for that credit.
 - **Store listings** (Google Play, the App Store, LG and Samsung stores, Roku) are a separate job:
-  they will need artwork whose licence has been checked, not TMDB's.
+  they will need artwork whose licence has been checked, not these titles or TMDB's artwork.
 
 ## Running it
 

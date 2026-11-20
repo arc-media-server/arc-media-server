@@ -1,7 +1,7 @@
 // Prepares the shared screenshot library (tools/screenshot-library.json, docs/SCREENSHOTS.md) in a
 // throwaway copy of Arc and photographs the web app for the README (docs/screenshots), or leaves
-// it running for another Arc app to photograph. The library is Creative Commons and public-domain
-// films and shows (copies of one short generated clip) that Arc matches on TMDB/TheTVDB, plus some
+// it running for another Arc app to photograph. The library is well-known films and shows (copies
+// of one short generated clip named after them) that Arc matches on TMDB/TheTVDB, plus some
 // profiles and watching. Your own Arc data, settings and media aren't used.
 //
 //   cd web && npm run build && npx playwright install chromium
@@ -144,7 +144,9 @@ try {
 
   const find = async (lib, title, quiet = false) => {
     const r = await call('GET', `/api/items?library_id=${lib.id}&q=${encodeURIComponent(title)}&limit=5`);
-    const item = (r.items ?? r).find(i => i.title.toLowerCase().startsWith(title.toLowerCase()));
+    const items = r.items ?? r;
+    const want = title.toLowerCase();
+    const item = items.find(i => i.title.toLowerCase() === want) ?? items.find(i => i.title.toLowerCase().startsWith(want));
     if (!item && !quiet) console.warn(`  not found: ${title}`);
     return item;
   };
