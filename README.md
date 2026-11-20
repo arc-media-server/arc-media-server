@@ -45,6 +45,9 @@ analytics or telemetry.
   </tr>
 </table>
 
+<sub>Artwork and details from <a href="https://www.themoviedb.org">TMDB</a>. Films and shows are
+Creative Commons or public domain.</sub>
+
 ## What makes it different
 
 **🎞️ Your files stay yours.** Arc only ever reads your media. It never renames, moves, tags or
