@@ -5552,6 +5552,7 @@ GET /watch-together/current 200 .rate number
 GET /watch-together/current 200 .revision integer
 GET /watch-together/current 200 .self_id string
 GET /watch-together/current 200 .server_time_ms integer
+GET /watch-together/current 200 .started boolean
 GET /watch-together/current 200 .state string
 GET /watch-together/current 200 .wait_until_ms integer
 GET /watch-together/people
@@ -5620,6 +5621,7 @@ GET /watch-together/{id} 200 .rate number
 GET /watch-together/{id} 200 .revision integer
 GET /watch-together/{id} 200 .self_id string
 GET /watch-together/{id} 200 .server_time_ms integer
+GET /watch-together/{id} 200 .started boolean
 GET /watch-together/{id} 200 .state string
 GET /watch-together/{id} 200 .wait_until_ms integer
 GET /watch-together/{id}/events
@@ -7964,6 +7966,7 @@ POST /watch-together 201 .room.rate number
 POST /watch-together 201 .room.revision integer
 POST /watch-together 201 .room.self_id string
 POST /watch-together 201 .room.server_time_ms integer
+POST /watch-together 201 .room.started boolean
 POST /watch-together 201 .room.state string
 POST /watch-together 201 .room.wait_until_ms integer
 POST /watch-together/join
@@ -7995,6 +7998,7 @@ POST /watch-together/join 200 .rate number
 POST /watch-together/join 200 .revision integer
 POST /watch-together/join 200 .self_id string
 POST /watch-together/join 200 .server_time_ms integer
+POST /watch-together/join 200 .started boolean
 POST /watch-together/join 200 .state string
 POST /watch-together/join 200 .wait_until_ms integer
 POST /watch-together/rooms
@@ -8048,6 +8052,7 @@ POST /watch-together/rooms/{id}/join 200 .rate number
 POST /watch-together/rooms/{id}/join 200 .revision integer
 POST /watch-together/rooms/{id}/join 200 .self_id string
 POST /watch-together/rooms/{id}/join 200 .server_time_ms integer
+POST /watch-together/rooms/{id}/join 200 .started boolean
 POST /watch-together/rooms/{id}/join 200 .state string
 POST /watch-together/rooms/{id}/join 200 .wait_until_ms integer
 POST /watch-together/{id}/commands
@@ -8079,6 +8084,7 @@ POST /watch-together/{id}/commands 200 .rate number
 POST /watch-together/{id}/commands 200 .revision integer
 POST /watch-together/{id}/commands 200 .self_id string
 POST /watch-together/{id}/commands 200 .server_time_ms integer
+POST /watch-together/{id}/commands 200 .started boolean
 POST /watch-together/{id}/commands 200 .state string
 POST /watch-together/{id}/commands 200 .wait_until_ms integer
 POST /watch-together/{id}/heartbeat
@@ -8110,6 +8116,7 @@ POST /watch-together/{id}/heartbeat 200 .rate number
 POST /watch-together/{id}/heartbeat 200 .revision integer
 POST /watch-together/{id}/heartbeat 200 .self_id string
 POST /watch-together/{id}/heartbeat 200 .server_time_ms integer
+POST /watch-together/{id}/heartbeat 200 .started boolean
 POST /watch-together/{id}/heartbeat 200 .state string
 POST /watch-together/{id}/heartbeat 200 .wait_until_ms integer
 POST /watch-together/{id}/invite
@@ -8144,6 +8151,7 @@ POST /watch-together/{id}/invite 200 .room.rate number
 POST /watch-together/{id}/invite 200 .room.revision integer
 POST /watch-together/{id}/invite 200 .room.self_id string
 POST /watch-together/{id}/invite 200 .room.server_time_ms integer
+POST /watch-together/{id}/invite 200 .room.started boolean
 POST /watch-together/{id}/invite 200 .room.state string
 POST /watch-together/{id}/invite 200 .room.wait_until_ms integer
 POST /watch-together/{id}/leave
@@ -8177,6 +8185,7 @@ POST /watch-together/{id}/people 200 .rate number
 POST /watch-together/{id}/people 200 .revision integer
 POST /watch-together/{id}/people 200 .self_id string
 POST /watch-together/{id}/people 200 .server_time_ms integer
+POST /watch-together/{id}/people 200 .started boolean
 POST /watch-together/{id}/people 200 .state string
 POST /watch-together/{id}/people 200 .wait_until_ms integer
 POST /webhooks

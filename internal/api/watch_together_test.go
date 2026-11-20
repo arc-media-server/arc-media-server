@@ -119,6 +119,9 @@ func TestWatchTogetherPermissionsPlaceholdersAndConflicts(t *testing.T) {
 	if own := decodeWatchRoom(t, f.request("GET", "/watch-together/current", "host", "")); own.ID != id {
 		t.Fatal("own room recovery failed")
 	}
+	if invite.Room.Started || !strings.Contains(f.request("GET", "/watch-together/"+id, "host", "").Body.String(), `"started":false`) {
+		t.Fatal("a new room says it has started")
+	}
 	if w := f.request("GET", "/watch-together/current", "admin", ""); w.Code != 404 {
 		t.Fatal("current exposed other room")
 	}

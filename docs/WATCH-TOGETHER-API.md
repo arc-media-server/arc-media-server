@@ -66,7 +66,7 @@ item/seek return 409 and cannot release the new ready barrier.
 ## Room payload and privacy
 
 Room fields: `id`, `revision`, `generation`, `state`, `position_ms`, `at_ms`, `rate` (currently 1),
-`server_time_ms`, `host_id`, `self_id`, optional `changed_by`, optional `wait_until_ms`, `available`,
+`server_time_ms`, `host_id`, `self_id`, optional `changed_by`, optional `wait_until_ms`, `started`, `available`,
 optional `item_id` and `item` summary (`id`, `title`, `kind`), and `participants`.
 Each participant has `id`, `name`, `available`, `ready`, `state`.
 
@@ -91,6 +91,9 @@ including empty/error responses. Prefer the explicit time endpoint for clock syn
 
 1. Choose a movie or resolve the specific episode. POST the item and optional starting position.
 2. Show a lobby with the readable eight-character code, optionally as `XXXX-XXXX`, and its expiry.
+   The lobby lasts until `started` is true (someone pressed Play): a room made from a resume
+   point is paused at a later position before anyone has played it. Older servers omit
+   `started`; there, treat a room that is not paused or is past position 0 as started.
    Share it privately with household members or already signed-in friends.
 3. The other device signs in normally and POSTs the code. Unknown/expired/restricted codes give
    generic recovery text; ask the host for a fresh code. New users still need Arc's normal friend
