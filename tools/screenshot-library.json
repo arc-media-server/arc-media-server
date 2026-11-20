@@ -1,5 +1,5 @@
 {
-  "about": "The shared screenshot library every Arc app photographs (docs/SCREENSHOTS.md): well-known films and shows, matched on TMDB/TheTVDB so the artwork and details are real (owner, 20 November). For READMEs and docs only; store listings use licence-checked artwork. watching and showProgress are in Continue Watching order, most recent first (shows come before films).",
+  "about": "The shared screenshot library every Arc app photographs (docs/SCREENSHOTS.md): well-known films and shows, matched on TMDB/TheTVDB so the artwork and details are real (owner, 20 November). For READMEs and docs only; store listings use licence-checked artwork. watching and showProgress are in Continue Watching order, most recent first (shows come before films). playing and watchTogether are made on other profiles' devices just before the Dashboard and Watch Together pictures (README mode only).",
   "movies": [
     "The Shawshank Redemption (1994)",
     "The Dark Knight (2008)",
@@ -102,6 +102,44 @@
       "name": "Kids",
       "color": "rose",
       "maxAge": 7
+    }
+  ],
+  "playing": [
+    {
+      "profile": "Sam",
+      "device": "Living Room TV",
+      "title": "Dune: Part Two",
+      "part": 0.42
+    },
+    {
+      "profile": "Kids",
+      "device": "Kids' iPad",
+      "title": "Finding Nemo",
+      "part": 0.7
+    }
+  ],
+  "watchTogether": [
+    {
+      "host": "Sam",
+      "device": "Living Room TV",
+      "title": "Spider-Man: Into the Spider-Verse",
+      "invite": [
+        "Jordan",
+        "Alex"
+      ],
+      "joined": [
+        "Alex"
+      ]
+    },
+    {
+      "host": "Alex",
+      "device": "Bedroom TV",
+      "title": "Severance",
+      "episode": 3,
+      "invite": [
+        "Jordan"
+      ],
+      "joined": []
     }
   ],
   "admin": {

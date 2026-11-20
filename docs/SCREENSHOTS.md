@@ -60,7 +60,7 @@ running here, not a real TV. Hardware screenshots are the owner's.
 
 | App | How |
 |---|---|
-| Web (this repo) | `node tools/screenshots.mjs` writes `docs/screenshots/*.png` (1600×1000, dark). |
+| Web (this repo) | `node tools/screenshots.mjs` writes `docs/screenshots/*.png` (1600×1000, dark), including the Dashboard with two people watching and Home's Watch Together row (the library's `playing` and `watchTogether`, made from other profiles' devices just before those pictures; not in `--serve`). |
 | arc-android | Emulator: the server is `http://10.0.2.2:18299`; capture with `adb exec-out screencap -p`. Roborazzi tests that need data use responses recorded from this server, not invented titles. |
 | arc-apple | Simulator on a Mac: `http://127.0.0.1:18299`; `xcrun simctl io booted screenshot`. |
 | arc-kodi | Kodi on the same machine: `http://127.0.0.1:18299`; Kodi's screenshot key. |
