@@ -14,7 +14,8 @@
 // (with --serve) writes the address, sign-in and item ids as JSON for scripts. Add --keep to leave
 // the temporary folder (media, data) afterwards, or --media <folder> to use a prepared library
 // (Movies and TV inside, named as in the library file). --chrome <path> uses that
-// Chrome/Chromium instead of Playwright's own. AMS_TMDB_URL / AMS_TVDB_URL are passed on, to try
+// Chrome/Chromium instead of Playwright's own. --only home.png (comma-separated) saves just those
+// pictures. AMS_TMDB_URL / AMS_TVDB_URL are passed on, to try
 // the script against stand-in providers.
 import { chromium, request } from 'playwright';
 import { spawn, spawnSync } from 'node:child_process';
@@ -33,7 +34,10 @@ const { values: args } = parseArgs({ options: {
   keep: { type: 'boolean', default: false },
   media: { type: 'string' },
   chrome: { type: 'string' },
+  only: { type: 'string' },
 } });
+// --only home.png,show.png: write just those pictures (the rest are still set up, not saved).
+const only = args.only ? new Set(args.only.split(',').map(s => s.trim()).filter(Boolean)) : null;
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const library = JSON.parse(await readFile(join(repo, 'tools/screenshot-library.json'), 'utf8'));
@@ -178,6 +182,9 @@ try {
     const ids = (await Promise.all(movies.map(m => find(movieLib, m)))).filter(Boolean).map(i => i.id);
     collections.push(await call('POST', '/api/collections', { library_id: movieLib.id, kind: 'manual', title, overview, item_ids: ids }));
   }
+  // Home's look for every profile (the admin's default layout, which apps read from the profile's
+  // preferences): Continue Watching as Backdrops, each title's backdrop with its logo.
+  if (library.home?.length) await call('PUT', '/api/home/default', { home: library.home });
   for (const { name, color, maxAge } of library.profiles) await call('POST', '/api/profiles', { name, color, ...(maxAge ? { max_age: maxAge } : {}) });
 
   const movie = await find(movieLib, library.featured.movie);
@@ -216,6 +223,7 @@ Press Ctrl+C to stop; the scratch copy is deleted${args.keep ? ' (kept with --ke
       storageState: await api.storageState() });
     const page = await context.newPage();
     const shoot = async (path, file, prepare) => {
+      if (only && !only.has(file)) return;
       await page.goto(path);
       await page.waitForLoadState('networkidle');
       await prepare?.();
