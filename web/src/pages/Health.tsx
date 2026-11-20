@@ -337,7 +337,7 @@ function UnplacedRow({ gaps }: { gaps: Gaps }) {
   );
 }
 
-/** "S1 E5, S2 E1–4, S3 E2" from a sorted list of episodes. */
+/** "S1 · E5, S2 · E1–4, S3 · E2" from a sorted list of episodes. */
 export function episodeRanges(eps: MissingEpisode[]): string {
   const parts: string[] = [];
   let i = 0;
@@ -345,7 +345,7 @@ export function episodeRanges(eps: MissingEpisode[]): string {
     let j = i;
     while (j + 1 < eps.length && eps[j + 1].season_number === eps[i].season_number && eps[j + 1].episode_number === eps[j].episode_number + 1) j++;
     const s = eps[i].season_number;
-    parts.push(j > i ? `S${s} E${eps[i].episode_number}–${eps[j].episode_number}` : `S${s} E${eps[i].episode_number}`);
+    parts.push(j > i ? `S${s} · E${eps[i].episode_number}–${eps[j].episode_number}` : `S${s} · E${eps[i].episode_number}`);
     i = j + 1;
   }
   return parts.join(', ');

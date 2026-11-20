@@ -70,7 +70,7 @@ test('recent season captions omit counts and episode captions use three lines on
     await expect(row.getByText('Season 2', { exact: true })).toBeAttached();
     await expect(row.getByText('Specials', { exact: true })).toBeAttached();
     await expect(row.getByText(/new episodes?/)).toHaveCount(0);
-    for (const [item, code] of [[episode, 'S01 · E01'], [special, 'S00 · E03'], [unplaced, 'Unplaced episode']] as const) {
+    for (const [item, code] of [[episode, 'S1 · E1'], [special, 'Special 3'], [unplaced, 'Unplaced episode']] as const) {
       const card = row.locator(`[data-item="${item.id}"]`);
       const lines = card.locator('a > div').last().locator('p');
       await expect(lines).toHaveText([source.title, item.title, code]);
@@ -81,7 +81,7 @@ test('recent season captions omit counts and episode captions use three lines on
     }
     const card = row.locator(`[data-item="${episode.id}"]`);
     await card.scrollIntoViewIfNeeded();
-    await expect(card.getByText('S01 · E01', { exact: true })).toBeVisible();
+    await expect(card.getByText('S1 · E1', { exact: true })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`recent-captions-${width}.png`) });
     await card.hover();
     await expect(card.getByRole('button', { name: `More for ${source.title}`, exact: true })).toBeVisible();

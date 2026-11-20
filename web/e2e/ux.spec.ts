@@ -550,7 +550,7 @@ test('queue editing preserves current playback, browsing and saved episode progr
   let starts = 0;
   page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith('/playback')) starts++; });
   await page.goto('/series/' + shows.item.id);
-  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
+  await page.getByRole('button', { name: /^Play S\d+ · E\d+$/ }).click();
   const video = page.locator('video');
   const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
@@ -604,7 +604,7 @@ test('the server name is set in General settings and is what apps are told', asy
 test('a reload offers the queue this device was playing, to resume or dismiss', async ({ page }, info) => {
   const shows = await seed(page, true);
   await page.goto('/series/' + shows.item.id);
-  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
+  await page.getByRole('button', { name: /^Play S\d+ · E\d+$/ }).click();
   const video = page.locator('video');
   const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
@@ -905,7 +905,7 @@ test('switching profiles stops compact playback after saving the original profil
 test('compact playback carries on to the next episode after its countdown', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
-  await page.getByRole('button', { name: /^Play S\d+ E\d+$/ }).click();
+  await page.getByRole('button', { name: /^Play S\d+ · E\d+$/ }).click();
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Minimize player', exact: true }).click();
@@ -1219,7 +1219,7 @@ test('the Activity menu stays simple: task, current title, progress and recent w
       // Waiting for its turn (no current item): not listed, as in Plex.
       { id: 14, kind: 'markers', title: 'Finding intros and credits', started_at: now, done: 2, total: 5 },
       { id: 15, kind: 'previews', title: 'Making scrubbing previews', started_at: now, done: 3, total: 25, current: [
-        { id: 9, stage: 'Making previews', subject: "Grey's Anatomy · S4 E12", detail: 'greys.s04e12.mkv' },
+        { id: 9, stage: 'Making previews', subject: "Grey's Anatomy · S4 · E12", detail: 'greys.s04e12.mkv' },
       ] },
     ],
     recent: [
@@ -1240,7 +1240,7 @@ test('the Activity menu stays simple: task, current title, progress and recent w
     await expect(scan.getByRole('definition')).toHaveText(['Blade Runner (1982)', 'Dune (2021)', 'Arrival (2016)']);
     await expect(scan.getByText('Heat (1995)')).toHaveCount(0);
     await expect(panel.getByText('Finding intros and credits')).toHaveCount(0);
-    await expect(panel.getByRole('listitem').filter({ hasText: 'Making scrubbing previews' })).toContainText("Grey's Anatomy · S4 E12");
+    await expect(panel.getByRole('listitem').filter({ hasText: 'Making scrubbing previews' })).toContainText("Grey's Anatomy · S4 · E12");
     const reading = panel.getByRole('listitem').filter({ hasText: 'Scanning TV Shows' });
     await expect(reading.getByRole('term')).toHaveText(['Analysing']);
     await expect(reading.getByRole('definition')).toHaveText(['3 of 40']);

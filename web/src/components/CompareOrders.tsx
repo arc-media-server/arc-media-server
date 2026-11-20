@@ -57,7 +57,7 @@ function places(data?: SeasonsResponse) {
 
 function code(p?: Place) {
   if (!p) return null;
-  return p.season === 0 ? i18n.t('details:compareOrders.special', { number: p.episode }) : `S${p.season} E${p.episode}`;
+  return p.season === 0 ? i18n.t('details:compareOrders.special', { number: p.episode }) : `S${p.season} · E${p.episode}`;
 }
 
 function Comparison({

@@ -24,7 +24,7 @@ export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, se
   const isEpisode = item.kind === 'episode';
   const code = episodeCode(item.season_number, item.episode_number);
   const title = isEpisode ? (item.series_title ?? item.title) : item.title;
-  const subtitle = isEpisode ? [code, item.title].filter(Boolean).join(' · ') : item.year ? String(item.year) : '';
+  const subtitle = isEpisode ? code || item.title : item.year ? String(item.year) : '';
   // With spoiler protection, an episode not started yet shows its show's artwork instead of its still.
   const hideSpoilers = useSpoilerGuard()(item);
   const art = (hideSpoilers && item.images?.series_backdrop) || (item.images?.primary ?? item.images?.series_backdrop ?? item.images?.backdrop);

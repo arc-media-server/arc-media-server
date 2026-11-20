@@ -41,7 +41,7 @@ test('Recently Added: real initial import makes a season card and one episode ma
     await expect(row.getByText('Season 1', { exact: true })).toHaveCount(0);
     const episodeCard = row.locator(`[data-item="${single[0].item.id}"]`);
     await expect(episodeCard).toHaveCount(1);
-    await expect(episodeCard.locator('a > div').last().locator('p')).toHaveText([single[0].item.series_title, single[0].item.title, 'S01 · E01']);
+    await expect(episodeCard.locator('a > div').last().locator('p')).toHaveText([single[0].item.series_title, single[0].item.title, 'S1 · E1']);
     expect(errors).toEqual([]);
   } finally {
     await rm(join(media.empty, 'Arc Show (2020)'), { recursive: true, force: true });

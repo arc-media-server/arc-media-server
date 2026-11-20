@@ -54,7 +54,7 @@ export function PosterCard({
   const image = overrides?.image ?? (isEpisode ? item.images?.series_primary : posterUrl(item));
   const title = overrides?.title ?? (isEpisode ? (item.series_title ?? item.title) : item.title);
   const subtitle =
-    overrides?.subtitle ?? (isEpisode ? [episodeCode(item.season_number, item.episode_number), item.title].filter(Boolean).join(' · ') : cardYear(item));
+    overrides?.subtitle ?? (isEpisode ? episodeCode(item.season_number, item.episode_number) || item.title : cardYear(item));
   const card = (
     <>
       <div
@@ -130,7 +130,7 @@ export function ThumbCard({
     (isEpisode ? (hideSpoilers && item.images?.series_backdrop) || item.images?.primary || item.images?.series_backdrop : item.images?.backdrop);
   const title = overrides?.title ?? (isEpisode ? (item.series_title ?? item.title) : item.title);
   const subtitle =
-    overrides?.subtitle ?? (isEpisode ? [episodeCode(item.season_number, item.episode_number), item.title].filter(Boolean).join(' · ') : cardYear(item));
+    overrides?.subtitle ?? (isEpisode ? episodeCode(item.season_number, item.episode_number) || item.title : cardYear(item));
   const blur = hideSpoilers && image === item.images?.primary;
   const card = (
     <>

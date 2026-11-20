@@ -46,7 +46,7 @@ func TestFileActivityLabelNamesEpisodesAndMovies(t *testing.T) {
 	if _, err := st.db.ExecContext(ctx, `INSERT INTO ordering_entries (ordering_id, episode_id, season_number, episode_number) VALUES (1, ?, 4, 12)`, episode); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := st.FileActivityLabel(ctx, epFile); err != nil || got != "Grey's Anatomy · S4 E12" {
+	if got, err := st.FileActivityLabel(ctx, epFile); err != nil || got != "Grey's Anatomy · S4 · E12" {
 		t.Fatalf("episode = %q, %v", got, err)
 	}
 	if got, err := st.FileActivityLabel(ctx, movieFile); err != nil || got != "Dune" {

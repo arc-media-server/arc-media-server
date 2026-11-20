@@ -68,6 +68,13 @@ owner (GitHub: JonzaUK) drives product vision; agents do most implementation.
   every app. On TVs, focus is always visible and Back always works.
 - **Words:** the same feature has the same name in every app; all user-facing text goes through
   the app's string catalogue, never inline.
+- **Episode numbers** (owner, 20 November) read **S1 · E4** everywhere: no leading zeros, no comma,
+  and "·" (a middle dot with a space either side) as the only separator, never "•", "-" or ",".
+  A special is "Special 3". On a card the line under the show's name is just "S1 · E4": the
+  episode title never shares that line (a card that has a line of its own for the title, such
+  as Recently Added's, keeps it). Where the episode itself is the subject (the player, the title
+  page's resume line, episode lists, play queues) add the title after it: "S1 · E4 · Pilot".
+  Buttons too: "Play S1 · E4", "Resume S1 · E4".
 - Screenshots use the shared screenshot library (docs/SCREENSHOTS.md), the same titles in every
   app, with TMDB credited; store listings will use licence-checked artwork.
 - A show's details come from its library's one metadata provider; gaps are never backfilled from

@@ -57,7 +57,7 @@ export function DashboardPage() {
 function playbackTitle(p: Playback) {
   const it = p.item;
   if (it.kind === 'episode' && it.series_title) {
-    const code = it.season_number != null && it.episode_number != null ? `S${it.season_number} E${it.episode_number} · ` : '';
+    const code = it.season_number != null && it.episode_number != null ? `S${it.season_number} · E${it.episode_number} · ` : '';
     return { title: it.series_title, subtitle: `${code}${it.title}` };
   }
   return { title: it.title, subtitle: it.year ? String(it.year) : undefined };

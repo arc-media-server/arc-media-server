@@ -299,7 +299,7 @@ func (s *Store) FileActivityTitle(ctx context.Context, fileID int64) (string, er
 }
 
 // FileActivityLabel is FileActivityTitle with an episode's place in its show's aired order
-// (TheTVDB's, else TMDB's), e.g. "Grey's Anatomy · S4 E12", for work that goes episode by episode.
+// (TheTVDB's, else TMDB's), e.g. "Grey's Anatomy · S4 · E12", for work that goes episode by episode.
 func (s *Store) FileActivityLabel(ctx context.Context, fileID int64) (string, error) {
 	var title string
 	var season, episode int
@@ -314,7 +314,7 @@ func (s *Store) FileActivityLabel(ctx context.Context, fileID int64) (string, er
 	if err != nil || season < 0 || episode < 0 {
 		return title, err
 	}
-	return fmt.Sprintf("%s · S%d E%d", title, season, episode), nil
+	return fmt.Sprintf("%s · S%d · E%d", title, season, episode), nil
 }
 
 // ItemFiles returns an item's files (including missing ones) with their streams, ordered by part.
