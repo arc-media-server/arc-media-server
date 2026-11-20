@@ -8,8 +8,9 @@ copies of one ten-second generated clip named after each title.
 
 - **What's in it:** `tools/screenshot-library.json`: 24 films, 5 shows with their first season,
   a collection (TMDB adds its own too, such as Dune's), three extra profiles (one a Kids profile), what's part-way through, finished and on
-  the watchlist, and the featured film and show (Dune: Part Two, Breaking Bad) to photograph
-  for a title page. Change the library there, not in an app.
+  the watchlist, Home's look (Continue Watching as **Backdrops**: each title's backdrop with its
+  logo, set as the admin's default Home so every app that follows it shows it), and the featured
+  film and show (Dune: Part Two, Breaking Bad) to photograph for a title page. Change the library there, not in an app.
 - **Credit:** every README with these pictures says "Artwork and details from TMDB. Films and
   shows belong to their owners; Arc doesn't include any media." TMDB's terms ask for that credit.
 - **Store listings** (Google Play, the App Store, LG and Samsung stores, Roku) are a separate job:
@@ -42,7 +43,8 @@ media. Without `--serve` it photographs the web app and stops; with `--serve` it
   password for a throwaway server). The web app on the same machine is signed in without one;
 - the library ids and the featured film and show ids, for opening those pages directly.
 
-`--state <file>` also writes those as JSON (no keys) for a script to read. `--keep` leaves the
+`--state <file>` also writes those as JSON (no keys) for a script to read. `--only home.png`
+(comma-separated) saves just those web pictures, for retaking one after a library change. `--keep` leaves the
 temporary folder afterwards; `--media <folder>` uses a library prepared beforehand.
 
 ### Signing an app in
