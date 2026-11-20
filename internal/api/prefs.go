@@ -48,6 +48,10 @@ type prefs struct {
 	ThemeMusic *bool `json:"theme_music,omitempty"`
 	// Skip intros and recaps without asking (off unless turned on).
 	AutoSkip bool `json:"auto_skip"`
+	// List a show's episodes that aren't on disk (from its metadata provider) among the ones that
+	// are, as the apps' Show Missing Episodes setting (off unless turned on). Apps ask for them with
+	// GET /series/{id}/seasons?missing=1.
+	ShowMissingEpisodes bool `json:"show_missing_episodes"`
 	// Internet streaming quality, as Plex's: the most a stream away from home may use (kbit/s, one
 	// of the player's quality limits), or 0 for Maximum. Never applies on the home network.
 	RemoteQualityKbps int `json:"remote_quality_kbps,omitempty"`
@@ -354,6 +358,7 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		AutoPlay          *bool          `json:"auto_play"`
 		ThemeMusic        *bool          `json:"theme_music"`
 		AutoSkip          *bool          `json:"auto_skip"`
+		ShowMissing       *bool          `json:"show_missing_episodes"`
 		RemoteQuality     *int           `json:"remote_quality_kbps"`
 		SubtitleMode      *string        `json:"subtitle_mode"`
 		SubtitleStyle     *subtitleStyle `json:"subtitle_style"`
@@ -401,6 +406,9 @@ func (s *Server) patchPrefs(w http.ResponseWriter, r *http.Request, userID strin
 		}
 		if body.AutoSkip != nil {
 			p.AutoSkip = *body.AutoSkip
+		}
+		if body.ShowMissing != nil {
+			p.ShowMissingEpisodes = *body.ShowMissing
 		}
 		if body.RemoteQuality != nil {
 			p.RemoteQualityKbps = *body.RemoteQuality

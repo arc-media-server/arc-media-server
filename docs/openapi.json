@@ -3638,6 +3638,9 @@
           "show_home_hero": {
             "type": "boolean"
           },
+          "show_missing_episodes": {
+            "type": "boolean"
+          },
           "split_up_next": {
             "type": "boolean"
           },
@@ -3668,6 +3671,7 @@
           "auto_skip",
           "hide_spoilers",
           "home",
+          "show_missing_episodes",
           "split_up_next",
           "subtitle_language",
           "subtitle_style",
@@ -27134,6 +27138,9 @@
                   "show_home_hero": {
                     "type": "boolean"
                   },
+                  "show_missing_episodes": {
+                    "type": "boolean"
+                  },
                   "split_up_next": {
                     "type": "boolean"
                   },
@@ -31527,6 +31534,9 @@
                     "type": "integer"
                   },
                   "show_home_hero": {
+                    "type": "boolean"
+                  },
+                  "show_missing_episodes": {
                     "type": "boolean"
                   },
                   "split_up_next": {

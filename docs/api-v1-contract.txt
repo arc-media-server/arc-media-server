@@ -3097,6 +3097,7 @@ GET /me/prefs 200 .library_order[] integer
 GET /me/prefs 200 .library_poster_size integer
 GET /me/prefs 200 .remote_quality_kbps integer
 GET /me/prefs 200 .show_home_hero boolean
+GET /me/prefs 200 .show_missing_episodes boolean
 GET /me/prefs 200 .split_up_next boolean
 GET /me/prefs 200 .subtitle_language string
 GET /me/prefs 200 .subtitle_mode string
@@ -4093,6 +4094,7 @@ GET /profiles/{id}/prefs 200 .library_order[] integer
 GET /profiles/{id}/prefs 200 .library_poster_size integer
 GET /profiles/{id}/prefs 200 .remote_quality_kbps integer
 GET /profiles/{id}/prefs 200 .show_home_hero boolean
+GET /profiles/{id}/prefs 200 .show_missing_episodes boolean
 GET /profiles/{id}/prefs 200 .split_up_next boolean
 GET /profiles/{id}/prefs 200 .subtitle_language string
 GET /profiles/{id}/prefs 200 .subtitle_mode string
@@ -5981,6 +5983,7 @@ PATCH /me/prefs 200 .library_order[] integer
 PATCH /me/prefs 200 .library_poster_size integer
 PATCH /me/prefs 200 .remote_quality_kbps integer
 PATCH /me/prefs 200 .show_home_hero boolean
+PATCH /me/prefs 200 .show_missing_episodes boolean
 PATCH /me/prefs 200 .split_up_next boolean
 PATCH /me/prefs 200 .subtitle_language string
 PATCH /me/prefs 200 .subtitle_mode string
@@ -6180,6 +6183,7 @@ PATCH /profiles/{id}/prefs 200 .library_order[] integer
 PATCH /profiles/{id}/prefs 200 .library_poster_size integer
 PATCH /profiles/{id}/prefs 200 .remote_quality_kbps integer
 PATCH /profiles/{id}/prefs 200 .show_home_hero boolean
+PATCH /profiles/{id}/prefs 200 .show_missing_episodes boolean
 PATCH /profiles/{id}/prefs 200 .split_up_next boolean
 PATCH /profiles/{id}/prefs 200 .subtitle_language string
 PATCH /profiles/{id}/prefs 200 .subtitle_mode string
