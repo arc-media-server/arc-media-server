@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { PosterSizeControl } from '@/components/PosterSizeControl';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useWatchRooms, WatchRoomCard } from '@/components/WatchTogether';
+import { episodeCode } from '@/components/WatchState';
 
 function MediaRow(props: ComponentProps<typeof SharedMediaRow>) {
   return <HomeRowActions>{cardProps => <SharedMediaRow {...props} cardProps={cardProps} />}</HomeRowActions>;
@@ -75,8 +76,9 @@ function recentOverrides(c: RecentCard, style: CardStyle, seasonPosters: boolean
       return {
         image: seasonPosters && style === 'poster' ? c.item.images?.season_primary : undefined,
         subtitle: c.item.title,
+        // "S1 · E4" as everywhere; a special reads "Special 3".
         detail: season !== undefined && episode !== undefined
-          ? i18n.t('home:rows.episodeCode', { season: String(season).padStart(2, '0'), episode: String(episode).padStart(2, '0') })
+          ? season === 0 ? episodeCode(season, episode) : i18n.t('home:rows.episodeCode', { season, episode })
           : i18n.t('home:rows.unplacedEpisode'),
       };
     }

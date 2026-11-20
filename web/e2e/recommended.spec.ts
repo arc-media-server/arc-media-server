@@ -76,8 +76,8 @@ test('Recommended: rows for a profile with some history, titled in the app, and 
   expect(titles).toContain('Recently Watched Episodes');
   expect(titles).not.toContain('Start Watching'); // the only show has been started
   expect(titles).toContain('Top Rated Shows');
-  await expect(main.getByRole('region', { name: 'Continue Watching', exact: true }).getByText(/S1 E2/).first()).toBeVisible();
-  await expect(main.getByRole('region', { name: 'Recently Watched Episodes', exact: true }).getByText(/S1 E1 · First Chapter/).first()).toBeVisible();
+  await expect(main.getByRole('region', { name: 'Continue Watching', exact: true }).getByText(/S1 · E2/).first()).toBeVisible();
+  await expect(main.getByRole('region', { name: 'Recently Watched Episodes', exact: true }).getByText(/S1 · E1/).first()).toBeVisible();
 
   // A library with nothing in it has nothing to recommend.
   // A folder of its own: the shared Empty fixture gets a file from another journey.

@@ -55,8 +55,8 @@ export function CountBadge({ count, label, className }: { count: number; label: 
   );
 }
 
-/** "S1 E3" or "Special 2". */
+/** "S1 · E3" or "Special 2" (the same in every Arc app). */
 export function episodeCode(season?: number, episode?: number): string {
   if (season === undefined || episode === undefined) return '';
-  return season === 0 ? `Special ${episode}` : `S${season} E${episode}`;
+  return season === 0 ? `Special ${episode}` : `S${season} · E${episode}`;
 }

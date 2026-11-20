@@ -22,7 +22,7 @@
     "emptyHeading": "Nothing in it yet",
     "smartEmpty": "Nothing matches its rules yet. It fills up as titles are added or watched.",
     "empty": "Add movies, episodes or whole shows from their pages.",
-    "episodeCode": "S{{season}} E{{episode}}"
+    "episodeCode": "S{{season}} · E{{episode}}"
   },
   "rename": "Rename Playlist",
   "delete": {
