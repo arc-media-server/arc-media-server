@@ -70,6 +70,9 @@ type Snapshot struct {
 	Rate                                   float64
 	Members                                []Member
 	WaitUntilMS                            int64
+	// Started: someone has pressed Play since the room was made (apps close the lobby then;
+	// a room made part-way through a title is paused at a later position from the start).
+	Started bool
 }
 type room struct {
 	Snapshot
@@ -743,6 +746,7 @@ func (m *Manager) Command(id, key string, revision int64, action, item string, p
 	switch action {
 	case "play":
 		r.playing = true
+		r.Started = true
 	case "pause":
 		r.playing = false
 	case "seek":

@@ -37,7 +37,9 @@ type watchRoomDTO struct {
 	Rate         float64 `json:"rate"`
 	ServerTimeMS int64   `json:"server_time_ms"`
 	WaitUntilMS  int64   `json:"wait_until_ms,omitempty"`
-	HostID       string  `json:"host_id"`
+	// Whether anyone has pressed Play since the room was made: the lobby shows until then.
+	Started bool   `json:"started"`
+	HostID  string `json:"host_id"`
 	// The name of the profile that made the room (its host when present).
 	HostName     string           `json:"host_name"`
 	SelfID       string           `json:"self_id"`
@@ -112,7 +114,7 @@ func (s *Server) watchView(r *http.Request, room watchtogether.Snapshot) (watchR
 	if err != nil {
 		return watchRoomDTO{}, err
 	}
-	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, HostID: room.HostID, HostName: room.HostName, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}, Invited: []watchInvitedDTO{}}
+	out := watchRoomDTO{ID: room.ID, Revision: room.Revision, Generation: room.Generation, State: room.State, PositionMS: room.PositionMS, AtMS: room.AtMS, Rate: room.Rate, ServerTimeMS: time.Now().UnixMilli(), WaitUntilMS: room.WaitUntilMS, Started: room.Started, HostID: room.HostID, HostName: room.HostName, ChangedBy: room.ChangedBy, Participants: []watchMemberDTO{}, Invited: []watchInvitedDTO{}}
 	for _, p := range room.Invited {
 		out.Invited = append(out.Invited, watchInvitedDTO{Name: p.Name})
 	}

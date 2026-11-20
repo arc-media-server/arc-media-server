@@ -58,8 +58,11 @@ func TestTimelineWaitingTimeoutAndGenerations(t *testing.T) {
 	}
 	s = ready(t, m, s, a, true)
 	s = ready(t, m, s, b, true)
+	if s.Started || s.PositionMS != 1000 {
+		t.Fatal("a room made part-way through hasn't started", s)
+	}
 	s = command(t, m, s, a, "play", "", 0, nil)
-	if s.State != "playing" {
+	if s.State != "playing" || !s.Started {
 		t.Fatal(s)
 	}
 	*now = now.Add(2 * time.Second)
