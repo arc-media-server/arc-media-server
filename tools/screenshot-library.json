@@ -1,0 +1,115 @@
+{
+  "about": "The shared screenshot library every Arc app photographs (docs/SCREENSHOTS.md): well-known films and shows, matched on TMDB/TheTVDB so the artwork and details are real (owner, 20 November). For READMEs and docs only; store listings use licence-checked artwork. watching and showProgress are in Continue Watching order, most recent first (shows come before films).",
+  "movies": [
+    "The Shawshank Redemption (1994)",
+    "The Dark Knight (2008)",
+    "Inception (2010)",
+    "Interstellar (2014)",
+    "Dune (2021)",
+    "Dune Part Two (2024)",
+    "Oppenheimer (2023)",
+    "Top Gun Maverick (2022)",
+    "Spider-Man Into the Spider-Verse (2018)",
+    "Toy Story (1995)",
+    "Finding Nemo (2003)",
+    "Up (2009)",
+    "Back to the Future (1985)",
+    "Jurassic Park (1993)",
+    "The Matrix (1999)",
+    "Gladiator (2000)",
+    "Mad Max Fury Road (2015)",
+    "Blade Runner 2049 (2017)",
+    "Arrival (2016)",
+    "La La Land (2016)",
+    "Everything Everywhere All at Once (2022)",
+    "Parasite (2019)",
+    "The Grand Budapest Hotel (2014)",
+    "Knives Out (2019)"
+  ],
+  "shows": [
+    {
+      "folder": "Breaking Bad (2008)",
+      "episodes": 7
+    },
+    {
+      "folder": "Stranger Things (2016)",
+      "episodes": 8
+    },
+    {
+      "folder": "The Office (2005)",
+      "episodes": 6
+    },
+    {
+      "folder": "Severance (2022)",
+      "episodes": 9
+    },
+    {
+      "folder": "The Last of Us (2023)",
+      "episodes": 9
+    }
+  ],
+  "collections": [
+    {
+      "title": "Christopher Nolan",
+      "overview": "Mind-bending blockbusters from the director of Inception.",
+      "movies": [
+        "The Dark Knight",
+        "Inception",
+        "Interstellar",
+        "Oppenheimer"
+      ]
+    }
+  ],
+  "watching": [
+    {
+      "title": "Dune: Part Two",
+      "part": 0.6
+    },
+    {
+      "title": "Oppenheimer",
+      "part": 0.35
+    },
+    {
+      "title": "Spider-Man: Into the Spider-Verse",
+      "part": 0.2
+    }
+  ],
+  "showProgress": [
+    {
+      "title": "Severance",
+      "watched": 1
+    },
+    {
+      "title": "Breaking Bad",
+      "watched": 2
+    }
+  ],
+  "watchlist": [
+    "Interstellar",
+    "Arrival",
+    "The Last of Us"
+  ],
+  "profiles": [
+    {
+      "name": "Sam",
+      "color": "teal"
+    },
+    {
+      "name": "Alex",
+      "color": "amber"
+    },
+    {
+      "name": "Kids",
+      "color": "rose",
+      "maxAge": 7
+    }
+  ],
+  "admin": {
+    "name": "Jordan",
+    "password": "screenshots-only"
+  },
+  "featured": {
+    "movie": "Dune: Part Two",
+    "show": "Breaking Bad"
+  }
+}

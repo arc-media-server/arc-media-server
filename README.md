@@ -45,6 +45,9 @@ analytics or telemetry.
   </tr>
 </table>
 
+<sub>Artwork and details from <a href="https://www.themoviedb.org">TMDB</a>. Films and shows belong
+to their owners; Arc doesn't include any media.</sub>
+
 ## What makes it different
 
 **🎞️ Your files stay yours.** Arc only ever reads your media. It never renames, moves, tags or

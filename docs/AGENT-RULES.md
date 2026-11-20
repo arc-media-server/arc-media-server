@@ -68,6 +68,8 @@ owner (GitHub: JonzaUK) drives product vision; agents do most implementation.
   every app. On TVs, focus is always visible and Back always works.
 - **Words:** the same feature has the same name in every app; all user-facing text goes through
   the app's string catalogue, never inline.
+- Screenshots use the shared screenshot library (docs/SCREENSHOTS.md), the same titles in every
+  app, with TMDB credited; store listings will use licence-checked artwork.
 - A show's details come from its library's one metadata provider; gaps are never backfilled from
   the other. Storage order (file numbering) is separate from display order.
 
