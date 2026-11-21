@@ -100,7 +100,7 @@ owner (GitHub: JonzaUK) drives product vision; agents do most implementation.
 
 - Explain trade-offs in plain language with a recommendation: the owner is a Plex/Jellyfin power
   user, not a Go/React/Kotlin expert.
-- Silo (github.com/Silo-Server/silo-server) is a design reference only: it's AGPL-3.0, so never copy
-  its code or exact designs.
+- Other media servers and apps are references for ideas only: never copy their code, artwork or
+  exact designs.
 - Licence: AGPL-3.0-only, copyright "The Arc Media Server Authors" (the Apple app's App Store
   exception is decision arc-media-server#477).

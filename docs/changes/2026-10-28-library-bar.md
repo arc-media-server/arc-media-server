@@ -1,7 +1,7 @@
 # Library page: a shorter bar, an A–Z rail and poster hover actions
 
 The owner found the library's top bar crowded (sort, Jump to, Reverse, Select, Scan Library, five
-filter chips and a full-width "More filters" panel). Looking at Plex and Silo, it now has one
+filter chips and a full-width "More filters" panel). Looking at other media servers, it now has one
 short row of controls, an A–Z rail and Plex-style actions on each poster.
 
 What changed:
