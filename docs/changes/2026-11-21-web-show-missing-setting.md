@@ -15,9 +15,9 @@ LG/Samsung apps follow the same setting).
 
 ## Decisions
 
-- Off by default, as before. Plex has no per-profile setting: its apps show missing episodes only
-  through the server's "show missing seasons" option on some clients. A per-show toggle was the
-  alternative; it was dropped because it didn't stay set and had to be found on every show.
+- Off by default, as before. Plex doesn't list episodes you don't have, so this is Arc's own; a
+  per-show toggle was the alternative, dropped because it didn't stay set and had to be found on
+  every show.
 
 ## Checks
 
