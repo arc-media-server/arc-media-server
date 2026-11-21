@@ -6,6 +6,8 @@ import { CheckCircle2, Globe, Loader2, MonitorSmartphone, Tv } from 'lucide-reac
 import { api, type Device } from '@/lib/api';
 import * as fmt from '@/lib/format';
 import { Button } from '@/components/ui/button';
+import { ToolTokenForm } from '@/components/ToolTokenForm';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorNotice, Page, PageHeader } from '@/components/Page';
 
 /** Link a Device: enter the code a TV shows to sign it in, as plex.tv/link does. */
@@ -72,6 +74,7 @@ export function DevicesList() {
   if (!data) return feedback || <div role="status" className="m-4 h-12 animate-pulse rounded-xl bg-surface-2"><span className="sr-only">{t("accessSettings:devices.loadingDevices")}</span></div>;
   return (
     <>
+      <ToolTokenForm />
       {feedback}
       {data.length === 0 && <p className="px-4 py-3 text-sm text-muted">{t("accessSettings:devices.noDevicesAreSigned")}</p>}
       {(all ? data : data.slice(0, 8)).map(d => <DeviceRow key={d.id} device={d} />)}
@@ -87,10 +90,12 @@ export function DevicesList() {
 function DeviceRow({ device: d }: { device: Device }) {
   const { t } = useTranslation('accessSettings');
   const qc = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
   const signOut = useMutation({
     mutationFn: () => api.signOutDevice(d.id),
     onSuccess: () => {
       // Remove only after the server confirms revocation, even if the following refresh fails.
+      setConfirm(false);
       qc.setQueryData<Device[]>(['devices'], list => list?.filter(device => device.id !== d.id));
       return qc.invalidateQueries({ queryKey: ['devices'] });
     },
@@ -103,16 +108,20 @@ function DeviceRow({ device: d }: { device: Device }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">
-          {name}{d.this_device && <span className="font-normal text-muted"> {t("accessSettings:devices.thisBrowser")}</span>}
+          {name}{d.is_tool && <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-xs font-normal text-muted">{t('tools.badge')}</span>}{d.this_device && <span className="font-normal text-muted"> {t("accessSettings:devices.thisBrowser")}</span>}
         </p>
+        {d.is_tool && <p className="text-xs text-subtle">{t('tools.created', { date: fmt.dateTime(new Date(d.created_at * 1000).toISOString()) })}</p>}
         <p className="truncate text-xs text-subtle">
           {[d.profile || (d.via === 'friend' ? t('accessSettings:devices.friendName') : t('accessSettings:devices.choosingProfile')), viaLabel[d.via], t('accessSettings:devices.used', { when: fmt.ago(d.last_seen_at) })].filter(Boolean).join(' · ')}
         </p>
       </div>
-      {!d.this_device && <Button variant="ghost" size="sm" disabled={signOut.isPending} onClick={() => signOut.mutate()}>
-        {signOut.isPending && <Loader2 className="animate-spin" />}{signOut.error ? t("accessSettings:devices.retry") : t("accessSettings:devices.signOut")}
+      {!d.this_device && <Button variant="ghost" size="sm" disabled={signOut.isPending} onClick={() => { if (d.is_tool) { signOut.reset(); setConfirm(true); } else signOut.mutate(); }}>
+        {signOut.isPending && <Loader2 className="animate-spin" />}{d.is_tool ? t("tools.revoke") : signOut.error ? t("accessSettings:devices.retry") : t("accessSettings:devices.signOut")}
       </Button>}
-      {signOut.error && <div className="w-full"><ErrorNotice error={signOut.error} /></div>}
+      {signOut.error && !confirm && <div className="w-full"><ErrorNotice error={signOut.error} /></div>}
+      <ConfirmDialog open={confirm} onOpenChange={setConfirm} title={t('tools.confirmTitle')} confirmLabel={t('tools.revoke')} destructive busy={signOut.isPending} error={signOut.error?.message} onConfirm={() => signOut.mutate()}>
+        {t('tools.confirmDescription', { name })}
+      </ConfirmDialog>
     </div>
   );
 }

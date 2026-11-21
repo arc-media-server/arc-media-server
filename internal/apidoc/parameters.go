@@ -159,7 +159,8 @@ func queryParameter(handler, name string) (map[string]any, error) {
 	case "genre":
 		description = "Genre from the library's access-controlled facets."
 	case "label":
-		description = "User label from the library's access-controlled facets."
+		description = "User label from access-controlled facets. Repeat label to match ANY supplied name, case-insensitively. Profile exclude_labels always takes precedence."
+		schema = map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
 	case "language":
 		description = "Original language code (normally two letters), not audio-track language."
 	case "languages":
@@ -176,5 +177,10 @@ func queryParameter(handler, name string) (map[string]any, error) {
 	default:
 		return nil, fmt.Errorf("document query parameter %s on %s", name, handler)
 	}
-	return map[string]any{"name": name, "in": "query", "required": required, "description": description, "schema": schema}, nil
+	param := map[string]any{"name": name, "in": "query", "required": required, "description": description, "schema": schema}
+	if name == "label" {
+		param["style"] = "form"
+		param["explode"] = true
+	}
+	return param, nil
 }

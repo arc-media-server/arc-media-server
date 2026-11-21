@@ -248,6 +248,9 @@ The web app uses a cookie. Apps send a token instead: ` + "`Authorization: Beare
   the app's name for itself (e.g. "Living Room Apple TV"), shown in Settings > Devices, where the
   admin can sign it out. Then pick a profile: ` + "`GET /api/v1/auth/status`" + ` lists them, and
   ` + "`POST /api/v1/auth/profile {\"id\", \"pin\"}`" + ` uses one.
+- **A tool**: Settings → Access & devices → Devices → New token for a tool (admin only).
+  Arc issues a separate named device token for each tool, shown once. Send the same Authorization
+  Bearer header; revoke it in Devices. Tool tokens use the existing device-session storage and checks.
 - **A friend**: ` + "`POST /api/v1/auth/friend {\"name\", \"password\", \"device\"}`" + ` → ` + "`{\"token\"}`" + `, already
   using their profile.
 - **On a TV, with a code**: ` + "`POST /api/v1/auth/link {\"device\"}`" + ` →

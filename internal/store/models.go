@@ -166,10 +166,11 @@ type ItemQuery struct {
 
 	// Filters for browsing. Zero values mean no filter.
 	Genre      string
-	Language   string // original language, 2-letter code
-	Label      string
-	Decade     int    // e.g. 1990 for 1990–1999
-	Resolution string // 4k, 1080, 720 or sd (movies)
+	Language   string   // original language, 2-letter code
+	Label      string   // legacy single-label callers
+	Labels     []string // match any; access exclusions still apply
+	Decade     int      // e.g. 1990 for 1990–1999
+	Resolution string   // 4k, 1080, 720 or sd (movies)
 	// The profile whose watch state Unwatched and the "watched" sort use.
 	UserID    string
 	Unwatched bool

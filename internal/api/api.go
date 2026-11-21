@@ -258,6 +258,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/optimize", admin(s.optimizeItems))
 	mux.HandleFunc("POST /api/cast", user(s.castLink))
 	mux.HandleFunc("POST /api/auth/link/approve", user(s.approveLink))
+	mux.HandleFunc("POST /api/devices/tools", admin(s.createToolToken))
 	mux.HandleFunc("GET /api/devices", admin(s.listDevices))
 	mux.HandleFunc("DELETE /api/devices/{id}", admin(s.signOutDevice))
 	mux.HandleFunc("GET /api/cast/{token}/{rest...}", s.castStream)
@@ -595,7 +596,8 @@ func (s *Server) startScan(w http.ResponseWriter, r *http.Request) {
 // keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions:
 // 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days,
 // runtimes are minutes, `about` is comma-separated words to find in the title, tagline,
-// description or TMDB keywords
+// description or TMDB keywords. Repeat `label` to match ANY supplied label (case-insensitive);
+// profile exclude_labels still takes precedence.
 func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	query := store.ItemQuery{
@@ -616,6 +618,9 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 	query.Genre = q.Get("genre")
 	query.Language = q.Get("language")
 	query.Label = q.Get("label")
+	if labels := q["label"]; len(labels) > 1 {
+		query.Labels = cleanLabels(labels[1:])
+	}
 	query.Decade, _ = strconv.Atoi(q.Get("decade"))
 	query.Resolution = q.Get("resolution")
 	query.UserID = currentUserID(r)

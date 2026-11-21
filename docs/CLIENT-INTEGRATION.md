@@ -463,3 +463,51 @@ invalid/incompatible backup contents return `400`, and failure creating a safety
 internal failure. If restore reports that the database was restored but runtime reload failed,
 restart Arc as instructed rather than assuming no restore happened. Keep authentication on
 internal/upstream errors; those statuses do not mean a device token was revoked.
+
+## Building tools for Arc
+
+Arc exposes its own stable `/api/v1` API. A tool that only speaks Plex or Jellyfin needs an Arc
+integration; these endpoints do not emulate either server.
+
+1. In the web app, an administrator opens **Settings → Access & devices → Devices → New token
+   for a tool**, names it and copies the returned token immediately. It is shown once, then appears
+   in Devices marked **Tool**, with the ordinary creation/last-used timestamps and revocation.
+   Keep it in the tool's protected credential storage. Send `Authorization: Bearer <token>` over
+   HTTPS for remote requests, never in a URL or query string. This is an ordinary device token:
+   it starts with the creating admin selected, uses existing session checks, and follows the same
+   password-change, stale-device cleanup and revocation rules. Last-used bookkeeping is best-effort,
+   normally updated at five-minute intervals; busy storage can delay it. Revocation takes effect on
+   subsequent requests (401); already admitted work may finish. The equivalent admin API is
+   `POST /api/v1/devices/tools {"name":"My tool"}` → `{"token":"..."}`; list with `GET /api/v1/devices`
+   and revoke with `DELETE /api/v1/devices/{id}`. Only creation returns the credential.
+2. Resolve existing items without rescanning or calling a provider:
+   `GET /api/v1/items/lookup?provider=tmdb&provider_id=603&kind=movie`.
+   Use `provider=imdb&provider_id=tt0133093` or `provider=tvdb&provider_id=78874&kind=series`
+   for the other supported identity types. Use returned Arc IDs for edits. Ordinary sessions can
+   use these same read APIs, with their profile's library, age and excluded-label permissions.
+3. Add/remove labels without replacing unrelated labels:
+
+   ```http
+   POST /api/v1/items/bulk
+   Authorization: Bearer <token>
+   Content-Type: application/json
+
+   {"item_ids":["<arc-item-id>"],"add_labels":["Weekend"],"remove_labels":["Review"]}
+   ```
+
+   This existing admin bulk operation commits edits in one short write transaction. It supports
+   `add_genres` and `remove_genres` too. Labels never lock metadata. A label in both lists is
+   removed (removal follows addition). At most 5,000 movie/show IDs and 2 MiB per request;
+   omitted fields stay unchanged. `GET /api/v1/items?label=Weekend&label=Favourite` matches **any**
+   supplied label, case-insensitively, within all other filters and the profile's access rules.
+   Excluded labels still win, even when explicitly requested. Discover label names/counts through
+   `GET /api/v1/libraries/{id}/facets` (`labels`); hidden titles do not contribute.
+4. Make a collection with `POST /api/v1/collections`:
+   `{"library_id":1,"kind":"manual","title":"Weekend","item_ids":["<arc-item-id>"]}`.
+   Add existing titles with `POST /api/v1/collections/{id}/items {"item_ids":[...]}`; see the generated
+   reference for smart collection filters and poster upload endpoints. Reuse returned collection
+   IDs rather than creating a new collection every run.
+
+Tool tokens start as full administrator credentials, not per-library or read-only grants. Revoke a token
+when retiring a tool; issue a replacement and update its credential store to rotate it. Never
+print tokens in diagnostics or enable credential-bearing shell traces. All examples use placeholders.

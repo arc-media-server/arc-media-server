@@ -194,7 +194,7 @@ func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(list))
 	for _, si := range list {
 		out = append(out, map[string]any{"id": si.TokenHash, "device": si.Device, "user_agent": si.UserAgent, "via": si.Via,
-			"profile": si.UserName, "created_at": si.CreatedAt, "last_seen_at": si.LastSeen, "this_device": si.TokenHash == current})
+			"profile": si.UserName, "created_at": si.CreatedAt, "last_seen_at": si.LastSeen, "this_device": si.TokenHash == current, "is_tool": si.IsTool})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
