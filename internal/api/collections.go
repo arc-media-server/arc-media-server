@@ -206,7 +206,19 @@ func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if path == "" {
-		writeError(w, http.StatusNotFound, "no image")
+		// Without artwork of its own, a collection shows its first title's, as collectionDTO
+		// says it does (a title's list of collections links here with no images of its own).
+		first, _, err := s.collectionItems(r, c, 1)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		if len(first) == 0 {
+			writeError(w, http.StatusNotFound, "no image")
+			return
+		}
+		r.SetPathValue("id", first[0].ID)
+		s.image(w, r)
 		return
 	}
 	// Uploaded artwork lives in the data folder.
