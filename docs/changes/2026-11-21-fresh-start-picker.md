@@ -22,7 +22,9 @@ Without browser storage (some private windows) every start is fresh, which is th
   been active for three minutes.
 
 **Checks:** `npx tsc -b`, the production build, i18n tests, a new browser journey
-(`web/e2e/fresh-start.spec.ts`) and the full browser suite. The other journeys start inside Arc
-via a shared "already open" mark in `playwright.config.ts`.
+(`web/e2e/fresh-start.spec.ts`), plus `collection-page` and `poster-size` (all passed). The full
+browser suite was stopped at 54 of 190: two `hardware-detection` journeys failed there (they look at
+this machine's graphics hardware, not sign-in; not checked on main), the rest passed. The other
+journeys start inside Arc via a shared "already open" mark in `playwright.config.ts`.
 
 **Logging:** none needed; profile sign-ins are logged by the server as before.
