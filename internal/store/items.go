@@ -894,9 +894,15 @@ func itemFilter(q ItemQuery) (string, []any) {
 		where = append(where, "EXISTS (SELECT 1 FROM item_genres g WHERE g.item_id = items.id AND g.name = ?)")
 		args = append(args, q.Genre)
 	}
+	labels := q.Labels
 	if q.Label != "" {
-		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND l.label = ?)")
-		args = append(args, q.Label)
+		labels = append(append([]string{}, labels...), q.Label)
+	}
+	if len(labels) > 0 {
+		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND l.label IN ("+strings.TrimSuffix(strings.Repeat("?,", len(labels)), ",")+"))")
+		for _, label := range labels {
+			args = append(args, label)
+		}
 	}
 	if q.Language != "" {
 		where = append(where, "original_language = ?")

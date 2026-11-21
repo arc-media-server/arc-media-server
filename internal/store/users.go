@@ -389,6 +389,7 @@ func (s *Store) SetSessionDevice(ctx context.Context, tokenHash, device string) 
 
 // SessionInfo is a signed-in browser or app, for Settings > Devices.
 type SessionInfo struct {
+	IsTool    bool   `json:"is_tool"`
 	TokenHash string `json:"id"`
 	Device    string `json:"device,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
@@ -402,7 +403,7 @@ type SessionInfo struct {
 // ListSessions lists every signed-in browser and app, most recently used first.
 func (s *Store) ListSessions(ctx context.Context) ([]SessionInfo, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT se.token_hash, se.device, se.user_agent, se.via, COALESCE(se.user_id, ''), COALESCE(u.name, ''), se.created_at, se.last_seen_at
+		SELECT se.token_hash, se.device, se.user_agent, se.via, COALESCE(se.user_id, ''), COALESCE(u.name, ''), se.created_at, se.last_seen_at, se.is_tool
 		FROM sessions se LEFT JOIN users u ON u.id = se.user_id
 		ORDER BY se.last_seen_at DESC`)
 	if err != nil {
@@ -412,7 +413,7 @@ func (s *Store) ListSessions(ctx context.Context) ([]SessionInfo, error) {
 	var out []SessionInfo
 	for rows.Next() {
 		var si SessionInfo
-		if err := rows.Scan(&si.TokenHash, &si.Device, &si.UserAgent, &si.Via, &si.UserID, &si.UserName, &si.CreatedAt, &si.LastSeen); err != nil {
+		if err := rows.Scan(&si.TokenHash, &si.Device, &si.UserAgent, &si.Via, &si.UserID, &si.UserName, &si.CreatedAt, &si.LastSeen, &si.IsTool); err != nil {
 			return nil, err
 		}
 		out = append(out, si)

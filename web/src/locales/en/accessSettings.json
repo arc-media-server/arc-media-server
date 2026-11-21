@@ -144,5 +144,23 @@
     "collectionTitles_one": "{{count}} new title",
     "collectionTitles_other": "{{count}} new titles",
     "collectionsError": "Couldn’t bring collections: {{error}}"
+  },
+  "tools": {
+    "newToken": "New token for a tool",
+    "description": "Give a trusted tool its own device token with your administrator permissions. Keep it private and revoke it from Devices when no longer needed.",
+    "name": "Tool name",
+    "create": "Create token",
+    "newSecret": "New tool token",
+    "shownOnce": "Copy this token now. You won’t be able to see it again after leaving this section.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done",
+    "cancel": "Cancel",
+    "copyFailed": "Could not copy. Select the token and copy it manually.",
+    "badge": "Tool",
+    "revoke": "Revoke",
+    "confirmTitle": "Revoke tool token?",
+    "confirmDescription": "“{{name}}” will stop working immediately. This tool will need a new token.",
+    "created": "Created {{date}}"
   }
 }

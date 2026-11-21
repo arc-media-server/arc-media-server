@@ -916,6 +916,7 @@ export interface AuthStatus {
 
 /** A signed-in browser or app (Settings > Devices). */
 export interface Device {
+  is_tool: boolean;
   id: string;
   /** An app's name for itself; empty for a browser. */
   device: string;
@@ -1256,6 +1257,7 @@ export const api = {
     request<{ track: SubtitleTrack; cues: SubtitleCue[] }>('GET', `/api/items/${itemId}/subtitles/${track}${query({ file: fileId })}`),
   /** A link to a stream that a Chromecast or Apple TV can open itself. */
   approveLink: (code: string) => request<{ device: string }>('POST', '/api/auth/link/approve', { code }),
+  createToolToken: (name: string) => request<{ token: string }>('POST', '/api/v1/devices/tools', { name }),
   devices: () => request<Device[]>('GET', '/api/devices'),
   signOutDevice: (id: string) => request<void>('DELETE', `/api/devices/${id}`),
   castLink: (url: string) => request<{ url: string; local_only: boolean }>('POST', '/api/cast', { url }),

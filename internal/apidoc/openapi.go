@@ -596,7 +596,7 @@ func GenerateOpenAPI(root string) ([]byte, error) {
 		"components": map[string]any{
 			"schemas": sch.components,
 			"securitySchemes": map[string]any{
-				"bearerAuth": map[string]any{"type": "http", "scheme": "bearer", "description": "A device token from POST /auth/login, /auth/friend or a TV link code."},
+				"bearerAuth": map[string]any{"type": "http", "scheme": "bearer", "description": "A device token from POST /auth/login, /auth/friend, /devices/tools (admin tools) or a TV link code. Send it in this header, never in a URL."},
 				"cookieAuth": map[string]any{"type": "apiKey", "in": "cookie", "name": "ams_session", "description": "The web app's session cookie."},
 			},
 		},

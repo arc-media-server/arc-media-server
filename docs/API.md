@@ -22,6 +22,9 @@ The web app uses a cookie. Apps send a token instead: `Authorization: Bearer <to
   the app's name for itself (e.g. "Living Room Apple TV"), shown in Settings > Devices, where the
   admin can sign it out. Then pick a profile: `GET /api/v1/auth/status` lists them, and
   `POST /api/v1/auth/profile {"id", "pin"}` uses one.
+- **A tool**: Settings → Access & devices → Devices → New token for a tool (admin only).
+  Arc issues a separate named device token for each tool, shown once. Send the same Authorization
+  Bearer header; revoke it in Devices. Tool tokens use the existing device-session storage and checks.
 - **A friend**: `POST /api/v1/auth/friend {"name", "password", "device"}` → `{"token"}`, already
   using their profile.
 - **On a TV, with a code**: `POST /api/v1/auth/link {"device"}` →
@@ -49,7 +52,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-218 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+219 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -123,6 +126,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
+| POST | `/api/devices/tools` | admin | {"name"} returns an ordinary device token once, with the creating administrator already selected. Send Authorization: Bearer <token>. List/revoke it through /devices, where is_tool marks it as a tool. The same session checks, last-used bookkeeping, stale-device cleanup and password-change rules apply as for other devices. |
 | GET | `/api/devices` | admin | Lists the signed-in browsers and apps. |
 | DELETE | `/api/devices/{id}` | admin | Signs a browser or app out. |
 
@@ -223,7 +227,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/items/{id}/split` | admin | Gives each version of a movie but the first its own title; they're identified at the scan that starts straight after. |
 | GET | `/api/items/lookup` | profile | ?provider=tmdb\|tvdb\|imdb&provider_id=... returns all matching accessible identities. Optional kind=movie\|series\|episode, library_id, limit (1–100, default 50) and offset (0 or greater). Missing and restricted matches both produce an empty page. No provider request, scan or probe is started, and existing offline identities may be returned. |
 | POST | `/api/items/batch` | profile | {"ids":[...]} retrieves up to 100 item details in requested order (duplicates retained). Unknown/restricted IDs are omitted identically, without missing counts. Same metadata/files/watch fields as individual item GET. This is read-only despite POST. |
-| GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. Limit is 1–500 (default 100), offset 0–10000000; invalid or oversized bounds return 400. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1` keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords |
+| GET | `/api/items` | profile | Browse, filter and search. Sorts: title, added, year, release, rating, imdb, critics (Rotten Tomatoes), runtime, watched, shuffle (a new order each day). Set `reverse=1` to reverse a non-shuffle sort; paging uses a stable ID tie-breaker. Limit is 1–500 (default 100), offset 0–10000000; invalid or oversized bounds return 400. With title sort, `jump=A` through `Z` starts at that letter boundary in the same filtered list (or the next available title in the current direction). The response includes the full filtered `total` and actual `offset`; continue with `offset + items.length`, omitting `jump`. `letters=1` adds `letters`, the filtered titles counted by the first character of their sort title in A–Z order (`a`–`z`, `#` for anything else), so a client can tell where each letter starts. `unmatched=1` keeps titles Arc couldn't identify and shows with episodes it couldn't place. Resolutions: 4k, 1080, 720, sd. `language` is an original language (2-letter code). `added_within` is days, runtimes are minutes, `about` is comma-separated words to find in the title, tagline, description or TMDB keywords. Repeat `label` to match ANY supplied label (case-insensitive); profile exclude_labels still takes precedence. |
 | GET | `/api/items/{id}` | profile | Item details with files and streams. |
 | GET | `/api/items/{id}/stream` | profile | Serves the original file with HTTP range support (direct play). ?file=<id> selects a specific part or version; otherwise the first available file is used. |
 | POST | `/api/items/{id}/playback-preview` | profile | Accepts the playback request and returns its decision without probing, starting a stream/conversion, changing playback state or preferences. No URL/session is allocated. Unanalysed files return needs_analysis=true. |

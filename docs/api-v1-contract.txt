@@ -6571,6 +6571,9 @@ POST /collections/{id}/artwork/{type} 200 .items[].user_data.watchlisted boolean
 POST /collections/{id}/artwork/{type} 200 .items[].year integer
 POST /collections/{id}/items
 POST /collections/{id}/items 204
+POST /devices/tools
+POST /devices/tools 201
+POST /devices/tools 201 .token string
 POST /downloads
 POST /downloads 200
 POST /downloads 200 .created_at integer
