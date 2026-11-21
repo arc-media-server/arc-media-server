@@ -443,3 +443,39 @@ func (s *Store) SetLibraryCollectionMin(ctx context.Context, id int64, n int) er
 	_, err := s.db.ExecContext(ctx, `UPDATE libraries SET collection_min = ? WHERE id = ?`, n, id)
 	return err
 }
+
+// SharedTMDBCollection is the TMDB collection a manual collection's titles have in common (more
+// than half of them, at least two), for a collection made by hand or imported from Plex or
+// Jellyfin, which has no TMDB link of its own; an automatic one's own. 0 for none.
+func (s *Store) SharedTMDBCollection(ctx context.Context, c *Collection) (int64, error) {
+	if c.Kind == "auto" {
+		return c.TMDBID, nil
+	}
+	if c.Kind != "manual" {
+		return 0, nil
+	}
+	var id, n, total int64
+	err := s.db.QueryRowContext(ctx, `
+		WITH members AS (SELECT items.tmdb_collection_id AS t FROM collection_items
+			JOIN items ON items.id = collection_items.item_id WHERE collection_items.collection_id = ?)
+		SELECT COALESCE((SELECT t FROM members WHERE t <> 0 GROUP BY t ORDER BY COUNT(*) DESC LIMIT 1), 0),
+			COALESCE((SELECT COUNT(*) FROM members WHERE t = (SELECT t FROM members WHERE t <> 0 GROUP BY t ORDER BY COUNT(*) DESC LIMIT 1)), 0),
+			(SELECT COUNT(*) FROM members)`, c.ID).Scan(&id, &n, &total)
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 || n < 2 || n*2 <= total {
+		return 0, nil
+	}
+	return id, nil
+}
+
+// FillCollectionArtwork sets a collection's poster and background where it has none and they
+// aren't chosen by hand; it never changes artwork already there.
+func (s *Store) FillCollectionArtwork(ctx context.Context, id, poster, backdrop string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE collections SET
+		poster_path = CASE WHEN poster_path = '' AND ? <> '' AND NOT `+collectionLocked("poster")+` THEN ? ELSE poster_path END,
+		backdrop_path = CASE WHEN backdrop_path = '' AND ? <> '' AND NOT `+collectionLocked("backdrop")+` THEN ? ELSE backdrop_path END
+		WHERE id = ?`, poster, poster, backdrop, backdrop, id)
+	return err
+}
