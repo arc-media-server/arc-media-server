@@ -821,6 +821,8 @@ export interface Prefs {
   subtitle_style: SubtitleStyle;
   /** Play a title's theme tune on its page; on unless false. */
   theme_music?: boolean;
+  /** List episodes the library doesn't have on every show's page; off unless true. */
+  show_missing_episodes?: boolean;
   /** Up Next as its own row; otherwise next episodes are part of Continue Watching, as in Plex. */
   split_up_next: boolean;
   /** Play the next episode after a countdown; absent means on, as in Plex. */

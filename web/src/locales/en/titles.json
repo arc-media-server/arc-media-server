@@ -16,8 +16,6 @@
     "shuffleTheEpisodes": "Shuffle the episodes",
     "shuffle": "Shuffle",
     "shuffleSeason": "Shuffle Season",
-    "hideMissing": "Hide Missing",
-    "showMissing": "Show Missing",
     "notInOrder": "Not in This Order",
     "seasons_one": "{{count}} Season",
     "seasons_other": "{{count}} Seasons",
@@ -34,7 +32,6 @@
     "resumeEpisode": "Resume {{code}}",
     "startEpisode": "Play {{code}}",
     "unmatched": "Arc couldn't identify this show online. Episodes are shown from their file names.",
-    "missingTooltip": "Show episodes you don't have",
     "hiddenDescription": "Description hidden until you watch it."
   },
   "hero": {

@@ -34,6 +34,8 @@
     "display": "Display",
     "hideSpoilers": "Hide spoilers",
     "blurStillsAndHide": "Blur stills and hide descriptions of episodes you haven't seen.",
+    "showMissingEpisodes": "Show missing episodes",
+    "listEpisodesYouDont": "List the episodes you don't have on every show's page, from its library's metadata.",
     "appearance": "Appearance",
     "automaticFollowsThisDevice": "Automatic follows this device's light or dark mode.",
     "automatic": "Automatic",
