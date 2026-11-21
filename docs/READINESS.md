@@ -14,6 +14,7 @@ owner's report and a phone photo of Arc's Player Info panel during playback (not
 | Refresh rate | Output switched to 3840×2160p 24 Hz |
 | Audio | Dolby Digital Plus with Atmos (EAC3), passed through (`pt-eac3`), not decoded |
 | Seeking | Works (owner) |
+| Second film (Kodi's own Player Info, photos) | HEVC 3840×2160 23.976 fps, Dolby Vision profile 8.1 (CMv4.0) with HDR10+; output 23.98 Hz, DV tunnel; Dolby TrueHD 7.1 Atmos passed through |
 | Resume after stopping | Not yet tried |
 | Subtitles, other codecs, other devices | Not tried |
 
