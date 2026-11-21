@@ -543,6 +543,12 @@ test('profile preference load failures offer recovery', async ({ page }) => {
   await page.unroute('**/api/me/prefs');
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(page.getByRole('switch', { name: 'Hide spoilers', exact: true })).toBeVisible();
+  // Show missing episodes is one setting for every show, saved on the profile.
+  const missing = page.getByRole('switch', { name: 'Show missing episodes', exact: true });
+  await expect(missing).not.toBeChecked();
+  await missing.click();
+  await expect(missing).toBeChecked();
+  expect((await (await page.request.get('/api/me/prefs')).json()).show_missing_episodes).toBe(true);
 });
 
 test('queue editing preserves current playback, browsing and saved episode progress', async ({ page }, info) => {

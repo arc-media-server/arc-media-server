@@ -164,6 +164,13 @@ function ProfileSettings() {
           busy={busy}
           onChange={(v) => update.mutate({ hide_spoilers: v })}
         />
+        <ToggleRow
+          setting="show_missing_episodes" label={t("profileSettings:settings.showMissingEpisodes")}
+          description={t("profileSettings:settings.listEpisodesYouDont")}
+          checked={!!p.show_missing_episodes}
+          busy={busy}
+          onChange={(v) => update.mutate({ show_missing_episodes: v })}
+        />
         <Row setting="theme" label={t("profileSettings:settings.appearance")} description={t("profileSettings:settings.automaticFollowsThisDevice")}>
           <select
             aria-label={t("profileSettings:settings.appearance")}

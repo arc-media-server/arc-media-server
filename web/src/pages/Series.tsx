@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import { AlertTriangle, BookOpen, Eye, EyeOff, Info, Play, Shuffle, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, BookOpen, Info, Play, Shuffle, SlidersHorizontal } from 'lucide-react';
 import { api, type SeasonEpisode } from '@/lib/api';
 import { nextToPlay } from '@/lib/next-episode';
 import * as fmt from '@/lib/format';
@@ -15,7 +15,7 @@ import { Artwork } from '@/components/Artwork';
 import { ProviderCredit } from '@/components/ProviderCredits';
 import { MoreMenu, useAnalyzeItem, useItemDialogs } from '@/components/ItemActions';
 import { useIsAdmin } from '@/lib/auth';
-import { useSpoilerGuard } from '@/lib/home';
+import { usePrefs, useSpoilerGuard } from '@/lib/home';
 import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components/Hero';
 import { CastRow, CrewLine, detailParts } from '@/components/Credits';
 import { useThemeMusic } from '@/components/ThemeMusic';
@@ -38,7 +38,7 @@ export function SeriesPage() {
   const { t } = useTranslation('titles');
   const { id } = useParams();
   const qc = useQueryClient();
-  const [showMissing, setShowMissing] = useState(false);
+  const showMissing = usePrefs().data?.show_missing_episodes === true;
   const [season, setSeason] = useState<number | null>(null);
   const libraries = useLibraries().data;
   const scanning = libraries?.some((library) => library.scan.running) ?? false;
@@ -196,9 +196,6 @@ export function SeriesPage() {
           {season !== null && season !== UNPLACED && seasonEpisodes.length > 0 && (
             <WatchedButton itemId={series.id} season={season} watched={seasonWatched} size="sm" variant="ghost" label />
           )}
-          <Button variant="ghost" size="sm" onClick={() => setShowMissing((v) => !v)} title={t("titles:series.missingTooltip")}>
-            {showMissing ? <EyeOff /> : <Eye />} {showMissing ? t("titles:series.hideMissing") : t("titles:series.showMissing")}
-          </Button>
         </div>
       </div>
 

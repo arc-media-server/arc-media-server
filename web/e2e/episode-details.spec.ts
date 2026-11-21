@@ -218,7 +218,9 @@ test('season names and summaries are edited from Edit, Seasons, for the order be
   const { series } = await importShow(page, media.specials);
   await page.goto(`/series/${series.id}`);
   // The season bar keeps playback and view controls only; editing lives in the Edit dialog.
-  await expect(page.getByRole('button', { name: 'Show Missing', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'More', exact: true })).toBeVisible();
+  // Missing episodes follow the profile's Settings, not a button here.
+  await expect(page.getByRole('button', { name: 'Show Missing', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Edit Season', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Episode ordering…', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'More', exact: true }).click();
