@@ -1,5 +1,27 @@
 # Stability and release readiness
 
+## First real-device playback: Kodi on a Ugoos, Dolby Vision profile 8 (#135, 21 November 2026)
+
+The owner played a film through the Kodi add-on (`script.arc`, main after arc-kodi#48) on a Ugoos
+player running Kodi, connected to a Dolby Vision TV, against their own Arc server. Evidence: the
+owner's report and a phone photo of Arc's Player Info panel during playback (not stored here).
+
+| Check | Result |
+| --- | --- |
+| Arc's decision | Direct Play ("Played as it is"); no remux or conversion |
+| Video | HEVC 3840×2160, 24 fps, Dolby Vision profile 8; Kodi's hardware decoder (`am-h265`) |
+| TV | Entered Dolby Vision mode (owner); output DV-Std, BT.709 8-bit RGB tunnel, as the player sends standard Dolby Vision |
+| Refresh rate | Output switched to 3840×2160p 24 Hz |
+| Audio | Dolby Digital Plus with Atmos (EAC3), passed through (`pt-eac3`), not decoded |
+| Seeking | Works (owner) |
+| Second film (Kodi's own Player Info, photos) | HEVC 3840×2160 23.976 fps, Dolby Vision profile 8.1 (CMv4.0) with HDR10+; output 23.98 Hz, DV tunnel; Dolby TrueHD 7.1 Atmos passed through |
+| Resume after stopping | Not yet tried |
+| Subtitles, other codecs, other devices | Not tried |
+
+Found while checking: Arc's Player Info panel in Kodi drew a blue background instead of Arc's dark
+panel, listed the passthrough channels as "RAW, RAW, …" and showed hardware deinterlacing for a
+progressive film. Those are display issues in the add-on, not playback faults.
+
 ## Desktop row navigation and profile Home hero (26 October 2026)
 
 Started clean at main `f308b4f`, branch `codex/desktop-row-navigation`; rebased cleanly onto
@@ -1284,7 +1306,7 @@ and generated-video viewport checks do not establish actual device or sustained-
 | Browser journeys (#133) | Setup, profiles, library preview/import, fix match, order changes, playback/resume and denied access exercised in a browser | Six journeys pass locally and in Linux CI for b4c0052 |
 | Player-close progress (#140) | Real video seeks beyond the resume threshold, closes, reloads and resumes at the saved point | Fixed; browser regression passes locally and in Linux CI |
 | Library correctness (#134) | Representative real library; rescan/edit/provider/order history preserved; missing drive recovery; large-library measurements | Synthetic rescan/order/edition/local-asset regressions pass; broader and real-library validation pending |
-| Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Automated Chromium direct/remux/software conversion coverage; actual device matrix pending |
+| Playback matrix (#135) | Actual devices, codecs, seeking/audio/subtitles, HDR, encoders, casting | Automated Chromium direct/remux/software conversion coverage; first real device: Kodi on a Ugoos, Dolby Vision profile 8 direct play with EAC3 Atmos passthrough (21 November); the rest of the device matrix pending |
 | Recovery (#136) | Old-schema upgrade, backup restore, unavailable providers/drives, interrupted scan/conversion, unwritable/full storage | Isolated upgrade/restore/outage/storage/shutdown checks pass; full-disk, abrupt-exit and deployment recovery pending |
 | Sustained use (#137) | 7–14 days on Unraid; start/end resource measurements, problems recorded | Pending |
 | Packaging (#138) | Fresh Docker install, persistence/permissions, upgrade/rollback, attribution and distribution decisions | linux/amd64 install/persistence and pinned-image upgrade/snapshot rollback pass; hardware/ARM/terms pending |
