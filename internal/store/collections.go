@@ -470,12 +470,13 @@ func (s *Store) SharedTMDBCollection(ctx context.Context, c *Collection) (int64,
 	return id, nil
 }
 
-// FillCollectionArtwork sets a collection's poster and background where it has none and they
-// aren't chosen by hand; it never changes artwork already there.
-func (s *Store) FillCollectionArtwork(ctx context.Context, id, poster, backdrop string) error {
+// FillCollectionInfo sets a collection's description, poster and background where it has none
+// and they aren't set by hand; it never changes what's already there.
+func (s *Store) FillCollectionInfo(ctx context.Context, id, overview, poster, backdrop string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE collections SET
+		overview = CASE WHEN overview = '' AND ? <> '' AND NOT `+collectionLocked("overview")+` THEN ? ELSE overview END,
 		poster_path = CASE WHEN poster_path = '' AND ? <> '' AND NOT `+collectionLocked("poster")+` THEN ? ELSE poster_path END,
 		backdrop_path = CASE WHEN backdrop_path = '' AND ? <> '' AND NOT `+collectionLocked("backdrop")+` THEN ? ELSE backdrop_path END
-		WHERE id = ?`, poster, poster, backdrop, backdrop, id)
+		WHERE id = ?`, overview, overview, poster, poster, backdrop, backdrop, id)
 	return err
 }

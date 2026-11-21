@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -121,7 +122,7 @@ func (s *Server) fillCollectionInfo(ctx context.Context, c *store.Collection) {
 // without a poster or background the artwork of the TMDB collection its titles share, as an
 // automatic collection has. Artwork already there or chosen by hand is kept.
 func (s *Server) fillSharedArtwork(ctx context.Context, c *store.Collection) {
-	if s.scanner == nil || ctx.Err() != nil || c.Kind != "manual" || (c.PosterPath != "" && c.BackdropPath != "") {
+	if s.scanner == nil || ctx.Err() != nil || c.Kind != "manual" || !missingInfo(c) {
 		return
 	}
 	shared, err := s.store.SharedTMDBCollection(ctx, c)
@@ -147,13 +148,16 @@ func (s *Server) fillSharedArtwork(ctx context.Context, c *store.Collection) {
 	if info == nil {
 		return
 	}
-	if err = s.store.FillCollectionArtwork(lookupCtx, c.ID, info.PosterPath, info.BackdropPath); err != nil {
+	if err = s.store.FillCollectionInfo(lookupCtx, c.ID, info.Overview, info.PosterPath, info.BackdropPath); err != nil {
 		if ctx.Err() == nil {
 			s.log.WarnContext(ctx, "collection artwork could not be saved", "collection", c.ID)
 		}
 		return
 	}
 	success = true
+	if c.Overview == "" && !slices.Contains(c.LockedFields, "overview") {
+		c.Overview = info.Overview
+	}
 	if c.PosterPath == "" {
 		c.PosterPath = info.PosterPath
 	}
@@ -167,7 +171,7 @@ func (s *Server) fillSharedArtwork(ctx context.Context, c *store.Collection) {
 func (s *Server) fillSharedArtworkLater(ctx context.Context, cols []store.Collection) {
 	var todo []store.Collection
 	for _, c := range cols {
-		if c.Kind == "manual" && (c.PosterPath == "" || c.BackdropPath == "") {
+		if c.Kind == "manual" && missingInfo(&c) {
 			todo = append(todo, c)
 		}
 	}
@@ -179,14 +183,21 @@ func (s *Server) fillSharedArtworkLater(ctx context.Context, cols []store.Collec
 		defer cancel()
 		started, filled := time.Now(), 0
 		for i := range todo {
-			before := todo[i].PosterPath + "|" + todo[i].BackdropPath
+			before := todo[i].Overview + "|" + todo[i].PosterPath + "|" + todo[i].BackdropPath
 			s.fillSharedArtwork(ctx, &todo[i])
-			if todo[i].PosterPath+"|"+todo[i].BackdropPath != before {
+			if todo[i].Overview+"|"+todo[i].PosterPath+"|"+todo[i].BackdropPath != before {
 				filled++
 			}
 		}
 		if filled > 0 {
-			s.log.InfoContext(ctx, "collection artwork filled from TMDB", "collections", filled, "checked", len(todo), "duration_ms", time.Since(started).Milliseconds())
+			s.log.InfoContext(ctx, "collection details filled from TMDB", "collections", filled, "checked", len(todo), "duration_ms", time.Since(started).Milliseconds())
 		}
 	}()
+}
+
+// missingInfo reports whether a collection lacks a description, poster or background that a shared
+// TMDB collection could fill (fields set by hand don't count as missing).
+func missingInfo(c *store.Collection) bool {
+	open := func(v, field string) bool { return v == "" && !slices.Contains(c.LockedFields, field) }
+	return open(c.Overview, "overview") || open(c.PosterPath, "poster") || open(c.BackdropPath, "backdrop")
 }

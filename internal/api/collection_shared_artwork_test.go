@@ -101,11 +101,24 @@ func TestManualCollectionUsesSharedTMDBCollectionArtwork(t *testing.T) {
 	}
 
 	// Chosen artwork stays: filling only ever sets what's empty.
-	if err = s.store.FillCollectionArtwork(t.Context(), manual.ID, "/other.jpg", "/other-b.jpg"); err != nil {
+	if err = s.store.FillCollectionInfo(t.Context(), manual.ID, "", "/other.jpg", "/other-b.jpg"); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ = s.store.GetCollection(t.Context(), manual.ID); got.PosterPath != "/shared-poster.jpg" {
 		t.Fatalf("filled over existing poster: %q", got.PosterPath)
+	}
+
+	// An imported collection with no description gets TMDB's.
+	bare := &store.Collection{LibraryID: lib, Kind: "manual", Title: "No description"}
+	if err = s.store.CreateCollection(t.Context(), bare, ids[0], ids[1]); err != nil {
+		t.Fatal(err)
+	}
+	manual = bare
+	if w := open("/api/collections/"+bare.ID, s.getCollection); w.Code != 200 || !strings.Contains(w.Body.String(), "From TMDB") {
+		t.Fatalf("bare collection = %d %s", w.Code, w.Body.String())
+	}
+	if got, _ = s.store.GetCollection(t.Context(), bare.ID); got.Overview != "From TMDB" {
+		t.Fatalf("bare collection overview = %q", got.Overview)
 	}
 
 	// Titles without a common TMDB collection (only one of three) give none.
