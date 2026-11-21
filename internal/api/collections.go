@@ -107,6 +107,7 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	s.fillSharedArtworkLater(r.Context(), cols)
 	out := []collectionDTO{}
 	for _, c := range cols {
 		mode := cmp.Or(c.GridMode, lib.CollectionGrid, "items")
@@ -162,6 +163,8 @@ func (s *Server) getCollection(w http.ResponseWriter, r *http.Request) {
 	if c.Kind == "auto" && c.Overview == "" && !slices.Contains(c.LockedFields, "overview") {
 		s.fillCollectionInfo(r.Context(), c)
 	}
+	// A collection made by hand or imported: the artwork of the TMDB collection its titles share.
+	s.fillSharedArtwork(r.Context(), c)
 	items, total, err := s.collectionItems(r, c, 0)
 	if err != nil {
 		s.fail(w, err)
@@ -469,15 +472,22 @@ func (s *Server) itemCollections(r *http.Request, it *store.Item) []collectionRe
 }
 
 // listCollectionArtwork: GET /api/collections/{id}/artwork lists the posters and backgrounds TMDB
-// has for an automatic collection (none for the admin's own), with the ones in use.
+// has for an automatic collection, or for the TMDB collection a manual one's titles share (none
+// otherwise), with the ones in use.
 func (s *Server) listCollectionArtwork(w http.ResponseWriter, r *http.Request) {
 	c, ok := s.collectionFromPath(w, r)
 	if !ok {
 		return
 	}
 	posters, backdrops := []metadata.Image{}, []metadata.Image{}
-	if c.Kind == "auto" && c.TMDBID != 0 {
-		p, b, err := s.scanner.CollectionImages(r.Context(), c.TMDBID)
+	// An automatic collection's TMDB collection, or the one a manual collection's titles share.
+	tmdbID, err := s.store.SharedTMDBCollection(r.Context(), c)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if tmdbID != 0 {
+		p, b, err := s.scanner.CollectionImages(r.Context(), tmdbID)
 		if err != nil && !errors.Is(err, scanner.ErrNoProvider) {
 			writeError(w, http.StatusBadGateway, "couldn't get artwork from TMDB: "+err.Error())
 			return

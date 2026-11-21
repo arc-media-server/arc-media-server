@@ -116,3 +116,77 @@ func (s *Server) fillCollectionInfo(ctx context.Context, c *store.Collection) {
 		c.BackdropPath = info.BackdropPath
 	}
 }
+
+// fillSharedArtwork gives a manual collection (made by hand, or imported from Plex or Jellyfin)
+// without a poster or background the artwork of the TMDB collection its titles share, as an
+// automatic collection has. Artwork already there or chosen by hand is kept.
+func (s *Server) fillSharedArtwork(ctx context.Context, c *store.Collection) {
+	if s.scanner == nil || ctx.Err() != nil || c.Kind != "manual" || (c.PosterPath != "" && c.BackdropPath != "") {
+		return
+	}
+	shared, err := s.store.SharedTMDBCollection(ctx, c)
+	if err != nil || shared == 0 {
+		return
+	}
+	key := fmt.Sprintf("%s:%d", c.ID, shared)
+	attempt := s.collectionLookups.begin(key)
+	if attempt == nil {
+		return
+	}
+	success := false
+	defer func() { s.collectionLookups.finish(key, attempt, success, ctx.Err() != nil) }()
+	lookupCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	info, err := s.scanner.CollectionInfo(lookupCtx, shared)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.log.WarnContext(ctx, "collection artwork lookup failed", "provider", "tmdb", "collection", c.ID)
+		}
+		return
+	}
+	if info == nil {
+		return
+	}
+	if err = s.store.FillCollectionArtwork(lookupCtx, c.ID, info.PosterPath, info.BackdropPath); err != nil {
+		if ctx.Err() == nil {
+			s.log.WarnContext(ctx, "collection artwork could not be saved", "collection", c.ID)
+		}
+		return
+	}
+	success = true
+	if c.PosterPath == "" {
+		c.PosterPath = info.PosterPath
+	}
+	if c.BackdropPath == "" {
+		c.BackdropPath = info.BackdropPath
+	}
+}
+
+// fillSharedArtworkLater does fillSharedArtwork for a library's listed collections in the
+// background, so the listing isn't held up by TMDB; the next listing shows the artwork.
+func (s *Server) fillSharedArtworkLater(ctx context.Context, cols []store.Collection) {
+	var todo []store.Collection
+	for _, c := range cols {
+		if c.Kind == "manual" && (c.PosterPath == "" || c.BackdropPath == "") {
+			todo = append(todo, c)
+		}
+	}
+	if len(todo) == 0 || s.scanner == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
+		defer cancel()
+		started, filled := time.Now(), 0
+		for i := range todo {
+			before := todo[i].PosterPath + "|" + todo[i].BackdropPath
+			s.fillSharedArtwork(ctx, &todo[i])
+			if todo[i].PosterPath+"|"+todo[i].BackdropPath != before {
+				filled++
+			}
+		}
+		if filled > 0 {
+			s.log.InfoContext(ctx, "collection artwork filled from TMDB", "collections", filled, "checked", len(todo), "duration_ms", time.Since(started).Milliseconds())
+		}
+	}()
+}
