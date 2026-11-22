@@ -344,6 +344,7 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/me/year", user(s.myYear))
 	mux.HandleFunc("GET /api/me/prefs", user(s.getPrefs))
 	mux.HandleFunc("PATCH /api/me/prefs", user(s.updatePrefs))
+	mux.HandleFunc("PUT /api/me/pin", user(s.setOwnPIN))
 
 	// The admin profile: running the server.
 	mux.HandleFunc("POST /api/auth/password", admin(s.changePassword))

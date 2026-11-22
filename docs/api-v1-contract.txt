@@ -8661,6 +8661,9 @@ PUT /libraries/{id}/recommended/layout 200 .rows[] object
 PUT /libraries/{id}/recommended/layout 200 .rows[].hidden boolean
 PUT /libraries/{id}/recommended/layout 200 .rows[].style string
 PUT /libraries/{id}/recommended/layout 200 .rows[].type string
+PUT /me/pin
+PUT /me/pin 200
+PUT /me/pin 200 .has_pin boolean
 PUT /playlists/{id}/order
 PUT /playlists/{id}/order 204
 PUT /series/{id}/display-ordering

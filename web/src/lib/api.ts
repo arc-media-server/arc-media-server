@@ -1124,6 +1124,7 @@ export const api = {
     request<Profile>('POST', '/api/auth/profile', { id, ...secret }),
   leaveProfile: () => request<void>('DELETE', '/api/auth/profile'),
   logout: () => request<void>('POST', '/api/auth/logout'),
+  setOwnPin: (pin: string, current = '') => request<{ has_pin: boolean }>('PUT', '/api/me/pin', { current, pin }),
   changePassword: (current: string, next: string) => request<void>('POST', '/api/auth/password', { current, new: next }),
   profiles: () => request<Profile[]>('GET', '/api/profiles'),
   createProfile: (p: { name: string; color: ProfileColor; friend?: boolean; pin?: string; max_age?: number; library_ids?: number[] | null; exclude_labels?: string[] }) => request<Profile>('POST', '/api/profiles', p),

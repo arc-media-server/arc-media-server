@@ -52,7 +52,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-219 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+220 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -109,7 +109,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/collections` | admin | {"library_id", "kind": "manual"\|"smart", "title", "overview", "filter" (smart), "item_ids" (manual)}. |
 | PATCH | `/api/collections/{id}` | admin | {"title", "overview", "filter"}. |
 | DELETE | `/api/collections/{id}` | admin | Automatic collections are hidden for good. |
-| GET | `/api/collections/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for an automatic collection (none for the admin's own), with the ones in use. |
+| GET | `/api/collections/{id}/artwork` | admin | Lists the posters and backgrounds TMDB has for an automatic collection, or for the TMDB collection a manual one's titles share (none otherwise), with the ones in use. |
 | PUT | `/api/collections/{id}/artwork` | admin | {"type": "poster", "path": "/abc.jpg"} uses a TMDB image; a null path goes back to automatic (TMDB's for automatic collections, none otherwise). |
 | POST | `/api/collections/{id}/artwork/{type}` | admin | With an image as the body. |
 | POST | `/api/collections/{id}/items` | admin | {"item_ids": [...]} adds titles to a manual collection. |
@@ -323,6 +323,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/me/year` | profile | ?year=2026 is the current profile's year in review (this year by default), with the years it has history for. |
 | GET | `/api/me/prefs` | profile | Is the current profile's preferences, including library_order (navigation only, never access) and watched_percent (50–100; absent/0 keeps 90%). |
 | PATCH | `/api/me/prefs` | profile | Changes only the fields sent, e.g. {"library_order": [2,1]}, {"watched_percent": 95}, {"hide_spoilers": true} or {"home": [...]}, and returns them all. An empty library_order resets navigation order; watched_percent 0 resets completion to 90%. remote_quality_kbps is the profile's internet streaming quality: 0 for Maximum, or one of 20000, 12000, 8000, 4000, 3000, 2000, 1500 or 720 (kbit/s) to limit streams away from home (the lower of it and the server's remote limit applies; never on the home network). |
+| PUT | `/api/me/pin` | profile | {"current", "pin"} sets, changes or (with an empty "pin") removes the signed-in profile's own PIN. A profile that already has a PIN must give it as "current". Friends sign in with their own password, so they have no PIN. The admin can still reset any profile's PIN from the profiles list. |
 
 ### news
 

@@ -83,6 +83,7 @@ function ProfileSettings() {
   const busy = update.isPending;
   return (
     <SaveFeedbackContext.Provider value={{ keys: Object.keys(update.variables ?? {}), status: update.status, error: update.error, retry: () => { if (update.variables) update.mutate(update.variables); } }}>
+      <OwnPinSection />
       <Section sectionKey="Playback" title={t("profileSettings:settings.playback")} hint={t("profileSettings:settings.forYourProfileOnly")}>
         <Row setting="watched_percent" label={t("profileSettings:settings.markAsWatchedAt")} description={t("profileSettings:settings.howFarThroughA")}>
           <select aria-label={t("profileSettings:settings.markAsWatchedAt")} value={p.watched_percent || 90} disabled={busy} onChange={(e) => update.mutate({ watched_percent: Number(e.target.value) })} className={inputClass + ' w-56 [&>option]:bg-surface'}>
@@ -1406,6 +1407,51 @@ function FFprobeRow({ settings: s, onSave }: { settings: ServerSettings; onSave:
         )}
       </form>
     </Row>
+  );
+}
+
+/** The profile's own PIN: set, change (with the current PIN) or remove it. Friends have none. */
+function OwnPinSection() {
+  const { t } = useTranslation('profileSettings');
+  const qc = useQueryClient();
+  const profile = useAuth().data?.profile;
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const save = useMutation({
+    mutationFn: (pin: string) => api.setOwnPin(pin, current),
+    onSuccess: () => {
+      setOpen(false);
+      setCurrent('');
+      setNext('');
+      void qc.invalidateQueries({ queryKey: ['auth'] });
+    },
+  });
+  if (!profile || profile.is_friend) return null;
+  const has = profile.has_pin;
+  const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+  return (
+    <Section sectionKey="PIN" title={t("profileSettings:settings.pin")}>
+      <Row
+        label={has ? t("profileSettings:settings.pinOn") : t("profileSettings:settings.pinOff")}
+        description={
+          <>{t("profileSettings:settings.pinHint", { name: profile.name })}
+            {save.error && <span role="alert" className="mt-1 block text-warning">{save.error.message}</span>}
+          </>
+        }
+      >
+        {open ? (
+          <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate(next); }}>
+            {has && <input type="password" inputMode="numeric" value={current} onChange={(e) => setCurrent(digits(e.target.value))} placeholder={t("profileSettings:settings.currentPin")} aria-label={t("profileSettings:settings.currentPin")} className={`${inputClass} w-32`} autoComplete="off" />}
+            <input type="password" inputMode="numeric" value={next} onChange={(e) => setNext(digits(e.target.value))} placeholder={t("profileSettings:settings.newPin")} aria-label={t("profileSettings:settings.newPin")} className={`${inputClass} w-32`} autoComplete="off" />
+            <Button size="sm" variant="primary" type="submit" disabled={next.length !== 4 || (has && current.length !== 4) || save.isPending}>{t("profileSettings:settings.savePin")}</Button>
+            {has && <Button size="sm" variant="ghost" type="button" disabled={current.length !== 4 || save.isPending} onClick={() => save.mutate('')}>{t("profileSettings:settings.removePin")}</Button>}
+          </form>
+        ) : (
+          <Button size="sm" variant="secondary" onClick={() => { save.reset(); setOpen(true); }}>{has ? t("profileSettings:settings.changePin") : t("profileSettings:settings.setPin")}</Button>
+        )}
+      </Row>
+    </Section>
   );
 }
 

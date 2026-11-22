@@ -571,6 +571,57 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// setOwnPIN: PUT /api/me/pin {"current", "pin"} sets, changes or (with an empty "pin") removes
+// the signed-in profile's own PIN. A profile that already has a PIN must give it as "current".
+// Friends sign in with their own password, so they have no PIN. The admin can still reset any
+// profile's PIN from the profiles list.
+func (s *Server) setOwnPIN(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Current string `json:"current" api:"optional"`
+		PIN     string `json:"pin"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	u := currentUser(r)
+	if u.IsFriend {
+		writeError(w, http.StatusForbidden, "friends sign in with their own password")
+		return
+	}
+	if body.PIN != "" && !auth.ValidPIN(body.PIN) {
+		writeError(w, http.StatusBadRequest, "a PIN is four digits")
+		return
+	}
+	if u.HasPIN {
+		key := "own-pin:" + clientIP(r) + ":" + u.ID
+		if !s.limiter.Attempt(key) {
+			writeError(w, http.StatusTooManyRequests, auth.ErrTooManyAttempts.Error())
+			return
+		}
+		if !auth.Check(u.PINHash, body.Current) {
+			s.log.Warn("own PIN change refused: wrong current PIN", "profile", u.Name, "address", clientIP(r))
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "the current PIN isn't right", "needs": "pin"})
+			return
+		}
+		s.limiter.Succeed(key)
+	}
+	hash := ""
+	if body.PIN != "" {
+		var err error
+		if hash, err = auth.Hash(body.PIN); err != nil {
+			s.fail(w, err)
+			return
+		}
+	}
+	if err := s.store.UpdateUser(r.Context(), u.ID, store.UserUpdate{PINHash: &hash}); err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.log.Info("profile PIN changed by its owner", "profile", u.Name, "has_pin", hash != "")
+	writeJSON(w, http.StatusOK, map[string]bool{"has_pin": hash != ""})
+}
+
 // listProfiles: GET /api/profiles. Profiles.
 func (s *Server) listProfiles(w http.ResponseWriter, r *http.Request) {
 	users, err := s.store.ListUsers(r.Context())
