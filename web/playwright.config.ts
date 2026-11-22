@@ -16,6 +16,9 @@ export default defineConfig({
     video: 'retain-on-failure',
     ...devices['Desktop Chrome'],
     launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] },
+    // Journeys start inside Arc, not at "Who's watching?": mark Arc as already open in this browser
+    // (src/lib/launch.ts). The fresh-start journey clears it.
+    storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:18199', localStorage: [{ name: 'arc-alive', value: '99999999999999' }] }] },
   },
   webServer: {
     command: 'node e2e/server.mjs',

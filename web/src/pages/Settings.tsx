@@ -11,6 +11,7 @@ import * as fmt from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { mediaToolsNeeded, selectedSettingsSection, settingsNavigation, settingsSections as sectionGroups, type SettingsGroup } from '@/lib/settings-navigation';
 import { useAuth, useIsAdmin } from '@/lib/auth';
+import { autoProfile, setAutoProfile } from '@/lib/launch';
 import { usePrefs, useUpdatePrefs } from '@/lib/home';
 import { ErrorState, ErrorNotice, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
@@ -172,6 +173,7 @@ function ProfileSettings() {
           busy={busy}
           onChange={(v) => update.mutate({ show_missing_episodes: v })}
         />
+        <AutoSignInRow />
         <Row setting="theme" label={t("profileSettings:settings.appearance")} description={t("profileSettings:settings.automaticFollowsThisDevice")}>
           <select
             aria-label={t("profileSettings:settings.appearance")}
@@ -191,6 +193,24 @@ function ProfileSettings() {
 }
 
 
+
+/** "Sign in automatically": this browser skips "Who's watching?" and opens as the current profile. */
+function AutoSignInRow() {
+  const { t } = useTranslation('profileSettings');
+  const profile = useAuth().data?.profile;
+  const [auto, setAuto] = useState(autoProfile);
+  if (!profile) return null;
+  const locked = profile.has_pin;
+  return (
+    <ToggleRow
+      setting="auto_sign_in" label={t("profileSettings:settings.signInAutomatically")}
+      description={locked ? t("profileSettings:settings.signInAutomaticallyPin") : t("profileSettings:settings.signInAutomaticallyHint", { name: profile.name })}
+      checked={!locked && auto === profile.id}
+      busy={locked}
+      onChange={(v) => { const id = v ? profile.id : ''; setAutoProfile(id); setAuto(id); }}
+    />
+  );
+}
 
 /** Common subtitle languages (ISO 639-2), with the profile's current one if it isn't among them. */
 function subtitleLanguages(current: string): [string, string][] {

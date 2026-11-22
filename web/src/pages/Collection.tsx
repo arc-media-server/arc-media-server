@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Reorder, useDragControls } from 'motion/react';
-import { ArrowUpDown, Check, GripVertical, Loader2, Pencil, Play, Shuffle, Trash2, X } from 'lucide-react';
+import { ArrowUpDown, Check, GripVertical, Loader2, MoreHorizontal, Pencil, Play, Shuffle, Trash2, X } from 'lucide-react';
 import { usePlayer } from '@/components/Player';
 import { collectionQueue, shuffled } from '@/lib/shuffle';
 import { api, type Item } from '@/lib/api';
@@ -17,6 +17,7 @@ import { ErrorState, Page } from '@/components/Page';
 import { PosterGrid } from '@/components/PosterCard';
 import { useLibraries } from '@/components/Sidebar';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 export function CollectionPage() {
@@ -70,34 +71,40 @@ export function CollectionPage() {
             <h1 className="text-4xl font-bold leading-[1.05] md:text-5xl">{c.title}</h1>
             <p className="mt-3 text-sm text-foreground/70">{countUnit(c.count, unit)}</p>
             {c.overview && <p className="mt-4 text-[15px] leading-relaxed text-foreground/85">{c.overview}</p>}
-            {data.items.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  disabled={starting}
-                  onClick={() => void start(false)}
-                >
-                  <Play className="fill-current" /> {t('common:actions.play')}
-                </Button>
-                <Button variant="secondary" size="lg" disabled={starting} onClick={() => void start(true)}>
-                  {starting ? <Loader2 className="animate-spin" /> : <Shuffle />} {t('common:actions.shuffle')}
-                </Button>
-              </div>
-            )}
-            {admin && (
-              <div className="mt-3 flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={() => setEditing(true)}>
-                  <Pencil /> {t('common:actions.edit')}
-                </Button>
-                {c.kind === 'manual' && data.items.length > 1 && (
-                  <Button variant="secondary" onClick={() => setArranging((a) => !a)}>
-                    {arranging ? <Check /> : <ArrowUpDown />} {arranging ? t('common:actions.done') : t('collection:arrange')}
+            {(data.items.length > 0 || admin) && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {data.items.length > 0 && (
+                  <>
+                    <Button variant="primary" size="lg" disabled={starting} onClick={() => void start(false)}>
+                      <Play className="fill-current" /> {t('common:actions.play')}
+                    </Button>
+                    <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" disabled={starting} onClick={() => void start(true)} title={t('common:actions.shuffle')} aria-label={t('common:actions.shuffle')}>
+                      {starting ? <Loader2 className="animate-spin" /> : <Shuffle />}
+                    </Button>
+                  </>
+                )}
+                {admin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="lg" className="size-12 rounded-2xl px-0" title={t('titles:itemActions.more')} aria-label={t('titles:itemActions.more')}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-48">
+                      <DropdownMenuItem onSelect={() => setEditing(true)}><Pencil className="size-4 text-muted" /> {t('common:actions.edit')}</DropdownMenuItem>
+                      {c.kind === 'manual' && data.items.length > 1 && !arranging && (
+                        <DropdownMenuItem onSelect={() => setArranging(true)}><ArrowUpDown className="size-4 text-muted" /> {t('collection:arrange')}</DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => setDeleting(true)}><Trash2 className="size-4 text-muted" /> {c.kind === 'auto' || c.kind === 'folder' ? t('common:actions.remove') : t('common:actions.delete')}</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                {arranging && (
+                  <Button variant="secondary" size="lg" onClick={() => setArranging(false)}>
+                    <Check /> {t('common:actions.done')}
                   </Button>
                 )}
-                <Button variant="ghost" onClick={() => setDeleting(true)}>
-                  <Trash2 /> {c.kind === 'auto' || c.kind === 'folder' ? t('common:actions.remove') : t('common:actions.delete')}
-                </Button>
               </div>
             )}
           </div>
