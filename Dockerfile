@@ -20,7 +20,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X main.revision=$GIT_REVISION" -o /out/ams ./cmd/ams
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w -X main.revision=$GIT_REVISION" -o /out/ams ./cmd/ams \
+ && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/arc-postgres-recovery ./tools/postgres-recovery
 
 # Debian trixie (13). (Its own FFmpeg 7.1 kept Dolby Vision when packaging HLS where bookworm's 5.1
 # dropped it, owner's test 31 October; jellyfin-ffmpeg 8.1 below keeps it too, with the same check.)
@@ -54,6 +55,7 @@ RUN apt-get update \
 # --user still works and skips that step.
 RUN install -d -m 0750 /config
 COPY --from=server /out/ams /usr/local/bin/ams
+COPY --from=server /out/arc-postgres-recovery /usr/local/bin/arc-postgres-recovery
 COPY docker/arc-start.sh /usr/local/bin/arc-start
 # /config holds the database, artwork, backups and certificates; mount your media read-only
 # (e.g. at /media) and add libraries in the app.

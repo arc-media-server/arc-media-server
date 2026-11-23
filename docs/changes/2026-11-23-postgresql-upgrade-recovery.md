@@ -21,9 +21,9 @@ the original database selected. Arc does not require PostgreSQL client utilities
   major version. The existing SQLite checks continue in the same workflow.
 - To recover a verified archive, provide the connection to a dedicated empty replacement
   database through `ARC_POSTGRES_RECOVERY_DSN`, then run
-  `go run ./tools/postgres-recovery /path/to/archive.pg.zip` from the repository root.
-  The tool reports success after the restore transaction commits. It does not select the
-  replacement or restart Arc.
+  `go run ./tools/postgres-recovery /path/to/archive.pg.zip` from the repository root,
+  or use the matching [container command and cutover procedure](../RECOVERY.md#postgresql-setup-and-recovery).
+  The tool reports success after the restore transaction commits. Cutover is a separate step.
 - Archives contain private application data and belong in protected storage. They cover
   the database. Uploaded assets, generated assets and media stay outside the archive.
   This work provides before-upgrade archives and destination recovery. The ordinary server

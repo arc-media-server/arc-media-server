@@ -118,7 +118,7 @@ func safePGError(err error) error {
 	if err == nil {
 		return nil
 	}
-	for _, sentinel := range []error{errPostgresInUse, io.EOF, driver.ErrBadConn, context.Canceled, context.DeadlineExceeded} {
+	for _, sentinel := range []error{errPostgresInUse, errPostgresIdentity, io.EOF, driver.ErrBadConn, context.Canceled, context.DeadlineExceeded} {
 		if errors.Is(err, sentinel) {
 			return sentinel
 		}

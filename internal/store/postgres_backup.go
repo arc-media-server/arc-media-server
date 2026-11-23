@@ -175,10 +175,16 @@ func backupPostgresTx(ctx context.Context, tx pgx.Tx, dir, fingerprint string) e
 
 	suffix := strings.TrimPrefix(filepath.Base(temp.Name()), ".pg-before-upgrade-")
 	name := "ams-" + time.Now().Format("20060102-150405") + "-" + suffix + "-before-upgrade.pg.zip"
-	if err := os.Rename(temp.Name(), filepath.Join(dir, name)); err != nil {
+	return PublishPostgresBackup(temp.Name(), filepath.Join(dir, name))
+}
+
+// PublishPostgresBackup durably publishes a verified archive before reporting success.
+func PublishPostgresBackup(temporary, path string) error {
+	if err := os.Rename(temporary, path); err != nil {
 		return err
 	}
-	// Sync both the archive entry and the backup directory entry before changing the database.
+	dir := filepath.Dir(path)
+	// Sync both the archive entry and its containing directory entry.
 	if err := syncPostgresBackupDir(dir); err != nil {
 		return err
 	}
@@ -310,11 +316,11 @@ func restorePostgresBackup(ctx context.Context, dsn, path string, schema postgre
 	if level == -1 {
 		return errors.New("PostgreSQL backup is from an unsupported Arc schema")
 	}
-	cfg, err := postgresConfig(dsn)
+	cfg, err := postgresRecoveryConfig(dsn)
 	if err != nil {
 		return err
 	}
-	writer := postgresWriter(cfg)
+	writer := postgresWriter(cfg, nil)
 	defer writer.Close()
 	return postgresTransaction(ctx, writer, func(tx pgx.Tx) error {
 		if err := checkPostgresVersion(ctx, tx); err != nil {

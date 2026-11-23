@@ -99,6 +99,8 @@ registry access](docs/IMAGE-PUBLISHING.md).
 3. Open `http://<server-address>:8099` and create your administrator profile. Metadata-provider
    credentials are optional during setup and can be added later under **Settings → Libraries &
    metadata**. Matching needs access to the provider you choose for the library.
+   For PostgreSQL setup on a remote Docker host, use the
+   [protected setup connection](docs/RECOVERY.md#postgresql-setup-and-recovery).
 4. Add libraries using the container paths, such as `/media/movies` and `/media/tv`, rather than
    the host's original paths.
 
@@ -128,9 +130,9 @@ have their own access requirements. Arc does not supply provider keys. See
 ### Backups and upgrades
 
 Built-in backups cover the database. Before upgrading, stop Arc and copy the whole `/config`
-folder somewhere safe; it also holds uploaded artwork and certificates. Arc backs up its database
-automatically before any upgrade that changes it, and an older Arc refuses to open a newer
-database. The [recovery guide](docs/RECOVERY.md) covers restoring and rolling back.
+folder somewhere safe; it also holds uploaded artwork and certificates. PostgreSQL installations
+also need a current backup of the external database. Arc backs up the selected database before a
+schema upgrade. The [recovery guide](docs/RECOVERY.md) covers both engines and how to roll back.
 
 ## Building from source
 

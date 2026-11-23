@@ -2,6 +2,7 @@ package store
 
 import (
 	"archive/zip"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -138,6 +139,36 @@ func TestPostgresUpgradeRecovery(t *testing.T) {
 	if err != nil || next != 1001 {
 		t.Fatalf("restored sequence: got %d, want 1001 (%v)", next, err)
 	}
+	recovered.Close()
+	t.Run("reconnect checks the selected identity", func(t *testing.T) {
+		ctx := t.Context()
+		bound, err := OpenSelectedPostgres(ctx, target, "", identity, false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer bound.Close()
+		// Simulate a replacement endpoint presenting another Arc installation
+		// and force both pools to reconnect as they would after a disconnect.
+		if err := bound.SetSetting(ctx, "server_id", NewID()); err != nil {
+			t.Fatal(err)
+		}
+		bound.db.DB.SetMaxIdleConns(0)
+		bound.db.writer.SetMaxIdleConns(0)
+		if _, err := bound.Setting(ctx, "server_id"); !errors.Is(err, errPostgresIdentity) {
+			t.Fatalf("reader reconnect: wanted installation mismatch, got %v", err)
+		}
+		if err := bound.SetSetting(ctx, "reconnect_probe", "bad write"); !errors.Is(err, errPostgresIdentity) {
+			t.Fatalf("writer reconnect: wanted installation mismatch, got %v", err)
+		}
+		unbound, err := OpenPostgres(ctx, target, "")
+		if err != nil {
+			t.Fatalf("rejected writer retained its lock: %v", err)
+		}
+		defer unbound.Close()
+		if value, err := unbound.Setting(ctx, "reconnect_probe"); err != nil || value != "" {
+			t.Fatal("rejected writer reached the database", err)
+		}
+	})
 }
 
 func postgresArchiveWithoutProfileRows(t *testing.T, source string) string {
