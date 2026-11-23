@@ -144,6 +144,40 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 	if err != nil || choice.Engine != "postgres" || choice.Pending {
 		t.Fatal("PostgreSQL choice was not finalized", err)
 	}
+	viewJSON := request("GET", "/api/settings/database", nil, base, http.StatusOK)
+	if strings.Contains(string(viewJSON), pass) || strings.Contains(string(viewJSON), "dsn") ||
+		!strings.Contains(string(viewJSON), `"can_edit":true`) {
+		t.Fatal("database connection details missing or exposed a credential")
+	}
+
+	update := input
+	update.Host = "localhost"
+	update.Password = "fixture-wrong-updated-password"
+	rejected := request("PUT", "/api/settings/database", update, base, http.StatusBadRequest)
+	if strings.Contains(string(rejected), update.Password) {
+		t.Fatal("connection update returned credentials in an error")
+	}
+	if unchanged, err := loadDatabaseChoice(dir); err != nil || unchanged != choice {
+		t.Fatal("invalid update changed the saved database connection", err)
+	}
+	update.Password = pass
+	request("PUT", "/api/settings/database", update, "https://outside.invalid", http.StatusForbidden)
+	request("PUT", "/api/settings/database", update, base, http.StatusNoContent)
+	if view := request("GET", "/api/settings/database", nil, base, http.StatusOK); !strings.Contains(string(view), `"restart_required":true`) ||
+		!strings.Contains(string(view), `"host":"localhost"`) {
+		t.Fatal("updated connection was not staged for restart")
+	}
+	staged, err := loadDatabaseChoice(dir)
+	if err != nil || staged.ID != choice.ID || staged.DSN == choice.DSN || staged.Pending {
+		t.Fatal("saved connection changed the installation identity or was not updated", err)
+	}
+	stop()
+	stop = start()
+	if view := request("GET", "/api/settings/database", nil, base, http.StatusOK); !strings.Contains(string(view), `"restart_required":false`) ||
+		!strings.Contains(string(view), `"host":"localhost"`) {
+		t.Fatal("restart did not use the saved connection")
+	}
+	choice = staged
 	noFile("ams.db")
 	stop()
 

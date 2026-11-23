@@ -902,9 +902,26 @@ export interface Profile {
   invite_token?: string;
 }
 
+export interface PostgresConnection {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  no_tls: boolean;
+}
+
+type PostgresConnectionUpdate = PostgresConnection & { password: string };
+
+interface DatabaseSettingsView {
+  engine: 'sqlite' | 'postgres';
+  connection?: PostgresConnection;
+  restart_required: boolean;
+  can_edit: boolean;
+}
+
 export type DatabaseSetupInput =
   | { engine: 'sqlite' }
-  | { engine: 'postgres'; host: string; port: number; database: string; user: string; password: string; no_tls: boolean };
+  | ({ engine: 'postgres' } & PostgresConnectionUpdate);
 
 export interface AuthStatus {
   database_needed?: boolean;
@@ -1344,6 +1361,8 @@ export const api = {
     request<OrderingsResponse>('PUT', `/api/series/${seriesId}/display-ordering`, { ordering_id: orderingId }),
   refreshSeries: (seriesId: string) => request<OrderingsResponse>('POST', `/api/series/${seriesId}/refresh`),
 
+  databaseSettings: () => request<DatabaseSettingsView>('GET', '/api/settings/database'),
+  updateDatabaseConnection: (connection: PostgresConnectionUpdate) => request<void>('PUT', '/api/settings/database', connection),
   backups: () => request<BackupsResponse>('GET', '/api/backups'),
   createBackup: () => request<Backup>('POST', '/api/backups'),
   restoreBackup: (name: string) => request<void>('POST', `/api/backups/${encodeURIComponent(name)}/restore`),

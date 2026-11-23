@@ -126,9 +126,20 @@ func (input databaseInput) choice() (databaseChoice, error) {
 	if input.Engine == "sqlite" {
 		return databaseChoice{Engine: input.Engine}, nil
 	}
-	if input.Engine != "postgres" || !(net.ParseIP(input.Host) != nil || databaseHostname.MatchString(input.Host)) ||
+	if input.Engine != "postgres" {
+		return databaseChoice{}, errors.New("choose SQLite or PostgreSQL")
+	}
+	dsn, err := input.postgresDSN()
+	if err != nil {
+		return databaseChoice{}, err
+	}
+	return databaseChoice{Engine: input.Engine, DSN: dsn, ID: store.NewID(), Pending: true}, nil
+}
+
+func (input databaseInput) postgresDSN() (string, error) {
+	if !(net.ParseIP(input.Host) != nil || databaseHostname.MatchString(input.Host)) ||
 		input.Port < 1 || input.Port > 65535 || input.Database == "" || input.User == "" || input.Password == "" {
-		return databaseChoice{}, errors.New("enter the PostgreSQL host, port, database, username and password")
+		return "", errors.New("enter the PostgreSQL host, port, database, username and password")
 	}
 	mode := "verify-full"
 	if input.NoTLS {
@@ -137,7 +148,7 @@ func (input databaseInput) choice() (databaseChoice, error) {
 	address := url.URL{Scheme: "postgres", User: url.UserPassword(input.User, input.Password),
 		Host: net.JoinHostPort(input.Host, strconv.Itoa(input.Port)), Path: "/" + input.Database,
 		RawQuery: url.Values{"sslmode": {mode}}.Encode()}
-	return databaseChoice{Engine: input.Engine, DSN: address.String(), ID: store.NewID(), Pending: true}, nil
+	return address.String(), nil
 }
 
 func chooseDatabase(ctx context.Context, dir string, input databaseInput, opts store.Options) (*store.Store, error) {
