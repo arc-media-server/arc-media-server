@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, type DatabaseSetupInput } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { AuthScreen, Card, fieldClass, Label } from './Screen';
+import { AuthScreen, Card } from './Screen';
+import { PostgresFields } from './PostgresFields';
 
 export function DatabaseSetup() {
   const { t } = useTranslation(['auth', 'common']);
@@ -11,10 +12,6 @@ export function DatabaseSetup() {
   const [engine, setEngine] = useState<DatabaseSetupInput['engine']>('sqlite');
   const [fields, setFields] = useState({ host: '', port: '5432', database: '', user: '', password: '' });
   const [noTLS, setNoTLS] = useState(false);
-  const labels = {
-    host: t('auth:database.host'), port: t('auth:database.port'), database: t('auth:database.database'),
-    user: t('auth:database.user'), password: t('auth:database.password'),
-  };
   const choices = {
     sqlite: { name: t('auth:database.sqlite'), description: t('auth:database.sqliteDescription') },
     postgres: { name: t('auth:database.postgres'), description: t('auth:database.postgresDescription') },
@@ -55,22 +52,7 @@ export function DatabaseSetup() {
                 </span>
               </label>
             ))}
-            {engine === 'postgres' && (
-              <>
-                {(['host', 'port', 'database', 'user', 'password'] as const).map((field) => (
-                  <label key={field} className="block">
-                    <Label>{labels[field]}</Label>
-                    <input required className={fieldClass} value={fields[field]} onChange={(event) => setFields({ ...fields, [field]: event.target.value })}
-                      type={field === 'port' ? 'number' : field === 'password' ? 'password' : 'text'} min={field === 'port' ? 1 : undefined}
-                      max={field === 'port' ? 65535 : undefined} autoComplete="off" spellCheck={false} />
-                  </label>
-                ))}
-                <label className="flex items-start gap-3 text-sm">
-                  <input className="mt-1" type="checkbox" checked={noTLS} onChange={(event) => setNoTLS(event.target.checked)} />
-                  {t('auth:database.noTls')}
-                </label>
-              </>
-            )}
+            {engine === 'postgres' && <PostgresFields fields={fields} setFields={setFields} noTLS={noTLS} setNoTLS={setNoTLS} />}
           </fieldset>
           {choose.error && <p role="alert" className="text-sm text-warning">{choose.error.message}</p>}
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={choose.isPending}>

@@ -51,10 +51,11 @@ type Deps struct {
 	Events        *events.Hub
 	WatchProblem  func(int64) string
 
-	Store   *store.Store
-	Scanner *scanner.Scanner
-	Artwork *artwork.Cache
-	Backups *backup.Manager
+	Store            *store.Store
+	Scanner          *scanner.Scanner
+	Artwork          *artwork.Cache
+	Backups          *backup.Manager
+	DatabaseSettings DatabaseSettings
 	// Activity tracks background work for the Activity menu.
 	Activity   *activity.Tracker
 	Background *background.Manager
@@ -116,6 +117,7 @@ type Server struct {
 	paletteLogMu     sync.Mutex
 	paletteWarned    time.Time
 	backups          *backup.Manager
+	databaseSettings DatabaseSettings
 	afterRestore     func(context.Context) error
 	librariesChanged func()
 	settings         func() settings.Settings
@@ -147,7 +149,7 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups, databaseSettings: d.DatabaseSettings,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
@@ -393,6 +395,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/library-previews", admin(s.startPreview))
 	mux.HandleFunc("GET /api/library-previews/{id}", admin(s.getPreview))
 	mux.HandleFunc("GET /api/folders", admin(s.listFolders))
+	mux.HandleFunc("GET /api/settings/database", admin(s.databaseSettingsView))
+	mux.HandleFunc("PUT /api/settings/database", admin(s.updateDatabaseSettings))
 	mux.HandleFunc("GET /api/backups", admin(s.listBackups))
 	mux.HandleFunc("POST /api/backups", admin(s.createBackup))
 	mux.HandleFunc("POST /api/backups/{name}/restore", admin(s.restoreBackup))

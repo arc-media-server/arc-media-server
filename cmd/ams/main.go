@@ -671,9 +671,16 @@ func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.L
 	workers.OnStop("subtitle extraction", subtitleCache.Close)
 	downloadManager := downloads.New(st, log)
 	downloadManager.ConfigureBundles(filepath.Join(dataDir, "downloads"), filepath.Join(dataDir, "uploads"), art, subtitleCache)
+	var databaseSettings api.DatabaseSettings
+	if st.IsPostgres() {
+		if choice, err := loadDatabaseChoice(dataDir); err == nil && choice.Engine == "postgres" && !choice.Pending {
+			databaseSettings = &databaseEditor{dir: dataDir, activeDSN: choice.DSN, saved: choice, store: st, log: log}
+		}
+	}
 	handler := api.New(api.Deps{
-		Downloads:   downloadManager,
-		WorkContext: ctx, Workers: &apiWorkers,
+		DatabaseSettings: databaseSettings,
+		Downloads:        downloadManager,
+		WorkContext:      ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {

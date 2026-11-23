@@ -111,7 +111,7 @@
   "settings": {
     "navigation": {
       "accessDevices": "Access & devices",
-      "backupsRestore": "Backups & restore",
+      "backupsRestore": "Database and Backup",
       "dashboard": "Dashboard",
       "insights": "Insights",
       "libraries": "Libraries",

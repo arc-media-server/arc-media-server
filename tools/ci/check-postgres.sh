@@ -83,6 +83,7 @@ parity_tests=(
   TestCreateCollectionValidatesMembersBeforeCreatingAndKeepsOptions
   TestSmartCollectionAndPlaylistEvaluateSameRules
   TestPlayQueueAPIIsolationSnapshotAndAccessChanges
+  TestDuplicatesSortsPresentCopiesByTitle
   TestDownloadStoreIdempotencyOwnershipLimitAndRevocation
   TestDownloadConcurrentAdmissionIsIdempotent
   TestDownloadConcurrentAdmissionCannotExceedDeviceLimit
@@ -98,6 +99,7 @@ parity_tests=(
   TestJellyfinLists
   TestListsFailureKeepsWatchState
   TestWatchSyncProfileStateAndHistory
+  TestVerifyPostgresConnectionRejectsDatabaseCopy
 )
 parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")
 ARC_TEST_POSTGRES_PARITY="postgres://arc_parity:arc-ci-local-parity@$address/arc_parity_control?sslmode=disable" \
