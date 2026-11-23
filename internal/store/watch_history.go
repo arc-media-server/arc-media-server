@@ -33,7 +33,7 @@ func (s *Store) LibraryWatchHistory(ctx context.Context, userID string, libraryI
 	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id) AS title_id,
 			COALESCE(MAX(u.last_played_at), 0),
 			COALESCE(MAX(CASE WHEN i.kind <> 'series' THEN u.last_played_at END), 0),
-			SUM(u.played = 1)
+			COUNT(*) FILTER (WHERE u.played = 1)
 		FROM user_item_data u JOIN items i ON i.id = u.item_id
 		WHERE u.user_id = ? AND i.library_id = ? AND (u.played = 1 OR u.position_ms > 0)
 		GROUP BY 1`, userID, libraryID)

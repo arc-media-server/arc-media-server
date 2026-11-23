@@ -61,7 +61,10 @@ func (s *Store) RetryBackgroundJobs(ctx context.Context, kind string) error {
 	return err
 }
 func (s *Store) BackgroundCounts(ctx context.Context, kind string) (pending, done, failed int, err error) {
-	err = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(state IN ('queued','paused','running')),0),COALESCE(SUM(state='done'),0),COALESCE(SUM(state='failed'),0) FROM background_jobs WHERE kind=?`, kind).Scan(&pending, &done, &failed)
+	err = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FILTER (WHERE state IN ('queued','paused','running')),
+		COUNT(*) FILTER (WHERE state='done'),
+		COUNT(*) FILTER (WHERE state='failed')
+		FROM background_jobs WHERE kind=?`, kind).Scan(&pending, &done, &failed)
 	return
 }
 func (s *Store) MaxFileID(ctx context.Context) (id int64, err error) {

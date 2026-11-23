@@ -181,6 +181,43 @@ func TestPostgresScratchServer(t *testing.T) {
 	if err != nil || got == nil || !got.IsAdmin {
 		t.Fatalf("profile did not survive reopen: %v", err)
 	}
+	t.Run("background counts", func(t *testing.T) {
+		ctx := t.Context()
+		files, err := reopened.ItemFiles(ctx, itemID)
+		if err != nil || len(files) != 1 {
+			t.Fatalf("expected one media file for the fixture title: %v", err)
+		}
+		for _, state := range []string{"queued", "paused", "running", "done", "failed"} {
+			if _, err := reopened.BackgroundJob(ctx, "analysis", state, "fixture", files[0].ID); err != nil {
+				t.Fatal(err)
+			}
+			if err := reopened.SetBackgroundJob(ctx, "analysis", state, "fixture", state, ""); err != nil {
+				t.Fatal(err)
+			}
+		}
+		pending, done, failed, err := reopened.BackgroundCounts(ctx, "analysis")
+		if err != nil || pending != 3 || done != 1 || failed != 1 {
+			t.Fatalf("counts: got (%d, %d, %d), want (3, 1, 1): %v", pending, done, failed, err)
+		}
+		pending, done, failed, err = reopened.BackgroundCounts(ctx, "other")
+		if err != nil || pending != 0 || done != 0 || failed != 0 {
+			t.Fatalf("empty counts: got (%d, %d, %d), want (0, 0, 0): %v", pending, done, failed, err)
+		}
+	})
+	t.Run("library watch history", func(t *testing.T) {
+		ctx := t.Context()
+		if _, err := reopened.ReportProgress(ctx, owner.ID, itemID, 90_000, 90_000); err != nil {
+			t.Fatal(err)
+		}
+		history, err := reopened.LibraryWatchHistory(ctx, owner.ID, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(history.Titles) != 1 || history.Titles[0].ID != itemID || history.Titles[0].Watches != 1 {
+			t.Fatalf("expected one completed watch for the fixture title, got %+v", history.Titles)
+		}
+	})
+
 	id, err := reopened.AddPlay(t.Context(), store.Play{UserID: owner.ID, ItemID: itemID, Kind: "movie", Title: "Scratch Film"})
 	if err != nil || id <= 0 {
 		t.Fatalf("record playback history: id %d, err %v", id, err)
