@@ -102,7 +102,7 @@ func setPlayedTx(ctx context.Context, tx *sql.Tx, userID string, itemIDs []strin
 				INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at)
 				VALUES (?, ?, 0, 1, 1, ?)
 				ON CONFLICT (user_id, item_id) DO UPDATE SET position_ms = 0, played = 1,
-					play_count = CASE WHEN played = 1 THEN play_count ELSE play_count + 1 END,
+					play_count = CASE WHEN user_item_data.played = 1 THEN user_item_data.play_count ELSE user_item_data.play_count + 1 END,
 					last_played_at = excluded.last_played_at`, userID, id, now)
 		} else {
 			_, err = tx.ExecContext(ctx, `UPDATE user_item_data SET played = 0, position_ms = 0
@@ -344,7 +344,7 @@ func (s *Store) SetWatchlist(ctx context.Context, userID, itemID string, on bool
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, watchlisted_at) VALUES (?, ?, ?)
 		ON CONFLICT (user_id, item_id) DO UPDATE SET watchlisted_at = CASE WHEN excluded.watchlisted_at IS NULL THEN NULL
-			ELSE COALESCE(watchlisted_at, excluded.watchlisted_at) END`, userID, itemID, at)
+			ELSE COALESCE(user_item_data.watchlisted_at, excluded.watchlisted_at) END`, userID, itemID, at)
 	return err
 }
 

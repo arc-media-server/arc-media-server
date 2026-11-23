@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -39,5 +40,25 @@ func generate(ctx context.Context) (string, error) {
 		return "", err
 	}
 	defer db.Close()
-	return postgresBaseline(ctx, db)
+	rows, err := db.QueryContext(ctx, "SELECT version FROM schema_migrations ORDER BY version")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var versions []string
+	for rows.Next() {
+		var version string
+		if err := rows.Scan(&version); err != nil {
+			return "", err
+		}
+		versions = append(versions, version)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	ddl, err := postgresBaseline(ctx, db)
+	if err != nil {
+		return "", err
+	}
+	return "-- Arc migrations: " + strings.Join(versions, ",") + "\n" + ddl, nil
 }
