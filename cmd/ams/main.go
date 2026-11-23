@@ -83,6 +83,12 @@ func main() {
 }
 
 func run(dataDir, legacyConfig string, log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runWithStore(ctx, dataDir, legacyConfig, log, store.Open)
+}
+
+func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.Logger, openStore func(context.Context, string, store.Options) (*store.Store, error)) error {
 	// An old config file is only read to import its settings (and, the first time, its data folder).
 	var legacy *config.Config
 	if _, err := os.Stat(legacyConfig); err == nil {
@@ -104,8 +110,6 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	workers := lifecycle.New(ctx, log)
 	ctx = workers.Context()
 
@@ -116,7 +120,7 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		log.Warn("persistent logging unavailable", "err", err)
 	}
 	backupDir := filepath.Join(dataDir, "backups")
-	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{
+	st, err := openStore(ctx, filepath.Join(dataDir, "ams.db"), store.Options{
 		// A new AMS version is about to change the database: keep a copy of it as it was.
 		BeforeMigrate: func(s *store.Store) error {
 			_, err := backup.New(backupDir, s, log).Create(ctx, backup.ReasonBeforeUpgrade)

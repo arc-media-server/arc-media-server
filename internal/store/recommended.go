@@ -58,7 +58,7 @@ func featuredPeopleSQL(libraryID int64, kind string, minTitles int, acc Access) 
 	q, args := acc.Where("items", `SELECT p.person_id, pe.name, p.role, COUNT(*) FROM items
 		CROSS JOIN item_people p ON p.item_id = items.id JOIN people pe ON pe.id = p.person_id
 		WHERE items.library_id = ? AND items.kind = ? AND `+leadCreditSQL+` AND `+playableSQL, []any{libraryID, kind})
-	return q + ` GROUP BY p.person_id, p.role HAVING COUNT(*) >= ?`, append(args, minTitles)
+	return q + ` GROUP BY p.person_id, pe.name, p.role HAVING COUNT(*) >= ?`, append(args, minTitles)
 }
 
 // featuredPeopleBatch is how many watched titles FeaturedPeopleFrom looks at a time. One batch

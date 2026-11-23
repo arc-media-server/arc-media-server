@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ams/internal/dbsql"
 	"context"
 	"database/sql"
 	"fmt"
@@ -10,6 +11,24 @@ import (
 const postgresFunctions = `
 CREATE FUNCTION arc_lower(text) RETURNS text LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS $arc$
  SELECT translate($1,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')
+$arc$;
+CREATE FUNCTION instr(text,text) RETURNS bigint LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS $arc$
+ SELECT strpos($1,$2)::bigint
+$arc$;
+CREATE FUNCTION arc_like(text,text) RETURNS boolean LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS $arc$
+ SELECT arc_lower($1) LIKE arc_lower($2) ESCAPE ''
+$arc$;
+CREATE FUNCTION arc_not_like(text,text) RETURNS boolean LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS $arc$
+ SELECT NOT arc_like($1,$2)
+$arc$;
+CREATE FUNCTION arc_equal(text,text) RETURNS boolean LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE AS $arc$
+ SELECT arc_lower($1)=arc_lower($2)
+$arc$;
+CREATE OPERATOR ~@~ (FUNCTION=arc_like, LEFTARG=text, RIGHTARG=text);
+CREATE OPERATOR !~@~ (FUNCTION=arc_not_like, LEFTARG=text, RIGHTARG=text);
+CREATE OPERATOR ~== (FUNCTION=arc_equal, LEFTARG=text, RIGHTARG=text);
+CREATE FUNCTION arc_json_each(text) RETURNS TABLE(value text) LANGUAGE SQL IMMUTABLE STRICT AS $arc$
+ SELECT jsonb_array_elements_text($1::jsonb)
 $arc$;
 `
 
@@ -242,11 +261,11 @@ func hasSQLiteRowIDQueries(table string) bool {
 	return table == "items" || table == "item_genres" || table == "item_labels"
 }
 func schemaChecks(q string) []string {
-	t := significantSQL(q)
+	t := dbsql.Significant(q)
 	var out []string
 	for i := 0; i < len(t); i++ {
 		if strings.EqualFold(t[i], "CHECK") && i+1 < len(t) && t[i+1] == "(" {
-			end := closingSQL(t, i+1)
+			end := dbsql.ClosingParen(t, i+1)
 			if end > i {
 				out = append(out, strings.Join(t[i+1:end+1], " "))
 				i = end
@@ -254,89 +273,6 @@ func schemaChecks(q string) []string {
 		}
 	}
 	return out
-}
-
-// sqlTokens keeps quoted strings and identifiers intact while finding CHECK clauses.
-func sqlTokens(q string) []string {
-	var out []string
-	for i := 0; i < len(q); {
-		start := i
-		c := q[i]
-		i++
-		switch {
-		case c == '\'' || c == '"' || c == '`':
-			for i < len(q) {
-				if q[i] == c {
-					i++
-					if i < len(q) && q[i] == c {
-						i++
-						continue
-					}
-					break
-				}
-				i++
-			}
-		case c == '-' && i < len(q) && q[i] == '-':
-			for i < len(q) && q[i] != '\n' {
-				i++
-			}
-		case c == '/' && i < len(q) && q[i] == '*':
-			i++
-			for i+1 < len(q) && q[i:i+2] != "*/" {
-				i++
-			}
-			if i+1 < len(q) {
-				i += 2
-			}
-		case i < len(q) && ((c == '<' && (q[i] == '>' || q[i] == '=')) || (c == '>' && q[i] == '=') || (c == '|' && q[i] == '|') || (c == ':' && q[i] == ':')):
-			i++
-		case c == '?':
-			for i < len(q) && q[i] >= '0' && q[i] <= '9' {
-				i++
-			}
-		case c == ' ' || c == '\n' || c == '\t' || c == '\r':
-			for i < len(q) && strings.ContainsRune(" \n\t\r", rune(q[i])) {
-				i++
-			}
-		case c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c >= '0' && c <= '9':
-			for i < len(q) {
-				v := q[i]
-				if !(v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z' || v == '_' || v >= '0' && v <= '9') {
-					break
-				}
-				i++
-			}
-		}
-		out = append(out, q[start:i])
-	}
-	return out
-}
-
-func significantSQL(q string) []string {
-	var out []string
-	for _, t := range sqlTokens(q) {
-		if strings.TrimSpace(t) == "" || strings.HasPrefix(t, "--") || strings.HasPrefix(t, "/*") {
-			continue
-		}
-		out = append(out, t)
-	}
-	return out
-}
-
-func closingSQL(t []string, start int) int {
-	depth := 0
-	for i := start; i < len(t); i++ {
-		if t[i] == "(" {
-			depth++
-		}
-		if t[i] == ")" {
-			depth--
-			if depth == 0 {
-				return i
-			}
-		}
-	}
-	return -1
 }
 
 func quoted(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }

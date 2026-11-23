@@ -49,7 +49,7 @@ func scanCollection(row interface{ Scan(...any) error }, c *Collection) error {
 
 // collectionLocked is an SQL condition that a collection field is in the row's locked_fields.
 func collectionLocked(field string) string {
-	return `instr(',' || locked_fields || ',', ',` + field + `,') > 0`
+	return `instr(',' || collections.locked_fields || ',', ',` + field + `,') > 0`
 }
 
 // playableSQL keeps titles with a present file (for a series, an episode with one).
@@ -83,10 +83,10 @@ func (s *Store) SetMovieCollection(ctx context.Context, itemID string, libraryID
 		INSERT INTO collections (id, library_id, kind, tmdb_id, title, sort_title, poster_path, backdrop_path, created_at)
 		VALUES (?, ?, 'auto', ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (library_id, tmdb_id) WHERE tmdb_id <> 0 DO UPDATE SET
-			title = CASE WHEN `+collectionLocked("title")+` THEN title ELSE excluded.title END,
-			sort_title = CASE WHEN `+collectionLocked("sort_title")+` OR `+collectionLocked("title")+` THEN sort_title ELSE excluded.sort_title END,
-			poster_path = CASE WHEN `+collectionLocked("poster")+` THEN poster_path ELSE excluded.poster_path END,
-			backdrop_path = CASE WHEN `+collectionLocked("backdrop")+` THEN backdrop_path ELSE excluded.backdrop_path END`,
+			title = CASE WHEN `+collectionLocked("title")+` THEN collections.title ELSE excluded.title END,
+			sort_title = CASE WHEN `+collectionLocked("sort_title")+` OR `+collectionLocked("title")+` THEN collections.sort_title ELSE excluded.sort_title END,
+			poster_path = CASE WHEN `+collectionLocked("poster")+` THEN collections.poster_path ELSE excluded.poster_path END,
+			backdrop_path = CASE WHEN `+collectionLocked("backdrop")+` THEN collections.backdrop_path ELSE excluded.backdrop_path END`,
 		newID(), libraryID, ref.TMDBID, ref.Name, SortTitle(ref.Name), ref.PosterPath, ref.BackdropPath, time.Now().Unix())
 	return err
 }

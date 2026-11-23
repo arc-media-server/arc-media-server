@@ -129,8 +129,9 @@ func (s *Store) MergeSeries(ctx context.Context, targetID string, sourceIDs []st
 			continue
 		}
 		// Later scans of the source's folders find the target; aliases it already had move too.
-		if err := exec(`INSERT OR REPLACE INTO item_aliases (library_id, match_key, item_id)
-				SELECT library_id, match_key, ?1 FROM items WHERE id = ?2`, targetID, src); err != nil {
+		if err := exec(`INSERT INTO item_aliases (library_id, match_key, item_id)
+				SELECT library_id, match_key, ?1 FROM items WHERE id = ?2
+                ON CONFLICT (library_id, match_key) DO UPDATE SET item_id = excluded.item_id`, targetID, src); err != nil {
 			return err
 		}
 		if err := exec(`UPDATE item_aliases SET item_id = ?1 WHERE item_id = ?2`, targetID, src); err != nil {
@@ -207,24 +208,24 @@ func mergeInto(ctx context.Context, tx *sql.Tx, targetID, sourceID string) error
 		`UPDATE play_queues SET revision=revision+1 WHERE id IN (SELECT queue_id FROM play_queue_entries WHERE item_id=?2)`,
 		`UPDATE play_queue_entries SET item_id=?1 WHERE item_id=?2`,
 		`UPDATE media_files SET item_override = ?1 WHERE item_override = ?2`,
-		`UPDATE OR IGNORE item_files SET item_id = ?1 WHERE item_id = ?2`,
+		`INSERT INTO item_files (item_id, file_id, part) SELECT ?1, file_id, part FROM item_files WHERE item_id = ?2 ON CONFLICT DO NOTHING`,
 		`INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at, user_rating, watchlisted_at)
 			SELECT user_id, ?1, position_ms, played, play_count, last_played_at, user_rating, watchlisted_at
 			FROM user_item_data WHERE item_id = ?2
 			ON CONFLICT (user_id, item_id) DO UPDATE SET
-				position_ms = CASE WHEN played = 0 AND excluded.played = 0 AND COALESCE(excluded.last_played_at, 0) > COALESCE(last_played_at, 0)
-					THEN excluded.position_ms WHEN excluded.played > played THEN 0 ELSE position_ms END,
-				played = MAX(played, excluded.played),
-				play_count = MAX(play_count, excluded.play_count),
-				last_played_at = MAX(COALESCE(last_played_at, 0), COALESCE(excluded.last_played_at, 0)),
-				user_rating = CASE WHEN user_rating = 0 THEN excluded.user_rating ELSE user_rating END,
-				watchlisted_at = COALESCE(watchlisted_at, excluded.watchlisted_at)`,
+				position_ms = CASE WHEN user_item_data.played = 0 AND excluded.played = 0 AND COALESCE(excluded.last_played_at, 0) > COALESCE(user_item_data.last_played_at, 0)
+					THEN excluded.position_ms WHEN excluded.played > user_item_data.played THEN 0 ELSE user_item_data.position_ms END,
+				played = MAX(user_item_data.played, excluded.played),
+				play_count = MAX(user_item_data.play_count, excluded.play_count),
+				last_played_at = MAX(COALESCE(user_item_data.last_played_at, 0), COALESCE(excluded.last_played_at, 0)),
+				user_rating = CASE WHEN user_item_data.user_rating = 0 THEN excluded.user_rating ELSE user_item_data.user_rating END,
+				watchlisted_at = COALESCE(user_item_data.watchlisted_at, excluded.watchlisted_at)`,
 		`DELETE FROM user_item_data WHERE item_id = ?2`,
-		`UPDATE OR IGNORE continue_dismissed SET item_id = ?1 WHERE item_id = ?2`,
+		`INSERT INTO continue_dismissed (item_id, user_id, at) SELECT ?1, user_id, at FROM continue_dismissed WHERE item_id = ?2 ON CONFLICT DO NOTHING`,
 		`UPDATE play_history SET item_id = ?1 WHERE item_id = ?2`,
 		`UPDATE playlist_entries SET item_id = ?1 WHERE item_id = ?2`,
-		`UPDATE OR IGNORE collection_items SET item_id = ?1 WHERE item_id = ?2`,
-		`UPDATE OR IGNORE item_labels SET item_id = ?1 WHERE item_id = ?2`,
+		`INSERT INTO collection_items (item_id, collection_id, position) SELECT ?1, collection_id, position FROM collection_items WHERE item_id = ?2 ON CONFLICT DO NOTHING`,
+		`INSERT INTO item_labels (item_id, label) SELECT ?1, label FROM item_labels WHERE item_id = ?2 ON CONFLICT DO NOTHING`,
 		`UPDATE extras SET item_id = ?1 WHERE item_id = ?2`,
 	}
 	for _, q := range steps {
