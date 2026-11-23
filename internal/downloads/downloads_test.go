@@ -1,7 +1,6 @@
 package downloads
 
 import (
-	"ams/internal/store"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -14,15 +13,30 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"ams/internal/perftest"
+	"ams/internal/store"
 )
 
 func fixture(t *testing.T) (*store.Store, *store.Download, *Manager, *bytes.Buffer) {
-	return fixtureAt(t, filepath.Join(t.TempDir(), "fixture.db"))
+	t.Helper()
+	return fixtureAt(t, downloadTestDatabase(t))
 }
-func fixtureAt(t *testing.T, dbPath string) (*store.Store, *store.Download, *Manager, *bytes.Buffer) {
+
+// Reuse the same database when a test closes and reopens the store.
+func downloadTestDatabase(t *testing.T) func() (*store.Store, error) {
+	t.Helper()
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		return func() (*store.Store, error) { return store.OpenPostgres(t.Context(), dsn, "") }
+	}
+	path := filepath.Join(t.TempDir(), "fixture.db")
+	return func() (*store.Store, error) { return store.Open(t.Context(), path, store.Options{}) }
+}
+
+func fixtureAt(t *testing.T, open func() (*store.Store, error)) (*store.Store, *store.Download, *Manager, *bytes.Buffer) {
 	t.Helper()
 	ctx := t.Context()
-	st, err := store.Open(ctx, dbPath, store.Options{})
+	st, err := open()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,12 +274,12 @@ func TestDownloadPreparationRejectsSameSizeEditsDuringHash(t *testing.T) {
 }
 
 func TestDownloadPendingRecordSurvivesDatabaseReopen(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "durable.db")
-	st, d, _, logs := fixtureAt(t, dbPath)
+	open := downloadTestDatabase(t)
+	st, d, _, logs := fixtureAt(t, open)
 	if err := st.Close(); err != nil {
 		t.Fatal(err)
 	}
-	restored, err := store.Open(t.Context(), dbPath, store.Options{})
+	restored, err := open()
 	if err != nil {
 		t.Fatal(err)
 	}
