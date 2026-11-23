@@ -44,7 +44,7 @@ const (
 	stampLayout = "20060102-150405"
 )
 
-var nameRe = regexp.MustCompile(`^ams-(\d{8}-\d{6})-(auto|manual|before-restore|before-upgrade|before-delete)\.db$`)
+var nameRe = regexp.MustCompile(`^ams-(\d{8}-\d{6})(?:-\d+)?-(auto|manual|before-restore|before-upgrade|before-delete)(?:\.db|\.pg\.zip)$`)
 
 type Backup struct {
 	Name      string    `json:"name"`
@@ -125,13 +125,17 @@ func (m *Manager) create(ctx context.Context, reason string) (b Backup, err erro
 	if err := os.MkdirAll(m.dir, 0o755); err != nil {
 		return Backup{}, err
 	}
+	extension := ".db"
+	if m.store.IsPostgres() {
+		extension = ".pg.zip"
+	}
 	now := time.Now()
-	name := fmt.Sprintf("ams-%s-%s.db", now.Format(stampLayout), reason)
+	name := fmt.Sprintf("ams-%s-%s%s", now.Format(stampLayout), reason, extension)
 	// Two backups in the same second (e.g. a manual one right after a restore): wait it out.
 	for _, err := os.Stat(filepath.Join(m.dir, name)); err == nil; _, err = os.Stat(filepath.Join(m.dir, name)) {
 		time.Sleep(time.Second)
 		now = time.Now()
-		name = fmt.Sprintf("ams-%s-%s.db", now.Format(stampLayout), reason)
+		name = fmt.Sprintf("ams-%s-%s%s", now.Format(stampLayout), reason, extension)
 	}
 	path := filepath.Join(m.dir, name)
 	tmp := path + ".tmp"
@@ -219,6 +223,9 @@ func (m *Manager) Restore(ctx context.Context, name string) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.store.IsPostgres() {
+		return fmt.Errorf("%w: use the PostgreSQL recovery tool and a dedicated empty database", store.ErrInvalidBackup)
+	}
 	path := filepath.Join(m.dir, name)
 	if err := store.CheckBackup(ctx, path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

@@ -38,7 +38,7 @@ func TestPostgresUpgradeRecovery(t *testing.T) {
 	broken := makeSchema(addColumn, "UPDATE no_such_fixture_table SET ignored=1")
 	open := func(dsn, backupDir string, schema postgresSchema) *Store {
 		t.Helper()
-		st, err := openPostgres(ctx, dsn, backupDir, schema)
+		st, err := openPostgres(ctx, dsn, backupDir, schema, postgresBinding{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -47,7 +47,7 @@ func TestPostgresUpgradeRecovery(t *testing.T) {
 	}
 	expectFailure := func(backupDir string, schema postgresSchema, contains string) {
 		t.Helper()
-		st, err := openPostgres(ctx, source, backupDir, schema)
+		st, err := openPostgres(ctx, source, backupDir, schema, postgresBinding{})
 		if err == nil {
 			st.Close()
 			t.Fatal("unexpected PostgreSQL upgrade success")

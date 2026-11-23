@@ -64,7 +64,7 @@ func (s *Store) EditItems(ctx context.Context, ids []string, e BulkEdit) error {
 			}
 		}
 		for _, l := range e.RemoveLabels {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM item_labels WHERE item_id = ? AND label = ?`, id, l); err != nil {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM item_labels WHERE item_id = ? AND lower(label) = lower(?)`, id, l); err != nil {
 				return err
 			}
 		}

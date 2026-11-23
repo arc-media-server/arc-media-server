@@ -21,7 +21,7 @@ for attempt in {1..30}; do
 done
 docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U postgres \
   -c "CREATE ROLE arc_fixture LOGIN PASSWORD 'arc-ci-local-fixture'" >/dev/null
-for database in arc_runtime arc_upgrade arc_restore; do
+for database in arc_runtime arc_upgrade arc_restore arc_onboarding; do
   docker exec "$container" createdb -U postgres -O arc_fixture "$database"
 done
 address=$(docker port "$container" 5432/tcp)
@@ -29,4 +29,5 @@ endpoint="postgres://arc_fixture:arc-ci-local-fixture@$address"
 ARC_TEST_POSTGRES="$endpoint/arc_runtime?sslmode=disable" \
 ARC_TEST_POSTGRES_UPGRADE="$endpoint/arc_upgrade?sslmode=disable" \
 ARC_TEST_POSTGRES_RESTORE="$endpoint/arc_restore?sslmode=disable" \
+ARC_TEST_POSTGRES_ONBOARDING="$endpoint/arc_onboarding?sslmode=disable" \
   go test -race ./internal/store ./cmd/ams -run '^TestPostgres' -count=1 -timeout 3m

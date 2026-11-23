@@ -112,6 +112,7 @@ GET /auth/link/{poll} 202 .status string
 GET /auth/status
 GET /auth/status 200
 GET /auth/status 200 .bypass boolean
+GET /auth/status 200 .database_needed boolean
 GET /auth/status 200 .friend boolean
 GET /auth/status 200 .local boolean
 GET /auth/status 200 .password_session boolean

@@ -185,6 +185,9 @@
           "bypass": {
             "type": "boolean"
           },
+          "database_needed": {
+            "type": "boolean"
+          },
           "friend": {
             "type": "boolean"
           },

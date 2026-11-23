@@ -902,7 +902,12 @@ export interface Profile {
   invite_token?: string;
 }
 
+export type DatabaseSetupInput =
+  | { engine: 'sqlite' }
+  | { engine: 'postgres'; host: string; port: number; database: string; user: string; password: string; no_tls: boolean };
+
 export interface AuthStatus {
+  database_needed?: boolean;
   setup_needed: boolean;
   signed_in: boolean;
   /** Signed in with the password (rather than on the home network without it). */
@@ -1113,6 +1118,7 @@ export const api = {
   downloadDiagnostics: async () => { const r = await fetch('/api/diagnostics/download'); if (!r.ok) throw new Error(i18n.t('common:errors.downloadDiagnostics')); return r.blob(); },
   setDiagnostics: (detailed: boolean) => request<{ detailed: boolean; until?: string; persistent: boolean; storage_error?: string }>('PATCH', '/api/diagnostics', { detailed }),
   authStatus: () => request<AuthStatus>('GET', '/api/auth/status'),
+  chooseDatabase: (body: DatabaseSetupInput) => request<void>('POST', '/api/auth/database', body),
   setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string; region?: string }) =>
     request<Profile>('POST', '/api/auth/setup', body),
   login: (password: string) => request<void>('POST', '/api/auth/login', { password }),

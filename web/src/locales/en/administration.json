@@ -66,6 +66,7 @@
   },
   "backups": {
     "backups": "Backups",
+    "postgresRestore": "Restore with the PostgreSQL recovery tool",
     "backUpAndRestore": "Back up and restore Arc's database. Your media files are never part of a backup and are never changed.",
     "backUpNow": "Back Up Now",
     "backupScope": "Backup scope",
