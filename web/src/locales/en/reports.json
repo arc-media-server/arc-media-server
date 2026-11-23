@@ -1,4 +1,17 @@
 {
+  "deviceLogs": {
+    "title": "Device logs",
+    "views": "Log views",
+    "server": "Server",
+    "devices": "Devices",
+    "refresh": "Refresh logs",
+    "download": "Download logs",
+    "device": "Device",
+    "option": "{{name}} · {{time}}",
+    "empty": "No devices have sent logs recently.",
+    "loading": "Loading device logs…",
+    "failed": "Could not load device logs. Refresh to try again."
+  },
   "dashboard": {
     "dashboard": "Dashboard",
     "whatSBeingWatched": "What's being watched right now, and how busy the server is.",

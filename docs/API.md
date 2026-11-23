@@ -52,7 +52,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-220 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+223 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -99,6 +99,14 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | POST | `/api/cast` | profile | {"url"} turns a stream URL from POST /api/items/{id}/playback into a link a cast device can open: absolute, at an address it can reach, with a token. It also takes a text subtitle track's WebVTT link (GET /api/items/{id}/subtitles/{track}/vtt) and an extra's stream link (GET /api/extras/{id}/stream), or a pre-roll link (GET /api/preroll/{n}). |
 | GET | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
 | OPTIONS | `/api/cast/{token}/{rest...}` | anyone | Serves a stream to a cast device. |
+
+### client-logs
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| POST | `/api/client-logs` | profile | Appends a user-approved batch for its bearer-authenticated device. Send only events from the documented vocabulary; upload through a signed-in app, never automatically. |
+| GET | `/api/client-logs` | admin | Lists devices with unexpired entries. |
+| GET | `/api/client-logs/{id}` | admin | Returns recent batches for the selected device. |
 
 ### collections
 

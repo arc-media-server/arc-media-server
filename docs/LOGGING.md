@@ -59,3 +59,8 @@ The owner's 29 October diagnostics showed multi-minute write stalls and a later 
 request while other APIs remained responsive. They did not contain stacks or active request stages.
 IMDb ingestion was separately paused in PR #280. These logging changes improve the next capture;
 they do not prove or fix the original library hang, database corruption or an IMDb root cause.
+
+## Logs sent by Arc apps
+
+The Dashboard's device log view displays user-approved diagnostic events from Arc apps.
+See [Sending device logs](CLIENT-LOGS.md) for the wire format, privacy rules and retention.

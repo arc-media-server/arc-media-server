@@ -39,6 +39,15 @@ func supplementOperation(r route, op map[string]any, components map[string]any) 
 		responses["416"] = map[string]any{"description": "Unsatisfiable byte range; transport error is plain text", "content": map[string]any{"text/plain": map[string]any{"schema": map[string]any{"type": "string"}}}, "headers": map[string]any{"Content-Range": header("For unsatisfiable byte ranges: bytes */size")}}
 	}
 	switch r.handler {
+	case "uploadClientLogs":
+		body := op["requestBody"].(map[string]any)
+		body["description"] = "User-approved app events only. Use the device Bearer token with a selected profile. Never send raw logs or arbitrary strings. See docs/CLIENT-LOGS.md for the event vocabulary."
+		body["x-arc-server-max-bytes"] = 262144
+		responses["400"] = map[string]any{"description": "Invalid event batch or unknown field"}
+		responses["403"] = map[string]any{"description": "An app session is required; browser and tool sessions cannot upload"}
+		responses["413"] = map[string]any{"description": "Batch exceeds 256 KiB"}
+	case "getClientLogs":
+		responses["404"] = map[string]any{"description": "Device log selection expired or was revoked"}
 	case "createProfile", "updateProfile":
 		// RawMessage represents omission/null/array at runtime; its Go type alone
 		// cannot express that contract. Create requires a name; PATCH does not.
