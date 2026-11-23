@@ -64,7 +64,26 @@ parity_tests=(
   TestRunNowBoundedToExistingBacklogAndDisabledTasks
   TestAnalysisActivityIdentifiesLibraryAndFile
   TestCompletionRestartAndRevisionChanges
+  TestCollections
+  TestEditedCollectionSurvivesRefresh
+  TestImportedCopyOfAutomaticCollectionShowsOnce
+  TestFolderCollections
+  TestCollectionCreateRollsBackWhenInitialMemberWriteFails
+  TestCollectionCreateRejectsWrongLibraryAndEpisodeBeforeWrite
+  TestPlaylists
+  TestPlayQueueOperationsAndConflictBoundaries
+  TestPlayQueueConcurrentEditsPersistenceAndRevocation
+  TestPlayQueueExpiryLimitsAndExactReorder
+  TestPlayQueueReferencesSurviveEpisodeCleanupAndUnmatch
+  TestMergeAndSplit
+  TestMergeSeries
+  TestMergeAndSplitKeepEarlierArrival
+  TestMovieMergePreservesWatchedStateAndQueueIdentity
+  TestEpisodeCleanupPreservesReferences
+  TestCreateCollectionValidatesMembersBeforeCreatingAndKeepsOptions
+  TestSmartCollectionAndPlaylistEvaluateSameRules
+  TestPlayQueueAPIIsolationSnapshotAndAccessChanges
 )
 parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")
 ARC_TEST_POSTGRES_PARITY="postgres://arc_parity:arc-ci-local-parity@$address/arc_parity_control?sslmode=disable" \
-  go test -race ./internal/store ./internal/scanner ./internal/background -run "$parity" -count=1 -timeout 3m
+  go test -race ./internal/store ./internal/scanner ./internal/background ./internal/api -run "$parity" -count=1 -timeout 3m

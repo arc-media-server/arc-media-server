@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sync"
 	"testing"
+
+	"ams/internal/perftest"
 )
 
 func queueStoreFixture(t *testing.T) (*Store, string, string, []string) {
@@ -137,7 +139,15 @@ func TestPlayQueueConcurrentEditsPersistenceAndRevocation(t *testing.T) {
 	if err = st.BackupTo(ctx, backup); err != nil {
 		t.Fatal(err)
 	}
-	restored, err := Open(ctx, backup, Options{})
+	var restored *Store
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		if err := RestorePostgresBackup(ctx, dsn, backup); err != nil {
+			t.Fatal(err)
+		}
+		restored, err = OpenPostgres(ctx, dsn, "")
+	} else {
+		restored, err = Open(ctx, backup, Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
