@@ -83,7 +83,21 @@ parity_tests=(
   TestCreateCollectionValidatesMembersBeforeCreatingAndKeepsOptions
   TestSmartCollectionAndPlaylistEvaluateSameRules
   TestPlayQueueAPIIsolationSnapshotAndAccessChanges
+  TestDownloadStoreIdempotencyOwnershipLimitAndRevocation
+  TestDownloadConcurrentAdmissionIsIdempotent
+  TestDownloadConcurrentAdmissionCannotExceedDeviceLimit
+  TestDownloadWorkerPauseCancelRestartAndDelete
+  TestDownloadPendingRecordSurvivesDatabaseReopen
+  TestDownloadPreparationRechecksRevocationWhilePaused
+  TestBundleCleanupRespectsReadersAndForeignKeyCascade
+  TestDownloadManifestAndSingleRangeDelivery
+  TestActiveDownloadRevocationAbortsHTTPStream
+  TestPlexImport
+  TestJellyfinImport
+  TestPlexLists
+  TestJellyfinLists
+  TestListsFailureKeepsWatchState
 )
 parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")
 ARC_TEST_POSTGRES_PARITY="postgres://arc_parity:arc-ci-local-parity@$address/arc_parity_control?sslmode=disable" \
-  go test -race ./internal/store ./internal/scanner ./internal/background ./internal/api -run "$parity" -count=1 -timeout 3m
+  go test -race ./internal/store ./internal/scanner ./internal/background ./internal/api ./internal/downloads ./internal/importer -run "$parity" -count=1 -timeout 3m
