@@ -13,7 +13,7 @@ and upgrade handling. This change adds no setup controls or runtime database dri
 Logging: the developer tool prints SQL to stdout and reports generation failures to stderr.
 It takes no connection credentials and uses no installation data. There are no new server logs.
 
-Verified with Go 1.27.0 from current main `f2c67db`. PostgreSQL 16.10 and 18.0 each
+Verified with Go 1.27.0 from current main `f2c67db`. PostgreSQL 16.10, 18.0 and 19.0 each
 accepted all 44 tables in one transaction, enforced sampled session defaults and constraints,
 and left the schema empty after an injected initialization failure. The generator is
 deterministic across fresh SQLite catalogs. Go vet, web production build (including app
@@ -25,3 +25,7 @@ two transcoding tests with system FFmpeg 7. The API documentation package passed
 isolated Go cache, and both playback tests passed on Jellyfin FFmpeg 8.1.3. The full suite
 was not rerun. The optional runtime store, live onboarding, actual Arc schema upgrades,
 and backup recovery on PostgreSQL remain untested. All tests used scratch stores.
+
+The PostgreSQL 19 check used the official `postgres:19.0-bookworm` image with networking
+disabled. The first attempt hit a Docker storage limit; the schema and rollback checks
+passed with a temporary in-memory data directory. The throwaway container was removed.

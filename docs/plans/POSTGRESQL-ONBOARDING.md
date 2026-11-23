@@ -29,6 +29,7 @@ Drafts [#337](https://github.com/arc-media-server/arc-media-server/pull/337) and
    values and record schema history in the same transaction that creates the tables.
 2. **Build the optional store on current main.** Reuse the parts of #337's pool, error handling
    and SQL compatibility that still fit. Test current store and API behavior on both engines.
+   Include PostgreSQL 19 in the candidate support matrix and verify it before listing it as supported.
    Address the data-folder lock review without adding a new lock prerequisite for SQLite installations.
 3. **Prove updates and recovery.** Adapt #339's verified backup and transactional upgrade plan.
    Establish one PostgreSQL release baseline before publication. Use a synthetic next schema to
