@@ -98,6 +98,7 @@ parity_tests=(
   TestPlexLists
   TestJellyfinLists
   TestListsFailureKeepsWatchState
+  TestWatchSyncProfileStateAndHistory
   TestVerifyPostgresConnectionRejectsDatabaseCopy
 )
 parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")

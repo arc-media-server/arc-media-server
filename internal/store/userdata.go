@@ -238,7 +238,7 @@ func (s *Store) InProgress(ctx context.Context, userID string, limit int, acc Ac
 	// Filter before LIMIT: hidden or inaccessible recent titles must not crowd out
 	// an older resume point the profile can still see.
 	q, args := acc.Where("i", q, []any{userID})
-	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC, i.id LIMIT ?`, append(args, limit)...)
+	rows, err := s.db.QueryContext(ctx, q+` ORDER BY COALESCE(u.last_played_at, 0) DESC, i.id LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}

@@ -52,7 +52,7 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 
 ## Endpoints
 
-222 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
+226 endpoints, grouped by the first part of their path. **Who** is who may call it: `anyone`, any signed-in `profile`, or the `admin` profile.
 
 ### activity
 
@@ -244,6 +244,9 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | GET | `/api/items/{id}/trickplay/{file}/bif` | profile | Is the same thumbnails as one BIF file, the format Roku's player shows while seeking. It's 404 until the thumbnails are made. |
 | GET | `/api/items/{id}/images/{type}` | profile | Serves an item's artwork from the local cache, downloading it on first use. If it can't be downloaded (e.g. the provider is unreachable) the browser is sent to the provider instead. A backdrop with ?size=full is the full-resolution picture, for full-width banners. |
 | PUT | `/api/items/{id}/progress` | profile | {"position_ms", "duration_ms"} from the player, every few seconds and on pause or close. |
+| PUT | `/api/items/{id}/resume` | profile | {"position_ms": ...} sets a saved movie or episode position (0 clears it), with no player session or watch history changes. |
+| POST | `/api/items/{id}/watch-history` | profile | {"watched_at": ...} records a completed viewing at the supplied Unix timestamp. Retrying the same item and timestamp returns the existing viewing. This does not change watched status or resume position. |
+| DELETE | `/api/items/{id}/watch-history/{viewing}` | profile | ?watched_at=... removes the matching viewing for this profile. Repeat deletes return 204. Watched status and resume position are independent of this operation. |
 | PUT | `/api/items/{id}/played` | profile | {"played": true} marks a movie or episode watched or unwatched for the current profile. For a series it applies to all its episodes, or with "season_number" to one season of the profile's episode order. |
 | GET | `/api/items/{id}/next` | profile | Is the episode that follows one in the profile's episode order, for playing on: the next one on disk, staying out of specials unless the episode is one. 204 when there's none (the last episode, a movie, or an episode the order doesn't place). |
 | GET | `/api/items/{id}/similar` | profile | Is "More like this": movies or shows from the same library, TMDB's recommendations first, then titles sharing its collection, genres and cast. |
@@ -468,6 +471,12 @@ Send progress with `PUT /items/{id}/progress`. Players that can't send the Autho
 | Method | Path | Who | What it does |
 |---|---|---|---|
 | POST | `/api/transcoder/detect` | admin | Starts one bounded hardware encoding recheck . Repeated requests while detection is running reuse that job. No media files are inspected. |
+
+### watch-history
+
+| Method | Path | Who | What it does |
+|---|---|---|---|
+| GET | `/api/watch-history` | profile | Lists the selected profile's completed viewings for visible items. Follow next_before with ?before= to page in descending viewing-ID order. Limit is 1–200 (default 50). Timestamps are Unix seconds. |
 
 ### watch-together
 
