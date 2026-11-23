@@ -20,12 +20,15 @@ func queryParameter(handler, name string) (map[string]any, error) {
 	}
 	switch name {
 	case "limit":
-		bounds := map[string][2]int{"listItems": {100, 500}, "lookupItems": {50, 100}, "recommendedPage": {50, 100}, "recentlyAddedShows": {24, 100}, "statsHistory": {50, 200}}
+		bounds := map[string][2]int{"listItems": {100, 500}, "lookupItems": {50, 100}, "recommendedPage": {50, 100}, "recentlyAddedShows": {24, 100}, "statsHistory": {50, 200}, "watchHistory": {50, 200}}
 		b, ok := bounds[handler]
 		if !ok {
 			return nil, fmt.Errorf("document %s limit bounds", handler)
 		}
 		integer("Page size. Invalid values reset to the default on legacy browse/history/recent endpoints; lookup/recommendation endpoints reject them with 400.")
+		if handler == "watchHistory" {
+			description = "Page size. Out-of-range or invalid values return 400."
+		}
 		schema["minimum"] = 1
 		schema["maximum"] = b[1]
 		schema["default"] = b[0]
@@ -83,6 +86,14 @@ func queryParameter(handler, name string) (map[string]any, error) {
 	case "before":
 		integer("Return history entries before this play-history ID; omit starts with newest entries.")
 		schema["minimum"] = 0
+		if handler == "watchHistory" {
+			schema["minimum"] = 1
+			description = "Use the previous page’s next_before cursor. Results are in descending viewing-ID order."
+		}
+	case "watched_at":
+		integer("The viewing's original watched_at value in Unix seconds. Required to identify exactly the viewing being deleted.")
+		schema["minimum"] = 1
+		required = true
 	case "revision":
 		integer("Required current play-queue revision. A stale revision conflicts; do not silently retry destructive changes.")
 		schema["minimum"] = 1

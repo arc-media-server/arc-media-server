@@ -19,6 +19,8 @@ DELETE /items/{id}
 DELETE /items/{id} 204
 DELETE /items/{id}/markers
 DELETE /items/{id}/markers 204
+DELETE /items/{id}/watch-history/{viewing}
+DELETE /items/{id}/watch-history/{viewing} 204
 DELETE /libraries/{id}
 DELETE /libraries/{id} 204
 DELETE /optimized/{file}/{quality}
@@ -5526,6 +5528,14 @@ GET /stats/storage 200 .never_watched[].watched boolean
 GET /transcode/{sid}/{file}
 GET /transcode/{sid}/{file} 200
 GET /transcode/{sid}/{file} 206
+GET /watch-history
+GET /watch-history 200
+GET /watch-history 200 .next_before integer
+GET /watch-history 200 .viewings array
+GET /watch-history 200 .viewings[] object
+GET /watch-history 200 .viewings[].id integer
+GET /watch-history 200 .viewings[].item_id string
+GET /watch-history 200 .viewings[].watched_at integer
 GET /watch-together/current
 GET /watch-together/current 200
 GET /watch-together/current 200 .at_ms integer
@@ -7431,6 +7441,11 @@ POST /items/{id}/unmatch 200 .user_data.position_ms integer
 POST /items/{id}/unmatch 200 .user_data.rating integer
 POST /items/{id}/unmatch 200 .user_data.watchlisted boolean
 POST /items/{id}/unmatch 200 .year integer
+POST /items/{id}/watch-history
+POST /items/{id}/watch-history 200
+POST /items/{id}/watch-history 200 .id integer
+POST /items/{id}/watch-history 200 .item_id string
+POST /items/{id}/watch-history 200 .watched_at integer
 POST /libraries
 POST /libraries 201
 POST /libraries 201 .collection_grid string
@@ -8653,6 +8668,8 @@ PUT /items/{id}/progress 200 .rating integer
 PUT /items/{id}/progress 200 .watchlisted boolean
 PUT /items/{id}/rating
 PUT /items/{id}/rating 204
+PUT /items/{id}/resume
+PUT /items/{id}/resume 204
 PUT /items/{id}/watchlist
 PUT /items/{id}/watchlist 204
 PUT /libraries/{id}/recommended/layout

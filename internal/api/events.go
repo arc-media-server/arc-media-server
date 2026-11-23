@@ -188,9 +188,10 @@ func (s *Server) publishMutation(r *http.Request, route string) {
 		return
 	}
 	personal := strings.HasPrefix(path, "/api/me/") || strings.HasPrefix(path, "/api/playlists") || strings.HasPrefix(path, "/api/play-queues") || strings.HasPrefix(path, "/api/home/continue") || strings.HasPrefix(path, "/api/news")
-	for _, suffix := range []string{"/progress", "/played", "/watchlist", "/rating"} {
+	for _, suffix := range []string{"/progress", "/resume", "/played", "/watchlist", "/rating", "/watch-history"} {
 		personal = personal || strings.HasSuffix(path, suffix)
 	}
+	personal = personal || (strings.HasPrefix(path, "/api/items/") && strings.Contains(path, "/watch-history/"))
 	if personal {
 		s.events.Publish(events.Event{Topic: "profile", UserID: se.UserID})
 		return
