@@ -56,8 +56,8 @@ const leadCreditSQL = `(p.role = 'director' OR (p.role = 'actor' AND p.ord < 10)
 // see, per person and role, keeping those on at least minTitles.
 func featuredPeopleSQL(libraryID int64, kind string, minTitles int, acc Access) (string, []any) {
 	q, args := acc.Where("items", `SELECT p.person_id, pe.name, p.role, COUNT(*) FROM items
-		CROSS JOIN item_people p ON p.item_id = items.id JOIN people pe ON pe.id = p.person_id
-		WHERE items.library_id = ? AND items.kind = ? AND `+leadCreditSQL+` AND `+playableSQL, []any{libraryID, kind})
+		CROSS JOIN item_people p JOIN people pe ON pe.id = p.person_id
+		WHERE p.item_id = items.id AND items.library_id = ? AND items.kind = ? AND `+leadCreditSQL+` AND `+playableSQL, []any{libraryID, kind})
 	return q + ` GROUP BY p.person_id, pe.name, p.role HAVING COUNT(*) >= ?`, append(args, minTitles)
 }
 
@@ -118,8 +118,8 @@ func (s *Store) FeaturedPeopleFrom(ctx context.Context, h *WatchHistory, library
 			args = append(args, t.ID)
 		}
 		q, args := acc.Where("items", `SELECT items.id, p.person_id, p.role FROM items
-			CROSS JOIN item_people p ON p.item_id = items.id
-			WHERE items.id IN (`+placeholders(len(batch))+`) AND items.library_id = ? AND items.kind = ?
+			CROSS JOIN item_people p
+			WHERE p.item_id = items.id AND items.id IN (`+placeholders(len(batch))+`) AND items.library_id = ? AND items.kind = ?
 				AND `+leadCreditSQL+` AND `+playableSQL, append(args, libraryID, kind))
 		rows, err := s.db.QueryContext(ctx, q, args...)
 		if err != nil {

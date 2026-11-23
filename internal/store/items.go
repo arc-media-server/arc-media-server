@@ -858,8 +858,8 @@ func recentItemWindowSQL(q ItemQuery, limit, offset int, cutoff sql.NullInt64) (
 	args = append(prefix, args...)
 	args = append(args, limit, offset)
 	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM user_item_data watched
-		CROSS JOIN items ON items.id = watched.item_id
-		WHERE watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
+		CROSS JOIN items
+		WHERE items.id = watched.item_id AND watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
 		` ORDER BY watched.last_played_at DESC NULLS LAST, items.sort_title LIMIT ? OFFSET ?`, args
 }
 
@@ -1001,8 +1001,8 @@ func watchedSQL(userID, cond string, condArgs ...any) (string, []any) {
 	// it can start from all of the profile's watch history instead and read it once per show,
 	// which on a large library with a long history took seconds.
 	sql := `(CASE WHEN items.kind = 'series' THEN EXISTS (
-			SELECT 1 FROM items e CROSS JOIN user_item_data u ON u.item_id = e.id AND u.user_id = ?
-			WHERE e.parent_id = items.id AND ` + cond + `)
+			SELECT 1 FROM items e CROSS JOIN user_item_data u
+			WHERE u.item_id = e.id AND u.user_id = ? AND e.parent_id = items.id AND ` + cond + `)
 		ELSE EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND ` + cond + `) END)`
 	args := append([]any{userID}, condArgs...)
 	return sql, append(append(args, userID), condArgs...)
@@ -1083,7 +1083,7 @@ func itemOrdering(q ItemQuery) (string, []any) {
 	case "imdb":
 		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
 	case "critics":
-		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
+		order = "rt_critics IS NULL, rt_critics DESC NULLS LAST, metacritic DESC NULLS LAST, sort_title"
 	case "runtime":
 		order = "runtime_min DESC, sort_title"
 	case "watched":
@@ -1091,8 +1091,8 @@ func itemOrdering(q ItemQuery) (string, []any) {
 		// only its own rows: a title's (by key), or a show's episodes (items_parent). Matching
 		// "id = X OR parent_id = X" read the profile's whole watch history once per title.
 		order = `(CASE WHEN items.kind = 'series' THEN (
-				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
-				WHERE w.parent_id = items.id)
+				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u
+				WHERE u.item_id = w.id AND u.user_id = ? AND w.parent_id = items.id)
 			ELSE (SELECT u.last_played_at FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id) END) DESC NULLS LAST, sort_title`
 		orderArgs = append(orderArgs, q.UserID, q.UserID)
 	case "shuffle":

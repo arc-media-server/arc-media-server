@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"ams/internal/metadata"
+	"ams/internal/perftest"
 	"ams/internal/probe"
 	"ams/internal/store"
 )
@@ -17,7 +18,13 @@ func libraryFixture(t testing.TB, kind string, files map[string]string) (*store.
 	ctx := context.Background()
 	dir := t.TempDir()
 	root := filepath.Join(dir, "media")
-	st, err := store.Open(ctx, filepath.Join(dir, "ams.db"), store.Options{})
+	var st *store.Store
+	var err error
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		st, err = store.OpenPostgres(ctx, dsn, "")
+	} else {
+		st, err = store.Open(ctx, filepath.Join(dir, "ams.db"), store.Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

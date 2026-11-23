@@ -53,10 +53,12 @@ func TestRecentlyWatchedSeriesReadsNewestFirst(t *testing.T) {
 	}
 	old := func(user string, limit int, acc Access) []WatchedSeries {
 		q, args := acc.Where("sr", `
-			SELECT i.parent_id, i.id, MAX(u.last_played_at) FROM user_item_data u JOIN items i ON i.id = u.item_id
+			SELECT i.parent_id, i.id, u.last_played_at,
+				ROW_NUMBER() OVER (PARTITION BY i.parent_id ORDER BY u.last_played_at DESC) AS recency
+			FROM user_item_data u JOIN items i ON i.id = u.item_id
 			JOIN items sr ON sr.id = i.parent_id
 			WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{user})
-		rows, err := st.db.QueryContext(ctx, q+` GROUP BY i.parent_id ORDER BY 3 DESC LIMIT ?`, append(args, limit)...)
+		rows, err := st.db.QueryContext(ctx, `WITH ranked AS (`+q+`) SELECT parent_id, id, last_played_at FROM ranked WHERE recency = 1 ORDER BY last_played_at DESC LIMIT ?`, append(args, limit)...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,9 +87,12 @@ func TestRecentlyWatchedSeriesReadsNewestFirst(t *testing.T) {
 		}
 	}
 
-	rows, err := st.db.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i ON i.id = u.item_id
+	if st.IsPostgres() {
+		return // EXPLAIN QUERY PLAN and its index assertions apply to SQLite.
+	}
+	rows, err := st.db.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i
 		JOIN items sr ON sr.id = i.parent_id
-		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL ORDER BY u.last_played_at DESC`, perftest.UserID)
+		WHERE i.id = u.item_id AND u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL ORDER BY u.last_played_at DESC`, perftest.UserID)
 	if err != nil {
 		t.Fatal(err)
 	}

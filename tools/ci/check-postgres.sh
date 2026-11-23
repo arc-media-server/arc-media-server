@@ -31,3 +31,40 @@ ARC_TEST_POSTGRES_UPGRADE="$endpoint/arc_upgrade?sslmode=disable" \
 ARC_TEST_POSTGRES_RESTORE="$endpoint/arc_restore?sslmode=disable" \
 ARC_TEST_POSTGRES_ONBOARDING="$endpoint/arc_onboarding?sslmode=disable" \
   go test -race ./internal/store ./cmd/ams -run '^TestPostgres' -count=1 -timeout 3m
+
+docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U postgres \
+  -c "CREATE ROLE arc_parity LOGIN CREATEDB PASSWORD 'arc-ci-local-parity'" >/dev/null
+docker exec "$container" createdb -U postgres -O arc_parity arc_parity_control
+# These tests also run with SQLite in the default Go suite.
+parity_tests=(
+  TestWatchState
+  TestRatingsAndWatchlist
+  TestWatchHistoryRowsMatchTheirOwnQueries
+  TestFavouriteGenresKeepEpisodeWeightsAndProfileScope
+  TestRecommendedQueries
+  TestUnstartedAndWatchedEpisodes
+  TestRecommendationWindowsPreserveWatchOrderAccessAndBoundaries
+  TestWatchedWindowsFallBackWithoutChangingResults
+  TestRecentlyWatchedSeriesReadsNewestFirst
+  TestBrowseDirectionPreservesFiltersAndPaging
+  TestBrowseLetterJumpWholeFilteredList
+  TestListItemFilters
+  TestLabels
+  TestMediaFiltersSameFileStreamAndSeriesAccess
+  TestMediaFacetsCountTitlesAndRespectAccess
+  TestMediaFacetsCountShowsOnceThroughEpisodes
+  TestFacetStreamPassKeepsOwnFilesAndEpisodeRestrictions
+  TestUnmatchedFilter
+  TestTVRescanPreservesMultiEpisodeLinksAndCustomOrder
+  TestMovieVersionsLocalAssetsAndRescan
+  TestTargetedMovieScanDoesNotSweepOtherFolders
+  TestTargetedTVScanPreservesShowIdentity
+  TestRenamingMovieOrSeriesKeepsIdentityAndWatchState
+  TestAnalysisDrainsMoreThanOnePageWithoutScanning
+  TestRunNowBoundedToExistingBacklogAndDisabledTasks
+  TestAnalysisActivityIdentifiesLibraryAndFile
+  TestCompletionRestartAndRevisionChanges
+)
+parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")
+ARC_TEST_POSTGRES_PARITY="postgres://arc_parity:arc-ci-local-parity@$address/arc_parity_control?sslmode=disable" \
+  go test -race ./internal/store ./internal/scanner ./internal/background -run "$parity" -count=1 -timeout 3m
