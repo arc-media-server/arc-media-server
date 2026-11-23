@@ -723,6 +723,28 @@
         ],
         "type": "object"
       },
+      "DatabaseSettingsView": {
+        "properties": {
+          "can_edit": {
+            "type": "boolean"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/PostgresConnection"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "restart_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_edit",
+          "engine",
+          "restart_required"
+        ],
+        "type": "object"
+      },
       "Delivery": {
         "properties": {
           "at": {
@@ -1714,6 +1736,37 @@
           "kind",
           "source",
           "start_ms"
+        ],
+        "type": "object"
+      },
+      "InputPostgresConnectionUpdate": {
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "no_tls": {
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "host",
+          "no_tls",
+          "password",
+          "port",
+          "user"
         ],
         "type": "object"
       },
@@ -3597,6 +3650,33 @@
           "date",
           "plays",
           "watched_ms"
+        ],
+        "type": "object"
+      },
+      "PostgresConnection": {
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "no_tls": {
+            "type": "boolean"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "host",
+          "no_tls",
+          "port",
+          "user"
         ],
         "type": "object"
       },
@@ -35995,6 +36075,197 @@
           }
         },
         "summary": "With any of \"tmdb_api_key\", \"tvdb_api_key\", \"ffprobe_path\", \"local_bypass\", \"port\", \"allow_network\"",
+        "tags": [
+          "Settings"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
+    "/settings/database": {
+      "get": {
+        "description": "Returns the active engine and saved connection fields. PostgreSQL passwords and connection strings are omitted.\n\nWho may call it: **admin**.",
+        "operationId": "databaseSettingsView",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseSettingsView"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Returns the active engine and saved connection fields",
+        "tags": [
+          "Settings"
+        ],
+        "x-arc-access": "admin"
+      },
+      "put": {
+        "description": "Validates the PostgreSQL connection and saves it for the next start. Only HTTPS or direct loopback requests can submit database credentials.\n\nWho may call it: **admin**.",
+        "operationId": "updateDatabaseSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputPostgresConnectionUpdate"
+              }
+            }
+          },
+          "description": "Authenticated JSON reads have a 2 MiB server ceiling; endpoint-specific limits can be smaller. Known oversized Content-Length returns 413; streamed overflows can return 400 from the decoder.",
+          "required": true,
+          "x-arc-server-max-bytes": 2097152
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too large",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Validates the PostgreSQL connection and saves it for the next start",
         "tags": [
           "Settings"
         ],

@@ -5020,6 +5020,17 @@ GET /settings 200 .trusted_proxies string
 GET /settings 200 .tvdb_api_key string
 GET /settings 200 .upload_kbps integer
 GET /settings 200 .upnp boolean
+GET /settings/database
+GET /settings/database 200
+GET /settings/database 200 .can_edit boolean
+GET /settings/database 200 .connection object
+GET /settings/database 200 .connection.database string
+GET /settings/database 200 .connection.host string
+GET /settings/database 200 .connection.no_tls boolean
+GET /settings/database 200 .connection.port integer
+GET /settings/database 200 .connection.user string
+GET /settings/database 200 .engine string
+GET /settings/database 200 .restart_required boolean
 GET /stats
 GET /stats 200
 GET /stats 200 .by_library array
@@ -8697,6 +8708,8 @@ PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].image string
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].local boolean
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].name string
 PUT /series/{id}/seasons/{n}/artwork 200 .seasons[].season_number integer
+PUT /settings/database
+PUT /settings/database 204
 PUT /webhooks/{id}
 PUT /webhooks/{id} 200
 PUT /webhooks/{id} 200 .created_at integer

@@ -65,6 +65,15 @@ separate Arc-to-PostgreSQL connection. For a private issuing CA, mount its publi
 read-only and set `PGSSLROOTCERT` to the in-container path. The Arc user must be able to
 read it.
 
+**Change connection details.** Open **Settings → Database and Backup** over HTTPS
+or through the SSH tunnel above. Enter the PostgreSQL password and choose
+**Verify and save**. The connection must reach Arc's current database, and the user
+must have write and schema ownership permissions. Restart Arc to use the saved
+settings. If Arc cannot start, stop it and edit the `dsn` in the existing
+`database.json` as described below. Keep the engine, installation ID and file
+permissions when editing it. Manage connections with extra driver options in the
+file while Arc is stopped.
+
 **Full backup.** Record Arc's image tag, stop Arc, then take a PostgreSQL backup or provider
 snapshot and copy the stopped `/config` directory. Preserve the media paths and private CA
 separately. Arc's `.pg.zip` archives from **Back Up Now** are verified database snapshots

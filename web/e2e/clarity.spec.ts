@@ -111,7 +111,7 @@ test('clarity: backup policy reflects live Off/On, windows, failures and manual 
   // Use the actual Settings control, then revisit through the SPA (same query cache).
   await page.getByRole('switch', { name: 'Database backups', exact: true }).click();
   await expect.poll(async () => (await (await page.request.get('/api/settings')).json()).auto_backups_enabled).toBe(true);
-  await page.getByRole('link', { name: 'Backups & restore', exact: true }).click();
+  await page.getByRole('link', { name: 'Database and Backup', exact: true }).click();
   await expect(status.getByText('Automatic backups: On', { exact: true })).toBeVisible();
   for (const [start, end, text] of [[23, 4, '23:00–04:00'], [6, 6, 'all day']] as const) {
     expect((await page.request.patch('/api/settings', { data: { maintenance_start: start, maintenance_end: end } })).ok()).toBeTruthy();
@@ -128,6 +128,7 @@ test('clarity: backup policy reflects live Off/On, windows, failures and manual 
   fail = false;
   await status.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(status.getByText('Automatic backups: On', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'PostgreSQL connection' })).toHaveCount(0);
   const scope = page.getByRole('region', { name: 'Backup scope', exact: true });
   await expect(scope).toContainText('does not include uploaded artwork, certificates or optimized videos');
   let restores = 0;
@@ -143,6 +144,38 @@ test('clarity: backup policy reflects live Off/On, windows, failures and manual 
   await scope.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('backup-scope-phone.png'), fullPage: true });
+});
+
+test('PostgreSQL connection edits and backup recovery copy', async ({ page, media: _media }, info) => {
+  let saved = false;
+  await page.route('**/api/settings/database', async route => {
+    if (route.request().method() === 'PUT') {
+      expect(route.request().postDataJSON()).toEqual({
+        host: 'db.local', port: 5432, database: 'arc', user: 'arc', password: 'fixture-only', no_tls: false,
+      });
+      saved = true;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    await route.fulfill({ json: {
+      engine: 'postgres', can_edit: true, restart_required: saved,
+      connection: { host: saved ? 'db.local' : 'postgres.local', port: 5432, database: 'arc', user: 'arc', no_tls: false },
+    } });
+  });
+  await page.goto('/backups');
+  const connection = page.getByRole('region', { name: 'PostgreSQL connection' });
+  const password = connection.getByLabel('Database password', { exact: true });
+  await expect(connection.getByLabel('PostgreSQL host', { exact: true })).toHaveValue('postgres.local');
+  await expect(password).toHaveValue('');
+  const scope = page.getByRole('region', { name: 'Backup scope' });
+  await expect(scope).toContainText('.pg.zip');
+  await expect(scope).toContainText('separate, empty PostgreSQL database');
+  await page.screenshot({ path: info.outputPath('database-and-backup.jpg'), type: 'jpeg', fullPage: true });
+  await connection.getByLabel('PostgreSQL host', { exact: true }).fill('db.local');
+  await password.fill('fixture-only');
+  await connection.getByRole('button', { name: 'Verify and save' }).click();
+  await expect(connection.getByText('Restart Arc to use the saved connection.')).toBeVisible();
+  await expect(password).toHaveValue('');
 });
 
 test('clarity: bulk selection names loaded scope and does not select later pages implicitly', async ({ page, media }, info) => {

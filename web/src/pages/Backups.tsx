@@ -8,13 +8,14 @@ import * as fmt from '@/lib/format';
 import { EmptyState, ErrorNotice, ErrorState, Page, PageHeader } from '@/components/Page';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-
-
+import { DatabaseConnection } from '@/components/DatabaseConnection';
 
 export function BackupsPage() {
   const { t } = useTranslation('administration');
   const qc = useQueryClient();
   const backups = useQuery({ queryKey: ['backups'], queryFn: api.backups });
+  const database = useQuery({ queryKey: ['database-settings'], queryFn: api.databaseSettings });
+  const postgres = database.data?.engine === 'postgres';
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings });
   const [restoring, setRestoring] = useState<Backup | null>(null);
   const [deleting, setDeleting] = useState<Backup | null>(null);
@@ -47,17 +48,21 @@ export function BackupsPage() {
     <Page className="pb-16">
       <PageHeader
         title={t("administration:backups.backups")}
-        subtitle={t("administration:backups.backUpAndRestore")}
+        subtitle={postgres ? t('backups.postgresSubtitle') : t('backups.backUpAndRestore')}
         actions={
           <Button variant="secondary" size="sm" onClick={() => create.mutate()} disabled={create.isPending}>
             {create.isPending ? <Loader2 className="animate-spin" /> : <Plus />} {t("administration:backups.backUpNow")}</Button>
         }
       />
       <div className="space-y-4 px-6 md:px-10">
+        {database.error && <ErrorNotice error={database.error} onRetry={() => void database.refetch()} busy={database.isFetching} />}
+        {postgres && <DatabaseConnection connection={database.data?.connection} canEdit={!!database.data?.can_edit} restartRequired={!!database.data?.restart_required} />}
         <section aria-label={t("administration:backups.backupScope")} className="space-y-2 rounded-2xl bg-surface p-4 text-sm ring-1 ring-border">
           <h2 className="font-medium">{t("administration:backups.databaseBackupsAndFull")}</h2>
           <p className="text-muted">{t("administration:backups.backUpNowSaves")}</p>
-          <p className="text-muted">{t("administration:backups.forAFullServer")}</p>
+          {database.data && <p className="text-muted">{postgres ? t('backups.forAFullPostgresServer') : t('backups.forAFullServer')}</p>}
+          {postgres && <p className="text-muted"><Trans ns="administration" i18nKey="backups.postgresRecoveryInstructions"
+            components={{ guide: <a className="text-accent hover:underline" href="https://github.com/arc-media-server/arc-media-server/blob/main/docs/RECOVERY.md#postgresql-setup-and-recovery" target="_blank" rel="noreferrer" /> }} /></p>}
           <p className="text-muted">{t("administration:backups.restoringADatabaseBackup")}</p>
         </section>
         <section aria-label={t("administration:backups.automaticBackupStatus")} className="space-y-2 rounded-2xl bg-surface p-4 ring-1 ring-border text-sm">

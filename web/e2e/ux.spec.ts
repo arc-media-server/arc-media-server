@@ -149,7 +149,7 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   for (const [label, path, heading] of [
     ['Dashboard', '/dashboard', 'Living Room - Dashboard'], ['Insights', '/insights', 'Insights'],
     ['Library Health', '/health', 'Library Health'], ['Manage libraries', '/libraries', 'Libraries'],
-    ['Profiles', '/profiles', 'Profiles'], ['Backups & restore', '/backups', 'Backups'],
+    ['Profiles', '/profiles', 'Profiles'], ['Database and Backup', '/backups', 'Database and Backup'],
   ]) {
     const link = nav.getByRole('link', { name: new RegExp('^' + label) });
     await link.click();
@@ -242,7 +242,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
     const selects = page.locator('main select:visible');
     for (const select of await selects.all()) await expect(select).toHaveAccessibleName(/.+/);
   }
-  await expect(page.getByRole('link', { name: 'Backups & restore', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Database and Backup', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /^Library Health/ }).last()).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/settings');

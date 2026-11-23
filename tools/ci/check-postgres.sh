@@ -97,6 +97,7 @@ parity_tests=(
   TestPlexLists
   TestJellyfinLists
   TestListsFailureKeepsWatchState
+  TestVerifyPostgresConnectionRejectsDatabaseCopy
 )
 parity=$(IFS="|"; printf '^(%s)$' "${parity_tests[*]}")
 ARC_TEST_POSTGRES_PARITY="postgres://arc_parity:arc-ci-local-parity@$address/arc_parity_control?sslmode=disable" \
