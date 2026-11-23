@@ -83,6 +83,7 @@ parity_tests=(
   TestCreateCollectionValidatesMembersBeforeCreatingAndKeepsOptions
   TestSmartCollectionAndPlaylistEvaluateSameRules
   TestPlayQueueAPIIsolationSnapshotAndAccessChanges
+  TestDuplicatesSortsPresentCopiesByTitle
   TestDownloadStoreIdempotencyOwnershipLimitAndRevocation
   TestDownloadConcurrentAdmissionIsIdempotent
   TestDownloadConcurrentAdmissionCannotExceedDeviceLimit
