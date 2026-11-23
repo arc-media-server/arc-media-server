@@ -117,6 +117,9 @@ func TestRecommendationWindowsPreserveWatchOrderAccessAndBoundaries(t *testing.T
 			if err != nil || len(unfiltered) != 5 {
 				t.Fatalf("without a profile, watch-state filters keep their existing semantics: %d %v", len(unfiltered), err)
 			}
+			if st.IsPostgres() {
+				return // This query-plan assertion is specific to SQLite.
+			}
 			query, args := itemWindowSQL(q, 21, 0)
 			rows, err := st.db.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args...)
 			if err != nil {
@@ -210,6 +213,9 @@ func TestWatchedWindowsFallBackWithoutChangingResults(t *testing.T) {
 				}
 			}
 		}
+	}
+	if st.IsPostgres() {
+		return // This query-plan assertion is specific to SQLite.
 	}
 	// Fast-path SQL must include an indexed timestamp range; no unbounded global-history scan.
 	query, args := recentItemWindowSQL(ItemQuery{LibraryID: 1, Kind: "movie", UserID: perftest.UserID, Played: true, Sort: "watched"}, 21, 0, sql.NullInt64{Int64: 2000, Valid: true})

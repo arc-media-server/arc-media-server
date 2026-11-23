@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"ams/internal/activity"
+	"ams/internal/perftest"
 	"ams/internal/schedule"
 	"ams/internal/settings"
 	"ams/internal/store"
@@ -17,7 +18,13 @@ import (
 func fixture(t *testing.T) (context.Context, *store.Store, *Manager, int64) {
 	t.Helper()
 	ctx := context.Background()
-	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "jobs.db"), store.Options{})
+	var st *store.Store
+	var err error
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		st, err = store.OpenPostgres(ctx, dsn, "")
+	} else {
+		st, err = store.Open(ctx, filepath.Join(t.TempDir(), "jobs.db"), store.Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

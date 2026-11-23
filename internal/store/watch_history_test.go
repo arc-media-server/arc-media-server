@@ -92,16 +92,16 @@ func TestWatchHistoryRowsMatchTheirOwnQueries(t *testing.T) {
 	}
 	oldPeople := func(user string, lib int64, kind string, minTitles, limit int, acc Access) []person {
 		titles, args := acc.Where("items", `SELECT items.id, COALESCE(CASE WHEN items.kind = 'series' THEN (
-				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
+				SELECT MAX(u.last_played_at) FROM items w JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
 				WHERE w.parent_id = items.id AND u.last_played_at IS NOT NULL AND (u.played = 1 OR u.position_ms > 0))
 			ELSE (SELECT u.last_played_at FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id
 				AND u.last_played_at IS NOT NULL AND (u.played = 1 OR u.position_ms > 0)) END, 0) AS at
 			FROM items WHERE items.library_id = ? AND items.kind = ? AND `+playableSQL, []any{user, user, lib, kind})
 		rows, err := st.db.QueryContext(ctx, `WITH titles AS MATERIALIZED (`+titles+`)
 			SELECT p.person_id, pe.name, p.role, COUNT(*), MAX(titles.at) FROM titles
-			CROSS JOIN item_people p ON p.item_id = titles.id JOIN people pe ON pe.id = p.person_id
+			JOIN item_people p ON p.item_id = titles.id JOIN people pe ON pe.id = p.person_id
 			WHERE (p.role = 'director' OR (p.role = 'actor' AND p.ord < 10))
-			GROUP BY p.person_id, p.role HAVING COUNT(*) >= ?
+			GROUP BY p.person_id, pe.name, p.role HAVING COUNT(*) >= ?
 			ORDER BY 5 DESC, 4 DESC, pe.name, p.role LIMIT ?`, append(args, minTitles, limit)...)
 		if err != nil {
 			t.Fatal(err)
@@ -121,7 +121,7 @@ func TestWatchHistoryRowsMatchTheirOwnQueries(t *testing.T) {
 		rows, err := st.db.QueryContext(ctx, `SELECT COALESCE(CASE WHEN i.kind = 'episode' THEN i.parent_id END, i.id), MAX(u.last_played_at)
 			FROM user_item_data u JOIN items i ON i.id = u.item_id
 			WHERE u.user_id = ? AND i.library_id = ? AND (u.played = 1 OR u.position_ms > 0) AND u.last_played_at IS NOT NULL
-			GROUP BY 1 ORDER BY 2 DESC LIMIT ?`, user, lib, limit)
+			GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT ?`, user, lib, limit)
 		if err != nil {
 			t.Fatal(err)
 		}

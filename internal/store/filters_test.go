@@ -60,6 +60,12 @@ func TestListItemFilters(t *testing.T) {
 	check("unwatched", titles(ItemQuery{UserID: user.ID, Unwatched: true}), "Dune", "Heat")
 	check("watched sort", titles(ItemQuery{UserID: user.ID, Sort: "watched"}), "Alien", "Dune", "Heat")
 
+	if _, err := st.db.ExecContext(ctx, `UPDATE items SET rt_critics=80,
+		metacritic=CASE WHEN title='Dune' THEN 90 ELSE NULL END WHERE title IN ('Alien','Dune')`); err != nil {
+		t.Fatal(err)
+	}
+	check("critics sort with a missing score", titles(ItemQuery{Sort: "critics"}), "Dune", "Alien", "Heat")
+
 	for _, u := range []struct {
 		title, overview string
 		runtime         int

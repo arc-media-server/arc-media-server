@@ -268,9 +268,9 @@ func (s *Store) RecentlyWatchedSeries(ctx context.Context, userID string, limit 
 	// only as much history is read as it takes to find limit shows. Grouping the whole history
 	// by show read every episode the profile ever watched, on every Continue Watching.
 	q, args := acc.Where("sr", `
-		SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i ON i.id = u.item_id
+		SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i
 		JOIN items sr ON sr.id = i.parent_id
-		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
+		WHERE i.id = u.item_id AND u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
 	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC`, args...)
 	if err != nil {
 		return nil, err
