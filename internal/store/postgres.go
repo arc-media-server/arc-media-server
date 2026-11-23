@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,6 +17,7 @@ var postgresBaseline string
 
 var errPostgresMaintenance = errors.New("this SQLite maintenance operation is unavailable for PostgreSQL")
 var errPostgresInUse = errors.New("PostgreSQL database is already in use by Arc")
+var errPostgresIdentity = errors.New("PostgreSQL database belongs to a different Arc installation")
 
 // OpenPostgres initializes a dedicated database or opens a recognized Arc schema.
 // A backup directory is required when an existing database needs a schema upgrade.
@@ -51,10 +53,22 @@ func openPostgres(ctx context.Context, dsn, backupDir string, schema postgresSch
 	if err != nil {
 		return nil, err
 	}
-	writer := postgresWriter(cfg)
+	var initialized atomic.Bool
+	checkIdentity := func(ctx context.Context, conn *pgx.Conn) error {
+		if binding.id == "" {
+			return nil
+		}
+		return requirePostgresIdentity(ctx, conn.QueryRow, binding.id)
+	}
+	writer := postgresWriter(cfg, func(ctx context.Context, conn *pgx.Conn) error {
+		if !initialized.Load() {
+			return nil
+		}
+		return checkIdentity(ctx, conn)
+	})
 	readConfig := cfg.Copy()
 	readConfig.RuntimeParams["default_transaction_read_only"] = "on"
-	reader := sql.OpenDB(postgresConnector{stdlib.GetConnector(*readConfig)})
+	reader := sql.OpenDB(postgresConnector{stdlib.GetConnector(*readConfig, postgresAfterConnect(checkIdentity))})
 	reader.SetMaxOpenConns(8)
 	reader.SetMaxIdleConns(2)
 
@@ -65,6 +79,7 @@ func openPostgres(ctx context.Context, dsn, backupDir string, schema postgresSch
 		s.Close()
 		return nil, err
 	}
+	initialized.Store(true)
 	if err := s.syncMinAges(ctx); err != nil {
 		s.Close()
 		return nil, err
@@ -88,11 +103,44 @@ func postgresConfig(dsn string) (*pgx.ConnConfig, error) {
 	return cfg, nil
 }
 
-func postgresWriter(cfg *pgx.ConnConfig) *sql.DB {
-	writer := sql.OpenDB(postgresConnector{stdlib.GetConnector(*cfg, stdlib.OptionAfterConnect(lockPostgresWriter))})
+func postgresWriter(cfg *pgx.ConnConfig, verify func(context.Context, *pgx.Conn) error) *sql.DB {
+	connect := postgresAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+		if err := lockPostgresWriter(ctx, conn); err != nil {
+			return err
+		}
+		if verify != nil {
+			return verify(ctx, conn)
+		}
+		return nil
+	})
+	writer := sql.OpenDB(postgresConnector{stdlib.GetConnector(*cfg, connect)})
 	writer.SetMaxOpenConns(1)
 	writer.SetMaxIdleConns(1)
 	return writer
+}
+
+func postgresAfterConnect(verify func(context.Context, *pgx.Conn) error) stdlib.OptionOpenDB {
+	return stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+		if err := verify(ctx, conn); err != nil {
+			// pgx/stdlib does not close a connection rejected by this callback.
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+			defer cancel()
+			_ = conn.Close(cleanup)
+			return err
+		}
+		return nil
+	})
+}
+
+func requirePostgresIdentity(ctx context.Context, query func(context.Context, string, ...any) pgx.Row, expected string) error {
+	var actual string
+	if err := query(ctx, "SELECT value FROM settings WHERE key='server_id'").Scan(&actual); err != nil || actual != expected {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return errPostgresIdentity
+	}
+	return nil
 }
 
 func postgresTransaction(ctx context.Context, writer *sql.DB, run func(pgx.Tx) error) error {

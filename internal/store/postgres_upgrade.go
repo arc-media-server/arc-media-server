@@ -176,9 +176,8 @@ func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema
 			return errors.New("PostgreSQL requires a dedicated empty database")
 		}
 		if binding.id != "" {
-			var id string
-			if err := tx.QueryRow(ctx, "SELECT value FROM settings WHERE key='server_id'").Scan(&id); err != nil || id != binding.id {
-				return errors.New("PostgreSQL database belongs to a different Arc installation")
+			if err := requirePostgresIdentity(ctx, tx.QueryRow, binding.id); err != nil {
+				return err
 			}
 		}
 		level, err := postgresLevel(ctx, tx, schema)

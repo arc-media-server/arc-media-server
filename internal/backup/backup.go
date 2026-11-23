@@ -144,7 +144,11 @@ func (m *Manager) create(ctx context.Context, reason string) (b Backup, err erro
 		os.Remove(tmp)
 		return Backup{}, fmt.Errorf("backup: %w", err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
+	publish := os.Rename
+	if m.store.IsPostgres() {
+		publish = store.PublishPostgresBackup
+	}
+	if err := publish(tmp, path); err != nil {
 		os.Remove(tmp)
 		return Backup{}, err
 	}
