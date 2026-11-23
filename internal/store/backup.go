@@ -34,7 +34,7 @@ func backupReadError(ctx context.Context, err error, message string) error {
 // It's safe to call while AMS is in use.
 func (s *Store) BackupTo(ctx context.Context, path string) error {
 	if s.postgres {
-		return errPostgresMaintenance
+		return s.backupPostgres(ctx, path)
 	}
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("backup %s already exists", path)

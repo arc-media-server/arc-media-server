@@ -61,6 +61,14 @@ func appCORS(next http.Handler) http.Handler {
 	})
 }
 
+// DatabaseSetupAllowed applies the initial setup boundary before the normal API is running.
+func DatabaseSetupAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	site := r.Header.Get("Sec-Fetch-Site")
+	return auth.KnownServerHost(r, "") && site != "cross-site" && site != "same-site" &&
+		(origin == "" || sameOrigin(r, origin))
+}
+
 // sameOrigin reports whether origin names the host the request was sent to (Arc's own web app,
 // e.g. the API docs page), directly or through a proxy that reports the original host.
 func sameOrigin(r *http.Request, origin string) bool {

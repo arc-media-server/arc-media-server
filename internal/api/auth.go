@@ -240,6 +240,7 @@ func toProfile(u store.User) profileDTO {
 }
 
 type authStatusDTO struct {
+	DatabaseNeeded  bool         `json:"database_needed,omitempty"`
 	SetupNeeded     bool         `json:"setup_needed"`
 	SignedIn        bool         `json:"signed_in"`
 	Profile         *profileDTO  `json:"profile" api:"nullable"`

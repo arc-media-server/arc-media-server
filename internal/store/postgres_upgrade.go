@@ -162,7 +162,7 @@ func recordPostgresVersions(ctx context.Context, tx pgx.Tx, versions []string) e
 	return nil
 }
 
-func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema postgresSchema) error {
+func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema postgresSchema, binding postgresBinding) error {
 	if err := checkPostgresVersion(ctx, tx); err != nil {
 		return err
 	}
@@ -172,6 +172,15 @@ func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema
 	}
 	current := len(schema.steps)
 	if exists {
+		if binding.publish != nil {
+			return errors.New("PostgreSQL requires a dedicated empty database")
+		}
+		if binding.id != "" {
+			var id string
+			if err := tx.QueryRow(ctx, "SELECT value FROM settings WHERE key='server_id'").Scan(&id); err != nil || id != binding.id {
+				return errors.New("PostgreSQL database belongs to a different Arc installation")
+			}
+		}
 		level, err := postgresLevel(ctx, tx, schema)
 		if err != nil || level == current {
 			return err
@@ -196,6 +205,9 @@ func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema
 		return safePGError(err)
 	}
 
+	if binding.id != "" && !binding.pending {
+		return errors.New("the selected PostgreSQL database is no longer initialized")
+	}
 	if err := requireEmptyPostgres(ctx, tx); err != nil {
 		return err
 	}
@@ -205,7 +217,11 @@ func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema
 	if err := recordPostgresVersions(ctx, tx, schema.versions); err != nil {
 		return err
 	}
-	for key, value := range map[string]string{"server_id": NewID(), "background_epoch": fmt.Sprint(time.Now().Unix())} {
+	id := binding.id
+	if id == "" {
+		id = NewID()
+	}
+	for key, value := range map[string]string{"server_id": id, "background_epoch": fmt.Sprint(time.Now().Unix())} {
 		if _, err := tx.Exec(ctx, "INSERT INTO settings(key,value) VALUES($1,$2)", key, value); err != nil {
 			return safePGError(err)
 		}
@@ -217,6 +233,11 @@ func initializePostgres(ctx context.Context, tx pgx.Tx, backupDir string, schema
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, "INSERT INTO arc_postgres_schema(singleton,fingerprint,layout_hash) VALUES(1,$1,$2)", schema.fingerprints[current], layout)
-	return safePGError(err)
+	if _, err := tx.Exec(ctx, "INSERT INTO arc_postgres_schema(singleton,fingerprint,layout_hash) VALUES(1,$1,$2)", schema.fingerprints[current], layout); err != nil {
+		return safePGError(err)
+	}
+	if binding.publish != nil {
+		return binding.publish()
+	}
+	return nil
 }

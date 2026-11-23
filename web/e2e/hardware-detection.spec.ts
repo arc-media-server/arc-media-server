@@ -10,7 +10,8 @@ test.beforeEach(async ({ page }) => {
 });
 async function setup(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a database', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Admin');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Password again', { exact: true }).fill(password);

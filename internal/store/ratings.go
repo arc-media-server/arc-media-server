@@ -151,8 +151,8 @@ func (s *Store) CanSee(ctx context.Context, it *Item, a Access) (bool, error) {
 			args = append(args, l)
 		}
 		var hidden bool
-		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM item_labels WHERE item_id = ? AND label IN (`+
-			strings.TrimSuffix(strings.Repeat("?,", len(a.ExcludeLabels)), ",")+`))`, args...).Scan(&hidden); err != nil {
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM item_labels WHERE item_id = ? AND lower(label) IN (`+
+			strings.TrimSuffix(strings.Repeat("lower(?),", len(a.ExcludeLabels)), ",")+`))`, args...).Scan(&hidden); err != nil {
 			return false, err
 		}
 		if hidden {

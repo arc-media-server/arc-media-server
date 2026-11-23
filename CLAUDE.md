@@ -14,8 +14,9 @@ setup, code layout, build/test details and TV ordering gotchas; `ROADMAP.md` for
   release readiness (#130–#138), plus the owner's requests. Arc runs day to day on the owner's
   Unraid server in Docker. On a fresh clone, follow "Setting up a new machine" in
   `docs/DEVELOPING.md`.
-- **SQLite only (owner, 11 November):** PostgreSQL is deferred under #308; keep PRs #337/#339
-  unmerged as reference and don't maintain a parallel PostgreSQL path unless the owner asks.
+- **Database (#308):** SQLite is the default. New installations can choose PostgreSQL during
+  onboarding. Existing installations keep their engine. The first-run and recovery contract is in
+  `docs/changes/2026-11-23-database-selection.md`. PRs #337/#339 remain historical references.
 - **Open owner items:** translations beyond English (#122); real-device playback and casting
   (#135, #192); the optimized copies storage budget (#193, deferred); decisions labelled
   `owner decision` (TheTVDB access is #478).

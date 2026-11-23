@@ -72,6 +72,19 @@ func IsLocal(r *http.Request) bool {
 	return client != "" && IsHomeIP(client)
 }
 
+// IsDatabaseSetupLocal accepts a direct private-network peer on first run, including clients
+// arriving through Docker bridge networking before Arc can load its configured home subnets.
+func IsDatabaseSetupLocal(r *http.Request) bool {
+	if IsLocal(r) {
+		return true
+	}
+	if forwarded(r) {
+		return false
+	}
+	ip := net.ParseIP(peerIP(r))
+	return ip != nil && ip.IsPrivate()
+}
+
 // IsTrustedProxy reports whether the direct peer may supply forwarding metadata.
 func IsTrustedProxy(r *http.Request) bool { return isTrusted(peerIP(r)) }
 

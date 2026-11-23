@@ -108,6 +108,48 @@ func postgresLayoutHash(ctx context.Context, tx pgx.Tx) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// IsPostgres reports the active store backend without exposing connection details.
+func (s *Store) IsPostgres() bool { return s.postgres }
+
+func (s *Store) backupPostgres(ctx context.Context, path string) error {
+	schema, err := currentPostgresSchema()
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	success := false
+	defer func() {
+		if !success {
+			file.Close()
+			os.Remove(path)
+		}
+	}()
+	// A read-only snapshot lets watch progress and other writes continue.
+	err = postgresTransaction(ctx, s.db.DB, func(tx pgx.Tx) error {
+		level, err := postgresLevel(ctx, tx, schema)
+		if err != nil {
+			return err
+		}
+		fingerprint := schema.fingerprints[level]
+		if err := writePostgresArchive(ctx, tx, file, fingerprint); err != nil {
+			return err
+		}
+		if err := file.Sync(); err != nil {
+			return err
+		}
+		if err := file.Close(); err != nil {
+			return err
+		}
+		return verifyPostgresArchive(ctx, path, fingerprint)
+	})
+	success = err == nil
+	return err
+}
+
 func backupPostgresTx(ctx context.Context, tx pgx.Tx, dir, fingerprint string) error {
 	if err := os.Mkdir(dir, 0700); err != nil && !errors.Is(err, os.ErrExist) {
 		return err
@@ -132,7 +174,7 @@ func backupPostgresTx(ctx context.Context, tx pgx.Tx, dir, fingerprint string) e
 	}
 
 	suffix := strings.TrimPrefix(filepath.Base(temp.Name()), ".pg-before-upgrade-")
-	name := "ams-" + time.Now().UTC().Format("20060102-150405") + "-" + suffix + "-before-upgrade.pg.zip"
+	name := "ams-" + time.Now().Format("20060102-150405") + "-" + suffix + "-before-upgrade.pg.zip"
 	if err := os.Rename(temp.Name(), filepath.Join(dir, name)); err != nil {
 		return err
 	}

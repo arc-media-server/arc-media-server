@@ -10,3 +10,8 @@ func securityHeaders(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// ProtectDatabaseSetup applies the normal browser protections while Arc awaits its database.
+func ProtectDatabaseSetup(next http.Handler) http.Handler {
+	return securityHeaders(appCORS(next))
+}

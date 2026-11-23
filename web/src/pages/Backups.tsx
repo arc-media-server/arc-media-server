@@ -168,8 +168,10 @@ function BackupRow({ backup, latest, onRestore, onDelete }: { backup: Backup; la
           {label} · {fmt.fileSize(backup.size)}
         </p>
       </div>
-      <Button variant="secondary" size="sm" onClick={onRestore}>
-        <ArchiveRestore /> {t("administration:backups.restore")}</Button>
+      {backup.name.endsWith('.pg.zip')
+        ? <span className="text-xs text-muted">{t("administration:backups.postgresRestore")}</span>
+        : <Button variant="secondary" size="sm" onClick={onRestore}>
+            <ArchiveRestore /> {t("administration:backups.restore")}</Button>}
       <Button variant="ghost" size="icon" onClick={onDelete} title={t("administration:backups.deleteBackup")} aria-label={t("administration:backups.deleteBackup")}>
         <Trash2 />
       </Button>

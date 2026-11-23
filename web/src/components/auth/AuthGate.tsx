@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { autoProfile, freshStart } from '@/lib/launch';
 import { ErrorState } from '@/components/Page';
 import { ProfilePicker } from './ProfilePicker';
+import { DatabaseSetup } from './DatabaseSetup';
 import { Setup } from './Setup';
 import { SignIn } from './SignIn';
 import { AcceptInvite } from './AcceptInvite';
@@ -15,6 +16,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const launching = useFreshStart(status);
   if (error) return <ErrorState error={error} />;
   if (!status || launching) return null;
+  if (status.database_needed) return <DatabaseSetup />;
   if (status.setup_needed) return <Setup />;
   // An invite link from the admin, for a friend to choose their password.
   const invite = window.location.pathname.match(/^\/invite\/([^/]+)$/);

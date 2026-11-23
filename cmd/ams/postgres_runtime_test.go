@@ -145,6 +145,7 @@ func TestPostgresScratchServer(t *testing.T) {
 	if data := request("GET", "/api/libraries", "", http.StatusOK); !strings.Contains(string(data), "Scratch films") {
 		t.Fatal("library missing from PostgreSQL-backed Arc")
 	}
+	request("GET", "/api/libraries/1/facets", "", http.StatusOK)
 	if data := request("GET", "/api/items?kind=movie", "", http.StatusOK); !strings.Contains(string(data), "Scratch Film") {
 		t.Fatal("catalog item missing from PostgreSQL-backed Arc")
 	}

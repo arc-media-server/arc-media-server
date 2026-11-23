@@ -24,10 +24,29 @@ func OpenPostgres(ctx context.Context, dsn, backupDir string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openPostgres(ctx, dsn, backupDir, schema)
+	return openPostgres(ctx, dsn, backupDir, schema, postgresBinding{})
 }
 
-func openPostgres(ctx context.Context, dsn, backupDir string, schema postgresSchema) (*Store, error) {
+// OpenSelectedPostgres binds the external database to the local installation identity.
+// On a new selection, publish persists the pending choice before PostgreSQL commits.
+func OpenSelectedPostgres(ctx context.Context, dsn, backupDir, id string, pending bool, publish func() error) (*Store, error) {
+	schema, err := currentPostgresSchema()
+	if err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return nil, errors.New("PostgreSQL installation identity is required")
+	}
+	return openPostgres(ctx, dsn, backupDir, schema, postgresBinding{id: id, pending: pending, publish: publish})
+}
+
+type postgresBinding struct {
+	id      string
+	pending bool
+	publish func() error
+}
+
+func openPostgres(ctx context.Context, dsn, backupDir string, schema postgresSchema, binding postgresBinding) (*Store, error) {
 	cfg, err := postgresConfig(dsn)
 	if err != nil {
 		return nil, err
@@ -41,7 +60,7 @@ func openPostgres(ctx context.Context, dsn, backupDir string, schema postgresSch
 
 	s := &Store{db: &database{DB: reader, writer: writer}, postgres: true}
 	if err := postgresTransaction(ctx, writer, func(tx pgx.Tx) error {
-		return initializePostgres(ctx, tx, backupDir, schema)
+		return initializePostgres(ctx, tx, backupDir, schema, binding)
 	}); err != nil {
 		s.Close()
 		return nil, err

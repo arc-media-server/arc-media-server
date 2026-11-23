@@ -25,7 +25,7 @@ func (s *Store) ItemLabels(ctx context.Context, itemID string) ([]string, error)
 
 // AllLabels lists every label in use, for suggestions.
 func (s *Store) AllLabels(ctx context.Context) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT label FROM item_labels GROUP BY label ORDER BY label COLLATE NOCASE`)
+	rows, err := s.db.QueryContext(ctx, `SELECT MIN(label) FROM item_labels GROUP BY lower(label) ORDER BY lower(label)`)
 	if err != nil {
 		return nil, err
 	}
@@ -46,5 +46,5 @@ func (s *Store) AllLabels(ctx context.Context) ([]string, error) {
 func labelsHiddenSQL(alias string, n int) string {
 	a := alias + "."
 	return `NOT EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = (CASE WHEN ` + a + `kind = 'episode' THEN ` +
-		a + `parent_id ELSE ` + a + `id END) AND l.label IN (` + strings.TrimSuffix(strings.Repeat("?,", n), ",") + `))`
+		a + `parent_id ELSE ` + a + `id END) AND lower(l.label) IN (` + strings.TrimSuffix(strings.Repeat("lower(?),", n), ",") + `))`
 }
