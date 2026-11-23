@@ -15,7 +15,11 @@ func TestCollectionCreateRollsBackWhenInitialMemberWriteFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.ExecContext(t.Context(), `CREATE TRIGGER fail_fixture_member BEFORE INSERT ON collection_items BEGIN SELECT RAISE(ABORT,'fixture membership write failure'); END`); err != nil {
+	rejectMember := `CREATE TRIGGER fail_fixture_member BEFORE INSERT ON collection_items BEGIN SELECT RAISE(ABORT,'fixture membership write failure'); END`
+	if s.IsPostgres() {
+		rejectMember = `ALTER TABLE collection_items ADD CONSTRAINT reject_fixture_member CHECK (position < 0)`
+	}
+	if _, err = s.db.ExecContext(t.Context(), rejectMember); err != nil {
 		t.Fatal(err)
 	}
 	c := &Collection{LibraryID: lib, Kind: "manual", Title: "Must roll back"}
