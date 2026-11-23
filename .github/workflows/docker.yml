@@ -62,6 +62,8 @@ jobs:
         run: go test ./... -timeout 10m
       - name: Check concurrent code
         run: go test -race ./... -timeout 15m
+      - name: Check PostgreSQL startup, upgrade and recovery
+        run: bash tools/ci/check-postgres.sh
       - name: Build server with embedded web app
         run: go build ./cmd/ams
       - name: Install browser for regression tests

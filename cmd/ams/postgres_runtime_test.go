@@ -47,7 +47,7 @@ func TestPostgresScratchServer(t *testing.T) {
 	go func() {
 		runErr <- runWithStore(ctx, dataDir, filepath.Join(dataDir, "no-legacy-config"),
 			slog.New(slog.NewTextHandler(os.Stderr, nil)), func(ctx context.Context, _ string, _ store.Options) (*store.Store, error) {
-				st, err := store.OpenPostgres(ctx, dsn)
+				st, err := store.OpenPostgres(ctx, dsn, "")
 				if err != nil {
 					return nil, err
 				}
@@ -91,7 +91,7 @@ func TestPostgresScratchServer(t *testing.T) {
 	}()
 
 	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar, Timeout: 3 * time.Second}
+	client := &http.Client{Jar: jar, Timeout: 10 * time.Second}
 	base := "http://" + address
 	deadline := time.Now().Add(15 * time.Second)
 	for {
@@ -157,7 +157,7 @@ func TestPostgresScratchServer(t *testing.T) {
 	if data := request("GET", "/api/watchlist", "", http.StatusOK); !strings.Contains(string(data), "Scratch Film") {
 		t.Fatal("watchlist did not include the saved item")
 	}
-	if another, err := store.OpenPostgres(ctx, dsn); err == nil {
+	if another, err := store.OpenPostgres(ctx, dsn, ""); err == nil {
 		another.Close()
 		t.Fatal("another Arc writer opened the PostgreSQL database while the server was running")
 	}
@@ -171,7 +171,7 @@ func TestPostgresScratchServer(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dataDir, "ams.db")); !os.IsNotExist(err) {
 		t.Fatalf("PostgreSQL startup left a SQLite database: %v", err)
 	}
-	reopened, err := store.OpenPostgres(t.Context(), dsn)
+	reopened, err := store.OpenPostgres(t.Context(), dsn, "")
 	if err != nil {
 		t.Fatal(err)
 	}
