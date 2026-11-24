@@ -120,7 +120,7 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 	if err != nil {
 		return nil, err
 	}
-	return s.visibleCollections(ctx, libraryID, all, all, acc, counts)
+	return s.visibleCollectionsWithCounts(ctx, libraryID, all, all, acc, counts)
 }
 
 func (s *Store) readCollections(ctx context.Context, where string, args ...any) ([]Collection, error) {
@@ -140,7 +140,11 @@ func (s *Store) readCollections(ctx context.Context, where string, args ...any) 
 	return all, rows.Err()
 }
 
-func (s *Store) visibleCollections(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access, counts map[string]int) ([]Collection, error) {
+func (s *Store) visibleCollections(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access) ([]Collection, error) {
+	return s.visibleCollectionsWithCounts(ctx, libraryID, candidates, peers, acc, nil)
+}
+
+func (s *Store) visibleCollectionsWithCounts(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access, counts map[string]int) ([]Collection, error) {
 	out := []Collection{}
 	if len(candidates) == 0 {
 		return out, nil
@@ -543,7 +547,7 @@ func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Co
 			candidates = append(candidates, c)
 		}
 	}
-	all, err := s.visibleCollections(ctx, it.LibraryID, candidates, peers, acc, nil)
+	all, err := s.visibleCollections(ctx, it.LibraryID, candidates, peers, acc)
 	if err != nil {
 		return nil, err
 	}
