@@ -72,6 +72,36 @@ func TestCollections(t *testing.T) {
 		t.Errorf("The Matrix is in %d collections, want 2", len(in))
 	}
 
+	// The library list gets the same count and first item as the individual
+	// collection. Grid placement also needs every item in its normal order.
+	var autoPreviewCollection Collection
+	for _, collection := range in {
+		if collection.Kind == "auto" {
+			autoPreviewCollection = collection
+		}
+	}
+	for _, mode := range []string{"items", "both"} {
+		previews, err := st.CollectionPreviews(ctx, lib, mode, Access{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range []struct {
+			id, first, second string
+		}{{autoPreviewCollection.ID, matrix, reloaded}, {fav.ID, matrix, alien}} {
+			p := previews[tc.id]
+			want := 1
+			if mode == "both" {
+				want = 2
+			}
+			if p.Count != 2 || len(p.Items) != want || p.Items[0].ID != tc.first {
+				t.Fatalf("%s %s: unexpected preview: %+v", mode, tc.id, p)
+			}
+			if want == 2 && p.Items[1].ID != tc.second {
+				t.Fatalf("%s: wrong second item: %+v", tc.id, p)
+			}
+		}
+	}
+
 	// Removing an automatic collection hides it; it doesn't come back with a refresh.
 	auto, _ := st.Collections(ctx, lib, Access{})
 	for _, c := range auto {
@@ -220,7 +250,20 @@ func TestItemCollectionsRespectMinimumAndProfileAccess(t *testing.T) {
 		}
 	}
 	check(Access{}, 1)
-	check(Access{ExcludeLabels: labels}, 0)
+	restricted := Access{ExcludeLabels: labels}
+	check(restricted, 0)
+	if collections, err := st.Collections(ctx, lib, restricted); err != nil || len(collections) != 0 {
+		t.Fatalf("library collections exposed a collection below the visible minimum: %+v %v", collections, err)
+	}
+	if previews, err := st.CollectionPreviews(ctx, lib, "both", restricted); err != nil || len(previews) != 1 {
+		t.Fatalf("restricted collection previews = %+v: %v", previews, err)
+	} else {
+		for _, preview := range previews {
+			if preview.Count != 1 || len(preview.Items) != 1 || preview.Items[0].ID != one {
+				t.Fatalf("preview exposed a restricted member: %+v", preview)
+			}
+		}
+	}
 	if _, err := st.MarkMissing(ctx, lib, 2, 2); err != nil {
 		t.Fatal(err)
 	}
