@@ -190,15 +190,14 @@ func (s *Server) searchAll(w http.ResponseWriter, r *http.Request) {
 		if !acc.LibraryAllowed(lib.ID) {
 			continue
 		}
-		cols, err := s.store.Collections(ctx, lib.ID, acc)
+		cols, err := s.store.SearchCollections(ctx, lib.ID, acc, func(title string) bool {
+			return match.Score(search.Normalize(title)) > 0
+		})
 		if err != nil {
 			s.fail(w, err)
 			return
 		}
 		for _, c := range cols {
-			if search.Score(q, c.Title) == 0 {
-				continue
-			}
 			first, total, err := s.collectionItems(r, &c, 1)
 			if err != nil || total == 0 {
 				continue
