@@ -1,7 +1,7 @@
 {
   "seasonLabels": {
     "label": "Season labels",
-    "help": "Choose how to label seasons. Manually edited names always take priority.",
+    "help": "Choose how to label standard seasons. Episode groups keep their own labels. Manually edited names always take priority.",
     "number": "Season numbers",
     "name": "Use season names when available"
   },

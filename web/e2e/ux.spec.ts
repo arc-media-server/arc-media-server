@@ -659,14 +659,14 @@ test('playback failures can retry without reopening the title', async ({ page })
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
-test('season labels follow the library with a per-show override', async ({ page }) => {
+test('season labels keep episode group names with a numbered preference', async ({ page }) => {
   const { lib, item } = await seed(page, true);
   await page.goto('/series/' + item.id);
   await openOrdering(page);
   await chooseDisplay(page, /Story Order/);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
 
   await page.goto('/libraries');
   const row = page.getByRole('region', { name: lib.name, exact: true });
@@ -687,9 +687,14 @@ test('season labels follow the library with a per-show override', async ({ page 
   await showLabels.selectOption('number');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
   await openOrdering(page);
   await expect(showLabels).toHaveValue('number');
+  await chooseDisplay(page, /TMDB.*Aired Order/);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
+  await openOrdering(page);
+  await chooseDisplay(page, /Story Order/);
   await showLabels.selectOption('');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();

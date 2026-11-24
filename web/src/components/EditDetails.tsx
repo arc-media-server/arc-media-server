@@ -298,11 +298,12 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
         )}
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('libraryEditor:seasonLabels.label')}</span>
-          <select value={seasonLabelMode} onChange={e => setSeasonLabelMode(e.target.value as SeasonLabelMode | '')} className={inputClass}>
+          <select aria-label={t('libraryEditor:seasonLabels.label')} aria-describedby={`${item.id}-season-label-help`} value={seasonLabelMode} onChange={e => setSeasonLabelMode(e.target.value as SeasonLabelMode | '')} className={inputClass}>
             <option value="">{t('details:editDetails.inheritSeasonLabels')}</option>
             <option value="number">{t('libraryEditor:seasonLabels.number')}</option>
             <option value="name">{t('libraryEditor:seasonLabels.name')}</option>
           </select>
+          <span id={`${item.id}-season-label-help`} className="mt-1.5 block text-xs text-subtle">{t('libraryEditor:seasonLabels.help')}</span>
         </label>
         {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>{t("details:editDetails.retry")}</Button></p>}
         {orders.data && <EpisodeOrderingFields

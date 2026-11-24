@@ -273,6 +273,8 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		// A named episode group defines its own labels, such as cours or story arcs.
+		useNames := ordering.Source == "tmdb_group" || cmp.Or(series.SeasonLabelMode, lib.SeasonLabelMode) == "name"
 		bySeason := map[int]*seasonDTO{}
 		for _, e := range entries { // sorted by season, episode
 			ep, ok := byID[e.EpisodeID]
@@ -289,7 +291,7 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			if sd == nil {
 				d := details[e.GroupSeason]
 				season := e.GroupSeason
-				name := seasonDisplayName(season, d, cmp.Or(series.SeasonLabelMode, lib.SeasonLabelMode))
+				name := seasonDisplayName(season, d, useNames)
 				sd = &seasonDTO{SeasonNumber: season, Name: name, Overview: d.Overview, LockedFields: d.LockedFields,
 					Poster: seasonPosterURL(series.ID, season, posters[season])}
 				if d.Name != name {
@@ -348,8 +350,8 @@ func validSeasonLabelMode(mode string) bool {
 	return mode == "number" || mode == "name"
 }
 
-func seasonDisplayName(number int, season store.Season, mode string) string {
-	if strings.TrimSpace(season.Name) != "" && (slices.Contains(season.LockedFields, "name") || number != 0 && mode == "name") {
+func seasonDisplayName(number int, season store.Season, useNames bool) string {
+	if strings.TrimSpace(season.Name) != "" && (slices.Contains(season.LockedFields, "name") || number != 0 && useNames) {
 		return season.Name
 	}
 	return defaultSeasonName(number)
