@@ -353,9 +353,11 @@ func (s *Store) ItemFiles(ctx context.Context, itemID string) ([]MediaFile, erro
 // series was read from its folder.
 func (s *Store) SeriesFilePaths(ctx context.Context, seriesID string, limit int) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT DISTINCT m.path FROM items i
+		SELECT m.path FROM items i
 		JOIN item_files f ON f.item_id = i.id JOIN media_files m ON m.id = f.file_id
-		WHERE i.parent_id = ? ORDER BY m.missing_since IS NOT NULL, m.path LIMIT ?`, seriesID, limit)
+		WHERE i.parent_id = ?
+		GROUP BY m.path, m.missing_since
+		ORDER BY m.missing_since IS NOT NULL, m.path LIMIT ?`, seriesID, limit)
 	if err != nil {
 		return nil, err
 	}

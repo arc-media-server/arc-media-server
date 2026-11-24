@@ -84,6 +84,7 @@ parity_tests=(
   TestSmartCollectionAndPlaylistEvaluateSameRules
   TestPlayQueueAPIIsolationSnapshotAndAccessChanges
   TestDuplicatesSortsPresentCopiesByTitle
+  TestSeriesFilePathsPreferPresentAndDeduplicate
   TestDownloadStoreIdempotencyOwnershipLimitAndRevocation
   TestDownloadConcurrentAdmissionIsIdempotent
   TestDownloadConcurrentAdmissionCannotExceedDeviceLimit
