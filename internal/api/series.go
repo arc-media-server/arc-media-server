@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -184,6 +185,8 @@ type seasonEpisode struct {
 type seasonDTO struct {
 	SeasonNumber int    `json:"season_number"`
 	Name         string `json:"name"`
+	// Stored season name when it differs from the display label.
+	MetadataName string `json:"metadata_name,omitempty"`
 	Overview     string `json:"overview,omitempty"`
 	// Season fields edited by hand ("name", "overview").
 	LockedFields []string `json:"locked_fields"`
@@ -285,13 +288,15 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 			sd := bySeason[e.GroupSeason]
 			if sd == nil {
 				d := details[e.GroupSeason]
-				sd = &seasonDTO{SeasonNumber: e.GroupSeason, Name: d.Name, Overview: d.Overview, LockedFields: d.LockedFields,
-					Poster: seasonPosterURL(series.ID, e.GroupSeason, posters[e.GroupSeason])}
+				season := e.GroupSeason
+				name := seasonDisplayName(season, d, cmp.Or(series.SeasonLabelMode, lib.SeasonLabelMode))
+				sd = &seasonDTO{SeasonNumber: season, Name: name, Overview: d.Overview, LockedFields: d.LockedFields,
+					Poster: seasonPosterURL(series.ID, season, posters[season])}
+				if d.Name != name {
+					sd.MetadataName = d.Name
+				}
 				if sd.LockedFields == nil {
 					sd.LockedFields = []string{}
-				}
-				if sd.Name == "" {
-					sd.Name = defaultSeasonName(e.GroupSeason)
 				}
 				bySeason[e.GroupSeason] = sd
 				seasons = append(seasons, sd)
@@ -337,6 +342,17 @@ func (s *Server) seasons(w http.ResponseWriter, r *http.Request) {
 		"seasons":  seasons,
 		"unplaced": unplaced,
 	})
+}
+
+func validSeasonLabelMode(mode string) bool {
+	return mode == "number" || mode == "name"
+}
+
+func seasonDisplayName(number int, season store.Season, mode string) string {
+	if strings.TrimSpace(season.Name) != "" && (slices.Contains(season.LockedFields, "name") || number != 0 && mode == "name") {
+		return season.Name
+	}
+	return defaultSeasonName(number)
 }
 
 func defaultSeasonName(n int) string {

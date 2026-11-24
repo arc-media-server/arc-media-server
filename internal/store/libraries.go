@@ -182,14 +182,14 @@ func underAny(path string, folders []string) bool {
 }
 
 func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region FROM libraries ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region, season_label_mode FROM libraries ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
 	var libs []Library
 	for rows.Next() {
 		var l Library
-		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion, &l.SeasonLabelMode); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -211,8 +211,8 @@ func (s *Store) ListLibraries(ctx context.Context) ([]Library, error) {
 func (s *Store) GetLibrary(ctx context.Context, id int64) (*Library, error) {
 	var l Library
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region FROM libraries WHERE id = ?`, id).
-		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion)
+		`SELECT id, name, CASE WHEN videos = 1 THEN 'videos' ELSE kind END, source_ordering, trickplay, collection_min, metadata_language, skip_intros, skip_credits, collection_grid, details_provider, rating_region, season_label_mode FROM libraries WHERE id = ?`, id).
+		Scan(&l.ID, &l.Name, &l.Kind, &l.SourceOrdering, &l.Trickplay, &l.CollectionMin, &l.MetadataLanguage, &l.SkipIntros, &l.SkipCredits, &l.CollectionGrid, &l.DetailsProvider, &l.RatingRegion, &l.SeasonLabelMode)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
