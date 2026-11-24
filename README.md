@@ -18,6 +18,10 @@
 </p>
 
 <p align="center">
+  <a href="#running-with-docker">Set up Arc Server</a> · <a href="#arc-apps">Find an Arc app</a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/home.png" alt="Arc's home screen" width="900">
 </p>
 
@@ -31,8 +35,8 @@ Arc uses automatic defaults and in-app settings, with no plugins to manage and n
 analytics or telemetry.
 
 > **Alpha software.** The current focus is stability and release readiness. Start with the web
-> app; native client projects are in development and readiness varies by platform. Keep backups
-> of Arc's data folder. See the [roadmap](ROADMAP.md) and [release checklist](docs/ALPHA-CHECKLIST.md).
+> app or explore the [Arc apps](#arc-apps). Keep backups of Arc's data folder. See the
+> [roadmap](ROADMAP.md) and [release checklist](docs/ALPHA-CHECKLIST.md).
 
 <table>
   <tr>
@@ -79,6 +83,19 @@ maintenance controls optional work, and Activity and Dashboard show progress and
 **🔌 An open API.** The server provides documented, versioned endpoints for the web app,
 native clients and integrations. [Start building a client](docs/CLIENT-INTEGRATION.md).
 
+## Arc apps
+
+Connect these apps to your Arc server. Each repository has screenshots and installation instructions.
+
+| App | Devices |
+| --- | --- |
+| [Arc for Apple TV](https://github.com/arc-media-server/arc-apple) | Apple TV running tvOS 18 or later |
+| [Arc for Android TV](https://github.com/arc-media-server/arc-android) | Android TV and Google TV running Android 8.0 or later |
+| [Arc for LG and Samsung TVs](https://github.com/arc-media-server/arc-tv) | LG webOS 4.5+ and Samsung Tizen 5.5+ |
+| [Arc for Roku](https://github.com/arc-media-server/arc-roku) | Roku players and Roku TVs |
+| [Arc for Kodi](https://github.com/arc-media-server/arc-kodi) | Devices running Kodi 19 or later |
+
+The apps are in alpha, with availability and features varying by platform.
 
 ## Running with Docker
 
