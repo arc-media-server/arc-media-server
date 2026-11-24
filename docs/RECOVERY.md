@@ -65,6 +65,15 @@ separate Arc-to-PostgreSQL connection. For a private issuing CA, mount its publi
 read-only and set `PGSSLROOTCERT` to the in-container path. The Arc user must be able to
 read it.
 
+**Temporary database outage.** A database request that fails because PostgreSQL
+is unreachable returns an unavailable response. Arc's web app shows the outage
+and checks for recovery. Retry failed saves after it returns. If a previously
+configured PostgreSQL server is unavailable when Arc starts, Arc serves its
+startup status screen and retries. The startup listener uses `AMS_LISTEN`, or
+loopback port 8099 when it is unset. Database-backed ports and Arc-managed HTTPS
+are loaded after PostgreSQL connects. Use the HTTP listener directly or through
+your existing reverse proxy while waiting.
+
 **Change connection details.** Open **Settings → Database and Backup** over HTTPS
 or through the SSH tunnel above. Enter the PostgreSQL password and choose
 **Verify and save**. The connection must reach Arc's current database, and the user

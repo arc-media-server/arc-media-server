@@ -42,7 +42,7 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 	dir := t.TempDir()
 	client, base := testDatabaseClient(t, address)
 
-	start := func() func() {
+	start := func(want int) func() {
 		t.Helper()
 		ctx, cancel := context.WithCancel(t.Context())
 		finished := make(chan error, 1)
@@ -65,7 +65,7 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 			res, err := client.Get(base + "/api/auth/status")
 			if err == nil {
 				res.Body.Close()
-				if res.StatusCode == http.StatusOK {
+				if res.StatusCode == want {
 					return stop
 				}
 			}
@@ -114,7 +114,7 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 		}
 	}
 
-	stop := start()
+	stop := start(http.StatusOK)
 	status := request("GET", "/api/auth/status", nil, "", http.StatusOK)
 	if !strings.Contains(string(status), `"database_needed":true`) {
 		t.Fatal("first run did not ask for database choice")
@@ -172,7 +172,7 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 		t.Fatal("saved connection changed the installation identity or was not updated", err)
 	}
 	stop()
-	stop = start()
+	stop = start(http.StatusOK)
 	if view := request("GET", "/api/settings/database", nil, base, http.StatusOK); !strings.Contains(string(view), `"restart_required":false`) ||
 		!strings.Contains(string(view), `"host":"localhost"`) {
 		t.Fatal("restart did not use the saved connection")
@@ -187,7 +187,7 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 	if err := saveDatabaseChoice(dir, choice, false); err != nil {
 		t.Fatal(err)
 	}
-	stop = start()
+	stop = start(http.StatusOK)
 	status = request("GET", "/api/auth/status", nil, "", http.StatusOK)
 	if !strings.Contains(string(status), `"setup_needed":false`) {
 		t.Fatal("Arc reopened on a new database instead of its saved choice")
@@ -201,10 +201,13 @@ func TestPostgresDatabaseOnboarding(t *testing.T) {
 	if err := saveDatabaseChoice(dir, choice, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := runWithStore(t.Context(), dir, filepath.Join(dir, "no-legacy-config"), slog.New(slog.NewTextHandler(io.Discard, nil)), nil); err == nil {
-		t.Fatal("Arc started while its selected PostgreSQL database was unavailable")
+	stop = start(http.StatusServiceUnavailable)
+	unavailable := request("GET", "/api/auth/status", nil, "", http.StatusServiceUnavailable)
+	if !strings.Contains(string(unavailable), `"code":"database_unavailable"`) {
+		t.Fatalf("unexpected startup status: %s", unavailable)
 	}
 	noFile("ams.db")
+	stop()
 }
 
 func testDatabaseHTTPAddress(t *testing.T) string {

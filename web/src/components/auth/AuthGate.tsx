@@ -4,6 +4,7 @@ import { api, type AuthStatus } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { autoProfile, freshStart } from '@/lib/launch';
 import { ErrorState } from '@/components/Page';
+import { DatabaseOutage, useDatabaseOutage } from './DatabaseOutage';
 import { ProfilePicker } from './ProfilePicker';
 import { DatabaseSetup } from './DatabaseSetup';
 import { Setup } from './Setup';
@@ -14,14 +15,16 @@ import { AcceptInvite } from './AcceptInvite';
 export function AuthGate({ children }: { children: ReactNode }) {
   const { data: status, error } = useAuth();
   const launching = useFreshStart(status);
-  if (error) return <ErrorState error={error} />;
+  const databaseOffline = useDatabaseOutage(error);
+  if (databaseOffline && (!status || !status.profile || launching)) return <DatabaseOutage fullPage />;
+  if (error && !databaseOffline) return <ErrorState error={error} />;
   if (!status || launching) return null;
   if (status.database_needed) return <DatabaseSetup />;
   if (status.setup_needed) return <Setup />;
   // An invite link from the admin, for a friend to choose their password.
   const invite = window.location.pathname.match(/^\/invite\/([^/]+)$/);
   if (invite) return <AcceptInvite token={decodeURIComponent(invite[1])} />;
-  if (status.profile) return <>{children}</>;
+  if (status.profile) return <>{databaseOffline && <DatabaseOutage />}{children}</>;
   if (status.signed_in || status.bypass) return <ProfilePicker status={status} />;
   return <SignIn />;
 }

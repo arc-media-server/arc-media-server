@@ -1062,6 +1062,7 @@ export class ApiError extends Error {
     readonly status: number,
     /** What the server needs to go on, e.g. "pin" or "password" when choosing a profile. */
     readonly needs?: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -1069,6 +1070,7 @@ export class ApiError extends Error {
 
 /** Fired when the server says the session is gone, so the app can show the sign-in screen. */
 export const UNAUTHORIZED_EVENT = 'ams:unauthorized';
+export const DATABASE_UNAVAILABLE_EVENT = 'ams:database-unavailable';
 
 async function request<T>(method: string, path: string, body?: unknown, opts: { keepalive?: boolean } = {}): Promise<T> {
   const res = await fetch(path, {
@@ -1081,15 +1083,18 @@ async function request<T>(method: string, path: string, body?: unknown, opts: { 
   if (!res.ok) {
     let message = res.statusText;
     let needs: string | undefined;
+    let code: string | undefined;
     try {
       const body = await res.json();
       message = body.error ?? message;
       needs = body.needs;
+      code = body.code;
     } catch {
       // not JSON; keep the status text
     }
     if (res.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
-    throw new ApiError(message, res.status, needs);
+    if (res.status === 503 && code === 'database_unavailable') window.dispatchEvent(new Event(DATABASE_UNAVAILABLE_EVENT));
+    throw new ApiError(message, res.status, needs, code);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

@@ -139,6 +139,9 @@ func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.L
 			switch {
 			case choice.Engine != "" || legacy != nil || sqliteErr == nil:
 				st, err = openDatabaseChoice(ctx, dataDir, choice, options)
+				if choice.Engine == "postgres" && store.IsPostgresUnavailable(err) {
+					st, err = waitForPostgres(ctx, dataDir, choice, options, log)
+				}
 			case errors.Is(sqliteErr, os.ErrNotExist):
 				var closeSetup func()
 				st, publishHandler, closeSetup, err = waitForDatabase(ctx, dataDir, options, log)

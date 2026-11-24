@@ -220,3 +220,23 @@ test('clarity: bulk selection names loaded scope and does not select later pages
   await page.getByRole('button', { name: 'Stop choosing', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop choosing', exact: true })).toHaveCount(0);
 });
+
+test('database outage explains startup and keeps the signed-in shell during a disconnect', async ({ page, media: _media }) => {
+  let offline = true;
+  const unavailable = { status: 503, json: { error: 'Arc cannot reach its database', code: 'database_unavailable' } };
+  await page.route('**/api/auth/status', route => offline ? route.fulfill(unavailable) : route.continue());
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'Database unavailable' })).toBeVisible();
+  offline = false;
+  await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible();
+  await expect(page.getByText('Database unavailable', { exact: true })).toHaveCount(0);
+
+  await page.route('**/api/backups', route => offline ? route.fulfill(unavailable) : route.continue());
+  offline = true;
+  await page.getByRole('link', { name: 'Database and Backup', exact: true }).click();
+  await expect(page.getByText('Database unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Settings sections' })).toBeVisible();
+  offline = false;
+  await expect(page.getByRole('heading', { name: 'Database and Backup', exact: true })).toBeVisible();
+  await expect(page.getByText('Database unavailable', { exact: true })).toHaveCount(0);
+});
