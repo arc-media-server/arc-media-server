@@ -109,6 +109,35 @@ func memberSQL(c *Collection) (string, []any) {
 // can see. Automatic ones need the library's minimum number of titles; smart ones are counted by
 // the caller (their count is -1 here).
 func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([]Collection, error) {
+	all, err := s.readCollections(ctx, `WHERE library_id = ? AND hidden = 0`, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	return s.visibleCollections(ctx, libraryID, all, all, acc)
+}
+
+func (s *Store) readCollections(ctx context.Context, where string, args ...any) ([]Collection, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+collectionCols+` FROM collections `+where+` ORDER BY sort_title`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var all []Collection
+	for rows.Next() {
+		var c Collection
+		if err := scanCollection(rows, &c); err != nil {
+			return nil, err
+		}
+		all = append(all, c)
+	}
+	return all, rows.Err()
+}
+
+func (s *Store) visibleCollections(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access) ([]Collection, error) {
+	out := []Collection{}
+	if len(candidates) == 0 {
+		return out, nil
+	}
 	var min int
 	if err := s.db.QueryRowContext(ctx, `SELECT collection_min FROM libraries WHERE id = ?`, libraryID).Scan(&min); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -116,28 +145,12 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 		}
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+collectionCols+` FROM collections
-		WHERE library_id = ? AND hidden = 0 ORDER BY sort_title`, libraryID)
-	if err != nil {
-		return nil, err
-	}
-	var all []Collection
-	for rows.Next() {
-		var c Collection
-		if err := scanCollection(rows, &c); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		all = append(all, c)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	out := []Collection{}
-	for _, c := range all {
+	for _, c := range candidates {
 		if c.Kind == "auto" {
-			dup, err := s.autoDuplicated(ctx, &c, all)
+			if min == 0 {
+				continue
+			}
+			dup, err := s.autoDuplicated(ctx, &c, peers)
 			if err != nil {
 				return nil, err
 			}
@@ -149,9 +162,6 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 		case "smart":
 			c.Count = -1
 		default:
-			if c.Kind == "auto" && min == 0 {
-				continue
-			}
 			n, err := s.countMembers(ctx, &c, acc)
 			if err != nil {
 				return nil, err
@@ -400,8 +410,11 @@ func (s *Store) OrderCollection(ctx context.Context, id string, itemIDs []string
 // ItemCollections lists the automatic and manual collections a title is in (automatic ones only
 // when the library shows them).
 func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Collection, error) {
-	all, err := s.Collections(ctx, it.LibraryID, acc)
-	if err != nil {
+	var tmdbColl int64
+	if err := s.db.QueryRowContext(ctx, `SELECT tmdb_collection_id FROM items WHERE id = ?`, it.ID).Scan(&tmdbColl); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Collection{}, nil
+		}
 		return nil, err
 	}
 	var manual = map[string]bool{}
@@ -418,8 +431,33 @@ func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Co
 		manual[id] = true
 	}
 	rows.Close()
-	var tmdbColl int64
-	s.db.QueryRowContext(ctx, `SELECT tmdb_collection_id FROM items WHERE id = ?`, it.ID).Scan(&tmdbColl)
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if tmdbColl == 0 && len(manual) == 0 {
+		return []Collection{}, nil
+	}
+
+	// A same-name manual copy can suppress the automatic collection even for a
+	// missing title it doesn't contain. Load those peers without counting them.
+	peers, err := s.readCollections(ctx, `WHERE library_id = ? AND hidden = 0 AND (
+		(kind = 'auto' AND tmdb_id <> 0 AND tmdb_id = ?)
+		OR (kind = 'manual' AND ?)
+		OR id IN (SELECT collection_id FROM collection_items WHERE item_id = ?))`,
+		it.LibraryID, tmdbColl, tmdbColl != 0, it.ID)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []Collection
+	for _, c := range peers {
+		if (c.Kind == "auto" && c.TMDBID != 0 && c.TMDBID == tmdbColl) || manual[c.ID] {
+			candidates = append(candidates, c)
+		}
+	}
+	all, err := s.visibleCollections(ctx, it.LibraryID, candidates, peers, acc)
+	if err != nil {
+		return nil, err
+	}
 	// A title in a manual collection and an automatic one of the same name (Plex's copy of a TMDB
 	// collection, imported) gets one row for them, the manual one's.
 	inManual := map[string]bool{}

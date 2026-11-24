@@ -67,6 +67,7 @@ parity_tests=(
   TestCollections
   TestEditedCollectionSurvivesRefresh
   TestImportedCopyOfAutomaticCollectionShowsOnce
+  TestItemCollectionsRespectMinimumAndProfileAccess
   TestFolderCollections
   TestCollectionCreateRollsBackWhenInitialMemberWriteFails
   TestCollectionCreateRejectsWrongLibraryAndEpisodeBeforeWrite
