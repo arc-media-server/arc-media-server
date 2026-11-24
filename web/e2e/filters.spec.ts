@@ -44,7 +44,19 @@ test('filters: video formats from the library, watch status, and the address kee
   const facets = await (await page.request.get(`/api/libraries/${lib.id}/facets`)).json();
   expect(facets.video_codecs.map((f: { value: string }) => f.value).sort()).toEqual(['h264', 'mpeg2video']);
 
-  await page.goto(`/library/${lib.id}`);
+  const browseRequests: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/items' && url.searchParams.get('library_id') === String(lib.id)) browseRequests.push('items');
+    if (url.pathname === `/api/libraries/${lib.id}/facets`) browseRequests.push('facets');
+  });
+  const collections = page.waitForResponse(response => new URL(response.url()).pathname === `/api/libraries/${lib.id}/collections` && response.ok());
+  await page.goto(`/library/${lib.id}?view=recommended`);
+  await expect(page.getByRole('region', { name: 'Recently Added in Formats', exact: true })).toBeVisible();
+  await collections;
+  expect(browseRequests).toEqual([]);
+  await page.getByRole('tab', { name: 'Library', exact: true }).click();
+  await expect.poll(() => new Set(browseRequests)).toEqual(new Set(['items', 'facets']));
   const grid = page.getByRole('main');
   await expect(grid.getByText('Remux Movie', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Filters', exact: true }).click();
