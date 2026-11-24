@@ -59,11 +59,11 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]Orderin
 	if err != nil {
 		return nil, err
 	}
-	for i := range entries {
-		entries[i].GroupSeason = entries[i].Season
-	}
 	o, err := s.GetOrdering(ctx, orderingID)
 	if err != nil || o == nil {
+		for i := range entries {
+			entries[i].GroupSeason = entries[i].Season
+		}
 		return entries, err
 	}
 	inline, err := s.InlineSpecials(ctx, o.SeriesID)
@@ -91,6 +91,13 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]Orderin
 			return nil, err
 		}
 	}
+	return placeSpecials(entries, before), nil
+}
+
+func placeSpecials(entries []OrderingEntry, before map[string]string) []OrderingEntry {
+	for i := range entries {
+		entries[i].GroupSeason = entries[i].Season
+	}
 	if len(before) == 0 {
 		// With no inline placements there is nothing to map or deduplicate. Preserve all
 		// regular entries (including repeated identities) and append Specials as before.
@@ -105,7 +112,7 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]Orderin
 				out = append(out, e)
 			}
 		}
-		return out, nil
+		return out
 	}
 	// First position wins, matching the existing season response's identity de-duplication.
 	unique := []OrderingEntry{}
@@ -149,5 +156,5 @@ func (s *Store) DisplayEntries(ctx context.Context, orderingID int64) ([]Orderin
 		}
 		out = append(out, e)
 	}
-	return append(out, specials...), nil
+	return append(out, specials...)
 }
