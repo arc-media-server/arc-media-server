@@ -9,6 +9,7 @@ type episodeContext struct {
 	series    *store.Item
 	positions map[string][2]int
 	entries   []store.OrderingEntry
+	source    string
 }
 
 // episodeContexts is request-local: reuse one parent/order lookup per series without
@@ -41,4 +42,36 @@ func (c *episodeContexts) get(parent string) (episodeContext, error) {
 	}
 	c.cached[parent] = found
 	return found, nil
+}
+
+// preload shares series and display-order reads across the episodes on Home.
+func (c *episodeContexts) preload(ids []string) error {
+	var missing []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if _, ok := c.cached[id]; !ok && !seen[id] {
+			missing = append(missing, id)
+			seen[id] = true
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	series, err := c.server.store.ItemsByID(c.ctx, missing)
+	if err != nil {
+		return err
+	}
+	orders, err := c.server.store.SeriesDisplayOrders(c.ctx, missing)
+	if err != nil {
+		return err
+	}
+	for _, id := range missing {
+		found := episodeContext{}
+		if item, ok := series[id]; ok {
+			order := orders[id]
+			found = episodeContext{series: &item, positions: entryPositions(order.Entries), entries: order.Entries, source: order.Source}
+		}
+		c.cached[id] = found
+	}
+	return nil
 }
