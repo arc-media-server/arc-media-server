@@ -332,6 +332,11 @@ Keep the three kinds of state separate:
 
 ## Errors, correlation and retries
 
+When Arc cannot reach PostgreSQL, affected requests return HTTP 503 with
+`code: "database_unavailable"` and `Retry-After`. Keep the signed-in session.
+Retry reads after the indicated delay. Offer to retry failed writes once Arc is
+reachable again.
+
 Check HTTP status before decoding JSON. Common JSON errors preserve `error` (human-readable) and
 optional `needs` (for example `pin`, `password`, `stopped`), and add `code` plus `request_id`.
 `request_id` matches the `X-Request-ID` response header and existing request diagnostics. IDs are

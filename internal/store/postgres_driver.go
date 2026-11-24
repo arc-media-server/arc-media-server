@@ -114,17 +114,29 @@ func (r *pgRows) Next(v []driver.Value) error {
 	}
 	return safePGError(err)
 }
+
+// ErrPostgresUnavailable identifies a failed connection or a stopped database.
+var ErrPostgresUnavailable = errors.New("PostgreSQL is unavailable")
+
+// IsPostgresUnavailable also accepts the driver sentinels needed by database/sql for reconnects.
+func IsPostgresUnavailable(err error) bool {
+	return errors.Is(err, ErrPostgresUnavailable) || errors.Is(err, driver.ErrBadConn) || errors.Is(err, io.EOF)
+}
+
 func safePGError(err error) error {
 	if err == nil {
 		return nil
 	}
-	for _, sentinel := range []error{errPostgresInUse, errPostgresIdentity, io.EOF, driver.ErrBadConn, context.Canceled, context.DeadlineExceeded} {
+	for _, sentinel := range []error{errPostgresInUse, errPostgresIdentity, io.EOF, driver.ErrBadConn, ErrPostgresUnavailable, context.Canceled, context.DeadlineExceeded} {
 		if errors.Is(err, sentinel) {
 			return sentinel
 		}
 	}
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) {
+		if strings.HasPrefix(pg.Code, "08") || pg.Code == "57P01" || pg.Code == "57P02" || pg.Code == "57P03" || pg.Code == "53300" {
+			return ErrPostgresUnavailable
+		}
 		switch pg.Code {
 		case "28P01", "28000":
 			return fmt.Errorf("PostgreSQL authentication failed; check the account and password (SQLSTATE %s)", pg.Code)
@@ -148,12 +160,13 @@ func safePGError(err error) error {
 	if strings.Contains(err.Error(), "server refused TLS") {
 		return errors.New("PostgreSQL server refused required TLS; enable TLS or explicitly disable it only on a trusted network")
 	}
+	var network *net.OpError
+	var dns *net.DNSError
+	if errors.As(err, &network) || errors.As(err, &dns) {
+		return ErrPostgresUnavailable
+	}
 	if lower := strings.ToLower(err.Error()); strings.Contains(lower, "tls") || strings.Contains(lower, "x509:") || strings.Contains(lower, "certificate") {
 		return errors.New("PostgreSQL TLS connection failed; check the server certificate, hostname and trust configuration")
-	}
-	var network *net.OpError
-	if errors.As(err, &network) {
-		return errors.New("PostgreSQL network connection failed; check the host, port and server availability")
 	}
 	// Driver/network errors can embed connection strings, passwords or row values.
 	return errors.New("PostgreSQL connection or operation failed; check database availability, TLS and credentials")

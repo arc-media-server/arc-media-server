@@ -97,6 +97,9 @@ func (s *Server) readSession(w http.ResponseWriter, r *http.Request) (*store.Ses
 }
 func (s *Server) sessionUnavailable(w http.ResponseWriter, r *http.Request, err error) {
 	requestStage(r, "reading session", 0)
+	if s.databaseUnavailable(w, err) {
+		return
+	}
 	markFailureLogged(w)
 	if r.Context().Err() == nil {
 		s.log.Error("session lookup failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
@@ -269,7 +272,12 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		out.SignedIn = true
 		out.PasswordSession = se.Via == "password"
 		if se.UserID != "" {
-			if u, err := s.store.GetUser(ctx, se.UserID); err == nil && u != nil {
+			u, err := s.store.GetUser(ctx, se.UserID)
+			if err != nil {
+				s.fail(w, err)
+				return
+			}
+			if u != nil {
 				profile := toProfile(*u)
 				out.Profile = &profile
 			}
@@ -290,6 +298,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		out.Profiles = profiles
 	}
 	out.Friend = se != nil && se.Via == "friend"
+	s.databaseRecovered()
 	writeJSON(w, http.StatusOK, out)
 }
 

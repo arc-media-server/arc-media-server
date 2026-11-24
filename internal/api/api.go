@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ams/internal/artwork"
@@ -96,6 +97,7 @@ type Deps struct {
 }
 
 type Server struct {
+	postgresOutage    atomic.Int64
 	workContext       context.Context
 	workers           *sync.WaitGroup
 	bulkMu            sync.Mutex
@@ -921,6 +923,9 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
+	if s.databaseUnavailable(w, err) {
+		return
+	}
 	markFailureLogged(w)
 	if !errors.Is(err, context.Canceled) {
 		s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
@@ -934,8 +939,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(errorMetadata(w, status, v))
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
+func writeError(w http.ResponseWriter, status int, msg string, code ...string) {
+	body := map[string]string{"error": msg}
+	if len(code) > 0 {
+		body["code"] = code[0]
+	}
+	writeJSON(w, status, body)
 }
 
 // responseRecorder reaches summary state through wrappers without changing the response.
