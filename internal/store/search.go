@@ -35,6 +35,22 @@ func (s *Store) SearchTitleNames(ctx context.Context, acc Access) ([]TitleName, 
 	return out, rows.Err()
 }
 
+// SearchCollections checks collection names before counting visible members. Keep the full
+// library list for detecting imported manual copies of automatic collections.
+func (s *Store) SearchCollections(ctx context.Context, libraryID int64, acc Access, matchesTitle func(string) bool) ([]Collection, error) {
+	all, err := s.readCollections(ctx, `WHERE library_id = ? AND hidden = 0`, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []Collection
+	for _, collection := range all {
+		if matchesTitle(collection.Title) {
+			candidates = append(candidates, collection)
+		}
+	}
+	return s.visibleCollections(ctx, libraryID, candidates, all, acc)
+}
+
 // SearchTitles returns every movie and show a profile can see, for ranking against a search.
 func (s *Store) SearchTitles(ctx context.Context, acc Access) ([]Item, error) {
 	q := `SELECT ` + itemCols + ` FROM items WHERE kind IN ('movie', 'series') AND ` + playableSQL
