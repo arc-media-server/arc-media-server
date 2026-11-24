@@ -174,3 +174,64 @@ func TestImportedCopyOfAutomaticCollectionShowsOnce(t *testing.T) {
 		t.Fatalf("title in both: %+v", in)
 	}
 }
+
+func TestItemCollectionsRespectMinimumAndProfileAccess(t *testing.T) {
+	ctx := t.Context()
+	st := openTest(t)
+	lib, err := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(title string, seen int64) string {
+		t.Helper()
+		id, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/fixture/" + title, Size: 1}, 1, seen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SetFileItems(ctx, file, []string{id}, 0); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	one, two := add("First", 1), add("Second", 2)
+	ref := &CollectionRef{TMDBID: 90, Name: "Fixture Collection"}
+	for _, id := range []string{one, two} {
+		if err := st.SetMovieCollection(ctx, id, lib, ref); err != nil {
+			t.Fatal(err)
+		}
+	}
+	labels := []string{"restricted"}
+	if err := st.EditItem(ctx, two, ItemEdit{Labels: &labels}); err != nil {
+		t.Fatal(err)
+	}
+	it, err := st.GetItem(ctx, one)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(acc Access, want int) {
+		t.Helper()
+		got, err := st.ItemCollections(ctx, it, acc)
+		if err != nil || len(got) != want || (want == 1 && (got[0].Kind != "auto" || got[0].TMDBID != ref.TMDBID)) {
+			t.Fatalf("item collections = %+v, want %d automatic collections: %v", got, want, err)
+		}
+	}
+	check(Access{}, 1)
+	check(Access{ExcludeLabels: labels}, 0)
+	if _, err := st.MarkMissing(ctx, lib, 2, 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetLibraryCollectionMin(ctx, lib, 1); err != nil {
+		t.Fatal(err)
+	}
+	check(Access{}, 1)
+	// This imported copy holds all present members and suppresses the automatic
+	// collection even on the page for the missing member it doesn't contain.
+	if _, err := st.ImportCollection(ctx, lib, " fixture collection ", []string{two}); err != nil {
+		t.Fatal(err)
+	}
+	check(Access{}, 0)
+}
