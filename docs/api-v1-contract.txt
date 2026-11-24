@@ -314,6 +314,7 @@ GET /collections/{id} 200 .items[].rating number
 GET /collections/{id} 200 .items[].release_date string
 GET /collections/{id} 200 .items[].rotten_tomatoes integer
 GET /collections/{id} 200 .items[].runtime_min integer
+GET /collections/{id} 200 .items[].season_label_mode string
 GET /collections/{id} 200 .items[].season_number integer
 GET /collections/{id} 200 .items[].series_title string
 GET /collections/{id} 200 .items[].sort_title string
@@ -617,6 +618,7 @@ GET /home/continue 200 [].rating number
 GET /home/continue 200 [].release_date string
 GET /home/continue 200 [].rotten_tomatoes integer
 GET /home/continue 200 [].runtime_min integer
+GET /home/continue 200 [].season_label_mode string
 GET /home/continue 200 [].season_number integer
 GET /home/continue 200 [].series_title string
 GET /home/continue 200 [].sort_title string
@@ -763,6 +765,7 @@ GET /home/next-up 200 [].rating number
 GET /home/next-up 200 [].release_date string
 GET /home/next-up 200 [].rotten_tomatoes integer
 GET /home/next-up 200 [].runtime_min integer
+GET /home/next-up 200 [].season_label_mode string
 GET /home/next-up 200 [].season_number integer
 GET /home/next-up 200 [].series_title string
 GET /home/next-up 200 [].sort_title string
@@ -927,6 +930,7 @@ GET /items 200 .items[].rating number
 GET /items 200 .items[].release_date string
 GET /items 200 .items[].rotten_tomatoes integer
 GET /items 200 .items[].runtime_min integer
+GET /items 200 .items[].season_label_mode string
 GET /items 200 .items[].season_number integer
 GET /items 200 .items[].series_title string
 GET /items 200 .items[].sort_title string
@@ -1048,6 +1052,7 @@ GET /items/lookup 200 .items[].rating number
 GET /items/lookup 200 .items[].release_date string
 GET /items/lookup 200 .items[].rotten_tomatoes integer
 GET /items/lookup 200 .items[].runtime_min integer
+GET /items/lookup 200 .items[].season_label_mode string
 GET /items/lookup 200 .items[].season_number integer
 GET /items/lookup 200 .items[].series_title string
 GET /items/lookup 200 .items[].sort_title string
@@ -1167,6 +1172,7 @@ GET /items/{id} 200 .rating number
 GET /items/{id} 200 .release_date string
 GET /items/{id} 200 .rotten_tomatoes integer
 GET /items/{id} 200 .runtime_min integer
+GET /items/{id} 200 .season_label_mode string
 GET /items/{id} 200 .season_number integer
 GET /items/{id} 200 .series_title string
 GET /items/{id} 200 .sort_title string
@@ -1355,6 +1361,7 @@ GET /items/{id}/match 200 .item.rating number
 GET /items/{id}/match 200 .item.release_date string
 GET /items/{id}/match 200 .item.rotten_tomatoes integer
 GET /items/{id}/match 200 .item.runtime_min integer
+GET /items/{id}/match 200 .item.season_label_mode string
 GET /items/{id}/match 200 .item.season_number integer
 GET /items/{id}/match 200 .item.series_title string
 GET /items/{id}/match 200 .item.sort_title string
@@ -1520,6 +1527,7 @@ GET /items/{id}/next 200 .rating number
 GET /items/{id}/next 200 .release_date string
 GET /items/{id}/next 200 .rotten_tomatoes integer
 GET /items/{id}/next 200 .runtime_min integer
+GET /items/{id}/next 200 .season_label_mode string
 GET /items/{id}/next 200 .season_number integer
 GET /items/{id}/next 200 .series_title string
 GET /items/{id}/next 200 .sort_title string
@@ -1640,6 +1648,7 @@ GET /items/{id}/similar 200 [].rating number
 GET /items/{id}/similar 200 [].release_date string
 GET /items/{id}/similar 200 [].rotten_tomatoes integer
 GET /items/{id}/similar 200 [].runtime_min integer
+GET /items/{id}/similar 200 [].season_label_mode string
 GET /items/{id}/similar 200 [].season_number integer
 GET /items/{id}/similar 200 [].series_title string
 GET /items/{id}/similar 200 [].sort_title string
@@ -1779,6 +1788,7 @@ GET /libraries 200 [].scan.stopped boolean
 GET /libraries 200 [].scan.stopping boolean
 GET /libraries 200 [].scan.total integer
 GET /libraries 200 [].scan.unmatched integer
+GET /libraries 200 [].season_label_mode string
 GET /libraries 200 [].skip_credits boolean
 GET /libraries 200 [].skip_intros boolean
 GET /libraries 200 [].source_ordering string
@@ -1977,6 +1987,7 @@ GET /libraries/{id}/folders 200 .items[].rating number
 GET /libraries/{id}/folders 200 .items[].release_date string
 GET /libraries/{id}/folders 200 .items[].rotten_tomatoes integer
 GET /libraries/{id}/folders 200 .items[].runtime_min integer
+GET /libraries/{id}/folders 200 .items[].season_label_mode string
 GET /libraries/{id}/folders 200 .items[].season_number integer
 GET /libraries/{id}/folders 200 .items[].series_title string
 GET /libraries/{id}/folders 200 .items[].sort_title string
@@ -2114,6 +2125,7 @@ GET /libraries/{id}/health 200 .duplicates[].items[].rating number
 GET /libraries/{id}/health 200 .duplicates[].items[].release_date string
 GET /libraries/{id}/health 200 .duplicates[].items[].rotten_tomatoes integer
 GET /libraries/{id}/health 200 .duplicates[].items[].runtime_min integer
+GET /libraries/{id}/health 200 .duplicates[].items[].season_label_mode string
 GET /libraries/{id}/health 200 .duplicates[].items[].season_number integer
 GET /libraries/{id}/health 200 .duplicates[].items[].series_title string
 GET /libraries/{id}/health 200 .duplicates[].items[].sort_title string
@@ -2149,6 +2161,7 @@ GET /libraries/{id}/health 200 .library.name string
 GET /libraries/{id}/health 200 .library.paths array
 GET /libraries/{id}/health 200 .library.paths[] string
 GET /libraries/{id}/health 200 .library.rating_region string
+GET /libraries/{id}/health 200 .library.season_label_mode string
 GET /libraries/{id}/health 200 .library.skip_credits boolean
 GET /libraries/{id}/health 200 .library.skip_intros boolean
 GET /libraries/{id}/health 200 .library.source_ordering string
@@ -2257,6 +2270,7 @@ GET /libraries/{id}/health 200 .missing_episodes[].series.rating number
 GET /libraries/{id}/health 200 .missing_episodes[].series.release_date string
 GET /libraries/{id}/health 200 .missing_episodes[].series.rotten_tomatoes integer
 GET /libraries/{id}/health 200 .missing_episodes[].series.runtime_min integer
+GET /libraries/{id}/health 200 .missing_episodes[].series.season_label_mode string
 GET /libraries/{id}/health 200 .missing_episodes[].series.season_number integer
 GET /libraries/{id}/health 200 .missing_episodes[].series.series_title string
 GET /libraries/{id}/health 200 .missing_episodes[].series.sort_title string
@@ -2386,6 +2400,7 @@ GET /libraries/{id}/health 200 .unidentified[].rating number
 GET /libraries/{id}/health 200 .unidentified[].release_date string
 GET /libraries/{id}/health 200 .unidentified[].rotten_tomatoes integer
 GET /libraries/{id}/health 200 .unidentified[].runtime_min integer
+GET /libraries/{id}/health 200 .unidentified[].season_label_mode string
 GET /libraries/{id}/health 200 .unidentified[].season_number integer
 GET /libraries/{id}/health 200 .unidentified[].series_title string
 GET /libraries/{id}/health 200 .unidentified[].sort_title string
@@ -2545,6 +2560,7 @@ GET /libraries/{id}/recent-shows 200 [].item.rating number
 GET /libraries/{id}/recent-shows 200 [].item.release_date string
 GET /libraries/{id}/recent-shows 200 [].item.rotten_tomatoes integer
 GET /libraries/{id}/recent-shows 200 [].item.runtime_min integer
+GET /libraries/{id}/recent-shows 200 [].item.season_label_mode string
 GET /libraries/{id}/recent-shows 200 [].item.season_number integer
 GET /libraries/{id}/recent-shows 200 [].item.series_title string
 GET /libraries/{id}/recent-shows 200 [].item.sort_title string
@@ -2668,6 +2684,7 @@ GET /libraries/{id}/recommended 200 .rows[].items[].rating number
 GET /libraries/{id}/recommended 200 .rows[].items[].release_date string
 GET /libraries/{id}/recommended 200 .rows[].items[].rotten_tomatoes integer
 GET /libraries/{id}/recommended 200 .rows[].items[].runtime_min integer
+GET /libraries/{id}/recommended 200 .rows[].items[].season_label_mode string
 GET /libraries/{id}/recommended 200 .rows[].items[].season_number integer
 GET /libraries/{id}/recommended 200 .rows[].items[].series_title string
 GET /libraries/{id}/recommended 200 .rows[].items[].sort_title string
@@ -2801,6 +2818,7 @@ GET /libraries/{id}/recommended/rows/{row} 200 .items[].rating number
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].release_date string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].rotten_tomatoes integer
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].runtime_min integer
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].season_label_mode string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].season_number integer
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].series_title string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].sort_title string
@@ -2940,6 +2958,7 @@ GET /libraries/{id}/unmatched 200 [].rating number
 GET /libraries/{id}/unmatched 200 [].release_date string
 GET /libraries/{id}/unmatched 200 [].rotten_tomatoes integer
 GET /libraries/{id}/unmatched 200 [].runtime_min integer
+GET /libraries/{id}/unmatched 200 [].season_label_mode string
 GET /libraries/{id}/unmatched 200 [].season_number integer
 GET /libraries/{id}/unmatched 200 [].series_title string
 GET /libraries/{id}/unmatched 200 [].sort_title string
@@ -3238,6 +3257,7 @@ GET /me/year 200 .items{}.rating number
 GET /me/year 200 .items{}.release_date string
 GET /me/year 200 .items{}.rotten_tomatoes integer
 GET /me/year 200 .items{}.runtime_min integer
+GET /me/year 200 .items{}.season_label_mode string
 GET /me/year 200 .items{}.season_number integer
 GET /me/year 200 .items{}.series_title string
 GET /me/year 200 .items{}.sort_title string
@@ -3396,6 +3416,7 @@ GET /news 200 .entries[].item.rating number
 GET /news 200 .entries[].item.release_date string
 GET /news 200 .entries[].item.rotten_tomatoes integer
 GET /news 200 .entries[].item.runtime_min integer
+GET /news 200 .entries[].item.season_label_mode string
 GET /news 200 .entries[].item.season_number integer
 GET /news 200 .entries[].item.series_title string
 GET /news 200 .entries[].item.sort_title string
@@ -3540,6 +3561,7 @@ GET /people/{id} 200 .credits[].item.rating number
 GET /people/{id} 200 .credits[].item.release_date string
 GET /people/{id} 200 .credits[].item.rotten_tomatoes integer
 GET /people/{id} 200 .credits[].item.runtime_min integer
+GET /people/{id} 200 .credits[].item.season_label_mode string
 GET /people/{id} 200 .credits[].item.season_number integer
 GET /people/{id} 200 .credits[].item.series_title string
 GET /people/{id} 200 .credits[].item.sort_title string
@@ -3671,6 +3693,7 @@ GET /play-queues/{id} 200 .entries[].item.rating number
 GET /play-queues/{id} 200 .entries[].item.release_date string
 GET /play-queues/{id} 200 .entries[].item.rotten_tomatoes integer
 GET /play-queues/{id} 200 .entries[].item.runtime_min integer
+GET /play-queues/{id} 200 .entries[].item.season_label_mode string
 GET /play-queues/{id} 200 .entries[].item.season_number integer
 GET /play-queues/{id} 200 .entries[].item.series_title string
 GET /play-queues/{id} 200 .entries[].item.sort_title string
@@ -3797,6 +3820,7 @@ GET /playing 200 [].item.rating number
 GET /playing 200 [].item.release_date string
 GET /playing 200 [].item.rotten_tomatoes integer
 GET /playing 200 [].item.runtime_min integer
+GET /playing 200 [].item.season_label_mode string
 GET /playing 200 [].item.season_number integer
 GET /playing 200 [].item.series_title string
 GET /playing 200 [].item.sort_title string
@@ -3982,6 +4006,7 @@ GET /playlists/{id} 200 .entries[].item.rating number
 GET /playlists/{id} 200 .entries[].item.release_date string
 GET /playlists/{id} 200 .entries[].item.rotten_tomatoes integer
 GET /playlists/{id} 200 .entries[].item.runtime_min integer
+GET /playlists/{id} 200 .entries[].item.season_label_mode string
 GET /playlists/{id} 200 .entries[].item.season_number integer
 GET /playlists/{id} 200 .entries[].item.series_title string
 GET /playlists/{id} 200 .entries[].item.sort_title string
@@ -4261,6 +4286,7 @@ GET /search 200 .episodes[].rating number
 GET /search 200 .episodes[].release_date string
 GET /search 200 .episodes[].rotten_tomatoes integer
 GET /search 200 .episodes[].runtime_min integer
+GET /search 200 .episodes[].season_label_mode string
 GET /search 200 .episodes[].season_number integer
 GET /search 200 .episodes[].series_title string
 GET /search 200 .episodes[].sort_title string
@@ -4380,6 +4406,7 @@ GET /search 200 .movies[].rating number
 GET /search 200 .movies[].release_date string
 GET /search 200 .movies[].rotten_tomatoes integer
 GET /search 200 .movies[].runtime_min integer
+GET /search 200 .movies[].season_label_mode string
 GET /search 200 .movies[].season_number integer
 GET /search 200 .movies[].series_title string
 GET /search 200 .movies[].sort_title string
@@ -4501,6 +4528,7 @@ GET /search 200 .shows[].rating number
 GET /search 200 .shows[].release_date string
 GET /search 200 .shows[].rotten_tomatoes integer
 GET /search 200 .shows[].runtime_min integer
+GET /search 200 .shows[].season_label_mode string
 GET /search 200 .shows[].season_number integer
 GET /search 200 .shows[].series_title string
 GET /search 200 .shows[].sort_title string
@@ -4661,6 +4689,7 @@ GET /series/{id}/seasons 200 .seasons[].episodes[].rating number
 GET /series/{id}/seasons 200 .seasons[].episodes[].release_date string
 GET /series/{id}/seasons 200 .seasons[].episodes[].rotten_tomatoes integer
 GET /series/{id}/seasons 200 .seasons[].episodes[].runtime_min integer
+GET /series/{id}/seasons 200 .seasons[].episodes[].season_label_mode string
 GET /series/{id}/seasons 200 .seasons[].episodes[].season_number integer
 GET /series/{id}/seasons 200 .seasons[].episodes[].series_title string
 GET /series/{id}/seasons 200 .seasons[].episodes[].sort_title string
@@ -4684,6 +4713,7 @@ GET /series/{id}/seasons 200 .seasons[].episodes[].user_data.watchlisted boolean
 GET /series/{id}/seasons 200 .seasons[].episodes[].year integer
 GET /series/{id}/seasons 200 .seasons[].locked_fields array
 GET /series/{id}/seasons 200 .seasons[].locked_fields[] string
+GET /series/{id}/seasons 200 .seasons[].metadata_name string
 GET /series/{id}/seasons 200 .seasons[].name string
 GET /series/{id}/seasons 200 .seasons[].overview string
 GET /series/{id}/seasons 200 .seasons[].poster string
@@ -4779,6 +4809,7 @@ GET /series/{id}/seasons 200 .series.rating number
 GET /series/{id}/seasons 200 .series.release_date string
 GET /series/{id}/seasons 200 .series.rotten_tomatoes integer
 GET /series/{id}/seasons 200 .series.runtime_min integer
+GET /series/{id}/seasons 200 .series.season_label_mode string
 GET /series/{id}/seasons 200 .series.season_number integer
 GET /series/{id}/seasons 200 .series.series_title string
 GET /series/{id}/seasons 200 .series.sort_title string
@@ -4897,6 +4928,7 @@ GET /series/{id}/seasons 200 .unplaced[].rating number
 GET /series/{id}/seasons 200 .unplaced[].release_date string
 GET /series/{id}/seasons 200 .unplaced[].rotten_tomatoes integer
 GET /series/{id}/seasons 200 .unplaced[].runtime_min integer
+GET /series/{id}/seasons 200 .unplaced[].season_label_mode string
 GET /series/{id}/seasons 200 .unplaced[].season_number integer
 GET /series/{id}/seasons 200 .unplaced[].series_title string
 GET /series/{id}/seasons 200 .unplaced[].sort_title string
@@ -5150,6 +5182,7 @@ GET /stats 200 .items{}.rating number
 GET /stats 200 .items{}.release_date string
 GET /stats 200 .items{}.rotten_tomatoes integer
 GET /stats 200 .items{}.runtime_min integer
+GET /stats 200 .items{}.season_label_mode string
 GET /stats 200 .items{}.season_number integer
 GET /stats 200 .items{}.series_title string
 GET /stats 200 .items{}.sort_title string
@@ -5322,6 +5355,7 @@ GET /stats/history 200 .items{}.rating number
 GET /stats/history 200 .items{}.release_date string
 GET /stats/history 200 .items{}.rotten_tomatoes integer
 GET /stats/history 200 .items{}.runtime_min integer
+GET /stats/history 200 .items{}.season_label_mode string
 GET /stats/history 200 .items{}.season_number integer
 GET /stats/history 200 .items{}.series_title string
 GET /stats/history 200 .items{}.sort_title string
@@ -5493,6 +5527,7 @@ GET /stats/storage 200 .items{}.rating number
 GET /stats/storage 200 .items{}.release_date string
 GET /stats/storage 200 .items{}.rotten_tomatoes integer
 GET /stats/storage 200 .items{}.runtime_min integer
+GET /stats/storage 200 .items{}.season_label_mode string
 GET /stats/storage 200 .items{}.season_number integer
 GET /stats/storage 200 .items{}.series_title string
 GET /stats/storage 200 .items{}.sort_title string
@@ -5743,6 +5778,7 @@ GET /watchlist 200 [].rating number
 GET /watchlist 200 [].release_date string
 GET /watchlist 200 [].rotten_tomatoes integer
 GET /watchlist 200 [].runtime_min integer
+GET /watchlist 200 [].season_label_mode string
 GET /watchlist 200 [].season_number integer
 GET /watchlist 200 [].series_title string
 GET /watchlist 200 [].sort_title string
@@ -5927,6 +5963,7 @@ PATCH /items/{id} 200 .rating number
 PATCH /items/{id} 200 .release_date string
 PATCH /items/{id} 200 .rotten_tomatoes integer
 PATCH /items/{id} 200 .runtime_min integer
+PATCH /items/{id} 200 .season_label_mode string
 PATCH /items/{id} 200 .season_number integer
 PATCH /items/{id} 200 .series_title string
 PATCH /items/{id} 200 .sort_title string
@@ -5960,6 +5997,7 @@ PATCH /libraries/{id} 200 .name string
 PATCH /libraries/{id} 200 .paths array
 PATCH /libraries/{id} 200 .paths[] string
 PATCH /libraries/{id} 200 .rating_region string
+PATCH /libraries/{id} 200 .season_label_mode string
 PATCH /libraries/{id} 200 .skip_credits boolean
 PATCH /libraries/{id} 200 .skip_intros boolean
 PATCH /libraries/{id} 200 .source_ordering string
@@ -6116,6 +6154,7 @@ PATCH /play-queues/{id} 200 .entries[].item.rating number
 PATCH /play-queues/{id} 200 .entries[].item.release_date string
 PATCH /play-queues/{id} 200 .entries[].item.rotten_tomatoes integer
 PATCH /play-queues/{id} 200 .entries[].item.runtime_min integer
+PATCH /play-queues/{id} 200 .entries[].item.season_label_mode string
 PATCH /play-queues/{id} 200 .entries[].item.season_number integer
 PATCH /play-queues/{id} 200 .entries[].item.series_title string
 PATCH /play-queues/{id} 200 .entries[].item.sort_title string
@@ -6570,6 +6609,7 @@ POST /collections/{id}/artwork/{type} 200 .items[].rating number
 POST /collections/{id}/artwork/{type} 200 .items[].release_date string
 POST /collections/{id}/artwork/{type} 200 .items[].rotten_tomatoes integer
 POST /collections/{id}/artwork/{type} 200 .items[].runtime_min integer
+POST /collections/{id}/artwork/{type} 200 .items[].season_label_mode string
 POST /collections/{id}/artwork/{type} 200 .items[].season_number integer
 POST /collections/{id}/artwork/{type} 200 .items[].series_title string
 POST /collections/{id}/artwork/{type} 200 .items[].sort_title string
@@ -6833,6 +6873,7 @@ POST /items/batch 200 .items[].rating number
 POST /items/batch 200 .items[].release_date string
 POST /items/batch 200 .items[].rotten_tomatoes integer
 POST /items/batch 200 .items[].runtime_min integer
+POST /items/batch 200 .items[].season_label_mode string
 POST /items/batch 200 .items[].season_number integer
 POST /items/batch 200 .items[].series_title string
 POST /items/batch 200 .items[].sort_title string
@@ -6973,6 +7014,7 @@ POST /items/{id}/artwork/{type} 200 .rating number
 POST /items/{id}/artwork/{type} 200 .release_date string
 POST /items/{id}/artwork/{type} 200 .rotten_tomatoes integer
 POST /items/{id}/artwork/{type} 200 .runtime_min integer
+POST /items/{id}/artwork/{type} 200 .season_label_mode string
 POST /items/{id}/artwork/{type} 200 .season_number integer
 POST /items/{id}/artwork/{type} 200 .series_title string
 POST /items/{id}/artwork/{type} 200 .sort_title string
@@ -7298,6 +7340,7 @@ POST /items/{id}/refresh 200 .rating number
 POST /items/{id}/refresh 200 .release_date string
 POST /items/{id}/refresh 200 .rotten_tomatoes integer
 POST /items/{id}/refresh 200 .runtime_min integer
+POST /items/{id}/refresh 200 .season_label_mode string
 POST /items/{id}/refresh 200 .season_number integer
 POST /items/{id}/refresh 200 .series_title string
 POST /items/{id}/refresh 200 .sort_title string
@@ -7431,6 +7474,7 @@ POST /items/{id}/unmatch 200 .rating number
 POST /items/{id}/unmatch 200 .release_date string
 POST /items/{id}/unmatch 200 .rotten_tomatoes integer
 POST /items/{id}/unmatch 200 .runtime_min integer
+POST /items/{id}/unmatch 200 .season_label_mode string
 POST /items/{id}/unmatch 200 .season_number integer
 POST /items/{id}/unmatch 200 .series_title string
 POST /items/{id}/unmatch 200 .sort_title string
@@ -7469,6 +7513,7 @@ POST /libraries 201 .name string
 POST /libraries 201 .paths array
 POST /libraries 201 .paths[] string
 POST /libraries 201 .rating_region string
+POST /libraries 201 .season_label_mode string
 POST /libraries 201 .skip_credits boolean
 POST /libraries 201 .skip_intros boolean
 POST /libraries 201 .source_ordering string
@@ -7568,6 +7613,7 @@ POST /libraries/{id}/compatibility 200 .converted[].item.rating number
 POST /libraries/{id}/compatibility 200 .converted[].item.release_date string
 POST /libraries/{id}/compatibility 200 .converted[].item.rotten_tomatoes integer
 POST /libraries/{id}/compatibility 200 .converted[].item.runtime_min integer
+POST /libraries/{id}/compatibility 200 .converted[].item.season_label_mode string
 POST /libraries/{id}/compatibility 200 .converted[].item.season_number integer
 POST /libraries/{id}/compatibility 200 .converted[].item.series_title string
 POST /libraries/{id}/compatibility 200 .converted[].item.sort_title string
@@ -7838,6 +7884,7 @@ POST /play-queues 201 .entries[].item.rating number
 POST /play-queues 201 .entries[].item.release_date string
 POST /play-queues 201 .entries[].item.rotten_tomatoes integer
 POST /play-queues 201 .entries[].item.runtime_min integer
+POST /play-queues 201 .entries[].item.season_label_mode string
 POST /play-queues 201 .entries[].item.season_number integer
 POST /play-queues 201 .entries[].item.series_title string
 POST /play-queues 201 .entries[].item.sort_title string
@@ -8373,6 +8420,7 @@ PUT /collections/{id}/artwork 200 .items[].rating number
 PUT /collections/{id}/artwork 200 .items[].release_date string
 PUT /collections/{id}/artwork 200 .items[].rotten_tomatoes integer
 PUT /collections/{id}/artwork 200 .items[].runtime_min integer
+PUT /collections/{id}/artwork 200 .items[].season_label_mode string
 PUT /collections/{id}/artwork 200 .items[].season_number integer
 PUT /collections/{id}/artwork 200 .items[].series_title string
 PUT /collections/{id}/artwork 200 .items[].sort_title string
@@ -8520,6 +8568,7 @@ PUT /items/{id}/artwork 200 .rating number
 PUT /items/{id}/artwork 200 .release_date string
 PUT /items/{id}/artwork 200 .rotten_tomatoes integer
 PUT /items/{id}/artwork 200 .runtime_min integer
+PUT /items/{id}/artwork 200 .season_label_mode string
 PUT /items/{id}/artwork 200 .season_number integer
 PUT /items/{id}/artwork 200 .series_title string
 PUT /items/{id}/artwork 200 .sort_title string
@@ -8646,6 +8695,7 @@ PUT /items/{id}/match 200 .rating number
 PUT /items/{id}/match 200 .release_date string
 PUT /items/{id}/match 200 .rotten_tomatoes integer
 PUT /items/{id}/match 200 .runtime_min integer
+PUT /items/{id}/match 200 .season_label_mode string
 PUT /items/{id}/match 200 .season_number integer
 PUT /items/{id}/match 200 .series_title string
 PUT /items/{id}/match 200 .sort_title string

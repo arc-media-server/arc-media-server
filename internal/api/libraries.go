@@ -43,6 +43,8 @@ type libraryBody struct {
 	SkipCredits *bool `json:"skip_credits"`
 	// How collections show in the grid by default: "" their titles, "collection" or "both".
 	CollectionGrid string `json:"collection_grid"`
+	// Season labels for shows: "number" (default) or "name".
+	SeasonLabelMode string `json:"season_label_mode"`
 }
 
 // validate cleans up a library description and checks it. exceptID is the library being edited
@@ -60,6 +62,9 @@ func (s *Server) validate(ctx context.Context, b *libraryBody, exceptID int64) e
 	}
 	if b.RatingRegion != "" && !regionRe.MatchString(b.RatingRegion) {
 		return errMsg("rating_region is a two-letter country code such as GB")
+	}
+	if b.SeasonLabelMode != "" && (b.Kind != "shows" || !validSeasonLabelMode(b.SeasonLabelMode)) {
+		return errMsg(`season_label_mode is for show libraries: "number" or "name"`)
 	}
 	if b.DetailsProvider != "" && (b.DetailsProvider != "tvdb" || b.Kind != "shows") {
 		return errMsg("TVDB metadata provider is only available for TV libraries")
@@ -162,7 +167,7 @@ func (s *Server) createLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Compute every option before the one store transaction; no worker sees a partial library.
-	lib := store.Library{Name: b.Name, Kind: b.Kind, SourceOrdering: b.SourceOrdering, Paths: b.Paths, DetailsProvider: b.DetailsProvider, Trickplay: b.Trickplay, CollectionMin: 2, MetadataLanguage: b.MetadataLanguage, RatingRegion: b.RatingRegion, SkipIntros: b.Kind == "shows", SkipCredits: b.Kind != "videos", CollectionGrid: b.CollectionGrid}
+	lib := store.Library{Name: b.Name, Kind: b.Kind, SourceOrdering: b.SourceOrdering, Paths: b.Paths, DetailsProvider: b.DetailsProvider, Trickplay: b.Trickplay, CollectionMin: 2, MetadataLanguage: b.MetadataLanguage, RatingRegion: b.RatingRegion, SkipIntros: b.Kind == "shows", SkipCredits: b.Kind != "videos", CollectionGrid: b.CollectionGrid, SeasonLabelMode: b.SeasonLabelMode}
 	if b.CollectionMin != nil {
 		lib.CollectionMin = *b.CollectionMin
 	}
@@ -245,6 +250,7 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		SkipIntros      *bool    `json:"skip_intros"`
 		SkipCredits     *bool    `json:"skip_credits"`
 		CollectionGrid  *string  `json:"collection_grid"`
+		SeasonLabelMode *string  `json:"season_label_mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
@@ -252,6 +258,10 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate all independent fields before admission or any persistent/cache mutation.
 	invalid := func(message string) { writeError(w, http.StatusBadRequest, message) }
+	if patch.SeasonLabelMode != nil && (lib.Kind != "shows" || !validSeasonLabelMode(*patch.SeasonLabelMode)) {
+		invalid(`season_label_mode is for show libraries: "number" or "name"`)
+		return
+	}
 	if patch.DetailsProvider != nil && *patch.DetailsProvider != "" && (*patch.DetailsProvider != "tvdb" || lib.Kind != "shows") {
 		invalid("TVDB metadata provider is only available for TV libraries")
 		return
@@ -324,6 +334,9 @@ func (s *Server) updateLibrary(w http.ResponseWriter, r *http.Request) {
 		}
 		if patch.SkipCredits != nil {
 			next.SkipCredits = *patch.SkipCredits && next.Kind != "videos"
+		}
+		if patch.SeasonLabelMode != nil {
+			next.SeasonLabelMode = *patch.SeasonLabelMode
 		}
 		if patch.CollectionGrid != nil {
 			next.CollectionGrid = *patch.CollectionGrid
