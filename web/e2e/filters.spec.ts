@@ -44,20 +44,33 @@ test('filters: video formats from the library, watch status, and the address kee
   const facets = await (await page.request.get(`/api/libraries/${lib.id}/facets`)).json();
   expect(facets.video_codecs.map((f: { value: string }) => f.value).sort()).toEqual(['h264', 'mpeg2video']);
 
+  const made = await page.request.post('/api/collections', { data: {
+    library_id: lib.id, kind: 'manual', title: 'Format collection', grid_mode: 'both', item_ids: items.map(item => item.id),
+  } });
+  expect(made.ok()).toBeTruthy();
+
   const browseRequests: string[] = [];
+  const collectionRequests: string[] = [];
   page.on('request', request => {
     const url = new URL(request.url());
     if (url.pathname === '/api/items' && url.searchParams.get('library_id') === String(lib.id)) browseRequests.push('items');
     if (url.pathname === `/api/libraries/${lib.id}/facets`) browseRequests.push('facets');
+    if (url.pathname === `/api/libraries/${lib.id}/collections`) collectionRequests.push(url.pathname);
   });
-  const collections = page.waitForResponse(response => new URL(response.url()).pathname === `/api/libraries/${lib.id}/collections` && response.ok());
   await page.goto(`/library/${lib.id}?view=recommended`);
   await expect(page.getByRole('region', { name: 'Recently Added in Formats', exact: true })).toBeVisible();
-  await collections;
   expect(browseRequests).toEqual([]);
+  expect(collectionRequests).toEqual([]);
+
+  await page.getByRole('tab', { name: 'Collections', exact: true }).click();
+  await expect(page.getByRole('main').getByText('Format collection', { exact: true }).first()).toBeVisible();
+  expect(collectionRequests).toEqual([`/api/libraries/${lib.id}/collections`]);
+  expect(browseRequests).toEqual([]);
+
   await page.getByRole('tab', { name: 'Library', exact: true }).click();
   await expect.poll(() => new Set(browseRequests)).toEqual(new Set(['items', 'facets']));
   const grid = page.getByRole('main');
+  await expect(grid.getByText('Format collection', { exact: true }).first()).toBeVisible();
   await expect(grid.getByText('Remux Movie', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Filters', exact: true }).click();
   const panel = page.getByRole('dialog', { name: 'Filters' });

@@ -121,11 +121,17 @@ export function LibraryPage() {
   const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : params.get('view') === 'folders' ? 'folders' : 'titles';
   const browsing = view === 'titles';
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
-  const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
   const [editing, setEditing] = useState<string>();
   // Choosing titles to change together (admins).
   const [selecting, setSelecting] = useState(false);
+  // The unfiltered Browse grid can place collections among titles using their member IDs.
+  const showGridCollections = browsing && !selecting && !filtered && lib?.kind !== 'videos';
+  const collections = useQuery({
+    queryKey: ['collections', Number(id)],
+    queryFn: () => api.collections(Number(id)),
+    enabled: !!lib && (view === 'collections' || showGridCollections),
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const lastClicked = useRef<number | null>(null);
   const stopSelecting = () => {
@@ -261,7 +267,6 @@ export function LibraryPage() {
       ['collections', t('library:tabs.collections')],
     ] as const
   )
-    .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
     // Browsing by folder is for Other videos libraries (movies and shows are grouped by title).
     .filter(([v]) => v !== 'folders' || lib.kind === 'videos')
     // Home videos have nothing to recommend from.
@@ -401,7 +406,7 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
-            collections={!selecting && !filtered && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
+            collections={showGridCollections ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
             collectionUnit={unit}
             landscape={lib?.kind === 'videos'}
             hover={admin ? {
