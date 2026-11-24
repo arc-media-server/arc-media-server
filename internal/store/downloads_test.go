@@ -197,14 +197,7 @@ func TestDownloadMigrationPreservesExistingSQLiteStateAndSafetyBackup(t *testing
 	ctx := t.Context()
 	// Reconstruct the preceding SQLite schema in a disposable fixture, keeping real profile,
 	// session, library/item/file rows rather than testing only an empty installation.
-	for _, query := range []string{
-		`ALTER TABLE items DROP COLUMN season_label_mode`,
-		`ALTER TABLE libraries DROP COLUMN season_label_mode`,
-		`ALTER TABLE sessions DROP COLUMN is_tool`,
-		`DROP TABLE downloads`,
-		`ALTER TABLE users DROP COLUMN allow_downloads`,
-		`DELETE FROM schema_migrations WHERE version>='0068_download_preparation'`,
-	} {
+	for _, query := range []string{`ALTER TABLE sessions DROP COLUMN is_tool`, `DROP TABLE downloads`, `ALTER TABLE users DROP COLUMN allow_downloads`, `DELETE FROM schema_migrations WHERE version>='0068_download_preparation'`} {
 		if _, err := st.db.ExecContext(ctx, query); err != nil {
 			t.Fatal(err)
 		}
@@ -235,12 +228,8 @@ func TestDownloadMigrationPreservesExistingSQLiteStateAndSafetyBackup(t *testing
 		t.Fatal("session changed on upgrade")
 	}
 	it, err := upgraded.GetItem(ctx, item)
-	if err != nil || it == nil || it.SeasonLabelMode != "" {
-		t.Fatal("existing item or its default season label override changed on upgrade")
-	}
-	lib, err := upgraded.GetLibrary(ctx, it.LibraryID)
-	if err != nil || lib == nil || lib.SeasonLabelMode != "number" {
-		t.Fatal("existing library did not pick up default numbered season labels")
+	if err != nil || it == nil {
+		t.Fatal("item lost on upgrade")
 	}
 	files, err := upgraded.ItemFiles(ctx, item)
 	if err != nil || len(files) != 1 || files[0].ID != f.ID {

@@ -4,7 +4,7 @@ import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Check, ChevronDown, Film, Folder, FolderPlus, HelpCircle, Info, Loader2, SlidersHorizontal, Tv, X, Clapperboard } from 'lucide-react';
 import { regionOptions } from '@/lib/regions';
-import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SeasonLabelMode, type SourceOrdering } from '@/lib/api';
+import { api, type Library, type LibraryKind, type LibraryPreview, type PreviewItem, type SourceOrdering } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { kindUnit } from '@/lib/kinds';
 import { FolderPicker } from '@/components/FolderPicker';
@@ -47,7 +47,6 @@ function Editor({ library, onDone, onAdded }: { library?: Library; onDone: () =>
   const [nameTouched, setNameTouched] = useState(editing);
   const [paths, setPaths] = useState<string[]>(library?.paths ?? []);
   const [detailsProvider,setDetailsProvider]=useState<""|"tvdb">(library?.details_provider??"");
-  const [seasonLabelMode, setSeasonLabelMode] = useState<SeasonLabelMode>(library?.season_label_mode ?? 'number');
   const [ordering, setOrdering] = useState<SourceOrdering>(library?.source_ordering ?? 'tmdb_aired');
   const [trickplay, setTrickplay] = useState(library?.trickplay ?? false);
   // Plex's defaults: intros for TV, credits for TV and movies.
@@ -89,8 +88,8 @@ function Editor({ library, onDone, onAdded }: { library?: Library; onDone: () =>
   const save = useMutation({
     mutationFn: () =>
       editing
-        ? api.updateLibrary(library.id, { name, season_label_mode: kind === 'shows' ? seasonLabelMode : undefined, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
-        : api.createLibrary({ name, kind, season_label_mode: kind === 'shows' ? seasonLabelMode : undefined, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
+        ? api.updateLibrary(library.id, { name, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid })
+        : api.createLibrary({ name, kind, details_provider: kind==='shows'?detailsProvider:"", source_ordering: ordering, paths, trickplay, collection_min: collectionMin, metadata_language: language, rating_region: region, skip_intros: skipIntros, skip_credits: skipCredits, collection_grid: collectionGrid }),
     onSuccess: (saved) => {
       qc.invalidateQueries();
       if (!editing) onAdded?.(saved);
@@ -228,14 +227,6 @@ function Editor({ library, onDone, onAdded }: { library?: Library; onDone: () =>
                               {o.label}
                             </option>
                           ))}
-                        </select>
-                      </SelectRow>
-                    )}
-                    {kind === 'shows' && (
-                      <SelectRow id={`${fieldId}-season-labels`} label={t('libraryEditor:seasonLabels.label')} help={t('libraryEditor:seasonLabels.help')}>
-                        <select id={`${fieldId}-season-labels`} aria-describedby={`${fieldId}-season-labels-help`} value={seasonLabelMode} onChange={e => setSeasonLabelMode(e.target.value as SeasonLabelMode)} className={selectClass}>
-                          <option value="number">{t('libraryEditor:seasonLabels.number')}</option>
-                          <option value="name">{t('libraryEditor:seasonLabels.name')}</option>
                         </select>
                       </SelectRow>
                     )}

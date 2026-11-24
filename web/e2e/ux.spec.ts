@@ -659,42 +659,6 @@ test('playback failures can retry without reopening the title', async ({ page })
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
-test('season labels follow the library with a per-show override', async ({ page }) => {
-  const { lib, item } = await seed(page, true);
-  await page.goto('/series/' + item.id);
-  await openOrdering(page);
-  await chooseDisplay(page, /Story Order/);
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
-
-  await page.goto('/libraries');
-  const row = page.getByRole('region', { name: lib.name, exact: true });
-  await row.getByRole('button', { name: 'Edit', exact: true }).click();
-  const editor = page.getByRole('dialog');
-  await editor.getByRole('tab', { name: 'Advanced', exact: true }).click();
-  const libraryLabels = editor.getByRole('combobox', { name: 'Season labels', exact: true });
-  await expect(libraryLabels).toHaveValue('number');
-  await libraryLabels.selectOption('name');
-  await editor.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(editor).toBeHidden();
-
-  await page.goto('/series/' + item.id);
-  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
-  await openOrdering(page);
-  const showLabels = page.getByRole('combobox', { name: 'Season labels', exact: true });
-  await expect(showLabels).toHaveValue('');
-  await showLabels.selectOption('number');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
-  await openOrdering(page);
-  await expect(showLabels).toHaveValue('number');
-  await showLabels.selectOption('');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
-});
-
 test('comparison stages selections until Save, preserves Retry and remains owner-only', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);

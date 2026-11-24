@@ -52,7 +52,6 @@ export interface ItemEdit {
   labels?: string[];
   /** A show's episode numbering; "" follows its library. */
   source_ordering?: SourceOrdering | '';
-  season_label_mode?: SeasonLabelMode | '';
   details_provider?: '' | 'tvdb';
   locked_fields?: LockableField[];
 }
@@ -152,7 +151,6 @@ export interface Item {
   theme_url?: string;
   /** A show's own episode numbering, when it overrides its library's. */
   source_ordering?: SourceOrdering;
-  season_label_mode?: SeasonLabelMode | '';
   /** Where a show's details and artwork come from: TMDB (absent) or TheTVDB. */
   details_provider?: 'tvdb';
   credits?: Credit[];
@@ -192,11 +190,9 @@ export interface ScanStatus {
 
 /** "videos" is Other videos: home videos and the like, with no online details. */
 export type LibraryKind = 'movies' | 'shows' | 'videos';
-export type SeasonLabelMode = 'number' | 'name';
 export type SourceOrdering = 'tvdb_aired' | 'tvdb_dvd' | 'tvdb_absolute' | 'tmdb_aired';
 
 export interface Library {
-  season_label_mode?: SeasonLabelMode;
   details_provider: "" | "tvdb";
   id: number;
   name: string;
@@ -222,7 +218,6 @@ export interface Library {
 }
 
 export interface LibraryInput {
-  season_label_mode?: SeasonLabelMode;
   details_provider?: "" | "tvdb";
   name: string;
   kind: LibraryKind;
@@ -298,7 +293,6 @@ export interface SeasonEpisode extends Item {
 export interface Season {
   season_number: number;
   name: string;
-  metadata_name?: string;
   overview?: string;
   /** Season fields edited by hand. */
   locked_fields: ('name' | 'overview')[];

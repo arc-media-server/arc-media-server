@@ -1,10 +1,4 @@
 {
-  "seasonLabels": {
-    "label": "Season labels",
-    "help": "Choose how to label seasons. Manually edited names always take priority.",
-    "number": "Season numbers",
-    "name": "Use season names when available"
-  },
   "libraryEditor": {
     "cancel": "Cancel",
     "next": "Next",

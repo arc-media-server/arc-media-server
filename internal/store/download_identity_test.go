@@ -36,14 +36,7 @@ func TestDownloadIdentityUpgradeAndOldBackupInvalidateUnboundRecords(t *testing.
 	if _, err = st.FinishDownload(t.Context(), d, "old-digest", 1, ""); err != nil {
 		t.Fatal(err)
 	}
-	for _, q := range []string{
-		`ALTER TABLE items DROP COLUMN season_label_mode`,
-		`ALTER TABLE libraries DROP COLUMN season_label_mode`,
-		`ALTER TABLE sessions DROP COLUMN is_tool`,
-		`ALTER TABLE downloads DROP COLUMN snapshot`,
-		`ALTER TABLE downloads DROP COLUMN source_cache_key`,
-		`DELETE FROM schema_migrations WHERE version>='0069_download_source_identity'`,
-	} {
+	for _, q := range []string{`ALTER TABLE sessions DROP COLUMN is_tool`, `ALTER TABLE downloads DROP COLUMN snapshot`, `ALTER TABLE downloads DROP COLUMN source_cache_key`, `DELETE FROM schema_migrations WHERE version>='0069_download_source_identity'`} {
 		if _, err = st.db.ExecContext(t.Context(), q); err != nil {
 			t.Fatal(err)
 		}

@@ -9,7 +9,7 @@ import (
 
 func TestConfiguredLibrarySavesAllOptionsAndRollsBackLatePathFailure(t *testing.T) {
 	s := openTest(t)
-	expected := Library{Name: "Complete", Kind: "shows", SourceOrdering: "tvdb_aired", Paths: []string{"/fixture/complete"}, DetailsProvider: "tvdb", Trickplay: true, CollectionMin: 4, MetadataLanguage: "fr-FR", RatingRegion: "GB", SkipIntros: false, SkipCredits: true, CollectionGrid: "both", SeasonLabelMode: "name"}
+	expected := Library{Name: "Complete", Kind: "shows", SourceOrdering: "tvdb_aired", Paths: []string{"/fixture/complete"}, DetailsProvider: "tvdb", Trickplay: true, CollectionMin: 4, MetadataLanguage: "fr-FR", RatingRegion: "GB", SkipIntros: false, SkipCredits: true, CollectionGrid: "both"}
 	id, err := s.CreateConfiguredLibrary(t.Context(), expected)
 	if err != nil {
 		t.Fatal(err)

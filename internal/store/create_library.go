@@ -55,8 +55,8 @@ func (s *Store) CreateConfiguredLibrary(ctx context.Context, l Library) (int64, 
 		kind = "movies"
 	}
 	var id int64
-	err = tx.QueryRowContext(ctx, `INSERT INTO libraries(name,kind,source_ordering,videos,created_at,trickplay,collection_min,metadata_language,rating_region,skip_intros,skip_credits,collection_grid,details_provider,season_label_mode)
- VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(NULLIF(?, ''), 'number')) RETURNING id`, l.Name, kind, l.SourceOrdering, videos, time.Now().Unix(), l.Trickplay, l.CollectionMin, l.MetadataLanguage, l.RatingRegion, l.SkipIntros, l.SkipCredits, l.CollectionGrid, l.DetailsProvider, l.SeasonLabelMode).Scan(&id)
+	err = tx.QueryRowContext(ctx, `INSERT INTO libraries(name,kind,source_ordering,videos,created_at,trickplay,collection_min,metadata_language,rating_region,skip_intros,skip_credits,collection_grid,details_provider)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id`, l.Name, kind, l.SourceOrdering, videos, time.Now().Unix(), l.Trickplay, l.CollectionMin, l.MetadataLanguage, l.RatingRegion, l.SkipIntros, l.SkipCredits, l.CollectionGrid, l.DetailsProvider).Scan(&id)
 	if err != nil {
 		return 0, err
 	}

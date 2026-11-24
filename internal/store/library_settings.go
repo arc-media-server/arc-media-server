@@ -28,7 +28,7 @@ func (s *Store) SaveLibrarySettings(ctx context.Context, before, after Library, 
 			return err
 		}
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE libraries SET trickplay=?, collection_min=?,metadata_language=?,rating_region=?,skip_intros=?,skip_credits=?,collection_grid=?,details_provider=?,season_label_mode=? WHERE id=?`, boolInt(after.Trickplay), after.CollectionMin, after.MetadataLanguage, after.RatingRegion, boolInt(after.SkipIntros), boolInt(after.SkipCredits), after.CollectionGrid, after.DetailsProvider, after.SeasonLabelMode, after.ID)
+	result, err := tx.ExecContext(ctx, `UPDATE libraries SET trickplay=?, collection_min=?,metadata_language=?,rating_region=?,skip_intros=?,skip_credits=?,collection_grid=?,details_provider=? WHERE id=?`, boolInt(after.Trickplay), after.CollectionMin, after.MetadataLanguage, after.RatingRegion, boolInt(after.SkipIntros), boolInt(after.SkipCredits), after.CollectionGrid, after.DetailsProvider, after.ID)
 	if err != nil {
 		return err
 	}
