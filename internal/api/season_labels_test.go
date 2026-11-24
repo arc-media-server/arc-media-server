@@ -24,7 +24,7 @@ func TestSeasonLabelsInheritAndPreserveManualNames(t *testing.T) {
 	check(err)
 	show, _, err := s.store.EnsureItem(ctx, &store.Item{LibraryID: id, Kind: "series", Title: "Show"}, "show")
 	check(err)
-	order, err := s.store.UpsertOrdering(ctx, show, "tmdb_group", "fixture", "Cours", "")
+	order, err := s.store.UpsertOrdering(ctx, show, "tmdb_aired", "", "Aired", "")
 	check(err)
 	var entries []store.OrderingEntry
 	for i, name := range []string{"Special", "First episode"} {
@@ -72,5 +72,17 @@ func TestSeasonLabelsInheritAndPreserveManualNames(t *testing.T) {
 	check(s.store.EditItem(ctx, show, store.ItemEdit{SeasonLabelMode: &inherit}))
 	manual := "My Season"
 	check(s.store.EditSeason(ctx, order, 1, &manual, nil, nil))
+	assert("My Season", "")
+	group, err := s.store.UpsertOrdering(ctx, show, "tmdb_group", "fixture", "Cours", "")
+	check(err)
+	check(s.store.ReplaceOrdering(ctx, group, map[int]string{0: "Extras", 1: "Cour One"}, nil, entries))
+	check(s.store.SetDisplayOrdering(ctx, show, "", group))
+	// Group labels win even against an explicit show-level numbers preference.
+	check(s.store.EditItem(ctx, show, store.ItemEdit{SeasonLabelMode: &number}))
+	assert("Cour One", "")
+	check(s.store.ReplaceOrdering(ctx, group, map[int]string{1: " "}, nil, entries))
+	assert("Season 1", " ")
+	check(s.store.EditSeason(ctx, group, 1, &manual, nil, nil))
+	check(s.store.ReplaceOrdering(ctx, group, map[int]string{1: "Cour One"}, nil, entries))
 	assert("My Season", "")
 }
