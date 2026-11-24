@@ -87,13 +87,54 @@ native clients and integrations. [Start building a client](docs/CLIENT-INTEGRATI
 
 Connect these apps to your Arc server. Each repository has screenshots and installation instructions.
 
-| App | Devices |
-| --- | --- |
-| [Arc for Apple TV](https://github.com/arc-media-server/arc-apple) | Apple TV running tvOS 18 or later |
-| [Arc for Android TV](https://github.com/arc-media-server/arc-android) | Android TV and Google TV running Android 8.0 or later |
-| [Arc for LG and Samsung TVs](https://github.com/arc-media-server/arc-tv) | LG webOS 4.5+ and Samsung Tizen 5.5+ |
-| [Arc for Roku](https://github.com/arc-media-server/arc-roku) | Roku players and Roku TVs |
-| [Arc for Kodi](https://github.com/arc-media-server/arc-kodi) | Devices running Kodi 19 or later |
+<table align="center">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-apple">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-apple/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on Apple TV">
+        <br>
+        <strong>Arc for Apple TV</strong>
+      </a>
+      <br><sub>Apple TV · tvOS 18+</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-android">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-android/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on Google TV">
+        <br>
+        <strong>Arc for Android TV</strong>
+      </a>
+      <br><sub>Android TV and Google TV · Android 8.0+</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-tv">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-tv/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on a smart TV">
+        <br>
+        <strong>Arc for LG and Samsung TVs</strong>
+      </a>
+      <br><sub>LG webOS 4.5+ · Samsung Tizen 5.5+</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-roku">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-roku/main/docs/screenshots/home.jpg" width="320" alt="Arc Home in the Roku simulator">
+        <br>
+        <strong>Arc for Roku</strong>
+      </a>
+      <br><sub>Roku players and Roku TVs</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-kodi">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-kodi/main/docs/screenshots/home.jpg" width="320" alt="Arc Home in Kodi">
+        <br>
+        <strong>Arc for Kodi</strong>
+      </a>
+      <br><sub>Kodi 19+</sub>
+    </td>
+  </tr>
+</table>
 
 The apps are in alpha, with availability and features varying by platform.
 
