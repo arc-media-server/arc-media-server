@@ -164,8 +164,19 @@ test('review: clearing Search clears the query and history restores the input', 
   void media;
   await setup(page);
   const search = page.locator('aside input[placeholder="Search"]');
-  await search.fill('Arc');
+  const queries: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/search') queries.push(url.searchParams.get('q') ?? '');
+  });
+  await search.pressSequentially('Arc ', { delay: 200 });
   await expect(page).toHaveURL(/search\?q=Arc$/);
+  await expect.poll(() => queries).toEqual(['Arc']);
+  await expect(search).toHaveValue('Arc ');
+  await expect(search).toBeFocused();
+  await search.pressSequentially('Movie');
+  await expect(page).toHaveURL(/search\?q=Arc%20Movie$/);
+  await expect(search).toHaveValue('Arc Movie');
   await search.fill('');
   await expect(page).toHaveURL(/\/search$/);
   await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
