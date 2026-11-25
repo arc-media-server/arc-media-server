@@ -161,7 +161,15 @@ export function ProfilesPage() {
 function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token: string } | null; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('administration');
   const [copied, setCopied] = useState(false);
-  const url = link ? `${window.location.origin}/invite/${link.token}` : '';
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: api.settings,
+    enabled: !!link,
+    staleTime: 0,
+  });
+  const url = link && settings.data
+    ? `${settings.data.public_url || window.location.origin}/invite/${link.token}`
+    : '';
   return (
     <Dialog open={!!link} onOpenChange={(o) => (setCopied(false), onOpenChange(o))}>
       {link && (
@@ -174,19 +182,27 @@ function InviteLinkDialog({ link, onOpenChange }: { link: { name: string; token:
             </DialogClose>
           }
         >
-          <div className="flex items-center gap-2 pb-2">
-            <input readOnly value={url} onFocus={(e) => e.target.select()} className={cn(inputClass, 'flex-1 font-mono text-xs')} />
-            <Button
-              variant="secondary"
-              onClick={() => {
-                navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {});
-              }}
-            >
-              {copied ? <Check /> : <Copy />} {copied ? t("administration:profiles.copied") : t("administration:profiles.copy")}
-            </Button>
-          </div>
-          {/^https?:\/\/(localhost|127\.|192\.168\.|10\.)/.test(url) && (
-            <p className="pb-2 text-xs text-subtle">{t("administration:profiles.thisLinkUsesYour")}</p>
+          {settings.isFetching ? (
+            <Loader2 role="status" aria-label={t('profiles.loadingInviteLink')} className="mx-auto my-4 animate-spin" />
+          ) : settings.isError ? (
+            <ErrorState error={settings.error} onRetry={() => { void settings.refetch(); }} />
+          ) : url && (
+            <>
+              <div className="flex items-center gap-2 pb-2">
+                <input readOnly value={url} onFocus={(e) => e.target.select()} className={cn(inputClass, 'flex-1 font-mono text-xs')} />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(url).then(() => setCopied(true), () => {});
+                  }}
+                >
+                  {copied ? <Check /> : <Copy />} {copied ? t("administration:profiles.copied") : t("administration:profiles.copy")}
+                </Button>
+              </div>
+              {/^https?:\/\/(localhost|127\.|192\.168\.|10\.)/.test(url) && (
+                <p className="pb-2 text-xs text-subtle">{t("administration:profiles.thisLinkUsesYour")}</p>
+              )}
+            </>
           )}
         </DialogContent>
       )}

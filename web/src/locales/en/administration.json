@@ -54,6 +54,7 @@
     "removeName": "Remove {{name}}",
     "removeTitle": "Remove {{name}}?",
     "inviteTitle": "Invite {{name}}",
+    "loadingInviteLink": "Preparing invite link…",
     "editTitle": "Edit {{name}}",
     "maxAge": "Ages up to {{age}}",
     "allAges": "Can watch everything",
