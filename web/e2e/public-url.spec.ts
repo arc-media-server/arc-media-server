@@ -45,3 +45,26 @@ for (const width of [1280, 390]) test(`public server URL saves, rejects invalid 
   expect(settings.upnp).toBe(false);
   expect(errors).toEqual([]);
 });
+
+test('friend invite links use the public URL and fall back to the browser origin', async ({ page }) => {
+  const reset = await fetch('http://127.0.0.1:18200/reset', { method: 'POST' });
+  expect(reset.ok).toBeTruthy();
+  expect((await page.request.post('/api/auth/setup', { data: { name: 'Admin', password: 'Arc-invite-fixture-123', local_bypass: false } })).ok()).toBeTruthy();
+  expect((await page.request.patch('/api/settings', { data: { public_url: 'https://arc.example.com' } })).ok()).toBeTruthy();
+
+  await page.goto('/profiles');
+  await page.getByRole('button', { name: 'Add Friend', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Reviewer');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  const invite = page.getByRole('dialog', { name: 'Invite Reviewer', exact: true });
+  const link = invite.getByRole('textbox');
+  await expect(link).toHaveValue(/^https:\/\/arc\.example\.com\/invite\/[^/]+$/);
+  const original = await link.inputValue();
+  await invite.getByRole('button', { name: 'Done', exact: true }).click();
+
+  expect((await page.request.patch('/api/settings', { data: { public_url: '' } })).ok()).toBeTruthy();
+  await page.getByRole('button', { name: 'Invite Link', exact: true }).click();
+  await expect(link).toHaveValue(/^http:\/\/127\.0\.0\.1:18199\/invite\/[^/]+$/);
+  expect(new URL(await link.inputValue()).pathname).not.toBe(new URL(original).pathname);
+});
