@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a problem with Arc Media Server or the web app.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please [search existing issues](https://github.com/arc-media-server/arc-media-server/issues?q=is%3Aissue) before filing. For a problem specific to a TV app, start with its [app repository](https://arcmediaserver.org/apps/).
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe what Arc did and what you expected it to do.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      description: List the steps leading up to the problem. If it happens intermittently, tell us how often.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Arc server version
+      description: Include the build or commit if you know it, especially when using the latest Docker image.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Setup
+      description: Include relevant details such as how Arc is installed, the host OS, database (SQLite or PostgreSQL), and the browser or app version and device involved.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Logs or screenshots
+      description: Include relevant excerpts or screenshots if you have them. Remove passwords, tokens, API keys, invite links, and private server addresses before posting.
