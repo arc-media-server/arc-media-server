@@ -1,0 +1,24 @@
+name: Documentation issue
+description: Flag confusing, missing, or outdated Arc server documentation.
+labels:
+  - documentation
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where is the issue?
+      description: Paste a link to the page or name the section. If something is missing, tell us where you looked.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What were you trying to find or do?
+      description: Tell us which step or explanation was unclear, missing, or out of date.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: Share a correction or an example if you have one.

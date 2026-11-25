@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and support
+    url: https://arcmediaserver.org/support/
+    about: Find answers to common setup questions and how to contact Arc support.
+  - name: Arc app repositories
+    url: https://arcmediaserver.org/apps/
+    about: Find the GitHub repository for the app where you saw the issue or want a feature.

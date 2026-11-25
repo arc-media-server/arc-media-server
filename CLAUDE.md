@@ -26,6 +26,8 @@ setup, code layout, build/test details and TV ordering gotchas; `ROADMAP.md` for
   downloads, offline progress sync or native acceptance yet (`docs/DOWNLOADS-OFFLINE-API.md`).
 - **Apps:** arc-android, arc-apple, arc-kodi, arc-roku and arc-tv (LG/Samsung), each in its own
   repository, all on `/api/v1` only; API gaps they need are fixed here.
+- **Issue intake:** `.github/ISSUE_TEMPLATE/` contains the server forms for bugs, feature
+  requests and documentation. App-specific reports go to the app's own repository.
 - **History:** `docs/changes/` (one note per change), `docs/HISTORY.md` (older notes); readiness
   evidence in `docs/READINESS.md`.
 

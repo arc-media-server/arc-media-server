@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an improvement to Arc Media Server or the web app.
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [roadmap](https://github.com/arc-media-server/arc-media-server/blob/main/ROADMAP.md) and [existing issues](https://github.com/arc-media-server/arc-media-server/issues?q=is%3Aissue) for similar ideas. For a change specific to a TV app, start with its [app repository](https://arcmediaserver.org/apps/).
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation and what makes it difficult today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Arc to do?
+      description: Describe the behaviour you would find helpful and where you would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples or workarounds
+      description: Share how you handle it today or link to an example if you have one.
