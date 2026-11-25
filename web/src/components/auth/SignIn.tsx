@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { AuthScreen, Card, fieldClass, Label } from './Screen';
 
 /** Signing in with the household password (away from home, or when that's always required), or
@@ -19,6 +20,7 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['auth'] }),
   });
   const switchTo = (f: boolean) => {
+    if (f === friend) return;
     setFriend(f);
     setPassword('');
     login.reset();
@@ -27,7 +29,24 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
     <AuthScreen>
       <Card>
         <h1 className="text-2xl font-bold">{t('auth:signIn.heading')}</h1>
-        <p className="mt-1.5 text-sm text-muted">{friend ? t('auth:signIn.friendDescription') : t('auth:signIn.description')}</p>
+        <div role="group" aria-label={t('auth:signIn.method')} className="mt-5 grid grid-cols-2 gap-2">
+          {[false, true].map((mode) => (
+            <Button
+              key={String(mode)}
+              type="button"
+              variant={friend === mode ? 'primary' : 'secondary'}
+              aria-pressed={friend === mode}
+              disabled={login.isPending}
+              className={cn('h-auto min-h-10 w-full whitespace-normal', friend !== mode && 'ring-1 ring-border')}
+              onClick={() => switchTo(mode)}
+            >
+              {mode ? t('auth:signIn.friendOption') : t('auth:signIn.serverPasswordOption')}
+            </Button>
+          ))}
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-muted">
+          {friend ? t('auth:signIn.friendOptionDescription') : t('auth:signIn.serverPasswordDescription')}
+        </p>
         <form
           className="mt-6 space-y-4"
           onSubmit={(e) => {
@@ -57,9 +76,7 @@ export function SignIn({ asFriend = false }: { asFriend?: boolean }) {
           <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!password || (friend && !name.trim()) || login.isPending}>
             {login.isPending && <Loader2 className="animate-spin" />}{' '}{t('common:actions.signIn')}</Button>
         </form>
-        <button type="button" onClick={() => switchTo(!friend)} className="mt-4 w-full text-center text-sm text-muted transition-colors hover:text-foreground">
-          {friend ? t('auth:signIn.household') : t('auth:signIn.friend')}
-        </button>
+        {friend && <p className="mt-4 text-sm leading-relaxed text-muted">{t('auth:signIn.inviteHelp')}</p>}
       </Card>
     </AuthScreen>
   );
