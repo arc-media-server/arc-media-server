@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="#running-with-docker">Set up Arc Server</a> · <a href="#arc-apps">Find an Arc app</a>
+  · <a href="https://arcmediaserver.org/">Website</a> · <a href="https://discord.gg/wtJKFSrkAP">Discord</a>
 </p>
 
 <p align="center">

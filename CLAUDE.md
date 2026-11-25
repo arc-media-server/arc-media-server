@@ -28,6 +28,8 @@ setup, code layout, build/test details and TV ordering gotchas; `ROADMAP.md` for
   repository, all on `/api/v1` only; API gaps they need are fixed here.
 - **Issue intake:** `.github/ISSUE_TEMPLATE/` contains the server forms for bugs, feature
   requests and documentation. App-specific reports go to the app's own repository.
+- **Discord:** ArcBot's community commands and setup are in `tools/arcbot/`. Run it separately
+  from the media server.
 - **History:** `docs/changes/` (one note per change), `docs/HISTORY.md` (older notes); readiness
   evidence in `docs/READINESS.md`.
 
