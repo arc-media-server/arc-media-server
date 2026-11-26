@@ -26,6 +26,11 @@ var postgresSteps = []postgresStep{
 		`ALTER TABLE libraries ADD COLUMN season_label_mode TEXT NOT NULL DEFAULT 'number' CHECK (season_label_mode IN ('number', 'name'))`,
 		`ALTER TABLE items ADD COLUMN season_label_mode TEXT NOT NULL DEFAULT '' CHECK (season_label_mode IN ('', 'number', 'name'))`,
 	}},
+	{version: "0073_movie_replacements", statements: []string{
+		`ALTER TABLE media_files ADD COLUMN first_seen_at BIGINT`,
+		`ALTER TABLE items ADD COLUMN movie_replaced_at BIGINT`,
+		`ALTER TABLE items ADD COLUMN movie_replacement_sequence BIGINT`,
+	}},
 }
 
 type postgresSchema struct {

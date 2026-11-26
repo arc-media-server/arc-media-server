@@ -57,6 +57,7 @@ parity_tests=(
   TestUnmatchedFilter
   TestTVRescanPreservesMultiEpisodeLinksAndCustomOrder
   TestMovieVersionsLocalAssetsAndRescan
+  TestMovieReplacementRecentlyAdded
   TestTargetedMovieScanDoesNotSweepOtherFolders
   TestTargetedTVScanPreservesShowIdentity
   TestRenamingMovieOrSeriesKeepsIdentityAndWatchState

@@ -80,7 +80,8 @@ func eligibleArrivalEpisode(access Access) (string, []any) {
 func recentDateSQL(access Access) (string, []any) {
 	where, args := eligibleArrivalEpisode(access)
 	return `CASE WHEN items.kind='series' THEN COALESCE((SELECT c.added_at FROM items c
-		WHERE ` + where + ` ORDER BY c.added_at DESC LIMIT 1),items.added_at) ELSE items.added_at END`, args
+		WHERE ` + where + ` ORDER BY c.added_at DESC LIMIT 1),items.added_at)
+		ELSE COALESCE(items.movie_replaced_at,items.added_at) END`, args
 }
 
 func recentSequenceSQL(access Access) (string, []any) {
@@ -90,6 +91,6 @@ func recentSequenceSQL(access Access) (string, []any) {
 	// can win the sequence tie-break, and an episode without an arrival row cannot win it.
 	return `COALESCE(CASE WHEN items.kind='series' THEN (SELECT MAX(a.sequence) ` + arrived + where + `
 		AND c.added_at=(SELECT c.added_at ` + arrived + where + ` ORDER BY c.added_at DESC LIMIT 1))
-		ELSE (SELECT sequence FROM item_arrivals WHERE item_id=items.id) END,0)`,
+		ELSE COALESCE(items.movie_replacement_sequence,(SELECT sequence FROM item_arrivals WHERE item_id=items.id)) END,0)`,
 		append(args, args...)
 }

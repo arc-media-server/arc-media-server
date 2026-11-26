@@ -59,8 +59,8 @@ func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 	} else {
 		err = tx.QueryRowContext(ctx, `
 		INSERT INTO media_files (library_id, path, size, mtime, container, duration_ms, bitrate,
-			probed_at, probe_error, last_seen_at, missing_since, format_probe_version, cache_key)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+			probed_at, probe_error, last_seen_at, first_seen_at, missing_since, format_probe_version, cache_key)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
 		ON CONFLICT (path) DO UPDATE SET
  cache_key=CASE WHEN media_files.cache_key='' OR media_files.size<>excluded.size OR media_files.mtime<>excluded.mtime THEN excluded.cache_key ELSE media_files.cache_key END,
 			library_id = excluded.library_id, size = excluded.size, mtime = excluded.mtime,
@@ -69,7 +69,7 @@ func (s *Store) saveFile(ctx context.Context, f *MediaFile, probedAt, seenAt int
 			last_seen_at = excluded.last_seen_at, missing_since = NULL, format_probe_version = excluded.format_probe_version
 		RETURNING id,cache_key`,
 			f.LibraryID, f.Path, f.Size, f.ModTime, f.Container, f.DurationMS, f.Bitrate,
-			probed, f.ProbeError, seenAt, f.FormatProbeVersion, NewID()).Scan(&id, &f.CacheKey)
+			probed, f.ProbeError, seenAt, seenAt, f.FormatProbeVersion, NewID()).Scan(&id, &f.CacheKey)
 	}
 	if err != nil {
 		return 0, err
@@ -150,13 +150,7 @@ func (s *Store) TouchFiles(ctx context.Context, ids []int64, seenAt int64) error
 
 // MarkMissing flags files in a library that were not seen since scanStart.
 func (s *Store) MarkMissing(ctx context.Context, libraryID, scanStart, now int64) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `
-		UPDATE media_files SET missing_since = ?
-		WHERE library_id = ? AND last_seen_at < ? AND missing_since IS NULL`, now, libraryID, scanStart)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+	return markMissing(ctx, s.db, libraryID, scanStart, now, nil)
 }
 
 // MarkMissingFolders reconciles only completely visited folders, never their neighbours.
@@ -164,6 +158,13 @@ func (s *Store) MarkMissingFolders(ctx context.Context, libraryID, scanStart, no
 	if len(folders) == 0 {
 		return 0, nil
 	}
+	return markMissing(ctx, s.db, libraryID, scanStart, now, folders)
+}
+
+func markMissing(ctx context.Context, db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, libraryID, scanStart, now int64, folders []string) (int64, error) {
+	query := `UPDATE media_files SET missing_since = ? WHERE library_id = ? AND last_seen_at < ? AND missing_since IS NULL`
 	var conditions []string
 	args := []any{now, libraryID, scanStart}
 	for _, folder := range folders {
@@ -171,7 +172,10 @@ func (s *Store) MarkMissingFolders(ctx context.Context, libraryID, scanStart, no
 		conditions = append(conditions, "(path = ? OR substr(path,1,?) = ?)")
 		args = append(args, folder, utf8.RuneCountInString(prefix), prefix)
 	}
-	res, err := s.db.ExecContext(ctx, `UPDATE media_files SET missing_since = ? WHERE library_id = ? AND last_seen_at < ? AND missing_since IS NULL AND (`+strings.Join(conditions, " OR ")+`)`, args...)
+	if len(conditions) > 0 {
+		query += " AND (" + strings.Join(conditions, " OR ") + ")"
+	}
+	res, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
 	}

@@ -598,6 +598,7 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	var replacedMovies int64
 	if allRootsOK {
 		if err := s.checkDiscoveryAnchors(ctx, lib.ID, scanStart, visited, priorFiles); err != nil {
 			return err
@@ -610,11 +611,18 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 		}
 		var n int64
 		var err error
-		if completeLibrary {
+		now := time.Now().Unix()
+		switch {
+		case lib.Kind == "movies":
+			if completeLibrary {
+				folders = nil
+			}
+			n, replacedMovies, err = s.store.ReconcileMovieFiles(ctx, lib.ID, scanStart, now, folders)
+		case completeLibrary:
 			// Also reconcile files whose old root was removed from the library.
-			n, err = s.store.MarkMissing(ctx, lib.ID, scanStart, time.Now().Unix())
-		} else {
-			n, err = s.store.MarkMissingFolders(ctx, lib.ID, scanStart, time.Now().Unix(), folders)
+			n, err = s.store.MarkMissing(ctx, lib.ID, scanStart, now)
+		default:
+			n, err = s.store.MarkMissingFolders(ctx, lib.ID, scanStart, now, folders)
 		}
 		if err != nil {
 			return err
@@ -653,7 +661,8 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 
 	st := s.Status(lib.ID)
 	log.Info("scan finished", "files", st.FilesSeen, "probed", st.FilesProbed, "new", st.NewItems,
-		"missing", st.Missing, "matched", st.Matched, "unmatched", st.Unmatched, "not_recognised", st.Unrecognised)
+		"missing", st.Missing, "replaced_movies", replacedMovies, "matched", st.Matched,
+		"unmatched", st.Unmatched, "not_recognised", st.Unrecognised)
 	return nil
 }
 
