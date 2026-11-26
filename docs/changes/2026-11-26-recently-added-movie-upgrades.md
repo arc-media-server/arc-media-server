@@ -20,6 +20,13 @@ Plex can resurface an existing movie after a file upgrade when its scanner treat
 the replacement as a new entry. Arc moves the existing title up in the list.
 [Plex upgrade report](https://forums.plex.tv/t/replacing-existing-movie-results-in-a-recently-added-movies-entry-or-new-movie-notification/937990)
 
+## Checks
+
+The scanner fixture passed on SQLite and PostgreSQL 18, covering replacement
+ordering, watch progress, the original arrival date, parallel versions, moves,
+same-path edits and repeated scans. PostgreSQL also passed the nearby scope,
+multi-version and empty-mount scanner tests.
+
 ## Logging
 
 The scan completion log includes an aggregate count of movies moved up in
