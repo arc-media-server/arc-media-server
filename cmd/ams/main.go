@@ -296,10 +296,10 @@ func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.L
 
 	art := artwork.New(filepath.Join(dataDir, "artwork"), log)
 	art.Events = changes
-	artKeeper := art.Keep(ctx, func(ctx context.Context) ([]string, error) {
+	artKeeper := art.Keep(ctx, func(ctx context.Context) (artwork.Images, error) {
 		images, err := st.ItemImages(ctx)
 		if err != nil {
-			return nil, err
+			return artwork.Images{}, err
 		}
 		sources := make([]string, 0, len(images))
 		var full []string // full-resolution backdrops for banners, larger, so fetched last
@@ -314,7 +314,8 @@ func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.L
 				}
 			}
 		}
-		return append(sources, full...), nil
+		// The full-size backdrops also get their TV hero copy made ahead of time.
+		return artwork.Images{Sources: append(sources, full...), Warm: full}, nil
 	})
 
 	workers.OnStop("artwork keeper", artKeeper.Close)

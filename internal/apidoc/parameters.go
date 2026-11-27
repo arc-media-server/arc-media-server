@@ -159,6 +159,9 @@ func queryParameter(handler, name string) (map[string]any, error) {
 	case "w":
 		integer("Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.")
 		schema["minimum"] = 1
+	case "h":
+		integer("Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.")
+		schema["minimum"] = 1
 	case "jump":
 		description = "Title-sort boundary: a–z (case-insensitive) or # for other titles. Continue paging with the returned offset and omit jump."
 		schema["pattern"] = "^[A-Za-z#]$"

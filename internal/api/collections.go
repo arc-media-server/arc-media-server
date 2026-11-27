@@ -244,7 +244,7 @@ func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(s.uploadsDir, filepath.Base(name)))
 		return
 	}
-	s.serveArtwork(w, r, imageSource(r, "collection", typ, path))
+	s.serveArtwork(w, r, s.imageSourceFor(r, "collection", typ, path))
 }
 
 type collectionBody struct {

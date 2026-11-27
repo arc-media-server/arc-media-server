@@ -315,19 +315,27 @@ func (c *Cache) Prune(inUse []string) (int, error) {
 	return removed, err
 }
 
+// Images is what the Keeper keeps: Sources is every image source in use, most important first;
+// Warm is the full-size backdrops among them (FullSource) whose HeroWidth copy it makes ahead of
+// time, also most important first.
+type Images struct {
+	Sources []string
+	Warm    []string
+}
+
 // Keeper keeps the cache in step with the library in the background: after each Trigger it
-// downloads images that aren't cached yet and removes ones no longer used. Triggers that arrive
-// while it's busy are merged into one more pass.
+// downloads images that aren't cached yet, removes ones no longer used and makes the hero copies
+// of full-size backdrops. Triggers that arrive while it's busy are merged into one more pass.
 type Keeper struct {
 	cache  *Cache
-	list   func(ctx context.Context) ([]string, error)
+	list   func(ctx context.Context) (Images, error)
 	wake   chan struct{}
 	cancel context.CancelFunc
 	done   chan struct{}
 }
 
-// Keep starts a Keeper. list returns every image source currently in use, most important first.
-func (c *Cache) Keep(ctx context.Context, list func(ctx context.Context) ([]string, error)) *Keeper {
+// Keep starts a Keeper. list returns the images currently in use (see Images).
+func (c *Cache) Keep(ctx context.Context, list func(ctx context.Context) (Images, error)) *Keeper {
 	ctx, cancel := context.WithCancel(ctx)
 	k := &Keeper{cache: c, list: list, wake: make(chan struct{}, 1), cancel: cancel, done: make(chan struct{})}
 	go func() { defer close(k.done); k.loop(ctx) }()
@@ -354,24 +362,31 @@ func (k *Keeper) loop(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		sources, err := k.list(ctx)
+		images, err := k.list(ctx)
 		if err != nil {
 			if ctx.Err() == nil {
 				k.cache.log.Warn("artwork: listing images failed", "err", err)
 			}
 			continue
 		}
-		downloaded, failed := k.cache.Prefetch(ctx, sources)
+		downloaded, failed := k.cache.Prefetch(ctx, images.Sources)
 		if ctx.Err() != nil {
 			return
 		}
 		// Only prune after a complete pass, so a half-finished list never deletes anything in use.
-		removed, err := k.cache.Prune(sources)
+		// Resized copies share their original's name, so they go with it.
+		removed, err := k.cache.Prune(images.Sources)
 		if err != nil {
 			k.cache.log.Warn("artwork: cleanup failed", "err", err)
 		}
-		if downloaded+failed+removed > 0 {
-			k.cache.log.Info("artwork cache updated", "downloaded", downloaded, "failed", failed, "removed", removed)
+		// Resizing comes last, so it never delays fetching originals.
+		resized, resizeFailed := k.cache.Warm(ctx, images.Warm)
+		if ctx.Err() != nil {
+			return
+		}
+		if downloaded+failed+removed+resized+resizeFailed > 0 {
+			k.cache.log.Info("artwork cache updated", "downloaded", downloaded, "failed", failed, "removed", removed,
+				"resized", resized, "resize_failed", resizeFailed)
 		}
 	}
 }

@@ -28,6 +28,12 @@ func TestSnapWidth(t *testing.T) {
 	}
 }
 
+// openW is OpenSized with only a width, saying whether a copy was served.
+func openW(c *Cache, ctx context.Context, src string, w int) (*os.File, bool, error) {
+	f, served, err := c.OpenSized(ctx, src, w, 0)
+	return f, served > 0, err
+}
+
 func jpegOf(t *testing.T, w, h int) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -99,7 +105,7 @@ func TestOpenSizedKeepsEachCopyAndNeverEnlarges(t *testing.T) {
 		return cfg.Width
 	}
 
-	f, resized, err := c.OpenSized(ctx, src, 1280)
+	f, resized, err := openW(c, ctx, src, 1280)
 	if err != nil || !resized {
 		t.Fatalf("first request: resized %v, err %v", resized, err)
 	}
@@ -114,7 +120,7 @@ func TestOpenSizedKeepsEachCopyAndNeverEnlarges(t *testing.T) {
 
 	// A later request, from any app, is served from the kept copy: no resize and no download.
 	time.Sleep(10 * time.Millisecond)
-	f, resized, err = c.OpenSized(ctx, src, 1280)
+	f, resized, err = openW(c, ctx, src, 1280)
 	if err != nil || !resized || width(f) != 1280 {
 		t.Fatalf("second request: resized %v, err %v", resized, err)
 	}
@@ -127,12 +133,12 @@ func TestOpenSizedKeepsEachCopyAndNeverEnlarges(t *testing.T) {
 	}
 
 	// Never enlarged: a 600px original asked for at 1920 is the original.
-	f, resized, err = c.OpenSized(ctx, srv.URL+"/small.jpg", 1920)
+	f, resized, err = openW(c, ctx, srv.URL+"/small.jpg", 1920)
 	if err != nil || resized || width(f) != 600 {
 		t.Fatalf("small original: resized %v, err %v", resized, err)
 	}
 	// No width: the original.
-	f, resized, err = c.OpenSized(ctx, src, 0)
+	f, resized, err = openW(c, ctx, src, 0)
 	if err != nil || resized || width(f) != 2000 {
 		t.Fatalf("no width: resized %v, err %v", resized, err)
 	}
@@ -154,7 +160,7 @@ func TestOpenSizedServesTheOriginalWhenItCannotResize(t *testing.T) {
 	defer srv.Close()
 	c := New(t.TempDir(), slog.New(slog.DiscardHandler))
 	c.Events = events.New()
-	f, resized, err := c.OpenSized(context.Background(), srv.URL+"/odd.jpg", 780)
+	f, resized, err := openW(c, context.Background(), srv.URL+"/odd.jpg", 780)
 	if err != nil || resized {
 		t.Fatalf("resized %v, err %v", resized, err)
 	}
