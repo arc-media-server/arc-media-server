@@ -525,6 +525,14 @@ func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.L
 					log.Info("stale session cleanup finished", "removed", removed, "took", time.Since(started))
 				}
 			}
+			pruned, err := st.PruneClientLogs(ctx, started)
+			if ctx.Err() == nil {
+				if err != nil {
+					log.Warn("device log cleanup failed", "took", time.Since(started))
+				} else if pruned > 0 {
+					log.Debug("expired device logs removed", "batches", pruned)
+				}
+			}
 			select {
 			case <-ctx.Done():
 				return

@@ -183,6 +183,22 @@ GET /capabilities 200 .features{}.supported boolean
 GET /cast/{token}/{rest}
 GET /cast/{token}/{rest} 200
 GET /cast/{token}/{rest} 204
+GET /client-logs
+GET /client-logs 200
+GET /client-logs 200 [] object
+GET /client-logs 200 [].device string
+GET /client-logs 200 [].id integer
+GET /client-logs 200 [].platform string
+GET /client-logs 200 [].received_at integer
+GET /client-logs/{id}
+GET /client-logs/{id} 200
+GET /client-logs/{id} 200 [] object
+GET /client-logs/{id} 200 [].entries array
+GET /client-logs/{id} 200 [].entries[] object
+GET /client-logs/{id} 200 [].entries[].event string
+GET /client-logs/{id} 200 [].entries[].level string
+GET /client-logs/{id} 200 [].entries[].time_ms integer
+GET /client-logs/{id} 200 [].received_at integer
 GET /collections/{id}
 GET /collections/{id} 200
 GET /collections/{id} 200 .collection object
@@ -6615,6 +6631,8 @@ POST /cast
 POST /cast 200
 POST /cast 200 .local_only boolean
 POST /cast 200 .url string
+POST /client-logs
+POST /client-logs 204
 POST /collections
 POST /collections 201
 POST /collections 201 .count integer

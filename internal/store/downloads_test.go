@@ -198,6 +198,7 @@ func TestDownloadMigrationPreservesExistingSQLiteStateAndSafetyBackup(t *testing
 	// Reconstruct the preceding SQLite schema in a disposable fixture, keeping real profile,
 	// session, library/item/file rows rather than testing only an empty installation.
 	for _, query := range []string{
+		`DROP TABLE client_logs`,
 		`DROP INDEX items_movie_family`,
 		`ALTER TABLE items DROP COLUMN movie_edition`,
 		`ALTER TABLE items DROP COLUMN movie_family`,

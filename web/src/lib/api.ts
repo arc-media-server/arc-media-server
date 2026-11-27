@@ -645,6 +645,18 @@ export interface SubtitleCue {
   text: string;
 }
 
+interface ClientLogDevice {
+  id: number;
+  device: string;
+  platform: string;
+  received_at: number;
+}
+
+interface ClientLogBatch {
+  received_at: number;
+  entries: { time_ms: number; level: string; event: string }[];
+}
+
 export interface LogLine {
   seq: number;
   time: string;
@@ -1302,6 +1314,8 @@ export const api = {
   castLink: (url: string) => request<{ url: string; local_only: boolean }>('POST', '/api/cast', { url }),
   pingTranscode: (sessionId: string) => request<void>('POST', `/api/transcode/${sessionId}/ping`),
   stopTranscode: (sessionId: string) => request<void>('DELETE', `/api/transcode/${sessionId}`, undefined, { keepalive: true }),
+  clientLogDevices: () => request<ClientLogDevice[]>('GET', '/api/client-logs'),
+  clientLogs: (id: number) => request<ClientLogBatch[]>('GET', `/api/client-logs/${id}`),
   logs: (level: string, after = 0) => request<LogLine[]>('GET', `/api/logs${query({ level, after })}`),
   setRating: (id: string, rating: number) => request<void>('PUT', `/api/items/${id}/rating`, { rating }),
   setWatchlist: (id: string, on: boolean) => request<void>('PUT', `/api/items/${id}/watchlist`, { on }),

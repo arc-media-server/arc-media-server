@@ -11,6 +11,7 @@ import { Artwork } from '@/components/Artwork';
 import { Avatar } from '@/components/Avatar';
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/Page';
 import { ActivityList } from '@/components/Activity';
+import { DeviceLogs } from '@/components/DeviceLogs';
 import { ResourceGraphs } from '@/components/Resources';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -47,7 +48,7 @@ export function DashboardPage() {
             <ActivityList recent={10} />
           </div>
         </section>
-        <ServerLog />
+        <DashboardLogs />
       </div>
       <StopDialog playback={stopping} onClose={() => setStopping(null)} />
     </Page>
@@ -214,6 +215,20 @@ const levelStyle: Record<string, string> = {
 
 // How many lines the page keeps.
 const maxLines = 1000;
+
+function DashboardLogs() {
+  const { t } = useTranslation('reports');
+  const [view, setView] = useState<'server' | 'devices'>('server');
+  return (
+    <div>
+      <div className="mb-4 flex gap-2" role="group" aria-label={t('deviceLogs.views')}>
+        <Button variant={view === 'server' ? 'primary' : 'secondary'} size="sm" aria-pressed={view === 'server'} onClick={() => setView('server')}>{t('deviceLogs.server')}</Button>
+        <Button variant={view === 'devices' ? 'primary' : 'secondary'} size="sm" aria-pressed={view === 'devices'} onClick={() => setView('devices')}>{t('deviceLogs.devices')}</Button>
+      </div>
+      {view === 'server' ? <ServerLog /> : <DeviceLogs />}
+    </div>
+  );
+}
 
 function ServerLog() {
   const { t } = useTranslation('reports');

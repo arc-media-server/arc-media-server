@@ -516,6 +516,66 @@
         ],
         "type": "object"
       },
+      "ClientLogBatch": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ClientLogEntry"
+            },
+            "type": "array"
+          },
+          "received_at": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "received_at"
+        ],
+        "type": "object"
+      },
+      "ClientLogDevice": {
+        "properties": {
+          "device": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device",
+          "id",
+          "platform",
+          "received_at"
+        ],
+        "type": "object"
+      },
+      "ClientLogEntry": {
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "time_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "level",
+          "time_ms"
+        ],
+        "type": "object"
+      },
       "Clip": {
         "properties": {
           "title": {
@@ -1539,6 +1599,43 @@
           "audio",
           "containers",
           "video"
+        ],
+        "type": "object"
+      },
+      "InputClientLogEntry": {
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "time_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "level",
+          "time_ms"
+        ],
+        "type": "object"
+      },
+      "InputClientLogUpload": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/InputClientLogEntry"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "platform"
         ],
         "type": "object"
       },
@@ -8516,6 +8613,378 @@
           "Cast"
         ],
         "x-arc-access": "anyone"
+      }
+    },
+    "/client-logs": {
+      "get": {
+        "description": "Lists devices with unexpired entries.\n\nWho may call it: **admin**.",
+        "operationId": "listClientLogDevices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientLogDevice"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lists devices with unexpired entries",
+        "tags": [
+          "Client logs"
+        ],
+        "x-arc-access": "admin"
+      },
+      "post": {
+        "description": "Appends a user-approved batch for its bearer-authenticated device. Send only events from the documented vocabulary; upload through a signed-in app, never automatically.\n\nWho may call it: **profile**.",
+        "operationId": "uploadClientLogs",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputClientLogUpload"
+              }
+            }
+          },
+          "description": "User-approved app events only. Use the device Bearer token with a selected profile. Never send raw logs or arbitrary strings. See docs/CLIENT-LOGS.md for the event vocabulary.",
+          "required": true,
+          "x-arc-server-max-bytes": 262144
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid event batch or unknown field",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "An app session is required; browser and tool sessions cannot upload",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Batch exceeds 256 KiB",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Appends a user-approved batch for its bearer-authenticated device",
+        "tags": [
+          "Client logs"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/client-logs/{id}": {
+      "get": {
+        "description": "Returns recent batches for the selected device.\n\nWho may call it: **admin**.",
+        "operationId": "getClientLogs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientLogBatch"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Device log selection expired or was revoked",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Returns recent batches for the selected device",
+        "tags": [
+          "Client logs"
+        ],
+        "x-arc-access": "admin"
       }
     },
     "/collections": {
