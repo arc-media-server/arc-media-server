@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,10 @@ import (
 // Images larger than this are refused; real posters and backdrops are a few MB at most.
 const maxImageBytes = 25 << 20
 
+// CardBackdropWidth is the width of the backdrops cards use (TMDB's "w1280"). A wider request
+// (?w=) is made from the original upload instead.
+const CardBackdropWidth = 1280
+
 // Source returns the provider URL for an item's image, picking a size that suits how it's shown.
 // imageType is "primary" (poster, or still for episodes), "backdrop" or "logo".
 func Source(itemKind, imageType, imagePath string) string {
@@ -37,7 +42,7 @@ func Source(itemKind, imageType, imagePath string) string {
 	size := "w500"
 	switch {
 	case imageType == "backdrop":
-		size = "w1280"
+		size = "w" + strconv.Itoa(CardBackdropWidth)
 	case itemKind == "episode":
 		size = "w780" // episode stills are landscape
 	case itemKind == "person":

@@ -156,6 +156,9 @@ func queryParameter(handler, name string) (map[string]any, error) {
 		schema["default"] = "info"
 	case "size":
 		enumeration("full requests the original backdrop when available; omit for the existing normal artwork size. Posters are not resized by this parameter.", "full")
+	case "w":
+		integer("Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.")
+		schema["minimum"] = 1
 	case "jump":
 		description = "Title-sort boundary: a–z (case-insensitive) or # for other titles. Continue paging with the returned offset and omit jump."
 		schema["pattern"] = "^[A-Za-z#]$"

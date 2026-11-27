@@ -887,9 +887,10 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 }
 
 // imageSource is the provider URL to serve for an image request: the full-resolution backdrop for
-// "?size=full" (banners), otherwise the size cards use.
+// "?size=full" (banners) or for a width (?w=) wider than the card size, otherwise the size cards
+// use.
 func imageSource(r *http.Request, kind, typ, imagePath string) string {
-	if typ == "backdrop" && r.URL.Query().Get("size") == "full" {
+	if typ == "backdrop" && (r.URL.Query().Get("size") == "full" || artwork.SnapWidth(r.URL.Query().Get("w")) > artwork.CardBackdropWidth) {
 		if full := artwork.FullSource(kind, imagePath); full != "" {
 			return full
 		}
@@ -898,9 +899,12 @@ func imageSource(r *http.Request, kind, typ, imagePath string) string {
 }
 
 // serveArtwork serves an image from the cache (downloading it if needed), cacheable forever when
-// the link carries its version; if it can't be had, the browser is sent to the provider.
+// the link carries its version; if it can't be had, the browser is sent to the provider. With
+// ?w= it's resized to that width (rounded up to one of artwork.Widths, never enlarged), and the
+// resized copy is kept for the next request.
 func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string) {
-	f, err := s.artwork.Open(r.Context(), src)
+	width := artwork.SnapWidth(r.URL.Query().Get("w"))
+	f, resized, err := s.artwork.OpenSized(r.Context(), src, width)
 	if err != nil {
 		s.log.Debug("artwork unavailable locally", "url", src, "err", err)
 		http.Redirect(w, r, src, http.StatusFound)
@@ -918,8 +922,16 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 	} else {
 		w.Header().Set("Cache-Control", "no-cache")
 	}
+	name := artwork.ContentName(src)
+	if width > 0 {
+		key += "-w" + strconv.Itoa(width)
+	}
+	if resized {
+		// A resized copy is a JPEG, or a PNG when it has transparency: let its bytes say which.
+		name = "image"
+	}
 	w.Header().Set("ETag", `"`+key+`"`)
-	http.ServeContent(w, r, artwork.ContentName(src), info.ModTime(), f)
+	http.ServeContent(w, r, name, info.ModTime(), f)
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
