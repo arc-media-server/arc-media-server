@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -123,7 +124,17 @@ func requestToken(r *http.Request) string {
 // bypassApplies reports whether this request may pick a profile without the password. Never for a
 // cross-origin call (appCORS): any web page on the home network could make one.
 func (s *Server) bypassApplies(r *http.Request) bool {
-	return s.settings().LocalBypass && auth.IsLocal(r) && auth.KnownServerHost(r, s.settings().HTTPSDomain) && !isCrossOriginApp(r)
+	st := s.settings()
+	if !st.LocalBypass || !auth.IsLocal(r) || isCrossOriginApp(r) {
+		return false
+	}
+	// PublicURL is a validated, administrator-configured origin. The exact hostname is
+	// eligible for home sign-in even when a reverse proxy terminates TLS.
+	var publicHost string
+	if publicURL, err := url.Parse(st.PublicURL); err == nil {
+		publicHost = publicURL.Hostname()
+	}
+	return auth.KnownServerHost(r, st.HTTPSDomain, publicHost)
 }
 
 // signedIn wraps handlers that need a profile.
