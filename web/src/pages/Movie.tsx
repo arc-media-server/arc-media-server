@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { CollectionRows } from '@/components/Collections';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Info, Play, RotateCcw } from 'lucide-react';
@@ -17,7 +17,7 @@ import { Badge, TitleHero, Synopsis, MetaLine, TitleHeading } from '@/components
 import { ErrorState, ErrorNotice, Page } from '@/components/Page';
 import { usePlayer } from '@/components/Player';
 import { PlaybackOptionsButton } from '@/components/PlaybackOptions';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { WatchedButton } from '@/components/WatchedButton';
 import { StarRating, WatchlistButton } from '@/components/Rating';
 import { SimilarRow } from '@/components/Similar';
@@ -99,6 +99,7 @@ export function MoviePage() {
             <AlertTriangle className="size-4" /> {t("titles:movie.unmatched")}<button className="font-semibold underline-offset-4 hover:underline" onClick={() => openDialog('match')}>{t("titles:movie.identifyIt")}</button>
           </p>
         )}
+        {item.edition && <p className="mt-3 text-sm text-muted">{item.edition}</p>}
         {editions.length > 1 && (
           <div className="mt-6 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("titles:movie.edition")}>
             {editions.map((e) => (
@@ -155,6 +156,18 @@ export function MoviePage() {
         </div>
       </TitleHero>
 
+      {!!item.other_editions?.length && (
+        <section className="px-6 py-4 md:px-10">
+          <h2 className="mb-3 font-semibold">{t('titles:movie.otherEditions')}</h2>
+          <div className="flex flex-wrap gap-2">
+            {item.other_editions.map(cut => (
+              <Link key={cut.id} to={`/movie/${cut.id}`} className={buttonVariants()}>
+                {cut.edition || t('titles:movie.standardEdition')}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       <CastRow credits={item.credits} />
       <CollectionRows item={item} />
       <SimilarRow item={item} />

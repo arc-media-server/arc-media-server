@@ -32,6 +32,8 @@ type Item struct {
 	Title           string `json:"title"`
 	SortTitle       string `json:"sort_title"`
 	OriginalTitle   string `json:"original_title,omitempty"`
+	Edition         string `json:"edition,omitempty"`
+	MovieFamily     string `json:"-"`
 	Year            int    `json:"year,omitempty"`
 	Overview        string `json:"overview,omitempty"`
 	RuntimeMin      int    `json:"runtime_min,omitempty"`

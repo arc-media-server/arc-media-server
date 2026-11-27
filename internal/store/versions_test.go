@@ -9,7 +9,7 @@ func TestEditionOf(t *testing.T) {
 		"/m/Aliens (1986) - Director's Cut.mkv":                    "Director's Cut",
 		"/m/LOTR (2001) Extended Edition.mkv":                      "Extended",
 		"/m/Movie.2010.EXTENDED.2160p.mkv":                         "Extended",
-		"/m/Movie (2010) Theatrical.mkv":                           "Theatrical",
+		"/m/Movie (2010) Theatrical.mkv":                           "Theatrical Cut",
 		"/m/Movie (2010) - IMAX.mkv":                               "IMAX",
 		"/m/The Matrix (1999).mp4":                                 "",
 		"/m/Extended Family (2020).mkv":                            "",         // words before the year are the title

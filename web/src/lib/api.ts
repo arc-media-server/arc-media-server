@@ -108,6 +108,8 @@ export interface Item {
   title: string;
   sort_title: string;
   original_title?: string;
+  edition?: string;
+  other_editions?: { id: string; edition?: string }[];
   year?: number;
   overview?: string;
   runtime_min?: number;

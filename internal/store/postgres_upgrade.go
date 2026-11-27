@@ -31,6 +31,11 @@ var postgresSteps = []postgresStep{
 		`ALTER TABLE items ADD COLUMN movie_replaced_at BIGINT`,
 		`ALTER TABLE items ADD COLUMN movie_replacement_sequence BIGINT`,
 	}},
+	{version: "0074_movie_editions", statements: []string{
+		`ALTER TABLE items ADD COLUMN movie_edition TEXT`,
+		`ALTER TABLE items ADD COLUMN movie_family TEXT NOT NULL DEFAULT ''`,
+		`CREATE INDEX items_movie_family ON items(library_id, movie_family) WHERE kind = 'movie'`,
+	}},
 }
 
 type postgresSchema struct {
