@@ -1,6 +1,6 @@
 import i18n from '@/i18n';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo, useState, type ComponentProps } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Link, useSearchParams } from 'react-router';
@@ -235,12 +235,19 @@ export function Home() {
       <div className={cn('relative z-10 space-y-10', hasFeatured && '-mt-6')}>
         {prefs.isPending && <div className="mx-6 h-48 animate-pulse rounded-xl bg-surface" />}
         {showHero && !!featuredQuery.error && <div className="px-6 md:px-10"><ErrorNotice error={featuredQuery.error} onRetry={() => void featuredQuery.refetch()} /></div>}
-        <WatchTogetherRow />
-        {visibleRows(rows, split)
-          .filter((r) => !r.hidden)
-          .map((r) => (
-            <HomeRowView key={r.id} row={r} withUpNext={!split} />
-          ))}
+        {(() => {
+          // Watch Together's rooms sit under Continue Watching, or under the first row without
+          // it, so titles keep the top in every Arc app (owner, 27 November).
+          const shown = visibleRows(rows, split).filter((r) => !r.hidden);
+          const after = Math.max(0, shown.findIndex((r) => r.type === 'continue'));
+          if (!shown.length) return <WatchTogetherRow />;
+          return shown.map((r, i) => (
+            <Fragment key={r.id}>
+              <HomeRowView row={r} withUpNext={!split} />
+              {i === after && <WatchTogetherRow />}
+            </Fragment>
+          ));
+        })()}
       </div>
       <EditHomeDialog rows={rows} libraries={navigationLibraries(libraries, prefs.data?.library_order)} watchlistAt={prefs.data?.watchlist_position} open={editing} onOpenChange={setEditing} />
     </Page>
