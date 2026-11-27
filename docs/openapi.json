@@ -9644,6 +9644,17 @@
             }
           },
           {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "Byte range for file responses. Unsupported/unsatisfiable ranges can return plain-text 416.",
             "in": "header",
             "name": "Range",
@@ -18170,6 +18181,17 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -29993,6 +30015,17 @@
             }
           },
           {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "Byte range for file responses. Unsupported/unsatisfiable ranges can return plain-text 416.",
             "in": "header",
             "name": "Range",
@@ -36298,6 +36331,17 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
