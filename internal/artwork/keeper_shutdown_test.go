@@ -13,13 +13,13 @@ func TestKeeperCloseJoinsSourceListingBeforeStoreClose(t *testing.T) {
 	cache := New(t.TempDir(), slog.New(slog.DiscardHandler))
 	entered, canceled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var calls atomic.Int32
-	keeper := cache.Keep(t.Context(), func(ctx context.Context) ([]string, error) {
+	keeper := cache.Keep(t.Context(), func(ctx context.Context) (Images, error) {
 		calls.Add(1)
 		close(entered)
 		<-ctx.Done()
 		close(canceled)
 		<-release
-		return nil, ctx.Err()
+		return Images{}, ctx.Err()
 	})
 	var once sync.Once
 	defer func() { once.Do(func() { close(release) }); keeper.Close() }()

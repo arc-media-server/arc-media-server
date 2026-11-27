@@ -883,7 +883,27 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
-	s.serveArtwork(w, r, imageSource(r, it.Kind, typ, imagePath))
+	s.serveArtwork(w, r, s.imageSourceFor(r, it.Kind, typ, imagePath))
+}
+
+// imageSourceFor is imageSource, plus ?h=: a backdrop whose copy must be wider than the card size
+// to be at least h tall is made from the full-resolution original too. The width needed comes
+// from the card image's shape (the original has the same shape), read from its cached header.
+func (s *Server) imageSourceFor(r *http.Request, kind, typ, imagePath string) string {
+	src := imageSource(r, kind, typ, imagePath)
+	q := r.URL.Query()
+	h := artwork.Dimension(q.Get("h"))
+	if typ != "backdrop" || h == 0 {
+		return src
+	}
+	full := artwork.FullSource(kind, imagePath)
+	if full == "" || src == full {
+		return src
+	}
+	if s.artwork.FitWidth(r.Context(), src, artwork.Dimension(q.Get("w")), h) > artwork.CardBackdropWidth {
+		return full
+	}
+	return src
 }
 
 // imageSource is the provider URL to serve for an image request: the full-resolution backdrop for
@@ -900,11 +920,11 @@ func imageSource(r *http.Request, kind, typ, imagePath string) string {
 
 // serveArtwork serves an image from the cache (downloading it if needed), cacheable forever when
 // the link carries its version; if it can't be had, the browser is sent to the provider. With
-// ?w= it's resized to that width (rounded up to one of artwork.Widths, never enlarged), and the
-// resized copy is kept for the next request.
+// ?w= it's resized to that width (rounded up to one of artwork.Widths, never enlarged), and with
+// ?h= wide enough to be at least that tall too; the resized copy is kept for the next request.
 func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string) {
-	width := artwork.SnapWidth(r.URL.Query().Get("w"))
-	f, resized, err := s.artwork.OpenSized(r.Context(), src, width)
+	q := r.URL.Query()
+	f, width, err := s.artwork.OpenSized(r.Context(), src, artwork.Dimension(q.Get("w")), artwork.Dimension(q.Get("h")))
 	if err != nil {
 		s.log.Debug("artwork unavailable locally", "url", src, "err", err)
 		http.Redirect(w, r, src, http.StatusFound)
@@ -924,9 +944,8 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 	}
 	name := artwork.ContentName(src)
 	if width > 0 {
+		// The width actually served: a copy has its own ETag, the original keeps the plain key.
 		key += "-w" + strconv.Itoa(width)
-	}
-	if resized {
 		// A resized copy is a JPEG, or a PNG when it has transparency: let its bytes say which.
 		name = "image"
 	}

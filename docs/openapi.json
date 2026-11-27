@@ -9623,6 +9623,17 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "full requests the original backdrop when available; omit for the existing normal artwork size. Posters are not resized by this parameter.",
             "in": "query",
             "name": "size",
@@ -18160,6 +18171,17 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -30006,6 +30028,17 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "Opaque artwork cache version included in returned image URLs. Matching versions permit immutable caching; do not synthesize it.",
             "in": "query",
             "name": "v",
@@ -36322,6 +36355,17 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
