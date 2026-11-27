@@ -21,7 +21,7 @@ var editionWords = []struct {
 }{
 	{regexp.MustCompile(`(?i)\bdirector'?s[\s._-]*cut\b`), "Director's Cut"},
 	{regexp.MustCompile(`(?i)\bextended[\s._-]*(?:cut|edition|version)?\b`), "Extended"},
-	{regexp.MustCompile(`(?i)\btheatrical(?:[\s._-]*(?:cut|edition|version))?\b`), "Theatrical"},
+	{regexp.MustCompile(`(?i)\btheatrical(?:[\s._-]*(?:cut|edition|version))?\b`), "Theatrical Cut"},
 	{regexp.MustCompile(`(?i)\bfinal[\s._-]*cut\b`), "Final Cut"},
 	{regexp.MustCompile(`(?i)\bultimate[\s._-]*(?:cut|edition)\b`), "Ultimate Edition"},
 	{regexp.MustCompile(`(?i)\bspecial[\s._-]*edition\b`), "Special Edition"},

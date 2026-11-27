@@ -19,5 +19,6 @@ export function isLocalVideo(item?: Item) {
 
 /** The line under a card's title: a home video's date, otherwise the year. */
 export function cardYear(item: Item) {
-  return isLocalVideo(item) && item.release_date ? fmt.date(item.release_date) : item.year || ' ';
+  if (isLocalVideo(item) && item.release_date) return fmt.date(item.release_date);
+  return [item.year, item.edition].filter(Boolean).join(' · ') || ' ';
 }

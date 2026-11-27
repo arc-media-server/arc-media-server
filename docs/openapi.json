@@ -1997,6 +1997,9 @@
           "details_provider": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "episode_number": {
             "type": "integer"
           },
@@ -2074,6 +2077,12 @@
           },
           "original_title": {
             "type": "string"
+          },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
           },
           "overview": {
             "type": "string"
@@ -2691,6 +2700,9 @@
           "details_provider": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "episode_number": {
             "type": "integer"
           },
@@ -2771,6 +2783,12 @@
           },
           "original_title": {
             "type": "string"
+          },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
           },
           "overview": {
             "type": "string"
@@ -2942,6 +2960,20 @@
           "id",
           "season_number",
           "title"
+        ],
+        "type": "object"
+      },
+      "MovieEditionRef": {
+        "properties": {
+          "edition": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -4500,6 +4532,9 @@
           "details_provider": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "episode_number": {
             "type": "integer"
           },
@@ -4583,6 +4618,12 @@
           },
           "original_title": {
             "type": "string"
+          },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
           },
           "overview": {
             "type": "string"

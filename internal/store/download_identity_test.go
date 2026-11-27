@@ -37,6 +37,9 @@ func TestDownloadIdentityUpgradeAndOldBackupInvalidateUnboundRecords(t *testing.
 		t.Fatal(err)
 	}
 	for _, q := range []string{
+		`DROP INDEX items_movie_family`,
+		`ALTER TABLE items DROP COLUMN movie_edition`,
+		`ALTER TABLE items DROP COLUMN movie_family`,
 		`ALTER TABLE media_files DROP COLUMN first_seen_at`,
 		`ALTER TABLE items DROP COLUMN movie_replaced_at`,
 		`ALTER TABLE items DROP COLUMN movie_replacement_sequence`,

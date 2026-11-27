@@ -176,12 +176,13 @@ func TestTVRescanPreservesMultiEpisodeLinksAndCustomOrder(t *testing.T) {
 func TestMovieVersionsLocalAssetsAndRescan(t *testing.T) {
 	ctx := context.Background()
 	st, s, lib, root := libraryFixture(t, "movies", map[string]string{
-		"The Matrix (1999)/The Matrix (1999).mkv":                    "original version",
-		"The Matrix (1999)/The Matrix (1999) {edition-Extended}.mp4": "extended version",
-		"The Matrix (1999)/poster.jpg":                               "synthetic poster",
-		"The Matrix (1999)/movie.nfo":                                `<movie><uniqueid type="tmdb">603</uniqueid></movie>`,
-		"Suspiria (1977)/Suspiria (1977).mkv":                        "original film",
-		"Suspiria (2018)/Suspiria (2018).mkv":                        "remake",
+		"The Matrix (1999)/The Matrix (1999).mkv":                            "original version",
+		"The Matrix (1999)/The Matrix (1999) {edition-Extended} - 1080p.mp4": "1080p extended version",
+		"The Matrix (1999)/The Matrix (1999) {edition-Extended} - 2160p.mp4": "2160p extended version",
+		"The Matrix (1999)/poster.jpg":                                       "synthetic poster",
+		"The Matrix (1999)/movie.nfo":                                        `<movie><uniqueid type="tmdb">603</uniqueid></movie>`,
+		"Suspiria (1977)/Suspiria (1977).mkv":                                "original film",
+		"Suspiria (2018)/Suspiria (2018).mkv":                                "remake",
 	})
 	for range 3 {
 		if err := s.scan(ctx, lib); err != nil {
@@ -189,28 +190,33 @@ func TestMovieVersionsLocalAssetsAndRescan(t *testing.T) {
 		}
 	}
 	items, _, err := st.ListItems(ctx, store.ItemQuery{LibraryID: lib, Kind: "movie"})
-	if err != nil || len(items) != 3 {
-		t.Fatalf("expected versions grouped and remakes separate: %v %v", items, err)
+	if err != nil || len(items) != 4 {
+		t.Fatalf("expected cuts and remakes separate: %v %v", items, err)
 	}
-	var matrix *store.Item
+	cuts := map[string]store.Item{}
 	years := map[int]bool{}
-	for i := range items {
-		if items[i].TMDBID == 603 {
-			matrix = &items[i]
+	for _, item := range items {
+		if item.TMDBID == 603 {
+			cuts[item.Edition] = item
 		}
-		years[items[i].Year] = true
+		years[item.Year] = true
 	}
-	if matrix == nil || !years[1977] || !years[2018] {
-		t.Fatalf("NFO/remake identity wrong: %v", items)
+	if !years[1977] || !years[2018] || len(cuts) != 2 {
+		t.Fatalf("NFO, cuts or remake identity wrong: %v", items)
 	}
-	if matrix.LocalPoster != filepath.Join(root, "The Matrix (1999)", "poster.jpg") {
-		t.Fatalf("poster=%q", matrix.LocalPoster)
-	}
-	files, err := st.ItemFiles(ctx, matrix.ID)
-	if err != nil || len(files) != 2 {
-		t.Fatalf("versions=%v err=%v", files, err)
-	}
-	if store.EditionOf(files[0].Path) == "" && store.EditionOf(files[1].Path) == "" {
-		t.Fatal("extended edition unrecognised")
+	for edition, count := range map[string]int{"": 1, "Extended": 2} {
+		movie := cuts[edition]
+		if movie.LocalPoster != filepath.Join(root, "The Matrix (1999)", "poster.jpg") {
+			t.Fatalf("poster=%q", movie.LocalPoster)
+		}
+		files, err := st.ItemFiles(ctx, movie.ID)
+		if err != nil || len(files) != count {
+			t.Fatalf("edition %q versions=%v err=%v", edition, files, err)
+		}
+		for _, file := range files {
+			if file.Edition != edition {
+				t.Fatalf("edition %q contains file with edition %q", edition, file.Edition)
+			}
+		}
 	}
 }

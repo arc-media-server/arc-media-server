@@ -261,13 +261,15 @@ try {
     '-metadata:s:a:0', 'language=eng', '-metadata:s:a:1', 'language=fra',
     '-disposition:a:0', 'default', '-disposition:a:1', '0', join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv')]);
   await writeFile(join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nPreplay French subtitle\n');
-  const theatrical = 'Audio Movie (2020) {tmdb-606} {edition-Theatrical}';
+  const theatrical = 'Audio Movie (2020) {tmdb-606} {edition-Theatrical Cut}';
   const directors = "Audio Movie (2020) {tmdb-606} {edition-Director's Cut}";
   await copyFile(join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv'), join(fixtures.preplay, theatrical + '.mkv'));
   run(ffmpeg, ['-v', 'error', '-y', '-i', join(fixtures.audio, 'Audio Movie (2020) {tmdb-606}.mkv'),
     '-map', '0:v:0', '-map', '0:a:1', '-map', '0:a:0', '-c', 'copy',
     '-disposition:a:0', 'default', '-disposition:a:1', '0', join(fixtures.preplay, directors + '.mkv')]);
-  for (const name of [theatrical, directors]) {
+  const theatricalAlternate = theatrical + ' - alternate';
+  await copyFile(join(fixtures.preplay, directors + '.mkv'), join(fixtures.preplay, theatricalAlternate + '.mkv'));
+  for (const name of [theatrical, theatricalAlternate, directors]) {
     await writeFile(join(fixtures.preplay, name + '.fre.srt'), '1\n00:00:00,000 --> 00:02:00,000\nPreplay French subtitle\n');
   }
   run(ffmpeg, ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=duration=6:size=960x540:rate=24',

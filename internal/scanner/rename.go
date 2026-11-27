@@ -89,7 +89,20 @@ func (s *Scanner) ensureNamedItem(ctx context.Context, it *store.Item, key strin
 	if len(owners) == 1 {
 		old := owners[0]
 		if (old.TMDBID == 0 || it.TMDBID == 0 || old.TMDBID == it.TMDBID) && (old.TVDBID == 0 || it.TVDBID == 0 || old.TVDBID == it.TVDBID) && (old.IMDBID == "" || it.IMDBID == "" || old.IMDBID == it.IMDBID) {
-			if err := s.store.RekeyItemWithAlias(ctx, old.ID, key); err != nil {
+			if it.MovieFamily != "" && store.MovieEditionKey(it.MovieFamily, old.Edition) != key {
+				files, err := s.store.ItemFiles(ctx, old.ID)
+				if err != nil {
+					return "", false, err
+				}
+				for _, file := range files {
+					if !file.Missing && store.MovieEditionKey(it.MovieFamily, file.Edition) != key {
+						return s.store.EnsureItem(ctx, it, key)
+					}
+				}
+				if err := s.store.UpdateMovieEdition(ctx, old.ID, key, it.MovieFamily, it.Edition); err != nil {
+					return "", false, err
+				}
+			} else if err := s.store.RekeyItemWithAlias(ctx, old.ID, key); err != nil {
 				return "", false, err
 			}
 			if err := s.store.AdoptIDs(ctx, old.ID, it.TMDBID, it.TVDBID, it.IMDBID); err != nil {

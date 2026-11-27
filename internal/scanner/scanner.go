@@ -494,6 +494,9 @@ func (s *Scanner) scanPaths(ctx context.Context, libraryID int64, paths []string
 			return s.scanVideoFile(ctx, lib, root, path, d, scanStart, folders)
 		}
 	case "movies":
+		if err = s.store.ReconcileMovieEditions(ctx, lib.ID); err != nil {
+			return err
+		}
 		addFile = func(root, path string, d fs.DirEntry) error {
 			return s.scanMovieFile(ctx, lib, path, d, scanStart)
 		}
@@ -1015,6 +1018,9 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	} else if name.IMDBID != "" {
 		matchKey = "imdb:" + name.IMDBID
 	}
+	family := matchKey
+	edition := store.EditionOf(path)
+	matchKey = store.MovieEditionKey(family, edition)
 	// A file merged or split by hand stays with the title it was put under.
 	itemID, err := s.store.FileItemOverride(ctx, fileID)
 	if err != nil {
@@ -1024,7 +1030,7 @@ func (s *Scanner) scanMovieFile(ctx context.Context, lib *store.Library, path st
 	if itemID == "" {
 		itemID, created, err = s.ensureNamedItem(ctx, &store.Item{
 			LibraryID: lib.ID, Kind: "movie", Title: name.Title, Year: name.Year,
-			TMDBID: name.TMDBID, IMDBID: name.IMDBID,
+			TMDBID: name.TMDBID, IMDBID: name.IMDBID, Edition: edition, MovieFamily: family,
 		}, matchKey, []int64{fileID})
 		if err != nil {
 			return err

@@ -110,17 +110,24 @@ test('preplay: explicit audio/subtitles survive the first request and optimized 
   await closePlayer(page);
 });
 
-test('preplay: edition/version changes reset track IDs and failures retain a cancellable dialog', async ({ page, media }, info) => {
-  const [item] = await addLibrary(page, media.preplay);
-  const detail = await (await page.request.get(`/api/items/${item.id}`)).json();
-  expect(detail.files.length).toBe(2);
-  const theatrical = detail.files.find((f: { edition: string }) => f.edition === 'Theatrical');
-  const directors = detail.files.find((f: { edition: string }) => f.edition === "Director's Cut");
+test('preplay: separate editions link across pages and version changes reset track IDs', async ({ page, media }, info) => {
+  const items = await addLibrary(page, media.preplay);
+  expect(items).toHaveLength(2);
+  const theatrical = items.find((item: { edition?: string }) => item.edition === 'Theatrical Cut');
+  const directors = items.find((item: { edition?: string }) => item.edition === "Director's Cut");
   expect(theatrical).toBeTruthy();
   expect(directors).toBeTruthy();
-  await page.goto(`/movie/${item.id}`);
+  const detail = await (await page.request.get(`/api/items/${theatrical.id}`)).json();
+  expect(detail.files).toHaveLength(2);
+  const alternate = detail.files.find((f: { id: number; path: string }) => f.path.includes('alternate'));
+  const first = detail.files.find((f: { id: number }) => f.id !== alternate.id);
+  const directorFiles = (await (await page.request.get(`/api/items/${directors.id}`)).json()).files;
+  expect(directorFiles).toHaveLength(1);
+  await page.goto(`/library/${theatrical.library_id}`);
+  await expect(page.getByText('2020 · Theatrical Cut', { exact: true })).toBeVisible();
+  await expect(page.getByText("2020 · Director's Cut", { exact: true })).toBeVisible();
+  await page.goto(`/movie/${theatrical.id}`);
   await focusedPlayback(page);
-  await page.getByRole('radio', { name: 'Theatrical', exact: true }).click();
   let fail = true;
   let requests = 0;
   await page.route('**/playback-options', route => fail ? route.fulfill({ status: 503, json: { error: 'Options fixture unavailable' } }) : route.continue());
@@ -132,11 +139,13 @@ test('preplay: edition/version changes reset track IDs and failures retain a can
   await expect(dialog.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
   fail = false;
   await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(dialog.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue(String(theatrical.id));
+  const version = dialog.getByRole('combobox', { name: 'Version', exact: true });
+  await expect(version.getByRole('option')).toHaveCount(2);
+  await version.selectOption(String(first.id));
   await dialog.getByRole('combobox', { name: 'Audio', exact: true }).selectOption('2');
   await dialog.getByRole('combobox', { name: 'Subtitles', exact: true }).selectOption('off');
-  await dialog.getByRole('combobox', { name: 'Version', exact: true }).selectOption(String(directors.id));
-  await expect(dialog).toContainText("Audio Movie · Director's Cut");
+  await dialog.getByRole('combobox', { name: 'Version', exact: true }).selectOption(String(alternate.id));
+  await expect(dialog).toContainText("Audio Movie · Theatrical Cut");
   await expect(dialog.getByRole('combobox', { name: 'Audio', exact: true })).toHaveValue('');
   await expect(dialog.getByRole('combobox', { name: 'Subtitles', exact: true })).toHaveValue('auto');
   await expect(dialog.getByRole('combobox', { name: 'Audio', exact: true }).getByRole('option', { name: /^Automatic — French/ })).toHaveCount(1);
@@ -144,14 +153,15 @@ test('preplay: edition/version changes reset track IDs and failures retain a can
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   expect(requests).toBe(0);
   expect(await (await page.request.get('/api/me/prefs')).json()).toEqual(before);
-  await page.getByRole('radio', { name: "Director's Cut", exact: true }).click();
+  await page.getByRole('link', { name: "Director's Cut", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/movie/${directors.id}$`));
   await page.getByRole('button', { name: 'Playback options', exact: true }).click();
-  await expect(dialog.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue(String(directors.id));
+  await expect(dialog.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue(String(directorFiles[0].id));
   await dialog.getByRole('combobox', { name: 'Audio', exact: true }).selectOption('1');
   const response = page.waitForResponse(r => r.url().endsWith('/playback') && r.ok());
   await dialog.getByRole('button', { name: 'Play', exact: true }).click();
   const result = await response;
-  expect(result.request().postDataJSON()).toMatchObject({ file_id: directors.id, audio_stream: 1 });
+  expect(result.request().postDataJSON()).toMatchObject({ file_id: directorFiles[0].id, audio_stream: 1 });
   expect((await result.json()).audio_tracks.find((t: { index: number }) => t.index === 1).language).toBe('fra');
   await expect.poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(1);
   await closePlayer(page);

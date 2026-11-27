@@ -240,6 +240,7 @@ GET /collections/{id} 200 .items[].credits[].name string
 GET /collections/{id} 200 .items[].credits[].person_id integer
 GET /collections/{id} 200 .items[].credits[].role string
 GET /collections/{id} 200 .items[].details_provider string
+GET /collections/{id} 200 .items[].edition string
 GET /collections/{id} 200 .items[].episode_number integer
 GET /collections/{id} 200 .items[].extras array
 GET /collections/{id} 200 .items[].extras[] object
@@ -308,6 +309,10 @@ GET /collections/{id} 200 .items[].metadata_state string
 GET /collections/{id} 200 .items[].next_aired string
 GET /collections/{id} 200 .items[].original_language string
 GET /collections/{id} 200 .items[].original_title string
+GET /collections/{id} 200 .items[].other_editions array
+GET /collections/{id} 200 .items[].other_editions[] object
+GET /collections/{id} 200 .items[].other_editions[].edition string
+GET /collections/{id} 200 .items[].other_editions[].id string
 GET /collections/{id} 200 .items[].overview string
 GET /collections/{id} 200 .items[].parent_id string
 GET /collections/{id} 200 .items[].rating number
@@ -544,6 +549,7 @@ GET /home/continue 200 [].credits[].name string
 GET /home/continue 200 [].credits[].person_id integer
 GET /home/continue 200 [].credits[].role string
 GET /home/continue 200 [].details_provider string
+GET /home/continue 200 [].edition string
 GET /home/continue 200 [].episode_number integer
 GET /home/continue 200 [].extras array
 GET /home/continue 200 [].extras[] object
@@ -612,6 +618,10 @@ GET /home/continue 200 [].metadata_state string
 GET /home/continue 200 [].next_aired string
 GET /home/continue 200 [].original_language string
 GET /home/continue 200 [].original_title string
+GET /home/continue 200 [].other_editions array
+GET /home/continue 200 [].other_editions[] object
+GET /home/continue 200 [].other_editions[].edition string
+GET /home/continue 200 [].other_editions[].id string
 GET /home/continue 200 [].overview string
 GET /home/continue 200 [].parent_id string
 GET /home/continue 200 [].rating number
@@ -691,6 +701,7 @@ GET /home/next-up 200 [].credits[].name string
 GET /home/next-up 200 [].credits[].person_id integer
 GET /home/next-up 200 [].credits[].role string
 GET /home/next-up 200 [].details_provider string
+GET /home/next-up 200 [].edition string
 GET /home/next-up 200 [].episode_number integer
 GET /home/next-up 200 [].extras array
 GET /home/next-up 200 [].extras[] object
@@ -759,6 +770,10 @@ GET /home/next-up 200 [].metadata_state string
 GET /home/next-up 200 [].next_aired string
 GET /home/next-up 200 [].original_language string
 GET /home/next-up 200 [].original_title string
+GET /home/next-up 200 [].other_editions array
+GET /home/next-up 200 [].other_editions[] object
+GET /home/next-up 200 [].other_editions[].edition string
+GET /home/next-up 200 [].other_editions[].id string
 GET /home/next-up 200 [].overview string
 GET /home/next-up 200 [].parent_id string
 GET /home/next-up 200 [].rating number
@@ -856,6 +871,7 @@ GET /items 200 .items[].credits[].name string
 GET /items 200 .items[].credits[].person_id integer
 GET /items 200 .items[].credits[].role string
 GET /items 200 .items[].details_provider string
+GET /items 200 .items[].edition string
 GET /items 200 .items[].episode_number integer
 GET /items 200 .items[].extras array
 GET /items 200 .items[].extras[] object
@@ -924,6 +940,10 @@ GET /items 200 .items[].metadata_state string
 GET /items 200 .items[].next_aired string
 GET /items 200 .items[].original_language string
 GET /items 200 .items[].original_title string
+GET /items 200 .items[].other_editions array
+GET /items 200 .items[].other_editions[] object
+GET /items 200 .items[].other_editions[].edition string
+GET /items 200 .items[].other_editions[].id string
 GET /items 200 .items[].overview string
 GET /items 200 .items[].parent_id string
 GET /items 200 .items[].rating number
@@ -978,6 +998,7 @@ GET /items/lookup 200 .items[].credits[].name string
 GET /items/lookup 200 .items[].credits[].person_id integer
 GET /items/lookup 200 .items[].credits[].role string
 GET /items/lookup 200 .items[].details_provider string
+GET /items/lookup 200 .items[].edition string
 GET /items/lookup 200 .items[].episode_number integer
 GET /items/lookup 200 .items[].extras array
 GET /items/lookup 200 .items[].extras[] object
@@ -1046,6 +1067,10 @@ GET /items/lookup 200 .items[].metadata_state string
 GET /items/lookup 200 .items[].next_aired string
 GET /items/lookup 200 .items[].original_language string
 GET /items/lookup 200 .items[].original_title string
+GET /items/lookup 200 .items[].other_editions array
+GET /items/lookup 200 .items[].other_editions[] object
+GET /items/lookup 200 .items[].other_editions[].edition string
+GET /items/lookup 200 .items[].other_editions[].id string
 GET /items/lookup 200 .items[].overview string
 GET /items/lookup 200 .items[].parent_id string
 GET /items/lookup 200 .items[].rating number
@@ -1098,6 +1123,7 @@ GET /items/{id} 200 .credits[].name string
 GET /items/{id} 200 .credits[].person_id integer
 GET /items/{id} 200 .credits[].role string
 GET /items/{id} 200 .details_provider string
+GET /items/{id} 200 .edition string
 GET /items/{id} 200 .episode_number integer
 GET /items/{id} 200 .extras array
 GET /items/{id} 200 .extras[] object
@@ -1166,6 +1192,10 @@ GET /items/{id} 200 .metadata_state string
 GET /items/{id} 200 .next_aired string
 GET /items/{id} 200 .original_language string
 GET /items/{id} 200 .original_title string
+GET /items/{id} 200 .other_editions array
+GET /items/{id} 200 .other_editions[] object
+GET /items/{id} 200 .other_editions[].edition string
+GET /items/{id} 200 .other_editions[].id string
 GET /items/{id} 200 .overview string
 GET /items/{id} 200 .parent_id string
 GET /items/{id} 200 .rating number
@@ -1287,6 +1317,7 @@ GET /items/{id}/match 200 .item.credits[].name string
 GET /items/{id}/match 200 .item.credits[].person_id integer
 GET /items/{id}/match 200 .item.credits[].role string
 GET /items/{id}/match 200 .item.details_provider string
+GET /items/{id}/match 200 .item.edition string
 GET /items/{id}/match 200 .item.episode_number integer
 GET /items/{id}/match 200 .item.extras array
 GET /items/{id}/match 200 .item.extras[] object
@@ -1355,6 +1386,10 @@ GET /items/{id}/match 200 .item.metadata_state string
 GET /items/{id}/match 200 .item.next_aired string
 GET /items/{id}/match 200 .item.original_language string
 GET /items/{id}/match 200 .item.original_title string
+GET /items/{id}/match 200 .item.other_editions array
+GET /items/{id}/match 200 .item.other_editions[] object
+GET /items/{id}/match 200 .item.other_editions[].edition string
+GET /items/{id}/match 200 .item.other_editions[].id string
 GET /items/{id}/match 200 .item.overview string
 GET /items/{id}/match 200 .item.parent_id string
 GET /items/{id}/match 200 .item.rating number
@@ -1453,6 +1488,7 @@ GET /items/{id}/next 200 .credits[].name string
 GET /items/{id}/next 200 .credits[].person_id integer
 GET /items/{id}/next 200 .credits[].role string
 GET /items/{id}/next 200 .details_provider string
+GET /items/{id}/next 200 .edition string
 GET /items/{id}/next 200 .episode_number integer
 GET /items/{id}/next 200 .extras array
 GET /items/{id}/next 200 .extras[] object
@@ -1521,6 +1557,10 @@ GET /items/{id}/next 200 .metadata_state string
 GET /items/{id}/next 200 .next_aired string
 GET /items/{id}/next 200 .original_language string
 GET /items/{id}/next 200 .original_title string
+GET /items/{id}/next 200 .other_editions array
+GET /items/{id}/next 200 .other_editions[] object
+GET /items/{id}/next 200 .other_editions[].edition string
+GET /items/{id}/next 200 .other_editions[].id string
 GET /items/{id}/next 200 .overview string
 GET /items/{id}/next 200 .parent_id string
 GET /items/{id}/next 200 .rating number
@@ -1574,6 +1614,7 @@ GET /items/{id}/similar 200 [].credits[].name string
 GET /items/{id}/similar 200 [].credits[].person_id integer
 GET /items/{id}/similar 200 [].credits[].role string
 GET /items/{id}/similar 200 [].details_provider string
+GET /items/{id}/similar 200 [].edition string
 GET /items/{id}/similar 200 [].episode_number integer
 GET /items/{id}/similar 200 [].extras array
 GET /items/{id}/similar 200 [].extras[] object
@@ -1642,6 +1683,10 @@ GET /items/{id}/similar 200 [].metadata_state string
 GET /items/{id}/similar 200 [].next_aired string
 GET /items/{id}/similar 200 [].original_language string
 GET /items/{id}/similar 200 [].original_title string
+GET /items/{id}/similar 200 [].other_editions array
+GET /items/{id}/similar 200 [].other_editions[] object
+GET /items/{id}/similar 200 [].other_editions[].edition string
+GET /items/{id}/similar 200 [].other_editions[].id string
 GET /items/{id}/similar 200 [].overview string
 GET /items/{id}/similar 200 [].parent_id string
 GET /items/{id}/similar 200 [].rating number
@@ -1913,6 +1958,7 @@ GET /libraries/{id}/folders 200 .items[].credits[].name string
 GET /libraries/{id}/folders 200 .items[].credits[].person_id integer
 GET /libraries/{id}/folders 200 .items[].credits[].role string
 GET /libraries/{id}/folders 200 .items[].details_provider string
+GET /libraries/{id}/folders 200 .items[].edition string
 GET /libraries/{id}/folders 200 .items[].episode_number integer
 GET /libraries/{id}/folders 200 .items[].extras array
 GET /libraries/{id}/folders 200 .items[].extras[] object
@@ -1981,6 +2027,10 @@ GET /libraries/{id}/folders 200 .items[].metadata_state string
 GET /libraries/{id}/folders 200 .items[].next_aired string
 GET /libraries/{id}/folders 200 .items[].original_language string
 GET /libraries/{id}/folders 200 .items[].original_title string
+GET /libraries/{id}/folders 200 .items[].other_editions array
+GET /libraries/{id}/folders 200 .items[].other_editions[] object
+GET /libraries/{id}/folders 200 .items[].other_editions[].edition string
+GET /libraries/{id}/folders 200 .items[].other_editions[].id string
 GET /libraries/{id}/folders 200 .items[].overview string
 GET /libraries/{id}/folders 200 .items[].parent_id string
 GET /libraries/{id}/folders 200 .items[].rating number
@@ -2051,6 +2101,7 @@ GET /libraries/{id}/health 200 .duplicates[].items[].credits[].name string
 GET /libraries/{id}/health 200 .duplicates[].items[].credits[].person_id integer
 GET /libraries/{id}/health 200 .duplicates[].items[].credits[].role string
 GET /libraries/{id}/health 200 .duplicates[].items[].details_provider string
+GET /libraries/{id}/health 200 .duplicates[].items[].edition string
 GET /libraries/{id}/health 200 .duplicates[].items[].episode_number integer
 GET /libraries/{id}/health 200 .duplicates[].items[].extras array
 GET /libraries/{id}/health 200 .duplicates[].items[].extras[] object
@@ -2119,6 +2170,10 @@ GET /libraries/{id}/health 200 .duplicates[].items[].metadata_state string
 GET /libraries/{id}/health 200 .duplicates[].items[].next_aired string
 GET /libraries/{id}/health 200 .duplicates[].items[].original_language string
 GET /libraries/{id}/health 200 .duplicates[].items[].original_title string
+GET /libraries/{id}/health 200 .duplicates[].items[].other_editions array
+GET /libraries/{id}/health 200 .duplicates[].items[].other_editions[] object
+GET /libraries/{id}/health 200 .duplicates[].items[].other_editions[].edition string
+GET /libraries/{id}/health 200 .duplicates[].items[].other_editions[].id string
 GET /libraries/{id}/health 200 .duplicates[].items[].overview string
 GET /libraries/{id}/health 200 .duplicates[].items[].parent_id string
 GET /libraries/{id}/health 200 .duplicates[].items[].rating number
@@ -2196,6 +2251,7 @@ GET /libraries/{id}/health 200 .missing_episodes[].series.credits[].name string
 GET /libraries/{id}/health 200 .missing_episodes[].series.credits[].person_id integer
 GET /libraries/{id}/health 200 .missing_episodes[].series.credits[].role string
 GET /libraries/{id}/health 200 .missing_episodes[].series.details_provider string
+GET /libraries/{id}/health 200 .missing_episodes[].series.edition string
 GET /libraries/{id}/health 200 .missing_episodes[].series.episode_number integer
 GET /libraries/{id}/health 200 .missing_episodes[].series.extras array
 GET /libraries/{id}/health 200 .missing_episodes[].series.extras[] object
@@ -2264,6 +2320,10 @@ GET /libraries/{id}/health 200 .missing_episodes[].series.metadata_state string
 GET /libraries/{id}/health 200 .missing_episodes[].series.next_aired string
 GET /libraries/{id}/health 200 .missing_episodes[].series.original_language string
 GET /libraries/{id}/health 200 .missing_episodes[].series.original_title string
+GET /libraries/{id}/health 200 .missing_episodes[].series.other_editions array
+GET /libraries/{id}/health 200 .missing_episodes[].series.other_editions[] object
+GET /libraries/{id}/health 200 .missing_episodes[].series.other_editions[].edition string
+GET /libraries/{id}/health 200 .missing_episodes[].series.other_editions[].id string
 GET /libraries/{id}/health 200 .missing_episodes[].series.overview string
 GET /libraries/{id}/health 200 .missing_episodes[].series.parent_id string
 GET /libraries/{id}/health 200 .missing_episodes[].series.rating number
@@ -2326,6 +2386,7 @@ GET /libraries/{id}/health 200 .unidentified[].credits[].name string
 GET /libraries/{id}/health 200 .unidentified[].credits[].person_id integer
 GET /libraries/{id}/health 200 .unidentified[].credits[].role string
 GET /libraries/{id}/health 200 .unidentified[].details_provider string
+GET /libraries/{id}/health 200 .unidentified[].edition string
 GET /libraries/{id}/health 200 .unidentified[].episode_number integer
 GET /libraries/{id}/health 200 .unidentified[].extras array
 GET /libraries/{id}/health 200 .unidentified[].extras[] object
@@ -2394,6 +2455,10 @@ GET /libraries/{id}/health 200 .unidentified[].metadata_state string
 GET /libraries/{id}/health 200 .unidentified[].next_aired string
 GET /libraries/{id}/health 200 .unidentified[].original_language string
 GET /libraries/{id}/health 200 .unidentified[].original_title string
+GET /libraries/{id}/health 200 .unidentified[].other_editions array
+GET /libraries/{id}/health 200 .unidentified[].other_editions[] object
+GET /libraries/{id}/health 200 .unidentified[].other_editions[].edition string
+GET /libraries/{id}/health 200 .unidentified[].other_editions[].id string
 GET /libraries/{id}/health 200 .unidentified[].overview string
 GET /libraries/{id}/health 200 .unidentified[].parent_id string
 GET /libraries/{id}/health 200 .unidentified[].rating number
@@ -2486,6 +2551,7 @@ GET /libraries/{id}/recent-shows 200 [].item.credits[].name string
 GET /libraries/{id}/recent-shows 200 [].item.credits[].person_id integer
 GET /libraries/{id}/recent-shows 200 [].item.credits[].role string
 GET /libraries/{id}/recent-shows 200 [].item.details_provider string
+GET /libraries/{id}/recent-shows 200 [].item.edition string
 GET /libraries/{id}/recent-shows 200 [].item.episode_number integer
 GET /libraries/{id}/recent-shows 200 [].item.extras array
 GET /libraries/{id}/recent-shows 200 [].item.extras[] object
@@ -2554,6 +2620,10 @@ GET /libraries/{id}/recent-shows 200 [].item.metadata_state string
 GET /libraries/{id}/recent-shows 200 [].item.next_aired string
 GET /libraries/{id}/recent-shows 200 [].item.original_language string
 GET /libraries/{id}/recent-shows 200 [].item.original_title string
+GET /libraries/{id}/recent-shows 200 [].item.other_editions array
+GET /libraries/{id}/recent-shows 200 [].item.other_editions[] object
+GET /libraries/{id}/recent-shows 200 [].item.other_editions[].edition string
+GET /libraries/{id}/recent-shows 200 [].item.other_editions[].id string
 GET /libraries/{id}/recent-shows 200 [].item.overview string
 GET /libraries/{id}/recent-shows 200 [].item.parent_id string
 GET /libraries/{id}/recent-shows 200 [].item.rating number
@@ -2610,6 +2680,7 @@ GET /libraries/{id}/recommended 200 .rows[].items[].credits[].name string
 GET /libraries/{id}/recommended 200 .rows[].items[].credits[].person_id integer
 GET /libraries/{id}/recommended 200 .rows[].items[].credits[].role string
 GET /libraries/{id}/recommended 200 .rows[].items[].details_provider string
+GET /libraries/{id}/recommended 200 .rows[].items[].edition string
 GET /libraries/{id}/recommended 200 .rows[].items[].episode_number integer
 GET /libraries/{id}/recommended 200 .rows[].items[].extras array
 GET /libraries/{id}/recommended 200 .rows[].items[].extras[] object
@@ -2678,6 +2749,10 @@ GET /libraries/{id}/recommended 200 .rows[].items[].metadata_state string
 GET /libraries/{id}/recommended 200 .rows[].items[].next_aired string
 GET /libraries/{id}/recommended 200 .rows[].items[].original_language string
 GET /libraries/{id}/recommended 200 .rows[].items[].original_title string
+GET /libraries/{id}/recommended 200 .rows[].items[].other_editions array
+GET /libraries/{id}/recommended 200 .rows[].items[].other_editions[] object
+GET /libraries/{id}/recommended 200 .rows[].items[].other_editions[].edition string
+GET /libraries/{id}/recommended 200 .rows[].items[].other_editions[].id string
 GET /libraries/{id}/recommended 200 .rows[].items[].overview string
 GET /libraries/{id}/recommended 200 .rows[].items[].parent_id string
 GET /libraries/{id}/recommended 200 .rows[].items[].rating number
@@ -2744,6 +2819,7 @@ GET /libraries/{id}/recommended/rows/{row} 200 .items[].credits[].name string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].credits[].person_id integer
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].credits[].role string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].details_provider string
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].edition string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].episode_number integer
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].extras array
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].extras[] object
@@ -2812,6 +2888,10 @@ GET /libraries/{id}/recommended/rows/{row} 200 .items[].metadata_state string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].next_aired string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].original_language string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].original_title string
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].other_editions array
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].other_editions[] object
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].other_editions[].edition string
+GET /libraries/{id}/recommended/rows/{row} 200 .items[].other_editions[].id string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].overview string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].parent_id string
 GET /libraries/{id}/recommended/rows/{row} 200 .items[].rating number
@@ -2884,6 +2964,7 @@ GET /libraries/{id}/unmatched 200 [].credits[].name string
 GET /libraries/{id}/unmatched 200 [].credits[].person_id integer
 GET /libraries/{id}/unmatched 200 [].credits[].role string
 GET /libraries/{id}/unmatched 200 [].details_provider string
+GET /libraries/{id}/unmatched 200 [].edition string
 GET /libraries/{id}/unmatched 200 [].episode_number integer
 GET /libraries/{id}/unmatched 200 [].extras array
 GET /libraries/{id}/unmatched 200 [].extras[] object
@@ -2952,6 +3033,10 @@ GET /libraries/{id}/unmatched 200 [].metadata_state string
 GET /libraries/{id}/unmatched 200 [].next_aired string
 GET /libraries/{id}/unmatched 200 [].original_language string
 GET /libraries/{id}/unmatched 200 [].original_title string
+GET /libraries/{id}/unmatched 200 [].other_editions array
+GET /libraries/{id}/unmatched 200 [].other_editions[] object
+GET /libraries/{id}/unmatched 200 [].other_editions[].edition string
+GET /libraries/{id}/unmatched 200 [].other_editions[].id string
 GET /libraries/{id}/unmatched 200 [].overview string
 GET /libraries/{id}/unmatched 200 [].parent_id string
 GET /libraries/{id}/unmatched 200 [].rating number
@@ -3183,6 +3268,7 @@ GET /me/year 200 .items{}.credits[].name string
 GET /me/year 200 .items{}.credits[].person_id integer
 GET /me/year 200 .items{}.credits[].role string
 GET /me/year 200 .items{}.details_provider string
+GET /me/year 200 .items{}.edition string
 GET /me/year 200 .items{}.episode_number integer
 GET /me/year 200 .items{}.extras array
 GET /me/year 200 .items{}.extras[] object
@@ -3251,6 +3337,10 @@ GET /me/year 200 .items{}.metadata_state string
 GET /me/year 200 .items{}.next_aired string
 GET /me/year 200 .items{}.original_language string
 GET /me/year 200 .items{}.original_title string
+GET /me/year 200 .items{}.other_editions array
+GET /me/year 200 .items{}.other_editions[] object
+GET /me/year 200 .items{}.other_editions[].edition string
+GET /me/year 200 .items{}.other_editions[].id string
 GET /me/year 200 .items{}.overview string
 GET /me/year 200 .items{}.parent_id string
 GET /me/year 200 .items{}.rating number
@@ -3342,6 +3432,7 @@ GET /news 200 .entries[].item.credits[].name string
 GET /news 200 .entries[].item.credits[].person_id integer
 GET /news 200 .entries[].item.credits[].role string
 GET /news 200 .entries[].item.details_provider string
+GET /news 200 .entries[].item.edition string
 GET /news 200 .entries[].item.episode_number integer
 GET /news 200 .entries[].item.extras array
 GET /news 200 .entries[].item.extras[] object
@@ -3410,6 +3501,10 @@ GET /news 200 .entries[].item.metadata_state string
 GET /news 200 .entries[].item.next_aired string
 GET /news 200 .entries[].item.original_language string
 GET /news 200 .entries[].item.original_title string
+GET /news 200 .entries[].item.other_editions array
+GET /news 200 .entries[].item.other_editions[] object
+GET /news 200 .entries[].item.other_editions[].edition string
+GET /news 200 .entries[].item.other_editions[].id string
 GET /news 200 .entries[].item.overview string
 GET /news 200 .entries[].item.parent_id string
 GET /news 200 .entries[].item.rating number
@@ -3487,6 +3582,7 @@ GET /people/{id} 200 .credits[].item.credits[].name string
 GET /people/{id} 200 .credits[].item.credits[].person_id integer
 GET /people/{id} 200 .credits[].item.credits[].role string
 GET /people/{id} 200 .credits[].item.details_provider string
+GET /people/{id} 200 .credits[].item.edition string
 GET /people/{id} 200 .credits[].item.episode_number integer
 GET /people/{id} 200 .credits[].item.extras array
 GET /people/{id} 200 .credits[].item.extras[] object
@@ -3555,6 +3651,10 @@ GET /people/{id} 200 .credits[].item.metadata_state string
 GET /people/{id} 200 .credits[].item.next_aired string
 GET /people/{id} 200 .credits[].item.original_language string
 GET /people/{id} 200 .credits[].item.original_title string
+GET /people/{id} 200 .credits[].item.other_editions array
+GET /people/{id} 200 .credits[].item.other_editions[] object
+GET /people/{id} 200 .credits[].item.other_editions[].edition string
+GET /people/{id} 200 .credits[].item.other_editions[].id string
 GET /people/{id} 200 .credits[].item.overview string
 GET /people/{id} 200 .credits[].item.parent_id string
 GET /people/{id} 200 .credits[].item.rating number
@@ -3619,6 +3719,7 @@ GET /play-queues/{id} 200 .entries[].item.credits[].name string
 GET /play-queues/{id} 200 .entries[].item.credits[].person_id integer
 GET /play-queues/{id} 200 .entries[].item.credits[].role string
 GET /play-queues/{id} 200 .entries[].item.details_provider string
+GET /play-queues/{id} 200 .entries[].item.edition string
 GET /play-queues/{id} 200 .entries[].item.episode_number integer
 GET /play-queues/{id} 200 .entries[].item.extras array
 GET /play-queues/{id} 200 .entries[].item.extras[] object
@@ -3687,6 +3788,10 @@ GET /play-queues/{id} 200 .entries[].item.metadata_state string
 GET /play-queues/{id} 200 .entries[].item.next_aired string
 GET /play-queues/{id} 200 .entries[].item.original_language string
 GET /play-queues/{id} 200 .entries[].item.original_title string
+GET /play-queues/{id} 200 .entries[].item.other_editions array
+GET /play-queues/{id} 200 .entries[].item.other_editions[] object
+GET /play-queues/{id} 200 .entries[].item.other_editions[].edition string
+GET /play-queues/{id} 200 .entries[].item.other_editions[].id string
 GET /play-queues/{id} 200 .entries[].item.overview string
 GET /play-queues/{id} 200 .entries[].item.parent_id string
 GET /play-queues/{id} 200 .entries[].item.rating number
@@ -3746,6 +3851,7 @@ GET /playing 200 [].item.credits[].name string
 GET /playing 200 [].item.credits[].person_id integer
 GET /playing 200 [].item.credits[].role string
 GET /playing 200 [].item.details_provider string
+GET /playing 200 [].item.edition string
 GET /playing 200 [].item.episode_number integer
 GET /playing 200 [].item.extras array
 GET /playing 200 [].item.extras[] object
@@ -3814,6 +3920,10 @@ GET /playing 200 [].item.metadata_state string
 GET /playing 200 [].item.next_aired string
 GET /playing 200 [].item.original_language string
 GET /playing 200 [].item.original_title string
+GET /playing 200 [].item.other_editions array
+GET /playing 200 [].item.other_editions[] object
+GET /playing 200 [].item.other_editions[].edition string
+GET /playing 200 [].item.other_editions[].id string
 GET /playing 200 [].item.overview string
 GET /playing 200 [].item.parent_id string
 GET /playing 200 [].item.rating number
@@ -3932,6 +4042,7 @@ GET /playlists/{id} 200 .entries[].item.credits[].name string
 GET /playlists/{id} 200 .entries[].item.credits[].person_id integer
 GET /playlists/{id} 200 .entries[].item.credits[].role string
 GET /playlists/{id} 200 .entries[].item.details_provider string
+GET /playlists/{id} 200 .entries[].item.edition string
 GET /playlists/{id} 200 .entries[].item.episode_number integer
 GET /playlists/{id} 200 .entries[].item.extras array
 GET /playlists/{id} 200 .entries[].item.extras[] object
@@ -4000,6 +4111,10 @@ GET /playlists/{id} 200 .entries[].item.metadata_state string
 GET /playlists/{id} 200 .entries[].item.next_aired string
 GET /playlists/{id} 200 .entries[].item.original_language string
 GET /playlists/{id} 200 .entries[].item.original_title string
+GET /playlists/{id} 200 .entries[].item.other_editions array
+GET /playlists/{id} 200 .entries[].item.other_editions[] object
+GET /playlists/{id} 200 .entries[].item.other_editions[].edition string
+GET /playlists/{id} 200 .entries[].item.other_editions[].id string
 GET /playlists/{id} 200 .entries[].item.overview string
 GET /playlists/{id} 200 .entries[].item.parent_id string
 GET /playlists/{id} 200 .entries[].item.rating number
@@ -4212,6 +4327,7 @@ GET /search 200 .episodes[].credits[].name string
 GET /search 200 .episodes[].credits[].person_id integer
 GET /search 200 .episodes[].credits[].role string
 GET /search 200 .episodes[].details_provider string
+GET /search 200 .episodes[].edition string
 GET /search 200 .episodes[].episode_number integer
 GET /search 200 .episodes[].extras array
 GET /search 200 .episodes[].extras[] object
@@ -4280,6 +4396,10 @@ GET /search 200 .episodes[].metadata_state string
 GET /search 200 .episodes[].next_aired string
 GET /search 200 .episodes[].original_language string
 GET /search 200 .episodes[].original_title string
+GET /search 200 .episodes[].other_editions array
+GET /search 200 .episodes[].other_editions[] object
+GET /search 200 .episodes[].other_editions[].edition string
+GET /search 200 .episodes[].other_editions[].id string
 GET /search 200 .episodes[].overview string
 GET /search 200 .episodes[].parent_id string
 GET /search 200 .episodes[].rating number
@@ -4332,6 +4452,7 @@ GET /search 200 .movies[].credits[].name string
 GET /search 200 .movies[].credits[].person_id integer
 GET /search 200 .movies[].credits[].role string
 GET /search 200 .movies[].details_provider string
+GET /search 200 .movies[].edition string
 GET /search 200 .movies[].episode_number integer
 GET /search 200 .movies[].extras array
 GET /search 200 .movies[].extras[] object
@@ -4400,6 +4521,10 @@ GET /search 200 .movies[].metadata_state string
 GET /search 200 .movies[].next_aired string
 GET /search 200 .movies[].original_language string
 GET /search 200 .movies[].original_title string
+GET /search 200 .movies[].other_editions array
+GET /search 200 .movies[].other_editions[] object
+GET /search 200 .movies[].other_editions[].edition string
+GET /search 200 .movies[].other_editions[].id string
 GET /search 200 .movies[].overview string
 GET /search 200 .movies[].parent_id string
 GET /search 200 .movies[].rating number
@@ -4454,6 +4579,7 @@ GET /search 200 .shows[].credits[].name string
 GET /search 200 .shows[].credits[].person_id integer
 GET /search 200 .shows[].credits[].role string
 GET /search 200 .shows[].details_provider string
+GET /search 200 .shows[].edition string
 GET /search 200 .shows[].episode_number integer
 GET /search 200 .shows[].extras array
 GET /search 200 .shows[].extras[] object
@@ -4522,6 +4648,10 @@ GET /search 200 .shows[].metadata_state string
 GET /search 200 .shows[].next_aired string
 GET /search 200 .shows[].original_language string
 GET /search 200 .shows[].original_title string
+GET /search 200 .shows[].other_editions array
+GET /search 200 .shows[].other_editions[] object
+GET /search 200 .shows[].other_editions[].edition string
+GET /search 200 .shows[].other_editions[].id string
 GET /search 200 .shows[].overview string
 GET /search 200 .shows[].parent_id string
 GET /search 200 .shows[].rating number
@@ -4613,6 +4743,7 @@ GET /series/{id}/seasons 200 .seasons[].episodes[].credits[].name string
 GET /series/{id}/seasons 200 .seasons[].episodes[].credits[].person_id integer
 GET /series/{id}/seasons 200 .seasons[].episodes[].credits[].role string
 GET /series/{id}/seasons 200 .seasons[].episodes[].details_provider string
+GET /series/{id}/seasons 200 .seasons[].episodes[].edition string
 GET /series/{id}/seasons 200 .seasons[].episodes[].episode_number integer
 GET /series/{id}/seasons 200 .seasons[].episodes[].extras array
 GET /series/{id}/seasons 200 .seasons[].episodes[].extras[] object
@@ -4683,6 +4814,10 @@ GET /series/{id}/seasons 200 .seasons[].episodes[].metadata_state string
 GET /series/{id}/seasons 200 .seasons[].episodes[].next_aired string
 GET /series/{id}/seasons 200 .seasons[].episodes[].original_language string
 GET /series/{id}/seasons 200 .seasons[].episodes[].original_title string
+GET /series/{id}/seasons 200 .seasons[].episodes[].other_editions array
+GET /series/{id}/seasons 200 .seasons[].episodes[].other_editions[] object
+GET /series/{id}/seasons 200 .seasons[].episodes[].other_editions[].edition string
+GET /series/{id}/seasons 200 .seasons[].episodes[].other_editions[].id string
 GET /series/{id}/seasons 200 .seasons[].episodes[].overview string
 GET /series/{id}/seasons 200 .seasons[].episodes[].parent_id string
 GET /series/{id}/seasons 200 .seasons[].episodes[].rating number
@@ -4735,6 +4870,7 @@ GET /series/{id}/seasons 200 .series.credits[].name string
 GET /series/{id}/seasons 200 .series.credits[].person_id integer
 GET /series/{id}/seasons 200 .series.credits[].role string
 GET /series/{id}/seasons 200 .series.details_provider string
+GET /series/{id}/seasons 200 .series.edition string
 GET /series/{id}/seasons 200 .series.episode_number integer
 GET /series/{id}/seasons 200 .series.extras array
 GET /series/{id}/seasons 200 .series.extras[] object
@@ -4803,6 +4939,10 @@ GET /series/{id}/seasons 200 .series.metadata_state string
 GET /series/{id}/seasons 200 .series.next_aired string
 GET /series/{id}/seasons 200 .series.original_language string
 GET /series/{id}/seasons 200 .series.original_title string
+GET /series/{id}/seasons 200 .series.other_editions array
+GET /series/{id}/seasons 200 .series.other_editions[] object
+GET /series/{id}/seasons 200 .series.other_editions[].edition string
+GET /series/{id}/seasons 200 .series.other_editions[].id string
 GET /series/{id}/seasons 200 .series.overview string
 GET /series/{id}/seasons 200 .series.parent_id string
 GET /series/{id}/seasons 200 .series.rating number
@@ -4852,6 +4992,7 @@ GET /series/{id}/seasons 200 .unplaced[].credits[].name string
 GET /series/{id}/seasons 200 .unplaced[].credits[].person_id integer
 GET /series/{id}/seasons 200 .unplaced[].credits[].role string
 GET /series/{id}/seasons 200 .unplaced[].details_provider string
+GET /series/{id}/seasons 200 .unplaced[].edition string
 GET /series/{id}/seasons 200 .unplaced[].episode_number integer
 GET /series/{id}/seasons 200 .unplaced[].extras array
 GET /series/{id}/seasons 200 .unplaced[].extras[] object
@@ -4922,6 +5063,10 @@ GET /series/{id}/seasons 200 .unplaced[].metadata_state string
 GET /series/{id}/seasons 200 .unplaced[].next_aired string
 GET /series/{id}/seasons 200 .unplaced[].original_language string
 GET /series/{id}/seasons 200 .unplaced[].original_title string
+GET /series/{id}/seasons 200 .unplaced[].other_editions array
+GET /series/{id}/seasons 200 .unplaced[].other_editions[] object
+GET /series/{id}/seasons 200 .unplaced[].other_editions[].edition string
+GET /series/{id}/seasons 200 .unplaced[].other_editions[].id string
 GET /series/{id}/seasons 200 .unplaced[].overview string
 GET /series/{id}/seasons 200 .unplaced[].parent_id string
 GET /series/{id}/seasons 200 .unplaced[].rating number
@@ -5108,6 +5253,7 @@ GET /stats 200 .items{}.credits[].name string
 GET /stats 200 .items{}.credits[].person_id integer
 GET /stats 200 .items{}.credits[].role string
 GET /stats 200 .items{}.details_provider string
+GET /stats 200 .items{}.edition string
 GET /stats 200 .items{}.episode_number integer
 GET /stats 200 .items{}.extras array
 GET /stats 200 .items{}.extras[] object
@@ -5176,6 +5322,10 @@ GET /stats 200 .items{}.metadata_state string
 GET /stats 200 .items{}.next_aired string
 GET /stats 200 .items{}.original_language string
 GET /stats 200 .items{}.original_title string
+GET /stats 200 .items{}.other_editions array
+GET /stats 200 .items{}.other_editions[] object
+GET /stats 200 .items{}.other_editions[].edition string
+GET /stats 200 .items{}.other_editions[].id string
 GET /stats 200 .items{}.overview string
 GET /stats 200 .items{}.parent_id string
 GET /stats 200 .items{}.rating number
@@ -5281,6 +5431,7 @@ GET /stats/history 200 .items{}.credits[].name string
 GET /stats/history 200 .items{}.credits[].person_id integer
 GET /stats/history 200 .items{}.credits[].role string
 GET /stats/history 200 .items{}.details_provider string
+GET /stats/history 200 .items{}.edition string
 GET /stats/history 200 .items{}.episode_number integer
 GET /stats/history 200 .items{}.extras array
 GET /stats/history 200 .items{}.extras[] object
@@ -5349,6 +5500,10 @@ GET /stats/history 200 .items{}.metadata_state string
 GET /stats/history 200 .items{}.next_aired string
 GET /stats/history 200 .items{}.original_language string
 GET /stats/history 200 .items{}.original_title string
+GET /stats/history 200 .items{}.other_editions array
+GET /stats/history 200 .items{}.other_editions[] object
+GET /stats/history 200 .items{}.other_editions[].edition string
+GET /stats/history 200 .items{}.other_editions[].id string
 GET /stats/history 200 .items{}.overview string
 GET /stats/history 200 .items{}.parent_id string
 GET /stats/history 200 .items{}.rating number
@@ -5453,6 +5608,7 @@ GET /stats/storage 200 .items{}.credits[].name string
 GET /stats/storage 200 .items{}.credits[].person_id integer
 GET /stats/storage 200 .items{}.credits[].role string
 GET /stats/storage 200 .items{}.details_provider string
+GET /stats/storage 200 .items{}.edition string
 GET /stats/storage 200 .items{}.episode_number integer
 GET /stats/storage 200 .items{}.extras array
 GET /stats/storage 200 .items{}.extras[] object
@@ -5521,6 +5677,10 @@ GET /stats/storage 200 .items{}.metadata_state string
 GET /stats/storage 200 .items{}.next_aired string
 GET /stats/storage 200 .items{}.original_language string
 GET /stats/storage 200 .items{}.original_title string
+GET /stats/storage 200 .items{}.other_editions array
+GET /stats/storage 200 .items{}.other_editions[] object
+GET /stats/storage 200 .items{}.other_editions[].edition string
+GET /stats/storage 200 .items{}.other_editions[].id string
 GET /stats/storage 200 .items{}.overview string
 GET /stats/storage 200 .items{}.parent_id string
 GET /stats/storage 200 .items{}.rating number
@@ -5704,6 +5864,7 @@ GET /watchlist 200 [].credits[].name string
 GET /watchlist 200 [].credits[].person_id integer
 GET /watchlist 200 [].credits[].role string
 GET /watchlist 200 [].details_provider string
+GET /watchlist 200 [].edition string
 GET /watchlist 200 [].episode_number integer
 GET /watchlist 200 [].extras array
 GET /watchlist 200 [].extras[] object
@@ -5772,6 +5933,10 @@ GET /watchlist 200 [].metadata_state string
 GET /watchlist 200 [].next_aired string
 GET /watchlist 200 [].original_language string
 GET /watchlist 200 [].original_title string
+GET /watchlist 200 [].other_editions array
+GET /watchlist 200 [].other_editions[] object
+GET /watchlist 200 [].other_editions[].edition string
+GET /watchlist 200 [].other_editions[].id string
 GET /watchlist 200 [].overview string
 GET /watchlist 200 [].parent_id string
 GET /watchlist 200 [].rating number
@@ -5889,6 +6054,7 @@ PATCH /items/{id} 200 .credits[].name string
 PATCH /items/{id} 200 .credits[].person_id integer
 PATCH /items/{id} 200 .credits[].role string
 PATCH /items/{id} 200 .details_provider string
+PATCH /items/{id} 200 .edition string
 PATCH /items/{id} 200 .episode_number integer
 PATCH /items/{id} 200 .extras array
 PATCH /items/{id} 200 .extras[] object
@@ -5957,6 +6123,10 @@ PATCH /items/{id} 200 .metadata_state string
 PATCH /items/{id} 200 .next_aired string
 PATCH /items/{id} 200 .original_language string
 PATCH /items/{id} 200 .original_title string
+PATCH /items/{id} 200 .other_editions array
+PATCH /items/{id} 200 .other_editions[] object
+PATCH /items/{id} 200 .other_editions[].edition string
+PATCH /items/{id} 200 .other_editions[].id string
 PATCH /items/{id} 200 .overview string
 PATCH /items/{id} 200 .parent_id string
 PATCH /items/{id} 200 .rating number
@@ -6080,6 +6250,7 @@ PATCH /play-queues/{id} 200 .entries[].item.credits[].name string
 PATCH /play-queues/{id} 200 .entries[].item.credits[].person_id integer
 PATCH /play-queues/{id} 200 .entries[].item.credits[].role string
 PATCH /play-queues/{id} 200 .entries[].item.details_provider string
+PATCH /play-queues/{id} 200 .entries[].item.edition string
 PATCH /play-queues/{id} 200 .entries[].item.episode_number integer
 PATCH /play-queues/{id} 200 .entries[].item.extras array
 PATCH /play-queues/{id} 200 .entries[].item.extras[] object
@@ -6148,6 +6319,10 @@ PATCH /play-queues/{id} 200 .entries[].item.metadata_state string
 PATCH /play-queues/{id} 200 .entries[].item.next_aired string
 PATCH /play-queues/{id} 200 .entries[].item.original_language string
 PATCH /play-queues/{id} 200 .entries[].item.original_title string
+PATCH /play-queues/{id} 200 .entries[].item.other_editions array
+PATCH /play-queues/{id} 200 .entries[].item.other_editions[] object
+PATCH /play-queues/{id} 200 .entries[].item.other_editions[].edition string
+PATCH /play-queues/{id} 200 .entries[].item.other_editions[].id string
 PATCH /play-queues/{id} 200 .entries[].item.overview string
 PATCH /play-queues/{id} 200 .entries[].item.parent_id string
 PATCH /play-queues/{id} 200 .entries[].item.rating number
@@ -6535,6 +6710,7 @@ POST /collections/{id}/artwork/{type} 200 .items[].credits[].name string
 POST /collections/{id}/artwork/{type} 200 .items[].credits[].person_id integer
 POST /collections/{id}/artwork/{type} 200 .items[].credits[].role string
 POST /collections/{id}/artwork/{type} 200 .items[].details_provider string
+POST /collections/{id}/artwork/{type} 200 .items[].edition string
 POST /collections/{id}/artwork/{type} 200 .items[].episode_number integer
 POST /collections/{id}/artwork/{type} 200 .items[].extras array
 POST /collections/{id}/artwork/{type} 200 .items[].extras[] object
@@ -6603,6 +6779,10 @@ POST /collections/{id}/artwork/{type} 200 .items[].metadata_state string
 POST /collections/{id}/artwork/{type} 200 .items[].next_aired string
 POST /collections/{id}/artwork/{type} 200 .items[].original_language string
 POST /collections/{id}/artwork/{type} 200 .items[].original_title string
+POST /collections/{id}/artwork/{type} 200 .items[].other_editions array
+POST /collections/{id}/artwork/{type} 200 .items[].other_editions[] object
+POST /collections/{id}/artwork/{type} 200 .items[].other_editions[].edition string
+POST /collections/{id}/artwork/{type} 200 .items[].other_editions[].id string
 POST /collections/{id}/artwork/{type} 200 .items[].overview string
 POST /collections/{id}/artwork/{type} 200 .items[].parent_id string
 POST /collections/{id}/artwork/{type} 200 .items[].rating number
@@ -6799,6 +6979,7 @@ POST /items/batch 200 .items[].credits[].name string
 POST /items/batch 200 .items[].credits[].person_id integer
 POST /items/batch 200 .items[].credits[].role string
 POST /items/batch 200 .items[].details_provider string
+POST /items/batch 200 .items[].edition string
 POST /items/batch 200 .items[].episode_number integer
 POST /items/batch 200 .items[].extras array
 POST /items/batch 200 .items[].extras[] object
@@ -6867,6 +7048,10 @@ POST /items/batch 200 .items[].metadata_state string
 POST /items/batch 200 .items[].next_aired string
 POST /items/batch 200 .items[].original_language string
 POST /items/batch 200 .items[].original_title string
+POST /items/batch 200 .items[].other_editions array
+POST /items/batch 200 .items[].other_editions[] object
+POST /items/batch 200 .items[].other_editions[].edition string
+POST /items/batch 200 .items[].other_editions[].id string
 POST /items/batch 200 .items[].overview string
 POST /items/batch 200 .items[].parent_id string
 POST /items/batch 200 .items[].rating number
@@ -6940,6 +7125,7 @@ POST /items/{id}/artwork/{type} 200 .credits[].name string
 POST /items/{id}/artwork/{type} 200 .credits[].person_id integer
 POST /items/{id}/artwork/{type} 200 .credits[].role string
 POST /items/{id}/artwork/{type} 200 .details_provider string
+POST /items/{id}/artwork/{type} 200 .edition string
 POST /items/{id}/artwork/{type} 200 .episode_number integer
 POST /items/{id}/artwork/{type} 200 .extras array
 POST /items/{id}/artwork/{type} 200 .extras[] object
@@ -7008,6 +7194,10 @@ POST /items/{id}/artwork/{type} 200 .metadata_state string
 POST /items/{id}/artwork/{type} 200 .next_aired string
 POST /items/{id}/artwork/{type} 200 .original_language string
 POST /items/{id}/artwork/{type} 200 .original_title string
+POST /items/{id}/artwork/{type} 200 .other_editions array
+POST /items/{id}/artwork/{type} 200 .other_editions[] object
+POST /items/{id}/artwork/{type} 200 .other_editions[].edition string
+POST /items/{id}/artwork/{type} 200 .other_editions[].id string
 POST /items/{id}/artwork/{type} 200 .overview string
 POST /items/{id}/artwork/{type} 200 .parent_id string
 POST /items/{id}/artwork/{type} 200 .rating number
@@ -7266,6 +7456,7 @@ POST /items/{id}/refresh 200 .credits[].name string
 POST /items/{id}/refresh 200 .credits[].person_id integer
 POST /items/{id}/refresh 200 .credits[].role string
 POST /items/{id}/refresh 200 .details_provider string
+POST /items/{id}/refresh 200 .edition string
 POST /items/{id}/refresh 200 .episode_number integer
 POST /items/{id}/refresh 200 .extras array
 POST /items/{id}/refresh 200 .extras[] object
@@ -7334,6 +7525,10 @@ POST /items/{id}/refresh 200 .metadata_state string
 POST /items/{id}/refresh 200 .next_aired string
 POST /items/{id}/refresh 200 .original_language string
 POST /items/{id}/refresh 200 .original_title string
+POST /items/{id}/refresh 200 .other_editions array
+POST /items/{id}/refresh 200 .other_editions[] object
+POST /items/{id}/refresh 200 .other_editions[].edition string
+POST /items/{id}/refresh 200 .other_editions[].id string
 POST /items/{id}/refresh 200 .overview string
 POST /items/{id}/refresh 200 .parent_id string
 POST /items/{id}/refresh 200 .rating number
@@ -7400,6 +7595,7 @@ POST /items/{id}/unmatch 200 .credits[].name string
 POST /items/{id}/unmatch 200 .credits[].person_id integer
 POST /items/{id}/unmatch 200 .credits[].role string
 POST /items/{id}/unmatch 200 .details_provider string
+POST /items/{id}/unmatch 200 .edition string
 POST /items/{id}/unmatch 200 .episode_number integer
 POST /items/{id}/unmatch 200 .extras array
 POST /items/{id}/unmatch 200 .extras[] object
@@ -7468,6 +7664,10 @@ POST /items/{id}/unmatch 200 .metadata_state string
 POST /items/{id}/unmatch 200 .next_aired string
 POST /items/{id}/unmatch 200 .original_language string
 POST /items/{id}/unmatch 200 .original_title string
+POST /items/{id}/unmatch 200 .other_editions array
+POST /items/{id}/unmatch 200 .other_editions[] object
+POST /items/{id}/unmatch 200 .other_editions[].edition string
+POST /items/{id}/unmatch 200 .other_editions[].id string
 POST /items/{id}/unmatch 200 .overview string
 POST /items/{id}/unmatch 200 .parent_id string
 POST /items/{id}/unmatch 200 .rating number
@@ -7539,6 +7739,7 @@ POST /libraries/{id}/compatibility 200 .converted[].item.credits[].name string
 POST /libraries/{id}/compatibility 200 .converted[].item.credits[].person_id integer
 POST /libraries/{id}/compatibility 200 .converted[].item.credits[].role string
 POST /libraries/{id}/compatibility 200 .converted[].item.details_provider string
+POST /libraries/{id}/compatibility 200 .converted[].item.edition string
 POST /libraries/{id}/compatibility 200 .converted[].item.episode_number integer
 POST /libraries/{id}/compatibility 200 .converted[].item.extras array
 POST /libraries/{id}/compatibility 200 .converted[].item.extras[] object
@@ -7607,6 +7808,10 @@ POST /libraries/{id}/compatibility 200 .converted[].item.metadata_state string
 POST /libraries/{id}/compatibility 200 .converted[].item.next_aired string
 POST /libraries/{id}/compatibility 200 .converted[].item.original_language string
 POST /libraries/{id}/compatibility 200 .converted[].item.original_title string
+POST /libraries/{id}/compatibility 200 .converted[].item.other_editions array
+POST /libraries/{id}/compatibility 200 .converted[].item.other_editions[] object
+POST /libraries/{id}/compatibility 200 .converted[].item.other_editions[].edition string
+POST /libraries/{id}/compatibility 200 .converted[].item.other_editions[].id string
 POST /libraries/{id}/compatibility 200 .converted[].item.overview string
 POST /libraries/{id}/compatibility 200 .converted[].item.parent_id string
 POST /libraries/{id}/compatibility 200 .converted[].item.rating number
@@ -7810,6 +8015,7 @@ POST /play-queues 201 .entries[].item.credits[].name string
 POST /play-queues 201 .entries[].item.credits[].person_id integer
 POST /play-queues 201 .entries[].item.credits[].role string
 POST /play-queues 201 .entries[].item.details_provider string
+POST /play-queues 201 .entries[].item.edition string
 POST /play-queues 201 .entries[].item.episode_number integer
 POST /play-queues 201 .entries[].item.extras array
 POST /play-queues 201 .entries[].item.extras[] object
@@ -7878,6 +8084,10 @@ POST /play-queues 201 .entries[].item.metadata_state string
 POST /play-queues 201 .entries[].item.next_aired string
 POST /play-queues 201 .entries[].item.original_language string
 POST /play-queues 201 .entries[].item.original_title string
+POST /play-queues 201 .entries[].item.other_editions array
+POST /play-queues 201 .entries[].item.other_editions[] object
+POST /play-queues 201 .entries[].item.other_editions[].edition string
+POST /play-queues 201 .entries[].item.other_editions[].id string
 POST /play-queues 201 .entries[].item.overview string
 POST /play-queues 201 .entries[].item.parent_id string
 POST /play-queues 201 .entries[].item.rating number
@@ -8346,6 +8556,7 @@ PUT /collections/{id}/artwork 200 .items[].credits[].name string
 PUT /collections/{id}/artwork 200 .items[].credits[].person_id integer
 PUT /collections/{id}/artwork 200 .items[].credits[].role string
 PUT /collections/{id}/artwork 200 .items[].details_provider string
+PUT /collections/{id}/artwork 200 .items[].edition string
 PUT /collections/{id}/artwork 200 .items[].episode_number integer
 PUT /collections/{id}/artwork 200 .items[].extras array
 PUT /collections/{id}/artwork 200 .items[].extras[] object
@@ -8414,6 +8625,10 @@ PUT /collections/{id}/artwork 200 .items[].metadata_state string
 PUT /collections/{id}/artwork 200 .items[].next_aired string
 PUT /collections/{id}/artwork 200 .items[].original_language string
 PUT /collections/{id}/artwork 200 .items[].original_title string
+PUT /collections/{id}/artwork 200 .items[].other_editions array
+PUT /collections/{id}/artwork 200 .items[].other_editions[] object
+PUT /collections/{id}/artwork 200 .items[].other_editions[].edition string
+PUT /collections/{id}/artwork 200 .items[].other_editions[].id string
 PUT /collections/{id}/artwork 200 .items[].overview string
 PUT /collections/{id}/artwork 200 .items[].parent_id string
 PUT /collections/{id}/artwork 200 .items[].rating number
@@ -8494,6 +8709,7 @@ PUT /items/{id}/artwork 200 .credits[].name string
 PUT /items/{id}/artwork 200 .credits[].person_id integer
 PUT /items/{id}/artwork 200 .credits[].role string
 PUT /items/{id}/artwork 200 .details_provider string
+PUT /items/{id}/artwork 200 .edition string
 PUT /items/{id}/artwork 200 .episode_number integer
 PUT /items/{id}/artwork 200 .extras array
 PUT /items/{id}/artwork 200 .extras[] object
@@ -8562,6 +8778,10 @@ PUT /items/{id}/artwork 200 .metadata_state string
 PUT /items/{id}/artwork 200 .next_aired string
 PUT /items/{id}/artwork 200 .original_language string
 PUT /items/{id}/artwork 200 .original_title string
+PUT /items/{id}/artwork 200 .other_editions array
+PUT /items/{id}/artwork 200 .other_editions[] object
+PUT /items/{id}/artwork 200 .other_editions[].edition string
+PUT /items/{id}/artwork 200 .other_editions[].id string
 PUT /items/{id}/artwork 200 .overview string
 PUT /items/{id}/artwork 200 .parent_id string
 PUT /items/{id}/artwork 200 .rating number
@@ -8620,6 +8840,7 @@ PUT /items/{id}/match 200 .credits[].name string
 PUT /items/{id}/match 200 .credits[].person_id integer
 PUT /items/{id}/match 200 .credits[].role string
 PUT /items/{id}/match 200 .details_provider string
+PUT /items/{id}/match 200 .edition string
 PUT /items/{id}/match 200 .episode_number integer
 PUT /items/{id}/match 200 .extras array
 PUT /items/{id}/match 200 .extras[] object
@@ -8689,6 +8910,10 @@ PUT /items/{id}/match 200 .metadata_state string
 PUT /items/{id}/match 200 .next_aired string
 PUT /items/{id}/match 200 .original_language string
 PUT /items/{id}/match 200 .original_title string
+PUT /items/{id}/match 200 .other_editions array
+PUT /items/{id}/match 200 .other_editions[] object
+PUT /items/{id}/match 200 .other_editions[].edition string
+PUT /items/{id}/match 200 .other_editions[].id string
 PUT /items/{id}/match 200 .overview string
 PUT /items/{id}/match 200 .parent_id string
 PUT /items/{id}/match 200 .rating number

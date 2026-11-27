@@ -15,7 +15,7 @@ const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_tit
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
 	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired,
-	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider, match_suppressed, season_label_mode`
+	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider, match_suppressed, season_label_mode, COALESCE(movie_edition, ''), movie_family`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -29,7 +29,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
 		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired,
-		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider, &it.MatchSuppressed, &it.SeasonLabelMode}
+		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider, &it.MatchSuppressed, &it.SeasonLabelMode, &it.Edition, &it.MovieFamily}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -133,10 +133,10 @@ func (s *Store) EnsureItem(ctx context.Context, it *Item, matchKey string) (stri
 	}
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO items (id, library_id, kind, parent_id, match_key, title, sort_title, year,
-			tmdb_id, tvdb_id, imdb_id, added_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			tmdb_id, tvdb_id, imdb_id, added_at, updated_at, movie_edition, movie_family)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, it.LibraryID, it.Kind, parent, matchKey, it.Title, SortTitle(it.Title), it.Year,
-		it.TMDBID, it.TVDBID, it.IMDBID, now, now)
+		it.TMDBID, it.TVDBID, it.IMDBID, now, now, it.Edition, it.MovieFamily)
 	if err != nil {
 		return "", false, err
 	}

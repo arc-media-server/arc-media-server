@@ -451,8 +451,14 @@ type itemDTO struct {
 	Images      map[string]string `json:"images,omitempty"`
 	Stream      string            `json:"stream_url,omitempty"`
 	// The title's theme tune, when there's one beside it.
-	Theme string            `json:"theme_url,omitempty"`
-	Files []store.MediaFile `json:"files,omitempty"`
+	Theme         string            `json:"theme_url,omitempty"`
+	Files         []store.MediaFile `json:"files,omitempty"`
+	OtherEditions []movieEditionRef `json:"other_editions,omitempty"`
+}
+
+type movieEditionRef struct {
+	ID      string `json:"id"`
+	Edition string `json:"edition,omitempty"`
 }
 
 // imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use

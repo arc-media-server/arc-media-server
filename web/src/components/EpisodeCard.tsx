@@ -1,3 +1,4 @@
+import { cardYear } from '@/lib/kinds';
 import { useState, type MouseEvent } from 'react';
 import { CardActions, selectCircle, type CardHover } from './CardActions';
 import i18n from '@/i18n';
@@ -24,7 +25,7 @@ export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, se
   const isEpisode = item.kind === 'episode';
   const code = episodeCode(item.season_number, item.episode_number);
   const title = isEpisode ? (item.series_title ?? item.title) : item.title;
-  const subtitle = isEpisode ? code || item.title : item.year ? String(item.year) : '';
+  const subtitle = isEpisode ? code || item.title : cardYear(item).trim();
   // With spoiler protection, an episode not started yet shows its show's artwork instead of its still.
   const hideSpoilers = useSpoilerGuard()(item);
   const art = (hideSpoilers && item.images?.series_backdrop) || (item.images?.primary ?? item.images?.series_backdrop ?? item.images?.backdrop);
@@ -42,7 +43,7 @@ export function ResumeCard({ item, className, arc, onRemove, hover, onSelect, se
         type="button"
         onClick={onSelect ?? (() =>
           item.stream_url &&
-          play({ title: isEpisode ? item.title : item.title, subtitle: isEpisode ? `${title} · ${code}` : subtitle, src: item.stream_url, itemId: item.id, startMS: item.user_data?.position_ms })
+          play({ title: isEpisode ? item.title : item.title, subtitle: isEpisode ? `${title} · ${code}` : subtitle, src: item.stream_url, itemId: item.id, edition: item.edition, startMS: item.user_data?.position_ms })
         )}
         className={cn("relative block w-full overflow-hidden rounded-xl shadow-lg shadow-black/25 ring-1 ring-border outline-none transition-all duration-300 ease-smooth group-hover:-translate-y-1 group-hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-accent", selected && "ring-4 ring-accent")}
         aria-pressed={onSelect ? !!selected : undefined}
