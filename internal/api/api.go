@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ams/internal/artwork"
@@ -51,10 +52,11 @@ type Deps struct {
 	Events        *events.Hub
 	WatchProblem  func(int64) string
 
-	Store   *store.Store
-	Scanner *scanner.Scanner
-	Artwork *artwork.Cache
-	Backups *backup.Manager
+	Store            *store.Store
+	Scanner          *scanner.Scanner
+	Artwork          *artwork.Cache
+	Backups          *backup.Manager
+	DatabaseSettings DatabaseSettings
 	// Activity tracks background work for the Activity menu.
 	Activity   *activity.Tracker
 	Background *background.Manager
@@ -95,6 +97,7 @@ type Deps struct {
 }
 
 type Server struct {
+	postgresOutage    atomic.Int64
 	workContext       context.Context
 	workers           *sync.WaitGroup
 	bulkMu            sync.Mutex
@@ -116,6 +119,7 @@ type Server struct {
 	paletteLogMu     sync.Mutex
 	paletteWarned    time.Time
 	backups          *backup.Manager
+	databaseSettings DatabaseSettings
 	afterRestore     func(context.Context) error
 	librariesChanged func()
 	settings         func() settings.Settings
@@ -147,7 +151,7 @@ type Server struct {
 }
 
 func New(d Deps) http.Handler {
-	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups,
+	s := &Server{workContext: d.WorkContext, workers: d.Workers, background: d.Background, watchProblem: d.WatchProblem, store: d.Store, scanner: d.Scanner, artwork: d.Artwork, backups: d.Backups, databaseSettings: d.DatabaseSettings,
 		afterRestore: d.AfterRestore, librariesChanged: d.LibrariesChanged, settings: d.Settings,
 		applySettings: d.ApplySettings, ffprobeStatus: d.FFprobeStatus, uploadsDir: d.UploadsDir, previews: &previews{},
 		playing: newNowPlaying(), transcoder: d.Transcoder, subtitles: d.Subtitles, trickplay: d.Trickplay, subsOnline: d.OpenSubtitles, logs: d.Logs, activity: d.Activity, notify: d.Notify, markers: d.Markers, optimizer: d.Optimize, remote: d.Remote, stats: d.Stats, limiter: auth.NewLimiter(), log: d.Log, version: d.Version}
@@ -316,6 +320,10 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/series/{id}/display-ordering", admin(s.setDisplayOrdering))
 	mux.HandleFunc("PATCH /api/series/{id}/specials", admin(s.setSpecials))
 	mux.HandleFunc("PUT /api/items/{id}/progress", user(s.reportProgress))
+	mux.HandleFunc("PUT /api/items/{id}/resume", user(s.setResumePosition))
+	mux.HandleFunc("GET /api/watch-history", user(s.watchHistory))
+	mux.HandleFunc("POST /api/items/{id}/watch-history", user(s.addWatchViewing))
+	mux.HandleFunc("DELETE /api/items/{id}/watch-history/{viewing}", user(s.removeWatchViewing))
 	mux.HandleFunc("PUT /api/items/{id}/played", user(s.setPlayed))
 	mux.HandleFunc("GET /api/items/{id}/next", user(s.nextEpisode))
 	mux.HandleFunc("GET /api/items/{id}/similar", user(s.similar))
@@ -392,6 +400,8 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/library-previews", admin(s.startPreview))
 	mux.HandleFunc("GET /api/library-previews/{id}", admin(s.getPreview))
 	mux.HandleFunc("GET /api/folders", admin(s.listFolders))
+	mux.HandleFunc("GET /api/settings/database", admin(s.databaseSettingsView))
+	mux.HandleFunc("PUT /api/settings/database", admin(s.updateDatabaseSettings))
 	mux.HandleFunc("GET /api/backups", admin(s.listBackups))
 	mux.HandleFunc("POST /api/backups", admin(s.createBackup))
 	mux.HandleFunc("POST /api/backups/{name}/restore", admin(s.restoreBackup))
@@ -444,8 +454,14 @@ type itemDTO struct {
 	Images      map[string]string `json:"images,omitempty"`
 	Stream      string            `json:"stream_url,omitempty"`
 	// The title's theme tune, when there's one beside it.
-	Theme string            `json:"theme_url,omitempty"`
-	Files []store.MediaFile `json:"files,omitempty"`
+	Theme         string            `json:"theme_url,omitempty"`
+	Files         []store.MediaFile `json:"files,omitempty"`
+	OtherEditions []movieEditionRef `json:"other_editions,omitempty"`
+}
+
+type movieEditionRef struct {
+	ID      string `json:"id"`
+	Edition string `json:"edition,omitempty"`
 }
 
 // imagePaths returns an item's provider (or uploaded) image path and the local artwork file to use
@@ -876,13 +892,34 @@ func (s *Server) image(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no image")
 		return
 	}
-	s.serveArtwork(w, r, imageSource(r, it.Kind, typ, imagePath))
+	s.serveArtwork(w, r, s.imageSourceFor(r, it.Kind, typ, imagePath))
+}
+
+// imageSourceFor is imageSource, plus ?h=: a backdrop whose copy must be wider than the card size
+// to be at least h tall is made from the full-resolution original too. The width needed comes
+// from the card image's shape (the original has the same shape), read from its cached header.
+func (s *Server) imageSourceFor(r *http.Request, kind, typ, imagePath string) string {
+	src := imageSource(r, kind, typ, imagePath)
+	q := r.URL.Query()
+	h := artwork.Dimension(q.Get("h"))
+	if typ != "backdrop" || h == 0 {
+		return src
+	}
+	full := artwork.FullSource(kind, imagePath)
+	if full == "" || src == full {
+		return src
+	}
+	if s.artwork.FitWidth(r.Context(), src, artwork.Dimension(q.Get("w")), h) > artwork.CardBackdropWidth {
+		return full
+	}
+	return src
 }
 
 // imageSource is the provider URL to serve for an image request: the full-resolution backdrop for
-// "?size=full" (banners), otherwise the size cards use.
+// "?size=full" (banners) or for a width (?w=) wider than the card size, otherwise the size cards
+// use.
 func imageSource(r *http.Request, kind, typ, imagePath string) string {
-	if typ == "backdrop" && r.URL.Query().Get("size") == "full" {
+	if typ == "backdrop" && (r.URL.Query().Get("size") == "full" || artwork.SnapWidth(r.URL.Query().Get("w")) > artwork.CardBackdropWidth) {
 		if full := artwork.FullSource(kind, imagePath); full != "" {
 			return full
 		}
@@ -891,9 +928,12 @@ func imageSource(r *http.Request, kind, typ, imagePath string) string {
 }
 
 // serveArtwork serves an image from the cache (downloading it if needed), cacheable forever when
-// the link carries its version; if it can't be had, the browser is sent to the provider.
+// the link carries its version; if it can't be had, the browser is sent to the provider. With
+// ?w= it's resized to that width (rounded up to one of artwork.Widths, never enlarged), and with
+// ?h= wide enough to be at least that tall too; the resized copy is kept for the next request.
 func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string) {
-	f, err := s.artwork.Open(r.Context(), src)
+	q := r.URL.Query()
+	f, width, err := s.artwork.OpenSized(r.Context(), src, artwork.Dimension(q.Get("w")), artwork.Dimension(q.Get("h")))
 	if err != nil {
 		s.log.Debug("artwork unavailable locally", "url", src, "err", err)
 		http.Redirect(w, r, src, http.StatusFound)
@@ -911,11 +951,21 @@ func (s *Server) serveArtwork(w http.ResponseWriter, r *http.Request, src string
 	} else {
 		w.Header().Set("Cache-Control", "no-cache")
 	}
+	name := artwork.ContentName(src)
+	if width > 0 {
+		// The width actually served: a copy has its own ETag, the original keeps the plain key.
+		key += "-w" + strconv.Itoa(width)
+		// A resized copy is a JPEG, or a PNG when it has transparency: let its bytes say which.
+		name = "image"
+	}
 	w.Header().Set("ETag", `"`+key+`"`)
-	http.ServeContent(w, r, artwork.ContentName(src), info.ModTime(), f)
+	http.ServeContent(w, r, name, info.ModTime(), f)
 }
 
 func (s *Server) fail(w http.ResponseWriter, err error) {
+	if s.databaseUnavailable(w, err) {
+		return
+	}
 	markFailureLogged(w)
 	if !errors.Is(err, context.Canceled) {
 		s.log.Error("request failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
@@ -929,8 +979,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(errorMetadata(w, status, v))
 }
 
-func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
+func writeError(w http.ResponseWriter, status int, msg string, code ...string) {
+	body := map[string]string{"error": msg}
+	if len(code) > 0 {
+		body["code"] = code[0]
+	}
+	writeJSON(w, status, body)
 }
 
 // responseRecorder reaches summary state through wrappers without changing the response.

@@ -119,6 +119,70 @@ func TestSearchResults(t *testing.T) {
 	}
 }
 
+// Shortlisting by name still applies profile visibility and the minimum collection size.
+func TestSearchCollectionMatches(t *testing.T) {
+	s, viewer := securityServer(t)
+	ctx := context.Background()
+	lib, err := s.store.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addMovie := func(title string) string {
+		t.Helper()
+		id, _, err := s.store.EnsureItem(ctx, &store.Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file, err := s.store.SaveFile(ctx, &store.MediaFile{LibraryID: lib, Path: filepath.Join(t.TempDir(), title)}, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.store.SetFileItems(ctx, file, []string{id}, 0); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	visible, hidden := addMovie("First"), addMovie("Second")
+	for _, id := range []string{visible, hidden} {
+		if err := s.store.SetMovieCollection(ctx, id, lib, &store.CollectionRef{TMDBID: 1, Name: "Café Collection"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"Café Favourites", "Summer Favourites"} {
+		c := &store.Collection{LibraryID: lib, Kind: "manual", Title: name}
+		if err := s.store.CreateCollection(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.store.AddToCollection(ctx, c.ID, []string{visible, hidden}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	labels := []string{"hidden"}
+	if err := s.store.EditItems(ctx, []string{hidden}, store.BulkEdit{AddLabels: labels}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.UpdateUser(ctx, viewer.ID, store.UserUpdate{ExcludeLabels: &labels}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.store.CreateSession(ctx, auth.HashToken("search-collections-viewer"), viewer.ID, "password", "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest("GET", "/api/v1/search?q=cafe", nil)
+	r.AddCookie(&http.Cookie{Name: sessionCookie, Value: "search-collections-viewer"})
+	w := httptest.NewRecorder()
+	s.signedIn(s.searchAll)(w, r)
+	var res struct{ Collections []collectionDTO }
+	if w.Code != http.StatusOK {
+		t.Fatalf("search: %d %s", w.Code, w.Body.String())
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Collections) != 1 || res.Collections[0].Title != "Café Favourites" || res.Collections[0].Count != 1 {
+		t.Fatalf("collections: %+v", res.Collections)
+	}
+}
+
 func fmtList(v []string) string {
 	b, _ := json.Marshal(v)
 	out := string(b)

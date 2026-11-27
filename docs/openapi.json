@@ -185,6 +185,9 @@
           "bypass": {
             "type": "boolean"
           },
+          "database_needed": {
+            "type": "boolean"
+          },
           "friend": {
             "type": "boolean"
           },
@@ -777,6 +780,28 @@
           "end_ms",
           "start_ms",
           "text"
+        ],
+        "type": "object"
+      },
+      "DatabaseSettingsView": {
+        "properties": {
+          "can_edit": {
+            "type": "boolean"
+          },
+          "connection": {
+            "$ref": "#/components/schemas/PostgresConnection"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "restart_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_edit",
+          "engine",
+          "restart_required"
         ],
         "type": "object"
       },
@@ -1762,6 +1787,9 @@
           "rating_region": {
             "type": "string"
           },
+          "season_label_mode": {
+            "type": "string"
+          },
           "skip_credits": {
             "type": "boolean"
           },
@@ -1783,6 +1811,7 @@
           "name",
           "paths",
           "rating_region",
+          "season_label_mode",
           "source_ordering",
           "trickplay"
         ],
@@ -1808,6 +1837,37 @@
           "kind",
           "source",
           "start_ms"
+        ],
+        "type": "object"
+      },
+      "InputPostgresConnectionUpdate": {
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "no_tls": {
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "host",
+          "no_tls",
+          "password",
+          "port",
+          "user"
         ],
         "type": "object"
       },
@@ -2034,6 +2094,9 @@
           "details_provider": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "episode_number": {
             "type": "integer"
           },
@@ -2112,6 +2175,12 @@
           "original_title": {
             "type": "string"
           },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
+          },
           "overview": {
             "type": "string"
           },
@@ -2129,6 +2198,9 @@
           },
           "runtime_min": {
             "type": "integer"
+          },
+          "season_label_mode": {
+            "type": "string"
           },
           "season_number": {
             "type": "integer"
@@ -2303,6 +2375,9 @@
           "scan": {
             "$ref": "#/components/schemas/ScannerStatus"
           },
+          "season_label_mode": {
+            "type": "string"
+          },
           "skip_credits": {
             "type": "boolean"
           },
@@ -2328,6 +2403,7 @@
           "paths",
           "rating_region",
           "scan",
+          "season_label_mode",
           "skip_credits",
           "skip_intros",
           "source_ordering",
@@ -2367,6 +2443,9 @@
           "rating_region": {
             "type": "string"
           },
+          "season_label_mode": {
+            "type": "string"
+          },
           "skip_credits": {
             "type": "boolean"
           },
@@ -2390,6 +2469,7 @@
           "name",
           "paths",
           "rating_region",
+          "season_label_mode",
           "skip_credits",
           "skip_intros",
           "source_ordering",
@@ -2717,6 +2797,9 @@
           "details_provider": {
             "type": "string"
           },
+          "edition": {
+            "type": "string"
+          },
           "episode_number": {
             "type": "integer"
           },
@@ -2798,6 +2881,12 @@
           "original_title": {
             "type": "string"
           },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
+          },
           "overview": {
             "type": "string"
           },
@@ -2815,6 +2904,9 @@
           },
           "runtime_min": {
             "type": "integer"
+          },
+          "season_label_mode": {
+            "type": "string"
           },
           "season_number": {
             "type": "integer"
@@ -2965,6 +3057,20 @@
           "id",
           "season_number",
           "title"
+        ],
+        "type": "object"
+      },
+      "MovieEditionRef": {
+        "properties": {
+          "edition": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -3694,6 +3800,33 @@
         ],
         "type": "object"
       },
+      "PostgresConnection": {
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "no_tls": {
+            "type": "boolean"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "host",
+          "no_tls",
+          "port",
+          "user"
+        ],
+        "type": "object"
+      },
       "Prefs": {
         "properties": {
           "audio_language": {
@@ -4420,6 +4553,9 @@
             },
             "type": "array"
           },
+          "metadata_name": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -4491,6 +4627,9 @@
             "type": "array"
           },
           "details_provider": {
+            "type": "string"
+          },
+          "edition": {
             "type": "string"
           },
           "episode_number": {
@@ -4577,6 +4716,12 @@
           "original_title": {
             "type": "string"
           },
+          "other_editions": {
+            "items": {
+              "$ref": "#/components/schemas/MovieEditionRef"
+            },
+            "type": "array"
+          },
           "overview": {
             "type": "string"
           },
@@ -4594,6 +4739,9 @@
           },
           "runtime_min": {
             "type": "integer"
+          },
+          "season_label_mode": {
+            "type": "string"
           },
           "season_number": {
             "type": "integer"
@@ -5199,6 +5347,23 @@
         ],
         "type": "object"
       },
+      "WatchHistoryPage": {
+        "properties": {
+          "next_before": {
+            "type": "integer"
+          },
+          "viewings": {
+            "items": {
+              "$ref": "#/components/schemas/WatchViewing"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "viewings"
+        ],
+        "type": "object"
+      },
       "WatchInvite": {
         "properties": {
           "invite_code": {
@@ -5437,6 +5602,25 @@
           "server_time_ms",
           "started",
           "state"
+        ],
+        "type": "object"
+      },
+      "WatchViewing": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "watched_at": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "item_id",
+          "watched_at"
         ],
         "type": "object"
       },
@@ -7109,6 +7293,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "security": [],
@@ -7291,6 +7499,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Database backups, newest first",
@@ -7385,6 +7617,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -7889,6 +8145,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -8414,6 +8694,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists devices with unexpired entries",
@@ -8510,6 +8814,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -8619,6 +8947,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -8752,6 +9104,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -9757,6 +10133,17 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "full requests the original backdrop when available; omit for the existing normal artwork size. Posters are not resized by this parameter.",
             "in": "query",
             "name": "size",
@@ -9775,6 +10162,17 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -10692,6 +11090,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists the signed-in browsers and apps",
@@ -10841,6 +11263,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Returns an ordinary device token once, with the creating administrator already selected",
@@ -10940,6 +11386,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -11362,6 +11832,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -13305,6 +13799,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Plays a trailer or other extra",
@@ -13590,6 +14108,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Counts, per library id, the problems that need the user",
@@ -13670,6 +14212,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -14028,6 +14594,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Set default home",
@@ -14098,6 +14688,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists, for each show the profile has been watching, the next episode in their episode order that's on disk and not wa…",
@@ -14158,6 +14772,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -14382,6 +15020,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Start import",
@@ -14534,6 +15196,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -15052,6 +15738,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Connects to a Plex server",
@@ -15130,6 +15840,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -15259,6 +15993,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -15701,6 +16459,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Browse, filter and search",
@@ -15820,6 +16602,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -16215,6 +17021,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Returns all matching accessible identities",
@@ -16385,6 +17215,30 @@
             },
             "description": "A service Arc relies on failed",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -16690,6 +17544,9 @@
                   },
                   "runtime_min": {
                     "type": "integer"
+                  },
+                  "season_label_mode": {
+                    "type": "string"
                   },
                   "sort_title": {
                     "type": "string"
@@ -17827,6 +18684,17 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "full requests the original backdrop when available; omit for the existing normal artwork size. Posters are not resized by this parameter.",
             "in": "query",
             "name": "size",
@@ -17845,6 +18713,17 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -20661,6 +21540,147 @@
         "x-arc-access": "admin"
       }
     },
+    "/items/{id}/resume": {
+      "put": {
+        "description": "{\"position_ms\": ...} sets a saved movie or episode position (0 clears it), with no player session or watch history changes.\n\nWho may call it: **profile**.",
+        "operationId": "setResumePosition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "position_ms": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Authenticated JSON reads have a 2 MiB server ceiling; endpoint-specific limits can be smaller. Known oversized Content-Length returns 413; streamed overflows can return 400 from the decoder.",
+          "required": true,
+          "x-arc-server-max-bytes": 2097152
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too large",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Sets a saved movie or episode position",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/items/{id}/similar": {
       "get": {
         "description": "Is \"More like this\": movies or shows from the same library, TMDB's recommendations first, then titles sharing its collection, genres and cast.\n\nWho may call it: **profile**.",
@@ -23326,6 +24346,300 @@
         "x-arc-access": "admin"
       }
     },
+    "/items/{id}/watch-history": {
+      "post": {
+        "description": "{\"watched_at\": ...} records a completed viewing at the supplied Unix timestamp. Retrying the same item and timestamp returns the existing viewing. This does not change watched status or resume position.\n\nWho may call it: **profile**.",
+        "operationId": "addWatchViewing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "watched_at": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "watched_at"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Authenticated JSON reads have a 2 MiB server ceiling; endpoint-specific limits can be smaller. Known oversized Content-Length returns 413; streamed overflows can return 400 from the decoder.",
+          "required": true,
+          "x-arc-server-max-bytes": 2097152
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchViewing"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too large",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Records a completed viewing at the supplied Unix timestamp",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
+    "/items/{id}/watch-history/{viewing}": {
+      "delete": {
+        "description": "?watched_at=... removes the matching viewing for this profile. Repeat deletes return 204. Watched status and resume position are independent of this operation.\n\nWho may call it: **profile**.",
+        "operationId": "removeWatchViewing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "viewing",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The viewing's original watched_at value in Unix seconds. Required to identify exactly the viewing being deleted.",
+            "in": "query",
+            "name": "watched_at",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done; no content",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not found",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too large",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Removes the matching viewing for this profile",
+        "tags": [
+          "Items"
+        ],
+        "x-arc-access": "profile"
+      }
+    },
     "/items/{id}/watchlist": {
       "put": {
         "description": "{\"on\": true} puts a movie or show on the profile's watchlist, or takes it off.\n\nWho may call it: **profile**.",
@@ -23546,6 +24860,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists every label in use , for suggestions",
@@ -23609,6 +24947,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -23973,6 +25335,9 @@
                     "type": "array"
                   },
                   "rating_region": {
+                    "type": "string"
+                  },
+                  "season_label_mode": {
                     "type": "string"
                   },
                   "skip_credits": {
@@ -25493,6 +26858,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -27758,6 +29147,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Sets, changes or",
@@ -28209,6 +29622,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "The current profile's year in review",
@@ -28298,6 +29735,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists what's new for the profile: new episodes of shows it watches, and new movies it hasn't seen, from the last mont…",
@@ -28369,6 +29830,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -28560,6 +30045,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Queues optimized copies: a movie's main version, an episode's file, or every episode of a show",
@@ -28660,6 +30169,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -28792,6 +30325,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -28934,6 +30491,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Someone and the titles in the libraries they're in",
@@ -28957,12 +30538,34 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "Opaque artwork cache version included in returned image URLs. Matching versions permit immutable caching; do not synthesize it.",
             "in": "query",
             "name": "v",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -29223,6 +30826,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -30116,6 +31743,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -31493,6 +33144,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "List profiles",
@@ -31642,6 +33317,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Create profile",
@@ -31777,6 +33476,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -31961,6 +33684,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Update profile",
@@ -32093,6 +33840,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -32699,6 +34470,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -35073,12 +36868,34 @@
             }
           },
           {
+            "description": "Minimum height in pixels, for an image cropped to fill a box taller in shape than the image (a backdrop in a square): the copy is made wide enough to be at least this tall, keeping its shape, then rounded up like w. Copies are still kept by width only; never cropped, never enlarged (the original is served when it isn't tall enough), at most 3840 wide. Works alone or with w; a backdrop that needs more than 1280 wide is made from the original upload.",
+            "in": "query",
+            "name": "h",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
             "description": "Opaque artwork cache version included in returned image URLs. Matching versions permit immutable caching; do not synthesize it.",
             "in": "query",
             "name": "v",
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "Width in pixels to resize the image to, keeping its shape: rounded up to 320, 480, 780, 1280, 1920 or 3840 and never wider than the original. Ask for the size shown (a 1080p screen's 1920 for full-screen backdrops). A backdrop asked for wider than 1280 is made from the original upload. Each resized copy is kept and served again; opaque images come back as JPEG, transparent ones as PNG.",
+            "in": "query",
+            "name": "w",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -36395,6 +38212,197 @@
         "x-arc-access": "admin"
       }
     },
+    "/settings/database": {
+      "get": {
+        "description": "Returns the active engine and saved connection fields. PostgreSQL passwords and connection strings are omitted.\n\nWho may call it: **admin**.",
+        "operationId": "databaseSettingsView",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseSettingsView"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Returns the active engine and saved connection fields",
+        "tags": [
+          "Settings"
+        ],
+        "x-arc-access": "admin"
+      },
+      "put": {
+        "description": "Validates the PostgreSQL connection and saves it for the next start. Only HTTPS or direct loopback requests can submit database credentials.\n\nWho may call it: **admin**.",
+        "operationId": "updateDatabaseSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputPostgresConnectionUpdate"
+              }
+            }
+          },
+          "description": "Authenticated JSON reads have a 2 MiB server ceiling; endpoint-specific limits can be smaller. Known oversized Content-Length returns 413; streamed overflows can return 400 from the decoder.",
+          "required": true,
+          "x-arc-server-max-bytes": 2097152
+        },
+        "responses": {
+          "204": {
+            "description": "Done; no content",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not allowed for this profile",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Conflicts with the current state (busy, already done, or not possible yet)",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Too large",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Validates the PostgreSQL connection and saves it for the next start",
+        "tags": [
+          "Settings"
+        ],
+        "x-arc-access": "admin"
+      }
+    },
     "/stats": {
       "get": {
         "description": "?days=30&profile=&library= is watch activity over the last days (0 or none for all time): totals, watch time over time, the most watched titles and genres, profiles, libraries, devices and the busiest times.\n\nWho may call it: **admin**.",
@@ -36611,6 +38619,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Watch activity over the last days",
@@ -36778,6 +38810,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Lists viewings, newest first",
@@ -36929,6 +38985,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -37469,6 +39549,141 @@
           "Transcoder"
         ],
         "x-arc-access": "admin"
+      }
+    },
+    "/watch-history": {
+      "get": {
+        "description": "Lists the selected profile's completed viewings for visible items. Follow next_before with ?before= to page in descending viewing-ID order. Limit is 1–200 (default 50). Timestamps are Unix seconds.\n\nWho may call it: **profile**.",
+        "operationId": "watchHistory",
+        "parameters": [
+          {
+            "description": "Use the previous page’s next_before cursor. Results are in descending viewing-ID order.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page size. Out-of-range or invalid values return 400.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchHistoryPage"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "The request isn't valid",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Sign in (or choose a profile) first",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Something went wrong on the server",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lists the selected profile's completed viewings for visible items",
+        "tags": [
+          "Watch history"
+        ],
+        "x-arc-access": "profile"
       }
     },
     "/watch-together": {
@@ -40552,6 +42767,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "The profile's watchlist, most recently added first",
@@ -40662,6 +42901,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -40800,6 +43063,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Or PUT /api/webhooks/{id}",
@@ -40899,6 +43186,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {
@@ -41047,6 +43358,30 @@
                 }
               }
             }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "summary": "Or PUT /api/webhooks/{id}",
@@ -41171,6 +43506,30 @@
             },
             "description": "Something went wrong on the server",
             "headers": {
+              "X-Request-ID": {
+                "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not available right now",
+            "headers": {
+              "Retry-After": {
+                "description": "When supplied, wait this many seconds before retrying; SSE stream limits use 5 seconds.",
+                "schema": {
+                  "type": "string"
+                }
+              },
               "X-Request-ID": {
                 "description": "Server-issued decimal correlation ID; process-local, matches JSON error request_id and diagnostic logs. Not an authentication token.",
                 "schema": {

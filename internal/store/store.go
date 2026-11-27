@@ -30,6 +30,7 @@ type Store struct {
 	catalog     catalogGate
 	db          *database
 	sessionUses *sessionUseQueue
+	postgres    bool
 }
 
 // Open opens (or creates) the database at dbPath and applies pending migrations.

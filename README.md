@@ -18,6 +18,11 @@
 </p>
 
 <p align="center">
+  <a href="#running-with-docker">Set up Arc Server</a> · <a href="#arc-apps">Find an Arc app</a>
+  · <a href="https://arcmediaserver.org/">Website</a> · <a href="https://discord.gg/wtJKFSrkAP">Discord</a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/home.png" alt="Arc's home screen" width="900">
 </p>
 
@@ -31,8 +36,8 @@ Arc uses automatic defaults and in-app settings, with no plugins to manage and n
 analytics or telemetry.
 
 > **Alpha software.** The current focus is stability and release readiness. Start with the web
-> app; native client projects are in development and readiness varies by platform. Keep backups
-> of Arc's data folder. See the [roadmap](ROADMAP.md) and [release checklist](docs/ALPHA-CHECKLIST.md).
+> app or explore the [Arc apps](#arc-apps). Keep backups of Arc's data folder. See the
+> [roadmap](ROADMAP.md) and [release checklist](docs/ALPHA-CHECKLIST.md).
 
 <table>
   <tr>
@@ -52,7 +57,7 @@ analytics or telemetry.
 <sub>Artwork and details from <a href="https://www.themoviedb.org">TMDB</a>. Films and shows belong
 to their owners; Arc doesn't include any media.</sub>
 
-## What makes it different
+## Simple First
 
 **🎞️ Your files stay yours.** Arc only ever reads your media. It never renames, moves, tags or
 writes beside a file, so Sonarr, Radarr and everything else that depends on your folders keeps working.
@@ -79,6 +84,60 @@ maintenance controls optional work, and Activity and Dashboard show progress and
 **🔌 An open API.** The server provides documented, versioned endpoints for the web app,
 native clients and integrations. [Start building a client](docs/CLIENT-INTEGRATION.md).
 
+## Arc apps
+
+Connect these apps to your Arc server. Each repository has screenshots and installation instructions.
+
+<table align="center">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-apple">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-apple/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on Apple TV">
+        <br>
+        <strong>Arc for Apple TV</strong>
+      </a>
+      <br><sub>Apple TV · tvOS 18+</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-android">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-android/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on Google TV">
+        <br>
+        <strong>Arc for Android TV</strong>
+      </a>
+      <br><sub>Android TV and Google TV · Android 8.0+</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-tv">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-tv/main/docs/screenshots/home.jpg" width="320" alt="Arc Home on a smart TV">
+        <br>
+        <strong>Arc for LG and Samsung TVs</strong>
+      </a>
+      <br><sub>LG webOS 4.5+ · Samsung Tizen 5.5+</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-roku">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-roku/main/docs/screenshots/home.jpg" width="320" alt="Arc Home in the Roku simulator">
+        <br>
+        <strong>Arc for Roku</strong>
+      </a>
+      <br><sub>Roku players and Roku TVs</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <a href="https://github.com/arc-media-server/arc-kodi">
+        <img src="https://raw.githubusercontent.com/arc-media-server/arc-kodi/main/docs/screenshots/home.jpg" width="320" alt="Arc Home in Kodi">
+        <br>
+        <strong>Arc for Kodi</strong>
+      </a>
+      <br><sub>Kodi 19+</sub>
+    </td>
+  </tr>
+</table>
+
+The apps are in alpha, with availability and features varying by platform.
 
 ## Running with Docker
 
@@ -99,6 +158,8 @@ registry access](docs/IMAGE-PUBLISHING.md).
 3. Open `http://<server-address>:8099` and create your administrator profile. Metadata-provider
    credentials are optional during setup and can be added later under **Settings → Libraries &
    metadata**. Matching needs access to the provider you choose for the library.
+   For PostgreSQL setup on a remote Docker host, use the
+   [protected setup connection](docs/RECOVERY.md#postgresql-setup-and-recovery).
 4. Add libraries using the container paths, such as `/media/movies` and `/media/tv`, rather than
    the host's original paths.
 
@@ -128,9 +189,9 @@ have their own access requirements. Arc does not supply provider keys. See
 ### Backups and upgrades
 
 Built-in backups cover the database. Before upgrading, stop Arc and copy the whole `/config`
-folder somewhere safe; it also holds uploaded artwork and certificates. Arc backs up its database
-automatically before any upgrade that changes it, and an older Arc refuses to open a newer
-database. The [recovery guide](docs/RECOVERY.md) covers restoring and rolling back.
+folder somewhere safe; it also holds uploaded artwork and certificates. PostgreSQL installations
+also need a current backup of the external database. Arc backs up the selected database before a
+schema upgrade. The [recovery guide](docs/RECOVERY.md) covers both engines and how to roll back.
 
 ## Building from source
 

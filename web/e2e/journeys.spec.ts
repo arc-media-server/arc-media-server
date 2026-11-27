@@ -164,8 +164,19 @@ test('review: clearing Search clears the query and history restores the input', 
   void media;
   await setup(page);
   const search = page.locator('aside input[placeholder="Search"]');
-  await search.fill('Arc');
+  const queries: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/api/search') queries.push(url.searchParams.get('q') ?? '');
+  });
+  await search.pressSequentially('Arc ', { delay: 200 });
   await expect(page).toHaveURL(/search\?q=Arc$/);
+  await expect.poll(() => queries).toEqual(['Arc']);
+  await expect(search).toHaveValue('Arc ');
+  await expect(search).toBeFocused();
+  await search.pressSequentially('Movie');
+  await expect(page).toHaveURL(/search\?q=Arc%20Movie$/);
+  await expect(search).toHaveValue('Arc Movie');
   await search.fill('');
   await expect(page).toHaveURL(/\/search$/);
   await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
@@ -415,7 +426,11 @@ test('restoring a backup immediately restores running settings and access contro
 
 async function setup(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
+  const auth = await (await page.request.get('/api/auth/status')).json();
+  if (auth.database_needed) {
+    await expect(page.getByRole('heading', { name: 'Choose a database', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  }
   await page.getByLabel('Your name', { exact: true }).fill('Admin');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Password again', { exact: true }).fill(password);
@@ -621,6 +636,19 @@ async function profileMenu(page: Page, name: string) {
 test('setup validation, wrong password, sign-out and fresh sign-in', async ({ page, media }) => {
   void media;
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Choose a database' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /SQLite/ })).toBeChecked();
+  await page.getByRole('radio', { name: /PostgreSQL/ }).check();
+  await page.getByLabel('PostgreSQL host').fill('127.0.0.1');
+  await page.getByLabel('Port', { exact: true }).fill('1');
+  await page.getByLabel('Database name').fill('arc-fixture');
+  await page.getByLabel('Database username').fill('arc-fixture');
+  await page.getByLabel('Database password').fill('fixture-password');
+  await page.getByRole('checkbox', { name: /Connect without TLS/ }).check();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('PostgreSQL');
+  await page.getByRole('radio', { name: /SQLite/ }).check();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Admin');
   await page.getByLabel('Password', { exact: true }).fill('short');
   await page.getByLabel('Password again', { exact: true }).fill('different');

@@ -72,6 +72,36 @@ func TestCollections(t *testing.T) {
 		t.Errorf("The Matrix is in %d collections, want 2", len(in))
 	}
 
+	// The library list gets the same count and first item as the individual
+	// collection. Grid placement also needs every item in its normal order.
+	var autoPreviewCollection Collection
+	for _, collection := range in {
+		if collection.Kind == "auto" {
+			autoPreviewCollection = collection
+		}
+	}
+	for _, mode := range []string{"items", "both"} {
+		previews, err := st.CollectionPreviews(ctx, lib, mode, Access{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range []struct {
+			id, first, second string
+		}{{autoPreviewCollection.ID, matrix, reloaded}, {fav.ID, matrix, alien}} {
+			p := previews[tc.id]
+			want := 1
+			if mode == "both" {
+				want = 2
+			}
+			if p.Count != 2 || len(p.Items) != want || p.Items[0].ID != tc.first {
+				t.Fatalf("%s %s: unexpected preview: %+v", mode, tc.id, p)
+			}
+			if want == 2 && p.Items[1].ID != tc.second {
+				t.Fatalf("%s: wrong second item: %+v", tc.id, p)
+			}
+		}
+	}
+
 	// Removing an automatic collection hides it; it doesn't come back with a refresh.
 	auto, _ := st.Collections(ctx, lib, Access{})
 	for _, c := range auto {
@@ -173,4 +203,78 @@ func TestImportedCopyOfAutomaticCollectionShowsOnce(t *testing.T) {
 	if in, _ := st.ItemCollections(ctx, it, Access{}); len(in) != 1 || in[0].Kind != "manual" {
 		t.Fatalf("title in both: %+v", in)
 	}
+}
+
+func TestItemCollectionsRespectMinimumAndProfileAccess(t *testing.T) {
+	ctx := t.Context()
+	st := openTest(t)
+	lib, err := st.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(title string, seen int64) string {
+		t.Helper()
+		id, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/fixture/" + title, Size: 1}, 1, seen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SetFileItems(ctx, file, []string{id}, 0); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	one, two := add("First", 1), add("Second", 2)
+	ref := &CollectionRef{TMDBID: 90, Name: "Fixture Collection"}
+	for _, id := range []string{one, two} {
+		if err := st.SetMovieCollection(ctx, id, lib, ref); err != nil {
+			t.Fatal(err)
+		}
+	}
+	labels := []string{"restricted"}
+	if err := st.EditItem(ctx, two, ItemEdit{Labels: &labels}); err != nil {
+		t.Fatal(err)
+	}
+	it, err := st.GetItem(ctx, one)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(acc Access, want int) {
+		t.Helper()
+		got, err := st.ItemCollections(ctx, it, acc)
+		if err != nil || len(got) != want || (want == 1 && (got[0].Kind != "auto" || got[0].TMDBID != ref.TMDBID)) {
+			t.Fatalf("item collections = %+v, want %d automatic collections: %v", got, want, err)
+		}
+	}
+	check(Access{}, 1)
+	restricted := Access{ExcludeLabels: labels}
+	check(restricted, 0)
+	if collections, err := st.Collections(ctx, lib, restricted); err != nil || len(collections) != 0 {
+		t.Fatalf("library collections exposed a collection below the visible minimum: %+v %v", collections, err)
+	}
+	if previews, err := st.CollectionPreviews(ctx, lib, "both", restricted); err != nil || len(previews) != 1 {
+		t.Fatalf("restricted collection previews = %+v: %v", previews, err)
+	} else {
+		for _, preview := range previews {
+			if preview.Count != 1 || len(preview.Items) != 1 || preview.Items[0].ID != one {
+				t.Fatalf("preview exposed a restricted member: %+v", preview)
+			}
+		}
+	}
+	if _, err := st.MarkMissing(ctx, lib, 2, 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetLibraryCollectionMin(ctx, lib, 1); err != nil {
+		t.Fatal(err)
+	}
+	check(Access{}, 1)
+	// This imported copy holds all present members and suppresses the automatic
+	// collection even on the page for the missing member it doesn't contain.
+	if _, err := st.ImportCollection(ctx, lib, " fixture collection ", []string{two}); err != nil {
+		t.Fatal(err)
+	}
+	check(Access{}, 0)
 }

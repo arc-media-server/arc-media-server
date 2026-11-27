@@ -103,21 +103,41 @@ func (s *Store) SetSeasonChosen(ctx context.Context, seriesID string, season int
 
 // SeasonPosters returns a show's season posters by season number.
 func (s *Store) SeasonPosters(ctx context.Context, seriesID string) (map[int]SeasonArt, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT season_number, poster_path, local_poster, chosen_path FROM season_art WHERE series_id = ?`, seriesID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[int]SeasonArt{}
-	for rows.Next() {
-		var n int
-		var a SeasonArt
-		if err := rows.Scan(&n, &a.Path, &a.Local, &a.Chosen); err != nil {
+	posters, err := s.SeasonPostersBySeries(ctx, []string{seriesID})
+	return posters[seriesID], err
+}
+
+// SeasonPostersBySeries loads season artwork for the displayed series in one batch.
+func (s *Store) SeasonPostersBySeries(ctx context.Context, seriesIDs []string) (map[string]map[int]SeasonArt, error) {
+	out := make(map[string]map[int]SeasonArt, len(seriesIDs))
+	for ids := range chunks(seriesIDs, 100) {
+		args := make([]any, len(ids))
+		for i, id := range ids {
+			args[i] = id
+			out[id] = map[int]SeasonArt{}
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT series_id, season_number, poster_path, local_poster, chosen_path
+			FROM season_art WHERE series_id IN (`+placeholders(len(ids))+`)`, args...)
+		if err != nil {
 			return nil, err
 		}
-		out[n] = a
+		for rows.Next() {
+			var id string
+			var n int
+			var a SeasonArt
+			if err := rows.Scan(&id, &n, &a.Path, &a.Local, &a.Chosen); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id][n] = a
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // RecentEpisodes selects recent shows before collecting their episodes. A large show cannot

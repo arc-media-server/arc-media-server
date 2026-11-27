@@ -149,7 +149,7 @@ test('management pages share Settings navigation and Activity opens Dashboard on
   for (const [label, path, heading] of [
     ['Dashboard', '/dashboard', 'Living Room - Dashboard'], ['Insights', '/insights', 'Insights'],
     ['Library Health', '/health', 'Library Health'], ['Manage libraries', '/libraries', 'Libraries'],
-    ['Profiles', '/profiles', 'Profiles'], ['Backups & restore', '/backups', 'Backups'],
+    ['Profiles', '/profiles', 'Profiles'], ['Database and Backup', '/backups', 'Database and Backup'],
   ]) {
     const link = nav.getByRole('link', { name: new RegExp('^' + label) });
     await link.click();
@@ -242,7 +242,7 @@ test('settings groups expose labelled controls and persistent desktop and mobile
     const selects = page.locator('main select:visible');
     for (const select of await selects.all()) await expect(select).toHaveAccessibleName(/.+/);
   }
-  await expect(page.getByRole('link', { name: 'Backups & restore', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Database and Backup', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /^Library Health/ }).last()).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/settings');
@@ -659,6 +659,47 @@ test('playback failures can retry without reopening the title', async ({ page })
   await page.getByRole('button', { name: 'Close player', exact: true }).click();
 });
 
+test('season labels keep episode group names with a numbered preference', async ({ page }) => {
+  const { lib, item } = await seed(page, true);
+  await page.goto('/series/' + item.id);
+  await openOrdering(page);
+  await chooseDisplay(page, /Story Order/);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
+
+  await page.goto('/libraries');
+  const row = page.getByRole('region', { name: lib.name, exact: true });
+  await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('tab', { name: 'Advanced', exact: true }).click();
+  const libraryLabels = editor.getByRole('combobox', { name: 'Season labels', exact: true });
+  await expect(libraryLabels).toHaveValue('number');
+  await libraryLabels.selectOption('name');
+  await editor.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(editor).toBeHidden();
+
+  await page.goto('/series/' + item.id);
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
+  await openOrdering(page);
+  const showLabels = page.getByRole('combobox', { name: 'Season labels', exact: true });
+  await expect(showLabels).toHaveValue('');
+  await showLabels.selectOption('number');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
+  await openOrdering(page);
+  await expect(showLabels).toHaveValue('number');
+  await chooseDisplay(page, /TMDB.*Aired Order/);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Season 1', exact: true })).toBeVisible();
+  await openOrdering(page);
+  await chooseDisplay(page, /Story Order/);
+  await showLabels.selectOption('');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Story Season', exact: true })).toBeVisible();
+});
+
 test('comparison stages selections until Save, preserves Retry and remains owner-only', async ({ page }) => {
   const { item } = await seed(page, true);
   await page.goto('/series/' + item.id);
@@ -1032,7 +1073,8 @@ async function seed(page: Page, shows = false) {
 }
 async function setup(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a database', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await page.getByLabel('Your name', { exact: true }).fill('Admin');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Password again', { exact: true }).fill(password);

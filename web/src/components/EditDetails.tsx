@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Lock, LockOpen } from 'lucide-react';
-import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering, type Ordering, type SeasonsResponse, type OrderingsResponse } from '@/lib/api';
+import { api, type ArtworkType, type Item, type ItemEdit, type LockableField, type SourceOrdering, type SeasonLabelMode, type Ordering, type SeasonsResponse, type OrderingsResponse } from '@/lib/api';
 import { applyArtwork, applySeasonArtwork, ArtworkPanel, type ArtworkChange } from '@/components/ChooseArtwork';
 import { SeasonsPanel, seasonEdit, type SeasonText } from '@/components/EditSeasons';
 import { orderings } from '@/components/LibraryEditor';
@@ -72,7 +72,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   // Keep metadata edits relative to the opening values even if a partially saved
   // source refresh updates the page caches while this form remains open.
   const [initialItem] = useState(item);
-  const { t } = useTranslation('details');
+  const { t } = useTranslation(['details', 'libraryEditor']);
   const orderLabels = {
     tmdb_aired: t('details:sourceOrder.tmdbAired'),
     tvdb_aired: t('details:sourceOrder.tvdbAired'),
@@ -94,6 +94,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [locked, setLocked] = useState(() => new Set<LockableField>(item.locked_fields));
   const [genres, setGenres] = useState<string[]>(() => item.genres ?? []);
   const [source, setSource] = useState<SourceOrdering | ''>(() => item.source_ordering ?? '');
+  const [seasonLabelMode, setSeasonLabelMode] = useState<SeasonLabelMode | ''>(item.season_label_mode ?? '');
   const library = useLibraries().data?.find((l) => l.id === item.library_id);
   const matchingDisplay = (available: Ordering[], sourceOrder: string) =>
     available.find(o => o.source === sourceOrder && !o.source_ref)?.id;
@@ -125,7 +126,9 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const [art, setArt] = useState<Partial<Record<ArtworkType, ArtworkChange>>>({});
   const [seasonArt, setSeasonArt] = useState<Record<number, ArtworkChange>>({});
   // Season names and summaries belong to the episode order being viewed, as on the show's page.
-  const seasonView = useQuery({ queryKey: ['seasons', item.id, true], queryFn: () => api.seasons(item.id, { missing: true }), enabled: admin && item.kind === 'series' });
+  const seasonView = useQuery({ queryKey: ['seasons', item.id, true], queryFn: () => api.seasons(item.id, { missing: true }),
+    select: data => ({ ...data, seasons: data.seasons.map(season => ({ ...season, name: season.metadata_name ?? season.name })) }),
+    enabled: admin && item.kind === 'series' });
   const [seasonText, setSeasonText] = useState<Record<number, SeasonText>>({});
   const seasonNamesValid = Object.values(seasonText).every((s) => s.name.trim());
   const [saving, setSaving] = useState<'details' | 'markers' | ArtworkType | 'unlocked' | { season: string } | { seasonText: string }>('details');
@@ -159,6 +162,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       }
       if (genresChanged) edit.genres = genres;
       if (labelsChanged) edit.labels = labels;
+      if (item.kind === 'series' && seasonLabelMode !== (initialItem.season_label_mode ?? '')) edit.season_label_mode = seasonLabelMode;
       if (item.kind === 'series' && (source !== (item.source_ordering ?? '') || displaySource !== undefined)) edit.source_ordering = source;
       let updated = item;
       if (Object.keys(edit).length) {
@@ -216,7 +220,7 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
       return updated;
     },
     onSuccess: (updated) => {
-      qc.setQueryData(['item', item.id], (old: Item | undefined) => (old ? { ...old, ...updated } : updated));
+      qc.setQueryData(['item', item.id], (old: Item | undefined) => (old ? { ...old, ...updated, season_label_mode: updated.season_label_mode } : updated));
       qc.invalidateQueries({ queryKey: ['labels'] });
       qc.invalidateQueries({ queryKey: ['facets'] });
       qc.invalidateQueries({ queryKey: ['item', item.id] });
@@ -292,6 +296,15 @@ function EditForm({ item, onDone }: { item: Item; onDone: () => void }) {
             <span id={`${item.id}-file-order-help`} className="mt-1.5 block text-xs text-subtle">{t("details:editDetails.howFilesAreNumbered")}</span>
           </label>
         )}
+        <label className="block">
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-subtle">{t('libraryEditor:seasonLabels.label')}</span>
+          <select aria-label={t('libraryEditor:seasonLabels.label')} aria-describedby={`${item.id}-season-label-help`} value={seasonLabelMode} onChange={e => setSeasonLabelMode(e.target.value as SeasonLabelMode | '')} className={inputClass}>
+            <option value="">{t('details:editDetails.inheritSeasonLabels')}</option>
+            <option value="number">{t('libraryEditor:seasonLabels.number')}</option>
+            <option value="name">{t('libraryEditor:seasonLabels.name')}</option>
+          </select>
+          <span id={`${item.id}-season-label-help`} className="mt-1.5 block text-xs text-subtle">{t('libraryEditor:seasonLabels.help')}</span>
+        </label>
         {orders.error && <p role="alert" className="text-sm text-warning">{orders.error.message}<Button variant="ghost" onClick={()=>void orders.refetch()}>{t("details:editDetails.retry")}</Button></p>}
         {orders.data && <EpisodeOrderingFields
           orderings={orders.data.orderings}

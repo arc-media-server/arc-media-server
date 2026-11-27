@@ -43,6 +43,21 @@ func (s *Server) addDetails(r *http.Request, d *itemDTO) error {
 		return err
 	}
 	d.Collections = s.itemCollections(r, &d.Item)
+	if d.Kind == "movie" {
+		cuts, err := s.store.OtherMovieEditions(r.Context(), d.Item)
+		if err != nil {
+			return err
+		}
+		for _, cut := range cuts {
+			visible, err := s.store.CanSee(r.Context(), &cut, access(r))
+			if err != nil {
+				return err
+			}
+			if visible {
+				d.OtherEditions = append(d.OtherEditions, movieEditionRef{ID: cut.ID, Edition: cut.Edition})
+			}
+		}
+	}
 	d.Credits = make([]creditDTO, 0, len(credits))
 	for _, c := range credits {
 		cd := creditDTO{PersonID: c.PersonID, Name: c.Name, Role: c.Role, Character: c.Character, EpisodeCount: c.EpisodeCount}

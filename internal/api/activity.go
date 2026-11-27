@@ -12,6 +12,11 @@ import (
 // openAPI: GET /api/openapi.json answers with the OpenAPI 3.1 description of this server's API,
 // generated from the code, so apps and API tools can see exactly what this version offers.
 func (s *Server) openAPI(w http.ResponseWriter, r *http.Request) {
+	ServeOpenAPIDocument(w, r)
+}
+
+// ServeOpenAPIDocument serves the static API contract before and after database setup.
+func ServeOpenAPIDocument(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Write(docs.OpenAPI)

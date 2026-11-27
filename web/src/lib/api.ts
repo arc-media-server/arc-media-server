@@ -52,6 +52,7 @@ export interface ItemEdit {
   labels?: string[];
   /** A show's episode numbering; "" follows its library. */
   source_ordering?: SourceOrdering | '';
+  season_label_mode?: SeasonLabelMode | '';
   details_provider?: '' | 'tvdb';
   locked_fields?: LockableField[];
 }
@@ -107,6 +108,8 @@ export interface Item {
   title: string;
   sort_title: string;
   original_title?: string;
+  edition?: string;
+  other_editions?: { id: string; edition?: string }[];
   year?: number;
   overview?: string;
   runtime_min?: number;
@@ -151,6 +154,7 @@ export interface Item {
   theme_url?: string;
   /** A show's own episode numbering, when it overrides its library's. */
   source_ordering?: SourceOrdering;
+  season_label_mode?: SeasonLabelMode | '';
   /** Where a show's details and artwork come from: TMDB (absent) or TheTVDB. */
   details_provider?: 'tvdb';
   credits?: Credit[];
@@ -190,9 +194,11 @@ export interface ScanStatus {
 
 /** "videos" is Other videos: home videos and the like, with no online details. */
 export type LibraryKind = 'movies' | 'shows' | 'videos';
+export type SeasonLabelMode = 'number' | 'name';
 export type SourceOrdering = 'tvdb_aired' | 'tvdb_dvd' | 'tvdb_absolute' | 'tmdb_aired';
 
 export interface Library {
+  season_label_mode?: SeasonLabelMode;
   details_provider: "" | "tvdb";
   id: number;
   name: string;
@@ -218,6 +224,7 @@ export interface Library {
 }
 
 export interface LibraryInput {
+  season_label_mode?: SeasonLabelMode;
   details_provider?: "" | "tvdb";
   name: string;
   kind: LibraryKind;
@@ -293,6 +300,7 @@ export interface SeasonEpisode extends Item {
 export interface Season {
   season_number: number;
   name: string;
+  metadata_name?: string;
   overview?: string;
   /** Season fields edited by hand. */
   locked_fields: ('name' | 'overview')[];
@@ -914,7 +922,29 @@ export interface Profile {
   invite_token?: string;
 }
 
+export interface PostgresConnection {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  no_tls: boolean;
+}
+
+type PostgresConnectionUpdate = PostgresConnection & { password: string };
+
+interface DatabaseSettingsView {
+  engine: 'sqlite' | 'postgres';
+  connection?: PostgresConnection;
+  restart_required: boolean;
+  can_edit: boolean;
+}
+
+export type DatabaseSetupInput =
+  | { engine: 'sqlite' }
+  | ({ engine: 'postgres' } & PostgresConnectionUpdate);
+
 export interface AuthStatus {
+  database_needed?: boolean;
   setup_needed: boolean;
   signed_in: boolean;
   /** Signed in with the password (rather than on the home network without it). */
@@ -1052,6 +1082,7 @@ export class ApiError extends Error {
     readonly status: number,
     /** What the server needs to go on, e.g. "pin" or "password" when choosing a profile. */
     readonly needs?: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -1059,6 +1090,7 @@ export class ApiError extends Error {
 
 /** Fired when the server says the session is gone, so the app can show the sign-in screen. */
 export const UNAUTHORIZED_EVENT = 'ams:unauthorized';
+export const DATABASE_UNAVAILABLE_EVENT = 'ams:database-unavailable';
 
 async function request<T>(method: string, path: string, body?: unknown, opts: { keepalive?: boolean } = {}): Promise<T> {
   const res = await fetch(path, {
@@ -1071,15 +1103,18 @@ async function request<T>(method: string, path: string, body?: unknown, opts: { 
   if (!res.ok) {
     let message = res.statusText;
     let needs: string | undefined;
+    let code: string | undefined;
     try {
       const body = await res.json();
       message = body.error ?? message;
       needs = body.needs;
+      code = body.code;
     } catch {
       // not JSON; keep the status text
     }
     if (res.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
-    throw new ApiError(message, res.status, needs);
+    if (res.status === 503 && code === 'database_unavailable') window.dispatchEvent(new Event(DATABASE_UNAVAILABLE_EVENT));
+    throw new ApiError(message, res.status, needs, code);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -1125,6 +1160,7 @@ export const api = {
   downloadDiagnostics: async () => { const r = await fetch('/api/diagnostics/download'); if (!r.ok) throw new Error(i18n.t('common:errors.downloadDiagnostics')); return r.blob(); },
   setDiagnostics: (detailed: boolean) => request<{ detailed: boolean; until?: string; persistent: boolean; storage_error?: string }>('PATCH', '/api/diagnostics', { detailed }),
   authStatus: () => request<AuthStatus>('GET', '/api/auth/status'),
+  chooseDatabase: (body: DatabaseSetupInput) => request<void>('POST', '/api/auth/database', body),
   setup: (body: { name: string; password: string; local_bypass: boolean; tmdb_api_key?: string; tvdb_api_key?: string; region?: string }) =>
     request<Profile>('POST', '/api/auth/setup', body),
   login: (password: string) => request<void>('POST', '/api/auth/login', { password }),
@@ -1352,6 +1388,8 @@ export const api = {
     request<OrderingsResponse>('PUT', `/api/series/${seriesId}/display-ordering`, { ordering_id: orderingId }),
   refreshSeries: (seriesId: string) => request<OrderingsResponse>('POST', `/api/series/${seriesId}/refresh`),
 
+  databaseSettings: () => request<DatabaseSettingsView>('GET', '/api/settings/database'),
+  updateDatabaseConnection: (connection: PostgresConnectionUpdate) => request<void>('PUT', '/api/settings/database', connection),
   backups: () => request<BackupsResponse>('GET', '/api/backups'),
   createBackup: () => request<Backup>('POST', '/api/backups'),
   restoreBackup: (name: string) => request<void>('POST', `/api/backups/${encodeURIComponent(name)}/restore`),

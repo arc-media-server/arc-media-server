@@ -225,3 +225,73 @@ func TestMergeAndSplitKeepEarlierArrival(t *testing.T) {
 		}
 	}
 }
+
+func TestSeriesAddedSortKeepsArrivalTieBreakWithMissingRecords(t *testing.T) {
+	st := openTest(t)
+	ctx := t.Context()
+	lib, err := st.SyncLibrary(ctx, "Shows", "shows", "tmdb_aired", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(title, kind, parent string) string {
+		t.Helper()
+		id, _, err := st.EnsureItem(ctx, &Item{LibraryID: lib, Kind: kind, ParentID: parent, Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := st.db.ExecContext(ctx, query, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	alpha := add("Alpha", "series", "")
+	bravo := add("Bravo", "series", "")
+	zulu := add("Zulu", "series", "")
+	for _, ep := range []struct {
+		name, parent   string
+		date, sequence int
+		missing        bool
+	}{
+		{"Alpha current", alpha, 200, 5, false},
+		{"Alpha latest without arrival record", alpha, 300, 0, false},
+		{"Zulu current", zulu, 300, 3, false},
+		{"Zulu current with higher sequence", zulu, 300, 6, false},
+		{"Bravo current", bravo, 300, 4, false},
+		{"Bravo newer but unavailable", bravo, 400, 1, true},
+	} {
+		id := add(ep.name, "episode", ep.parent)
+		fid, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: filepath.Join("/fixture", id)}, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SetFileItems(ctx, fid, []string{id}, 0); err != nil {
+			t.Fatal(err)
+		}
+		exec(`UPDATE items SET added_at=? WHERE id=?`, ep.date, id)
+		if ep.sequence == 0 {
+			exec(`DELETE FROM item_arrivals WHERE item_id=?`, id)
+		} else {
+			exec(`UPDATE item_arrivals SET sequence=? WHERE item_id=?`, ep.sequence, id)
+		}
+		if ep.missing {
+			exec(`UPDATE media_files SET missing_since=500 WHERE id=?`, fid)
+		}
+	}
+	for _, reverse := range []bool{false, true} {
+		want := []string{zulu, alpha, bravo}
+		if reverse {
+			want = []string{bravo, alpha, zulu}
+		}
+		for offset, id := range want {
+			q := ItemQuery{LibraryID: lib, Kind: "series", Sort: "added", Reverse: reverse, Limit: 1, Offset: offset,
+				Access: Access{Libraries: []int64{lib}, ExcludeLabels: []string{"hidden"}}}
+			items, more, err := st.ListItemsWindow(ctx, q)
+			if err != nil || len(items) != 1 || items[0].ID != id || more != (offset < len(want)-1) {
+				t.Fatalf("page %d reverse=%v: got %v, more=%v, err=%v", offset, reverse, items, more, err)
+			}
+		}
+	}
+}

@@ -371,6 +371,11 @@ func (s *Store) DeleteOrdering(ctx context.Context, id int64) error {
 	return err
 }
 
+// displayOrderingPriority is shared by single-series and batch lookups.
+func displayOrderingPriority(source string) string {
+	return "source = " + source + " DESC, source = 'tmdb_aired' DESC, source = 'file' DESC, id"
+}
+
 // DisplayOrdering returns the ordering a series is shown in, for everyone: the server owner's
 // choice, else the ordering matching the library's source ordering, else the first one. It
 // returns 0 when the series has no orderings. (Profiles once chose their own; the owner decided
@@ -387,7 +392,7 @@ func (s *Store) DisplayOrdering(ctx context.Context, seriesID, librarySource str
 	}
 	err = s.db.QueryRowContext(ctx, `
 		SELECT id FROM orderings WHERE series_id = ?
-		ORDER BY source = ? DESC, source = 'tmdb_aired' DESC, source = 'file' DESC, id LIMIT 1`,
+		ORDER BY `+displayOrderingPriority("?")+` LIMIT 1`,
 		seriesID, librarySource).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil

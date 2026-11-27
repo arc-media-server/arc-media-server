@@ -1,4 +1,10 @@
 {
+  "seasonLabels": {
+    "label": "Season labels",
+    "help": "Choose how to label standard seasons. Episode groups keep their own labels. Manually edited names always take priority.",
+    "number": "Season numbers",
+    "name": "Use season names when available"
+  },
   "libraryEditor": {
     "cancel": "Cancel",
     "next": "Next",

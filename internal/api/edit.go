@@ -64,6 +64,8 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		Labels        *[]string `json:"labels"`
 		// A show's episode numbering; "" follows its library.
 		SourceOrdering *string `json:"source_ordering"`
+		// A show label override; "" follows the library.
+		SeasonLabelMode *string `json:"season_label_mode"`
 		// Where a show's details come from: "" for TMDB, or "tvdb".
 		DetailsProvider *string   `json:"details_provider" api:"deprecated" description:"Legacy input is rejected; choose the metadata provider in library settings."`
 		LockedFields    *[]string `json:"locked_fields"`
@@ -84,7 +86,7 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 	e := store.ItemEdit{
 		Title: trim(body.Title), SortTitle: trim(body.SortTitle), OriginalTitle: trim(body.OriginalTitle),
 		Year: body.Year, Overview: trim(body.Overview), ReleaseDate: trim(body.ReleaseDate), RuntimeMin: body.RuntimeMin,
-		Tagline: trim(body.Tagline), ContentRating: trim(body.ContentRating), Studio: trim(body.Studio),
+		Tagline: trim(body.Tagline), ContentRating: trim(body.ContentRating), Studio: trim(body.Studio), SeasonLabelMode: body.SeasonLabelMode,
 	}
 	switch {
 	case e.Title != nil && *e.Title == "":
@@ -101,6 +103,9 @@ func (s *Server) editItem(w http.ResponseWriter, r *http.Request) {
 		return
 	case body.DetailsProvider != nil && (it.Kind != "series" || (*body.DetailsProvider != "" && *body.DetailsProvider != "tvdb")):
 		writeError(w, http.StatusBadRequest, `details_provider is for shows: "" (TMDB) or "tvdb"`)
+		return
+	case body.SeasonLabelMode != nil && (it.Kind != "series" || *body.SeasonLabelMode != "" && !validSeasonLabelMode(*body.SeasonLabelMode)):
+		writeError(w, http.StatusBadRequest, `season_label_mode is for shows: "number", "name" or "" to follow the library`)
 		return
 	case body.SourceOrdering != nil && (it.Kind != "series" || *body.SourceOrdering != "" && !config.ValidSourceOrdering(*body.SourceOrdering)):
 		writeError(w, http.StatusBadRequest, "source_ordering is for shows: tmdb_aired, tvdb_aired, tvdb_dvd, tvdb_absolute, or \"\" for the library's")

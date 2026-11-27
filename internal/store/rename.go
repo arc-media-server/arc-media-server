@@ -44,7 +44,7 @@ func (s *Store) OwnersForFiles(ctx context.Context, libraryID int64, kind string
 	return s.queryItems(ctx, `SELECT DISTINCT `+prefixCols("owner.", itemCols)+` FROM item_files f
  JOIN items linked ON linked.id=f.item_id
  JOIN items owner ON owner.id=CASE WHEN linked.kind='episode' THEN linked.parent_id ELSE linked.id END
- WHERE f.file_id IN (SELECT value FROM json_each(?)) AND owner.library_id=? AND owner.kind=? LIMIT 2`, string(input), libraryID, kind)
+ WHERE f.file_id IN (SELECT CAST(value AS BIGINT) FROM json_each(?)) AND owner.library_id=? AND owner.kind=? LIMIT 2`, string(input), libraryID, kind)
 }
 
 // RekeyItemWithAlias preserves old scanner keys for other versions/folders still using that name.

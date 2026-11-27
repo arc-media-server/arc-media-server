@@ -72,11 +72,25 @@ func TestMediaFacetsCountTitlesAndRespectAccess(t *testing.T) {
 		}
 		return id
 	}
-	// Two audio tracks of one codec count the title once.
-	add("Dune", "PG", []Stream{{Kind: "video", Codec: "HEVC", BitDepth: 10, DolbyVision: true}, {Kind: "audio", Codec: "truehd", Channels: 8}, {Kind: "audio", Codec: "truehd", Channels: 2}})
-	add("Heat", "PG", []Stream{{Kind: "video", Codec: "h264", BitDepth: 8}, {Kind: "audio", Codec: "ac3", Channels: 6}})
-	add("Saw", "18", []Stream{{Kind: "video", Codec: "hevc", ColorTransfer: "smpte2084"}, {Kind: "audio", Codec: "eac3", Channels: 6}})
-	add("Raw", "PG", []Stream{{Kind: "video", Codec: "av1"}})
+	// Duplicate tracks count each title once per facet, and a title can cover two resolutions.
+	duneVideo := Stream{Kind: "video", Codec: "HEVC", Width: 3840, Height: 1608, BitDepth: 10, DolbyVision: true}
+	duneHD := duneVideo
+	duneHD.Width, duneHD.Height = 1920, 816
+	add("Dune", "PG", []Stream{duneVideo, duneVideo, duneHD, {Kind: "audio", Codec: "truehd", Channels: 8}, {Kind: "audio", Codec: "truehd", Channels: 2}})
+	heat := add("Heat", "PG", []Stream{{Kind: "video", Codec: "h264", Width: 1920, Height: 816, BitDepth: 8}, {Kind: "audio", Codec: "ac3", Channels: 6}})
+	add("Saw", "18", []Stream{{Kind: "video", Codec: "hevc", Height: 720, ColorTransfer: "smpte2084"}, {Kind: "audio", Codec: "eac3", Channels: 6}})
+	add("Raw", "PG", []Stream{{Kind: "video", Codec: "av1", Width: 3840}}) // no measured height
+	offline, err := st.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: "/fixture/offline-heat.mkv",
+		Streams: []Stream{{Kind: "video", Codec: "h264", Height: 480}}}, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = st.SetFileItems(ctx, offline, []string{heat}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = st.db.ExecContext(ctx, `UPDATE media_files SET missing_since=1 WHERE id=?`, offline); err != nil {
+		t.Fatal(err)
+	}
 	facets := func(acc Access) LibraryFacets {
 		t.Helper()
 		f, err := st.Facets(ctx, lib, "movie", acc)
@@ -99,6 +113,7 @@ func TestMediaFacetsCountTitlesAndRespectAccess(t *testing.T) {
 	f := facets(Access{})
 	same("video codecs", f.VideoCodecs, Facet{"hevc", 2}, Facet{"av1", 1}, Facet{"h264", 1})
 	same("audio codecs", f.AudioCodecs, Facet{"ac3", 1}, Facet{"eac3", 1}, Facet{"truehd", 1})
+	same("resolutions ordered by height", f.Resolutions, Facet{"4k", 1}, Facet{"1080", 2}, Facet{"720", 1})
 	same("channels", f.AudioChannels, Facet{"6", 2}, Facet{"2", 1}, Facet{"8", 1})
 	same("dynamic range", f.DynamicRanges, Facet{"dolby_vision", 1}, Facet{"hdr10", 1}, Facet{"sdr", 1}, Facet{"unknown", 1})
 	// Each value finds the titles it counted.
@@ -114,6 +129,7 @@ func TestMediaFacetsCountTitlesAndRespectAccess(t *testing.T) {
 	// A profile limited by age doesn't see the restricted title's details counted.
 	f = facets(Access{MaxAge: 12})
 	same("restricted video codecs", f.VideoCodecs, Facet{"av1", 1}, Facet{"h264", 1}, Facet{"hevc", 1})
+	same("restricted resolutions", f.Resolutions, Facet{"4k", 1}, Facet{"1080", 2})
 	same("restricted ranges", f.DynamicRanges, Facet{"dolby_vision", 1}, Facet{"sdr", 1}, Facet{"unknown", 1})
 }
 

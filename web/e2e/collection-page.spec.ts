@@ -29,6 +29,11 @@ test('collection page: one Play button, then round Shuffle and More; Edit, Arran
   const made = await page.request.post('/api/collections', { data: { library_id: library.id, kind: 'manual', title: 'Fixture collection', item_ids: items.slice(0, 2).map((i: { id: string }) => i.id) } });
   expect(made.ok()).toBeTruthy();
   const collection = await made.json();
+  const listed = await page.request.get(`/api/libraries/${library.id}/collections`);
+  expect(listed.ok()).toBeTruthy();
+  expect(await listed.json()).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: collection.id, title: 'Fixture collection', count: 2 }),
+  ]));
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(`/collection/${collection.id}`);

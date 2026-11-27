@@ -119,12 +119,19 @@ export function LibraryPage() {
   const admin = useIsAdmin();
 
   const view = params.get('view') === 'collections' ? 'collections' : params.get('view') === 'recommended' ? 'recommended' : params.get('view') === 'folders' ? 'folders' : 'titles';
+  const browsing = view === 'titles';
   const recommended = useQuery({ queryKey: ['recommended', Number(id)], queryFn: () => api.recommended(Number(id)), enabled: !!lib && view === 'recommended' });
-  const collections = useQuery({ queryKey: ['collections', Number(id)], queryFn: () => api.collections(Number(id)), enabled: !!lib });
   const [newCollection, setNewCollection] = useState(false);
   const [editing, setEditing] = useState<string>();
   // Choosing titles to change together (admins).
   const [selecting, setSelecting] = useState(false);
+  // The unfiltered Browse grid can place collections among titles using their member IDs.
+  const showGridCollections = browsing && !selecting && !filtered && lib?.kind !== 'videos';
+  const collections = useQuery({
+    queryKey: ['collections', Number(id)],
+    queryFn: () => api.collections(Number(id)),
+    enabled: !!lib && (view === 'collections' || showGridCollections),
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const lastClicked = useRef<number | null>(null);
   const stopSelecting = () => {
@@ -158,9 +165,9 @@ export function LibraryPage() {
       return last.items.length && next < last.total ? next : undefined;
     },
     select: browsePages,
-    enabled: !!lib,
+    enabled: !!lib && browsing,
   });
-  useBrowsePosition(`${profileId}:${location.key}`, !!items.data);
+  useBrowsePosition(`${profileId}:${location.key}`, browsing && !!items.data);
   const offsets = useMemo(() => letterOffsets(items.data?.letters ?? [], reverse), [items.data?.letters, reverse]);
   const [jumped, setJumped] = useState<string>();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -169,7 +176,7 @@ export function LibraryPage() {
   // The rail follows scrolling: the letter of the first title in view.
   useEffect(() => {
     const list = items.data?.items;
-    if (!list || !offsets.size) return;
+    if (!browsing || !list || !offsets.size) return;
     const index = new Map(list.map((it, i) => [it.id, i]));
     const starts = [...offsets].sort((a, b) => a[1] - b[1]);
     let frame = 0;
@@ -189,7 +196,7 @@ export function LibraryPage() {
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame); };
-  }, [items.data?.items, offsets]);
+  }, [browsing, items.data?.items, offsets]);
   const [jumpError, setJumpError] = useState<{ error: Error; retry: () => void }>();
   useEffect(() => { setJumped(undefined); setJumpError(undefined); }, [selectionScope]);
   // Jump to a letter in the whole list: load the pages up to its first title, then scroll there.
@@ -225,7 +232,7 @@ export function LibraryPage() {
     requestAnimationFrame(scroll);
   };
   useEffect(() => {
-    if (!letterParam || !items.data || sort !== 'title') return;
+    if (!browsing || !letterParam || !items.data || sort !== 'title') return;
     const next = new URLSearchParams(params);
     next.delete('letter');
     setParams(next, { replace: true });
@@ -234,8 +241,8 @@ export function LibraryPage() {
     if (offset !== undefined) void jumpTo(letter, offset);
     // Only when an older link brings a letter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [letterParam, !!items.data]);
-  const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib });
+  }, [browsing, letterParam, !!items.data]);
+  const facets = useQuery({ queryKey: ['facets', Number(id)], queryFn: () => api.facets(Number(id)), enabled: !!lib && browsing });
 
   // Change one URL parameter, keeping the rest.
   const setParam = (key: string, value?: string) => {
@@ -260,7 +267,6 @@ export function LibraryPage() {
       ['collections', t('library:tabs.collections')],
     ] as const
   )
-    .filter(([v]) => v !== 'collections' || admin || (collections.data?.length ?? 0) > 0)
     // Browsing by folder is for Other videos libraries (movies and shows are grouped by title).
     .filter(([v]) => v !== 'folders' || lib.kind === 'videos')
     // Home videos have nothing to recommend from.
@@ -314,7 +320,7 @@ export function LibraryPage() {
       />
       {editing && <EditTitle id={editing} onClose={() => setEditing(undefined)} />}
       {lib && <CollectionDialog library={lib} open={newCollection} onOpenChange={setNewCollection} onSaved={(c) => navigate(`/collection/${c.id}`)} />}
-      {!!facets.error && <div className="px-6 md:px-10"><ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} /></div>}
+      {browsing && !!facets.error && <div className="px-6 md:px-10"><ErrorNotice error={facets.error} onRetry={() => void facets.refetch()} /></div>}
       {lib && view === 'titles' && (
         <div className="-mt-1 mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
           <SortMenu sort={sort} reverse={reverse} onSort={(v) => setParam('sort', v === 'title' ? undefined : v)} onReverse={(v) => setParam('reverse', v ? '1' : undefined)} />
@@ -363,7 +369,7 @@ export function LibraryPage() {
           )}
         </div>
       )}
-      <div className={cn('px-6 md:px-10', view === 'recommended' && 'hidden', showRail && 'flex items-start gap-2 pr-2 md:pr-4')}>
+      {view !== 'recommended' && <div className={cn('px-6 md:px-10', showRail && 'flex items-start gap-2 pr-2 md:pr-4')}>
         <div ref={gridRef} className="min-w-0 flex-1">
         {jumpError && <ErrorNotice error={jumpError.error} onRetry={jumpError.retry} />}
         {view === 'folders' && lib ? (
@@ -400,7 +406,7 @@ export function LibraryPage() {
         ) : (
           <PosterGrid
             items={items.data.items}
-            collections={!selecting && !filtered && lib?.kind !== 'videos' ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
+            collections={showGridCollections ? gridCollections(collections.data ?? [], lib?.collection_grid ?? '') : undefined}
             collectionUnit={unit}
             landscape={lib?.kind === 'videos'}
             hover={admin ? {
@@ -451,7 +457,7 @@ export function LibraryPage() {
             className="sticky top-3 h-[calc(100dvh-1.5rem)] max-h-[680px] shrink-0"
           />
         )}
-      </div>
+      </div>}
       {selecting && lib && view === 'titles' && items.data && (
         <SelectionBar
           library={lib}

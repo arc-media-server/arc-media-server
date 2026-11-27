@@ -4,6 +4,8 @@ import (
 	"ams/internal/auth"
 	"ams/internal/settings"
 	"context"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -70,14 +72,66 @@ func TestPublicURLCastAddressKeepsLANAndDoesNotTrustHeaders(t *testing.T) {
 	}
 }
 
-func TestPublicURLDoesNotGrantHomeSignInBypass(t *testing.T) {
-	s, _ := securityServer(t)
-	s.settings = func() settings.Settings {
-		return settings.Settings{LocalBypass: true, RemoteAccess: true, PublicURL: "https://arc.example.com"}
+func TestPublicURLHomeSignInThroughTrustedProxy(t *testing.T) {
+	s, user := securityServer(t)
+	cfg := settings.Settings{LocalBypass: true, PublicURL: "https://arc.example.com"}
+	h := New(Deps{Store: s.store, Log: s.log, Settings: func() settings.Settings { return cfg }})
+
+	proxies, _, err := auth.ParseNetworks("198.51.100.2")
+	if err != nil {
+		t.Fatal(err)
 	}
-	r := httptest.NewRequest("GET", "https://arc.example.com/api/auth/status", nil)
-	r.RemoteAddr = "127.0.0.1:4000"
-	if s.bypassApplies(r) {
-		t.Fatal("public URL became a password-free trusted hostname")
+	home, _, err := auth.ParseNetworks("192.0.2.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth.SetTrustedProxies(proxies)
+	t.Cleanup(func() { auth.SetTrustedProxies(nil) })
+	auth.SetHomeNetworks(home)
+	t.Cleanup(func() { auth.SetHomeNetworks(nil) })
+
+	for _, tc := range []struct {
+		name, peer, client, host, origin string
+		disabled, local, bypass          bool
+	}{
+		{name: "home", peer: "198.51.100.2", client: "192.0.2.5", host: "arc.example.com", local: true, bypass: true},
+		{name: "away", peer: "198.51.100.2", client: "203.0.113.5", host: "arc.example.com"},
+		{name: "different host", peer: "198.51.100.2", client: "192.0.2.5", host: "other.example.com", local: true},
+		{name: "untrusted proxy", peer: "198.51.100.3", client: "192.0.2.5", host: "arc.example.com"},
+		{name: "bypass disabled", peer: "198.51.100.2", client: "192.0.2.5", host: "arc.example.com", local: true, disabled: true},
+		{name: "cross-origin", peer: "198.51.100.2", client: "192.0.2.5", host: "arc.example.com", origin: "https://other.example.com", local: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg.LocalBypass = !tc.disabled
+			request := func(method, path, body string) *httptest.ResponseRecorder {
+				r := httptest.NewRequest(method, "http://arc:8099"+path, strings.NewReader(body))
+				r.RemoteAddr = tc.peer + ":4000"
+				r.Header.Set("X-Forwarded-Host", tc.host)
+				r.Header.Set("X-Forwarded-Proto", "https")
+				r.Header.Set("X-Forwarded-For", tc.client)
+				if tc.origin != "" {
+					r.Header.Set("Origin", tc.origin)
+				}
+				w := httptest.NewRecorder()
+				h.ServeHTTP(w, r)
+				return w
+			}
+			status := request(http.MethodGet, "/api/v1/auth/status", "")
+			var state authStatusDTO
+			if err := json.Unmarshal(status.Body.Bytes(), &state); err != nil || status.Code != http.StatusOK {
+				t.Fatalf("status = %d: %v", status.Code, err)
+			}
+			if state.Local != tc.local || state.Bypass != tc.bypass {
+				t.Fatalf("status local=%v bypass=%v, want local=%v bypass=%v", state.Local, state.Bypass, tc.local, tc.bypass)
+			}
+			profile := request(http.MethodPost, "/api/v1/auth/profile", `{"id":"`+user.ID+`"}`)
+			want := http.StatusUnauthorized
+			if tc.bypass {
+				want = http.StatusOK
+			}
+			if profile.Code != want || (len(profile.Result().Cookies()) > 0) != tc.bypass {
+				t.Fatalf("profile selection status = %d, want %d", profile.Code, want)
+			}
+		})
 	}
 }

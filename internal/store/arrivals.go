@@ -64,23 +64,33 @@ func linkedArrival(ctx context.Context, tx *sql.Tx, fileID int64) (arrival, erro
 	return a, err
 }
 
+// eligibleArrivalEpisode is shared by both keys for a show's Added order.
+func eligibleArrivalEpisode(access Access) (string, []any) {
+	cond, args := access.Conds("c")
+	visible := ""
+	if len(cond) > 0 {
+		visible = " AND " + strings.Join(cond, " AND ")
+	}
+	return `c.parent_id=items.id AND c.kind='episode' AND EXISTS(SELECT 1 FROM item_files f
+		JOIN media_files m ON m.id=f.file_id WHERE f.item_id=c.id AND m.missing_since IS NULL)` + visible, args
+}
+
 // A show's Added order follows newly available visible episodes. Its own added_at
 // remains the first arrival, for distinguishing a new show from a new season.
 func recentDateSQL(access Access) (string, []any) {
-	cond, args := access.Conds("c")
-	visible := ""
-	if len(cond) > 0 {
-		visible = " AND " + strings.Join(cond, " AND ")
-	}
-	return `CASE WHEN items.kind='series' THEN COALESCE((SELECT MAX(c.added_at) FROM items c
- WHERE c.parent_id=items.id AND c.kind='episode' AND EXISTS(SELECT 1 FROM item_files f JOIN media_files m ON m.id=f.file_id WHERE f.item_id=c.id AND m.missing_since IS NULL)` + visible + `),items.added_at) ELSE items.added_at END`, args
+	where, args := eligibleArrivalEpisode(access)
+	return `CASE WHEN items.kind='series' THEN COALESCE((SELECT c.added_at FROM items c
+		WHERE ` + where + ` ORDER BY c.added_at DESC LIMIT 1),items.added_at)
+		ELSE COALESCE(items.movie_replaced_at,items.added_at) END`, args
 }
+
 func recentSequenceSQL(access Access) (string, []any) {
-	cond, args := access.Conds("c")
-	visible := ""
-	if len(cond) > 0 {
-		visible = " AND " + strings.Join(cond, " AND ")
-	}
-	return `COALESCE(CASE WHEN items.kind='series' THEN (SELECT a.sequence FROM items c JOIN item_arrivals a ON a.item_id=c.id
- WHERE c.parent_id=items.id AND c.kind='episode' AND EXISTS(SELECT 1 FROM item_files f JOIN media_files m ON m.id=f.file_id WHERE f.item_id=c.id AND m.missing_since IS NULL)` + visible + ` ORDER BY c.added_at DESC,a.sequence DESC LIMIT 1) ELSE (SELECT sequence FROM item_arrivals WHERE item_id=items.id) END,0)`, args
+	where, args := eligibleArrivalEpisode(access)
+	const arrived = `FROM items c JOIN item_arrivals a ON a.item_id=c.id WHERE `
+	// Seek to the latest eligible date in items_parent_added. Only episodes on that date
+	// can win the sequence tie-break, and an episode without an arrival row cannot win it.
+	return `COALESCE(CASE WHEN items.kind='series' THEN (SELECT MAX(a.sequence) ` + arrived + where + `
+		AND c.added_at=(SELECT c.added_at ` + arrived + where + ` ORDER BY c.added_at DESC LIMIT 1))
+		ELSE COALESCE(items.movie_replacement_sequence,(SELECT sequence FROM item_arrivals WHERE item_id=items.id)) END,0)`,
+		append(args, args...)
 }

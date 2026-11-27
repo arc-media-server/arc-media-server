@@ -246,7 +246,7 @@
     "metadataLabel": "Metadata refresh",
     "metadataDescription": "Keeps titles’ details and artwork up to date, more often for shows that are still airing.",
     "backupLabel": "Database backups",
-    "backupDescription": "Daily database backups during maintenance. You can also back up any time in Backups & restore.",
+    "backupDescription": "Daily database backups during maintenance. You can also back up any time in Database and Backup.",
     "databaseLabel": "Optimize database",
     "databaseDescription": "Checks and optimises the database during maintenance, normally once a week.",
     "cacheLabel": "Clean up cached files",

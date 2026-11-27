@@ -31,16 +31,14 @@ const playCols = `id, user_id, item_id, kind, library_id, series_id, title, seri
 
 // AddPlay records a viewing and returns its id.
 func (s *Store) AddPlay(ctx context.Context, p Play) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `
+	var id int64
+	err := s.db.WriteRowContext(ctx, `
 		INSERT INTO play_history (user_id, item_id, kind, library_id, series_id, title, series_title, started_at,
 			ended_at, watched_ms, position_ms, duration_ms, completed, device, method)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 		p.UserID, p.ItemID, p.Kind, p.LibraryID, p.SeriesID, p.Title, p.SeriesTitle, p.StartedAt, p.EndedAt,
-		p.WatchedMS, p.PositionMS, p.DurationMS, boolInt(p.Completed), p.Device, p.Method)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
+		p.WatchedMS, p.PositionMS, p.DurationMS, boolInt(p.Completed), p.Device, p.Method).Scan(&id)
+	return id, err
 }
 
 // UpdatePlay records how a viewing has gone on. Once completed it stays completed.

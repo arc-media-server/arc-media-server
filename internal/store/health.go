@@ -157,7 +157,7 @@ func (s *Store) Duplicates(ctx context.Context, libraryID int64) ([]Duplicate, e
 		SELECT f.item_id FROM item_files f
 		JOIN media_files m ON m.id = f.file_id JOIN items i ON i.id = f.item_id
 		WHERE i.library_id = ? AND m.missing_since IS NULL
-		GROUP BY f.item_id, f.part HAVING COUNT(*) > 1
+		GROUP BY f.item_id, f.part, i.sort_title HAVING COUNT(*) > 1
 		ORDER BY i.sort_title`, libraryID)
 	if err != nil {
 		return nil, err

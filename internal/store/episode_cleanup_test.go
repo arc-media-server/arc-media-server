@@ -9,6 +9,9 @@ import (
 
 func assertEpisodeReverseLookups(t *testing.T, st *Store) {
 	t.Helper()
+	if st.IsPostgres() {
+		return // EXPLAIN QUERY PLAN and the index assertions below apply to SQLite.
+	}
 	for _, q := range []string{
 		`SELECT 1 FROM ordering_entries WHERE episode_id = 'fixture'`,
 		`SELECT 1 FROM user_item_data WHERE item_id = 'fixture'`,

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -97,6 +98,9 @@ func (s *Server) readSession(w http.ResponseWriter, r *http.Request) (*store.Ses
 }
 func (s *Server) sessionUnavailable(w http.ResponseWriter, r *http.Request, err error) {
 	requestStage(r, "reading session", 0)
+	if s.databaseUnavailable(w, err) {
+		return
+	}
 	markFailureLogged(w)
 	if r.Context().Err() == nil {
 		s.log.Error("session lookup failed", "err", err, "request_id", w.Header().Get(requestIDHeader))
@@ -120,7 +124,17 @@ func requestToken(r *http.Request) string {
 // bypassApplies reports whether this request may pick a profile without the password. Never for a
 // cross-origin call (appCORS): any web page on the home network could make one.
 func (s *Server) bypassApplies(r *http.Request) bool {
-	return s.settings().LocalBypass && auth.IsLocal(r) && auth.KnownServerHost(r, s.settings().HTTPSDomain) && !isCrossOriginApp(r)
+	st := s.settings()
+	if !st.LocalBypass || !auth.IsLocal(r) || isCrossOriginApp(r) {
+		return false
+	}
+	// PublicURL is a validated, administrator-configured origin. The exact hostname is
+	// eligible for home sign-in even when a reverse proxy terminates TLS.
+	var publicHost string
+	if publicURL, err := url.Parse(st.PublicURL); err == nil {
+		publicHost = publicURL.Hostname()
+	}
+	return auth.KnownServerHost(r, st.HTTPSDomain, publicHost)
 }
 
 // signedIn wraps handlers that need a profile.
@@ -240,6 +254,7 @@ func toProfile(u store.User) profileDTO {
 }
 
 type authStatusDTO struct {
+	DatabaseNeeded  bool         `json:"database_needed,omitempty"`
 	SetupNeeded     bool         `json:"setup_needed"`
 	SignedIn        bool         `json:"signed_in"`
 	Profile         *profileDTO  `json:"profile" api:"nullable"`
@@ -268,7 +283,12 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		out.SignedIn = true
 		out.PasswordSession = se.Via == "password"
 		if se.UserID != "" {
-			if u, err := s.store.GetUser(ctx, se.UserID); err == nil && u != nil {
+			u, err := s.store.GetUser(ctx, se.UserID)
+			if err != nil {
+				s.fail(w, err)
+				return
+			}
+			if u != nil {
 				profile := toProfile(*u)
 				out.Profile = &profile
 			}
@@ -289,6 +309,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		out.Profiles = profiles
 	}
 	out.Friend = se != nil && se.Via == "friend"
+	s.databaseRecovered()
 	writeJSON(w, http.StatusOK, out)
 }
 

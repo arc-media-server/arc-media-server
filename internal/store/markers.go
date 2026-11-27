@@ -126,7 +126,7 @@ type MarkerJob struct {
 // seconds), never-checked first: episodes in libraries that skip intros or credits, and movies in
 // libraries that skip credits.
 func (s *Store) MarkerJobs(ctx context.Context, before int64, limit int) ([]MarkerJob, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	query := `
 		SELECT * FROM (
 		SELECT m.id, m.path, m.duration_ms, e.id, sr.id, sr.imdb_id, sr.tvdb_id, sr.tmdb_id, e.library_id,
 			COALESCE((SELECT oe.season_number FROM ordering_entries oe JOIN orderings o ON o.id = oe.ordering_id
@@ -144,7 +144,13 @@ func (s *Store) MarkerJobs(ctx context.Context, before int64, limit int) ([]Mark
 		FROM media_files m JOIN item_files f ON f.file_id = m.id JOIN items mv ON mv.id = f.item_id AND mv.kind = 'movie'
 		JOIN libraries l ON l.id = mv.library_id AND l.skip_credits = 1 AND l.videos = 0
 		WHERE m.missing_since IS NULL AND m.duration_ms > 0 AND m.markers_checked_at < ?
-		) ORDER BY checked, grp, p LIMIT ?`, before, before, limit)
+		 ) ORDER BY checked, grp, p`
+	args := []any{before, before}
+	if limit >= 0 {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

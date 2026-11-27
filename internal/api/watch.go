@@ -231,13 +231,17 @@ func (s *Server) orderPositions(ctx context.Context, series *store.Item) (map[st
 	if err != nil {
 		return nil, nil, err
 	}
+	return entryPositions(entries), entries, nil
+}
+
+func entryPositions(entries []store.OrderingEntry) map[string][2]int {
 	pos := map[string][2]int{}
 	for _, e := range entries {
 		if _, ok := pos[e.EpisodeID]; !ok {
 			pos[e.EpisodeID] = [2]int{e.Season, e.Episode}
 		}
 	}
-	return pos, entries, nil
+	return pos
 }
 
 // homeEntry is a movie or episode on the home page, with when the profile was last watching it
@@ -251,32 +255,34 @@ type homeEntry struct {
 // recent first. With ?with_up_next=1 it also has the next episode of each show they're watching,
 // one entry per show.
 func (s *Server) continueWatching(w http.ResponseWriter, r *http.Request) {
+	contexts := s.episodeContexts(r.Context())
 	entries, err := s.inProgress(r, access(r))
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
 	if r.URL.Query().Get("with_up_next") == "1" {
-		next, err := s.upNext(r, access(r))
+		next, err := s.upNextWithContexts(r, access(r), contexts)
 		if err != nil {
 			s.fail(w, err)
 			return
 		}
 		entries = mergeHome(entries, next, 30)
 	}
-	s.writeHome(w, r, entries)
+	s.writeHome(w, r, entries, contexts)
 }
 
 // nextUp: GET /api/home/next-up lists, for each show the profile has been watching, the next
 // episode in their episode order that's on disk and not watched yet (skipping specials and
 // anything already in Continue Watching).
 func (s *Server) nextUp(w http.ResponseWriter, r *http.Request) {
-	entries, err := s.upNext(r, access(r))
+	contexts := s.episodeContexts(r.Context())
+	entries, err := s.upNextWithContexts(r, access(r), contexts)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	s.writeHome(w, r, entries)
+	s.writeHome(w, r, entries, contexts)
 }
 
 // mergeHome puts part-watched items and up-next episodes together, most recent first, keeping
@@ -302,8 +308,8 @@ func mergeHome(inProgress, upNext []homeEntry, limit int) []homeEntry {
 }
 
 // writeHome sends home entries with their episode numbers (in the series' order) and watch state.
-func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []homeEntry) {
-	out, err := s.homeDTOs(r, entries)
+func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []homeEntry, contexts *episodeContexts) {
+	out, err := s.homeDTOsWithContexts(r, entries, contexts)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -314,7 +320,39 @@ func (s *Server) writeHome(w http.ResponseWriter, r *http.Request, entries []hom
 // homeDTOs describes home entries: episodes with their series and their numbers in its order,
 // all with the profile's watch state.
 func (s *Server) homeDTOs(r *http.Request, entries []homeEntry) ([]itemDTO, error) {
-	return s.homeDTOsWith(r, entries, s.episodeContexts(r.Context()), seasonPosterCache{}, func(items []*itemDTO) error {
+	return s.homeDTOsWithContexts(r, entries, s.episodeContexts(r.Context()))
+}
+
+func (s *Server) homeDTOsWithContexts(r *http.Request, entries []homeEntry, contexts *episodeContexts) ([]itemDTO, error) {
+	var parents []string
+	for _, entry := range entries {
+		if entry.item.Kind == "episode" {
+			parents = append(parents, entry.item.ParentID)
+		}
+	}
+	if err := contexts.preload(parents); err != nil {
+		return nil, err
+	}
+	var aired []string
+	posters := seasonPosterCache{}
+	for _, id := range parents {
+		if _, ok := posters[id]; ok {
+			continue
+		}
+		posters[id] = nil
+		source := contexts.cached[id].source
+		if source == "tmdb_aired" || source == "tvdb_aired" {
+			aired = append(aired, id)
+		}
+	}
+	art, err := s.store.SeasonPostersBySeries(r.Context(), aired)
+	if err != nil {
+		return nil, err
+	}
+	for id, seasons := range art {
+		posters[id] = seasons
+	}
+	return s.homeDTOsWith(r, entries, contexts, posters, func(items []*itemDTO) error {
 		return s.fillUserData(r, items)
 	})
 }
@@ -370,10 +408,6 @@ func (s *Server) inProgress(r *http.Request, acc store.Access) ([]homeEntry, err
 
 // upNext finds the next episode to watch of each show the profile has been watching and may see
 // (acc).
-func (s *Server) upNext(r *http.Request, acc store.Access) ([]homeEntry, error) {
-	return s.upNextWithContexts(r, acc, s.episodeContexts(r.Context()))
-}
-
 func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts *episodeContexts) ([]homeEntry, error) {
 	ctx := r.Context()
 	userID := currentUserID(r)
@@ -383,6 +417,15 @@ func (s *Server) upNextWithContexts(r *http.Request, acc store.Access, contexts 
 	}
 	dismissed, err := s.store.ContinueDismissed(ctx, userID)
 	if err != nil {
+		return nil, err
+	}
+	var parents []string
+	for _, ws := range watched {
+		if dismissed[ws.SeriesID] < ws.LastPlayedAt {
+			parents = append(parents, ws.SeriesID)
+		}
+	}
+	if err := contexts.preload(parents); err != nil {
 		return nil, err
 	}
 	// Each show the profile is watching, with its display order and where its last watched

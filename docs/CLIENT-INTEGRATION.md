@@ -307,7 +307,35 @@ Library flags such as `reverse` and `letters` are strings: send `1` for enabled,
 disabled. Do not let an SDK serialize `reverse=true`. The schema's `x-arc-logical-type` is a hint,
 not a different wire encoding. Watch-state flags also accept `true`/`false` where documented.
 
+## Sync watched state, resume points and dated history
+
+Authenticate with a bearer token for the intended profile. Resolve local items using
+`GET /api/v1/items/lookup` and read their `user_data` through item details or batch lookup.
+Keep the three kinds of state separate:
+
+- **Watched status.** Use `PUT /api/v1/items/{id}/played` with `{"played":true}` or false.
+  It clears the resume point, so apply any saved position afterward. Marking a movie watched
+  takes it off the watchlist. Ratings and watchlists use their existing APIs.
+- **Saved resume point.** Send `PUT /api/v1/items/{id}/resume` with `{"position_ms":123000}`
+  or zero to clear it. This only changes the position. It leaves the last-played timestamp,
+  watched state, play count and history alone and creates no playback session.
+- **Completed viewings.** Page `GET /api/v1/watch-history` with `?before=<next_before>`
+  until `next_before` is absent. It lists entries for visible items, newest by viewing ID
+  first, including backdated entries added later. Each entry has `id`, `item_id` and
+  `watched_at` in Unix seconds. For native Arc viewings this is the start time.
+  Send `POST /api/v1/items/{id}/watch-history` with `{"watched_at":1700000000}`
+  to record an original viewing date. Retries at the same second for the same profile and
+  item return the existing entry. A different timestamp records another viewing.
+  Delete a specific entry with `DELETE /api/v1/items/{id}/watch-history/{viewing}?watched_at=1700000000`,
+  using that entry's ID, item ID and timestamp. Repeating a delete is safe. Adding or deleting
+  entries leaves watched status, play count and resume state alone.
+
 ## Errors, correlation and retries
+
+When Arc cannot reach PostgreSQL, affected requests return HTTP 503 with
+`code: "database_unavailable"` and `Retry-After`. Keep the signed-in session.
+Retry reads after the indicated delay. Offer to retry failed writes once Arc is
+reachable again.
 
 Check HTTP status before decoding JSON. Common JSON errors preserve `error` (human-readable) and
 optional `needs` (for example `pin`, `password`, `stopped`), and add `code` plus `request_id`.

@@ -102,7 +102,7 @@ func setPlayedTx(ctx context.Context, tx *sql.Tx, userID string, itemIDs []strin
 				INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at)
 				VALUES (?, ?, 0, 1, 1, ?)
 				ON CONFLICT (user_id, item_id) DO UPDATE SET position_ms = 0, played = 1,
-					play_count = CASE WHEN played = 1 THEN play_count ELSE play_count + 1 END,
+					play_count = CASE WHEN user_item_data.played = 1 THEN user_item_data.play_count ELSE user_item_data.play_count + 1 END,
 					last_played_at = excluded.last_played_at`, userID, id, now)
 		} else {
 			_, err = tx.ExecContext(ctx, `UPDATE user_item_data SET played = 0, position_ms = 0
@@ -238,7 +238,7 @@ func (s *Store) InProgress(ctx context.Context, userID string, limit int, acc Ac
 	// Filter before LIMIT: hidden or inaccessible recent titles must not crowd out
 	// an older resume point the profile can still see.
 	q, args := acc.Where("i", q, []any{userID})
-	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC, i.id LIMIT ?`, append(args, limit)...)
+	rows, err := s.db.QueryContext(ctx, q+` ORDER BY COALESCE(u.last_played_at, 0) DESC, i.id LIMIT ?`, append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -268,9 +268,9 @@ func (s *Store) RecentlyWatchedSeries(ctx context.Context, userID string, limit 
 	// only as much history is read as it takes to find limit shows. Grouping the whole history
 	// by show read every episode the profile ever watched, on every Continue Watching.
 	q, args := acc.Where("sr", `
-		SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i ON i.id = u.item_id
+		SELECT i.parent_id, i.id, u.last_played_at FROM user_item_data u CROSS JOIN items i
 		JOIN items sr ON sr.id = i.parent_id
-		WHERE u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
+		WHERE i.id = u.item_id AND u.user_id = ? AND u.played = 1 AND i.kind = 'episode' AND u.last_played_at IS NOT NULL`, []any{userID})
 	rows, err := s.db.QueryContext(ctx, q+` ORDER BY u.last_played_at DESC`, args...)
 	if err != nil {
 		return nil, err
@@ -344,7 +344,7 @@ func (s *Store) SetWatchlist(ctx context.Context, userID, itemID string, on bool
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, watchlisted_at) VALUES (?, ?, ?)
 		ON CONFLICT (user_id, item_id) DO UPDATE SET watchlisted_at = CASE WHEN excluded.watchlisted_at IS NULL THEN NULL
-			ELSE COALESCE(watchlisted_at, excluded.watchlisted_at) END`, userID, itemID, at)
+			ELSE COALESCE(user_item_data.watchlisted_at, excluded.watchlisted_at) END`, userID, itemID, at)
 	return err
 }
 

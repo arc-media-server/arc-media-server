@@ -25,6 +25,13 @@ type DatabaseUpkeep struct {
 // OptimizeDatabase joins the existing writer queue; it never replaces the open database.
 // WAL readers remain independent. VACUUM needs a dedicated connection, outside a transaction.
 func (s *Store) OptimizeDatabase(ctx context.Context, allowed func() bool) (DatabaseUpkeep, error) {
+	if s.postgres {
+		if allowed != nil && !allowed() {
+			return DatabaseUpkeep{}, context.Canceled
+		}
+		_, err := s.db.ExecContext(ctx, "ANALYZE")
+		return DatabaseUpkeep{}, err
+	}
 	return s.optimizeDatabase(ctx, allowed, diskspace.Available, 16<<20)
 }
 

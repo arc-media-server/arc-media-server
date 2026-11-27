@@ -1,14 +1,15 @@
 # Backups and recovery
 
-Arc's built-in backups are **database snapshots**. A full server backup is a separate,
-stopped copy of its complete data directory. Neither includes the source media library.
+Arc's built-in backups are **database snapshots**. For full server recovery, keep a stopped
+copy of the Arc data directory. With PostgreSQL, also keep a current backup of the external
+database. Preserve source media separately.
 
 ## What to preserve
 
-| Data | Built-in database backup | Full stopped-folder copy |
+| Data | Built-in database backup | Stopped data directory |
 | --- | --- | --- |
-| Matches, library paths, metadata edits/locks and episode orders | Yes | Yes |
-| Profiles, credentials/settings, watch history and resume | Yes | Yes |
+| Matches, library paths, metadata edits/locks and episode orders | Yes | SQLite only |
+| Profiles, credentials/settings, watch history and resume | Yes | SQLite only |
 | Uploaded artwork in uploads/ | No | Yes |
 | Certificates/keys stored in certs/ | No | Yes |
 | Optimized videos, downloaded subtitles, cached artwork, previews and logs in the data directory | No | Yes |
@@ -20,7 +21,7 @@ Regenerating optional assets or fetching them again depends on the source, provi
 policy being available; keep wanted assets rather than assuming every cache can be rebuilt.
 Optimized copies require their files or explicit regeneration.
 
-## Make a full backup
+## SQLite full backup
 
 1. Record the running Arc version or immutable Docker commit tag and retain that image/binary.
 2. Stop Arc cleanly (stop its container/service/process) and wait for it to exit.
@@ -36,7 +37,7 @@ Back Up Now is useful while Arc runs because it takes a consistent SQLite snapsh
 is not a live full-directory snapshot facility. Automatic and safety database backups
 follow the existing policy shown in Backups; full copies are an operator action.
 
-## Recover or roll back
+## SQLite recovery or rollback
 
 1. Stop the Arc instance being recovered. Preserve its current data separately before
    replacing anything, so a failed recovery can be undone.
@@ -54,9 +55,75 @@ image/binary with its compatible pre-upgrade full snapshot, rather than pointing
 the upgraded database. Arc's database restore validates snapshots, preserves a safety
 copy first and migrates supported older snapshots for the **current** executable.
 
+## PostgreSQL setup and recovery
+
+**First-time setup.** Open Arc from the host itself or forward the host port over SSH. For
+example, run `ssh -L 8099:127.0.0.1:8099 user@arc-host` on your computer and open
+`http://127.0.0.1:8099` there. The SSH tunnel protects the browser-to-Arc hop that carries
+the PostgreSQL password. Leave certificate and hostname verification enabled for the
+separate Arc-to-PostgreSQL connection. For a private issuing CA, mount its public PEM
+read-only and set `PGSSLROOTCERT` to the in-container path. The Arc user must be able to
+read it.
+
+**Temporary database outage.** A database request that fails because PostgreSQL
+is unreachable returns an unavailable response. Arc's web app shows the outage
+and checks for recovery. Retry failed saves after it returns. If a previously
+configured PostgreSQL server is unavailable when Arc starts, Arc serves its
+startup status screen and retries. The startup listener uses `AMS_LISTEN`, or
+loopback port 8099 when it is unset. Database-backed ports and Arc-managed HTTPS
+are loaded after PostgreSQL connects. Use the HTTP listener directly or through
+your existing reverse proxy while waiting.
+
+**Change connection details.** Open **Settings → Database and Backup** over HTTPS
+or through the SSH tunnel above. Enter the PostgreSQL password and choose
+**Verify and save**. The connection must reach Arc's current database, and the user
+must have write and schema ownership permissions. Restart Arc to use the saved
+settings. If Arc cannot start, stop it and edit the `dsn` in the existing
+`database.json` as described below. Keep the engine, installation ID and file
+permissions when editing it. Manage connections with extra driver options in the
+file while Arc is stopped.
+
+**Full backup.** Record Arc's image tag, stop Arc, then take a PostgreSQL backup or provider
+snapshot and copy the stopped `/config` directory. Preserve the media paths and private CA
+separately. Arc's `.pg.zip` archives from **Back Up Now** are verified database snapshots
+while Arc is running. If you use one of those for full recovery, record its time and account
+for any later database or file changes. The copied `database.json` contains credentials and
+connection settings. Protect it and the database backup.
+
+**Restore an Arc archive.** Stop Arc, preserve the original data directory, and create a
+separate, empty PostgreSQL database owned by the recovery account. Use an Arc image
+with the recovery command that recognises the archived schema. Set
+`ARC_POSTGRES_RECOVERY_DSN` securely in your shell to the new
+database connection. With a private CA, run:
+
+```sh
+docker run --rm --network "$POSTGRES_NETWORK" --user "$(id -u):$(id -g)" \
+  -e ARC_POSTGRES_RECOVERY_DSN -e PGSSLROOTCERT=/certs/postgres-ca.pem \
+  -v "$ARC_ARCHIVE:/recovery/archive.pg.zip:ro" \
+  -v "$POSTGRES_CA:/certs/postgres-ca.pem:ro" \
+  --entrypoint /usr/local/bin/arc-postgres-recovery "$ARC_IMAGE" /recovery/archive.pg.zip
+```
+
+Use absolute host paths in `ARC_ARCHIVE` and `POSTGRES_CA`, the Docker network that
+can reach PostgreSQL in `POSTGRES_NETWORK`, and the recorded image in `ARC_IMAGE`.
+With the system trust store, omit the CA mount and `PGSSLROOTCERT` option. Recovery
+defaults to `sslmode=verify-full`. An explicit `sslmode=disable` is available for a
+trusted private network. For a PostgreSQL-native backup or provider snapshot, use its
+own restore procedure to populate the separate database.
+
+**Switch Arc to the restored database.** Work from a separate, writable copy of
+`/config`. While Arc is stopped, edit the saved PostgreSQL `dsn` in that copy's
+`database.json` with a private editor, leaving `engine` and `installation_id` intact
+and preserving permissions. Use the restored database's hostname and URL-encode any
+special characters in the login. Include `sslmode=verify-full` in the saved connection
+unless you deliberately chose the private-network override. Start Arc with the copied directory and matching
+image, then check profiles, libraries, watch history and artwork before normal use.
+To reverse the cutover, stop Arc and reconnect the original directory, database and
+matching image. Writes made after the cutover stay on the restored database.
+
 ## Database restore has a narrower boundary
 
-The Backups page restores database state only. Uploaded artwork, certificates and generated
+The SQLite Backups page restores database state only. Uploaded artwork, certificates and generated
 files are not rolled back. For example, replacing a poster can remove the previous upload;
 restoring the old database restores its reference but cannot recreate the old image file.
 The database safety copy makes database restore undoable, not a full-filesystem rollback.

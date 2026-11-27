@@ -86,8 +86,8 @@ func (s *Store) QueueOptimize(ctx context.Context, fileIDs []int64, quality int)
 			ON CONFLICT (file_id, quality) DO UPDATE SET status='queued', error='',
 			created_at=excluded.created_at, source_path=excluded.source_path, source_size=excluded.source_size,
 			source_mtime=excluded.source_mtime, source_mtime_ns=0, job_id=excluded.job_id, audio_stream=-2, audio_language='', audio_title='', duration_ms=0, bitrate=0
-			WHERE optimized_versions.status='failed' OR source_path<>excluded.source_path
-			OR source_size<>excluded.source_size OR source_mtime<>excluded.source_mtime`,
+			WHERE optimized_versions.status='failed' OR optimized_versions.source_path<>excluded.source_path
+			OR optimized_versions.source_size<>excluded.source_size OR optimized_versions.source_mtime<>excluded.source_mtime`,
 			quality, time.Now().Unix(), rand.Text(), id)
 		if err != nil {
 			return n, err
@@ -165,7 +165,9 @@ func (s *Store) FileOptimized(ctx context.Context, fileID int64) ([]Optimized, e
 
 // OptimizedVersions lists every optimized copy, newest first.
 func (s *Store) OptimizedVersions(ctx context.Context) ([]Optimized, error) {
-	return s.optimizedList(ctx, ` GROUP BY o.file_id, o.quality ORDER BY o.created_at DESC`)
+	return s.optimizedList(ctx, ` WHERE i.id = (
+		SELECT MIN(link.item_id) FROM item_files link WHERE link.file_id = o.file_id
+	) ORDER BY o.created_at DESC`)
 }
 
 func (s *Store) optimizedList(ctx context.Context, where string, args ...any) ([]Optimized, error) {

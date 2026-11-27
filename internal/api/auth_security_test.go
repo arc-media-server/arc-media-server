@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"ams/internal/auth"
+	"ams/internal/perftest"
 	"ams/internal/settings"
 	"ams/internal/store"
 )
@@ -24,7 +25,13 @@ func securityServer(t testing.TB) (*Server, *store.User) {
 
 func securityServerAt(t testing.TB, path string) (*Server, *store.User) {
 	t.Helper()
-	st, err := store.Open(context.Background(), path, store.Options{})
+	var st *store.Store
+	var err error
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		st, err = store.OpenPostgres(t.Context(), dsn, "")
+	} else {
+		st, err = store.Open(context.Background(), path, store.Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,7 +11,7 @@ test('security headers: production UI works while inline scripts and framing are
   const response = await page.goto('/');
   expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   expect(response?.headers()['x-frame-options']).toBe('DENY');
-  await expect(page.getByRole('heading', { name: 'Welcome', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Choose a database', exact: true })).toBeVisible();
   await page.evaluate(() => {
     const script = document.createElement('script');
     script.textContent = 'window.__arc_inline_marker = true';

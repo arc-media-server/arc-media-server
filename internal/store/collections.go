@@ -49,7 +49,7 @@ func scanCollection(row interface{ Scan(...any) error }, c *Collection) error {
 
 // collectionLocked is an SQL condition that a collection field is in the row's locked_fields.
 func collectionLocked(field string) string {
-	return `instr(',' || locked_fields || ',', ',` + field + `,') > 0`
+	return `instr(',' || collections.locked_fields || ',', ',` + field + `,') > 0`
 }
 
 // playableSQL keeps titles with a present file (for a series, an episode with one).
@@ -83,10 +83,10 @@ func (s *Store) SetMovieCollection(ctx context.Context, itemID string, libraryID
 		INSERT INTO collections (id, library_id, kind, tmdb_id, title, sort_title, poster_path, backdrop_path, created_at)
 		VALUES (?, ?, 'auto', ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (library_id, tmdb_id) WHERE tmdb_id <> 0 DO UPDATE SET
-			title = CASE WHEN `+collectionLocked("title")+` THEN title ELSE excluded.title END,
-			sort_title = CASE WHEN `+collectionLocked("sort_title")+` OR `+collectionLocked("title")+` THEN sort_title ELSE excluded.sort_title END,
-			poster_path = CASE WHEN `+collectionLocked("poster")+` THEN poster_path ELSE excluded.poster_path END,
-			backdrop_path = CASE WHEN `+collectionLocked("backdrop")+` THEN backdrop_path ELSE excluded.backdrop_path END`,
+			title = CASE WHEN `+collectionLocked("title")+` THEN collections.title ELSE excluded.title END,
+			sort_title = CASE WHEN `+collectionLocked("sort_title")+` OR `+collectionLocked("title")+` THEN collections.sort_title ELSE excluded.sort_title END,
+			poster_path = CASE WHEN `+collectionLocked("poster")+` THEN collections.poster_path ELSE excluded.poster_path END,
+			backdrop_path = CASE WHEN `+collectionLocked("backdrop")+` THEN collections.backdrop_path ELSE excluded.backdrop_path END`,
 		newID(), libraryID, ref.TMDBID, ref.Name, SortTitle(ref.Name), ref.PosterPath, ref.BackdropPath, time.Now().Unix())
 	return err
 }
@@ -109,6 +109,46 @@ func memberSQL(c *Collection) (string, []any) {
 // can see. Automatic ones need the library's minimum number of titles; smart ones are counted by
 // the caller (their count is -1 here).
 func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([]Collection, error) {
+	all, err := s.readCollections(ctx, `WHERE library_id = ? AND hidden = 0`, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	if len(all) == 0 {
+		return []Collection{}, nil
+	}
+	counts, err := s.libraryCollectionCounts(ctx, libraryID, acc)
+	if err != nil {
+		return nil, err
+	}
+	return s.visibleCollectionsWithCounts(ctx, libraryID, all, all, acc, counts)
+}
+
+func (s *Store) readCollections(ctx context.Context, where string, args ...any) ([]Collection, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+collectionCols+` FROM collections `+where+` ORDER BY sort_title`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var all []Collection
+	for rows.Next() {
+		var c Collection
+		if err := scanCollection(rows, &c); err != nil {
+			return nil, err
+		}
+		all = append(all, c)
+	}
+	return all, rows.Err()
+}
+
+func (s *Store) visibleCollections(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access) ([]Collection, error) {
+	return s.visibleCollectionsWithCounts(ctx, libraryID, candidates, peers, acc, nil)
+}
+
+func (s *Store) visibleCollectionsWithCounts(ctx context.Context, libraryID int64, candidates, peers []Collection, acc Access, counts map[string]int) ([]Collection, error) {
+	out := []Collection{}
+	if len(candidates) == 0 {
+		return out, nil
+	}
 	var min int
 	if err := s.db.QueryRowContext(ctx, `SELECT collection_min FROM libraries WHERE id = ?`, libraryID).Scan(&min); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -116,28 +156,12 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 		}
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+collectionCols+` FROM collections
-		WHERE library_id = ? AND hidden = 0 ORDER BY sort_title`, libraryID)
-	if err != nil {
-		return nil, err
-	}
-	var all []Collection
-	for rows.Next() {
-		var c Collection
-		if err := scanCollection(rows, &c); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		all = append(all, c)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	out := []Collection{}
-	for _, c := range all {
+	for _, c := range candidates {
 		if c.Kind == "auto" {
-			dup, err := s.autoDuplicated(ctx, &c, all)
+			if min == 0 {
+				continue
+			}
+			dup, err := s.autoDuplicated(ctx, &c, peers)
 			if err != nil {
 				return nil, err
 			}
@@ -149,12 +173,13 @@ func (s *Store) Collections(ctx context.Context, libraryID int64, acc Access) ([
 		case "smart":
 			c.Count = -1
 		default:
-			if c.Kind == "auto" && min == 0 {
-				continue
-			}
-			n, err := s.countMembers(ctx, &c, acc)
-			if err != nil {
-				return nil, err
+			n := counts[c.ID]
+			if counts == nil {
+				var err error
+				n, err = s.countMembers(ctx, &c, acc)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if c.Kind == "auto" && n < min {
 				continue
@@ -199,6 +224,84 @@ func (s *Store) countMembers(ctx context.Context, c *Collection, acc Access) (in
 	var n int
 	err := s.db.QueryRowContext(ctx, q, args...).Scan(&n)
 	return n, err
+}
+
+// staticCollectionMembers describes both membership models. Smart collections
+// have individual filters and continue to use their existing query.
+const staticCollectionMembers = `
+	WITH members AS (
+		SELECT c.id AS collection_id, i.id AS item_id, c.kind, c.grid_mode, 0 AS position
+		FROM collections c JOIN items i ON i.library_id = c.library_id AND i.tmdb_collection_id = c.tmdb_id
+		WHERE c.library_id = ?1 AND c.hidden = 0 AND c.kind = 'auto' AND i.kind = 'movie'
+		UNION ALL
+		SELECT c.id, ci.item_id, c.kind, c.grid_mode, ci.position
+		FROM collections c JOIN collection_items ci ON ci.collection_id = c.id
+		WHERE c.library_id = ?1 AND c.hidden = 0 AND c.kind NOT IN ('auto', 'smart')
+	)`
+
+func (s *Store) libraryCollectionCounts(ctx context.Context, libraryID int64, acc Access) (map[string]int, error) {
+	q, args := acc.Where("items", staticCollectionMembers+`
+		SELECT m.collection_id, COUNT(*) FROM members m JOIN items ON items.id = m.item_id
+		WHERE `+playableSQL, []any{libraryID})
+	rows, err := s.db.QueryContext(ctx, q+` GROUP BY m.collection_id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := map[string]int{}
+	for rows.Next() {
+		var id string
+		var count int
+		if err := rows.Scan(&id, &count); err != nil {
+			return nil, err
+		}
+		counts[id] = count
+	}
+	return counts, rows.Err()
+}
+
+type CollectionPreview struct {
+	Count int
+	Items []Item
+}
+
+// CollectionPreviews returns the first visible title for each static collection and the full
+// ordered member list for collections placed in a library grid. The list already has counts.
+func (s *Store) CollectionPreviews(ctx context.Context, libraryID int64, gridMode string, acc Access) (map[string]CollectionPreview, error) {
+	q, args := acc.Where("items", staticCollectionMembers+`, ranked AS (
+		SELECT m.collection_id, items.id AS item_id, m.kind, m.grid_mode,
+			COUNT(*) OVER (PARTITION BY m.collection_id) AS member_count,
+			ROW_NUMBER() OVER (PARTITION BY m.collection_id ORDER BY
+				CASE WHEN m.kind = 'auto' AND items.release_date = '' THEN 1 ELSE 0 END,
+				CASE WHEN m.kind = 'auto' THEN items.release_date END,
+				CASE WHEN m.kind = 'auto' THEN items.year END,
+				m.position, items.sort_title) AS member_order
+		FROM members m JOIN items ON items.id = m.item_id WHERE `+playableSQL, []any{libraryID})
+	q += `)
+		SELECT ` + prefixCols("items.", itemCols) + `, ranked.collection_id, ranked.member_count
+		FROM ranked JOIN items ON items.id = ranked.item_id
+		WHERE ranked.member_order = 1 OR
+			(ranked.kind <> 'folder' AND COALESCE(NULLIF(ranked.grid_mode, ''), NULLIF(?, ''), 'items') <> 'items')
+		ORDER BY ranked.collection_id, ranked.member_order`
+	rows, err := s.db.QueryContext(ctx, q, append(args, gridMode)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	previews := map[string]CollectionPreview{}
+	for rows.Next() {
+		var id string
+		var count int
+		var item Item
+		if err := scanItemWith(rows, &item, &id, &count); err != nil {
+			return nil, err
+		}
+		preview := previews[id]
+		preview.Count = count
+		preview.Items = append(preview.Items, item)
+		previews[id] = preview
+	}
+	return previews, rows.Err()
 }
 
 // GetCollection returns a collection, or nil.
@@ -400,8 +503,11 @@ func (s *Store) OrderCollection(ctx context.Context, id string, itemIDs []string
 // ItemCollections lists the automatic and manual collections a title is in (automatic ones only
 // when the library shows them).
 func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Collection, error) {
-	all, err := s.Collections(ctx, it.LibraryID, acc)
-	if err != nil {
+	var tmdbColl int64
+	if err := s.db.QueryRowContext(ctx, `SELECT tmdb_collection_id FROM items WHERE id = ?`, it.ID).Scan(&tmdbColl); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Collection{}, nil
+		}
 		return nil, err
 	}
 	var manual = map[string]bool{}
@@ -418,8 +524,33 @@ func (s *Store) ItemCollections(ctx context.Context, it *Item, acc Access) ([]Co
 		manual[id] = true
 	}
 	rows.Close()
-	var tmdbColl int64
-	s.db.QueryRowContext(ctx, `SELECT tmdb_collection_id FROM items WHERE id = ?`, it.ID).Scan(&tmdbColl)
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if tmdbColl == 0 && len(manual) == 0 {
+		return []Collection{}, nil
+	}
+
+	// A same-name manual copy can suppress the automatic collection even for a
+	// missing title it doesn't contain. Load those peers without counting them.
+	peers, err := s.readCollections(ctx, `WHERE library_id = ? AND hidden = 0 AND (
+		(kind = 'auto' AND tmdb_id <> 0 AND tmdb_id = ?)
+		OR (kind = 'manual' AND ?)
+		OR id IN (SELECT collection_id FROM collection_items WHERE item_id = ?))`,
+		it.LibraryID, tmdbColl, tmdbColl != 0, it.ID)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []Collection
+	for _, c := range peers {
+		if (c.Kind == "auto" && c.TMDBID != 0 && c.TMDBID == tmdbColl) || manual[c.ID] {
+			candidates = append(candidates, c)
+		}
+	}
+	all, err := s.visibleCollections(ctx, it.LibraryID, candidates, peers, acc)
+	if err != nil {
+		return nil, err
+	}
 	// A title in a manual collection and an automatic one of the same name (Plex's copy of a TMDB
 	// collection, imported) gets one row for them, the manual one's.
 	inManual := map[string]bool{}

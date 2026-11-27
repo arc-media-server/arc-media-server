@@ -83,6 +83,12 @@ func main() {
 }
 
 func run(dataDir, legacyConfig string, log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runWithStore(ctx, dataDir, legacyConfig, log, nil)
+}
+
+func runWithStore(ctx context.Context, dataDir, legacyConfig string, log *slog.Logger, openStore func(context.Context, string, store.Options) (*store.Store, error)) error {
 	// An old config file is only read to import its settings (and, the first time, its data folder).
 	var legacy *config.Config
 	if _, err := os.Stat(legacyConfig); err == nil {
@@ -104,8 +110,6 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		return err
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	workers := lifecycle.New(ctx, log)
 	ctx = workers.Context()
 
@@ -116,13 +120,42 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 		log.Warn("persistent logging unavailable", "err", err)
 	}
 	backupDir := filepath.Join(dataDir, "backups")
-	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{
+	options := store.Options{
 		// A new AMS version is about to change the database: keep a copy of it as it was.
 		BeforeMigrate: func(s *store.Store) error {
 			_, err := backup.New(backupDir, s, log).Create(ctx, backup.ReasonBeforeUpgrade)
 			return err
 		},
-	})
+	}
+	var st *store.Store
+	var publishHandler func(http.Handler)
+	if openStore != nil {
+		st, err = openStore(ctx, filepath.Join(dataDir, "ams.db"), options)
+	} else {
+		var choice databaseChoice
+		choice, err = loadDatabaseChoice(dataDir)
+		if err == nil {
+			_, sqliteErr := os.Lstat(filepath.Join(dataDir, "ams.db"))
+			switch {
+			case choice.Engine != "" || legacy != nil || sqliteErr == nil:
+				st, err = openDatabaseChoice(ctx, dataDir, choice, options)
+				if choice.Engine == "postgres" && store.IsPostgresUnavailable(err) {
+					st, err = waitForPostgres(ctx, dataDir, choice, options, log)
+				}
+			case errors.Is(sqliteErr, os.ErrNotExist):
+				var closeSetup func()
+				st, publishHandler, closeSetup, err = waitForDatabase(ctx, dataDir, options, log)
+				if closeSetup != nil {
+					defer closeSetup()
+				}
+			default:
+				err = sqliteErr
+			}
+		}
+	}
+	if errors.Is(err, context.Canceled) && ctx.Err() != nil {
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -175,6 +208,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 			}
 			if result.CheckpointBusy {
 				detail += "; active readers delayed final disk reclamation"
+			}
+			if st.IsPostgres() {
+				detail = "PostgreSQL query statistics updated"
 			}
 			if err != nil {
 				detail = "Database upkeep did not complete"
@@ -260,10 +296,10 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 
 	art := artwork.New(filepath.Join(dataDir, "artwork"), log)
 	art.Events = changes
-	artKeeper := art.Keep(ctx, func(ctx context.Context) ([]string, error) {
+	artKeeper := art.Keep(ctx, func(ctx context.Context) (artwork.Images, error) {
 		images, err := st.ItemImages(ctx)
 		if err != nil {
-			return nil, err
+			return artwork.Images{}, err
 		}
 		sources := make([]string, 0, len(images))
 		var full []string // full-resolution backdrops for banners, larger, so fetched last
@@ -278,7 +314,8 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 				}
 			}
 		}
-		return append(sources, full...), nil
+		// The full-size backdrops also get their TV hero copy made ahead of time.
+		return artwork.Images{Sources: append(sources, full...), Warm: full}, nil
 	})
 
 	workers.OnStop("artwork keeper", artKeeper.Close)
@@ -646,9 +683,16 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	workers.OnStop("subtitle extraction", subtitleCache.Close)
 	downloadManager := downloads.New(st, log)
 	downloadManager.ConfigureBundles(filepath.Join(dataDir, "downloads"), filepath.Join(dataDir, "uploads"), art, subtitleCache)
+	var databaseSettings api.DatabaseSettings
+	if st.IsPostgres() {
+		if choice, err := loadDatabaseChoice(dataDir); err == nil && choice.Engine == "postgres" && !choice.Pending {
+			databaseSettings = &databaseEditor{dir: dataDir, activeDSN: choice.DSN, saved: choice, store: st, log: log}
+		}
+	}
 	handler := api.New(api.Deps{
-		Downloads:   downloadManager,
-		WorkContext: ctx, Workers: &apiWorkers,
+		DatabaseSettings: databaseSettings,
+		Downloads:        downloadManager,
+		WorkContext:      ctx, Workers: &apiWorkers,
 		Store: st, Scanner: sc, Background: bg, Events: changes, WatchProblem: watch.Problem, Artwork: art, Backups: backups, Activity: tasks, Notify: notifier, Markers: skips, Optimize: optimizer, Remote: remoteAccess, Stats: stats, Log: log, Version: version,
 		LibrariesChanged: func() { librariesChanged(false) },
 		AfterRestore: func(ctx context.Context) error {
@@ -712,6 +756,9 @@ func run(dataDir, legacyConfig string, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("can't listen on %s (is Arc already running?): %w", cfg.ListenAddress(), err)
 	}
+	if publishHandler != nil {
+		publishHandler(secureRemote(handler, remoteAccess.Certs))
+	}
 	for {
 		// Event and room streams end as soon as shutdown starts, so an open tab doesn't hold the
 		// restart (or a Docker stop) for the whole timeout.
@@ -766,7 +813,16 @@ func resetAdminPassword(dataDir string) error {
 		dataDir = "data"
 	}
 	ctx := context.Background()
-	st, err := store.Open(ctx, filepath.Join(dataDir, "ams.db"), store.Options{})
+	choice, err := loadDatabaseChoice(dataDir)
+	if err != nil {
+		return err
+	}
+	if choice.Engine == "" {
+		if _, err := os.Stat(filepath.Join(dataDir, "ams.db")); err != nil {
+			return fmt.Errorf("open existing database: %w", err)
+		}
+	}
+	st, err := openDatabaseChoice(ctx, dataDir, choice, store.Options{})
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"ams/internal/activity"
+	"ams/internal/perftest"
 	"ams/internal/store"
 )
 
@@ -18,7 +19,12 @@ import (
 func library(t *testing.T) (st *store.Store, user, movie, episode string) {
 	t.Helper()
 	ctx := context.Background()
-	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "ams.db"), store.Options{})
+	var err error
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		st, err = store.OpenPostgres(t.Context(), dsn, "")
+	} else {
+		st, err = store.Open(ctx, filepath.Join(t.TempDir(), "ams.db"), store.Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +107,10 @@ func TestPlexImport(t *testing.T) {
 		t.Errorf("Sam's movie from history = %+v", samData[movie])
 	}
 	// Importing again changes nothing.
-	again, _, _ := Run(ctx, st, p, accounts, map[string]string{"1": user}, nil, nil)
+	again, _, err := Run(ctx, st, p, accounts, map[string]string{"1": user}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if again[0].History != 0 {
 		t.Errorf("history added twice: %+v", again)
 	}

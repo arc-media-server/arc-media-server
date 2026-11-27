@@ -6,6 +6,7 @@ type Library struct {
 	Name            string   `json:"name"`
 	Kind            string   `json:"kind"`
 	SourceOrdering  string   `json:"source_ordering"`
+	SeasonLabelMode string   `json:"season_label_mode"`
 	Paths           []string `json:"paths"`
 	// Make thumbnails for scrubbing along the timeline (off unless turned on).
 	Trickplay bool `json:"trickplay"`
@@ -31,6 +32,8 @@ type Item struct {
 	Title           string `json:"title"`
 	SortTitle       string `json:"sort_title"`
 	OriginalTitle   string `json:"original_title,omitempty"`
+	Edition         string `json:"edition,omitempty"`
+	MovieFamily     string `json:"-"`
 	Year            int    `json:"year,omitempty"`
 	Overview        string `json:"overview,omitempty"`
 	RuntimeMin      int    `json:"runtime_min,omitempty"`
@@ -58,6 +61,8 @@ type Item struct {
 	LocalLogo string `json:"-"`
 	// A show's own episode numbering, overriding its library's; "" follows the library.
 	SourceOrdering string `json:"source_ordering,omitempty"`
+	// SeasonLabelMode is a show override; empty follows the library.
+	SeasonLabelMode string `json:"season_label_mode,omitempty"`
 	// Legacy per-show preference retained for rollback; new refreshes use Library.DetailsProvider.
 	DetailsProvider string `json:"details_provider,omitempty"`
 	// The language it was made in (2-letter code, e.g. "ja").

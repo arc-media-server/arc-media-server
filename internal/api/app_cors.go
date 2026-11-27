@@ -25,8 +25,8 @@ func isCrossOriginApp(r *http.Request) bool {
 }
 
 // appCORSRefused are /api/v1 endpoints a cross-origin caller may not use: first-run setup belongs
-// in Arc's own web app, and must not be something any page on the home network can do and read.
-var appCORSRefused = map[string]bool{"/api/v1/auth/setup": true}
+// in Arc's own web app, as do database connection settings.
+var appCORSRefused = map[string]bool{"/api/v1/auth/setup": true, "/api/v1/settings/database": true}
 
 func appCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -52,13 +52,21 @@ func appCORS(next http.Handler) http.Handler {
 			return
 		}
 		if appCORSRefused[r.URL.Path] {
-			writeError(w, http.StatusForbidden, "set up Arc in its own web app")
+			writeError(w, http.StatusForbidden, "open this page in Arc’s own web app")
 			return
 		}
 		r2 := r.Clone(context.WithValue(r.Context(), crossOriginKey{}, true))
 		r2.Header.Del("Cookie")
 		next.ServeHTTP(w, r2)
 	})
+}
+
+// DatabaseSetupAllowed applies the initial setup boundary before the normal API is running.
+func DatabaseSetupAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	site := r.Header.Get("Sec-Fetch-Site")
+	return auth.KnownServerHost(r, "") && site != "cross-site" && site != "same-site" &&
+		(origin == "" || sameOrigin(r, origin))
 }
 
 // sameOrigin reports whether origin names the host the request was sent to (Arc's own web app,

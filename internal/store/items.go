@@ -15,7 +15,7 @@ const itemCols = `id, library_id, kind, COALESCE(parent_id, ''), title, sort_tit
 	overview, runtime_min, release_date, tmdb_id, tvdb_id, imdb_id, poster_path, backdrop_path,
 	metadata_state, added_at, locked_fields, tagline, content_rating, studio, rating, local_poster, local_backdrop,
 	logo_path, local_logo, source_ordering, original_language, show_status, last_aired, next_aired,
-	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider, match_suppressed`
+	imdb_rating, imdb_votes, rt_critics, metacritic, local_theme, details_provider, match_suppressed, season_label_mode, COALESCE(movie_edition, ''), movie_family`
 
 func scanItem(row interface{ Scan(...any) error }, it *Item) error {
 	return scanItemWith(row, it)
@@ -29,7 +29,7 @@ func scanItemWith(row interface{ Scan(...any) error }, it *Item, extra ...any) e
 		&it.TVDBID, &it.IMDBID, &it.PosterPath, &it.BackdropPath, &it.MetadataState, &it.AddedAt, &locked,
 		&it.Tagline, &it.ContentRating, &it.Studio, &it.Rating, &it.LocalPoster, &it.LocalBackdrop,
 		&it.LogoPath, &it.LocalLogo, &it.SourceOrdering, &it.OriginalLanguage, &it.ShowStatus, &it.LastAired, &it.NextAired,
-		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider, &it.MatchSuppressed}
+		&it.IMDbRating, &it.IMDbVotes, &it.RottenTomatoes, &it.Metacritic, &it.LocalTheme, &it.DetailsProvider, &it.MatchSuppressed, &it.SeasonLabelMode, &it.Edition, &it.MovieFamily}
 	err := row.Scan(append(dest, extra...)...)
 	it.LockedFields = splitLocked(locked)
 	return err
@@ -133,10 +133,10 @@ func (s *Store) EnsureItem(ctx context.Context, it *Item, matchKey string) (stri
 	}
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO items (id, library_id, kind, parent_id, match_key, title, sort_title, year,
-			tmdb_id, tvdb_id, imdb_id, added_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			tmdb_id, tvdb_id, imdb_id, added_at, updated_at, movie_edition, movie_family)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, it.LibraryID, it.Kind, parent, matchKey, it.Title, SortTitle(it.Title), it.Year,
-		it.TMDBID, it.TVDBID, it.IMDBID, now, now)
+		it.TMDBID, it.TVDBID, it.IMDBID, now, now, it.Edition, it.MovieFamily)
 	if err != nil {
 		return "", false, err
 	}
@@ -400,6 +400,8 @@ type ItemEdit struct {
 	Labels        *[]string
 	ContentRating *string
 	Studio        *string
+	// SeasonLabelMode is a display preference and is never locked.
+	SeasonLabelMode *string
 	// Locked, when set, replaces the item's locked fields (before the edited fields are added).
 	// Unlocking a field lets the next refresh replace its value.
 	Locked []string
@@ -504,6 +506,11 @@ func (s *Store) EditItem(ctx context.Context, id string, e ItemEdit) error {
 				return err
 			}
 		}
+	}
+
+	if e.SeasonLabelMode != nil {
+		sets = append(sets, "season_label_mode = ?")
+		args = append(args, *e.SeasonLabelMode)
 	}
 
 	fields := make([]string, 0, len(locked))
@@ -664,8 +671,8 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 		WHERE ` + base + ` GROUP BY g.name ORDER BY g.name`); err != nil {
 		return out, err
 	}
-	if out.Labels, err = query(`SELECT l.label, COUNT(*) FROM item_labels l JOIN items ON items.id = l.item_id
-		WHERE ` + base + ` GROUP BY l.label ORDER BY l.label COLLATE NOCASE`); err != nil {
+	if out.Labels, err = query(`SELECT MIN(l.label), COUNT(*) FROM item_labels l JOIN items ON items.id = l.item_id
+		WHERE ` + base + ` GROUP BY lower(l.label) ORDER BY lower(l.label)`); err != nil {
 		return out, err
 	}
 	if out.Languages, err = query(`SELECT original_language, COUNT(*) FROM items
@@ -676,39 +683,43 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 		WHERE ` + base + ` AND year > 0 GROUP BY year / 10 ORDER BY year / 10 DESC`); err != nil {
 		return out, err
 	}
-	// Collect each accessible title's present streams once. Separate own/child joins keep
-	// indexed identity lookups; an OR join plus four independent passes repeatedly walked
-	// the same episode/file/stream relations for show libraries.
-	child, childArgs := acc.Conds("e")
-	childWhere := "1"
-	if len(child) > 0 {
-		childWhere = strings.Join(child, " AND ")
+	// Read present streams once, including the video heights used for movie resolution.
+	files := `SELECT items.id,f.file_id FROM items JOIN item_files f ON f.item_id=items.id WHERE ` + base
+	mediaArgs := args
+	if kind == "series" {
+		// Keep the separate indexed own/child paths and the child's access conditions.
+		child, childArgs := acc.Where("e", "TRUE", nil)
+		files += ` UNION ALL SELECT items.id,f.file_id FROM items JOIN items e ON e.parent_id=items.id
+			JOIN item_files f ON f.item_id=e.id WHERE ` + base + ` AND ` + child
+		mediaArgs = append(append(append([]any{}, args...), args...), childArgs...)
 	}
-	mediaSQL := `WITH titles AS MATERIALIZED (SELECT items.id,items.kind FROM items WHERE ` + base + `),
-		files AS (
-			SELECT t.id,f.file_id FROM titles t JOIN items e ON e.id=t.id
-			JOIN item_files f ON f.item_id=e.id WHERE ` + childWhere + `
-			UNION ALL
-			SELECT t.id,f.file_id FROM titles t JOIN items e ON e.parent_id=t.id
-			JOIN item_files f ON f.item_id=e.id WHERE t.kind='series' AND ` + childWhere + `),
+	resolutionColumn, resolutionFacet := "", ""
+	if kind == "movie" {
+		resolutionColumn = `, CASE WHEN st.kind='video' AND st.height>0 THEN
+			CASE WHEN MAX(st.height, st.width * 9 / 16)>=1600 THEN '4k'
+			WHEN MAX(st.height, st.width * 9 / 16)>=1000 THEN '1080'
+			WHEN MAX(st.height, st.width * 9 / 16)>=700 THEN '720' ELSE 'sd' END END AS resolution`
+		resolutionFacet = ` UNION ALL SELECT id,'resolution',resolution FROM streams WHERE resolution IS NOT NULL`
+	}
+	mediaSQL := `WITH files AS (` + files + `),
 		streams AS MATERIALIZED (
 			SELECT f.id,st.kind,LOWER(st.codec) AS codec,CAST(st.channels AS TEXT) AS channels,
-				st.channels AS channel_count,` + dynamicRangeSQL + ` AS dynamic_range FROM files f
+				st.channels AS channel_count,` + dynamicRangeSQL + ` AS dynamic_range` + resolutionColumn + ` FROM files f
 			JOIN media_files m ON m.id=f.file_id JOIN media_streams st ON st.file_id=m.id
 			WHERE m.missing_since IS NULL AND st.kind IN ('video','audio')),
 		values_by_kind AS (
 			SELECT id,'video' AS facet,codec AS value FROM streams WHERE kind='video' AND codec<>''
 			UNION ALL SELECT id,'range',dynamic_range FROM streams WHERE kind='video'
 			UNION ALL SELECT id,'audio',codec FROM streams WHERE kind='audio' AND codec<>''
-			UNION ALL SELECT id,'channels',channels FROM streams WHERE kind='audio' AND channel_count>0)
+			UNION ALL SELECT id,'channels',channels FROM streams WHERE kind='audio' AND channel_count>0` + resolutionFacet + `)
 		SELECT facet,value,COUNT(DISTINCT id) FROM values_by_kind
 		GROUP BY facet,value ORDER BY facet,COUNT(DISTINCT id) DESC,value`
-	mediaArgs := append(append(append([]any{}, args...), childArgs...), childArgs...)
 	rows, err := s.db.QueryContext(ctx, mediaSQL, mediaArgs...)
 	if err != nil {
 		return out, err
 	}
 	out.VideoCodecs, out.DynamicRanges, out.AudioCodecs, out.AudioChannels = []Facet{}, []Facet{}, []Facet{}, []Facet{}
+	out.Resolutions = []Facet{}
 	for rows.Next() {
 		var kind string
 		var f Facet
@@ -721,6 +732,8 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 			out.VideoCodecs = append(out.VideoCodecs, f)
 		case "range":
 			out.DynamicRanges = append(out.DynamicRanges, f)
+		case "resolution":
+			out.Resolutions = append(out.Resolutions, f)
 		case "audio":
 			out.AudioCodecs = append(out.AudioCodecs, f)
 		case "channels":
@@ -732,18 +745,10 @@ func (s *Store) Facets(ctx context.Context, libraryID int64, kind string, acc Ac
 	if err != nil {
 		return out, err
 	}
-	out.Resolutions = []Facet{}
-	if kind == "movie" {
-		if out.Resolutions, err = query(`SELECT CASE
-				WHEN h >= 1600 THEN '4k' WHEN h >= 1000 THEN '1080' WHEN h >= 700 THEN '720' ELSE 'sd' END AS r, COUNT(DISTINCT id)
-			FROM (SELECT items.id, MAX(st.height, st.width * 9 / 16) AS h FROM items
-				JOIN item_files f ON f.item_id = items.id JOIN media_files m ON m.id = f.file_id
-				JOIN media_streams st ON st.file_id = m.id
-				WHERE ` + base + ` AND m.missing_since IS NULL AND st.kind = 'video' AND st.height > 0)
-			GROUP BY r ORDER BY MIN(h) DESC`); err != nil {
-			return out, err
-		}
-	}
+	// Resolution buckets are ordered by height, independent of their counts.
+	slices.SortFunc(out.Resolutions, func(a, b Facet) int {
+		return resolutionHeights[b.Value][0] - resolutionHeights[a.Value][0]
+	})
 	return out, nil
 }
 
@@ -858,8 +863,8 @@ func recentItemWindowSQL(q ItemQuery, limit, offset int, cutoff sql.NullInt64) (
 	args = append(prefix, args...)
 	args = append(args, limit, offset)
 	return `SELECT ` + prefixCols("items.", itemCols) + ` FROM user_item_data watched
-		CROSS JOIN items ON items.id = watched.item_id
-		WHERE watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
+		CROSS JOIN items
+		WHERE items.id = watched.item_id AND watched.user_id = ? AND ` + bound + ` AND watched.played = 1 AND ` + cond +
 		` ORDER BY watched.last_played_at DESC NULLS LAST, items.sort_title LIMIT ? OFFSET ?`, args
 }
 
@@ -899,7 +904,7 @@ func itemFilter(q ItemQuery) (string, []any) {
 		labels = append(append([]string{}, labels...), q.Label)
 	}
 	if len(labels) > 0 {
-		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND l.label IN ("+strings.TrimSuffix(strings.Repeat("?,", len(labels)), ",")+"))")
+		where = append(where, "EXISTS (SELECT 1 FROM item_labels l WHERE l.item_id = items.id AND lower(l.label) IN ("+strings.TrimSuffix(strings.Repeat("lower(?),", len(labels)), ",")+"))")
 		for _, label := range labels {
 			args = append(args, label)
 		}
@@ -1001,8 +1006,8 @@ func watchedSQL(userID, cond string, condArgs ...any) (string, []any) {
 	// it can start from all of the profile's watch history instead and read it once per show,
 	// which on a large library with a long history took seconds.
 	sql := `(CASE WHEN items.kind = 'series' THEN EXISTS (
-			SELECT 1 FROM items e CROSS JOIN user_item_data u ON u.item_id = e.id AND u.user_id = ?
-			WHERE e.parent_id = items.id AND ` + cond + `)
+			SELECT 1 FROM items e CROSS JOIN user_item_data u
+			WHERE u.item_id = e.id AND u.user_id = ? AND e.parent_id = items.id AND ` + cond + `)
 		ELSE EXISTS (SELECT 1 FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id AND ` + cond + `) END)`
 	args := append([]any{userID}, condArgs...)
 	return sql, append(append(args, userID), condArgs...)
@@ -1083,7 +1088,7 @@ func itemOrdering(q ItemQuery) (string, []any) {
 	case "imdb":
 		order = "imdb_rating DESC, imdb_votes DESC, sort_title"
 	case "critics":
-		order = "rt_critics IS NULL, rt_critics DESC, metacritic DESC, sort_title"
+		order = "rt_critics IS NULL, rt_critics DESC NULLS LAST, metacritic DESC NULLS LAST, sort_title"
 	case "runtime":
 		order = "runtime_min DESC, sort_title"
 	case "watched":
@@ -1091,8 +1096,8 @@ func itemOrdering(q ItemQuery) (string, []any) {
 		// only its own rows: a title's (by key), or a show's episodes (items_parent). Matching
 		// "id = X OR parent_id = X" read the profile's whole watch history once per title.
 		order = `(CASE WHEN items.kind = 'series' THEN (
-				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u ON u.item_id = w.id AND u.user_id = ?
-				WHERE w.parent_id = items.id)
+				SELECT MAX(u.last_played_at) FROM items w CROSS JOIN user_item_data u
+				WHERE u.item_id = w.id AND u.user_id = ? AND w.parent_id = items.id)
 			ELSE (SELECT u.last_played_at FROM user_item_data u WHERE u.user_id = ? AND u.item_id = items.id) END) DESC NULLS LAST, sort_title`
 		orderArgs = append(orderArgs, q.UserID, q.UserID)
 	case "shuffle":

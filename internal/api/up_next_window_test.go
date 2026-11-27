@@ -107,7 +107,8 @@ func TestUpNextOrderedCandidateWindows(t *testing.T) {
 			}
 			r := httptest.NewRequest("GET", "/", nil)
 			r = r.WithContext(context.WithValue(ctx, userKey, u))
-			got, err := s.upNext(r, store.Access{})
+			contexts := s.episodeContexts(ctx)
+			got, err := s.upNextWithContexts(r, store.Access{}, contexts)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -119,6 +120,22 @@ func TestUpNextOrderedCandidateWindows(t *testing.T) {
 			}
 			if len(got) != 1 || got[0].item.ID != want {
 				t.Fatalf("want %s, got %+v", want, got)
+			}
+			if mode == "ordinary" || mode == "custom-order" {
+				if err := s.store.SetSeasonPosters(ctx, sid, map[int]string{1: "/season.jpg"}); err != nil {
+					t.Fatal(err)
+				}
+				out, err := s.homeDTOsWithContexts(r, got, contexts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				card := out[0]
+				if card.EpisodeNumber == nil || *card.EpisodeNumber != 2 {
+					t.Fatalf("missing episode number: %+v", card)
+				}
+				if poster := card.Images["season_primary"]; (poster != "") != (mode == "ordinary") {
+					t.Fatalf("unexpected season poster %q", poster)
+				}
 			}
 		})
 	}

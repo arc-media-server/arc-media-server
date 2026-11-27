@@ -1,6 +1,7 @@
 package store
 
 import (
+	"ams/internal/perftest"
 	"context"
 	"path/filepath"
 	"slices"
@@ -9,7 +10,13 @@ import (
 
 func openTest(t *testing.T) *Store {
 	t.Helper()
-	st, err := Open(context.Background(), filepath.Join(t.TempDir(), "ams.db"), Options{})
+	var st *Store
+	var err error
+	if dsn, ok := perftest.PostgresDatabase(t); ok {
+		st, err = OpenPostgres(t.Context(), dsn, "")
+	} else {
+		st, err = Open(context.Background(), filepath.Join(t.TempDir(), "ams.db"), Options{})
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

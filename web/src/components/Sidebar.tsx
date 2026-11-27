@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { createElement, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Link, NavLink, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark, ChevronsUpDown, Sparkles, Tv, Home, ListVideo, Loader2, LogOut, Search, Settings, SlidersHorizontal, Users } from 'lucide-react';
 import { api, type Library } from '@/lib/api';
@@ -37,16 +37,21 @@ function SearchBox({ className }: { className?: string }) {
   const { t } = useTranslation('common');
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
-  const [value, setValue] = useState(location.pathname === '/search' ? (params.get('q') ?? '') : '');
+  const navigation = useNavigationType();
+  const [value, setValue] = useState(() => location.pathname === '/search' ? new URLSearchParams(location.search).get('q') ?? '' : '');
   const timer = useRef<number | undefined>(undefined);
+  const ownSearch = useRef<string | undefined>(undefined);
 
-  // Navigation (including Back/Forward) owns the query; discard pending typing on navigation.
+  // Keep the draft (including spaces) when it caused this navigation. External navigation
+  // still restores the committed query and cancels pending typing.
   useEffect(() => {
-    setValue(location.pathname === '/search' ? new URLSearchParams(location.search).get('q') ?? '' : '');
+    const own = ownSearch.current === location.pathname + location.search && navigation !== 'POP';
+    ownSearch.current = undefined;
+    if (own) return;
     window.clearTimeout(timer.current);
-    return () => window.clearTimeout(timer.current);
-  }, [location.pathname, location.search]);
+    setValue(location.pathname === '/search' ? new URLSearchParams(location.search).get('q') ?? '' : '');
+  }, [location.key, location.pathname, location.search, navigation]);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   return (
     <label className={cn('flex h-9 min-w-0 items-center gap-2 rounded-xl bg-surface-2/80 px-3 text-sm ring-1 ring-border transition-shadow focus-within:ring-accent', className)}>
@@ -60,8 +65,13 @@ function SearchBox({ className }: { className?: string }) {
           // Replace while typing so Back leaves search in one step; clearing clears results too.
           timer.current = window.setTimeout(() => {
             const q = next.trim();
-            if (q || location.pathname === '/search') navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search', { replace: location.pathname === '/search' });
-          }, 150);
+            const searching = location.pathname === '/search';
+            if (!q && !searching) return;
+            const target = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
+            if (target === location.pathname + location.search) return;
+            ownSearch.current = target;
+            navigate(target, { replace: searching });
+          }, 350);
         }}
         placeholder={t('navigation.search')}
         className="min-w-0 w-full bg-transparent outline-none placeholder:text-subtle"

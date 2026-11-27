@@ -126,13 +126,13 @@ func (s *Store) MergeImportedWatch(ctx context.Context, userID, itemID string, w
 	_, err := s.db.ExecContext(ctx, `INSERT INTO user_item_data (user_id, item_id, position_ms, played, play_count, last_played_at, user_rating)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (user_id, item_id) DO UPDATE SET
-			played = MAX(played, excluded.played),
-			play_count = MAX(play_count, excluded.play_count),
-			last_played_at = CASE WHEN excluded.last_played_at IS NOT NULL AND (last_played_at IS NULL OR excluded.last_played_at > last_played_at)
-				THEN excluded.last_played_at ELSE last_played_at END,
-			position_ms = CASE WHEN played = 0 AND excluded.played = 0 AND position_ms = 0 THEN excluded.position_ms
-				WHEN excluded.played = 1 AND played = 0 THEN 0 ELSE position_ms END,
-			user_rating = CASE WHEN user_rating = 0 THEN excluded.user_rating ELSE user_rating END`,
+			played = MAX(user_item_data.played, excluded.played),
+			play_count = MAX(user_item_data.play_count, excluded.play_count),
+			last_played_at = CASE WHEN excluded.last_played_at IS NOT NULL AND (user_item_data.last_played_at IS NULL OR excluded.last_played_at > user_item_data.last_played_at)
+				THEN excluded.last_played_at ELSE user_item_data.last_played_at END,
+			position_ms = CASE WHEN user_item_data.played = 0 AND excluded.played = 0 AND user_item_data.position_ms = 0 THEN excluded.position_ms
+				WHEN excluded.played = 1 AND user_item_data.played = 0 THEN 0 ELSE user_item_data.position_ms END,
+			user_rating = CASE WHEN user_item_data.user_rating = 0 THEN excluded.user_rating ELSE user_item_data.user_rating END`,
 		userID, itemID, w.PositionMS, played, w.PlayCount, last, w.Rating)
 	return err
 }

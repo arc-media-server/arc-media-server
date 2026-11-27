@@ -2,8 +2,8 @@
 
 ## Vision
 
-Everything Jellyfin can do, with the ease and polish of Apple software. Simple by default,
-powerful when you need it.
+A self-hosted media server for films, shows and home videos. Simple to set up,
+with control over how your library is organised and how you watch it.
 
 ## Principles
 
@@ -13,6 +13,27 @@ powerful when you need it.
    ship with it. Anyone can contribute a feature to the project instead.
 4. **Storage order is not display order.** How files are named on disk never dictates how they're shown.
 5. **Work offline.** Online services enrich AMS, but it must keep working when they're unavailable.
+
+## Current priorities
+
+Arc is in alpha. The [public server repository](https://github.com/arc-media-server/arc-media-server)
+publishes a Docker development image. App availability and feature coverage vary by platform.
+
+- **Everyday reliability.** Improve first-run guidance and the handoff after adding a library
+  ([#436](https://github.com/arc-media-server/arc-media-server/issues/436)), review live updates
+  ([#483](https://github.com/arc-media-server/arc-media-server/issues/483)) and track playback and
+  API reliability across clients ([#486](https://github.com/arc-media-server/arc-media-server/issues/486)).
+- **Real-world performance.** The measured SQLite and PostgreSQL query fixes have merged.
+  [#524](https://github.com/arc-media-server/arc-media-server/issues/524) records the results.
+  The full Series Recommended request changed little in the recorded benchmark, so it remains
+  a candidate for focused measurement.
+- **Apps.** Track remaining features, consistent behaviour and user-submitted diagnostics in
+  [#476](https://github.com/arc-media-server/arc-media-server/issues/476),
+  [#494](https://github.com/arc-media-server/arc-media-server/issues/494) and
+  [#507](https://github.com/arc-media-server/arc-media-server/issues/507).
+- **Versioned releases.** Verify the specific candidate using the
+  [release checklist](docs/ALPHA-CHECKLIST.md) and settle
+  [TheTVDB access for releases](https://github.com/arc-media-server/arc-media-server/issues/478).
 
 ## Milestones
 
@@ -31,8 +52,7 @@ powerful when you need it.
 - [x] Source ordering per library (how filenames are numbered)
 - [x] Display orderings: TVDB aired/DVD/absolute, TMDB aired, TMDB episode groups, custom
 - [x] Mapping between orderings: IDs first, then air date + title, then manual overrides
-- [x] Display ordering chosen per series
-- [x] Display ordering overridable per user
+- [x] Per-show display ordering shared across profiles, with a separate file episode order
 - [x] Display-order preview: compare orderings side by side before switching
 - [x] Unmatched episodes collected in a review bucket, never hidden
 
@@ -130,7 +150,7 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Show status and next air date (#107)
 - [x] Original language of movies and shows (#108)
 - [x] Search by alternative titles and keywords (#110)
-- [x] External ratings: IMDb, Rotten Tomatoes, Metacritic (#113)
+- [x] External ratings integration (#113). IMDb retrieval and scores are paused.
 - [x] Activity: see what the server is doing, like a library scan's progress (#114)
 
 ### ✅ 15. Moving in and extras
@@ -154,11 +174,13 @@ _Started early (after milestone 2) so progress can be seen as it's built._
 - [x] Pre-converted versions for difficult devices (#101)
 
 ### 18. Arc apps and client API
-_Arc has its own clients; the API is open for anyone to build more._
-- [x] Client API for apps: documentation, app sign-in (device tokens, TV sign-in codes) and versioning (#102)
-- [ ] Native apps (tvOS, iOS, Android TV) (#63)
-  - Android TV: first slice in its own repository, arc-media-server/arc-android (sign-in code,
-    profiles, immersive Home, details, playback); not yet checked on a real TV
+
+- [x] Stable [client API](docs/CLIENT-INTEGRATION.md) with device tokens, TV sign-in codes and
+  named tool tokens. The generated reference is served at `/docs/`.
+- [x] Separate alpha apps for Apple TV, Android TV and Google TV, Kodi, Roku, and LG and Samsung TVs.
+  See the [app directory](README.md#arc-apps) for platforms and installation links.
+- [ ] Close remaining platform gaps and expand real-device coverage.
+  [Feature parity tracker](https://github.com/arc-media-server/arc-media-server/issues/476)
 
 ### 19. Quick wins and server resources ✅
 _From the Oct 2026 Plex review: small gaps Plex users expect, plus resource graphs._
@@ -180,11 +202,11 @@ _First scans of big libraries (about 1,800 films on Unraid) are much slower than
 - [x] Reuse the preview's matches when the library is added (#129)
 
 ### 21. Stability and release readiness
-_Feature breadth is in place. Prove the existing features work together before an alpha release._
+_Historical implementation milestones and evidence to carry forward when verifying a release candidate._
 _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINESS.md)._
 - [x] Harden forwarded sign-in, HTTPS session cookies and cast-session revocation (#130)
 - [x] Enforce conversion limits under simultaneous playback (#131)
-- [x] Gate Docker publication on Linux/Windows checks and Linux race/media tests (#132)
+- [x] Add full verification for Docker release publication (#132). See [current image publishing rules](docs/IMAGE-PUBLISHING.md).
 - [x] Automate core browser journeys (#133)
 - [x] Save the final resume point when the player closes (#140)
 - [x] Keep late subtitle responses from replacing the latest selection (#141)
@@ -240,33 +262,55 @@ _Acceptance criteria and verification records: [docs/READINESS.md](docs/READINES
 - [x] Offer profile watched percentage with the existing 90% default and consistent history boundary (#190)
 - [x] Offer session-local text-subtitle timing/reset without editing source files (#199)
 - [x] Preserve cast source/audio/position and release owned conversions; explain caption limits (#192 sender correction; physical receiver/full transport acceptance remains open)
-- [ ] Validate real-library scanning and metadata/watch-history preservation (#134)
-- [ ] Verify playback, hardware conversion and casting on real devices (#135)
-- [ ] Prove failure recovery, upgrades and backup completeness (#136; database/file scope clarified and stopped-folder/API upload recovery rehearsed; physical storage/power-loss/external-config acceptance remains)
-- [ ] Complete a 7–14 day real-server trial with resource measurements (#137)
-- [ ] Verify clean installations and alpha release packaging (#138; candidate evidence checklist in docs/ALPHA-CHECKLIST.md)
+#### Release evidence to carry forward
 
-### Before public release
-_Doesn't block development; must be done before AMS is shared or published._
-- [x] TheTVDB and TMDB attribution (required by their API terms) (#64)
-- [ ] Check TheTVDB licence terms for open-source distribution (shipped key vs each user's own key)
-- [ ] Docker image (multi-arch, FFmpeg included, published to GitHub Container Registry) (#123)
+The original readiness issues below were closed as evidence-gathering tasks. Reuse their records
+for release candidates, and file separate bug reports for problems found in deployment or device
+testing. Record results against the candidate being shipped.
+
+| Area | Evidence and remaining coverage |
+| --- | --- |
+| Real-library scanning (#134) | Synthetic rescans cover identity, edits and history. Check representative real libraries and missing mounts. |
+| Playback and casting (#135, #192) | Kodi on Ugoos demonstrated Dolby Vision profile 8 direct play and EAC3 Atmos passthrough. Extend coverage across devices, encoders and casting receivers. |
+| Recovery and upgrades (#136) | Isolated recovery checks are recorded. Rehearse storage failure, backups and deployment recovery on disposable installations. |
+| Sustained use (#137) | Use [the server trial guide](docs/SERVER-TRIAL.md) when gathering sustained-use and resource evidence. |
+| Packaging (#138) | Use the [candidate checklist](docs/ALPHA-CHECKLIST.md) to record the clean install, upgrade and rollback results. |
+
+### Release and distribution
+
+- [x] Provider attribution for TheTVDB and TMDB (#64).
+- [x] Docker image with FFmpeg for amd64 and arm64 (#123). Main publishes the development
+  `latest` image. Version tags require [full verification](docs/IMAGE-PUBLISHING.md).
+- [ ] Decide TheTVDB access for public releases
+  ([#478](https://github.com/arc-media-server/arc-media-server/issues/478)).
+
+### Recent server and web work
+
+- [x] SQLite remains the default. New installations can choose PostgreSQL at setup.
+  Existing installations keep the database engine they already use. PostgreSQL has backup,
+  schema-upgrade recovery and outage handling.
+  [Setup](docs/changes/2026-11-23-database-selection.md) · [Outage behaviour](docs/changes/2026-11-24-postgresql-outage-status.md)
+- [x] Configure numbered or named seasons per library and per show. TMDB episode groups keep
+  their group names.
+  [Season labels](docs/changes/2026-11-24-season-labels.md) · [Episode groups](docs/changes/2026-11-24-episode-group-labels.md)
+- [x] Defer Collections requests until the tab opens, and preserve draft Search text while
+  results update.
+  [Library tabs](docs/changes/2026-11-24-defer-library-browse.md) · [Search](docs/changes/2026-11-24-search-typing.md)
 
 ## Later
 
 - IMDb ratings are paused (29 October): revisit removing retained ingestion code and choose rating
   sources after licensing/coverage review; see [Rating sources](docs/RATING-SOURCES.md).
 
-- External databases/PostgreSQL (#308): deferred by the owner, 11 November 2026. Focus on
-  stability and release readiness with SQLite; PRs #337/#339 remain unmerged reference work.
-  Reassess integration and current-schema compatibility only when the owner resumes it.
+- Moving an existing Arc installation from SQLite to PostgreSQL is deferred
+  ([#308](https://github.com/arc-media-server/arc-media-server/issues/308)).
 - Music (deliberately deferred)
 - Audiobooks, photos, live TV/DVR
-- Offline downloads/sync (#62): original downloads are implemented on the server
-  ([client contract](docs/DOWNLOADS-OFFLINE-API.md)); offline progress sync, converted downloads
-  and native app support remain.
-- Translate the web app into other languages (react-i18next + Weblate) (#122)
-- ~~Proper `/docs` API documentation: OpenAPI contract, searchable reference, guides and examples (#139)~~ Done: served at `/docs/`, linked from Settings → Diagnostics
+- Offline downloads/sync (#62): the server supports original downloads, offline bundles and
+  resumable transfer. Offline progress sync, converted downloads and native app support remain.
+  [Client contract](docs/DOWNLOADS-OFFLINE-API.md)
+- Add non-English web translations and a language picker. The English catalogue groundwork
+  landed in #122. See [Translation](docs/TRANSLATION.md).
 - Cross-provider episode backfill (#104) reviewed and not planned: retain the owner-approved single-provider metadata scopes
 - Keep every country's age rating (#105)
 - Conversion pacing/storage budgets (#193), optional dialogue/normalization (#198): reviewed/deferred with task/evidence and acceptance criteria in docs/WEB-SERVER-REVIEW.md. Automatic browser quality (#197) subsequently accepted/implemented: docs/ADAPTIVE-QUALITY.md; physical remote-network acceptance remains separate.
@@ -278,7 +322,7 @@ _Doesn't block development; must be done before AMS is shared or published._
 - Plugin system or third-party extension API
 
 
-### Metadata/order and Home follow-up — 26 October 2026
+### Metadata, episode ordering and Home follow-up (26 October 2026)
 
 Owner accepted library-only show metadata provider, file-order-derived episode metadata,
 per-show file/display order in Edit Show, scoped refresh/relink and complete Recently Added

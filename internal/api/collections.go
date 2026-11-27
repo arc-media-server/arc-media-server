@@ -108,17 +108,32 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.fillSharedArtworkLater(r.Context(), cols)
+	var previews map[string]store.CollectionPreview
+	for _, c := range cols {
+		if c.Kind != "smart" && c.Count > 0 {
+			previews, err = s.store.CollectionPreviews(r.Context(), lib.ID, lib.CollectionGrid, access(r))
+			if err != nil {
+				s.fail(w, err)
+				return
+			}
+			break
+		}
+	}
 	out := []collectionDTO{}
 	for _, c := range cols {
 		mode := cmp.Or(c.GridMode, lib.CollectionGrid, "items")
-		limit := 1
-		if mode != "items" {
-			limit = 0 // all of them, to place the collection among them
-		}
-		first, total, err := s.collectionItems(r, &c, limit)
-		if err != nil {
-			s.fail(w, err)
-			return
+		preview := previews[c.ID]
+		first, total := preview.Items, preview.Count
+		if c.Kind == "smart" {
+			limit := 1
+			if mode != "items" {
+				limit = 0 // all of them, to place the collection among them
+			}
+			first, total, err = s.collectionItems(r, &c, limit)
+			if err != nil {
+				s.fail(w, err)
+				return
+			}
 		}
 		c.Count = total
 		if c.Kind == "smart" && total == 0 {
@@ -229,7 +244,7 @@ func (s *Server) collectionImage(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(s.uploadsDir, filepath.Base(name)))
 		return
 	}
-	s.serveArtwork(w, r, imageSource(r, "collection", typ, path))
+	s.serveArtwork(w, r, s.imageSourceFor(r, "collection", typ, path))
 }
 
 type collectionBody struct {

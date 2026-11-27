@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -57,5 +58,50 @@ func TestEmptyTrash(t *testing.T) {
 	}
 	if f, _ := st.GetFileByPath(ctx, "/m/both-1.mkv"); f != nil {
 		t.Error("the missing copy of 'both' should be forgotten")
+	}
+}
+
+func TestDuplicatesSortsPresentCopiesByTitle(t *testing.T) {
+	s := openTest(t)
+	ctx := t.Context()
+	lib, err := s.SyncLibrary(ctx, "Movies", "movies", "tmdb_aired", []string{"/fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, title := range []string{"Zulu", "Alpha", "Missing Copy"} {
+		item, _, err := s.EnsureItem(ctx, &Item{LibraryID: lib, Kind: "movie", Title: title}, title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for copy := range 2 {
+			seenAt := int64(2)
+			if title == "Missing Copy" && copy == 1 {
+				seenAt = 1
+			}
+			file, err := s.SaveFile(ctx, &MediaFile{LibraryID: lib, Path: fmt.Sprintf("/fixture/%s/%d.mkv", title, copy), Size: 1}, 1, seenAt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.SetFileItems(ctx, file, []string{item}, 1); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := s.MarkMissing(ctx, lib, 2, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := s.Duplicates(ctx, lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("duplicate groups = %d, want 2", len(got))
+	}
+	for i, title := range []string{"Alpha", "Zulu"} {
+		group := got[i]
+		if group.Kind != "copies" || len(group.Items) != 1 || group.Items[0].Title != title || len(group.Files) != 2 {
+			t.Fatalf("group %d = %+v, want two copies of %s", i, group, title)
+		}
 	}
 }
